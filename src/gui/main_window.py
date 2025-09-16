@@ -114,11 +114,11 @@ class MainWindow(QMainWindow):
 
     def _create_central_widget(self) -> None:
         """Create the central widget with 4-panel layout."""
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-
+        # Create main content widget
+        main_content = QWidget()
+        
         # Main layout
-        main_layout = QHBoxLayout(central_widget)
+        main_layout = QHBoxLayout(main_content)
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(8)
 
@@ -141,15 +141,24 @@ class MainWindow(QMainWindow):
         # Set splitter proportions
         main_splitter.setSizes([300, 500, 400])
 
+        # Add splitter to main layout
+        main_layout.addWidget(main_splitter)
+
         # Create vertical layout for main content and log
-        content_layout = QVBoxLayout()
-        content_layout.addWidget(main_splitter)
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(8)
+        
+        # Add main content
+        content_layout.addWidget(main_content)
 
         # Add log panel at bottom
         self.log_panel = LogPanel()
         content_layout.addWidget(self.log_panel)
 
-        central_widget.setLayout(content_layout)
+        # Set as central widget
+        self.setCentralWidget(content_widget)
 
     def _create_left_panel(self) -> QWidget:
         """Create the left panel with work controls and statistics."""
