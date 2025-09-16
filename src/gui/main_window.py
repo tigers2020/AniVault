@@ -14,6 +14,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from ..themes import DarkTheme, ThemeManager
+
 from .anime_details_panel import AnimeDetailsPanel
 from .anime_groups_panel import AnimeGroupsPanel
 from .group_files_panel import GroupFilesPanel
@@ -30,8 +32,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("AnimeSorter")
         self.setGeometry(100, 100, 1400, 900)
 
-        # Apply dark theme
-        self._apply_dark_theme()
+        # Initialize theme manager
+        self.theme_manager = ThemeManager()
+
+        # Apply theme
+        self.theme_manager.apply_theme(self)
 
         # Create menu bar
         self._create_menu_bar()
@@ -42,43 +47,6 @@ class MainWindow(QMainWindow):
         # Create status bar
         self._create_status_bar()
 
-    def _apply_dark_theme(self) -> None:
-        """Apply dark theme to the application."""
-        self.setStyleSheet(
-            """
-            QMainWindow {
-                background-color: #1e293b;
-                color: #f1f5f9;
-            }
-            QMenuBar {
-                background-color: #334155;
-                color: #f1f5f9;
-                border-bottom: 1px solid #475569;
-                padding: 4px;
-            }
-            QMenuBar::item {
-                background-color: transparent;
-                padding: 6px 12px;
-                border-radius: 4px;
-            }
-            QMenuBar::item:selected {
-                background-color: #475569;
-            }
-            QMenu {
-                background-color: #334155;
-                color: #f1f5f9;
-                border: 1px solid #475569;
-            }
-            QMenu::item:selected {
-                background-color: #475569;
-            }
-            QStatusBar {
-                background-color: #0f172a;
-                color: #94a3b8;
-                border-top: 1px solid #475569;
-            }
-        """
-        )
 
     def _create_menu_bar(self) -> None:
         """Create the menu bar."""
@@ -176,40 +144,25 @@ class MainWindow(QMainWindow):
 
         # Statistics panel
         stats_group = QGroupBox("통계")
-        stats_group.setStyleSheet(
-            """
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #475569;
-                border-radius: 8px;
-                margin-top: 8px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 8px 0 8px;
-            }
-        """
-        )
+        stats_group.setStyleSheet(self.theme_manager.get_current_theme().get_group_box_style())
 
         stats_layout = QGridLayout(stats_group)
 
         # Statistics cards
         stats_data = [
-            ("전체 파일", "120", "#3b82f6"),
-            ("전체 그룹", "15", "#10b981"),
-            ("대기 파일", "12", "#f59e0b"),
-            ("완료 파일", "108", "#8b5cf6"),
-            ("미분류 파일", "5", "#ef4444"),
-            ("실패 항목", "2", "#6b7280"),
+            ("전체 파일", "120", "primary"),
+            ("전체 그룹", "15", "secondary"),
+            ("대기 파일", "12", "warning"),
+            ("완료 파일", "108", "accent"),
+            ("미분류 파일", "5", "error"),
+            ("실패 항목", "2", "text_muted"),
         ]
 
-        for i, (label, value, color) in enumerate(stats_data):
+        for i, (label, value, color_name) in enumerate(stats_data):
             row = i // 2
             col = i % 2
 
-            stat_widget = self._create_stat_card(label, value, color)
+            stat_widget = self._create_stat_card(label, value, color_name)
             stats_layout.addWidget(stat_widget, row, col)
 
         layout.addWidget(stats_group)
@@ -260,31 +213,24 @@ class MainWindow(QMainWindow):
 
         return panel
 
-    def _create_stat_card(self, label: str, value: str, color: str) -> QWidget:
+    def _create_stat_card(self, label: str, value: str, color_name: str) -> QWidget:
         """Create a statistics card widget."""
         card = QFrame()
-        card.setStyleSheet(
-            """
-            QFrame {
-                background-color: #334155;
-                border: 1px solid #475569;
-                border-radius: 8px;
-                padding: 12px;
-            }
-        """
-        )
+        card.frame_type = "card"
+        card.setStyleSheet(self.theme_manager.get_current_theme().get_frame_style("card"))
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(8, 8, 8, 8)
 
         # Value label
         value_label = QLabel(value)
+        value_label.label_type = "stat_value"
         value_label.setStyleSheet(
             f"""
             QLabel {{
                 font-size: 24px;
                 font-weight: bold;
-                color: {color};
+                color: {self.theme_manager.get_color(color_name)};
             }}
         """
         )
@@ -292,14 +238,8 @@ class MainWindow(QMainWindow):
 
         # Label
         label_widget = QLabel(label)
-        label_widget.setStyleSheet(
-            """
-            QLabel {
-                font-size: 12px;
-                color: #94a3b8;
-            }
-        """
-        )
+        label_widget.label_type = "stat_label"
+        label_widget.setStyleSheet(self.theme_manager.get_current_theme().get_label_style("stat_label"))
         label_widget.setAlignment(Qt.AlignCenter)
 
         layout.addWidget(value_label)

@@ -10,6 +10,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from ..themes import DarkTheme
+
 
 class AnimeDetailsPanel(QGroupBox):
     """Panel displaying detailed anime information from TMDB."""
@@ -17,6 +19,7 @@ class AnimeDetailsPanel(QGroupBox):
     def __init__(self, parent=None) -> None:
         """Initialize the anime details panel."""
         super().__init__("애니 디테일", parent)
+        self.theme = DarkTheme()
         self._setup_ui()
         self._populate_sample_data()
 
@@ -29,14 +32,7 @@ class AnimeDetailsPanel(QGroupBox):
         # Create scroll area for content
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet(
-            """
-            QScrollArea {
-                border: none;
-                background-color: transparent;
-            }
-        """
-        )
+        scroll_area.setStyleSheet(self.theme.get_scroll_area_style())
 
         # Content widget
         content_widget = QWidget()
@@ -48,14 +44,14 @@ class AnimeDetailsPanel(QGroupBox):
         self.poster_label = QLabel()
         self.poster_label.setAlignment(Qt.AlignCenter)
         self.poster_label.setStyleSheet(
-            """
-            QLabel {
-                background-color: #334155;
-                border: 2px solid #475569;
+            f"""
+            QLabel {{
+                background-color: {self.theme.get_color('bg_secondary')};
+                border: 2px solid {self.theme.get_color('border_primary')};
                 border-radius: 8px;
                 padding: 20px;
                 min-height: 200px;
-            }
+            }}
         """
         )
         self.poster_label.setText("포스터")
@@ -63,40 +59,15 @@ class AnimeDetailsPanel(QGroupBox):
 
         # Details section
         details_group = QGroupBox("상세 정보")
-        details_group.setStyleSheet(
-            """
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #475569;
-                border-radius: 8px;
-                margin-top: 8px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 8px 0 8px;
-            }
-        """
-        )
+        details_group.setStyleSheet(self.theme.get_group_box_style())
 
         details_layout = QVBoxLayout(details_group)
         details_layout.setSpacing(8)
 
         # Title
         self.title_label = QLabel("My Anime")
-        self.title_label.setStyleSheet(
-            """
-            QLabel {
-                font-size: 18px;
-                font-weight: bold;
-                color: #3b82f6;
-                padding: 8px;
-                background-color: #334155;
-                border-radius: 6px;
-            }
-        """
-        )
+        self.title_label.label_type = "title"
+        self.title_label.setStyleSheet(self.theme.get_label_style("title"))
         details_layout.addWidget(self.title_label)
 
         # Info fields
@@ -122,16 +93,8 @@ class AnimeDetailsPanel(QGroupBox):
     def _create_info_field(self, field_name: str, field_value: str) -> QWidget:
         """Create an information field widget."""
         field_widget = QFrame()
-        field_widget.setStyleSheet(
-            """
-            QFrame {
-                background-color: #334155;
-                border: 1px solid #475569;
-                border-radius: 6px;
-                padding: 8px;
-            }
-        """
-        )
+        field_widget.frame_type = "info"
+        field_widget.setStyleSheet(self.theme.get_frame_style("info"))
 
         layout = QVBoxLayout(field_widget)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -139,26 +102,13 @@ class AnimeDetailsPanel(QGroupBox):
 
         # Field name
         name_label = QLabel(field_name)
-        name_label.setStyleSheet(
-            """
-            QLabel {
-                font-weight: bold;
-                color: #94a3b8;
-                font-size: 12px;
-            }
-        """
-        )
+        name_label.label_type = "field_name"
+        name_label.setStyleSheet(self.theme.get_label_style("field_name"))
 
         # Field value
         value_label = QLabel(field_value)
-        value_label.setStyleSheet(
-            """
-            QLabel {
-                color: #f1f5f9;
-                font-size: 14px;
-            }
-        """
-        )
+        value_label.label_type = "field_value"
+        value_label.setStyleSheet(self.theme.get_label_style("field_value"))
         value_label.setWordWrap(True)
 
         layout.addWidget(name_label)

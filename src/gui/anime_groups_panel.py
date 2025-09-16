@@ -10,6 +10,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..themes import DarkTheme
+
 
 class AnimeGroupsPanel(QGroupBox):
     """Panel displaying anime groups in a table format."""
@@ -19,6 +21,7 @@ class AnimeGroupsPanel(QGroupBox):
     def __init__(self, parent=None) -> None:
         """Initialize the anime groups panel."""
         super().__init__("애니 그룹", parent)
+        self.theme = DarkTheme()
         self._setup_ui()
         self._populate_sample_data()
 
@@ -34,34 +37,7 @@ class AnimeGroupsPanel(QGroupBox):
         self.groups_table.setHorizontalHeaderLabels(["그룹명", "파일 수", "상태"])
 
         # Configure table appearance
-        self.groups_table.setStyleSheet(
-            """
-            QTableWidget {
-                background-color: #334155;
-                border: 1px solid #475569;
-                border-radius: 8px;
-                gridline-color: #475569;
-                color: #f1f5f9;
-                selection-background-color: #3b82f6;
-            }
-            QTableWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #475569;
-            }
-            QTableWidget::item:selected {
-                background-color: #3b82f6;
-                color: white;
-            }
-            QHeaderView::section {
-                background-color: #1e293b;
-                color: #f1f5f9;
-                padding: 8px;
-                border: none;
-                border-right: 1px solid #475569;
-                font-weight: bold;
-            }
-        """
-        )
+        self.groups_table.setStyleSheet(self.theme.get_table_style())
 
         # Configure table behavior
         self.groups_table.setSelectionBehavior(QAbstractItemView.SelectRows)

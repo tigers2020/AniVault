@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..themes import DarkTheme
+
 
 class LogPanel(QGroupBox):
     """Panel for displaying application execution logs."""
@@ -18,6 +20,7 @@ class LogPanel(QGroupBox):
     def __init__(self, parent=None) -> None:
         """Initialize the log panel."""
         super().__init__("실행 로그", parent)
+        self.theme = DarkTheme()
         self._setup_ui()
         self._add_sample_logs()
 
@@ -31,24 +34,8 @@ class LogPanel(QGroupBox):
         controls_layout = QHBoxLayout()
 
         clear_btn = QPushButton("로그 지우기")
-        clear_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #ef4444;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
-                color: white;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #dc2626;
-            }
-            QPushButton:pressed {
-                background-color: #b91c1c;
-            }
-        """
-        )
+        clear_btn.button_type = "danger"
+        clear_btn.setStyleSheet(self.theme.get_button_style("danger"))
         clear_btn.clicked.connect(self.clear_logs)
 
         auto_scroll_label = QLabel("자동 스크롤")
@@ -62,19 +49,7 @@ class LogPanel(QGroupBox):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setMaximumHeight(120)
-        self.log_text.setStyleSheet(
-            """
-            QTextEdit {
-                background-color: #0f172a;
-                border: 1px solid #475569;
-                border-radius: 6px;
-                color: #94a3b8;
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 11px;
-                padding: 8px;
-            }
-        """
-        )
+        self.log_text.setStyleSheet(self.theme.get_text_edit_style())
 
         # Auto-scroll to bottom
         self.log_text.verticalScrollBar().rangeChanged.connect(

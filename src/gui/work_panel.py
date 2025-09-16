@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..themes import DarkTheme
+
 
 class WorkPanel(QGroupBox):
     """Work panel containing source/target folders and action buttons."""
@@ -22,6 +24,7 @@ class WorkPanel(QGroupBox):
     def __init__(self, parent=None) -> None:
         """Initialize the work panel."""
         super().__init__("작업 패널", parent)
+        self.theme = DarkTheme()
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -37,39 +40,11 @@ class WorkPanel(QGroupBox):
 
         self.source_path_edit = QLineEdit()
         self.source_path_edit.setPlaceholderText("소스 경로를 선택하세요...")
-        self.source_path_edit.setStyleSheet(
-            """
-            QLineEdit {
-                background-color: #334155;
-                border: 1px solid #475569;
-                border-radius: 6px;
-                padding: 8px;
-                color: #f1f5f9;
-            }
-            QLineEdit:focus {
-                border-color: #3b82f6;
-            }
-        """
-        )
+        self.source_path_edit.setStyleSheet(self.theme.get_line_edit_style())
 
         source_browse_btn = QPushButton("찾아보기")
-        source_browse_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #475569;
-                border: 1px solid #64748b;
-                border-radius: 6px;
-                padding: 6px 12px;
-                color: #f1f5f9;
-            }
-            QPushButton:hover {
-                background-color: #64748b;
-            }
-            QPushButton:pressed {
-                background-color: #334155;
-            }
-        """
-        )
+        source_browse_btn.button_type = "default"
+        source_browse_btn.setStyleSheet(self.theme.get_button_style("default"))
         source_browse_btn.clicked.connect(self._browse_source_folder)
 
         source_layout.addWidget(source_label)
@@ -83,39 +58,11 @@ class WorkPanel(QGroupBox):
 
         self.target_path_edit = QLineEdit()
         self.target_path_edit.setPlaceholderText("대상 경로를 선택하세요...")
-        self.target_path_edit.setStyleSheet(
-            """
-            QLineEdit {
-                background-color: #334155;
-                border: 1px solid #475569;
-                border-radius: 6px;
-                padding: 8px;
-                color: #f1f5f9;
-            }
-            QLineEdit:focus {
-                border-color: #3b82f6;
-            }
-        """
-        )
+        self.target_path_edit.setStyleSheet(self.theme.get_line_edit_style())
 
         target_browse_btn = QPushButton("찾아보기")
-        target_browse_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #475569;
-                border: 1px solid #64748b;
-                border-radius: 6px;
-                padding: 6px 12px;
-                color: #f1f5f9;
-            }
-            QPushButton:hover {
-                background-color: #64748b;
-            }
-            QPushButton:pressed {
-                background-color: #334155;
-            }
-        """
-        )
+        target_browse_btn.button_type = "default"
+        target_browse_btn.setStyleSheet(self.theme.get_button_style("default"))
         target_browse_btn.clicked.connect(self._browse_target_folder)
 
         target_layout.addWidget(target_label)
@@ -126,66 +73,18 @@ class WorkPanel(QGroupBox):
         buttons_layout = QHBoxLayout()
 
         self.scan_btn = QPushButton("스캔")
-        self.scan_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #3b82f6;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 16px;
-                color: white;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #2563eb;
-            }
-            QPushButton:pressed {
-                background-color: #1d4ed8;
-            }
-        """
-        )
+        self.scan_btn.button_type = "primary"
+        self.scan_btn.setStyleSheet(self.theme.get_button_style("primary"))
         self.scan_btn.clicked.connect(self.scan_requested.emit)
 
         self.organize_btn = QPushButton("정리")
-        self.organize_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #10b981;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 16px;
-                color: white;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #059669;
-            }
-            QPushButton:pressed {
-                background-color: #047857;
-            }
-        """
-        )
+        self.organize_btn.button_type = "secondary"
+        self.organize_btn.setStyleSheet(self.theme.get_button_style("secondary"))
         self.organize_btn.clicked.connect(self.organize_requested.emit)
 
         self.preview_btn = QPushButton("미리보기")
-        self.preview_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #8b5cf6;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 16px;
-                color: white;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #7c3aed;
-            }
-            QPushButton:pressed {
-                background-color: #6d28d9;
-            }
-        """
-        )
+        self.preview_btn.button_type = "accent"
+        self.preview_btn.setStyleSheet(self.theme.get_button_style("accent"))
         self.preview_btn.clicked.connect(self.preview_requested.emit)
 
         buttons_layout.addWidget(self.scan_btn)
