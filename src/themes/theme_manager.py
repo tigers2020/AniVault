@@ -1,6 +1,7 @@
 """Theme manager for handling theme switching and application."""
 
-from typing import Optional, Callable, List
+from collections.abc import Callable
+
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from .dark_theme import DarkTheme
@@ -8,10 +9,10 @@ from .dark_theme import DarkTheme
 
 class ThemeManager(QObject):
     """Manages theme application and switching with singleton pattern."""
-    
+
     # Signal emitted when theme changes
     theme_changed = pyqtSignal(object)
-    
+
     _instance = None
     _initialized = False
 
@@ -27,10 +28,10 @@ class ThemeManager(QObject):
             super().__init__()
             self.current_theme = DarkTheme()
             self._theme_history = []
-            self._theme_change_callbacks: List[Callable] = []
+            self._theme_change_callbacks: list[Callable] = []
             self._initialized = True
 
-    def apply_theme(self, widget, theme: Optional[DarkTheme] = None) -> None:
+    def apply_theme(self, widget, theme: DarkTheme | None = None) -> None:
         """Apply theme to a widget and its children."""
         if theme is None:
             theme = self.current_theme
@@ -47,7 +48,7 @@ class ThemeManager(QObject):
     def _apply_widget_theme(self, widget, theme: DarkTheme) -> None:
         """Apply specific theme to a widget based on its type."""
         widget_name = widget.__class__.__name__
-        
+
         if widget_name == "QGroupBox":
             widget.setStyleSheet(theme.get_group_box_style())
         elif widget_name == "QLineEdit":
@@ -73,10 +74,10 @@ class ThemeManager(QObject):
         """Switch to a different theme."""
         self._theme_history.append(self.current_theme)
         self.current_theme = theme_class()
-        
+
         # Notify all registered callbacks
         self._notify_theme_change()
-        
+
         # Emit signal for Qt-based components
         self.theme_changed.emit(self.current_theme)
 
@@ -87,17 +88,17 @@ class ThemeManager(QObject):
     def get_color(self, color_name: str) -> str:
         """Get a color from the current theme."""
         return self.current_theme.get_color(color_name)
-    
+
     def register_theme_change_callback(self, callback: Callable) -> None:
         """Register a callback to be called when theme changes."""
         if callback not in self._theme_change_callbacks:
             self._theme_change_callbacks.append(callback)
-    
+
     def unregister_theme_change_callback(self, callback: Callable) -> None:
         """Unregister a theme change callback."""
         if callback in self._theme_change_callbacks:
             self._theme_change_callbacks.remove(callback)
-    
+
     def _notify_theme_change(self) -> None:
         """Notify all registered callbacks about theme change."""
         for callback in self._theme_change_callbacks:
@@ -105,11 +106,11 @@ class ThemeManager(QObject):
                 callback(self.current_theme)
             except Exception as e:
                 print(f"Error in theme change callback: {e}")
-    
+
     def get_theme_colors(self) -> dict:
         """Get all available colors from current theme."""
         return self.current_theme.COLORS
-    
+
     def is_theme_available(self, color_name: str) -> bool:
         """Check if a color is available in current theme."""
         return color_name in self.current_theme.COLORS

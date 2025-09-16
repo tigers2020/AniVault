@@ -1,6 +1,5 @@
 """Dark theme configuration for AniVault application."""
 
-from typing import Dict
 
 
 class DarkTheme:
@@ -12,58 +11,58 @@ class DarkTheme:
         "primary": "#3b82f6",  # Blue
         "primary_hover": "#2563eb",
         "primary_pressed": "#1d4ed8",
-        
+
         # Secondary colors
         "secondary": "#10b981",  # Green
         "secondary_hover": "#059669",
         "secondary_pressed": "#047857",
-        
+
         # Accent colors
         "accent": "#8b5cf6",  # Purple
         "accent_hover": "#7c3aed",
         "accent_pressed": "#6d28d9",
-        
+
         # Background colors
         "bg_primary": "#1e293b",  # Dark blue-gray
         "bg_secondary": "#334155",  # Medium blue-gray
         "bg_tertiary": "#475569",  # Light blue-gray
         "bg_surface": "#0f172a",  # Darkest blue-gray
-        
+
         # Text colors
         "text_primary": "#f1f5f9",  # White
         "text_secondary": "#94a3b8",  # Light gray
         "text_muted": "#64748b",  # Medium gray
-        
+
         # Border colors
         "border_primary": "#475569",
         "border_secondary": "#64748b",
-        
+
         # Status colors
         "success": "#10b981",
         "warning": "#f59e0b",
         "error": "#ef4444",
         "info": "#3b82f6",
-        
+
         # Log level colors
         "log_info": "#94a3b8",      # Light grey
         "log_warning": "#fbbf24",   # Bright yellow
         "log_error": "#ef4444",     # Red
         "log_success": "#22c55e",   # Bright green
-        
+
         # Status indicator colors
         "status_success": "#22c55e",
         "status_warning": "#eab308",
         "status_error": "#dc2626",
-        
+
         # Label text colors
         "label_text": "#94a3b8",
-        
+
         # Table colors
         "table_header": "#1e293b",
         "table_row_even": "#334155",
         "table_row_odd": "#2d3748",
         "table_selection": "#3b82f6",
-        
+
         # Button colors
         "btn_danger": "#ef4444",
         "btn_danger_hover": "#dc2626",
@@ -297,27 +296,27 @@ class DarkTheme:
             background-color: {cls.get_color('table_header')} !important;
             color: {cls.get_color('text_primary')} !important;
         }}
-        
+
         /* Style the corner cell (top-left intersection) */
         QHeaderView::corner {{
             background-color: {cls.get_color('table_header')} !important;
             color: {cls.get_color('text_primary')} !important;
             border: none;
         }}
-        
+
         /* Alternative approach for corner button */
         QTableCornerButton::section {{
             background-color: {cls.get_color('table_header')} !important;
             color: {cls.get_color('text_primary')} !important;
             border: none;
         }}
-        
+
         /* Force all table elements to use dark theme */
         QTableWidget * {{
             background-color: {cls.get_color('bg_secondary')} !important;
             color: {cls.get_color('text_primary')} !important;
         }}
-        
+
         /* Override any system default colors */
         QTableWidget::item:!alternate {{
             background-color: {cls.get_color('bg_secondary')} !important;
@@ -343,11 +342,11 @@ class DarkTheme:
     @classmethod
     def get_scroll_area_style(cls) -> str:
         """Get scroll area stylesheet."""
-        return f"""
-        QScrollArea {{
+        return """
+        QScrollArea {
             border: none;
             background-color: transparent;
-        }}
+        }
         """
 
     @classmethod
@@ -441,19 +440,19 @@ class DarkTheme:
             background-color: {cls.get_color('bg_primary')};
             color: {cls.get_color('text_primary')};
         }}
-        
+
         /* Main window styles */
         QMainWindow {{
             background-color: {cls.get_color('bg_primary')};
             color: {cls.get_color('text_primary')};
         }}
-        
+
         /* Widget styles */
         QWidget {{
             background-color: {cls.get_color('bg_primary')};
             color: {cls.get_color('text_primary')};
         }}
-        
+
         /* Scroll bar styles */
         QScrollBar:vertical {{
             background-color: {cls.get_color('bg_secondary')};
@@ -471,7 +470,7 @@ class DarkTheme:
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
             height: 0px;
         }}
-        
+
         QScrollBar:horizontal {{
             background-color: {cls.get_color('bg_secondary')};
             height: 12px;
@@ -488,7 +487,7 @@ class DarkTheme:
         QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
             width: 0px;
         }}
-        
+
         /* Splitter styles */
         QSplitter {{
             background-color: {cls.get_color('bg_primary')};
@@ -502,7 +501,7 @@ class DarkTheme:
         QSplitter::handle:vertical {{
             height: 2px;
         }}
-        
+
         /* Tooltip styles */
         QToolTip {{
             background-color: {cls.get_color('bg_secondary')};
@@ -511,9 +510,9 @@ class DarkTheme:
             border-radius: 4px;
             padding: 4px;
         }}
-        
+
         """ + cls.get_main_window_style() + cls.get_menu_bar_style() + cls.get_status_bar_style()
-    
+
     @classmethod
     def get_log_level_color(cls, level: str) -> str:
         """Get color for specific log level."""
@@ -524,7 +523,7 @@ class DarkTheme:
             'SUCCESS': cls.get_color('log_success'),
         }
         return level_colors.get(level.upper(), cls.get_color('log_info'))
-    
+
     @classmethod
     def get_status_color(cls, status: str) -> str:
         """Get color for specific status."""
@@ -549,7 +548,7 @@ class DarkTheme:
             '실패': cls.get_color('status_error'),
         }
         return status_colors.get(status, cls.get_color('text_secondary'))
-    
+
     @classmethod
     def get_label_text_style(cls) -> str:
         """Get style for label text."""

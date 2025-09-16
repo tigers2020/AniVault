@@ -15,7 +15,6 @@ from PyQt5.QtWidgets import (
 )
 
 from ..themes.theme_manager import get_theme_manager
-
 from .anime_details_panel import AnimeDetailsPanel
 from .anime_groups_panel import AnimeGroupsPanel
 from .group_files_panel import GroupFilesPanel
@@ -85,7 +84,7 @@ class MainWindow(QMainWindow):
         # Create main content widget
         main_content = QWidget()
         main_content.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
-        
+
         # Main layout
         main_layout = QHBoxLayout(main_content)
         main_layout.setContentsMargins(8, 8, 8, 8)
@@ -119,7 +118,7 @@ class MainWindow(QMainWindow):
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(8)
-        
+
         # Add main content
         content_layout.addWidget(main_content)
 

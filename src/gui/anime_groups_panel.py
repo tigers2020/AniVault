@@ -26,7 +26,7 @@ class AnimeGroupsPanel(QGroupBox):
         self.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
         self._setup_ui()
         self._populate_sample_data()
-        
+
         # Apply dark theme to all table items after population
         self._apply_dark_theme_to_table()
 
@@ -46,17 +46,17 @@ class AnimeGroupsPanel(QGroupBox):
         self.groups_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.groups_table.setAlternatingRowColors(True)
         self.groups_table.setSortingEnabled(True)
-        
+
         # Configure table appearance
         self.groups_table.setStyleSheet(self.theme_manager.current_theme.get_table_style())
-        
+
         # Force table to use dark theme
         self.groups_table.setAlternatingRowColors(True)
         self.groups_table.setStyleSheet(self.theme_manager.current_theme.get_table_style())
-        
+
         # Force dark theme on table items
         self._apply_dark_theme_to_table()
-        
+
         # Fix the corner cell (top-left intersection)
         self._fix_table_corner()
 
@@ -70,32 +70,32 @@ class AnimeGroupsPanel(QGroupBox):
         self.groups_table.itemSelectionChanged.connect(self._on_selection_changed)
 
         layout.addWidget(self.groups_table)
-    
+
     def _set_status_color(self, status_item: QTableWidgetItem, status: str) -> None:
         """Set background color for status item based on status."""
         from PyQt5.QtGui import QColor
-        
+
         if status == "완료":
             color = QColor(self.theme_manager.get_color('status_success'))
         elif status == "대기":
             color = QColor(self.theme_manager.get_color('status_warning'))
         else:
             color = QColor(self.theme_manager.get_color('status_error'))
-        
+
         # Set background color for status items only
         status_item.setBackground(color)
         # Don't set text color - let CSS handle it
-    
+
     def _set_row_colors(self, row: int) -> None:
         """Set background colors for table row items."""
         # This method is now deprecated - CSS handles all styling
         # Keeping for backward compatibility but not used
         pass
-    
+
     def _apply_dark_theme_to_table(self) -> None:
         """Force dark theme on all table items."""
         from PyQt5.QtGui import QColor
-        
+
         # Apply dark theme to all existing items
         for row in range(self.groups_table.rowCount()):
             for col in range(self.groups_table.columnCount()):
@@ -107,7 +107,7 @@ class AnimeGroupsPanel(QGroupBox):
                     else:
                         item.setBackground(QColor(self.theme_manager.get_color('bg_secondary')))
                     item.setForeground(QColor(self.theme_manager.get_color('text_primary')))
-    
+
     def _fix_table_corner(self) -> None:
         """Fix the table corner cell (top-left intersection) to use dark theme."""
         try:
@@ -122,9 +122,9 @@ class AnimeGroupsPanel(QGroupBox):
                         border: none;
                     }}
                 """)
-                
+
                 # Also set palette as backup
-                from PyQt5.QtGui import QPalette
+                from PyQt5.QtGui import QColor
                 palette = corner_button.palette()
                 palette.setColor(palette.Window, QColor(self.theme_manager.get_color('table_header')))
                 palette.setColor(palette.WindowText, QColor(self.theme_manager.get_color('text_primary')))
