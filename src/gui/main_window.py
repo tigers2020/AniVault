@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from ..themes import DarkTheme, ThemeManager
+from ..themes.theme_manager import get_theme_manager
 
 from .anime_details_panel import AnimeDetailsPanel
 from .anime_groups_panel import AnimeGroupsPanel
@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1400, 900)
 
         # Initialize theme manager
-        self.theme_manager = ThemeManager()
+        self.theme_manager = get_theme_manager()
 
         # Apply theme
         self.theme_manager.apply_theme(self)
@@ -84,6 +84,7 @@ class MainWindow(QMainWindow):
         """Create the central widget with 4-panel layout."""
         # Create main content widget
         main_content = QWidget()
+        main_content.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
         
         # Main layout
         main_layout = QHBoxLayout(main_content)
@@ -114,6 +115,7 @@ class MainWindow(QMainWindow):
 
         # Create vertical layout for main content and log
         content_widget = QWidget()
+        content_widget.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(8)
@@ -133,6 +135,7 @@ class MainWindow(QMainWindow):
         panel = QWidget()
         panel.setMaximumWidth(300)
         panel.setMinimumWidth(250)
+        panel.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -144,7 +147,7 @@ class MainWindow(QMainWindow):
 
         # Statistics panel
         stats_group = QGroupBox("통계")
-        stats_group.setStyleSheet(self.theme_manager.get_current_theme().get_group_box_style())
+        stats_group.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
 
         stats_layout = QGridLayout(stats_group)
 
@@ -173,6 +176,7 @@ class MainWindow(QMainWindow):
     def _create_middle_panel(self) -> QWidget:
         """Create the middle panel with groups and files."""
         panel = QWidget()
+        panel.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -202,6 +206,7 @@ class MainWindow(QMainWindow):
         panel = QWidget()
         panel.setMaximumWidth(400)
         panel.setMinimumWidth(300)
+        panel.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -217,7 +222,7 @@ class MainWindow(QMainWindow):
         """Create a statistics card widget."""
         card = QFrame()
         card.frame_type = "card"
-        card.setStyleSheet(self.theme_manager.get_current_theme().get_frame_style("card"))
+        card.setStyleSheet(self.theme_manager.current_theme.get_frame_style("card"))
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -239,7 +244,7 @@ class MainWindow(QMainWindow):
         # Label
         label_widget = QLabel(label)
         label_widget.label_type = "stat_label"
-        label_widget.setStyleSheet(self.theme_manager.get_current_theme().get_label_style("stat_label"))
+        label_widget.setStyleSheet(self.theme_manager.current_theme.get_label_style("stat_label"))
         label_widget.setAlignment(Qt.AlignCenter)
 
         layout.addWidget(value_label)

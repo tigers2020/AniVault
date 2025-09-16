@@ -44,6 +44,20 @@ class DarkTheme:
         "error": "#ef4444",
         "info": "#3b82f6",
         
+        # Log level colors
+        "log_info": "#94a3b8",      # Light grey
+        "log_warning": "#fbbf24",   # Bright yellow
+        "log_error": "#ef4444",     # Red
+        "log_success": "#22c55e",   # Bright green
+        
+        # Status indicator colors
+        "status_success": "#22c55e",
+        "status_warning": "#eab308",
+        "status_error": "#dc2626",
+        
+        # Label text colors
+        "label_text": "#94a3b8",
+        
         # Table colors
         "table_header": "#1e293b",
         "table_row_even": "#334155",
@@ -116,6 +130,7 @@ class DarkTheme:
         return f"""
         QGroupBox {{
             font-weight: bold;
+            background-color: {cls.get_color('bg_secondary')};
             border: 2px solid {cls.get_color('border_primary')};
             border-radius: 8px;
             margin-top: 8px;
@@ -126,6 +141,8 @@ class DarkTheme:
             subcontrol-origin: margin;
             left: 10px;
             padding: 0 8px 0 8px;
+            background-color: {cls.get_color('bg_secondary')};
+            color: {cls.get_color('text_primary')};
         }}
         """
 
@@ -155,7 +172,7 @@ class DarkTheme:
                 border: none;
                 border-radius: 6px;
                 padding: 10px 16px;
-                color: white;
+                color: {cls.get_color('text_primary')};
                 font-weight: bold;
             }}
             QPushButton:hover {{
@@ -172,7 +189,7 @@ class DarkTheme:
                 border: none;
                 border-radius: 6px;
                 padding: 10px 16px;
-                color: white;
+                color: {cls.get_color('text_primary')};
                 font-weight: bold;
             }}
             QPushButton:hover {{
@@ -189,7 +206,7 @@ class DarkTheme:
                 border: none;
                 border-radius: 6px;
                 padding: 10px 16px;
-                color: white;
+                color: {cls.get_color('text_primary')};
                 font-weight: bold;
             }}
             QPushButton:hover {{
@@ -206,7 +223,7 @@ class DarkTheme:
                 border: none;
                 border-radius: 4px;
                 padding: 6px 12px;
-                color: white;
+                color: {cls.get_color('text_primary')};
                 font-size: 12px;
             }}
             QPushButton:hover {{
@@ -238,28 +255,73 @@ class DarkTheme:
         """Get table widget stylesheet."""
         return f"""
         QTableWidget {{
-            background-color: {cls.get_color('bg_secondary')};
+            background-color: {cls.get_color('bg_secondary')} !important;
             border: 1px solid {cls.get_color('border_primary')};
             border-radius: 8px;
             gridline-color: {cls.get_color('border_primary')};
-            color: {cls.get_color('text_primary')};
+            color: {cls.get_color('text_primary')} !important;
             selection-background-color: {cls.get_color('table_selection')};
+            alternate-background-color: {cls.get_color('table_row_odd')};
         }}
         QTableWidget::item {{
             padding: 8px;
             border-bottom: 1px solid {cls.get_color('border_primary')};
+            background-color: {cls.get_color('bg_secondary')} !important;
+            color: {cls.get_color('text_primary')} !important;
+        }}
+        QTableWidget::item:alternate {{
+            background-color: {cls.get_color('table_row_odd')} !important;
+            color: {cls.get_color('text_primary')} !important;
         }}
         QTableWidget::item:selected {{
-            background-color: {cls.get_color('table_selection')};
-            color: white;
+            background-color: {cls.get_color('table_selection')} !important;
+            color: {cls.get_color('text_primary')} !important;
+        }}
+        QTableWidget::item:selected:alternate {{
+            background-color: {cls.get_color('table_selection')} !important;
+            color: {cls.get_color('text_primary')} !important;
         }}
         QHeaderView::section {{
-            background-color: {cls.get_color('table_header')};
-            color: {cls.get_color('text_primary')};
+            background-color: {cls.get_color('table_header')} !important;
+            color: {cls.get_color('text_primary')} !important;
             padding: 8px;
             border: none;
             border-right: 1px solid {cls.get_color('border_primary')};
             font-weight: bold;
+        }}
+        QHeaderView::section:horizontal {{
+            background-color: {cls.get_color('table_header')} !important;
+            color: {cls.get_color('text_primary')} !important;
+        }}
+        QHeaderView::section:vertical {{
+            background-color: {cls.get_color('table_header')} !important;
+            color: {cls.get_color('text_primary')} !important;
+        }}
+        
+        /* Style the corner cell (top-left intersection) */
+        QHeaderView::corner {{
+            background-color: {cls.get_color('table_header')} !important;
+            color: {cls.get_color('text_primary')} !important;
+            border: none;
+        }}
+        
+        /* Alternative approach for corner button */
+        QTableCornerButton::section {{
+            background-color: {cls.get_color('table_header')} !important;
+            color: {cls.get_color('text_primary')} !important;
+            border: none;
+        }}
+        
+        /* Force all table elements to use dark theme */
+        QTableWidget * {{
+            background-color: {cls.get_color('bg_secondary')} !important;
+            color: {cls.get_color('text_primary')} !important;
+        }}
+        
+        /* Override any system default colors */
+        QTableWidget::item:!alternate {{
+            background-color: {cls.get_color('bg_secondary')} !important;
+            color: {cls.get_color('text_primary')} !important;
         }}
         """
 
@@ -373,8 +435,126 @@ class DarkTheme:
     @classmethod
     def get_complete_style(cls) -> str:
         """Get complete application stylesheet."""
-        return (
-            cls.get_main_window_style()
-            + cls.get_menu_bar_style()
-            + cls.get_status_bar_style()
-        )
+        return f"""
+        /* Global application styles */
+        QApplication {{
+            background-color: {cls.get_color('bg_primary')};
+            color: {cls.get_color('text_primary')};
+        }}
+        
+        /* Main window styles */
+        QMainWindow {{
+            background-color: {cls.get_color('bg_primary')};
+            color: {cls.get_color('text_primary')};
+        }}
+        
+        /* Widget styles */
+        QWidget {{
+            background-color: {cls.get_color('bg_primary')};
+            color: {cls.get_color('text_primary')};
+        }}
+        
+        /* Scroll bar styles */
+        QScrollBar:vertical {{
+            background-color: {cls.get_color('bg_secondary')};
+            width: 12px;
+            border-radius: 6px;
+        }}
+        QScrollBar::handle:vertical {{
+            background-color: {cls.get_color('bg_tertiary')};
+            border-radius: 6px;
+            min-height: 20px;
+        }}
+        QScrollBar::handle:vertical:hover {{
+            background-color: {cls.get_color('border_secondary')};
+        }}
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+            height: 0px;
+        }}
+        
+        QScrollBar:horizontal {{
+            background-color: {cls.get_color('bg_secondary')};
+            height: 12px;
+            border-radius: 6px;
+        }}
+        QScrollBar::handle:horizontal {{
+            background-color: {cls.get_color('bg_tertiary')};
+            border-radius: 6px;
+            min-width: 20px;
+        }}
+        QScrollBar::handle:horizontal:hover {{
+            background-color: {cls.get_color('border_secondary')};
+        }}
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+            width: 0px;
+        }}
+        
+        /* Splitter styles */
+        QSplitter {{
+            background-color: {cls.get_color('bg_primary')};
+        }}
+        QSplitter::handle {{
+            background-color: {cls.get_color('border_primary')};
+        }}
+        QSplitter::handle:horizontal {{
+            width: 2px;
+        }}
+        QSplitter::handle:vertical {{
+            height: 2px;
+        }}
+        
+        /* Tooltip styles */
+        QToolTip {{
+            background-color: {cls.get_color('bg_secondary')};
+            color: {cls.get_color('text_primary')};
+            border: 1px solid {cls.get_color('border_primary')};
+            border-radius: 4px;
+            padding: 4px;
+        }}
+        
+        """ + cls.get_main_window_style() + cls.get_menu_bar_style() + cls.get_status_bar_style()
+    
+    @classmethod
+    def get_log_level_color(cls, level: str) -> str:
+        """Get color for specific log level."""
+        level_colors = {
+            'INFO': cls.get_color('log_info'),
+            'WARNING': cls.get_color('log_warning'),
+            'ERROR': cls.get_color('log_error'),
+            'SUCCESS': cls.get_color('log_success'),
+        }
+        return level_colors.get(level.upper(), cls.get_color('log_info'))
+    
+    @classmethod
+    def get_status_color(cls, status: str) -> str:
+        """Get color for specific status."""
+        status_colors = {
+            'success': cls.get_color('status_success'),
+            'warning': cls.get_color('status_warning'),
+            'error': cls.get_color('status_error'),
+            'completed': cls.get_color('status_success'),
+            'pending': cls.get_color('status_warning'),
+            'failed': cls.get_color('status_error'),
+            # Uppercase versions
+            'SUCCESS': cls.get_color('status_success'),
+            'WARNING': cls.get_color('status_warning'),
+            'ERROR': cls.get_color('status_error'),
+            'COMPLETED': cls.get_color('status_success'),
+            'PENDING': cls.get_color('status_warning'),
+            'FAILED': cls.get_color('status_error'),
+            # Korean status names
+            '완료': cls.get_color('status_success'),
+            '대기': cls.get_color('status_warning'),
+            '오류': cls.get_color('status_error'),
+            '실패': cls.get_color('status_error'),
+        }
+        return status_colors.get(status, cls.get_color('text_secondary'))
+    
+    @classmethod
+    def get_label_text_style(cls) -> str:
+        """Get style for label text."""
+        return f"""
+        QLabel {{
+            color: {cls.get_color('label_text')};
+        }}
+        """

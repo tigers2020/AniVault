@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..themes import DarkTheme
+from ..themes.theme_manager import get_theme_manager
 
 
 class WorkPanel(QGroupBox):
@@ -24,7 +24,9 @@ class WorkPanel(QGroupBox):
     def __init__(self, parent=None) -> None:
         """Initialize the work panel."""
         super().__init__("작업 패널", parent)
-        self.theme = DarkTheme()
+        self.theme_manager = get_theme_manager()
+        # Apply theme to the GroupBox first
+        self.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -36,15 +38,15 @@ class WorkPanel(QGroupBox):
         # Source folder section
         source_layout = QVBoxLayout()
         source_label = QLabel("소스 폴더")
-        source_label.setStyleSheet("font-weight: bold; color: #94a3b8;")
+        source_label.setStyleSheet(f"font-weight: bold; color: {self.theme_manager.get_color('label_text')};")
 
         self.source_path_edit = QLineEdit()
         self.source_path_edit.setPlaceholderText("소스 경로를 선택하세요...")
-        self.source_path_edit.setStyleSheet(self.theme.get_line_edit_style())
+        self.source_path_edit.setStyleSheet(self.theme_manager.current_theme.get_line_edit_style())
 
         source_browse_btn = QPushButton("찾아보기")
         source_browse_btn.button_type = "default"
-        source_browse_btn.setStyleSheet(self.theme.get_button_style("default"))
+        source_browse_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("default"))
         source_browse_btn.clicked.connect(self._browse_source_folder)
 
         source_layout.addWidget(source_label)
@@ -54,15 +56,15 @@ class WorkPanel(QGroupBox):
         # Target folder section
         target_layout = QVBoxLayout()
         target_label = QLabel("대상 폴더")
-        target_label.setStyleSheet("font-weight: bold; color: #94a3b8;")
+        target_label.setStyleSheet(f"font-weight: bold; color: {self.theme_manager.get_color('label_text')};")
 
         self.target_path_edit = QLineEdit()
         self.target_path_edit.setPlaceholderText("대상 경로를 선택하세요...")
-        self.target_path_edit.setStyleSheet(self.theme.get_line_edit_style())
+        self.target_path_edit.setStyleSheet(self.theme_manager.current_theme.get_line_edit_style())
 
         target_browse_btn = QPushButton("찾아보기")
         target_browse_btn.button_type = "default"
-        target_browse_btn.setStyleSheet(self.theme.get_button_style("default"))
+        target_browse_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("default"))
         target_browse_btn.clicked.connect(self._browse_target_folder)
 
         target_layout.addWidget(target_label)
@@ -74,17 +76,17 @@ class WorkPanel(QGroupBox):
 
         self.scan_btn = QPushButton("스캔")
         self.scan_btn.button_type = "primary"
-        self.scan_btn.setStyleSheet(self.theme.get_button_style("primary"))
+        self.scan_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("primary"))
         self.scan_btn.clicked.connect(self.scan_requested.emit)
 
         self.organize_btn = QPushButton("정리")
         self.organize_btn.button_type = "secondary"
-        self.organize_btn.setStyleSheet(self.theme.get_button_style("secondary"))
+        self.organize_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("secondary"))
         self.organize_btn.clicked.connect(self.organize_requested.emit)
 
         self.preview_btn = QPushButton("미리보기")
         self.preview_btn.button_type = "accent"
-        self.preview_btn.setStyleSheet(self.theme.get_button_style("accent"))
+        self.preview_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("accent"))
         self.preview_btn.clicked.connect(self.preview_requested.emit)
 
         buttons_layout.addWidget(self.scan_btn)

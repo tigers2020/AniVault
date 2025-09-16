@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..themes import DarkTheme
+from ..themes.theme_manager import get_theme_manager
 
 
 class LogPanel(QGroupBox):
@@ -20,7 +20,9 @@ class LogPanel(QGroupBox):
     def __init__(self, parent=None) -> None:
         """Initialize the log panel."""
         super().__init__("실행 로그", parent)
-        self.theme = DarkTheme()
+        self.theme_manager = get_theme_manager()
+        # Apply theme to the GroupBox first
+        self.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
         self._setup_ui()
         self._add_sample_logs()
 
@@ -35,11 +37,11 @@ class LogPanel(QGroupBox):
 
         clear_btn = QPushButton("로그 지우기")
         clear_btn.button_type = "danger"
-        clear_btn.setStyleSheet(self.theme.get_button_style("danger"))
+        clear_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("danger"))
         clear_btn.clicked.connect(self.clear_logs)
 
         auto_scroll_label = QLabel("자동 스크롤")
-        auto_scroll_label.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        auto_scroll_label.setStyleSheet(f"color: {self.theme_manager.get_color('log_info')}; font-size: 12px;")
 
         controls_layout.addWidget(clear_btn)
         controls_layout.addStretch()
@@ -49,7 +51,7 @@ class LogPanel(QGroupBox):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setMaximumHeight(120)
-        self.log_text.setStyleSheet(self.theme.get_text_edit_style())
+        self.log_text.setStyleSheet(self.theme_manager.current_theme.get_text_edit_style())
 
         # Auto-scroll to bottom
         self.log_text.verticalScrollBar().rangeChanged.connect(
@@ -64,16 +66,18 @@ class LogPanel(QGroupBox):
     def _add_sample_logs(self) -> None:
         """Add sample log entries."""
         sample_logs = [
-            "[12:30:01] 프로그램 시작",
-            "[12:30:05] 소스 폴더 스캔 완료 (120개 항목)",
-            "[12:30:15] 그룹화 작업 완료 (15개 그룹)",
-            "[12:30:20] TMDB API 연결 성공",
-            "[12:30:25] 메타데이터 검색 완료",
-            "[12:30:30] 정리 작업 준비 완료",
+            ("프로그램 시작", "INFO"),
+            ("소스 폴더 스캔 완료 (120개 항목)", "SUCCESS"),
+            ("일부 파일을 처리할 수 없습니다", "WARNING"),
+            ("그룹화 작업 완료 (15개 그룹)", "SUCCESS"),
+            ("TMDB API 연결 실패", "ERROR"),
+            ("TMDB API 연결 성공", "SUCCESS"),
+            ("메타데이터 검색 완료", "INFO"),
+            ("정리 작업 준비 완료", "SUCCESS"),
         ]
 
-        for log_entry in sample_logs:
-            self.add_log(log_entry, show_timestamp=False)
+        for message, log_type in sample_logs:
+            self.add_log(message, log_type, show_timestamp=False)
 
     def add_log(self, message: str, log_type: str = "INFO", show_timestamp: bool = True) -> None:
         """Add a log entry to the log panel."""
@@ -83,15 +87,8 @@ class LogPanel(QGroupBox):
         else:
             log_entry = message
 
-        # Color code based on log type
-        if log_type == "ERROR":
-            color = "#ef4444"
-        elif log_type == "WARNING":
-            color = "#f59e0b"
-        elif log_type == "SUCCESS":
-            color = "#10b981"
-        else:  # INFO
-            color = "#94a3b8"
+        # Get color from theme manager
+        color = self.theme_manager.current_theme.get_log_level_color(log_type)
 
         # Add colored log entry
         self.log_text.append(f'<span style="color: {color};">{log_entry}</span>')

@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from ..themes import DarkTheme
+from ..themes.theme_manager import get_theme_manager
 
 
 class AnimeDetailsPanel(QGroupBox):
@@ -19,7 +19,9 @@ class AnimeDetailsPanel(QGroupBox):
     def __init__(self, parent=None) -> None:
         """Initialize the anime details panel."""
         super().__init__("애니 디테일", parent)
-        self.theme = DarkTheme()
+        self.theme_manager = get_theme_manager()
+        # Apply theme to the GroupBox first
+        self.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
         self._setup_ui()
         self._populate_sample_data()
 
@@ -32,10 +34,11 @@ class AnimeDetailsPanel(QGroupBox):
         # Create scroll area for content
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet(self.theme.get_scroll_area_style())
+        scroll_area.setStyleSheet(self.theme_manager.current_theme.get_scroll_area_style())
 
         # Content widget
         content_widget = QWidget()
+        content_widget.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(12)
@@ -46,8 +49,8 @@ class AnimeDetailsPanel(QGroupBox):
         self.poster_label.setStyleSheet(
             f"""
             QLabel {{
-                background-color: {self.theme.get_color('bg_secondary')};
-                border: 2px solid {self.theme.get_color('border_primary')};
+                background-color: {self.theme_manager.get_color('bg_secondary')};
+                border: 2px solid {self.theme_manager.get_color('border_primary')};
                 border-radius: 8px;
                 padding: 20px;
                 min-height: 200px;
@@ -59,7 +62,7 @@ class AnimeDetailsPanel(QGroupBox):
 
         # Details section
         details_group = QGroupBox("상세 정보")
-        details_group.setStyleSheet(self.theme.get_group_box_style())
+        details_group.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
 
         details_layout = QVBoxLayout(details_group)
         details_layout.setSpacing(8)
@@ -67,7 +70,7 @@ class AnimeDetailsPanel(QGroupBox):
         # Title
         self.title_label = QLabel("My Anime")
         self.title_label.label_type = "title"
-        self.title_label.setStyleSheet(self.theme.get_label_style("title"))
+        self.title_label.setStyleSheet(self.theme_manager.current_theme.get_label_style("title"))
         details_layout.addWidget(self.title_label)
 
         # Info fields
@@ -94,7 +97,7 @@ class AnimeDetailsPanel(QGroupBox):
         """Create an information field widget."""
         field_widget = QFrame()
         field_widget.frame_type = "info"
-        field_widget.setStyleSheet(self.theme.get_frame_style("info"))
+        field_widget.setStyleSheet(self.theme_manager.current_theme.get_frame_style("info"))
 
         layout = QVBoxLayout(field_widget)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -103,12 +106,12 @@ class AnimeDetailsPanel(QGroupBox):
         # Field name
         name_label = QLabel(field_name)
         name_label.label_type = "field_name"
-        name_label.setStyleSheet(self.theme.get_label_style("field_name"))
+        name_label.setStyleSheet(self.theme_manager.current_theme.get_label_style("field_name"))
 
         # Field value
         value_label = QLabel(field_value)
         value_label.label_type = "field_value"
-        value_label.setStyleSheet(self.theme.get_label_style("field_value"))
+        value_label.setStyleSheet(self.theme_manager.current_theme.get_label_style("field_value"))
         value_label.setWordWrap(True)
 
         layout.addWidget(name_label)

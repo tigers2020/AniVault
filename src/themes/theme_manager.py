@@ -1,17 +1,34 @@
 """Theme manager for handling theme switching and application."""
 
-from typing import Optional
+from typing import Optional, Callable, List
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from .dark_theme import DarkTheme
 
 
-class ThemeManager:
-    """Manages theme application and switching."""
+class ThemeManager(QObject):
+    """Manages theme application and switching with singleton pattern."""
+    
+    # Signal emitted when theme changes
+    theme_changed = pyqtSignal(object)
+    
+    _instance = None
+    _initialized = False
+
+    def __new__(cls) -> 'ThemeManager':
+        """Ensure only one instance exists (singleton pattern)."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self) -> None:
-        """Initialize theme manager."""
-        self.current_theme = DarkTheme()
-        self._theme_history = []
+        """Initialize theme manager (only once)."""
+        if not self._initialized:
+            super().__init__()
+            self.current_theme = DarkTheme()
+            self._theme_history = []
+            self._theme_change_callbacks: List[Callable] = []
+            self._initialized = True
 
     def apply_theme(self, widget, theme: Optional[DarkTheme] = None) -> None:
         """Apply theme to a widget and its children."""
@@ -56,6 +73,12 @@ class ThemeManager:
         """Switch to a different theme."""
         self._theme_history.append(self.current_theme)
         self.current_theme = theme_class()
+        
+        # Notify all registered callbacks
+        self._notify_theme_change()
+        
+        # Emit signal for Qt-based components
+        self.theme_changed.emit(self.current_theme)
 
     def get_current_theme(self) -> DarkTheme:
         """Get the current theme."""
@@ -64,3 +87,50 @@ class ThemeManager:
     def get_color(self, color_name: str) -> str:
         """Get a color from the current theme."""
         return self.current_theme.get_color(color_name)
+    
+    def register_theme_change_callback(self, callback: Callable) -> None:
+        """Register a callback to be called when theme changes."""
+        if callback not in self._theme_change_callbacks:
+            self._theme_change_callbacks.append(callback)
+    
+    def unregister_theme_change_callback(self, callback: Callable) -> None:
+        """Unregister a theme change callback."""
+        if callback in self._theme_change_callbacks:
+            self._theme_change_callbacks.remove(callback)
+    
+    def _notify_theme_change(self) -> None:
+        """Notify all registered callbacks about theme change."""
+        for callback in self._theme_change_callbacks:
+            try:
+                callback(self.current_theme)
+            except Exception as e:
+                print(f"Error in theme change callback: {e}")
+    
+    def get_theme_colors(self) -> dict:
+        """Get all available colors from current theme."""
+        return self.current_theme.COLORS
+    
+    def is_theme_available(self, color_name: str) -> bool:
+        """Check if a color is available in current theme."""
+        return color_name in self.current_theme.COLORS
+
+
+# Global instance access
+def get_theme_manager() -> ThemeManager:
+    """Get the global theme manager instance."""
+    return ThemeManager()
+
+
+def get_color(color_name: str) -> str:
+    """Get a color from the global theme manager."""
+    return get_theme_manager().get_color(color_name)
+
+
+def get_log_level_color(level: str) -> str:
+    """Get log level color from the global theme manager."""
+    return get_theme_manager().current_theme.get_log_level_color(level)
+
+
+def get_status_color(status: str) -> str:
+    """Get status color from the global theme manager."""
+    return get_theme_manager().current_theme.get_status_color(status)

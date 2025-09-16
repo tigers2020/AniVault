@@ -19,6 +19,11 @@ def main() -> int:
     app.setApplicationVersion("0.1.0")
     app.setOrganizationName("AniVault")
 
+    # Apply global dark theme to QApplication
+    from .themes.theme_manager import get_theme_manager
+    theme_manager = get_theme_manager()
+    app.setStyleSheet(theme_manager.current_theme.get_complete_style())
+
     # Create and show main window
     main_window = AniVaultApp()
     main_window.show()
