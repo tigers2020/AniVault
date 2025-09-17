@@ -3,6 +3,7 @@
 from collections.abc import Callable
 
 from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtWidgets import QWidget
 
 from .dark_theme import DarkTheme
 
@@ -16,36 +17,36 @@ class ThemeManager(QObject):
     _instance = None
     _initialized = False
 
-    def __new__(cls) -> 'ThemeManager':
+    def __new__(cls) -> "ThemeManager":
         """Ensure only one instance exists (singleton pattern)."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-        return cls._instance
+        return cls._instance  # type: ignore
 
     def __init__(self) -> None:
         """Initialize theme manager (only once)."""
         if not self._initialized:
             super().__init__()
             self.current_theme = DarkTheme()
-            self._theme_history = []
-            self._theme_change_callbacks: list[Callable] = []
+            self._theme_history: list[DarkTheme] = []
+            self._theme_change_callbacks: list[Callable[[DarkTheme], None]] = []
             self._initialized = True
 
-    def apply_theme(self, widget, theme: DarkTheme | None = None) -> None:
+    def apply_theme(self, widget: QWidget, theme: DarkTheme | None = None) -> None:
         """Apply theme to a widget and its children."""
         if theme is None:
             theme = self.current_theme
 
         # Apply main window theme
-        if hasattr(widget, 'setStyleSheet'):
+        if hasattr(widget, "setStyleSheet"):
             widget.setStyleSheet(theme.get_complete_style())
 
         # Recursively apply to children
         for child in widget.findChildren(object):
-            if hasattr(child, 'setStyleSheet'):
+            if hasattr(child, "setStyleSheet"):
                 self._apply_widget_theme(child, theme)
 
-    def _apply_widget_theme(self, widget, theme: DarkTheme) -> None:
+    def _apply_widget_theme(self, widget: QWidget, theme: DarkTheme) -> None:
         """Apply specific theme to a widget based on its type."""
         widget_name = widget.__class__.__name__
 
@@ -61,16 +62,16 @@ class ThemeManager(QObject):
             widget.setStyleSheet(theme.get_scroll_area_style())
         elif widget_name == "QPushButton":
             # Try to determine button type from object name or properties
-            button_type = getattr(widget, 'button_type', 'default')
+            button_type = getattr(widget, "button_type", "default")
             widget.setStyleSheet(theme.get_button_style(button_type))
         elif widget_name == "QFrame":
-            frame_type = getattr(widget, 'frame_type', 'default')
+            frame_type = getattr(widget, "frame_type", "default")
             widget.setStyleSheet(theme.get_frame_style(frame_type))
         elif widget_name == "QLabel":
-            label_type = getattr(widget, 'label_type', 'default')
+            label_type = getattr(widget, "label_type", "default")
             widget.setStyleSheet(theme.get_label_style(label_type))
 
-    def switch_theme(self, theme_class) -> None:
+    def switch_theme(self, theme_class: type[DarkTheme]) -> None:
         """Switch to a different theme."""
         self._theme_history.append(self.current_theme)
         self.current_theme = theme_class()
@@ -89,12 +90,12 @@ class ThemeManager(QObject):
         """Get a color from the current theme."""
         return self.current_theme.get_color(color_name)
 
-    def register_theme_change_callback(self, callback: Callable) -> None:
+    def register_theme_change_callback(self, callback: Callable[[DarkTheme], None]) -> None:
         """Register a callback to be called when theme changes."""
         if callback not in self._theme_change_callbacks:
             self._theme_change_callbacks.append(callback)
 
-    def unregister_theme_change_callback(self, callback: Callable) -> None:
+    def unregister_theme_change_callback(self, callback: Callable[[DarkTheme], None]) -> None:
         """Unregister a theme change callback."""
         if callback in self._theme_change_callbacks:
             self._theme_change_callbacks.remove(callback)
@@ -107,7 +108,7 @@ class ThemeManager(QObject):
             except Exception as e:
                 print(f"Error in theme change callback: {e}")
 
-    def get_theme_colors(self) -> dict:
+    def get_theme_colors(self) -> dict[str, str]:
         """Get all available colors from current theme."""
         return self.current_theme.COLORS
 

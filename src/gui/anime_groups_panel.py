@@ -1,5 +1,7 @@
 """Anime groups panel for displaying grouped anime files."""
 
+import logging
+
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QAbstractItemView,
@@ -8,9 +10,13 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from ..themes.theme_manager import get_theme_manager
+
+# Logger for this module
+logger = logging.getLogger(__name__)
 
 
 class AnimeGroupsPanel(QGroupBox):
@@ -18,7 +24,7 @@ class AnimeGroupsPanel(QGroupBox):
 
     group_selected = pyqtSignal(str)  # Emits group name when selected
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the anime groups panel."""
         super().__init__("애니 그룹", parent)
         self.theme_manager = get_theme_manager()
@@ -57,9 +63,6 @@ class AnimeGroupsPanel(QGroupBox):
         # Force dark theme on table items
         self._apply_dark_theme_to_table()
 
-        # Fix the corner cell (top-left intersection)
-        self._fix_table_corner()
-
         # Set column widths
         header = self.groups_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)  # Group name
@@ -76,11 +79,11 @@ class AnimeGroupsPanel(QGroupBox):
         from PyQt5.QtGui import QColor
 
         if status == "완료":
-            color = QColor(self.theme_manager.get_color('status_success'))
+            color = QColor(self.theme_manager.get_color("status_success"))
         elif status == "대기":
-            color = QColor(self.theme_manager.get_color('status_warning'))
+            color = QColor(self.theme_manager.get_color("status_warning"))
         else:
-            color = QColor(self.theme_manager.get_color('status_error'))
+            color = QColor(self.theme_manager.get_color("status_error"))
 
         # Set background color for status items only
         status_item.setBackground(color)
@@ -103,36 +106,10 @@ class AnimeGroupsPanel(QGroupBox):
                 if item:
                     # Force dark background and light text
                     if row % 2 == 0:
-                        item.setBackground(QColor(self.theme_manager.get_color('table_row_odd')))
+                        item.setBackground(QColor(self.theme_manager.get_color("table_row_odd")))
                     else:
-                        item.setBackground(QColor(self.theme_manager.get_color('bg_secondary')))
-                    item.setForeground(QColor(self.theme_manager.get_color('text_primary')))
-
-    def _fix_table_corner(self) -> None:
-        """Fix the table corner cell (top-left intersection) to use dark theme."""
-        try:
-            # Get the corner button (top-left intersection)
-            corner_button = self.groups_table.cornerButton()
-            if corner_button:
-                # Apply dark theme to corner button
-                corner_button.setStyleSheet(f"""
-                    QTableCornerButton::section {{
-                        background-color: {self.theme_manager.get_color('table_header')} !important;
-                        color: {self.theme_manager.get_color('text_primary')} !important;
-                        border: none;
-                    }}
-                """)
-
-                # Also set palette as backup
-                from PyQt5.QtGui import QColor
-                palette = corner_button.palette()
-                palette.setColor(palette.Window, QColor(self.theme_manager.get_color('table_header')))
-                palette.setColor(palette.WindowText, QColor(self.theme_manager.get_color('text_primary')))
-                corner_button.setPalette(palette)
-        except Exception as e:
-            # If corner button styling fails, continue without error
-            print(f"Warning: Could not style corner button: {e}")
-            pass
+                        item.setBackground(QColor(self.theme_manager.get_color("bg_secondary")))
+                    item.setForeground(QColor(self.theme_manager.get_color("text_primary")))
 
     def _populate_sample_data(self) -> None:
         """Populate the table with sample data."""
@@ -172,7 +149,8 @@ class AnimeGroupsPanel(QGroupBox):
         if current_row >= 0:
             group_name_item = self.groups_table.item(current_row, 0)
             if group_name_item:
-                group_name = group_name_item.data(Qt.UserRole)
+                # Emit the group name (series_title) instead of group ID
+                group_name = group_name_item.text()
                 self.group_selected.emit(group_name)
 
     def get_selected_group(self) -> str:
@@ -181,8 +159,66 @@ class AnimeGroupsPanel(QGroupBox):
         if current_row >= 0:
             group_name_item = self.groups_table.item(current_row, 0)
             if group_name_item:
-                return group_name_item.data(Qt.UserRole)
+                return str(group_name_item.text())
         return ""
+
+    def update_groups(self, groups) -> None:
+        """
+        Update the groups table with actual group data.
+        
+        Args:
+            groups: List of FileGroup objects
+        """
+        logger.debug(f"Updating groups table with {len(groups)} groups")
+        
+        # Clear existing data
+        self.groups_table.setRowCount(0)
+        
+        # Populate with actual group data
+        for i, group in enumerate(groups):
+            logger.debug(f"Adding group {i+1}: ID={group.group_id}, series_title='{group.series_title}'")
+            self._add_group_row(group)
+            
+        logger.info(f"Updated groups table with {len(groups)} groups")
+
+    def _add_group_row(self, group) -> None:
+        """
+        Add a single group row to the table.
+        
+        Args:
+            group: FileGroup object to add
+        """
+        row = self.groups_table.rowCount()
+        self.groups_table.insertRow(row)
+        
+        # Group name (use Korean title if available)
+        group_name = group.series_title or group.group_id
+        group_name_item = QTableWidgetItem(group_name)
+        group_name_item.setData(Qt.UserRole, group.group_id)  # Store group ID for selection
+        
+        # File count
+        file_count_item = QTableWidgetItem(str(len(group.files)))
+        
+        # Status (based on processing state)
+        if group.is_processed:
+            status = "완료"
+        elif group.tmdb_info:
+            status = "메타데이터 있음"
+        else:
+            status = "대기"
+        
+        status_item = QTableWidgetItem(status)
+        
+        # Set items in table
+        self.groups_table.setItem(row, 0, group_name_item)
+        self.groups_table.setItem(row, 1, file_count_item)
+        self.groups_table.setItem(row, 2, status_item)
+        
+        # Apply status color
+        self._set_status_color(status_item, status)
+        
+        # Apply row colors
+        self._set_row_colors(row)
 
     def add_group(self, group_name: str, file_count: int, status: str) -> None:
         """Add a new group to the table."""

@@ -1,5 +1,7 @@
 """Anime details panel for displaying TMDB information."""
 
+from typing import Any
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QFrame,
@@ -16,7 +18,7 @@ from ..themes.theme_manager import get_theme_manager
 class AnimeDetailsPanel(QGroupBox):
     """Panel displaying detailed anime information from TMDB."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the anime details panel."""
         super().__init__("애니 디테일", parent)
         self.theme_manager = get_theme_manager()
@@ -38,7 +40,9 @@ class AnimeDetailsPanel(QGroupBox):
 
         # Content widget
         content_widget = QWidget()
-        content_widget.setStyleSheet(f"background-color: {self.theme_manager.get_color('bg_primary')};")
+        content_widget.setStyleSheet(
+            f"background-color: {self.theme_manager.get_color('bg_primary')};"
+        )
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(12)
@@ -74,6 +78,7 @@ class AnimeDetailsPanel(QGroupBox):
         details_layout.addWidget(self.title_label)
 
         # Info fields
+        self.info_fields = {}
         info_fields = [
             ("장르", "액션"),
             ("설명", "이곳에 설명이 표시됩니다."),
@@ -86,6 +91,8 @@ class AnimeDetailsPanel(QGroupBox):
         for field_name, field_value in info_fields:
             field_widget = self._create_info_field(field_name, field_value)
             details_layout.addWidget(field_widget)
+            # Store reference to field widget for later updates
+            self.info_fields[field_name] = field_widget
 
         content_layout.addWidget(details_group)
         content_layout.addStretch()
@@ -124,7 +131,7 @@ class AnimeDetailsPanel(QGroupBox):
         # This is already handled in _setup_ui with sample data
         pass
 
-    def update_anime_details(self, anime_data: dict) -> None:
+    def update_anime_details(self, anime_data: dict[str, Any]) -> None:
         """Update the anime details with new data."""
         # Update title
         if "title" in anime_data:
@@ -139,10 +146,121 @@ class AnimeDetailsPanel(QGroupBox):
         # This would be implemented to update the info fields dynamically
         pass
 
+    def display_group_details(self, group) -> None:
+        """
+        Display anime details for a selected group.
+        
+        Args:
+            group: FileGroup object with TMDB information
+        """
+        if not group:
+            self.clear_details()
+            return
+            
+        # Update title with Korean title if available
+        if group.tmdb_info:
+            title = group.tmdb_info.korean_title or group.tmdb_info.title
+            self.title_label.setText(title)
+            
+            # Update other TMDB fields
+            self._update_tmdb_fields(group.tmdb_info)
+        else:
+            # Fallback to group's series title
+            title = group.series_title or "제목 없음"
+            self.title_label.setText(title)
+            
+        # Update poster placeholder
+        self.poster_label.setText("포스터\n(로딩 중...)")
+        
+        # TODO: Load actual poster image from TMDB if available
+        # This would require implementing image loading from URLs
+
+    def _update_tmdb_fields(self, tmdb_info) -> None:
+        """
+        Update TMDB information fields.
+        
+        Args:
+            tmdb_info: TMDBAnime object with metadata
+        """
+        # Update genres
+        if tmdb_info.genres:
+            genres_text = ", ".join(tmdb_info.genres)
+            self._update_info_field("장르", genres_text)
+        else:
+            self._update_info_field("장르", "정보 없음")
+            
+        # Update description
+        if tmdb_info.overview:
+            self._update_info_field("설명", tmdb_info.overview)
+        else:
+            self._update_info_field("설명", "설명이 없습니다.")
+            
+        # Update rating
+        if tmdb_info.vote_average > 0:
+            rating_text = f"{tmdb_info.vote_average:.1f} / 10 ({tmdb_info.vote_count}명 평가)"
+            self._update_info_field("평점", rating_text)
+        else:
+            self._update_info_field("평점", "평점 정보 없음")
+            
+        # Update episode count
+        if tmdb_info.number_of_episodes > 0:
+            self._update_info_field("에피소드 수", str(tmdb_info.number_of_episodes))
+        else:
+            self._update_info_field("에피소드 수", "정보 없음")
+            
+        # Update air date
+        if tmdb_info.first_air_date:
+            air_date_text = tmdb_info.first_air_date.strftime("%Y-%m-%d")
+            if tmdb_info.last_air_date and tmdb_info.last_air_date != tmdb_info.first_air_date:
+                air_date_text += f" ~ {tmdb_info.last_air_date.strftime('%Y-%m-%d')}"
+            self._update_info_field("방영일", air_date_text)
+        else:
+            self._update_info_field("방영일", "정보 없음")
+            
+        # Update networks (production companies)
+        if tmdb_info.networks:
+            networks_text = ", ".join(tmdb_info.networks)
+            self._update_info_field("제작사", networks_text)
+        else:
+            self._update_info_field("제작사", "정보 없음")
+            
+        # Update poster
+        if tmdb_info.poster_path:
+            self.poster_label.setText(f"포스터\n(이미지 URL: {tmdb_info.poster_url})")
+        else:
+            self.poster_label.setText("포스터\n(이미지 없음)")
+
+    def _update_info_field(self, field_name: str, field_value: str) -> None:
+        """
+        Update a specific info field value.
+        
+        Args:
+            field_name: Name of the field to update
+            field_value: New value for the field
+        """
+        if field_name in self.info_fields:
+            field_widget = self.info_fields[field_name]
+            # Find the value label (second child in the layout)
+            layout = field_widget.layout()
+            if layout and layout.count() >= 2:
+                value_label = layout.itemAt(1).widget()
+                if value_label:
+                    value_label.setText(field_value)
+
     def clear_details(self) -> None:
         """Clear all anime details."""
         self.title_label.setText("애니메이션을 선택하세요")
         self.poster_label.setText("포스터")
 
         # Clear all info fields
-        # This would be implemented to clear all dynamic fields
+        default_values = {
+            "장르": "정보 없음",
+            "설명": "애니메이션을 선택하세요",
+            "평점": "정보 없음",
+            "에피소드 수": "정보 없음",
+            "방영일": "정보 없음",
+            "제작사": "정보 없음",
+        }
+        
+        for field_name, default_value in default_values.items():
+            self._update_info_field(field_name, default_value)

@@ -196,4 +196,133 @@ node_modules/
 
 # Task files
 # tasks.json
-# tasks/ 
+# tasks/
+
+# Debug and testing files
+debug*.py
+test_debug*.py
+*_debug.py
+debug_*.py
+
+# Temporary test files
+temp_test_*.py
+test_temp_*.py
+
+# Database files (development)
+*.db
+*.sqlite
+*.sqlite3
+anivault.db
+
+# Test coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+cover/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# IDE and editor files
+*.sublime-*
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Configuration backups
+*.backup
+*.bak
+config_backup_*.json
+
+# Large files
+coverage.json
+*.coverage.json
+
+# Temporary script files
+fix_test_annotations.py
+
+# Data directory (contains user data and configs)
+data/
+
+# Reports directory (contains generated reports)
+reports/
+
+# Database files
+anivault.db
+
+# Log files
+logs/
+
+# Coverage reports
+htmlcov/
+
+# Backup files
+*.backup
+*.bak
+config_backup_*.json
+unified_config_backup_*.json
+
+# IDE specific files
+.cursor/settings.json
+
+# Virtual environment activation scripts
+activate-venv.bat
+activate-venv.ps1
+activate.bat
+
+# Documentation files that are generated
+MVVM_IMPLEMENTATION_REPORT.md
+README_Setup_Guide.md

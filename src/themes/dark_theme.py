@@ -1,7 +1,6 @@
 """Dark theme configuration for AniVault application."""
 
 
-
 class DarkTheme:
     """Dark theme color palette and styles."""
 
@@ -11,58 +10,47 @@ class DarkTheme:
         "primary": "#3b82f6",  # Blue
         "primary_hover": "#2563eb",
         "primary_pressed": "#1d4ed8",
-
         # Secondary colors
         "secondary": "#10b981",  # Green
         "secondary_hover": "#059669",
         "secondary_pressed": "#047857",
-
         # Accent colors
         "accent": "#8b5cf6",  # Purple
         "accent_hover": "#7c3aed",
         "accent_pressed": "#6d28d9",
-
         # Background colors
         "bg_primary": "#1e293b",  # Dark blue-gray
         "bg_secondary": "#334155",  # Medium blue-gray
         "bg_tertiary": "#475569",  # Light blue-gray
         "bg_surface": "#0f172a",  # Darkest blue-gray
-
         # Text colors
         "text_primary": "#f1f5f9",  # White
         "text_secondary": "#94a3b8",  # Light gray
         "text_muted": "#64748b",  # Medium gray
-
         # Border colors
         "border_primary": "#475569",
         "border_secondary": "#64748b",
-
         # Status colors
         "success": "#10b981",
         "warning": "#f59e0b",
         "error": "#ef4444",
         "info": "#3b82f6",
-
         # Log level colors
-        "log_info": "#94a3b8",      # Light grey
-        "log_warning": "#fbbf24",   # Bright yellow
-        "log_error": "#ef4444",     # Red
-        "log_success": "#22c55e",   # Bright green
-
+        "log_info": "#94a3b8",  # Light grey
+        "log_warning": "#fbbf24",  # Bright yellow
+        "log_error": "#ef4444",  # Red
+        "log_success": "#22c55e",  # Bright green
         # Status indicator colors
         "status_success": "#22c55e",
         "status_warning": "#eab308",
         "status_error": "#dc2626",
-
         # Label text colors
         "label_text": "#94a3b8",
-
         # Table colors
         "table_header": "#1e293b",
         "table_row_even": "#334155",
         "table_row_odd": "#2d3748",
         "table_selection": "#3b82f6",
-
         # Button colors
         "btn_danger": "#ef4444",
         "btn_danger_hover": "#dc2626",
@@ -131,17 +119,20 @@ class DarkTheme:
             font-weight: bold;
             background-color: {cls.get_color('bg_secondary')};
             border: 2px solid {cls.get_color('border_primary')};
-            border-radius: 8px;
-            margin-top: 8px;
-            padding-top: 8px;
+            border-radius: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
             color: {cls.get_color('text_primary')};
         }}
         QGroupBox::title {{
             subcontrol-origin: margin;
-            left: 10px;
-            padding: 0 8px 0 8px;
-            background-color: {cls.get_color('bg_secondary')};
+            left: 16px;
+            padding: 4px 12px 4px 12px;
+            background-color: {cls.get_color('bg_tertiary')};
             color: {cls.get_color('text_primary')};
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
         }}
         """
 
@@ -434,7 +425,8 @@ class DarkTheme:
     @classmethod
     def get_complete_style(cls) -> str:
         """Get complete application stylesheet."""
-        return f"""
+        return (
+            f"""
         /* Global application styles */
         QApplication {{
             background-color: {cls.get_color('bg_primary')};
@@ -511,43 +503,47 @@ class DarkTheme:
             padding: 4px;
         }}
 
-        """ + cls.get_main_window_style() + cls.get_menu_bar_style() + cls.get_status_bar_style()
+        """
+            + cls.get_main_window_style()
+            + cls.get_menu_bar_style()
+            + cls.get_status_bar_style()
+        )
 
     @classmethod
     def get_log_level_color(cls, level: str) -> str:
         """Get color for specific log level."""
         level_colors = {
-            'INFO': cls.get_color('log_info'),
-            'WARNING': cls.get_color('log_warning'),
-            'ERROR': cls.get_color('log_error'),
-            'SUCCESS': cls.get_color('log_success'),
+            "INFO": cls.get_color("log_info"),
+            "WARNING": cls.get_color("log_warning"),
+            "ERROR": cls.get_color("log_error"),
+            "SUCCESS": cls.get_color("log_success"),
         }
-        return level_colors.get(level.upper(), cls.get_color('log_info'))
+        return level_colors.get(level.upper(), cls.get_color("log_info"))
 
     @classmethod
     def get_status_color(cls, status: str) -> str:
         """Get color for specific status."""
         status_colors = {
-            'success': cls.get_color('status_success'),
-            'warning': cls.get_color('status_warning'),
-            'error': cls.get_color('status_error'),
-            'completed': cls.get_color('status_success'),
-            'pending': cls.get_color('status_warning'),
-            'failed': cls.get_color('status_error'),
+            "success": cls.get_color("status_success"),
+            "warning": cls.get_color("status_warning"),
+            "error": cls.get_color("status_error"),
+            "completed": cls.get_color("status_success"),
+            "pending": cls.get_color("status_warning"),
+            "failed": cls.get_color("status_error"),
             # Uppercase versions
-            'SUCCESS': cls.get_color('status_success'),
-            'WARNING': cls.get_color('status_warning'),
-            'ERROR': cls.get_color('status_error'),
-            'COMPLETED': cls.get_color('status_success'),
-            'PENDING': cls.get_color('status_warning'),
-            'FAILED': cls.get_color('status_error'),
+            "SUCCESS": cls.get_color("status_success"),
+            "WARNING": cls.get_color("status_warning"),
+            "ERROR": cls.get_color("status_error"),
+            "COMPLETED": cls.get_color("status_success"),
+            "PENDING": cls.get_color("status_warning"),
+            "FAILED": cls.get_color("status_error"),
             # Korean status names
-            '완료': cls.get_color('status_success'),
-            '대기': cls.get_color('status_warning'),
-            '오류': cls.get_color('status_error'),
-            '실패': cls.get_color('status_error'),
+            "완료": cls.get_color("status_success"),
+            "대기": cls.get_color("status_warning"),
+            "오류": cls.get_color("status_error"),
+            "실패": cls.get_color("status_error"),
         }
-        return status_colors.get(status, cls.get_color('text_secondary'))
+        return status_colors.get(status, cls.get_color("text_secondary"))
 
     @classmethod
     def get_label_text_style(cls) -> str:
@@ -555,5 +551,47 @@ class DarkTheme:
         return f"""
         QLabel {{
             color: {cls.get_color('label_text')};
+        }}
+        """
+
+    @classmethod
+    def get_tab_widget_style(cls) -> str:
+        """Get tab widget stylesheet."""
+        return f"""
+        QTabWidget::pane {{
+            border: 1px solid {cls.get_color('border_primary')};
+            background-color: {cls.get_color('bg_primary')};
+        }}
+        QTabBar::tab {{
+            background-color: {cls.get_color('bg_secondary')};
+            color: {cls.get_color('text_primary')};
+            padding: 8px 16px;
+            margin-right: 2px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }}
+        QTabBar::tab:selected {{
+            background-color: {cls.get_color('bg_primary')};
+            color: {cls.get_color('primary')};
+        }}
+        QTabBar::tab:hover {{
+            background-color: {cls.get_color('bg_tertiary')};
+        }}
+        """
+
+    @classmethod
+    def get_progress_bar_style(cls) -> str:
+        """Get progress bar stylesheet."""
+        return f"""
+        QProgressBar {{
+            border: 2px solid {cls.get_color('border_primary')};
+            border-radius: 5px;
+            text-align: center;
+            background-color: {cls.get_color('bg_secondary')};
+            color: {cls.get_color('text_primary')};
+        }}
+        QProgressBar::chunk {{
+            background-color: {cls.get_color('primary')};
+            border-radius: 3px;
         }}
         """

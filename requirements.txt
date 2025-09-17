@@ -3,6 +3,16 @@ PyQt5>=5.15.0
 PyQt5-Qt5>=5.15.0
 PyQt5-sip>=12.9.0
 
+# File parsing and metadata
+anitopy>=2.0.0
+tmdbsimple>=2.9.0
+
+# Database
+SQLAlchemy>=2.0.0
+
+# Security
+cryptography>=41.0.0
+
 # Development dependencies (install with: pip install -r requirements-dev.txt)
 # pytest>=7.0.0
 # pytest-qt>=4.0.0

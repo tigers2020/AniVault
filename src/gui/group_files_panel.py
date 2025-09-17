@@ -1,5 +1,7 @@
 """Group files panel for displaying files in selected group."""
 
+from typing import Any
+
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QAbstractItemView,
@@ -8,6 +10,7 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from ..themes.theme_manager import get_theme_manager
@@ -18,7 +21,7 @@ class GroupFilesPanel(QGroupBox):
 
     file_selected = pyqtSignal(str)  # Emits file path when selected
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the group files panel."""
         super().__init__("선택된 그룹 파일", parent)
         self.theme_manager = get_theme_manager()
@@ -57,9 +60,6 @@ class GroupFilesPanel(QGroupBox):
         # Force dark theme on table items
         self._apply_dark_theme_to_table()
 
-        # Fix the corner cell (top-left intersection)
-        self._fix_table_corner()
-
         # Set column widths
         header = self.files_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)  # File name
@@ -88,36 +88,10 @@ class GroupFilesPanel(QGroupBox):
                 if item:
                     # Force dark background and light text
                     if row % 2 == 0:
-                        item.setBackground(QColor(self.theme_manager.get_color('table_row_odd')))
+                        item.setBackground(QColor(self.theme_manager.get_color("table_row_odd")))
                     else:
-                        item.setBackground(QColor(self.theme_manager.get_color('bg_secondary')))
-                    item.setForeground(QColor(self.theme_manager.get_color('text_primary')))
-
-    def _fix_table_corner(self) -> None:
-        """Fix the table corner cell (top-left intersection) to use dark theme."""
-        try:
-            # Get the corner button (top-left intersection)
-            corner_button = self.files_table.cornerButton()
-            if corner_button:
-                # Apply dark theme to corner button
-                corner_button.setStyleSheet(f"""
-                    QTableCornerButton::section {{
-                        background-color: {self.theme_manager.get_color('table_header')} !important;
-                        color: {self.theme_manager.get_color('text_primary')} !important;
-                        border: none;
-                    }}
-                """)
-
-                # Also set palette as backup
-                from PyQt5.QtGui import QColor
-                palette = corner_button.palette()
-                palette.setColor(palette.Window, QColor(self.theme_manager.get_color('table_header')))
-                palette.setColor(palette.WindowText, QColor(self.theme_manager.get_color('text_primary')))
-                corner_button.setPalette(palette)
-        except Exception as e:
-            # If corner button styling fails, continue without error
-            print(f"Warning: Could not style corner button: {e}")
-            pass
+                        item.setBackground(QColor(self.theme_manager.get_color("bg_secondary")))
+                    item.setForeground(QColor(self.theme_manager.get_color("text_primary")))
 
     def _populate_sample_data(self) -> None:
         """Populate the table with sample data."""
@@ -169,10 +143,10 @@ class GroupFilesPanel(QGroupBox):
         if current_row >= 0:
             file_name_item = self.files_table.item(current_row, 0)
             if file_name_item:
-                return file_name_item.data(Qt.UserRole)
+                return str(file_name_item.data(Qt.UserRole))
         return ""
 
-    def load_group_files(self, group_name: str, files: list) -> None:
+    def load_group_files(self, group_name: str, files: list[dict[str, Any]]) -> None:
         """Load files for a specific group."""
         self.files_table.setRowCount(0)
 

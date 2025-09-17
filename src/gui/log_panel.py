@@ -1,6 +1,8 @@
 """Log panel for displaying application logs."""
 
+import logging
 from datetime import datetime
+from typing import Optional
 
 from PyQt5.QtWidgets import (
     QGroupBox,
@@ -9,21 +11,29 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
+from ..core.config_manager import ConfigManager
 from ..themes.theme_manager import get_theme_manager
+
+logger = logging.getLogger(__name__)
 
 
 class LogPanel(QGroupBox):
     """Panel for displaying application execution logs."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(
+        self, parent: QWidget | None = None, config_manager: Optional[ConfigManager] = None
+    ) -> None:
         """Initialize the log panel."""
         super().__init__("실행 로그", parent)
         self.theme_manager = get_theme_manager()
+        self.config_manager = config_manager or ConfigManager()
         # Apply theme to the GroupBox first
         self.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
         self._setup_ui()
+        self._load_settings()
         self._add_sample_logs()
 
     def _setup_ui(self) -> None:
@@ -41,7 +51,9 @@ class LogPanel(QGroupBox):
         clear_btn.clicked.connect(self.clear_logs)
 
         auto_scroll_label = QLabel("자동 스크롤")
-        auto_scroll_label.setStyleSheet(f"color: {self.theme_manager.get_color('log_info')}; font-size: 12px;")
+        auto_scroll_label.setStyleSheet(
+            f"color: {self.theme_manager.get_color('log_info')}; font-size: 12px;"
+        )
 
         controls_layout.addWidget(clear_btn)
         controls_layout.addStretch()
@@ -62,6 +74,36 @@ class LogPanel(QGroupBox):
 
         layout.addLayout(controls_layout)
         layout.addWidget(self.log_text)
+
+    def _load_settings(self) -> None:
+        """Load settings from configuration manager."""
+        try:
+            # Load log level and file settings
+            log_level = self.config_manager.get("application.logging_config.log_level", "INFO")
+            log_to_file = self.config_manager.get("application.logging_config.log_to_file", False)
+
+            # Store settings for use in add_log method
+            self._log_level = log_level
+            self._log_to_file = log_to_file
+
+            # Update log text height based on settings
+            if log_to_file:
+                self.log_text.setMaximumHeight(100)  # Smaller if logging to file
+            else:
+                self.log_text.setMaximumHeight(120)  # Default size
+
+            logger.info("LogPanel settings loaded successfully")
+
+        except Exception as e:
+            logger.error("Failed to load LogPanel settings: %s", str(e))
+
+    def update_settings(self) -> None:
+        """Update panel based on current settings."""
+        try:
+            self._load_settings()
+            logger.info("LogPanel settings updated")
+        except Exception as e:
+            logger.error("Failed to update LogPanel settings: %s", str(e))
 
     def _add_sample_logs(self) -> None:
         """Add sample log entries."""
@@ -115,4 +157,9 @@ class LogPanel(QGroupBox):
 
     def get_log_count(self) -> int:
         """Get the number of log entries."""
-        return self.log_text.document().blockCount()
+        return int(self.log_text.document().blockCount())
+
+    def cleanup(self) -> None:
+        """Clean up resources when the panel is destroyed."""
+        # Clear log text
+        self.log_text.clear()
