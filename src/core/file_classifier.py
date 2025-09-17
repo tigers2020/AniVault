@@ -160,7 +160,7 @@ class FileClassifier:
                 str(file.file_path),
                 "resolution_extraction",
                 str(e),
-            )
+            ) from e
 
     def classify_files(self, files: list[AnimeFile]) -> list[FileClassification]:
         """
@@ -249,7 +249,6 @@ class FileClassifier:
         """
         # First try to get resolution from parsed info
         if file.parsed_info and file.parsed_info.resolution:
-            resolution_str = file.parsed_info.resolution
             if file.parsed_info.resolution_width and file.parsed_info.resolution_height:
                 width = file.parsed_info.resolution_width
                 height = file.parsed_info.resolution_height

@@ -241,10 +241,10 @@ class FileScanner:
 
         except OSError as e:
             # File might be inaccessible or deleted
-            raise Exception(f"Cannot access file {file_path}: {e}")
+            raise Exception(f"Cannot access file {file_path}: {e}") from e
         except Exception as e:
             # Unexpected error
-            raise Exception(f"Unexpected error processing {file_path}: {e}")
+            raise Exception(f"Unexpected error processing {file_path}: {e}") from e
 
     def cancel_scan(self) -> None:
         """Cancel the current scanning operation."""

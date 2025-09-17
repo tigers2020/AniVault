@@ -202,7 +202,7 @@ class FileNamer:
         except Exception as e:
             raise FileNamingError(
                 f"Failed to resolve filename conflict: {str(e)}", original_name, "", str(e)
-            )
+            ) from e
 
     def get_available_filename(
         self, target_path: Path, strategy: NamingStrategy | None = None

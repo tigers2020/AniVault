@@ -48,7 +48,7 @@ class MoveTransaction:
     operations: list[dict[str, Any]]
     created_at: float
     status: str = "pending"  # pending, committed, rolled_back, failed
-    rollback_operations: list[dict[str, Any]] = None
+    rollback_operations: list[dict[str, Any]] | None = None
 
     def __post_init__(self):
         if self.rollback_operations is None:
@@ -316,8 +316,9 @@ class FileMover:
 
         try:
             # Execute rollback operations in reverse order
-            for operation in reversed(transaction.rollback_operations):
-                self._execute_rollback_operation(operation)
+            if transaction.rollback_operations:
+                for operation in reversed(transaction.rollback_operations):
+                    self._execute_rollback_operation(operation)
 
             transaction.status = "rolled_back"
             self.logger.info(f"Transaction {transaction_id} rolled back successfully")
@@ -330,9 +331,9 @@ class FileMover:
                 f"Failed to rollback transaction {transaction_id}: {str(e)}",
                 "",
                 "",
-                len(transaction.rollback_operations),
+                len(transaction.rollback_operations or []),
                 str(e),
-            )
+            ) from e
 
     def _validate_source_file(self, source_path: Path) -> None:
         """Validate that the source file exists and is accessible."""
@@ -384,7 +385,7 @@ class FileMover:
                 str(target_path),
                 str(target_path),
                 str(e),
-            )
+            ) from e
 
     def _check_disk_space(self, source_path: Path, target_path: Path) -> None:
         """Check if there's enough disk space for the operation."""
@@ -403,7 +404,7 @@ class FileMover:
         except OSError as e:
             raise MoveDiskSpaceError(
                 f"Failed to check disk space: {e}", 0, 0, str(target_path.parent), str(e)
-            )
+            ) from e
 
     def _is_same_filesystem(self, source_path: Path, target_path: Path) -> bool:
         """Check if source and target are on the same filesystem."""
@@ -430,7 +431,9 @@ class FileMover:
 
             # Store rollback operation
             if transaction_id in self._transactions:
-                self._transactions[transaction_id].rollback_operations.append(rollback_op)
+                transaction = self._transactions[transaction_id]
+                if transaction.rollback_operations is not None:
+                    transaction.rollback_operations.append(rollback_op)
 
             return MoveResult(
                 success=True,
@@ -443,7 +446,7 @@ class FileMover:
         except Exception as e:
             raise MoveValidationError(
                 f"Direct move failed: {e}", "move_operation", str(source_path), str(e)
-            )
+            ) from e
 
     def _move_cross_filesystem(
         self, source_path: Path, target_path: Path, transaction_id: str
@@ -478,7 +481,9 @@ class FileMover:
 
             # Store rollback operation
             if transaction_id in self._transactions:
-                self._transactions[transaction_id].rollback_operations.append(rollback_op)
+                transaction = self._transactions[transaction_id]
+                if transaction.rollback_operations is not None:
+                    transaction.rollback_operations.append(rollback_op)
 
             # Delete original file
             source_path.unlink()
@@ -501,7 +506,7 @@ class FileMover:
 
             raise MoveValidationError(
                 f"Cross-filesystem move failed: {e}", "move_operation", str(source_path), str(e)
-            )
+            ) from e
 
     def _verify_file_integrity(self, source_path: Path, target_path: Path) -> bool:
         """Verify that the copied file is identical to the source."""
