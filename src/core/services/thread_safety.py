@@ -11,7 +11,7 @@ import functools
 import logging
 import threading
 from collections.abc import Callable
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 from PyQt5.QtCore import QMutex, QMutexLocker
 
@@ -31,7 +31,7 @@ class ThreadSafeProperty:
     """
 
     def __init__(
-        self, getter: Callable[[Any], T], setter: Optional[Callable[[Any, T], None]] = None
+        self, getter: Callable[[Any], T], setter: Callable[[Any, T], None] | None = None
     ) -> None:
         """
         Initialize the thread-safe property.
@@ -190,7 +190,7 @@ class ThreadSafeList:
     Thread-safe list using QMutex.
     """
 
-    def __init__(self, initial_items: Optional[list] = None) -> None:
+    def __init__(self, initial_items: list | None = None) -> None:
         """
         Initialize the thread-safe list.
 
@@ -265,7 +265,7 @@ class ThreadSafeDict:
     Thread-safe dictionary using QMutex.
     """
 
-    def __init__(self, initial_items: Optional[dict] = None) -> None:
+    def __init__(self, initial_items: dict | None = None) -> None:
         """
         Initialize the thread-safe dictionary.
 

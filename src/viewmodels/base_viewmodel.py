@@ -785,9 +785,7 @@ class ViewModelFactory:
         logger.info(f"Registered ViewModel '{name}' as {viewmodel_class.__name__}")
 
     @classmethod
-    def create_viewmodel(
-        cls, name: str, parent: QObject | None = None, **kwargs
-    ) -> BaseViewModel:
+    def create_viewmodel(cls, name: str, parent: QObject | None = None, **kwargs) -> BaseViewModel:
         """
         Create a ViewModel instance by name.
 

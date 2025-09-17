@@ -142,9 +142,7 @@ class ConfigValidator:
 
         return language.lower() in [lang.lower() for lang in self.VALID_LANGUAGES]
 
-    def validate_numeric_range(
-        self, value: int | float, min_val: float, max_val: float
-    ) -> bool:
+    def validate_numeric_range(self, value: int | float, min_val: float, max_val: float) -> bool:
         """
         Validate numeric value is within specified range.
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from ..anime_parser import AnimeParser
 from ..file_grouper import FileGrouper
@@ -159,9 +160,7 @@ class ConcreteFileParsingTask(WorkerTask):
     Concrete task for parsing anime file information.
     """
 
-    def __init__(
-        self, files: list[AnimeFile], progress_callback: callable | None = None
-    ) -> None:
+    def __init__(self, files: list[AnimeFile], progress_callback: Callable | None = None) -> None:
         """
         Initialize the file parsing task.
 
@@ -241,7 +240,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
     """
 
     def __init__(
-        self, files: list[AnimeFile], api_key: str, progress_callback: callable | None = None
+        self, files: list[AnimeFile], api_key: str, progress_callback: Callable | None = None
     ) -> None:
         """
         Initialize the metadata retrieval task.
@@ -323,7 +322,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
     """
 
     def __init__(
-        self, groups: list[FileGroup], api_key: str, progress_callback: callable | None = None
+        self, groups: list[FileGroup], api_key: str, progress_callback: Callable | None = None
     ) -> None:
         """
         Initialize the group-based metadata retrieval task.
@@ -340,6 +339,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         self._processed_groups: list[FileGroup] = []
         self._pending_group_selection = None
         self._viewmodel = None  # Will be set by the ViewModel
+        self._should_stop = False  # Flag to indicate if task should stop
 
     def execute(self) -> list[FileGroup]:
         """
@@ -358,6 +358,11 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             # Process each group
             self._processed_groups = []
             for i, group in enumerate(self.groups):
+                # Check if task should stop
+                if self._should_stop:
+                    logger.info("Task stop requested, breaking group processing loop")
+                    break
+
                 try:
                     # Get representative title from the group
                     representative_title = self._get_representative_title(group)
@@ -426,30 +431,65 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                                     "results": results_dict,
                                 }
 
-                                # Request user selection through ViewModel
+                                # Request user selection through ViewModel with timeout
                                 if hasattr(self, "_viewmodel") and self._viewmodel:
                                     self._viewmodel.tmdb_selection_requested.emit(
                                         representative_title,
                                         results_dict,
                                         self._on_tmdb_selection_callback,
                                     )
+
+                                    # Wait for user selection with timeout
+                                    selected_result = self._wait_for_user_selection(
+                                        timeout_seconds=30
+                                    )
+
+                                    if selected_result:
+                                        # User selected a result
+                                        tmdb_info = TMDBAnime.from_dict(selected_result)
+                                        self._apply_tmdb_metadata_to_group(group, tmdb_info)
+                                    else:
+                                        # Timeout or no selection - use first result
+                                        logger.warning(
+                                            f"Using first result for group '{representative_title}' due to timeout or cancellation"
+                                        )
+                                        tmdb_info = (
+                                            self._tmdb_client._convert_search_result_to_anime(
+                                                search_results[0], "ko-KR"
+                                            )
+                                        )
+                                        self._apply_tmdb_metadata_to_group(group, tmdb_info)
                                 else:
                                     # Fallback: use first result if no ViewModel available
                                     logger.warning(
                                         "No ViewModel available for user selection, using first result"
                                     )
-                                    tmdb_data = search_results[0]
-                                    tmdb_info = TMDBAnime.from_dict(tmdb_data)
+                                    tmdb_info = self._tmdb_client._convert_search_result_to_anime(
+                                        search_results[0], "ko-KR"
+                                    )
                                     self._apply_tmdb_metadata_to_group(group, tmdb_info)
                         else:
                             logger.warning(
                                 f"No TMDB results found for group '{representative_title}'"
                             )
-                            # Request manual search
+                            # Request manual search with timeout
                             if hasattr(self, "_viewmodel") and self._viewmodel:
                                 self._viewmodel.tmdb_selection_requested.emit(
                                     representative_title, [], self._on_tmdb_selection_callback
                                 )
+
+                                # Wait for manual search with timeout
+                                selected_result = self._wait_for_user_selection(timeout_seconds=30)
+
+                                if selected_result:
+                                    # User provided manual search result
+                                    tmdb_info = TMDBAnime.from_dict(selected_result)
+                                    self._apply_tmdb_metadata_to_group(group, tmdb_info)
+                                else:
+                                    # Timeout or no manual input - skip this group
+                                    logger.warning(
+                                        f"Skipping group '{representative_title}' due to no manual input or timeout"
+                                    )
                             else:
                                 logger.warning("No ViewModel available for manual search")
                     else:
@@ -527,6 +567,41 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files"
         )
 
+    def _wait_for_user_selection(self, timeout_seconds: int = 30) -> dict | None:
+        """
+        Wait for user selection with timeout to prevent infinite blocking.
+
+        Args:
+            timeout_seconds: Maximum time to wait for user selection
+
+        Returns:
+            Selected result dictionary or None if timeout/cancelled
+        """
+        import time
+
+        start_time = time.time()
+
+        logger.debug(f"Waiting for user selection (timeout: {timeout_seconds}s)")
+
+        while time.time() - start_time < timeout_seconds:
+            if self._pending_group_selection is None:
+                # User completed selection or cancelled
+                logger.debug("User selection completed")
+                return None
+
+            # Check if task should stop
+            if self._should_stop:
+                logger.debug("Task stop requested during user selection wait")
+                self._pending_group_selection = None
+                return None
+
+            time.sleep(0.1)  # 100ms polling interval
+
+        # Timeout reached
+        logger.warning(f"User selection timeout after {timeout_seconds}s, using first result")
+        self._pending_group_selection = None
+        return None
+
     def _on_tmdb_selection_callback(self, selected_result: dict) -> None:
         """
         Callback for when user selects a TMDB result.
@@ -553,9 +628,17 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             # Clear pending selection even on error
             self._pending_group_selection = None
 
-    def set_viewmodel(self, viewmodel) -> None:
+    def set_viewmodel(self, viewmodel: Any) -> None:
         """Set the ViewModel reference for signal communication."""
         self._viewmodel = viewmodel
+
+    def stop(self) -> None:
+        """Request the task to stop processing."""
+        self._should_stop = True
+        # Clear any pending selection to unblock waiting
+        if self._pending_group_selection:
+            logger.info("Clearing pending group selection due to task stop")
+            self._pending_group_selection = None
 
     def get_name(self) -> str:
         """Get task name."""

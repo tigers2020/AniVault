@@ -191,9 +191,7 @@ class AnimeParser:
                 results.append(None)
         return results
 
-    def parse_anime_files_batch(
-        self, anime_files: list[AnimeFile]
-    ) -> list[ParsedAnimeInfo | None]:
+    def parse_anime_files_batch(self, anime_files: list[AnimeFile]) -> list[ParsedAnimeInfo | None]:
         """
         Parses a list of AnimeFile objects in batch.
 

@@ -5,6 +5,7 @@ This module contains comprehensive integration tests that test the complete
 file processing pipeline from scanning to grouping.
 """
 
+import os
 import shutil
 import tempfile
 from datetime import datetime
@@ -12,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from src.core.file_grouper import FileGrouper
+from src.core.file_grouper import FileGrouper, GroupingResult
 from src.core.file_scanner import FileScanner
 from src.core.performance_optimizer import OptimizedFileProcessor
 

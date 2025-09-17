@@ -135,9 +135,7 @@ class AnimeDataValidator:
 
         return len(errors) == 0, errors, normalized
 
-    def validate_episode_number(
-        self, episode: int | None
-    ) -> tuple[bool, list[str], int | None]:
+    def validate_episode_number(self, episode: int | None) -> tuple[bool, list[str], int | None]:
         """
         Validate episode number.
 
@@ -164,9 +162,7 @@ class AnimeDataValidator:
 
         return len(errors) == 0, errors, episode
 
-    def validate_season_number(
-        self, season: int | None
-    ) -> tuple[bool, list[str], int | None]:
+    def validate_season_number(self, season: int | None) -> tuple[bool, list[str], int | None]:
         """
         Validate season number.
 

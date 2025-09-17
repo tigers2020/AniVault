@@ -1191,9 +1191,7 @@ class TMDBClient:
             logger.error("Error converting search result to TMDBAnime: %s", str(e))
             return None
 
-    def get_tv_series_details(
-        self, series_id: int, language: str | None = None
-    ) -> dict[str, Any]:
+    def get_tv_series_details(self, series_id: int, language: str | None = None) -> dict[str, Any]:
         """
         Get detailed information for a TV series.
 
