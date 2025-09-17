@@ -27,5 +27,4 @@ repos:
     rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-PyQt5]
         args: [--ignore-missing-imports]
