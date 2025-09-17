@@ -12,7 +12,7 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -146,7 +146,7 @@ class AnimeMetadata(Base):
         )
 
     @staticmethod
-    def _parse_json_field(field: Optional[str], default: Any) -> Any:
+    def _parse_json_field(field: str | None, default: Any) -> Any:
         """Parse JSON field safely."""
         if not field:
             return default
@@ -156,7 +156,7 @@ class AnimeMetadata(Base):
             return default
 
     @staticmethod
-    def _serialize_json_field(field: Any) -> Optional[str]:
+    def _serialize_json_field(field: Any) -> str | None:
         """Serialize field to JSON string."""
         if not field:
             return None
@@ -256,13 +256,13 @@ class ParsedFile(Base):
     @classmethod
     def from_parsed_anime_info(
         cls,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         filename: str,
         file_size: int,
         created_at: datetime,
         modified_at: datetime,
         parsed_info: ParsedAnimeInfo,
-        file_hash: Optional[str] = None,
+        file_hash: str | None = None,
     ) -> ParsedFile:
         """Create from ParsedAnimeInfo model and file information."""
         return cls(
@@ -289,7 +289,7 @@ class ParsedFile(Base):
         )
 
     @staticmethod
-    def _parse_json_field(field: Optional[str], default: Any) -> Any:
+    def _parse_json_field(field: str | None, default: Any) -> Any:
         """Parse JSON field safely."""
         if not field:
             return default
@@ -299,7 +299,7 @@ class ParsedFile(Base):
             return default
 
     @staticmethod
-    def _serialize_json_field(field: Any) -> Optional[str]:
+    def _serialize_json_field(field: Any) -> str | None:
         """Serialize field to JSON string."""
         if not field:
             return None
@@ -420,7 +420,7 @@ class DatabaseManager:
                 logger.error(f"Failed to create anime metadata: {e}")
                 raise
 
-    def get_anime_metadata(self, tmdb_id: int) -> Optional[AnimeMetadata]:
+    def get_anime_metadata(self, tmdb_id: int) -> AnimeMetadata | None:
         """Get anime metadata by TMDB ID."""
         with self.get_session() as session:
             try:
@@ -445,14 +445,14 @@ class DatabaseManager:
 
     def create_parsed_file(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         filename: str,
         file_size: int,
         created_at: datetime,
         modified_at: datetime,
         parsed_info: ParsedAnimeInfo,
-        file_hash: Optional[str] = None,
-        metadata_id: Optional[int] = None,
+        file_hash: str | None = None,
+        metadata_id: int | None = None,
     ) -> ParsedFile:
         """Create a new parsed file record."""
         with self.get_session() as session:
@@ -509,7 +509,7 @@ class DatabaseManager:
                 logger.error(f"Failed to create parsed file: {e}")
                 raise
 
-    def get_parsed_file(self, file_path: Union[str, Path]) -> Optional[ParsedFile]:
+    def get_parsed_file(self, file_path: str | Path) -> ParsedFile | None:
         """Get parsed file by file path."""
         with self.get_session() as session:
             try:
@@ -527,7 +527,7 @@ class DatabaseManager:
                 logger.error(f"Failed to get parsed files by metadata: {e}")
                 return []
 
-    def delete_parsed_file(self, file_path: Union[str, Path]) -> bool:
+    def delete_parsed_file(self, file_path: str | Path) -> bool:
         """Delete a parsed file record."""
         with self.get_session() as session:
             try:

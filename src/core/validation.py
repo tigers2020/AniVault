@@ -7,7 +7,7 @@ for parsed anime data to ensure data quality and consistency.
 
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from src.core.models import ParsedAnimeInfo
 from src.utils.logger import get_logger
@@ -22,7 +22,7 @@ class ValidationResult:
     is_valid: bool
     errors: list[str]
     warnings: list[str]
-    normalized_data: Optional[dict[str, Any]] = None
+    normalized_data: dict[str, Any] | None = None
 
 
 class AnimeDataValidator:
@@ -136,8 +136,8 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, normalized
 
     def validate_episode_number(
-        self, episode: Optional[int]
-    ) -> tuple[bool, list[str], Optional[int]]:
+        self, episode: int | None
+    ) -> tuple[bool, list[str], int | None]:
         """
         Validate episode number.
 
@@ -165,8 +165,8 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, episode
 
     def validate_season_number(
-        self, season: Optional[int]
-    ) -> tuple[bool, list[str], Optional[int]]:
+        self, season: int | None
+    ) -> tuple[bool, list[str], int | None]:
         """
         Validate season number.
 
@@ -194,8 +194,8 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, season
 
     def validate_resolution(
-        self, resolution: Optional[str], width: Optional[int], height: Optional[int]
-    ) -> tuple[bool, list[str], tuple[Optional[str], Optional[int], Optional[int]]]:
+        self, resolution: str | None, width: int | None, height: int | None
+    ) -> tuple[bool, list[str], tuple[str | None, int | None, int | None]]:
         """
         Validate resolution information.
 
@@ -243,8 +243,8 @@ class AnimeDataValidator:
         return len(errors) == 0, errors + warnings, (resolution, width, height)
 
     def validate_codec(
-        self, codec: Optional[str], codec_type: str
-    ) -> tuple[bool, list[str], Optional[str]]:
+        self, codec: str | None, codec_type: str
+    ) -> tuple[bool, list[str], str | None]:
         """
         Validate video or audio codec.
 
@@ -268,7 +268,7 @@ class AnimeDataValidator:
 
         return len(errors) == 0, errors, codec_upper
 
-    def validate_year(self, year: Optional[int]) -> tuple[bool, list[str], Optional[int]]:
+    def validate_year(self, year: int | None) -> tuple[bool, list[str], int | None]:
         """
         Validate release year.
 
@@ -295,7 +295,7 @@ class AnimeDataValidator:
 
         return len(errors) == 0, errors, year
 
-    def validate_source(self, source: Optional[str]) -> tuple[bool, list[str], Optional[str]]:
+    def validate_source(self, source: str | None) -> tuple[bool, list[str], str | None]:
         """
         Validate source type.
 

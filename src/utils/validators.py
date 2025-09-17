@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 
 class ConfigValidator:
@@ -143,7 +143,7 @@ class ConfigValidator:
         return language.lower() in [lang.lower() for lang in self.VALID_LANGUAGES]
 
     def validate_numeric_range(
-        self, value: Union[int, float], min_val: float, max_val: float
+        self, value: int | float, min_val: float, max_val: float
     ) -> bool:
         """
         Validate numeric value is within specified range.
@@ -385,7 +385,7 @@ class ConfigValidator:
 
 
 # Global validator instance
-_validator: Optional[ConfigValidator] = None
+_validator: ConfigValidator | None = None
 
 
 def get_validator() -> ConfigValidator:

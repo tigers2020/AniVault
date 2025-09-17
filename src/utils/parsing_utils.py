@@ -6,10 +6,9 @@ including resolution parsing, title normalization, and data validation.
 """
 
 import re
-from typing import Optional
 
 
-def parse_resolution_string(res_str: Optional[str]) -> tuple[Optional[int], Optional[int]]:
+def parse_resolution_string(res_str: str | None) -> tuple[int | None, int | None]:
     """
     Parses a resolution string (e.g., '1080p', '1920x1080', '4K') into width and height.
 
@@ -100,7 +99,7 @@ def normalize_title(title: str) -> str:
     return normalized.strip()
 
 
-def validate_episode_number(episode: Optional[int]) -> Optional[int]:
+def validate_episode_number(episode: int | None) -> int | None:
     """
     Validates and normalizes episode numbers.
 
@@ -120,7 +119,7 @@ def validate_episode_number(episode: Optional[int]) -> Optional[int]:
     return None
 
 
-def validate_season_number(season: Optional[int]) -> Optional[int]:
+def validate_season_number(season: int | None) -> int | None:
     """
     Validates and normalizes season numbers.
 
@@ -140,7 +139,7 @@ def validate_season_number(season: Optional[int]) -> Optional[int]:
     return None
 
 
-def validate_year(year: Optional[int]) -> Optional[int]:
+def validate_year(year: int | None) -> int | None:
     """
     Validates and normalizes year values.
 

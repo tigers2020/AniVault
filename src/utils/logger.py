@@ -9,7 +9,6 @@ import logging
 import logging.handlers
 import sys
 from pathlib import Path
-from typing import Optional
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
@@ -60,7 +59,7 @@ class LogManager(QObject):
     # Signal emitted when log configuration changes
     config_changed = pyqtSignal()
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         """
         Initialize the log manager.
 
@@ -79,7 +78,7 @@ class LogManager(QObject):
         self.debug_log_file = self.log_dir / "anivault_debug.log"
 
         # Qt handler for UI integration
-        self.qt_handler: Optional[QtLogHandler] = None
+        self.qt_handler: QtLogHandler | None = None
 
         # Configure logging
         self._setup_logging()
@@ -261,7 +260,7 @@ class LogManager(QObject):
 
 
 # Global log manager instance
-_log_manager: Optional[LogManager] = None
+_log_manager: LogManager | None = None
 
 
 def get_log_manager() -> LogManager:

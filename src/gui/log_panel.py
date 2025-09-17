@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from PyQt5.QtWidgets import (
     QGroupBox,
@@ -24,7 +23,7 @@ class LogPanel(QGroupBox):
     """Panel for displaying application execution logs."""
 
     def __init__(
-        self, parent: QWidget | None = None, config_manager: Optional[ConfigManager] = None
+        self, parent: QWidget | None = None, config_manager: ConfigManager | None = None
     ) -> None:
         """Initialize the log panel."""
         super().__init__("실행 로그", parent)

@@ -12,7 +12,7 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any
 
 from .models import ParsedAnimeInfo, TMDBAnime
 
@@ -57,7 +57,7 @@ class CacheEntry:
     """Represents a single cache entry with metadata."""
 
     key: str
-    value: Union[ParsedAnimeInfo, TMDBAnime]
+    value: ParsedAnimeInfo | TMDBAnime
     created_at: float
     last_accessed: float
     access_count: int = 0
@@ -78,7 +78,7 @@ class MetadataCache:
     """
 
     def __init__(
-        self, max_size: int = 1000, max_memory_mb: int = 100, ttl_seconds: Optional[int] = None
+        self, max_size: int = 1000, max_memory_mb: int = 100, ttl_seconds: int | None = None
     ) -> None:
         """
         Initialize the metadata cache.
@@ -109,8 +109,8 @@ class MetadataCache:
         self._last_cleanup = time.time()
 
     def get(
-        self, key: str, default: Optional[Union[ParsedAnimeInfo, TMDBAnime]] = None
-    ) -> Optional[Union[ParsedAnimeInfo, TMDBAnime]]:
+        self, key: str, default: ParsedAnimeInfo | TMDBAnime | None = None
+    ) -> ParsedAnimeInfo | TMDBAnime | None:
         """
         Retrieve a value from the cache.
 
@@ -148,7 +148,7 @@ class MetadataCache:
 
             return entry.value
 
-    def put(self, key: str, value: Union[ParsedAnimeInfo, TMDBAnime]) -> None:
+    def put(self, key: str, value: ParsedAnimeInfo | TMDBAnime) -> None:
         """
         Store a value in the cache.
 
@@ -308,7 +308,7 @@ class MetadataCache:
             entry = self._cache.pop(key)
             self._current_memory_bytes -= entry.size_bytes
 
-    def _calculate_entry_size(self, key: str, value: Union[ParsedAnimeInfo, TMDBAnime]) -> int:
+    def _calculate_entry_size(self, key: str, value: ParsedAnimeInfo | TMDBAnime) -> int:
         """Calculate the memory size of a cache entry."""
         # Base size for key and entry metadata
         base_size = len(key.encode("utf-8")) + 100  # Approximate overhead

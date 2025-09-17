@@ -14,7 +14,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Any, Optional
+from typing import Any
 
 from .models import AnimeFile, FileGroup
 
@@ -58,7 +58,7 @@ class FileGrouper:
         self,
         similarity_threshold: float = 0.75,
         max_workers: int = 4,
-        progress_callback: Optional[Callable[[int, str], None]] = None,
+        progress_callback: Callable[[int, str], None] | None = None,
     ) -> None:
         """
         Initialize the file grouper.
@@ -94,7 +94,7 @@ class FileGrouper:
 
         try:
             logger.info(f"FileGrouper.group_files called with {len(files)} files")
-            
+
             if not files:
                 logger.warning("No files provided to group_files")
                 return GroupingResult(
@@ -118,7 +118,9 @@ class FileGrouper:
             # Group files using similarity analysis
             logger.debug("Starting similarity grouping...")
             groups, ungrouped_files = self._group_files_similarity(processed_files)
-            logger.info(f"Similarity grouping created {len(groups)} groups, {len(ungrouped_files)} ungrouped files")
+            logger.info(
+                f"Similarity grouping created {len(groups)} groups, {len(ungrouped_files)} ungrouped files"
+            )
 
             # Post-process groups to improve accuracy
             logger.debug("Starting post-processing...")
@@ -138,7 +140,9 @@ class FileGrouper:
                     100, f"Grouping completed: {len(file_groups)} groups created"
                 )
 
-            logger.info(f"Grouping completed successfully: {len(file_groups)} groups, {grouped_files} files grouped")
+            logger.info(
+                f"Grouping completed successfully: {len(file_groups)} groups, {grouped_files} files grouped"
+            )
             return GroupingResult(
                 groups=file_groups,
                 ungrouped_files=ungrouped_files,
@@ -175,7 +179,7 @@ class FileGrouper:
             # Extract additional metadata from filename
             file._extracted_info = self._extract_filename_info(file.filename)
             processed_files.append(file)
-            
+
             if i < 3:  # Log first 3 files for debugging
                 info = file._extracted_info
                 logger.debug(f"  File {i+1}: {file.filename}")
@@ -271,13 +275,17 @@ class FileGrouper:
         self, files: list[AnimeFile]
     ) -> tuple[list[list[AnimeFile]], list[AnimeFile]]:
         """Group files based on filename similarity."""
-        logger.debug(f"Starting similarity grouping with {len(files)} files, threshold={self.similarity_threshold}")
-        
+        logger.debug(
+            f"Starting similarity grouping with {len(files)} files, threshold={self.similarity_threshold}"
+        )
+
         try:
             groups: list[list[AnimeFile]] = []
             ungrouped_files: list[AnimeFile] = []
             processed_files = set()
-            logger.debug(f"Initialized variables: groups={len(groups)}, ungrouped={len(ungrouped_files)}, processed={len(processed_files)}")
+            logger.debug(
+                f"Initialized variables: groups={len(groups)}, ungrouped={len(ungrouped_files)}, processed={len(processed_files)}"
+            )
 
             for i, file1 in enumerate(files):
                 logger.debug(f"=== Processing file {i+1}/{len(files)}: {file1.filename} ===")
@@ -287,7 +295,9 @@ class FileGrouper:
 
                 if self.progress_callback and i % 10 == 0:
                     progress = int((i / len(files)) * 50)  # First half of progress
-                    self.progress_callback(progress, f"Analyzing file similarities... {i}/{len(files)}")
+                    self.progress_callback(
+                        progress, f"Analyzing file similarities... {i}/{len(files)}"
+                    )
 
                 current_group = [file1]
                 processed_files.add(file1)
@@ -301,7 +311,9 @@ class FileGrouper:
                 # Find similar files
                 similar_count = 0
                 for j, file2 in enumerate(files[i + 1 :], i + 1):
-                    logger.debug(f"  --- Comparing with file {j+1}/{len(files)}: {file2.filename} ---")
+                    logger.debug(
+                        f"  --- Comparing with file {j+1}/{len(files)}: {file2.filename} ---"
+                    )
                     if file2 in processed_files:
                         logger.debug(f"  Skipping file {j+1}: {file2.filename} (already processed)")
                         continue
@@ -320,7 +332,9 @@ class FileGrouper:
                     else:
                         logger.debug(f"  Files not similar: {file1.filename} vs {file2.filename}")
 
-                logger.debug(f"  Created group with {len(current_group)} files (found {similar_count} similar files)")
+                logger.debug(
+                    f"  Created group with {len(current_group)} files (found {similar_count} similar files)"
+                )
                 # Create groups (including single-file groups)
                 groups.append(current_group)
                 logger.debug(f"  Total groups so far: {len(groups)}")
@@ -342,10 +356,14 @@ class FileGrouper:
         clean_name2 = info2.get("clean_name", file2.filename)
 
         similarity = SequenceMatcher(None, clean_name1, clean_name2).ratio()
-        logger.debug(f"Comparing '{clean_name1}' vs '{clean_name2}': similarity={similarity:.3f}, threshold={self.similarity_threshold}")
+        logger.debug(
+            f"Comparing '{clean_name1}' vs '{clean_name2}': similarity={similarity:.3f}, threshold={self.similarity_threshold}"
+        )
 
         if similarity < self.similarity_threshold:
-            logger.debug(f"  Files not similar enough: {similarity:.3f} < {self.similarity_threshold}")
+            logger.debug(
+                f"  Files not similar enough: {similarity:.3f} < {self.similarity_threshold}"
+            )
             return False
 
         # Additional heuristics for better grouping
@@ -398,6 +416,52 @@ class FileGrouper:
 
             merged_groups.append(current_group)
 
+        return merged_groups
+
+    def merge_groups_by_name(self, groups: list[FileGroup]) -> list[FileGroup]:
+        """Merge groups that have the same name after TMDB metadata application."""
+        if not groups:
+            return groups
+
+        # Group by name (including groups without TMDB metadata)
+        groups_by_name = {}
+        for group in groups:
+            # Use group_name if available, otherwise use series_title as fallback
+            group_name = group.group_name or group.series_title or "Unknown"
+            if group_name not in groups_by_name:
+                groups_by_name[group_name] = []
+            groups_by_name[group_name].append(group)
+
+        # Merge groups with the same name
+        merged_groups = []
+        for group_name, group_list in groups_by_name.items():
+            if len(group_list) == 1:
+                merged_groups.append(group_list[0])
+            else:
+                # Merge multiple groups with the same name
+                logger.info(f"Merging {len(group_list)} groups with name '{group_name}'")
+
+                # Use the first group as the base
+                base_group = group_list[0]
+
+                # Add all files from other groups
+                for other_group in group_list[1:]:
+                    for file in other_group.files:
+                        base_group.add_file(file)
+
+                # Update group metadata
+                base_group.similarity_score = self._calculate_group_similarity(base_group.files)
+                base_group.group_name = group_name
+                base_group.series_title = group_name  # Update series_title as well
+
+                merged_groups.append(base_group)
+                logger.info(
+                    f"Merged {len(group_list)} groups into one group with {len(base_group.files)} files"
+                )
+
+        logger.info(
+            f"Final result: {len(merged_groups)} groups (merged {len(groups)} into {len(merged_groups)})"
+        )
         return merged_groups
 
     def _should_merge_groups(self, group1: list[AnimeFile], group2: list[AnimeFile]) -> bool:
@@ -491,7 +555,7 @@ def group_files(
     files: list[AnimeFile],
     similarity_threshold: float = 0.75,
     max_workers: int = 4,
-    progress_callback: Optional[Callable[[int, str], None]] = None,
+    progress_callback: Callable[[int, str], None] | None = None,
 ) -> GroupingResult:
     """
     Convenience function to group anime files by similarity.

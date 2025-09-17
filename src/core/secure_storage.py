@@ -14,7 +14,7 @@ import os
 import secrets
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class SecureKeyManager:
     """Manages encryption keys and provides secure key operations."""
 
-    def __init__(self, key_file_path: Optional[Path] = None):
+    def __init__(self, key_file_path: Path | None = None):
         """
         Initialize the secure key manager.
 
@@ -38,7 +38,7 @@ class SecureKeyManager:
         else:
             self.key_file_path = Path(key_file_path)
 
-        self._key: Optional[bytes] = None
+        self._key: bytes | None = None
         self._lock = threading.RLock()
         self._load_or_generate_key()
 
@@ -139,7 +139,7 @@ class SecureStorage:
     data with automatic encryption/decryption and key management.
     """
 
-    def __init__(self, key_manager: Optional[SecureKeyManager] = None):
+    def __init__(self, key_manager: SecureKeyManager | None = None):
         """
         Initialize the secure storage.
 
@@ -148,7 +148,7 @@ class SecureStorage:
         """
         self.key_manager = key_manager or SecureKeyManager()
         self._lock = threading.RLock()
-        self._cipher_suite: Optional[Fernet] = None
+        self._cipher_suite: Fernet | None = None
         self._initialize_cipher()
 
     def _initialize_cipher(self) -> None:
@@ -302,7 +302,7 @@ class SecureStorage:
 
     def secure_retrieve(
         self, stored_data: dict[str, Any], verify_integrity: bool = True
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Securely retrieve a value with optional integrity verification.
 
@@ -365,7 +365,7 @@ class SecureStorage:
 
 
 # Global secure storage instance
-_secure_storage: Optional[SecureStorage] = None
+_secure_storage: SecureStorage | None = None
 
 
 def get_secure_storage() -> SecureStorage:
@@ -381,7 +381,7 @@ def get_secure_storage() -> SecureStorage:
     return _secure_storage
 
 
-def initialize_secure_storage(key_file_path: Optional[Path] = None) -> SecureStorage:
+def initialize_secure_storage(key_file_path: Path | None = None) -> SecureStorage:
     """
     Initialize the global secure storage.
 

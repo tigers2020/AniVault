@@ -7,7 +7,7 @@ to extract meaningful information from anime filenames.
 
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from src.core.models import ParsedAnimeInfo
 from src.utils.logger import get_logger
@@ -225,7 +225,7 @@ class FallbackAnimeParser:
 
         return title
 
-    def create_fallback_parsed_info(self, filename: str) -> Optional[ParsedAnimeInfo]:
+    def create_fallback_parsed_info(self, filename: str) -> ParsedAnimeInfo | None:
         """
         Create a ParsedAnimeInfo object using fallback parsing.
 

@@ -12,7 +12,7 @@ import logging
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from .database import db_manager
 from .metadata_cache import cache_manager
@@ -34,7 +34,7 @@ class MetadataStorage:
         self,
         cache_max_size: int = 1000,
         cache_max_memory_mb: int = 100,
-        cache_ttl_seconds: Optional[int] = 3600,  # 1 hour
+        cache_ttl_seconds: int | None = 3600,  # 1 hour
         enable_cache: bool = True,
         enable_db: bool = True,
     ) -> None:
@@ -113,7 +113,7 @@ class MetadataStorage:
                 logger.error(f"Failed to store TMDB metadata: {e}")
                 return False
 
-    def get_tmdb_metadata(self, tmdb_id: int) -> Optional[TMDBAnime]:
+    def get_tmdb_metadata(self, tmdb_id: int) -> TMDBAnime | None:
         """
         Retrieve TMDB metadata from cache or database.
 
@@ -197,13 +197,13 @@ class MetadataStorage:
 
     def store_parsed_file(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         filename: str,
         file_size: int,
         created_at: datetime,
         modified_at: datetime,
         parsed_info: ParsedAnimeInfo,
-        tmdb_id: Optional[int] = None,
+        tmdb_id: int | None = None,
     ) -> bool:
         """
         Store parsed file information in both cache and database.
@@ -265,7 +265,7 @@ class MetadataStorage:
                 logger.error(f"Failed to store parsed file: {e}")
                 return False
 
-    def get_parsed_file(self, file_path: Union[str, Path]) -> Optional[dict[str, Any]]:
+    def get_parsed_file(self, file_path: str | Path) -> dict[str, Any] | None:
         """
         Retrieve parsed file information from cache or database.
 
@@ -361,7 +361,7 @@ class MetadataStorage:
                 logger.error(f"Failed to get files by TMDB ID: {e}")
                 return []
 
-    def delete_parsed_file(self, file_path: Union[str, Path]) -> bool:
+    def delete_parsed_file(self, file_path: str | Path) -> bool:
         """
         Delete parsed file information from both cache and database.
 
@@ -489,7 +489,7 @@ class MetadataStorage:
             if self.enable_cache and self.cache:
                 self.cache.reset_stats()
 
-    def _calculate_file_hash(self, file_path: Union[str, Path]) -> Optional[str]:
+    def _calculate_file_hash(self, file_path: str | Path) -> str | None:
         """Calculate SHA-256 hash of a file."""
         try:
             file_path = Path(file_path)

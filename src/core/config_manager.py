@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class ConfigManager:
     settings throughout the application.
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize the configuration manager.
 
@@ -135,13 +135,61 @@ class ConfigManager:
         config[keys[-1]] = value
         logger.debug("Configuration set: %s = %s", key_path, value)
 
-    def get_tmdb_api_key(self) -> Optional[str]:
+    def get_tmdb_api_key(self) -> str | None:
         """Get TMDB API key."""
         return self.get("services.tmdb_api.api_key") or self.get("services.api_keys.tmdb")
 
     def get_tmdb_language(self) -> str:
         """Get TMDB language setting."""
         return self.get("services.tmdb_api.language", "ko-KR")
+
+    def get_tmdb_high_confidence_threshold(self) -> float:
+        """Get TMDB high confidence threshold."""
+        return self.get("services.tmdb_api.high_confidence_threshold", 0.7)
+
+    def set_tmdb_high_confidence_threshold(self, threshold: float) -> None:
+        """Set TMDB high confidence threshold."""
+        self.set("services.tmdb_api.high_confidence_threshold", threshold)
+
+    def get_tmdb_medium_confidence_threshold(self) -> float:
+        """Get TMDB medium confidence threshold."""
+        return self.get("services.tmdb_api.medium_confidence_threshold", 0.1)
+
+    def set_tmdb_medium_confidence_threshold(self, threshold: float) -> None:
+        """Set TMDB medium confidence threshold."""
+        self.set("services.tmdb_api.medium_confidence_threshold", threshold)
+
+    def get_tmdb_similarity_weight(self) -> float:
+        """Get TMDB similarity weight for scoring."""
+        return self.get("services.tmdb_api.similarity_weight", 0.6)
+
+    def set_tmdb_similarity_weight(self, weight: float) -> None:
+        """Set TMDB similarity weight for scoring."""
+        self.set("services.tmdb_api.similarity_weight", weight)
+
+    def get_tmdb_year_weight(self) -> float:
+        """Get TMDB year weight for scoring."""
+        return self.get("services.tmdb_api.year_weight", 0.2)
+
+    def set_tmdb_year_weight(self, weight: float) -> None:
+        """Set TMDB year weight for scoring."""
+        self.set("services.tmdb_api.year_weight", weight)
+
+    def get_tmdb_language_weight(self) -> float:
+        """Get TMDB language weight for scoring."""
+        return self.get("services.tmdb_api.language_weight", 0.2)
+
+    def set_tmdb_language_weight(self, weight: float) -> None:
+        """Set TMDB language weight for scoring."""
+        self.set("services.tmdb_api.language_weight", weight)
+
+    def get_tmdb_include_person_results(self) -> bool:
+        """Get whether to include person results in search."""
+        return self.get("services.tmdb_api.include_person_results", False)
+
+    def set_tmdb_include_person_results(self, include: bool) -> None:
+        """Set whether to include person results in search."""
+        self.set("services.tmdb_api.include_person_results", include)
 
     def get_destination_root(self) -> str:
         """Get destination root directory."""
@@ -247,7 +295,7 @@ class ConfigManager:
             logger.error("Configuration validation failed: %s", str(e))
             return False
 
-    def backup_config(self, backup_path: Optional[Path] = None) -> bool:
+    def backup_config(self, backup_path: Path | None = None) -> bool:
         """
         Create a backup of the current configuration.
 
@@ -278,7 +326,7 @@ class ConfigManager:
 
 
 # Global configuration manager instance
-_config_manager: Optional[ConfigManager] = None
+_config_manager: ConfigManager | None = None
 
 
 def get_config_manager() -> ConfigManager:
@@ -294,7 +342,7 @@ def get_config_manager() -> ConfigManager:
     return _config_manager
 
 
-def initialize_config(config_path: Optional[Path] = None) -> ConfigManager:
+def initialize_config(config_path: Path | None = None) -> ConfigManager:
     """
     Initialize the global configuration manager.
 

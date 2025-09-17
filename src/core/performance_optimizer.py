@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import psutil
 
@@ -54,7 +54,7 @@ class PerformanceProfiler:
     def __init__(self) -> None:
         self.metrics_history: list[PerformanceMetrics] = []
         self._monitoring = False
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_thread: threading.Thread | None = None
         self._peak_memory = 0.0
         self._start_memory = 0.0
 
@@ -233,7 +233,7 @@ class OptimizedFileProcessor:
     def __init__(
         self,
         similarity_threshold: float = 0.75,
-        max_workers: Optional[int] = None,
+        max_workers: int | None = None,
         batch_size: int = 100,
         enable_caching: bool = True,
     ) -> None:
@@ -256,7 +256,7 @@ class OptimizedFileProcessor:
         self._cache_lock = threading.Lock()
 
     def process_directory(
-        self, directory: Path, progress_callback: Optional[Callable[[int, str], None]] = None
+        self, directory: Path, progress_callback: Callable[[int, str], None] | None = None
     ) -> tuple[ScanResult, GroupingResult]:
         """
         Process a directory with optimized scanning and grouping.
@@ -321,7 +321,7 @@ class OptimizedFileProcessor:
         self,
         files: list[AnimeFile],
         grouper: FileGrouper,
-        progress_callback: Optional[Callable[[int, str], None]] = None,
+        progress_callback: Callable[[int, str], None] | None = None,
     ) -> GroupingResult:
         """Process files in batches to manage memory usage."""
         all_groups = []
@@ -405,7 +405,7 @@ class OptimizedFileProcessor:
         return similarity >= self.similarity_threshold
 
 
-def optimize_worker_count(file_count: int, available_cores: Optional[int] = None) -> int:
+def optimize_worker_count(file_count: int, available_cores: int | None = None) -> int:
     """
     Calculate optimal worker count based on file count and system resources.
 
@@ -433,7 +433,7 @@ def optimize_worker_count(file_count: int, available_cores: Optional[int] = None
 def memory_efficient_scan(
     directory: Path,
     max_memory_mb: int = 500,
-    progress_callback: Optional[Callable[[int, str], None]] = None,
+    progress_callback: Callable[[int, str], None] | None = None,
 ) -> ScanResult:
     """
     Memory-efficient file scanning that processes files in small batches.

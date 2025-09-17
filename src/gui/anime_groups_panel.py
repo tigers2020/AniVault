@@ -165,40 +165,42 @@ class AnimeGroupsPanel(QGroupBox):
     def update_groups(self, groups) -> None:
         """
         Update the groups table with actual group data.
-        
+
         Args:
             groups: List of FileGroup objects
         """
         logger.debug(f"Updating groups table with {len(groups)} groups")
-        
+
         # Clear existing data
         self.groups_table.setRowCount(0)
-        
+
         # Populate with actual group data
         for i, group in enumerate(groups):
-            logger.debug(f"Adding group {i+1}: ID={group.group_id}, series_title='{group.series_title}'")
+            logger.debug(
+                f"Adding group {i+1}: ID={group.group_id}, series_title='{group.series_title}'"
+            )
             self._add_group_row(group)
-            
+
         logger.info(f"Updated groups table with {len(groups)} groups")
 
     def _add_group_row(self, group) -> None:
         """
         Add a single group row to the table.
-        
+
         Args:
             group: FileGroup object to add
         """
         row = self.groups_table.rowCount()
         self.groups_table.insertRow(row)
-        
+
         # Group name (use Korean title if available)
         group_name = group.series_title or group.group_id
         group_name_item = QTableWidgetItem(group_name)
         group_name_item.setData(Qt.UserRole, group.group_id)  # Store group ID for selection
-        
+
         # File count
         file_count_item = QTableWidgetItem(str(len(group.files)))
-        
+
         # Status (based on processing state)
         if group.is_processed:
             status = "완료"
@@ -206,17 +208,17 @@ class AnimeGroupsPanel(QGroupBox):
             status = "메타데이터 있음"
         else:
             status = "대기"
-        
+
         status_item = QTableWidgetItem(status)
-        
+
         # Set items in table
         self.groups_table.setItem(row, 0, group_name_item)
         self.groups_table.setItem(row, 1, file_count_item)
         self.groups_table.setItem(row, 2, status_item)
-        
+
         # Apply status color
         self._set_status_color(status_item, status)
-        
+
         # Apply row colors
         self._set_row_colors(row)
 

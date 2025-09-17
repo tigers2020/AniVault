@@ -1,8 +1,12 @@
 """Anime details panel for displaying TMDB information."""
 
+import logging
 from typing import Any
+from urllib.error import URLError
+from urllib.request import urlopen
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (
     QFrame,
     QGroupBox,
@@ -14,6 +18,48 @@ from PyQt5.QtWidgets import (
 
 from ..themes.theme_manager import get_theme_manager
 
+logger = logging.getLogger(__name__)
+
+
+class ImageLoaderThread(QThread):
+    """Thread for loading images from URLs without blocking the UI."""
+
+    image_loaded = pyqtSignal(QPixmap)
+    load_failed = pyqtSignal(str)
+
+    def __init__(self, image_url: str):
+        super().__init__()
+        self.image_url = image_url
+
+    def run(self):
+        """Load image from URL in background thread."""
+        try:
+            logger.info(f"Loading image from: {self.image_url}")
+
+            # Download image data
+            with urlopen(self.image_url, timeout=10) as response:
+                image_data = response.read()
+
+            # Create QPixmap from image data
+            pixmap = QPixmap()
+            if pixmap.loadFromData(image_data):
+                # Scale image to fit poster label (max 300x450)
+                scaled_pixmap = pixmap.scaled(300, 450, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.image_loaded.emit(scaled_pixmap)
+                logger.info(f"Successfully loaded image: {self.image_url}")
+            else:
+                self.load_failed.emit("Failed to load image data")
+                logger.error(f"Failed to load image data from: {self.image_url}")
+
+        except URLError as e:
+            error_msg = f"Network error loading image: {str(e)}"
+            self.load_failed.emit(error_msg)
+            logger.error(error_msg)
+        except Exception as e:
+            error_msg = f"Error loading image: {str(e)}"
+            self.load_failed.emit(error_msg)
+            logger.error(error_msg)
+
 
 class AnimeDetailsPanel(QGroupBox):
     """Panel displaying detailed anime information from TMDB."""
@@ -22,6 +68,7 @@ class AnimeDetailsPanel(QGroupBox):
         """Initialize the anime details panel."""
         super().__init__("애니 디테일", parent)
         self.theme_manager = get_theme_manager()
+        self.image_loader_thread = None
         # Apply theme to the GroupBox first
         self.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
         self._setup_ui()
@@ -50,14 +97,14 @@ class AnimeDetailsPanel(QGroupBox):
         # Poster section
         self.poster_label = QLabel()
         self.poster_label.setAlignment(Qt.AlignCenter)
+        self.poster_label.setFixedSize(300, 450)  # Fixed size for poster
         self.poster_label.setStyleSheet(
             f"""
             QLabel {{
                 background-color: {self.theme_manager.get_color('bg_secondary')};
                 border: 2px solid {self.theme_manager.get_color('border_primary')};
                 border-radius: 8px;
-                padding: 20px;
-                min-height: 200px;
+                padding: 10px;
             }}
         """
         )
@@ -149,65 +196,73 @@ class AnimeDetailsPanel(QGroupBox):
     def display_group_details(self, group) -> None:
         """
         Display anime details for a selected group.
-        
+
         Args:
             group: FileGroup object with TMDB information
         """
         if not group:
             self.clear_details()
             return
-            
+
         # Update title with Korean title if available
         if group.tmdb_info:
             title = group.tmdb_info.korean_title or group.tmdb_info.title
             self.title_label.setText(title)
-            
+
             # Update other TMDB fields
             self._update_tmdb_fields(group.tmdb_info)
         else:
             # Fallback to group's series title
             title = group.series_title or "제목 없음"
             self.title_label.setText(title)
-            
+
         # Update poster placeholder
         self.poster_label.setText("포스터\n(로딩 중...)")
-        
+
         # TODO: Load actual poster image from TMDB if available
         # This would require implementing image loading from URLs
 
     def _update_tmdb_fields(self, tmdb_info) -> None:
         """
         Update TMDB information fields.
-        
+
         Args:
             tmdb_info: TMDBAnime object with metadata
         """
         # Update genres
         if tmdb_info.genres:
-            genres_text = ", ".join(tmdb_info.genres)
-            self._update_info_field("장르", genres_text)
+            try:
+                # Handle both string list and dict list cases
+                if isinstance(tmdb_info.genres[0], dict):
+                    genres_text = ", ".join([genre.get("name", "") for genre in tmdb_info.genres])
+                else:
+                    genres_text = ", ".join(tmdb_info.genres)
+                self._update_info_field("장르", genres_text)
+            except (IndexError, AttributeError, TypeError) as e:
+                logger.warning("Error processing genres: %s", str(e))
+                self._update_info_field("장르", "정보 없음")
         else:
             self._update_info_field("장르", "정보 없음")
-            
+
         # Update description
         if tmdb_info.overview:
             self._update_info_field("설명", tmdb_info.overview)
         else:
             self._update_info_field("설명", "설명이 없습니다.")
-            
+
         # Update rating
         if tmdb_info.vote_average > 0:
             rating_text = f"{tmdb_info.vote_average:.1f} / 10 ({tmdb_info.vote_count}명 평가)"
             self._update_info_field("평점", rating_text)
         else:
             self._update_info_field("평점", "평점 정보 없음")
-            
+
         # Update episode count
         if tmdb_info.number_of_episodes > 0:
             self._update_info_field("에피소드 수", str(tmdb_info.number_of_episodes))
         else:
             self._update_info_field("에피소드 수", "정보 없음")
-            
+
         # Update air date
         if tmdb_info.first_air_date:
             air_date_text = tmdb_info.first_air_date.strftime("%Y-%m-%d")
@@ -216,24 +271,24 @@ class AnimeDetailsPanel(QGroupBox):
             self._update_info_field("방영일", air_date_text)
         else:
             self._update_info_field("방영일", "정보 없음")
-            
+
         # Update networks (production companies)
         if tmdb_info.networks:
             networks_text = ", ".join(tmdb_info.networks)
             self._update_info_field("제작사", networks_text)
         else:
             self._update_info_field("제작사", "정보 없음")
-            
+
         # Update poster
         if tmdb_info.poster_path:
-            self.poster_label.setText(f"포스터\n(이미지 URL: {tmdb_info.poster_url})")
+            self._load_poster_image(tmdb_info.poster_url)
         else:
             self.poster_label.setText("포스터\n(이미지 없음)")
 
     def _update_info_field(self, field_name: str, field_value: str) -> None:
         """
         Update a specific info field value.
-        
+
         Args:
             field_name: Name of the field to update
             field_value: New value for the field
@@ -261,6 +316,33 @@ class AnimeDetailsPanel(QGroupBox):
             "방영일": "정보 없음",
             "제작사": "정보 없음",
         }
-        
+
         for field_name, default_value in default_values.items():
             self._update_info_field(field_name, default_value)
+
+    def _load_poster_image(self, image_url: str) -> None:
+        """Load poster image from URL in background thread."""
+        # Cancel any existing image loading
+        if self.image_loader_thread and self.image_loader_thread.isRunning():
+            self.image_loader_thread.quit()
+            self.image_loader_thread.wait()
+
+        # Show loading message
+        self.poster_label.setText("포스터\n(로딩 중...)")
+
+        # Create and start new image loader thread
+        self.image_loader_thread = ImageLoaderThread(image_url)
+        self.image_loader_thread.image_loaded.connect(self._on_image_loaded)
+        self.image_loader_thread.load_failed.connect(self._on_image_load_failed)
+        self.image_loader_thread.start()
+
+    def _on_image_loaded(self, pixmap: QPixmap) -> None:
+        """Handle successful image loading."""
+        self.poster_label.setPixmap(pixmap)
+        self.poster_label.setScaledContents(True)
+        logger.info("Poster image loaded successfully")
+
+    def _on_image_load_failed(self, error_message: str) -> None:
+        """Handle image loading failure."""
+        self.poster_label.setText(f"포스터\n(로딩 실패)\n{error_message}")
+        logger.error(f"Poster image loading failed: {error_message}")

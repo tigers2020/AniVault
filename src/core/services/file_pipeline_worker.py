@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
@@ -74,7 +74,7 @@ class FilePipelineWorker(QThread):
     task_error = pyqtSignal(str, str)  # task_name, error_message
     worker_finished = pyqtSignal()  # when worker thread finishes
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         """
         Initialize the FilePipelineWorker.
 
@@ -85,7 +85,7 @@ class FilePipelineWorker(QThread):
 
         # Task queue and execution state
         self._task_queue: list[WorkerTask] = []
-        self._current_task: Optional[WorkerTask] = None
+        self._current_task: WorkerTask | None = None
         self._is_running: bool = False
         self._should_stop: bool = False
 
@@ -94,7 +94,7 @@ class FilePipelineWorker(QThread):
         self._state_mutex = threading.Lock()
 
         # Processing state reference
-        self._processing_state: Optional[ProcessingState] = None
+        self._processing_state: ProcessingState | None = None
 
         logger.debug("FilePipelineWorker initialized")
 
@@ -283,7 +283,7 @@ class FilePipelineWorker(QThread):
             with self._state_mutex:
                 self._current_task = None
 
-    def get_current_task(self) -> Optional[WorkerTask]:
+    def get_current_task(self) -> WorkerTask | None:
         """
         Get the currently executing task.
 

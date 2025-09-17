@@ -11,7 +11,7 @@ import base64
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from .config_manager import ConfigManager
 from .config_schema import get_schema_validator
@@ -53,7 +53,7 @@ class ConfigValidator:
         return language in valid_languages
 
     @staticmethod
-    def validate_numeric_range(value: Union[int, float], min_val: float, max_val: float) -> bool:
+    def validate_numeric_range(value: int | float, min_val: float, max_val: float) -> bool:
         """Validate numeric value is within range."""
         return min_val <= value <= max_val
 
@@ -69,7 +69,7 @@ class SecureConfigManager:
     - Automatic encryption/decryption
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize the secure configuration manager.
 
@@ -161,7 +161,7 @@ class SecureConfigManager:
 
             return value
 
-    def set(self, key_path: str, value: Any, encrypt: Optional[bool] = None) -> None:
+    def set(self, key_path: str, value: Any, encrypt: bool | None = None) -> None:
         """
         Set a configuration value with optional encryption.
 
@@ -193,7 +193,7 @@ class SecureConfigManager:
                 self._base_manager.set(key_path, value)
                 logger.debug("Configuration set: %s = %s", key_path, value)
 
-    def get_tmdb_api_key(self) -> Optional[str]:
+    def get_tmdb_api_key(self) -> str | None:
         """Get TMDB API key with automatic decryption."""
         result = self.get("services.tmdb_api.api_key") or self.get("services.api_keys.tmdb")
         return result if isinstance(result, str) else None
@@ -401,7 +401,7 @@ class SecureConfigManager:
             decrypt_sensitive_values(config)
             return config
 
-    def backup_config(self, backup_path: Optional[Path] = None) -> bool:
+    def backup_config(self, backup_path: Path | None = None) -> bool:
         """Create a backup of the current configuration with thread safety."""
         with self._lock:
             return self._base_manager.backup_config(backup_path)
@@ -457,7 +457,7 @@ class SecureConfigManager:
 
 
 # Global secure configuration manager instance
-_secure_config_manager: Optional[SecureConfigManager] = None
+_secure_config_manager: SecureConfigManager | None = None
 
 
 def get_secure_config_manager() -> SecureConfigManager:
@@ -473,7 +473,7 @@ def get_secure_config_manager() -> SecureConfigManager:
     return _secure_config_manager
 
 
-def initialize_secure_config(config_path: Optional[Path] = None) -> SecureConfigManager:
+def initialize_secure_config(config_path: Path | None = None) -> SecureConfigManager:
     """
     Initialize the global secure configuration manager.
 

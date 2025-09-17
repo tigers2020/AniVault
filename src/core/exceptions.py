@@ -5,13 +5,13 @@ This module defines specific exceptions for handling various error conditions
 that can occur during file movement, renaming, and transactional operations.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class AniVaultException(Exception):
     """Base exception class for all AniVault-specific exceptions."""
 
-    def __init__(self, message: str, details: Optional[Any] = None) -> None:
+    def __init__(self, message: str, details: Any | None = None) -> None:
         super().__init__(message)
         self.message = message
         self.details = details
@@ -43,7 +43,7 @@ class MoveRollbackError(FileMovementException):
         original_path: str,
         target_path: str,
         rollback_attempts: int = 0,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, details)
         self.original_path = original_path
@@ -66,7 +66,7 @@ class MoveConflictError(FileMovementException):
         source_path: str,
         target_path: str,
         conflict_path: str,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, details)
         self.source_path = source_path
@@ -85,7 +85,7 @@ class MovePermissionError(FileMovementException):
     """
 
     def __init__(
-        self, message: str, path: str, required_permission: str, details: Optional[Any] = None
+        self, message: str, path: str, required_permission: str, details: Any | None = None
     ) -> None:
         super().__init__(message, details)
         self.path = path
@@ -106,7 +106,7 @@ class MoveDiskSpaceError(FileMovementException):
         required_space: int,
         available_space: int,
         target_path: str,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, details)
         self.required_space = required_space
@@ -125,7 +125,7 @@ class MoveValidationError(FileMovementException):
     """
 
     def __init__(
-        self, message: str, validation_type: str, path: str, details: Optional[Any] = None
+        self, message: str, validation_type: str, path: str, details: Any | None = None
     ) -> None:
         super().__init__(message, details)
         self.validation_type = validation_type
@@ -144,8 +144,8 @@ class MoveTransactionError(FileMovementException):
         self,
         message: str,
         failed_operations: list,
-        transaction_id: Optional[str] = None,
-        details: Optional[Any] = None,
+        transaction_id: str | None = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, details)
         self.failed_operations = failed_operations
@@ -161,7 +161,7 @@ class FileClassificationError(AniVaultException):
     """
 
     def __init__(
-        self, message: str, file_path: str, classification_type: str, details: Optional[Any] = None
+        self, message: str, file_path: str, classification_type: str, details: Any | None = None
     ) -> None:
         super().__init__(message, details)
         self.file_path = file_path
@@ -177,7 +177,7 @@ class FileNamingError(AniVaultException):
     """
 
     def __init__(
-        self, message: str, original_name: str, target_name: str, details: Optional[Any] = None
+        self, message: str, original_name: str, target_name: str, details: Any | None = None
     ) -> None:
         super().__init__(message, details)
         self.original_name = original_name

@@ -1,7 +1,6 @@
 """Main window for AniVault application."""
 
 import logging
-from typing import Optional
 
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import (
@@ -19,6 +18,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from ..core.dialog_orchestrator import DialogOrchestrator, DialogResult, DialogTaskType
 from ..themes.theme_manager import get_theme_manager
 from ..viewmodels.base_viewmodel import BaseViewModel
 from ..viewmodels.file_processing_vm import FileProcessingViewModel
@@ -28,6 +28,7 @@ from .group_files_panel import GroupFilesPanel
 from .log_panel import LogPanel
 from .result_panel import ResultPanel
 from .settings_dialog import SettingsDialog
+from .tmdb_selection_dialog import TMDBSelectionDialog
 from .work_panel import WorkPanel
 
 # Logger for this module
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Main window for AniVault application."""
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """
         Initialize the main window.
 
@@ -64,6 +65,10 @@ class MainWindow(QMainWindow):
         self._viewmodels: dict[str, BaseViewModel] = {}
         self._initialize_viewmodels()
 
+        # Initialize dialog orchestrator
+        self._dialog_orchestrator = DialogOrchestrator(self)
+        self._setup_dialog_orchestrator()
+
         # Create menu bar
         self._create_menu_bar()
 
@@ -80,6 +85,104 @@ class MainWindow(QMainWindow):
         self._connect_signals()
 
         logger.info("MainWindow initialized")
+
+    def _setup_dialog_orchestrator(self) -> None:
+        """Setup dialog orchestrator with dialog creators."""
+        # Register TMDB selection dialog creator
+        self._dialog_orchestrator.register_dialog_creator(
+            DialogTaskType.SELECTION, self._create_tmdb_selection_dialog
+        )
+
+        # Register manual search dialog creator
+        self._dialog_orchestrator.register_dialog_creator(
+            DialogTaskType.MANUAL_SEARCH, self._create_manual_search_dialog
+        )
+
+        # Connect orchestrator signals
+        self._dialog_orchestrator.dialog_completed.connect(self._on_dialog_completed)
+        self._dialog_orchestrator.dialog_error.connect(self._on_dialog_error)
+
+        logger.info("Dialog orchestrator setup completed")
+
+    def _create_tmdb_selection_dialog(self, task) -> QDialog:
+        """Create TMDB selection dialog for the given task."""
+        try:
+            # Get TMDB API key from ViewModel
+            api_key = self.file_processing_vm.get_property("tmdb_api_key", "")
+
+            # Create dialog
+            dialog = TMDBSelectionDialog(self, self.theme_manager, api_key)
+
+            # Set initial search data
+            payload = task.payload
+            query = payload.get("query", "")
+            results = payload.get("results", [])
+
+            dialog.set_initial_search(query, results)
+
+            return dialog
+
+        except Exception as e:
+            logger.error(f"Failed to create TMDB selection dialog: {e}")
+            return None
+
+    def _create_manual_search_dialog(self, task) -> QDialog:
+        """Create manual search dialog for the given task."""
+        try:
+            # Get TMDB API key from ViewModel
+            api_key = self.file_processing_vm.get_property("tmdb_api_key", "")
+
+            # Create dialog
+            dialog = TMDBSelectionDialog(self, self.theme_manager, api_key)
+
+            # Set initial search data
+            payload = task.payload
+            query = payload.get("query", "")
+
+            dialog.set_initial_search(query)
+
+            return dialog
+
+        except Exception as e:
+            logger.error(f"Failed to create manual search dialog: {e}")
+            return None
+
+    def _on_dialog_completed(self, result: DialogResult) -> None:
+        """Handle dialog completion."""
+        logger.info(f"Dialog completed: {result.task_id} (success: {result.success})")
+
+        # Get stored callback if exists
+        callback = None
+        if hasattr(self, "_tmdb_callbacks") and result.task_id in self._tmdb_callbacks:
+            callback = self._tmdb_callbacks.pop(result.task_id)
+
+        if result.success and result.result:
+            # Handle successful dialog result
+            self.log_panel.add_log(f"다이얼로그 완료: {result.task_id}")
+
+            # Call the original callback if it exists
+            if callback:
+                try:
+                    callback(result.result)
+                    logger.info(f"Callback executed for task {result.task_id}")
+                except Exception as e:
+                    logger.error(f"Error executing callback for task {result.task_id}: {e}")
+        else:
+            # Handle dialog error
+            error_msg = result.error or "Unknown error"
+            self.log_panel.add_log(f"다이얼로그 오류: {error_msg}")
+
+            # Call callback with None result for error case
+            if callback:
+                try:
+                    callback(None)
+                except Exception as e:
+                    logger.error(f"Error executing error callback for task {result.task_id}: {e}")
+
+    def _on_dialog_error(self, error: str) -> None:
+        """Handle dialog error."""
+        logger.error(f"Dialog error: {error}")
+        self.log_panel.add_log(f"다이얼로그 오류: {error}")
 
     def _initialize_viewmodels(self) -> None:
         """Initialize ViewModels for the application."""
@@ -104,35 +207,45 @@ class MainWindow(QMainWindow):
         """Load configuration from config manager and set it in ViewModel."""
         try:
             logger.info("Starting configuration load to ViewModel...")
-            
+
             # Load TMDB API key
             tmdb_api_key = self.config_manager.get_tmdb_api_key()
-            logger.info(f"TMDB API key retrieved: {'***' + tmdb_api_key[-4:] if tmdb_api_key else 'None'}")
-            
+            logger.info(
+                f"TMDB API key retrieved: {'***' + tmdb_api_key[-4:] if tmdb_api_key else 'None'}"
+            )
+
             if tmdb_api_key:
                 self.file_processing_vm.execute_command("set_tmdb_api_key", tmdb_api_key)
                 logger.info("TMDB API key set in ViewModel successfully")
             else:
-                logger.warning("No TMDB API key found in configuration - metadata retrieval will be skipped")
+                logger.warning(
+                    "No TMDB API key found in configuration - metadata retrieval will be skipped"
+                )
 
             # Load target directory
             target_directory = self.config_manager.get_destination_root()
             logger.info(f"Target directory retrieved: {target_directory or 'None'}")
-            
+
             if target_directory:
                 self.file_processing_vm.execute_command("set_target_directory", target_directory)
                 logger.info("Target directory set in ViewModel successfully")
 
             # Load similarity threshold
-            similarity_threshold = self.config_manager.get("application.file_organization.similarity_threshold", 0.75)
+            similarity_threshold = self.config_manager.get(
+                "application.file_organization.similarity_threshold", 0.75
+            )
             logger.info(f"Similarity threshold retrieved: {similarity_threshold}")
-            self.file_processing_vm.execute_command("set_similarity_threshold", similarity_threshold)
+            self.file_processing_vm.execute_command(
+                "set_similarity_threshold", similarity_threshold
+            )
             logger.info("Similarity threshold set in ViewModel successfully")
 
             # Load scan directories
-            scan_directories = self.config_manager.get("application.file_organization.source_directories", [])
+            scan_directories = self.config_manager.get(
+                "application.file_organization.source_directories", []
+            )
             logger.info(f"Scan directories retrieved: {scan_directories}")
-            
+
             if scan_directories:
                 self.file_processing_vm.execute_command("set_scan_directories", scan_directories)
                 logger.info("Scan directories set in ViewModel successfully")
@@ -149,7 +262,7 @@ class MainWindow(QMainWindow):
             if hasattr(self, "work_panel") and hasattr(self, "file_processing_vm"):
                 self.work_panel.set_viewmodel(self.file_processing_vm)
                 logger.info("WorkPanel connected to FileProcessingViewModel")
-            
+
             if hasattr(self, "result_panel") and hasattr(self, "file_processing_vm"):
                 self.result_panel.set_viewmodel(self.file_processing_vm)
                 logger.info("ResultPanel connected to FileProcessingViewModel")
@@ -174,7 +287,7 @@ class MainWindow(QMainWindow):
             self.result_panel.group_selected.connect(self._on_group_selected)
             self.result_panel.retry_requested.connect(self._on_retry_requested)
             self.result_panel.clear_requested.connect(self._on_clear_requested)
-            
+
         # Connect anime groups panel signals
         if hasattr(self, "groups_panel"):
             self.groups_panel.group_selected.connect(self._on_group_selected)
@@ -192,7 +305,7 @@ class MainWindow(QMainWindow):
             vm.files_moved.connect(self._on_files_moved)
             vm.processing_pipeline_started.connect(self._on_pipeline_started)
             vm.processing_pipeline_finished.connect(self._on_pipeline_finished)
-            
+
             # Connect TMDB selection signals
             vm.tmdb_selection_requested.connect(self._on_tmdb_selection_requested)
             vm.tmdb_selection_completed.connect(self._on_tmdb_selection_completed)
@@ -267,41 +380,47 @@ class MainWindow(QMainWindow):
         """
         logger.debug(f"Group selected: {group_identifier}")
         self.log_panel.add_log(f"그룹 선택됨: {group_identifier}")
-        
+
         # Find the selected group and display its details
         self._display_group_details(group_identifier)
-        
+
         # Filter files to show only files from the selected group
         self.result_panel.filter_files_by_group(group_identifier)
 
     def _display_group_details(self, group_identifier: str) -> None:
         """
         Display details for the selected group.
-        
+
         Args:
             group_identifier: Group ID or name of the selected group
         """
         logger.debug(f"Displaying details for group: '{group_identifier}'")
-        
+
         # Get file groups from the ViewModel
         groups = self.file_processing_vm.get_property("file_groups", [])
         logger.debug(f"Available groups: {[(g.group_id, g.series_title) for g in groups]}")
-        
+
         # Find the selected group by group_id first, then fallback to series_title
         selected_group = None
         for group in groups:
-            logger.debug(f"Comparing '{group_identifier}' with group_id '{group.group_id}' and series_title '{group.series_title}'")
+            logger.debug(
+                f"Comparing '{group_identifier}' with group_id '{group.group_id}' and series_title '{group.series_title}'"
+            )
             if group.group_id == group_identifier or group.series_title == group_identifier:
                 selected_group = group
                 break
-        
+
         if selected_group:
-            logger.debug(f"Found group: {selected_group.series_title} with {len(selected_group.files)} files")
+            logger.debug(
+                f"Found group: {selected_group.series_title} with {len(selected_group.files)} files"
+            )
             # Display group details in the details panel
             self.details_panel.display_group_details(selected_group)
             self.log_panel.add_log(f"애니메이션 상세 정보 표시: {selected_group.series_title}")
         else:
-            logger.warning(f"Group not found: '{group_identifier}'. Available groups: {[g.series_title for g in groups]}")
+            logger.warning(
+                f"Group not found: '{group_identifier}'. Available groups: {[g.series_title for g in groups]}"
+            )
             # Clear details panel
             self.details_panel.clear_details()
             self.log_panel.add_log(f"그룹을 찾을 수 없음: {group_identifier}")
@@ -332,8 +451,10 @@ class MainWindow(QMainWindow):
     def _on_files_scanned(self, files) -> None:
         """Handle files scanned signal."""
         try:
-            logger.info(f"MainWindow received files_scanned signal with {len(files) if isinstance(files, list) else 'non-list'} items")
-            
+            logger.info(
+                f"MainWindow received files_scanned signal with {len(files) if isinstance(files, list) else 'non-list'} items"
+            )
+
             if not isinstance(files, list):
                 logger.warning(f"Invalid files data type: {type(files)}")
                 return
@@ -366,7 +487,7 @@ class MainWindow(QMainWindow):
             # Update result panel with groups (for file display)
             if hasattr(self, "result_panel"):
                 self.result_panel.update_groups(groups)
-                
+
             # Update anime groups panel with groups (for group display)
             if hasattr(self, "groups_panel"):
                 self.groups_panel.update_groups(groups)
@@ -386,18 +507,22 @@ class MainWindow(QMainWindow):
         """Handle metadata retrieved signal."""
         logger.info(f"Metadata retrieved: {len(files)} files")
         self.log_panel.add_log(f"메타데이터 검색 완료: {len(files)}개 파일")
-        
+
         # Update both panels with updated groups (with metadata)
         groups = self.file_processing_vm.get_property("file_groups", [])
         if groups:
             # Update result panel groups table
             self.result_panel.update_groups(groups)
-            logger.debug(f"Updated result panel groups after metadata retrieval with {len(groups)} groups")
-            
+            logger.debug(
+                f"Updated result panel groups after metadata retrieval with {len(groups)} groups"
+            )
+
             # Update anime groups panel
             if hasattr(self, "groups_panel"):
                 self.groups_panel.update_groups(groups)
-                logger.debug(f"Updated anime groups panel after metadata retrieval with {len(groups)} groups")
+                logger.debug(
+                    f"Updated anime groups panel after metadata retrieval with {len(groups)} groups"
+                )
 
     @pyqtSlot(list)
     def _on_files_moved(self, files) -> None:
@@ -407,32 +532,29 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str, list, object)
     def _on_tmdb_selection_requested(self, query: str, results: list, callback) -> None:
-        """Handle TMDB selection request."""
+        """Handle TMDB selection request using dialog orchestrator."""
         logger.info(f"TMDB selection requested for query: {query}")
         self.log_panel.add_log(f"TMDB 검색 결과 선택 요청: {query}")
-        
-        # Import here to avoid circular imports
-        from .tmdb_selection_dialog import TMDBSelectionDialog
-        
-        # Get TMDB API key from ViewModel
-        api_key = self.file_processing_vm.get_property("tmdb_api_key", "")
-        
-        # Create and show dialog
-        dialog = TMDBSelectionDialog(self, self.theme_manager, api_key)
-        dialog.set_initial_search(query, results)
-        
-        # Connect result signal
-        def on_result_selected(result):
-            logger.info(f"TMDB selection completed: {result.get('name', 'Unknown')}")
-            self.log_panel.add_log(f"TMDB 검색 결과 선택됨: {result.get('name', 'Unknown')}")
-            # Call the callback with the selected result
-            if callback:
-                callback(result)
-        
-        dialog.result_selected.connect(on_result_selected)
-        
-        # Show dialog
-        dialog.exec_()
+
+        # Store callback for later use
+        if not hasattr(self, "_tmdb_callbacks"):
+            self._tmdb_callbacks = {}
+
+        # Create coalesce key for the query to prevent duplicate dialogs
+        coalesce_key = f"tmdb_selection_{query}"
+
+        # Request dialog through orchestrator
+        task_id = self._dialog_orchestrator.request_dialog(
+            DialogTaskType.SELECTION,
+            payload={"query": query, "results": results, "callback": callback},
+            coalesce_key=coalesce_key,
+            priority=1,
+        )
+
+        # Store callback for this task
+        self._tmdb_callbacks[task_id] = callback
+
+        logger.info(f"TMDB selection dialog requested (task_id: {task_id})")
 
     @pyqtSlot(dict)
     def _on_tmdb_selection_completed(self, result: dict) -> None:
@@ -551,7 +673,7 @@ class MainWindow(QMainWindow):
             f"파일: {total_files}개, 그룹: {total_groups}개, 완료: {completed_files}개"
         )
 
-    def get_viewmodel(self, name: str) -> Optional[BaseViewModel]:
+    def get_viewmodel(self, name: str) -> BaseViewModel | None:
         """
         Get a ViewModel by name.
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
@@ -39,8 +39,8 @@ class AnimeFile:
     file_extension: str
     created_at: datetime
     modified_at: datetime
-    parsed_info: Optional[ParsedAnimeInfo] = None
-    tmdb_info: Optional[TMDBAnime] = None
+    parsed_info: ParsedAnimeInfo | None = None
+    tmdb_info: TMDBAnime | None = None
     is_processed: bool = False
     processing_errors: list[str] = field(default_factory=list)
 
@@ -109,13 +109,14 @@ class FileGroup:
     group_id: str
     files: list[AnimeFile] = field(default_factory=list)
     similarity_score: float = 0.0
-    best_file: Optional[AnimeFile] = None
+    best_file: AnimeFile | None = None
     series_title: str = ""
-    season: Optional[int] = None
-    episode_range: Optional[tuple[int, int]] = None
+    group_name: str | None = None  # Display name for the group (from TMDB or parsed)
+    season: int | None = None
+    episode_range: tuple[int, int] | None = None
     created_at: datetime = field(default_factory=datetime.now)
     is_processed: bool = False
-    tmdb_info: Optional["TMDBAnime"] = None
+    tmdb_info: TMDBAnime | None = None
 
     def add_file(self, file: AnimeFile) -> None:
         """Add a file to this group."""
@@ -209,18 +210,18 @@ class ParsedAnimeInfo:
     """
 
     title: str
-    season: Optional[int] = None
-    episode: Optional[int] = None
-    episode_title: Optional[str] = None
-    resolution: Optional[str] = None
-    resolution_width: Optional[int] = None
-    resolution_height: Optional[int] = None
-    video_codec: Optional[str] = None
-    audio_codec: Optional[str] = None
-    release_group: Optional[str] = None
-    file_extension: Optional[str] = None
-    year: Optional[int] = None
-    source: Optional[str] = None
+    season: int | None = None
+    episode: int | None = None
+    episode_title: str | None = None
+    resolution: str | None = None
+    resolution_width: int | None = None
+    resolution_height: int | None = None
+    video_codec: str | None = None
+    audio_codec: str | None = None
+    release_group: str | None = None
+    file_extension: str | None = None
+    year: int | None = None
+    source: str | None = None
     raw_data: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -348,26 +349,37 @@ class ParsedAnimeInfo:
 @dataclass
 class TMDBAnime:
     """
-    Represents metadata retrieved from TMDB API for an anime series.
+    Represents metadata retrieved from TMDB API for an anime series or movie.
 
     Attributes:
-        tmdb_id: TMDB series ID
+        tmdb_id: TMDB series/movie ID
         title: Primary title
         original_title: Original title
         korean_title: Korean title if available
-        overview: Series description
+        overview: Series/movie description
+        release_date: Release date (for movies) or first air date (for TV)
         poster_path: Path to poster image
         backdrop_path: Path to backdrop image
-        first_air_date: First air date
-        last_air_date: Last air date
-        status: Series status (e.g., 'Ended', 'Ongoing')
+        first_air_date: First air date (for TV series)
+        last_air_date: Last air date (for TV series)
+        status: Series/movie status (e.g., 'Ended', 'Ongoing', 'Released')
         vote_average: Average rating
         vote_count: Number of votes
         popularity: Popularity score
         genres: List of genre names
-        networks: List of network names
-        number_of_seasons: Total number of seasons
-        number_of_episodes: Total number of episodes
+        networks: List of network names (for TV series)
+        production_companies: List of production company names
+        production_countries: List of production country names
+        spoken_languages: List of spoken language names
+        number_of_seasons: Total number of seasons (for TV series)
+        number_of_episodes: Total number of episodes (for TV series)
+        tagline: Movie/series tagline
+        homepage: Official homepage URL
+        imdb_id: IMDb ID
+        external_ids: External IDs (IMDb, Facebook, Instagram, Twitter, etc.)
+        quality_score: Search quality score (0.0-1.0)
+        search_strategy: Search strategy used
+        fallback_round: Fallback round number
         raw_data: Raw data from TMDB API
     """
 
@@ -376,28 +388,39 @@ class TMDBAnime:
     original_title: str = ""
     korean_title: str = ""
     overview: str = ""
+    release_date: str | None = None
     poster_path: str = ""
     backdrop_path: str = ""
-    first_air_date: Optional[datetime] = None
-    last_air_date: Optional[datetime] = None
+    first_air_date: datetime | None = None
+    last_air_date: datetime | None = None
     status: str = ""
     vote_average: float = 0.0
     vote_count: int = 0
     popularity: float = 0.0
     genres: list[str] = field(default_factory=list)
     networks: list[str] = field(default_factory=list)
+    production_companies: list[str] = field(default_factory=list)
+    production_countries: list[str] = field(default_factory=list)
+    spoken_languages: list[str] = field(default_factory=list)
     number_of_seasons: int = 0
     number_of_episodes: int = 0
+    tagline: str = ""
+    homepage: str = ""
+    imdb_id: str = ""
+    external_ids: dict[str, Any] = field(default_factory=dict)
+    quality_score: float = 0.0
+    search_strategy: str = ""
+    fallback_round: int = 0
     raw_data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TMDBAnime":
+    def from_dict(cls, data: dict[str, Any]) -> TMDBAnime:
         """
         Create TMDBAnime instance from TMDB API response data.
-        
+
         Args:
             data: Raw data from TMDB API
-            
+
         Returns:
             TMDBAnime instance
         """
@@ -406,35 +429,60 @@ class TMDBAnime:
         if data.get("first_air_date"):
             try:
                 from datetime import datetime
+
                 first_air_date = datetime.strptime(data["first_air_date"], "%Y-%m-%d")
             except ValueError:
                 pass
-        
+
         # Parse last air date
         last_air_date = None
         if data.get("last_air_date"):
             try:
                 from datetime import datetime
+
                 last_air_date = datetime.strptime(data["last_air_date"], "%Y-%m-%d")
             except ValueError:
                 pass
-        
+
         # Extract genres
         genres = []
         if data.get("genres"):
             genres = [genre.get("name", "") for genre in data["genres"]]
-        
+
         # Extract networks
         networks = []
         if data.get("networks"):
             networks = [network.get("name", "") for network in data["networks"]]
-        
+
+        # Extract production companies
+        production_companies = []
+        if data.get("production_companies"):
+            production_companies = [
+                company.get("name", "") for company in data["production_companies"]
+            ]
+
+        # Extract production countries
+        production_countries = []
+        if data.get("production_countries"):
+            production_countries = [
+                country.get("name", "") for country in data["production_countries"]
+            ]
+
+        # Extract spoken languages
+        spoken_languages = []
+        if data.get("spoken_languages"):
+            spoken_languages = [lang.get("name", "") for lang in data["spoken_languages"]]
+
+        # Extract external IDs
+        external_ids = data.get("external_ids", {})
+
         return cls(
             tmdb_id=data.get("id", 0),
-            title=data.get("name", ""),
-            original_title=data.get("original_name", ""),
+            title=data.get("title") or data.get("name", ""),
+            original_title=data.get("original_title") or data.get("original_name", ""),
             korean_title=data.get("korean_title", ""),  # This might not exist in TMDB response
             overview=data.get("overview", ""),
+            release_date=data.get("release_date") or data.get("first_air_date"),
             poster_path=data.get("poster_path", ""),
             backdrop_path=data.get("backdrop_path", ""),
             first_air_date=first_air_date,
@@ -445,8 +493,18 @@ class TMDBAnime:
             popularity=data.get("popularity", 0.0),
             genres=genres,
             networks=networks,
+            production_companies=production_companies,
+            production_countries=production_countries,
+            spoken_languages=spoken_languages,
             number_of_seasons=data.get("number_of_seasons", 0),
             number_of_episodes=data.get("number_of_episodes", 0),
+            tagline=data.get("tagline", ""),
+            homepage=data.get("homepage", ""),
+            imdb_id=external_ids.get("imdb_id", ""),
+            external_ids=external_ids,
+            quality_score=data.get("quality_score", 0.0),
+            search_strategy=data.get("search_strategy", ""),
+            fallback_round=data.get("fallback_round", 0),
             raw_data=data,
         )
 
@@ -482,6 +540,7 @@ class TMDBAnime:
             "original_title": self.original_title,
             "korean_title": self.korean_title,
             "overview": self.overview,
+            "release_date": self.release_date,
             "poster_path": self.poster_path,
             "backdrop_path": self.backdrop_path,
             "first_air_date": self.first_air_date.isoformat() if self.first_air_date else None,
@@ -492,8 +551,18 @@ class TMDBAnime:
             "popularity": self.popularity,
             "genres": self.genres,
             "networks": self.networks,
+            "production_companies": self.production_companies,
+            "production_countries": self.production_countries,
+            "spoken_languages": self.spoken_languages,
             "number_of_seasons": self.number_of_seasons,
             "number_of_episodes": self.number_of_episodes,
+            "tagline": self.tagline,
+            "homepage": self.homepage,
+            "imdb_id": self.imdb_id,
+            "external_ids": self.external_ids,
+            "quality_score": self.quality_score,
+            "search_strategy": self.search_strategy,
+            "fallback_round": self.fallback_round,
             "raw_data": self.raw_data,
         }
 

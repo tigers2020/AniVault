@@ -11,7 +11,7 @@ import logging
 import threading
 from abc import abstractmethod
 from collections.abc import Callable
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 from PyQt5.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal, pyqtSlot
 
@@ -60,7 +60,7 @@ class BaseViewModel(QObject):
     worker_task_error = pyqtSignal(str, str)  # task_name, error_message
     worker_finished = pyqtSignal()  # when worker finishes all tasks
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         """
         Initialize the BaseViewModel.
 
@@ -87,7 +87,7 @@ class BaseViewModel(QObject):
         self._executing_commands: set = set()
 
         # Worker management
-        self._worker: Optional[FilePipelineWorker] = None
+        self._worker: FilePipelineWorker | None = None
         self._worker_mutex = threading.Lock()
 
         # Create or get shared processing state
@@ -246,7 +246,9 @@ class BaseViewModel(QObject):
             logger.debug(f"Executing command '{command_name}' with args={args}, kwargs={kwargs}")
             logger.debug(f"Command function: {self._commands[command_name]}")
             result = self._commands[command_name](*args, **kwargs)
-            print(f"DEBUG: Command {command_name} executed successfully, result: {result}")  # 강제 출력
+            print(
+                f"DEBUG: Command {command_name} executed successfully, result: {result}"
+            )  # 강제 출력
             logger.debug(f"Command '{command_name}' completed successfully with result: {result}")
             print(f"DEBUG: About to emit command_finished signal for {command_name}")  # 강제 출력
             self.command_finished.emit(command_name, True)
@@ -465,7 +467,7 @@ class BaseViewModel(QObject):
             logger.debug("Created new FilePipelineWorker")
             return self._worker
 
-    def get_worker(self) -> Optional[FilePipelineWorker]:
+    def get_worker(self) -> FilePipelineWorker | None:
         """
         Get the current worker instance.
 
@@ -784,7 +786,7 @@ class ViewModelFactory:
 
     @classmethod
     def create_viewmodel(
-        cls, name: str, parent: Optional[QObject] = None, **kwargs
+        cls, name: str, parent: QObject | None = None, **kwargs
     ) -> BaseViewModel:
         """
         Create a ViewModel instance by name.

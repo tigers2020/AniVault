@@ -8,7 +8,7 @@ comprehensive validation for all configuration sections.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 from src.utils.validators import ConfigValidator
 
@@ -806,7 +806,7 @@ class ConfigSchemaValidator:
 
 
 # Global schema validator instance
-_schema_validator: Optional[ConfigSchemaValidator] = None
+_schema_validator: ConfigSchemaValidator | None = None
 
 
 def get_schema_validator() -> ConfigSchemaValidator:

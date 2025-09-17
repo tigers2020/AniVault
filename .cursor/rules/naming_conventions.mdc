@@ -1,0 +1,53 @@
+---
+description: Naming conventions and forbidden words for consistent codebase terminology
+globs: **/*.py
+alwaysApply: true
+---
+
+- **Forbidden Words:**
+  - **NEVER use "unified" in method names, variables, or comments**
+    - ❌ DON'T: `search_unified()`, `unified_strategies`, `unified_search`
+    - ✅ DO: `search()`, `search_strategies`, `search_method`
+    - Reason: "unified" is redundant and makes code unnecessarily verbose
+
+- **Method Naming Guidelines:**
+  - **Use clear, descriptive names without redundant prefixes**
+    - ✅ DO: `search()`, `get_metadata()`, `find_best_match()`
+    - ❌ DON'T: `search_unified()`, `get_unified_metadata()`, `find_unified_best_match()`
+
+  - **Prefer simple, direct names over compound adjectives**
+    - ✅ DO: `recursive_search()`, `progressive_search()`
+    - ❌ DON'T: `unified_recursive_search()`, `comprehensive_progressive_search()`
+
+- **Variable Naming:**
+  - **Avoid redundant descriptive words**
+    - ✅ DO: `search_strategies`, `search_result`, `search_type`
+    - ❌ DON'T: `unified_search_strategies`, `comprehensive_search_result`, `unified_search_type`
+
+- **Comments and Documentation:**
+  - **Keep comments concise and avoid redundant terminology**
+    - ✅ DO: "Search that tries both TV and Movie search with recursive strategies"
+    - ❌ DON'T: "Unified search that tries both TV and Movie search with recursive strategies"
+
+- **Code Review Checklist:**
+  - Check for any usage of "unified" in new code
+  - Ensure method names are clear and concise
+  - Verify variable names don't contain redundant descriptive words
+  - Review comments for unnecessary verbose terminology
+
+- **Examples from Codebase:**
+  ```python
+  # ✅ GOOD: Clear and concise
+  def search(self, query: str) -> Optional[SearchResult]:
+      """Search that tries both TV and Movie search with recursive strategies."""
+      search_strategies = [SearchStrategy.ORIGINAL, SearchStrategy.NORMALIZED]
+      search_result = self.recursive_search(query, strategies=search_strategies)
+      return search_result
+
+  # ❌ BAD: Redundant and verbose
+  def search_unified(self, query: str) -> Optional[SearchResult]:
+      """Unified search that tries both TV and Movie search with recursive strategies."""
+      unified_search_strategies = [SearchStrategy.ORIGINAL, SearchStrategy.NORMALIZED]
+      unified_search_result = self.recursive_search(query, strategies=unified_search_strategies)
+      return unified_search_result
+  ```

@@ -14,7 +14,8 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from difflib import SequenceMatcher
-from typing import Any, Optional
+from enum import Enum
+from typing import Any
 
 import tmdbsimple as tmdb
 
@@ -22,6 +23,43 @@ from .config_manager import get_config_manager
 from .models import TMDBAnime
 
 logger = logging.getLogger(__name__)
+
+
+class SearchStrategy(Enum):
+    """Search strategy enumeration."""
+
+    MULTI = "multi"
+    TV_ONLY = "tv_only"
+    MOVIE_ONLY = "movie_only"
+
+
+class FallbackStrategy(Enum):
+    """Fallback strategy enumeration."""
+
+    NORMALIZED = "normalized"
+    WORD_REDUCTION = "word_reduction"
+    PARTIAL_MATCH = "partial_match"
+    LANGUAGE_FALLBACK = "language_fallback"
+    WORD_REORDER = "word_reorder"
+
+
+@dataclass
+class SearchResult:
+    """Search result with quality scoring."""
+
+    id: int
+    media_type: str  # 'tv' or 'movie'
+    title: str
+    original_title: str
+    year: int | None
+    overview: str
+    poster_path: str | None
+    popularity: float
+    vote_average: float
+    vote_count: int
+    quality_score: float
+    strategy_used: SearchStrategy
+    fallback_round: int = 0
 
 
 @dataclass
@@ -39,6 +77,14 @@ class TMDBConfig:
     retry_delay_max: float = 60.0
     cache_only_mode: bool = False
 
+    # Multi search configuration
+    high_confidence_threshold: float = 0.7
+    medium_confidence_threshold: float = 0.3
+    similarity_weight: float = 0.6
+    year_weight: float = 0.2
+    language_weight: float = 0.2
+    include_person_results: bool = False
+
 
 class TMDBError(Exception):
     """Base exception for TMDB API errors."""
@@ -52,8 +98,8 @@ class TMDBAPIError(TMDBError):
     def __init__(
         self,
         message: str,
-        status_code: Optional[int] = None,
-        response: Optional[dict[str, Any]] = None,
+        status_code: int | None = None,
+        response: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         self.status_code = status_code
@@ -84,7 +130,10 @@ class TMDBClient:
         self.config = config
         self._setup_tmdb()
         self._cache: dict[str, Any] = {}
-        self._rate_limited_until: Optional[float] = None
+        self._rate_limited_until: float | None = None
+
+        # Load additional settings from config manager if available
+        self._load_additional_settings()
 
         # Retry statistics for monitoring
         self._retry_stats = {
@@ -103,6 +152,30 @@ class TMDBClient:
         self._cache_misses = 0
 
         logger.info("TMDB client initialized with API key: %s", self._mask_api_key(config.api_key))
+
+    def _load_additional_settings(self) -> None:
+        """Load additional settings from config manager."""
+        try:
+            from .config_manager import get_config_manager
+
+            config_manager = get_config_manager()
+
+            # Update config with values from config manager
+            self.config.high_confidence_threshold = (
+                config_manager.get_tmdb_high_confidence_threshold()
+            )
+            self.config.medium_confidence_threshold = (
+                config_manager.get_tmdb_medium_confidence_threshold()
+            )
+            self.config.similarity_weight = config_manager.get_tmdb_similarity_weight()
+            self.config.year_weight = config_manager.get_tmdb_year_weight()
+            self.config.language_weight = config_manager.get_tmdb_language_weight()
+            self.config.include_person_results = config_manager.get_tmdb_include_person_results()
+
+            logger.debug("Additional TMDB settings loaded from config manager")
+
+        except Exception as e:
+            logger.warning("Failed to load additional settings from config manager: %s", e)
 
     def _setup_tmdb(self) -> None:
         """Setup tmdbsimple with API key and configuration."""
@@ -353,7 +426,7 @@ class TMDBClient:
         # This should never be reached due to exceptions above
         raise TMDBError("Unexpected error in _make_request")
 
-    def search_tv_series(self, query: str, language: Optional[str] = None) -> list[dict[str, Any]]:
+    def search_tv_series(self, query: str, language: str | None = None) -> list[dict[str, Any]]:
         """
         Search for TV series using the TMDB API.
 
@@ -427,8 +500,699 @@ class TMDBClient:
             logger.error("Unexpected error while searching for '%s': %s", query, str(e))
             raise TMDBError(f"Search failed: {str(e)}")
 
+    def search_multi(
+        self,
+        query: str,
+        language: str | None = None,
+        region: str | None = None,
+        include_adult: bool = False,
+    ) -> list[dict[str, Any]]:
+        """
+        Search for movies and TV series using TMDB Multi Search API.
+
+        Args:
+            query: Search query
+            language: Language code for search results
+            region: Region code for search results
+            include_adult: Whether to include adult content
+
+        Returns:
+            List of search results from TMDB Multi Search API
+
+        Raises:
+            TMDBRateLimitError: When rate limited
+            TMDBAPIError: When API errors occur
+        """
+        if not query or not query.strip():
+            logger.warning("Empty search query provided")
+            return []
+
+        search_language = language or self.config.language
+        search_region = region or "KR"  # Default to Korea
+
+        logger.info(
+            "Searching TMDB Multi for: '%s' (language: %s, region: %s)",
+            query,
+            search_language,
+            search_region,
+        )
+
+        # Check cache first
+        cache_key = f"multi_{query}_{search_language}_{search_region}_{include_adult}"
+        if cache_key in self._cache:
+            logger.debug("Cache hit for multi search: %s", query)
+            self._cache_hits += 1
+            return self._cache[cache_key]
+
+        logger.debug("Cache miss for multi search: %s", query)
+        self._cache_misses += 1
+
+        search = tmdb.Search()
+
+        try:
+            # Use Multi Search API
+            logger.debug(
+                "Making multi search request: query='%s', language='%s', region='%s'",
+                query,
+                search_language,
+                search_region,
+            )
+
+            results = self._make_request(
+                search.multi,
+                query=query.strip(),
+                language=search_language,
+                region=search_region,
+                include_adult=include_adult,
+            )
+
+            logger.debug("API response received: %s", type(results))
+            if results:
+                logger.debug(
+                    "API response keys: %s",
+                    list(results.keys()) if isinstance(results, dict) else "Not a dict",
+                )
+
+            search_results = results.get("results", []) if results else []
+            logger.info("Raw search results: %d items", len(search_results))
+
+            # Log detailed JSON results for debugging
+            import json
+
+            for i, result in enumerate(search_results):
+                logger.info(
+                    "Result %d JSON: %s", i, json.dumps(result, ensure_ascii=False, indent=2)
+                )
+                logger.info(
+                    "Result %d - title: '%s', original_title: '%s', name: '%s', original_name: '%s'",
+                    i,
+                    result.get("title"),
+                    result.get("original_title"),
+                    result.get("name"),
+                    result.get("original_name"),
+                )
+
+            # Filter to only include TV and Movie results
+            filtered_results = [
+                result for result in search_results if result.get("media_type") in ["tv", "movie"]
+            ]
+            logger.info("Filtered results: %d items", len(filtered_results))
+
+            # If no results with requested language, try fallback language
+            if not filtered_results and search_language != self.config.fallback_language:
+                logger.info(
+                    "No results found with language %s, trying fallback language", search_language
+                )
+                try:
+                    fallback_results = self._make_request(
+                        search.multi,
+                        query=query.strip(),
+                        language=self.config.fallback_language,
+                        region=search_region,
+                        include_adult=include_adult,
+                    )
+
+                    fallback_search_results = fallback_results.get("results", [])
+                    filtered_results = [
+                        result
+                        for result in fallback_search_results
+                        if result.get("media_type") in ["tv", "movie"]
+                    ]
+                    logger.info(
+                        "Found %d results with fallback language %s",
+                        len(filtered_results),
+                        self.config.fallback_language,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to search with fallback language: %s", str(e))
+
+            logger.info(
+                "Found %d multi search results for '%s' (%d filtered)",
+                len(search_results),
+                query,
+                len(filtered_results),
+            )
+
+            # Cache the results
+            self._cache[cache_key] = filtered_results
+
+            return filtered_results
+
+        except TMDBRateLimitError:
+            logger.error("Rate limited while multi searching for '%s'", query)
+            raise
+        except TMDBAPIError:
+            logger.error("API error while multi searching for '%s'", query)
+            raise
+        except Exception as e:
+            logger.error("Unexpected error while multi searching for '%s': %s", query, str(e))
+            raise TMDBError(f"Multi search failed: {str(e)}")
+
+    def _calculate_quality_score(
+        self, result: dict[str, Any], query: str, language: str, year_hint: int | None = None
+    ) -> float:
+        """
+        Calculate quality score for a search result.
+
+        Args:
+            result: TMDB search result
+            query: Original search query
+            language: Language code
+            year_hint: Year hint from filename parsing
+
+        Returns:
+            Quality score between 0.0 and 1.0
+        """
+        # Extract title and year from result
+        title = result.get("title") or result.get("name", "")
+        original_title = result.get("original_title") or result.get("original_name", "")
+        release_date = result.get("release_date") or result.get("first_air_date", "")
+
+        # Extract year from release date
+        result_year = None
+        if release_date:
+            try:
+                result_year = int(release_date.split("-")[0])
+            except (ValueError, IndexError):
+                pass
+
+        # 1. Similarity score (0.6 weight)
+        similarity_score = self._calculate_similarity_score(query, title, original_title)
+
+        # 2. Year match score (0.2 weight)
+        year_score = self._calculate_year_score(result_year, year_hint)
+
+        # 3. Language match score (0.2 weight)
+        language_score = self._calculate_language_score(result, language)
+
+        # Calculate weighted total
+        total_score = (
+            similarity_score * self.config.similarity_weight
+            + year_score * self.config.year_weight
+            + language_score * self.config.language_weight
+        )
+
+        return min(1.0, max(0.0, total_score))
+
+    def _calculate_similarity_score(self, query: str, title: str, original_title: str) -> float:
+        """Calculate similarity score between query and titles."""
+        # Normalize query and titles
+        query_tokens = self._normalize_query_tokens(query)
+        title_tokens = self._normalize_query_tokens(title)
+        original_tokens = self._normalize_query_tokens(original_title)
+
+        # Calculate Jaccard similarity for both titles
+        title_similarity = self._jaccard_similarity(query_tokens, title_tokens)
+        original_similarity = self._jaccard_similarity(query_tokens, original_tokens)
+
+        # Use the higher similarity
+        return max(title_similarity, original_similarity)
+
+    def _normalize_query_tokens(self, text: str) -> set[str]:
+        """Normalize text to tokens, removing brackets, resolution, release group tags."""
+        if not text:
+            return set()
+
+        # Remove common anime file tags
+        import re
+
+        text = re.sub(r"\[.*?\]", "", text)  # Remove [tags]
+        text = re.sub(r"\(.*?\)", "", text)  # Remove (tags)
+        text = re.sub(r"[0-9]+p", "", text, flags=re.IGNORECASE)  # Remove resolution
+        text = re.sub(r"[0-9]+i", "", text, flags=re.IGNORECASE)  # Remove interlaced
+        text = re.sub(r"[0-9]+fps", "", text, flags=re.IGNORECASE)  # Remove fps
+
+        # Split into tokens and normalize
+        tokens = re.findall(r"\b\w+\b", text.lower())
+        return set(tokens)
+
+    def _jaccard_similarity(self, set1: set[str], set2: set[str]) -> float:
+        """Calculate Jaccard similarity between two sets."""
+        if not set1 and not set2:
+            return 1.0
+        if not set1 or not set2:
+            return 0.0
+
+        intersection = len(set1.intersection(set2))
+        union = len(set1.union(set2))
+
+        return intersection / union if union > 0 else 0.0
+
+    def _calculate_year_score(self, result_year: int | None, year_hint: int | None) -> float:
+        """Calculate year match score."""
+        if not result_year or not year_hint:
+            return 0.5  # Neutral score if no year info
+
+        year_diff = abs(result_year - year_hint)
+
+        if year_diff == 0:
+            return 1.0
+        elif year_diff == 1:
+            return 0.8  # ±1 year gets partial credit
+        elif year_diff <= 3:
+            return 0.5  # ±3 years gets some credit
+        else:
+            return 0.0  # Too far apart
+
+    def _calculate_language_score(self, result: dict[str, Any], language: str) -> float:
+        """Calculate language match score."""
+        # Check if result has translations for the requested language
+        translations = result.get("translations", {}).get("translations", [])
+
+        for translation in translations:
+            if translation.get("iso_639_1") == language.split("-")[0]:
+                return 1.0
+
+        # Check if original language matches
+        original_language = result.get("original_language", "")
+        if original_language == language.split("-")[0]:
+            return 0.8
+
+        return 0.5  # Neutral score for other languages
+
+    def search_comprehensive(
+        self, query: str, language: str | None = None, min_quality: float | None = None
+    ) -> tuple[list[SearchResult] | None, bool]:
+        """
+        Comprehensive search using Multi Search with fallback strategies.
+
+        Args:
+            query: Search query
+            language: Language code for search
+            min_quality: Minimum quality threshold (uses config default if None)
+
+        Returns:
+            Tuple of (search_results, needs_manual_selection)
+        """
+        try:
+            if not query or not query.strip():
+                logger.warning("Empty search query provided")
+                return None, False
+
+            search_language = language or self.config.language
+            quality_threshold = min_quality or self.config.medium_confidence_threshold
+
+            logger.info(
+                "Starting comprehensive search for: '%s' (threshold: %.2f)",
+                query,
+                quality_threshold,
+            )
+
+            # Extract year hint from query if possible
+            year_hint = self._extract_year_from_query(query)
+
+            # Try Multi Search with original query
+            results = self._try_multi_search_with_scoring(
+                query, search_language, year_hint, SearchStrategy.MULTI, 0
+            )
+
+            if results:
+                logger.info("Initial raw results: %d items", len(results))
+                high_confidence_results = [
+                    r for r in results if r.quality_score >= self.config.high_confidence_threshold
+                ]
+                medium_confidence_results = [
+                    r for r in results if r.quality_score >= quality_threshold
+                ]
+                logger.info(
+                    "High confidence (>= %.2f): %d items, Medium confidence (>= %.2f): %d items",
+                    self.config.high_confidence_threshold,
+                    len(high_confidence_results),
+                    quality_threshold,
+                    len(medium_confidence_results),
+                )
+
+                if len(high_confidence_results) == 1:
+                    # Single high confidence result - use directly
+                    logger.info("Found single high confidence result for '%s'", query)
+                    return [high_confidence_results[0]], False
+                elif len(medium_confidence_results) >= 2:
+                    # Multiple medium+ confidence results - need selection
+                    logger.info(
+                        "Found %d medium+ confidence results for '%s', needs selection",
+                        len(medium_confidence_results),
+                        query,
+                    )
+                    return medium_confidence_results, True
+                elif len(medium_confidence_results) == 1:
+                    # Single medium confidence result - use directly
+                    logger.info("Found single medium confidence result for '%s'", query)
+                    return [medium_confidence_results[0]], False
+
+            # Try fallback strategies
+            fallback_strategies = [
+                (FallbackStrategy.NORMALIZED, self._normalize_query),
+                (FallbackStrategy.WORD_REDUCTION, self._reduce_query_words),
+                (FallbackStrategy.PARTIAL_MATCH, self._create_partial_query),
+                (FallbackStrategy.LANGUAGE_FALLBACK, lambda q: q),  # Will use fallback language
+                (FallbackStrategy.WORD_REORDER, self._reorder_query_words),
+            ]
+
+            for round_num, (strategy, query_modifier) in enumerate(fallback_strategies, 1):
+                if strategy == FallbackStrategy.LANGUAGE_FALLBACK:
+                    # Use fallback language
+                    modified_query = query
+                    fallback_language = self.config.fallback_language
+                else:
+                    modified_query = query_modifier(query)
+                    fallback_language = search_language
+
+                if not modified_query or modified_query == query:
+                    continue
+
+                logger.info(
+                    "Trying fallback strategy %s (round %d): '%s'",
+                    strategy.value,
+                    round_num,
+                    modified_query,
+                )
+
+                results = self._try_multi_search_with_scoring(
+                    modified_query, fallback_language, year_hint, SearchStrategy.MULTI, round_num
+                )
+
+                if results:
+                    logger.info("Raw results from %s: %d items", strategy.value, len(results))
+                    medium_confidence_results = [
+                        r for r in results if r.quality_score >= quality_threshold
+                    ]
+                    logger.info(
+                        "Filtered results (quality >= %.2f): %d items",
+                        quality_threshold,
+                        len(medium_confidence_results),
+                    )
+
+                    if len(medium_confidence_results) >= 2:
+                        logger.info(
+                            "Found %d results with %s strategy, needs selection",
+                            len(medium_confidence_results),
+                            strategy.value,
+                        )
+                        return medium_confidence_results, True
+                    elif len(medium_confidence_results) == 1:
+                        logger.info("Found single result with %s strategy", strategy.value)
+                        return [medium_confidence_results[0]], False
+
+            # No results found
+            logger.info("No results found for '%s' after all strategies", query)
+            return None, False
+
+        except Exception as e:
+            logger.error("Unexpected error during comprehensive search for '%s': %s", query, str(e))
+            return None, False
+
+    def _try_multi_search_with_scoring(
+        self,
+        query: str,
+        language: str,
+        year_hint: int | None,
+        strategy: SearchStrategy,
+        fallback_round: int,
+    ) -> list[SearchResult]:
+        """Try multi search and score results."""
+        try:
+            raw_results = self.search_multi(query, language)
+            if not raw_results:
+                return []
+
+            # Convert to SearchResult objects with scoring
+            search_results = []
+            for result in raw_results:
+                quality_score = self._calculate_quality_score(result, query, language, year_hint)
+
+                search_result = SearchResult(
+                    id=result.get("id", 0),
+                    media_type=result.get("media_type", "unknown"),
+                    title=result.get("title") or result.get("name", ""),
+                    original_title=result.get("original_title") or result.get("original_name", ""),
+                    year=self._extract_year_from_date(
+                        result.get("release_date") or result.get("first_air_date", "")
+                    ),
+                    overview=result.get("overview", ""),
+                    poster_path=result.get("poster_path"),
+                    popularity=result.get("popularity", 0.0),
+                    vote_average=result.get("vote_average", 0.0),
+                    vote_count=result.get("vote_count", 0),
+                    quality_score=quality_score,
+                    strategy_used=strategy,
+                    fallback_round=fallback_round,
+                )
+                search_results.append(search_result)
+
+            # Sort by quality score descending
+            search_results.sort(key=lambda x: x.quality_score, reverse=True)
+            return search_results
+
+        except Exception as e:
+            logger.error("Error in multi search with scoring: %s", str(e))
+            return []
+
+    def _extract_year_from_query(self, query: str) -> int | None:
+        """Extract year from query string."""
+        import re
+
+        year_match = re.search(r"\b(19|20)\d{2}\b", query)
+        if year_match:
+            return int(year_match.group())
+        return None
+
+    def _extract_year_from_date(self, date_str: str) -> int | None:
+        """Extract year from date string."""
+        if not date_str:
+            return None
+        try:
+            return int(date_str.split("-")[0])
+        except (ValueError, IndexError):
+            return None
+
+    def _normalize_query(self, query: str) -> str:
+        """Normalize query by removing brackets and common tags."""
+        import re
+
+        # Remove [tags], (tags), resolution, fps, etc.
+        normalized = re.sub(r"\[.*?\]", "", query)
+        normalized = re.sub(r"\(.*?\)", "", normalized)
+        normalized = re.sub(r"[0-9]+[pi]", "", normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"[0-9]+fps", "", normalized, flags=re.IGNORECASE)
+
+        # Remove common anime file suffixes
+        normalized = re.sub(r"\s*-\s*[A-Za-z\s]+$", "", normalized)  # Remove "- Season 1" etc.
+        normalized = re.sub(r"\s*편$", "", normalized)  # Remove Korean "편" suffix
+        normalized = re.sub(
+            r"\s*시즌\s*\d+$", "", normalized, flags=re.IGNORECASE
+        )  # Remove Korean "시즌" suffix
+
+        return normalized.strip()
+
+    def _reduce_query_words(self, query: str) -> str:
+        """Reduce query by removing words from the end."""
+        words = query.split()
+        if len(words) <= 1:
+            return ""
+        return " ".join(words[:-1])
+
+    def _create_partial_query(self, query: str) -> str:
+        """Create partial match query using first few words."""
+        words = query.split()
+        if len(words) <= 2:
+            return ""
+        return " ".join(words[:2])
+
+    def _reorder_query_words(self, query: str) -> str:
+        """Reorder query words (simple reversal)."""
+        words = query.split()
+        if len(words) <= 1:
+            return query
+        return " ".join(reversed(words))
+
+    def get_media_details(
+        self, media_id: int, media_type: str, language: str | None = None
+    ) -> dict[str, Any]:
+        """
+        Get detailed information for TV series or movies using append_to_response.
+
+        Args:
+            media_id: TMDB media ID
+            media_type: 'tv' or 'movie'
+            language: Language code for details
+
+        Returns:
+            Detailed media information from TMDB API
+
+        Raises:
+            TMDBRateLimitError: When rate limited
+            TMDBAPIError: When API errors occur
+        """
+        detail_language = language or self.config.language
+
+        logger.info(
+            "Getting %s details for ID %d (language: %s)", media_type, media_id, detail_language
+        )
+
+        # Check cache first
+        cache_key = f"details_{media_type}_{media_id}_{detail_language}"
+        if cache_key in self._cache:
+            logger.debug("Cache hit for %s details: ID %d", media_type, media_id)
+            self._cache_hits += 1
+            return self._cache[cache_key]
+
+        logger.debug("Cache miss for %s details: ID %d", media_type, media_id)
+        self._cache_misses += 1
+
+        try:
+            if media_type == "tv":
+                media_obj = tmdb.TV(media_id)
+                details = self._make_request(
+                    media_obj.info,
+                    language=detail_language,
+                    append_to_response="external_ids,credits,content_ratings,translations,alternative_titles,images",
+                )
+            elif media_type == "movie":
+                media_obj = tmdb.Movies(media_id)
+                details = self._make_request(
+                    media_obj.info,
+                    language=detail_language,
+                    append_to_response="external_ids,credits,release_dates,translations,alternative_titles,images",
+                )
+            else:
+                raise ValueError(f"Unsupported media type: {media_type}")
+
+            logger.debug("Retrieved details for %s ID %d", media_type, media_id)
+
+            # Cache the results
+            self._cache[cache_key] = details
+
+            return details
+
+        except TMDBRateLimitError:
+            logger.error("Rate limited while getting %s details for ID %d", media_type, media_id)
+            raise
+        except TMDBAPIError:
+            logger.error("API error while getting %s details for ID %d", media_type, media_id)
+            raise
+        except Exception as e:
+            logger.error(
+                "Unexpected error while getting %s details for ID %d: %s",
+                media_type,
+                media_id,
+                str(e),
+            )
+            raise TMDBError(f"Details retrieval failed: {str(e)}")
+
+    def get_display_title(self, details: dict[str, Any], language: str | None = None) -> str:
+        """
+        Get the best display title from media details.
+
+        Args:
+            details: Media details from TMDB API
+            language: Preferred language code
+
+        Returns:
+            Best available title for display
+        """
+        if not details:
+            return "Unknown"
+
+        target_language = language or self.config.language
+        lang_code = target_language.split("-")[0] if "-" in target_language else target_language
+
+        # Check translations first
+        translations = details.get("translations", {}).get("translations", [])
+        for translation in translations:
+            if translation.get("iso_639_1") == lang_code:
+                translated_data = translation.get("data", {})
+                title = translated_data.get("title") or translated_data.get("name")
+                if title:
+                    return title
+
+        # Fallback to main title
+        title = details.get("title") or details.get("name")
+        if title:
+            return title
+
+        # Fallback to original title
+        original_title = details.get("original_title") or details.get("original_name")
+        if original_title:
+            return original_title
+
+        return "Unknown"
+
+    def search_and_get_metadata_with_dialog(
+        self, query: str, language: str | None = None, min_quality: float | None = None
+    ) -> tuple[TMDBAnime | None, bool]:
+        """
+        Search and get metadata with dialog integration support.
+
+        Args:
+            query: Search query
+            language: Language code for search
+            min_quality: Minimum quality threshold
+
+        Returns:
+            Tuple of (TMDBAnime object or None, needs_manual_selection)
+        """
+        # Use comprehensive search
+        search_results, needs_selection = self.search_comprehensive(query, language, min_quality)
+
+        if not search_results:
+            return None, False
+
+        if needs_selection:
+            # Return the first result but indicate selection is needed
+            # The dialog system will handle the actual selection
+            first_result = search_results[0]
+            return self._convert_search_result_to_anime(first_result, language), True
+        else:
+            # Single result, convert to TMDBAnime
+            return self._convert_search_result_to_anime(search_results[0], language), False
+
+    def _convert_search_result_to_anime(
+        self, search_result: SearchResult, language: str | None = None
+    ) -> TMDBAnime | None:
+        """Convert SearchResult to TMDBAnime object."""
+        try:
+            # Get detailed information
+            details = self.get_media_details(search_result.id, search_result.media_type, language)
+
+            if not details:
+                return None
+
+            # Extract display title
+            display_title = self.get_display_title(details, language)
+
+            # Convert to TMDBAnime using from_dict for proper field conversion
+            anime = TMDBAnime.from_dict(details)
+
+            # Debug: Log genres data
+            logger.debug("Raw genres from details: %s", details.get("genres"))
+            logger.debug("Processed genres in anime: %s", anime.genres)
+            logger.debug("Genres type: %s", type(anime.genres))
+            if anime.genres and len(anime.genres) > 0:
+                logger.debug(
+                    "First genre type: %s, value: %s", type(anime.genres[0]), anime.genres[0]
+                )
+
+            # Override with search result specific fields
+            anime.tmdb_id = search_result.id
+            anime.title = display_title
+            anime.original_title = search_result.original_title
+            anime.overview = search_result.overview
+            anime.vote_average = search_result.vote_average
+            anime.vote_count = search_result.vote_count
+            anime.popularity = search_result.popularity
+            anime.poster_path = search_result.poster_path
+            anime.quality_score = search_result.quality_score
+            anime.search_strategy = search_result.strategy_used.value
+            anime.fallback_round = search_result.fallback_round
+
+            return anime
+
+        except Exception as e:
+            logger.error("Error converting search result to TMDBAnime: %s", str(e))
+            return None
+
     def get_tv_series_details(
-        self, series_id: int, language: Optional[str] = None
+        self, series_id: int, language: str | None = None
     ) -> dict[str, Any]:
         """
         Get detailed information for a TV series.
@@ -593,7 +1357,7 @@ class TMDBClient:
 
     def _find_best_match(
         self, query: str, search_results: list[dict[str, Any]], threshold: float = 0.7
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Find the best matching series from search results using similarity scoring.
 
@@ -810,7 +1574,7 @@ class TMDBClient:
             logger.warning("Invalid TMDB ID: %s", tmdb_id)
             return 0
 
-    def _parse_date(self, date_str: Any, field_name: str) -> Optional[datetime]:
+    def _parse_date(self, date_str: Any, field_name: str) -> datetime | None:
         """Parse and validate date string."""
         if not date_str:
             return None
@@ -936,8 +1700,8 @@ class TMDBClient:
             return 0
 
     def search_and_get_metadata(
-        self, query: str, language: Optional[str] = None, similarity_threshold: float = 0.7
-    ) -> Optional[TMDBAnime]:
+        self, query: str, language: str | None = None, similarity_threshold: float = 0.7
+    ) -> TMDBAnime | None:
         """
         Search for a series and retrieve its metadata in one operation with improved accuracy.
 
@@ -1034,7 +1798,7 @@ class TMDBClient:
         except:
             return 0
 
-    def _get_oldest_cache_entry(self) -> Optional[str]:
+    def _get_oldest_cache_entry(self) -> str | None:
         """Get the oldest cache entry timestamp."""
         if not self._cache:
             return None
@@ -1043,7 +1807,7 @@ class TMDBClient:
         # In a real implementation, you might want to track timestamps
         return "N/A"
 
-    def _get_newest_cache_entry(self) -> Optional[str]:
+    def _get_newest_cache_entry(self) -> str | None:
         """Get the newest cache entry timestamp."""
         if not self._cache:
             return None

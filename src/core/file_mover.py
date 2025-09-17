@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..utils.logger import get_logger
 from .exceptions import (
@@ -63,8 +63,8 @@ class MoveResult:
     source_path: Path
     target_path: Path
     operation: MoveOperation
-    transaction_id: Optional[str] = None
-    error_message: Optional[str] = None
+    transaction_id: str | None = None
+    error_message: str | None = None
     rollback_required: bool = False
     file_size: int = 0
     duration: float = 0.0
@@ -82,7 +82,7 @@ class FileMover:
     - Log all operations for audit
     """
 
-    def __init__(self, temp_dir: Optional[Path] = None) -> None:
+    def __init__(self, temp_dir: Path | None = None) -> None:
         """
         Initialize the file mover.
 
@@ -106,7 +106,7 @@ class FileMover:
         target_path: Path,
         create_dirs: bool = True,
         overwrite: bool = False,
-        transaction_id: Optional[str] = None,
+        transaction_id: str | None = None,
     ) -> MoveResult:
         """
         Move a file from source to target with transactional safety.
@@ -555,7 +555,7 @@ class FileMover:
         return sanitized
 
     @contextmanager
-    def transaction(self, transaction_id: Optional[str] = None):
+    def transaction(self, transaction_id: str | None = None):
         """Context manager for transactional file operations."""
         tid = transaction_id or str(uuid.uuid4())
         transaction = MoveTransaction(transaction_id=tid, operations=[], created_at=time.time())

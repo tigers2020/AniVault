@@ -9,7 +9,6 @@ versions of the same content exist.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from .exceptions import FileClassificationError
 from .models import AnimeFile
@@ -185,7 +184,7 @@ class FileClassifier:
 
         return classifications
 
-    def find_best_file(self, files: list[AnimeFile]) -> Optional[AnimeFile]:
+    def find_best_file(self, files: list[AnimeFile]) -> AnimeFile | None:
         """
         Find the best file among multiple versions of the same content.
 

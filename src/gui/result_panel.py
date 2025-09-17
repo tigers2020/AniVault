@@ -1,7 +1,7 @@
 """Result panel for displaying file processing results and real-time status updates."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (
@@ -39,7 +39,7 @@ class ResultPanel(QGroupBox):
     clear_requested = pyqtSignal()  # Emits when clear is requested
 
     def __init__(
-        self, parent: Optional[QWidget] = None, config_manager: Optional[ConfigManager] = None
+        self, parent: QWidget | None = None, config_manager: ConfigManager | None = None
     ) -> None:
         """Initialize the result panel."""
         super().__init__("처리 결과", parent)
@@ -52,7 +52,7 @@ class ResultPanel(QGroupBox):
         self._current_progress = 0
         self._total_files = 0
         self._is_processing = False
-        self._viewmodel: Optional[BaseViewModel] = None
+        self._viewmodel: BaseViewModel | None = None
 
         # Setup UI
         self._setup_ui()
@@ -176,7 +176,7 @@ class ResultPanel(QGroupBox):
         self.show_all_files_btn.clicked.connect(self.show_all_files)
         button_layout.addWidget(self.show_all_files_btn)
         button_layout.addStretch()  # Push button to the left
-        
+
         layout.addLayout(button_layout)
         layout.addWidget(self.files_table)
 
@@ -575,7 +575,7 @@ class ResultPanel(QGroupBox):
             files: List of AnimeFile objects
         """
         logger.info(f"ResultPanel.update_files called with {len(files)} files")
-        
+
         # Clear existing data
         self.files_table.setRowCount(0)
         self._processing_results.clear()
@@ -602,32 +602,34 @@ class ResultPanel(QGroupBox):
     def filter_files_by_group(self, group_id: str) -> None:
         """
         Filter files table to show only files from the selected group.
-        
+
         Args:
             group_id: ID of the group to filter by
         """
         logger.info(f"Filtering files by group: {group_id}")
-        
+
         # Get all files from the ViewModel
         if not self._viewmodel:
             logger.warning("No ViewModel connected to ResultPanel")
             return
-            
+
         all_files = self._viewmodel.get_property("scanned_files", [])
         groups = self._viewmodel.get_property("file_groups", [])
-        
+
         # Find the selected group
         selected_group = None
         for group in groups:
             if group.group_id == group_id:
                 selected_group = group
                 break
-        
+
         if selected_group:
             # Filter files to only show those in the selected group
             group_files = selected_group.files
-            logger.info(f"Showing {len(group_files)} files from group: {selected_group.series_title}")
-            
+            logger.info(
+                f"Showing {len(group_files)} files from group: {selected_group.series_title}"
+            )
+
             # Update the files table with filtered files
             self._update_files_table(group_files)
         else:
@@ -641,14 +643,14 @@ class ResultPanel(QGroupBox):
         if not self._viewmodel:
             logger.warning("No ViewModel connected to ResultPanel")
             return
-            
+
         all_files = self._viewmodel.get_property("scanned_files", [])
         self._update_files_table(all_files)
 
     def _update_files_table(self, files: list) -> None:
         """
         Update the files table with the provided files.
-        
+
         Args:
             files: List of AnimeFile objects to display
         """
@@ -656,7 +658,7 @@ class ResultPanel(QGroupBox):
         self.files_table.setRowCount(0)
         self._processing_results.clear()
         logger.info(f"Updating files table with {len(files)} files")
-        
+
         # Add files to table
         for i, file in enumerate(files):
             result = {
@@ -687,7 +689,7 @@ class ResultPanel(QGroupBox):
 
         # Track series titles to handle duplicates
         title_counts = {}
-        
+
         # Add groups to table
         for group in groups:
             row_count = self.groups_table.rowCount()
@@ -705,7 +707,7 @@ class ResultPanel(QGroupBox):
                     group_name = base_name
             else:
                 group_name = f"Group {group.group_id[:8]}"
-            
+
             name_item = QTableWidgetItem(group_name)
             name_item.setData(Qt.UserRole, group.group_id)
             self.groups_table.setItem(row_count, 0, name_item)

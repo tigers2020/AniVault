@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .models import AnimeFile
 
@@ -66,7 +65,7 @@ class FileScanner:
     }
 
     def __init__(
-        self, max_workers: int = 4, progress_callback: Optional[Callable[[int, str], None]] = None
+        self, max_workers: int = 4, progress_callback: Callable[[int, str], None] | None = None
     ) -> None:
         """
         Initialize the file scanner.
@@ -214,7 +213,7 @@ class FileScanner:
 
         return files, errors
 
-    def _create_anime_file(self, file_path: Path) -> Optional[AnimeFile]:
+    def _create_anime_file(self, file_path: Path) -> AnimeFile | None:
         """
         Create an AnimeFile object from a file path.
 
@@ -275,7 +274,7 @@ def scan_directory(
     directory: Path,
     recursive: bool = True,
     max_workers: int = 4,
-    progress_callback: Optional[Callable[[int, str], None]] = None,
+    progress_callback: Callable[[int, str], None] | None = None,
 ) -> ScanResult:
     """
     Convenience function to scan a directory for animation files.

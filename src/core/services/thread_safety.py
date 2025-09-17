@@ -11,7 +11,7 @@ import functools
 import logging
 import threading
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, Optional, TypeVar
 
 from PyQt5.QtCore import QMutex, QMutexLocker
 

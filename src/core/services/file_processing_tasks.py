@@ -8,7 +8,7 @@ integrate with the actual model components for file processing operations.
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from ..anime_parser import AnimeParser
 from ..file_grouper import FileGrouper
@@ -32,7 +32,7 @@ class ConcreteFileScanningTask(WorkerTask):
         self,
         scan_directories: list[str],
         supported_extensions: list[str],
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
         """
         Initialize the file scanning task.
@@ -45,8 +45,8 @@ class ConcreteFileScanningTask(WorkerTask):
         self.scan_directories = scan_directories
         self.supported_extensions = supported_extensions
         self.progress_callback = progress_callback
-        self._file_scanner: Optional[FileScanner] = None
-        self._result: Optional[ScanResult] = None
+        self._file_scanner: FileScanner | None = None
+        self._result: ScanResult | None = None
 
     def execute(self) -> list[AnimeFile]:
         """
@@ -67,9 +67,8 @@ class ConcreteFileScanningTask(WorkerTask):
 
             # Perform scanning
             from pathlib import Path
-            self._result = self._file_scanner.scan_directory(
-                Path(self.scan_directories[0])
-            )
+
+            self._result = self._file_scanner.scan_directory(Path(self.scan_directories[0]))
 
             logger.info(f"File scanning completed: {self._result.supported_files} files found")
             return self._result.files
@@ -86,7 +85,7 @@ class ConcreteFileScanningTask(WorkerTask):
         """Get progress message."""
         return f"Scanning {len(self.scan_directories)} directories for anime files"
 
-    def get_result(self) -> Optional[ScanResult]:
+    def get_result(self) -> ScanResult | None:
         """Get the scan result."""
         return self._result
 
@@ -100,7 +99,7 @@ class ConcreteFileGroupingTask(WorkerTask):
         self,
         files: list[AnimeFile],
         similarity_threshold: float = 0.75,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
         """
         Initialize the file grouping task.
@@ -113,7 +112,7 @@ class ConcreteFileGroupingTask(WorkerTask):
         self.files = files
         self.similarity_threshold = similarity_threshold
         self.progress_callback = progress_callback
-        self._file_grouper: Optional[FileGrouper] = None
+        self._file_grouper: FileGrouper | None = None
         self._groups: list[FileGroup] = []
 
     def execute(self) -> list[FileGroup]:
@@ -161,7 +160,7 @@ class ConcreteFileParsingTask(WorkerTask):
     """
 
     def __init__(
-        self, files: list[AnimeFile], progress_callback: Optional[callable] = None
+        self, files: list[AnimeFile], progress_callback: callable | None = None
     ) -> None:
         """
         Initialize the file parsing task.
@@ -172,7 +171,7 @@ class ConcreteFileParsingTask(WorkerTask):
         """
         self.files = files
         self.progress_callback = progress_callback
-        self._anime_parser: Optional[AnimeParser] = None
+        self._anime_parser: AnimeParser | None = None
         self._parsed_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
@@ -193,11 +192,11 @@ class ConcreteFileParsingTask(WorkerTask):
             for i, file in enumerate(self.files):
                 try:
                     # Validate that we have an AnimeFile object
-                    if not hasattr(file, 'filename'):
+                    if not hasattr(file, "filename"):
                         error_msg = f"Invalid object type in parsing task: {type(file)}. Expected AnimeFile."
                         logger.error(error_msg)
                         raise ValueError(error_msg)
-                    
+
                     # Parse the file
                     parsed_info = self._anime_parser.parse_filename(file.filename)
                     if parsed_info:
@@ -211,7 +210,7 @@ class ConcreteFileParsingTask(WorkerTask):
                         self.progress_callback(progress)
 
                 except Exception as e:
-                    if hasattr(file, 'filename'):
+                    if hasattr(file, "filename"):
                         logger.warning(f"Failed to parse file {file.filename}: {e}")
                         # Add file with error
                         file.processing_errors.append(f"Parsing failed: {str(e)}")
@@ -242,7 +241,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
     """
 
     def __init__(
-        self, files: list[AnimeFile], api_key: str, progress_callback: Optional[callable] = None
+        self, files: list[AnimeFile], api_key: str, progress_callback: callable | None = None
     ) -> None:
         """
         Initialize the metadata retrieval task.
@@ -255,7 +254,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
         self.files = files
         self.api_key = api_key
         self.progress_callback = progress_callback
-        self._tmdb_client: Optional[TMDBClient] = None
+        self._tmdb_client: TMDBClient | None = None
         self._files_with_metadata: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
@@ -278,9 +277,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
                 try:
                     if file.parsed_info and file.parsed_info.title:
                         # Search for anime metadata
-                        search_results = self._tmdb_client.search_tv_series(
-                            file.parsed_info.title
-                        )
+                        search_results = self._tmdb_client.search_tv_series(file.parsed_info.title)
 
                         if search_results:
                             # Use the first (best) result
@@ -320,13 +317,13 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
 class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
     """
     Optimized task for retrieving metadata from TMDB on a group basis.
-    
+
     This task groups files by their parsed title and searches TMDB once per group,
     then applies the metadata to all files in that group.
     """
 
     def __init__(
-        self, groups: list[FileGroup], api_key: str, progress_callback: Optional[callable] = None
+        self, groups: list[FileGroup], api_key: str, progress_callback: callable | None = None
     ) -> None:
         """
         Initialize the group-based metadata retrieval task.
@@ -339,7 +336,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         self.groups = groups
         self.api_key = api_key
         self.progress_callback = progress_callback
-        self._tmdb_client: Optional[TMDBClient] = None
+        self._tmdb_client: TMDBClient | None = None
         self._processed_groups: list[FileGroup] = []
         self._pending_group_selection = None
         self._viewmodel = None  # Will be set by the ViewModel
@@ -364,64 +361,94 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                 try:
                     # Get representative title from the group
                     representative_title = self._get_representative_title(group)
-                    
+
                     if representative_title:
                         logger.info(f"Searching TMDB for group '{representative_title}'")
-                        
-                        # Search TMDB once for this group
-                        search_results = self._tmdb_client.search_tv_series(representative_title)
-                        
+
+                        # Search TMDB once for this group using comprehensive search
+                        search_results, needs_selection = self._tmdb_client.search_comprehensive(
+                            representative_title, language="ko-KR"
+                        )
+
                         if search_results:
-                            if len(search_results) == 1:
-                                # Only one result, use it directly
-                                tmdb_data = search_results[0]
-                                tmdb_info = TMDBAnime.from_dict(tmdb_data)
-                                
+                            if not needs_selection and len(search_results) == 1:
+                                # Single result with high confidence, use it directly
+                                search_result = search_results[0]
+                                tmdb_info = self._tmdb_client._convert_search_result_to_anime(
+                                    search_result, "ko-KR"
+                                )
+
                                 # Use display title (Korean title if available, otherwise original title)
                                 display_title = tmdb_info.display_title
-                                logger.info(f"Found TMDB metadata for group '{representative_title}': {display_title}")
-                                
+                                logger.info(
+                                    f"Found TMDB metadata for group '{representative_title}': {display_title}"
+                                )
+
                                 # Apply metadata to all files in the group
                                 for file in group.files:
                                     file.tmdb_info = tmdb_info
-                                
+
                                 # Update group metadata with display title
                                 group.tmdb_info = tmdb_info
                                 group.series_title = display_title
-                                
-                                logger.info(f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files")
+
+                                logger.info(
+                                    f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files"
+                                )
                             else:
-                                # Multiple results, request user selection
-                                logger.info(f"Found {len(search_results)} TMDB results for group '{representative_title}', requesting user selection")
-                                
+                                # Multiple results or needs selection, request user selection
+                                logger.info(
+                                    f"Found {len(search_results)} TMDB results for group '{representative_title}', requesting user selection"
+                                )
+
+                                # Convert SearchResult objects to dict format for compatibility
+                                results_dict = []
+                                for search_result in search_results:
+                                    result_dict = {
+                                        "id": search_result.id,
+                                        "name": search_result.title,
+                                        "original_name": search_result.original_title,
+                                        "first_air_date": search_result.year,
+                                        "overview": search_result.overview,
+                                        "poster_path": search_result.poster_path,
+                                        "vote_average": search_result.vote_average,
+                                        "vote_count": search_result.vote_count,
+                                        "popularity": search_result.popularity,
+                                        "media_type": search_result.media_type,
+                                        "quality_score": search_result.quality_score,
+                                    }
+                                    results_dict.append(result_dict)
+
                                 # Store the group and callback for later use
                                 self._pending_group_selection = {
-                                    'group': group,
-                                    'query': representative_title,
-                                    'results': search_results
+                                    "group": group,
+                                    "query": representative_title,
+                                    "results": results_dict,
                                 }
-                                
+
                                 # Request user selection through ViewModel
-                                if hasattr(self, '_viewmodel') and self._viewmodel:
+                                if hasattr(self, "_viewmodel") and self._viewmodel:
                                     self._viewmodel.tmdb_selection_requested.emit(
-                                        representative_title, 
-                                        search_results, 
-                                        self._on_tmdb_selection_callback
+                                        representative_title,
+                                        results_dict,
+                                        self._on_tmdb_selection_callback,
                                     )
                                 else:
                                     # Fallback: use first result if no ViewModel available
-                                    logger.warning("No ViewModel available for user selection, using first result")
+                                    logger.warning(
+                                        "No ViewModel available for user selection, using first result"
+                                    )
                                     tmdb_data = search_results[0]
                                     tmdb_info = TMDBAnime.from_dict(tmdb_data)
                                     self._apply_tmdb_metadata_to_group(group, tmdb_info)
                         else:
-                            logger.warning(f"No TMDB results found for group '{representative_title}'")
+                            logger.warning(
+                                f"No TMDB results found for group '{representative_title}'"
+                            )
                             # Request manual search
-                            if hasattr(self, '_viewmodel') and self._viewmodel:
+                            if hasattr(self, "_viewmodel") and self._viewmodel:
                                 self._viewmodel.tmdb_selection_requested.emit(
-                                    representative_title, 
-                                    [], 
-                                    self._on_tmdb_selection_callback
+                                    representative_title, [], self._on_tmdb_selection_callback
                                 )
                             else:
                                 logger.warning("No ViewModel available for manual search")
@@ -451,35 +478,35 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             logger.error(f"Group-based metadata retrieval failed: {e}", exc_info=True)
             raise
 
-    def _get_representative_title(self, group: FileGroup) -> Optional[str]:
+    def _get_representative_title(self, group: FileGroup) -> str | None:
         """
         Get the most representative title from a group for TMDB search.
-        
+
         Args:
             group: FileGroup to get title from
-            
+
         Returns:
             Representative title or None if not found
         """
         # Try to get title from best file's parsed info
         if group.best_file and group.best_file.parsed_info and group.best_file.parsed_info.title:
             return group.best_file.parsed_info.title
-        
+
         # Try to get title from any file's parsed info
         for file in group.files:
             if file.parsed_info and file.parsed_info.title:
                 return file.parsed_info.title
-        
+
         # Fallback to group's series title if available
         if group.series_title:
             return group.series_title
-            
+
         return None
 
-    def _apply_tmdb_metadata_to_group(self, group: FileGroup, tmdb_info: 'TMDBAnime') -> None:
+    def _apply_tmdb_metadata_to_group(self, group: FileGroup, tmdb_info: TMDBAnime) -> None:
         """
         Apply TMDB metadata to a group and its files.
-        
+
         Args:
             group: FileGroup to apply metadata to
             tmdb_info: TMDBAnime object with metadata
@@ -487,38 +514,40 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         # Use display title (Korean title if available, otherwise original title)
         display_title = tmdb_info.display_title
         logger.info(f"Applying TMDB metadata to group: {display_title}")
-        
+
         # Apply metadata to all files in the group
         for file in group.files:
             file.tmdb_info = tmdb_info
-        
+
         # Update group metadata with display title
         group.tmdb_info = tmdb_info
         group.series_title = display_title
-        
-        logger.info(f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files")
+
+        logger.info(
+            f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files"
+        )
 
     def _on_tmdb_selection_callback(self, selected_result: dict) -> None:
         """
         Callback for when user selects a TMDB result.
-        
+
         Args:
             selected_result: Selected TMDB result dictionary
         """
         if not self._pending_group_selection:
             logger.warning("No pending group selection found for TMDB callback")
             return
-            
-        group = self._pending_group_selection['group']
-        
+
+        group = self._pending_group_selection["group"]
+
         try:
             # Convert selected result to TMDBAnime object
             tmdb_info = TMDBAnime.from_dict(selected_result)
             self._apply_tmdb_metadata_to_group(group, tmdb_info)
-            
+
             # Clear pending selection
             self._pending_group_selection = None
-            
+
         except Exception as e:
             logger.error(f"Failed to apply selected TMDB result: {e}")
             # Clear pending selection even on error
@@ -546,7 +575,7 @@ class ConcreteFileMovingTask(WorkerTask):
         self,
         groups: list[FileGroup],
         target_directory: str,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
         """
         Initialize the file moving task.
@@ -559,7 +588,7 @@ class ConcreteFileMovingTask(WorkerTask):
         self.groups = groups
         self.target_directory = target_directory
         self.progress_callback = progress_callback
-        self._file_mover: Optional[FileMover] = None
+        self._file_mover: FileMover | None = None
         self._moved_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
@@ -628,7 +657,7 @@ class ConcreteMetadataCachingTask(WorkerTask):
         self,
         files: list[AnimeFile],
         cache_duration_hours: int = 24,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
         """
         Initialize the metadata caching task.
@@ -641,7 +670,7 @@ class ConcreteMetadataCachingTask(WorkerTask):
         self.files = files
         self.cache_duration_hours = cache_duration_hours
         self.progress_callback = progress_callback
-        self._metadata_cache: Optional[MetadataCache] = None
+        self._metadata_cache: MetadataCache | None = None
         self._cached_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
@@ -663,9 +692,7 @@ class ConcreteMetadataCachingTask(WorkerTask):
                 try:
                     if file.tmdb_info:
                         # Cache the metadata
-                        self._metadata_cache.put(
-                            str(file.tmdb_info.tmdb_id), file.tmdb_info
-                        )
+                        self._metadata_cache.put(str(file.tmdb_info.tmdb_id), file.tmdb_info)
 
                     self._cached_files.append(file)
 

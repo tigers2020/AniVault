@@ -13,7 +13,7 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .config import SecureConfigManager
 
@@ -49,7 +49,7 @@ class ConfigurationObserver:
     def __init__(
         self,
         callback: Callable[[ConfigurationChangeEvent], None],
-        key_patterns: Optional[list[str]] = None,
+        key_patterns: list[str] | None = None,
     ):
         """
         Initialize configuration observer.
@@ -103,7 +103,7 @@ class ThreadSafeConfigManager:
     - Deadlock prevention
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize the thread-safe configuration manager.
 
@@ -129,7 +129,7 @@ class ThreadSafeConfigManager:
     def add_observer(
         self,
         callback: Callable[[ConfigurationChangeEvent], None],
-        key_patterns: Optional[list[str]] = None,
+        key_patterns: list[str] | None = None,
     ) -> int:
         """
         Add a configuration change observer.
@@ -206,7 +206,7 @@ class ThreadSafeConfigManager:
             self._last_access_time = time.time()
             return self._base_manager.get(key_path, default)
 
-    def set(self, key_path: str, value: Any, encrypt: Optional[bool] = None) -> None:
+    def set(self, key_path: str, value: Any, encrypt: bool | None = None) -> None:
         """
         Set a configuration value with thread safety and change notification.
 
@@ -290,7 +290,7 @@ class ThreadSafeConfigManager:
             return new_value
 
     def get_change_history(
-        self, key_pattern: Optional[str] = None, limit: Optional[int] = None
+        self, key_pattern: str | None = None, limit: int | None = None
     ) -> list[ConfigurationChangeEvent]:
         """
         Get configuration change history.
@@ -357,7 +357,7 @@ class ThreadSafeConfigManager:
         with self._read_lock:
             return self._base_manager.get_all_config()
 
-    def backup_config(self, backup_path: Optional[Path] = None) -> bool:
+    def backup_config(self, backup_path: Path | None = None) -> bool:
         """Create configuration backup with thread safety."""
         with self._read_lock:
             return self._base_manager.backup_config(backup_path)
@@ -373,7 +373,7 @@ class ThreadSafeConfigManager:
             return self._base_manager.get_security_status()
 
     # Delegate other methods to base manager with thread safety
-    def get_tmdb_api_key(self) -> Optional[str]:
+    def get_tmdb_api_key(self) -> str | None:
         """Get TMDB API key with thread safety."""
         with self._read_lock:
             return self._base_manager.get_tmdb_api_key()
@@ -448,7 +448,7 @@ class ThreadSafeConfigManager:
 
 
 # Global thread-safe configuration manager instance
-_thread_safe_config_manager: Optional[ThreadSafeConfigManager] = None
+_thread_safe_config_manager: ThreadSafeConfigManager | None = None
 
 
 def get_thread_safe_config_manager() -> ThreadSafeConfigManager:
@@ -464,7 +464,7 @@ def get_thread_safe_config_manager() -> ThreadSafeConfigManager:
     return _thread_safe_config_manager
 
 
-def initialize_thread_safe_config(config_path: Optional[Path] = None) -> ThreadSafeConfigManager:
+def initialize_thread_safe_config(config_path: Path | None = None) -> ThreadSafeConfigManager:
     """
     Initialize the global thread-safe configuration manager.
 

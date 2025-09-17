@@ -1,7 +1,6 @@
 """Settings dialog for AniVault application."""
 
 import logging
-from typing import Optional
 
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import (
@@ -34,7 +33,7 @@ class SettingsDialog(QDialog):
     settings_saved = pyqtSignal()
 
     def __init__(
-        self, parent: Optional[QWidget] = None, config_manager: Optional[ConfigManager] = None
+        self, parent: QWidget | None = None, config_manager: ConfigManager | None = None
     ):
         """
         Initialize the settings dialog.

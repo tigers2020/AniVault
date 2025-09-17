@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
@@ -24,8 +24,8 @@ from ..core.services.file_processing_tasks import (
     ConcreteFileMovingTask,
     ConcreteFileParsingTask,
     ConcreteFileScanningTask,
-    ConcreteMetadataRetrievalTask,
     ConcreteGroupBasedMetadataRetrievalTask,
+    ConcreteMetadataRetrievalTask,
 )
 from ..core.tmdb_client import TMDBClient, TMDBConfig
 from .base_viewmodel import BaseViewModel
@@ -57,7 +57,7 @@ class FileProcessingViewModel(BaseViewModel):
     files_moved = pyqtSignal(list)  # List[AnimeFile] - when files are moved
     processing_pipeline_started = pyqtSignal()  # when full pipeline starts
     processing_pipeline_finished = pyqtSignal(bool)  # success status when pipeline completes
-    
+
     # TMDB selection signals
     tmdb_selection_requested = pyqtSignal(str, list, object)  # query, results, callback
     tmdb_selection_completed = pyqtSignal(dict)  # selected result
@@ -72,12 +72,12 @@ class FileProcessingViewModel(BaseViewModel):
         super().__init__(parent)
 
         # Model components
-        self._file_scanner: Optional[FileScanner] = None
-        self._anime_parser: Optional[AnimeParser] = None
-        self._tmdb_client: Optional[TMDBClient] = None
-        self._metadata_cache: Optional[MetadataCache] = None
-        self._file_grouper: Optional[FileGrouper] = None
-        self._file_mover: Optional[FileMover] = None
+        self._file_scanner: FileScanner | None = None
+        self._anime_parser: AnimeParser | None = None
+        self._tmdb_client: TMDBClient | None = None
+        self._metadata_cache: MetadataCache | None = None
+        self._file_grouper: FileGrouper | None = None
+        self._file_mover: FileMover | None = None
 
         # Processing state
         self._scanned_files: list[AnimeFile] = []
@@ -128,7 +128,7 @@ class FileProcessingViewModel(BaseViewModel):
         # Utility commands
         self.add_command("clear_results", self._clear_results_command)
         self.add_command("reset_pipeline", self._reset_pipeline_command)
-        
+
         # Auto chaining control commands
         self.add_command("enable_auto_chaining", lambda: self.set_auto_chaining_enabled(True))
         self.add_command("disable_auto_chaining", lambda: self.set_auto_chaining_enabled(False))
@@ -187,7 +187,9 @@ class FileProcessingViewModel(BaseViewModel):
 
             # Initialize TMDB client if API key is available
             if self._tmdb_api_key:
-                logger.info(f"Initializing TMDB client during component initialization with API key: ***{self._tmdb_api_key[-4:]}")
+                logger.info(
+                    f"Initializing TMDB client during component initialization with API key: ***{self._tmdb_api_key[-4:]}"
+                )
                 tmdb_config = TMDBConfig(api_key=self._tmdb_api_key)
                 self._tmdb_client = TMDBClient(tmdb_config)
                 logger.info("TMDB client initialized successfully during component initialization")
@@ -211,19 +213,19 @@ class FileProcessingViewModel(BaseViewModel):
             self.error_occurred.emit(error_msg)
             raise
 
-    def create_worker(self) -> FilePipelineWorker:
+    def create_worker(self):
         """
         Create and configure a new FilePipelineWorker with additional signal connections.
-        
+
         Returns:
             Configured FilePipelineWorker instance
         """
         # Call parent method to create worker
         worker = super().create_worker()
-        
+
         # Connect additional signals specific to file processing
         worker.task_finished.connect(self._on_worker_task_finished)
-        
+
         logger.debug("FileProcessingViewModel worker signals connected")
         return worker
 
@@ -237,7 +239,7 @@ class FileProcessingViewModel(BaseViewModel):
             directories: List of directories to scan
         """
         logger.debug(f"_scan_files_command called with directories: {directories}")
-        
+
         if not directories:
             logger.error("No directories specified for scanning")
             self.error_occurred.emit("No directories specified for scanning")
@@ -259,7 +261,7 @@ class FileProcessingViewModel(BaseViewModel):
         # Create and add scanning task
         task = ConcreteFileScanningTask(directories, self._get_supported_extensions())
         logger.debug(f"Created task: {task.get_name()}")
-        
+
         logger.debug("Adding task to worker")
         self.add_worker_task(task)
         logger.debug("Task added to worker successfully")
@@ -277,7 +279,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.debug("scan_directories_command called")
         directories = self.get_property("scan_directories", [])
         logger.info(f"Scan directories command called with directories: {directories}")
-        
+
         if not directories:
             logger.warning("No scan directories configured")
             self.error_occurred.emit("No scan directories configured")
@@ -398,7 +400,9 @@ class FileProcessingViewModel(BaseViewModel):
 
         # Check if TMDB client is available
         if not self._tmdb_client or not self._tmdb_api_key:
-            logger.warning("TMDB client not initialized or API key not set - skipping metadata retrieval")
+            logger.warning(
+                "TMDB client not initialized or API key not set - skipping metadata retrieval"
+            )
             self.set_property("current_pipeline_step", "Metadata Retrieval Skipped")
             # Emit signal that metadata retrieval is complete (with no metadata)
             self._handle_metadata_result(files)
@@ -429,7 +433,9 @@ class FileProcessingViewModel(BaseViewModel):
 
         # Check if TMDB client is available
         if not self._tmdb_client or not self._tmdb_api_key:
-            logger.warning("TMDB client not initialized or API key not set - skipping group metadata retrieval")
+            logger.warning(
+                "TMDB client not initialized or API key not set - skipping group metadata retrieval"
+            )
             self.set_property("current_pipeline_step", "Metadata Retrieval Skipped")
             # Emit signal that metadata retrieval is complete (with no metadata)
             all_files = []
@@ -552,10 +558,12 @@ class FileProcessingViewModel(BaseViewModel):
         """
         print(f"DEBUG: set_scan_directories_command called with: {directories}")  # 강제 출력
         logger.debug(f"set_scan_directories_command called with: {directories}")
-        
+
         # Validate directories
         valid_dirs = []
-        print(f"DEBUG: Starting directory validation for {len(directories)} directories")  # 강제 출력
+        print(
+            f"DEBUG: Starting directory validation for {len(directories)} directories"
+        )  # 강제 출력
         for i, directory in enumerate(directories):
             print(f"DEBUG: Validating directory {i+1}/{len(directories)}: {directory}")  # 강제 출력
             logger.debug(f"Validating directory: {directory}")
@@ -572,7 +580,9 @@ class FileProcessingViewModel(BaseViewModel):
                     print(f"DEBUG: Valid directory: {directory} -> {abs_path}")  # 강제 출력
                     logger.debug(f"Valid directory: {directory}")
                 else:
-                    print(f"DEBUG: Invalid directory: {directory} (exists={exists}, is_dir={is_dir})")  # 강제 출력
+                    print(
+                        f"DEBUG: Invalid directory: {directory} (exists={exists}, is_dir={is_dir})"
+                    )  # 강제 출력
                     logger.warning(f"Invalid directory: {directory}")
             except Exception as e:
                 print(f"DEBUG: Error validating directory {directory}: {e}")  # 강제 출력
@@ -589,7 +599,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.debug(f"Setting scan_directories property to: {valid_dirs}")
         self.set_property("scan_directories", valid_dirs)
         self._scan_directories = valid_dirs
-        print(f"DEBUG: Properties set successfully")  # 강제 출력
+        print("DEBUG: Properties set successfully")  # 강제 출력
         logger.info(f"Set scan directories: {valid_dirs}")
         print("DEBUG: set_scan_directories_command completed successfully")  # 강제 출력
         logger.debug("set_scan_directories_command completed successfully")
@@ -732,8 +742,10 @@ class FileProcessingViewModel(BaseViewModel):
             result: Task result
             success: Whether the task succeeded
         """
-        logger.info(f"Worker task finished: {task_name}, success: {success}, result type: {type(result)}")
-        
+        logger.info(
+            f"Worker task finished: {task_name}, success: {success}, result type: {type(result)}"
+        )
+
         if not success:
             logger.error(f"Worker task failed: {task_name}")
             self.error_occurred.emit(f"작업 실패: {task_name}")
@@ -748,8 +760,10 @@ class FileProcessingViewModel(BaseViewModel):
             elif task_name == "File Scanning":
                 logger.warning(f"File Scanning result is not a list: {type(result)}")
                 # Try to handle it anyway if it's iterable
-                if hasattr(result, '__iter__'):
-                    logger.info(f"Processing File Scanning result (iterable) with {len(list(result))} files")
+                if hasattr(result, "__iter__"):
+                    logger.info(
+                        f"Processing File Scanning result (iterable) with {len(list(result))} files"
+                    )
                     self._handle_scanning_result(list(result))
             elif task_name == "File Grouping" and isinstance(result, list):
                 self._handle_grouping_result(result)
@@ -795,16 +809,16 @@ class FileProcessingViewModel(BaseViewModel):
     def _handle_scanning_result(self, files: list[AnimeFile]) -> None:
         """Handle file scanning result."""
         logger.info(f"Handling scanning result: {len(files)} files found")
-        
+
         self._scanned_files = files
         self.set_property("scanned_files", files)
         self.set_property("total_files_scanned", len(files))
         self.set_property("current_pipeline_step", "Scanning Complete")
-        
+
         logger.info("Emitting files_scanned signal")
         self.files_scanned.emit(files)
         logger.info(f"File scanning completed: {len(files)} files found")
-        
+
         # Automatically start grouping after scanning
         if files and self._auto_chaining_enabled:
             logger.info("Starting automatic file grouping after scan")
@@ -822,17 +836,17 @@ class FileProcessingViewModel(BaseViewModel):
         self.set_property("current_pipeline_step", "Grouping Complete")
         self.files_grouped.emit(groups)
         logger.info(f"File grouping completed: {len(groups)} groups created")
-        
+
         # Automatically start parsing after grouping
         if groups and self._auto_chaining_enabled:
             logger.info("Starting automatic file parsing after grouping")
             self.set_property("current_pipeline_step", "Starting Parsing")
-            
+
             # Extract all files from groups for parsing
             all_files = []
             for group in groups:
                 all_files.extend(group.files)
-            
+
             logger.info(f"Extracted {len(all_files)} files from {len(groups)} groups for parsing")
             self.execute_command("parse_files", all_files)
         elif groups:
@@ -847,7 +861,7 @@ class FileProcessingViewModel(BaseViewModel):
         self.set_property("current_pipeline_step", "Parsing Complete")
         self.files_parsed.emit(files)
         logger.info(f"File parsing completed: {len(files)} files parsed")
-        
+
         # Automatically start metadata retrieval after parsing
         if files and self._auto_chaining_enabled:
             logger.info("Starting automatic group-based metadata retrieval after parsing")
@@ -871,36 +885,56 @@ class FileProcessingViewModel(BaseViewModel):
         self.set_property("current_pipeline_step", "Metadata Retrieval Complete")
         self.metadata_retrieved.emit(files)
         logger.info(f"Metadata retrieval completed: {len(files)} files processed")
-        
+
         # Note: File moving is NOT automatically started here as per user request
         # Users can manually start file moving when ready
-        logger.info("Pipeline completed up to metadata retrieval. File moving can be started manually.")
+        logger.info(
+            "Pipeline completed up to metadata retrieval. File moving can be started manually."
+        )
         self.set_property("current_pipeline_step", "Ready for File Moving")
 
     def _handle_group_metadata_result(self, groups: list[FileGroup]) -> None:
         """Handle group-based metadata retrieval result."""
         logger.info(f"Handling group metadata result: {len(groups)} groups processed")
-        
-        # Update file groups with metadata
+
+        # Merge groups with the same name after TMDB metadata application
+        if self._file_grouper:
+            logger.info("Merging groups with identical names...")
+            merged_groups = self._file_grouper.merge_groups_by_name(groups)
+            logger.info(f"Merged {len(groups)} groups into {len(merged_groups)} groups")
+            groups = merged_groups
+
+        # Update file groups with metadata and ensure group names are set
+        for group in groups:
+            if not group.group_name and group.series_title:
+                group.group_name = group.series_title
+                logger.info(
+                    f"Set group name to '{group.group_name}' for group with {len(group.files)} files"
+                )
+
         self._file_groups = groups
         self.set_property("file_groups", groups)
-        
+
         # Extract all files from groups for processed files list
         all_files = []
         for group in groups:
             all_files.extend(group.files)
-        
+
         self._processed_files = all_files
         self.set_property("processed_files", all_files)
         self.set_property("current_pipeline_step", "Metadata Retrieval Complete")
-        
+
         # Emit metadata retrieved signal with all files
         self.metadata_retrieved.emit(all_files)
-        logger.info(f"Group-based metadata retrieval completed: {len(all_files)} files in {len(groups)} groups processed")
-        
+        logger.info(
+            f"Group-based metadata retrieval completed: {len(all_files)} files in {len(groups)} groups processed"
+        )
+
         # Note: File moving is NOT automatically started here as per user request
         # Users can manually start file moving when ready
-        logger.info("Pipeline completed up to metadata retrieval. File moving can be started manually.")
+        logger.info(
+            "Pipeline completed up to metadata retrieval. File moving can be started manually."
+        )
         self.set_property("current_pipeline_step", "Ready for File Moving")
 
     def _handle_moving_result(self, files: list[AnimeFile]) -> None:

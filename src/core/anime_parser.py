@@ -5,7 +5,7 @@ This module provides functionality to parse anime filenames and extract
 structured information like title, season, episode, resolution, etc.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import anitopy
 
@@ -39,7 +39,7 @@ class AnimeParser:
         self.validator = AnimeDataValidator()
         self.fallback_parser = FallbackAnimeParser()
 
-    def _map_anitopy_to_model(self, parsed_data: dict[str, Any]) -> Optional[ParsedAnimeInfo]:
+    def _map_anitopy_to_model(self, parsed_data: dict[str, Any]) -> ParsedAnimeInfo | None:
         """
         Maps the raw dictionary output from anitopy to a ParsedAnimeInfo dataclass.
 
@@ -111,7 +111,7 @@ class AnimeParser:
             )
             return None
 
-    def parse_filename(self, filename: str, use_fallback: bool = True) -> Optional[ParsedAnimeInfo]:
+    def parse_filename(self, filename: str, use_fallback: bool = True) -> ParsedAnimeInfo | None:
         """
         Parses a single anime filename using anitopy with fallback support.
 
@@ -149,7 +149,7 @@ class AnimeParser:
 
         return None
 
-    def parse_anime_file(self, anime_file: AnimeFile) -> Optional[ParsedAnimeInfo]:
+    def parse_anime_file(self, anime_file: AnimeFile) -> ParsedAnimeInfo | None:
         """
         Parses the filename from an AnimeFile object.
 
@@ -168,7 +168,7 @@ class AnimeParser:
             logger.warning(error_msg)
         return parsed_info
 
-    def parse_filenames_batch(self, filenames: list[str]) -> list[Optional[ParsedAnimeInfo]]:
+    def parse_filenames_batch(self, filenames: list[str]) -> list[ParsedAnimeInfo | None]:
         """
         Parses a list of anime filenames using individual parsing.
 
@@ -193,7 +193,7 @@ class AnimeParser:
 
     def parse_anime_files_batch(
         self, anime_files: list[AnimeFile]
-    ) -> list[Optional[ParsedAnimeInfo]]:
+    ) -> list[ParsedAnimeInfo | None]:
         """
         Parses a list of AnimeFile objects in batch.
 
@@ -219,7 +219,7 @@ class AnimeParser:
         return parsed_infos
 
     def get_parsing_statistics(
-        self, parsed_results: list[Optional[ParsedAnimeInfo]]
+        self, parsed_results: list[ParsedAnimeInfo | None]
     ) -> dict[str, Any]:
         """
         Generates statistics about parsing results.

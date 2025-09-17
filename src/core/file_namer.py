@@ -9,7 +9,6 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from .exceptions import FileNamingError
 
@@ -147,7 +146,7 @@ class FileNamer:
         return safe_name
 
     def resolve_conflict(
-        self, target_path: Path, strategy: Optional[NamingStrategy] = None
+        self, target_path: Path, strategy: NamingStrategy | None = None
     ) -> NamingResult:
         """
         Resolve a filename conflict by generating a unique name.
@@ -206,7 +205,7 @@ class FileNamer:
             )
 
     def get_available_filename(
-        self, target_path: Path, strategy: Optional[NamingStrategy] = None
+        self, target_path: Path, strategy: NamingStrategy | None = None
     ) -> Path:
         """
         Get an available filename for the target path.

@@ -1,7 +1,6 @@
 """Work panel for file operations and controls."""
 
 import logging
-from typing import Optional
 
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (
@@ -32,13 +31,13 @@ class WorkPanel(QGroupBox):
     preview_requested = pyqtSignal()
 
     def __init__(
-        self, parent: QWidget | None = None, config_manager: Optional[ConfigManager] = None
+        self, parent: QWidget | None = None, config_manager: ConfigManager | None = None
     ) -> None:
         """Initialize the work panel."""
         super().__init__("작업 패널", parent)
         self.theme_manager = get_theme_manager()
         self.config_manager = config_manager or ConfigManager()
-        self._viewmodel: Optional[BaseViewModel] = None
+        self._viewmodel: BaseViewModel | None = None
         self._is_processing = False
 
         # Apply theme to the GroupBox first
@@ -250,20 +249,24 @@ class WorkPanel(QGroupBox):
         """Handle scan button click."""
         print("DEBUG: _on_scan_clicked called")  # 강제 출력
         logger.info("Scan button clicked")
-        
+
         print(f"DEBUG: ViewModel available: {self._viewmodel is not None}")  # 강제 출력
         if self._viewmodel:
             print(f"DEBUG: ViewModel type: {type(self._viewmodel)}")  # 강제 출력
-            print(f"DEBUG: Has execute_command: {hasattr(self._viewmodel, 'execute_command')}")  # 강제 출력
-            if hasattr(self._viewmodel, 'execute_command'):
-                print(f"DEBUG: execute_command method: {self._viewmodel.execute_command}")  # 강제 출력
-        
+            print(
+                f"DEBUG: Has execute_command: {hasattr(self._viewmodel, 'execute_command')}"
+            )  # 강제 출력
+            if hasattr(self._viewmodel, "execute_command"):
+                print(
+                    f"DEBUG: execute_command method: {self._viewmodel.execute_command}"
+                )  # 강제 출력
+
         if self._viewmodel and hasattr(self._viewmodel, "execute_command"):
             logger.debug("ViewModel and execute_command method available")
             # Get source path and set as scan directory
             source_path = self.get_source_path()
             logger.info(f"Source path: {source_path}")
-            
+
             if source_path:
                 logger.info("Setting scan directories and starting scan")
                 print("DEBUG: About to call execute_command('set_scan_directories')")  # 강제 출력
@@ -276,7 +279,7 @@ class WorkPanel(QGroupBox):
                     print(f"DEBUG: Error in set_scan_directories command: {e}")  # 강제 출력
                     logger.error(f"Error in set_scan_directories command: {e}")
                     return
-                
+
                 print("DEBUG: About to call execute_command('scan_directories')")  # 강제 출력
                 try:
                     print("DEBUG: Calling scan_directories now...")  # 강제 출력
