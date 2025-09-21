@@ -14,10 +14,10 @@ from pathlib import Path
 from typing import Any
 
 from .database import db_manager
+from .logging_utils import log_operation_error
 from .metadata_cache import cache_manager
 from .models import ParsedAnimeInfo, TMDBAnime
 from .transaction_manager import transactional
-from .logging_utils import log_operation_error
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -98,12 +98,12 @@ class MetadataStorage:
         with self._lock:
             try:
                 key = f"tmdb:{anime.tmdb_id}"
-                
+
                 # Store in database first (atomic operation)
                 if self.enable_db and self.db:
                     self.db.create_anime_metadata(anime)
                     logger.debug(f"Stored TMDB metadata in database: {anime.tmdb_id}")
-                
+
                 # Only update cache after successful database operation
                 if self.enable_cache and self.cache:
                     self.cache.put(key, anime)
@@ -118,6 +118,53 @@ class MetadataStorage:
                 if self.enable_cache and self.cache:
                     self.cache.delete(key)
                 return False
+
+    @transactional
+    def bulk_store_tmdb_metadata(self, session, anime_list: list[TMDBAnime]) -> int:
+        """Bulk store TMDB metadata in both cache and database with atomicity.
+
+        This method eliminates N+1 query patterns by processing multiple
+        anime records in optimized batch operations.
+
+        Args:
+            session: Database session (automatically provided by decorator)
+            anime_list: List of TMDBAnime objects to store
+
+        Returns:
+            Number of records successfully stored
+        """
+        if not anime_list:
+            return 0
+
+        with self._lock:
+            try:
+                stored_count = 0
+
+                # Bulk store in database first (atomic operation)
+                if self.enable_db and self.db:
+                    stored_count = self.db.bulk_upsert_anime_metadata(anime_list)[0]
+                    logger.debug(f"Bulk stored {stored_count} TMDB metadata records in database")
+
+                # Only update cache after successful database operation
+                if self.enable_cache and self.cache and stored_count > 0:
+                    for anime in anime_list[
+                        :stored_count
+                    ]:  # Only cache successfully stored records
+                        key = f"tmdb:{anime.tmdb_id}"
+                        self.cache.put(key, anime)
+                        logger.debug(f"Stored TMDB metadata in cache: {key}")
+
+                self._stats["sync_operations"] += stored_count
+                return stored_count
+
+            except Exception as e:
+                log_operation_error("bulk store TMDB metadata", e)
+                # If database operation failed, ensure cache is not updated
+                if self.enable_cache and self.cache:
+                    for anime in anime_list:
+                        key = f"tmdb:{anime.tmdb_id}"
+                        self.cache.delete(key)
+                return 0
 
     def get_tmdb_metadata(self, tmdb_id: int) -> TMDBAnime | None:
         """Retrieve TMDB metadata from cache or database.
@@ -293,13 +340,13 @@ class MetadataStorage:
                         # Convert to the same format as database result
                         result = {
                             "file_path": str(file_path),
-                            "filename": getattr(cached, 'filename', ''),
-                            "file_size": getattr(cached, 'file_size', 0),
-                            "created_at": getattr(cached, 'created_at', None),
-                            "modified_at": getattr(cached, 'modified_at', None),
+                            "filename": getattr(cached, "filename", ""),
+                            "file_size": getattr(cached, "file_size", 0),
+                            "created_at": getattr(cached, "created_at", None),
+                            "modified_at": getattr(cached, "modified_at", None),
                             "parsed_info": cached,
-                            "tmdb_id": getattr(cached, 'tmdb_id', None),
-                            "file_hash": getattr(cached, 'file_hash', None),
+                            "tmdb_id": getattr(cached, "tmdb_id", None),
+                            "file_hash": getattr(cached, "file_hash", None),
                         }
                         return result
                     return None
@@ -399,7 +446,9 @@ class MetadataStorage:
                     if success:
                         logger.debug(f"Removed parsed file from database: {file_path_str}")
                     else:
-                        logger.warning(f"Failed to remove parsed file from database: {file_path_str}")
+                        logger.warning(
+                            f"Failed to remove parsed file from database: {file_path_str}"
+                        )
                         return False
 
                 # Only remove from cache after successful database operation
