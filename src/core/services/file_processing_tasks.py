@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import as_completed
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,7 @@ from ..metadata_cache import MetadataCache
 from ..models import AnimeFile, FileGroup, TMDBAnime
 from ..thread_executor_manager import get_thread_executor_manager
 from ..tmdb_client import TMDBClient, TMDBConfig
+from ..tmdb_client_pool import get_tmdb_thread_local_client
 from .bulk_update_task import ConcreteBulkUpdateTask
 from .file_pipeline_worker import WorkerTask
 
@@ -182,8 +183,7 @@ class ConcreteFileParsingTask(WorkerTask):
             with executor_manager.get_general_executor() as executor:
                 # Submit all parsing tasks
                 future_to_file = {
-                    executor.submit(self._parse_single_file, file): file
-                    for file in self.files
+                    executor.submit(self._parse_single_file, file): file for file in self.files
                 }
 
                 # Process completed tasks
@@ -223,7 +223,9 @@ class ConcreteFileParsingTask(WorkerTask):
         try:
             # Validate that we have an AnimeFile object
             if not hasattr(file, "filename"):
-                error_msg = f"Invalid object type in parsing task: {type(file)}. Expected AnimeFile."
+                error_msg = (
+                    f"Invalid object type in parsing task: {type(file)}. Expected AnimeFile."
+                )
                 logger.error(error_msg)
                 raise ValueError(error_msg)
 
@@ -276,26 +278,26 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
         logger.debug(f"Starting parallel metadata retrieval for {len(self.files)} files")
 
         try:
-            # Initialize TMDB client
+            # Initialize TMDB configuration for thread-local client manager
             tmdb_config = TMDBConfig(api_key=self.api_key)
-            self._tmdb_client = TMDBClient(tmdb_config)
+            thread_local_manager = get_tmdb_thread_local_client(tmdb_config)
 
             # Get metadata for each file using parallel processing
             self._files_with_metadata = []
-            
+
             # Use ThreadPoolExecutor for parallel TMDB API calls
             executor_manager = get_thread_executor_manager()
             with executor_manager.get_tmdb_executor() as executor:
-                # Submit all metadata retrieval tasks
+                # Submit all metadata retrieval tasks with thread-local manager
                 future_to_file = {
-                    executor.submit(self._retrieve_metadata_for_file, file): file
+                    executor.submit(self._retrieve_metadata_for_file_with_manager, file, thread_local_manager): file
                     for file in self.files
                 }
 
                 # Process completed tasks
                 for future in as_completed(future_to_file):
                     file = future_to_file[future]
-                    
+
                     try:
                         processed_file = future.result()
                         self._files_with_metadata.append(processed_file)
@@ -318,6 +320,62 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
         except Exception as e:
             log_operation_error("metadata retrieval", e, exc_info=True)
             raise
+
+    def _retrieve_metadata_for_file_with_manager(self, file: AnimeFile, thread_local_manager) -> AnimeFile:
+        """Retrieve metadata for a single file using thread-local TMDB client manager.
+
+        Args:
+            file: AnimeFile to retrieve metadata for
+            thread_local_manager: ThreadLocalTMDBClient manager instance
+
+        Returns:
+            AnimeFile with metadata applied
+        """
+        try:
+            # Get thread-local TMDB client
+            tmdb_client = thread_local_manager.get_client()
+            
+            if file.parsed_info and file.parsed_info.title:
+                # Search for anime metadata
+                search_results = tmdb_client.search_tv_series(file.parsed_info.title)
+
+                if search_results:
+                    # Use the first (best) result and convert to TMDBAnime
+                    tmdb_data = search_results[0]
+                    file.tmdb_info = TMDBAnime(
+                        tmdb_id=tmdb_data.get("id", 0),
+                        title=tmdb_data.get("name", tmdb_data.get("title", "")),
+                        original_title=tmdb_data.get(
+                            "original_name", tmdb_data.get("original_title", "")
+                        ),
+                        overview=tmdb_data.get("overview", ""),
+                        release_date=tmdb_data.get(
+                            "first_air_date", tmdb_data.get("release_date", "")
+                        ),
+                        popularity=tmdb_data.get("popularity", 0.0),
+                        vote_average=tmdb_data.get("vote_average", 0.0),
+                        vote_count=tmdb_data.get("vote_count", 0),
+                        poster_path=tmdb_data.get("poster_path", ""),
+                        backdrop_path=tmdb_data.get("backdrop_path", ""),
+                        genres=[genre.get("name", "") for genre in tmdb_data.get("genres", [])],
+                        status=tmdb_data.get("status", ""),
+                        episode_count=tmdb_data.get("number_of_episodes", 0),
+                        season_count=tmdb_data.get("number_of_seasons", 0),
+                    )
+                    logger.debug(f"Retrieved metadata for {file.filename}: {file.tmdb_info.title}")
+                else:
+                    logger.debug(f"No metadata found for {file.filename}")
+                    file.processing_errors.append("No metadata found")
+            else:
+                logger.debug(f"No parsed title for {file.filename}")
+                file.processing_errors.append("No parsed title available")
+
+            return file
+
+        except Exception as e:
+            logger.warning(f"Failed to retrieve metadata for {file.filename}: {e}")
+            file.processing_errors.append(f"Metadata retrieval error: {e!s}")
+            return file
 
     def _retrieve_metadata_for_file(self, file: AnimeFile) -> AnimeFile:
         """Retrieve metadata for a single file.
@@ -411,9 +469,9 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         logger.debug(f"Starting group-based metadata retrieval for {len(self.groups)} groups")
 
         try:
-            # Initialize TMDB client
+            # Initialize TMDB configuration for thread-local client manager
             tmdb_config = TMDBConfig(api_key=self.api_key)
-            self._tmdb_client = TMDBClient(tmdb_config)
+            thread_local_manager = get_tmdb_thread_local_client(tmdb_config)
 
             # Initialize batch collection
             self._collected_metadata = []
@@ -433,8 +491,9 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                     if representative_title:
                         logger.info(f"Searching TMDB for group '{representative_title}'")
 
-                        # Search TMDB once for this group using comprehensive search
-                        search_results, needs_selection = self._tmdb_client.search_comprehensive(
+                        # Get thread-local TMDB client and search once for this group using comprehensive search
+                        tmdb_client = thread_local_manager.get_client()
+                        search_results, needs_selection = tmdb_client.search_comprehensive(
                             representative_title, language="ko-KR"
                         )
 
@@ -442,7 +501,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                             if not needs_selection and len(search_results) == 1:
                                 # Single result with high confidence, use it directly
                                 search_result = search_results[0]
-                                tmdb_info = self._tmdb_client._convert_search_result_to_anime(
+                                tmdb_info = tmdb_client._convert_search_result_to_anime(
                                     search_result, "ko-KR"
                                 )
 

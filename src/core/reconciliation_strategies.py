@@ -12,6 +12,7 @@ from enum import Enum
 
 from sqlalchemy.orm import Session
 
+from .cache_key_generator import get_cache_key_generator
 from .consistency_validator import ConflictType, DataConflict
 from .database import AnimeMetadata, ParsedFile, db_manager
 from .logging_utils import log_operation_error
@@ -338,14 +339,16 @@ class ReconciliationEngine:
         """
         try:
             if conflict.entity_type == "anime_metadata":
-                cache_key = f"anime_metadata:{conflict.entity_id}"
+                key_generator = get_cache_key_generator()
+                cache_key = key_generator.generate_anime_metadata_key(conflict.entity_id)
                 self.metadata_cache.set(cache_key, conflict.db_data)
                 logger.debug(
                     f"Updated cache with database data for anime_metadata:{conflict.entity_id}"
                 )
                 return True
             elif conflict.entity_type == "parsed_file":
-                cache_key = f"parsed_file:{conflict.entity_id}"
+                key_generator = get_cache_key_generator()
+                cache_key = key_generator.generate_parsed_file_meta_key(conflict.entity_id)
                 self.metadata_cache.set(cache_key, conflict.db_data)
                 logger.debug(
                     f"Updated cache with database data for parsed_file:{conflict.entity_id}"
@@ -613,12 +616,14 @@ class ReconciliationEngine:
 
                     # Update cache with database data
                     if conflict.entity_type == ConflictType.ANIME_METADATA:
-                        cache_key = f"tmdb:{entity_id}"
+                        key_generator = get_cache_key_generator()
+                        cache_key = key_generator.generate_tmdb_anime_key(entity_id)
                         if self.cache:
                             self.cache.put(cache_key, db_data)
                             updated_count += 1
                     elif conflict.entity_type == ConflictType.PARSED_FILE:
-                        cache_key = f"file:{entity_id}"
+                        key_generator = get_cache_key_generator()
+                        cache_key = key_generator.generate_file_key(entity_id)
                         if self.cache:
                             self.cache.put(cache_key, db_data)
                             updated_count += 1

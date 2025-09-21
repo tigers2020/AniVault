@@ -52,7 +52,7 @@ class TestParallelMetadataRetrieval(unittest.TestCase):
         # Mock TMDB client
         mock_tmdb_client = Mock()
         mock_tmdb_client_class.return_value = mock_tmdb_client
-        
+
         # Mock search results
         mock_tmdb_client.search_tv_series.return_value = [{
             "id": 12345,
@@ -69,19 +69,19 @@ class TestParallelMetadataRetrieval(unittest.TestCase):
 
         # Create task
         task = ConcreteMetadataRetrievalTask(self.test_files, self.api_key)
-        
+
         # Execute task
         result = task.execute()
-        
+
         # Verify results
         self.assertEqual(len(result), 5)
-        
+
         # Verify that all files have metadata
         for file in result:
             self.assertIsNotNone(file.tmdb_info)
             self.assertEqual(file.tmdb_info.tmdb_id, 12345)
             self.assertEqual(file.tmdb_info.title, "Test Anime")
-        
+
         # Verify that TMDB client was called for each file
         self.assertEqual(mock_tmdb_client.search_tv_series.call_count, 5)
 
@@ -91,7 +91,7 @@ class TestParallelMetadataRetrieval(unittest.TestCase):
         # Mock TMDB client
         mock_tmdb_client = Mock()
         mock_tmdb_client_class.return_value = mock_tmdb_client
-        
+
         # Mock search results - some succeed, some fail
         def mock_search(title):
             if "Anime 0" in title or "Anime 1" in title:
@@ -109,22 +109,22 @@ class TestParallelMetadataRetrieval(unittest.TestCase):
                 }]
             else:
                 raise Exception("TMDB API error")
-        
+
         mock_tmdb_client.search_tv_series.side_effect = mock_search
 
         # Create task
         task = ConcreteMetadataRetrievalTask(self.test_files, self.api_key)
-        
+
         # Execute task
         result = task.execute()
-        
+
         # Verify results
         self.assertEqual(len(result), 5)
-        
+
         # Verify that some files have metadata and some have errors
         success_count = 0
         error_count = 0
-        
+
         for file in result:
             if file.tmdb_info is not None:
                 success_count += 1
@@ -132,7 +132,7 @@ class TestParallelMetadataRetrieval(unittest.TestCase):
             elif file.processing_errors:
                 error_count += 1
                 self.assertTrue(any("Metadata retrieval failed" in error for error in file.processing_errors))
-        
+
         # Should have 2 successes and 3 errors
         self.assertEqual(success_count, 2)
         self.assertEqual(error_count, 3)
@@ -141,22 +141,22 @@ class TestParallelMetadataRetrieval(unittest.TestCase):
         """Test that the task integrates correctly with ThreadExecutorManager."""
         # Get the thread executor manager
         manager = get_thread_executor_manager()
-        
+
         # Verify it has the expected methods
         self.assertTrue(hasattr(manager, 'get_tmdb_executor'))
         self.assertTrue(hasattr(manager, 'get_file_scan_executor'))
         self.assertTrue(hasattr(manager, 'get_general_executor'))
-        
+
         # Test that executors are created correctly
         tmdb_executor = manager.get_tmdb_executor()
         self.assertIsInstance(tmdb_executor, ThreadPoolExecutor)
-        
+
         # Verify executor configuration
         config = manager.get_configuration_info()
         self.assertIn('tmdb_max_workers', config)
         self.assertIn('file_scan_max_workers', config)
         self.assertIn('general_max_workers', config)
-        
+
         # Verify reasonable worker counts
         self.assertGreater(config['tmdb_max_workers'], 0)
         self.assertLessEqual(config['tmdb_max_workers'], 100)  # Reasonable upper bound

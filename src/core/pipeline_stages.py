@@ -5,6 +5,7 @@ from enum import Enum
 
 class PipelineStage(Enum):
     """Enumeration of pipeline stages."""
+
     SCANNING = "scanning"
     GROUPING = "grouping"
     PARSING = "parsing"

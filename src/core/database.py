@@ -15,6 +15,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    import orjson
+    ORJSON_AVAILABLE = True
+except ImportError:
+    ORJSON_AVAILABLE = False
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -193,8 +199,11 @@ class AnimeMetadata(Base):  # type: ignore[valid-type,misc]
         if not field:
             return None
         try:
-            # First serialize to JSON
-            json_str = json.dumps(field, ensure_ascii=False)
+            # First serialize to JSON (optimized)
+            if ORJSON_AVAILABLE:
+                json_str = orjson.dumps(field).decode("utf-8")
+            else:
+                json_str = json.dumps(field, ensure_ascii=False)
 
             # Apply compression if the data is large enough
             if len(json_str.encode("utf-8")) >= compression_manager.min_size_threshold:
@@ -371,8 +380,11 @@ class ParsedFile(Base):  # type: ignore[valid-type,misc]
         if not field:
             return None
         try:
-            # First serialize to JSON
-            json_str = json.dumps(field, ensure_ascii=False)
+            # First serialize to JSON (optimized)
+            if ORJSON_AVAILABLE:
+                json_str = orjson.dumps(field).decode("utf-8")
+            else:
+                json_str = json.dumps(field, ensure_ascii=False)
 
             # Apply compression if the data is large enough
             if len(json_str.encode("utf-8")) >= compression_manager.min_size_threshold:

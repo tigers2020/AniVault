@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+from .cache_key_generator import get_cache_key_generator
 from .compression import compression_manager
 from .database import DatabaseManager
 from .database_health import HealthStatus, get_database_health_status
@@ -116,6 +117,9 @@ class MetadataCache:
         # Thread-safe cache storage using OrderedDict for LRU behavior
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self._lock = threading.RLock()
+        
+        # Initialize cache key generator
+        self._key_generator = get_cache_key_generator()
 
         # Statistics tracking
         self._stats = CacheStats()
@@ -225,7 +229,9 @@ class MetadataCache:
             return decompressed_value
 
     @transactional
-    def put(self, key: str, value: ParsedAnimeInfo | TMDBAnime, session: Session | None = None) -> None:
+    def put(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, session: Session | None = None
+    ) -> None:
         """Store a value in the cache with write-through to database.
 
         This method implements the write-through pattern by updating both
@@ -668,7 +674,7 @@ class MetadataCache:
                 # Store in cache as well
                 cache_hits = 0
                 for anime in anime_list:
-                    cache_key = f"tmdb:{anime.tmdb_id}"
+                    cache_key = self._key_generator.generate_tmdb_anime_key(anime.tmdb_id)
                     self._store_in_cache(cache_key, anime)
                     cache_hits += 1
 
@@ -764,7 +770,7 @@ class MetadataCache:
                     _file_hash,
                     _metadata_id,
                 ) in file_data_list:
-                    cache_key = f"file:{file_path}"
+                    cache_key = self._key_generator.generate_file_key(file_path)
                     self._store_in_cache(cache_key, parsed_info)
                     cache_hits += 1
 
@@ -826,7 +832,7 @@ class MetadataCache:
             # Update cache entries
             for update in updates:
                 if "tmdb_id" in update:
-                    cache_key = f"tmdb:{update['tmdb_id']}"
+                    cache_key = self._key_generator.generate_tmdb_anime_key(update['tmdb_id'])
                     # Remove from cache to force reload from database
                     if cache_key in self._cache:
                         self._remove_entry(cache_key)
@@ -900,7 +906,7 @@ class MetadataCache:
 
             # Remove updated entries from cache to force reload
             for tmdb_id in tmdb_ids:
-                cache_key = f"tmdb:{tmdb_id}"
+                cache_key = self._key_generator.generate_tmdb_anime_key(tmdb_id)
                 if cache_key in self._cache:
                     self._remove_entry(cache_key)
 
@@ -940,7 +946,7 @@ class MetadataCache:
 
             # Remove updated entries from cache to force reload
             for file_path in file_paths:
-                cache_key = f"file:{file_path}"
+                cache_key = self._key_generator.generate_file_key(file_path)
                 if cache_key in self._cache:
                     self._remove_entry(cache_key)
 
@@ -1103,7 +1109,9 @@ class MetadataCache:
         return self._incremental_sync_manager
 
     @transactional
-    def sync_tmdb_metadata_incremental(self, session: Session | None = None, force_full_sync: bool = False) -> None:
+    def sync_tmdb_metadata_incremental(
+        self, session: Session | None = None, force_full_sync: bool = False
+    ) -> None:
         """Perform incremental synchronization of TMDB metadata.
 
         Args:
@@ -1127,7 +1135,9 @@ class MetadataCache:
         )
 
     @transactional
-    def sync_parsed_files_incremental(self, session: Session | None = None, force_full_sync: bool = False) -> None:
+    def sync_parsed_files_incremental(
+        self, session: Session | None = None, force_full_sync: bool = False
+    ) -> None:
         """Perform incremental synchronization of parsed files.
 
         Args:
@@ -1151,7 +1161,9 @@ class MetadataCache:
         )
 
     @transactional
-    def sync_all_entities_incremental(self, session: Session | None = None, force_full_sync: bool = False) -> None:
+    def sync_all_entities_incremental(
+        self, session: Session | None = None, force_full_sync: bool = False
+    ) -> None:
         """Perform incremental synchronization of all entity types.
 
         Args:

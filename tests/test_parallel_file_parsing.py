@@ -53,14 +53,14 @@ class TestParallelFileParsing(unittest.TestCase):
         result_files = task.execute()
 
         self.assertEqual(len(result_files), len(self.test_files))
-        
+
         # Since parallel processing doesn't guarantee order, we need to check that
         # all expected titles are present rather than checking specific positions
         result_titles = {file.parsed_info.title for file in result_files if file.parsed_info}
         expected_titles = {f"Test Anime {i}" for i in range(len(self.test_files))}
-        
+
         self.assertEqual(result_titles, expected_titles)
-        
+
         for file in result_files:
             self.assertIsNotNone(file.parsed_info)
             self.assertEqual(file.parsed_info.season, 1)
@@ -125,10 +125,10 @@ class TestParallelFileParsing(unittest.TestCase):
         result_files = task.execute()
 
         self.assertEqual(len(result_files), len(self.test_files))
-        
+
         # Verify progress callback was called
         self.assertTrue(progress_callback.called)
-        
+
         # Check that progress reached 100%
         final_call = progress_callback.call_args_list[-1]
         final_progress = final_call[0][0]  # First argument
@@ -172,7 +172,7 @@ class TestParallelFileParsing(unittest.TestCase):
         ]
 
         task = ConcreteFileParsingTask(invalid_files)
-        
+
         # This should raise an exception due to invalid objects
         with self.assertRaises(Exception):
             task.execute()

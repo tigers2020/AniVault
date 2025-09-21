@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from .cache_key_generator import get_cache_key_generator
 from .database import AnimeMetadata, ParsedFile, db_manager
 from .logging_utils import log_operation_error
 from .metadata_cache import MetadataCache
@@ -98,7 +99,8 @@ class ConsistencyValidator:
 
                 # Check each database record against cache
                 for db_anime in db_anime_list:
-                    cache_key = f"anime_metadata:{db_anime.tmdb_id}"
+                    key_generator = get_cache_key_generator()
+                    cache_key = key_generator.generate_anime_metadata_key(db_anime.tmdb_id)
                     cache_data = self.metadata_cache.get(cache_key)
 
                     if cache_data is None:
@@ -169,7 +171,8 @@ class ConsistencyValidator:
 
                 # Check each database record against cache
                 for db_file in db_files:
-                    cache_key = f"parsed_file:{db_file.id}"
+                    key_generator = get_cache_key_generator()
+                    cache_key = key_generator.generate_parsed_file_meta_key(db_file.id)
                     cache_data = self.metadata_cache.get(cache_key)
 
                     if cache_data is None:

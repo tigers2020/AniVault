@@ -18,6 +18,14 @@ from typing import Any
 
 import tmdbsimple as tmdb
 
+try:
+    import orjson
+    ORJSON_AVAILABLE = True
+except ImportError:
+    import json
+    ORJSON_AVAILABLE = False
+
+from .cache_key_generator import get_cache_key_generator
 from .config_manager import get_config_manager
 from .models import TMDBAnime
 
@@ -37,9 +45,7 @@ class FallbackStrategy(Enum):
 
     NORMALIZED = "normalized"
     WORD_REDUCTION = "word_reduction"
-    PARTIAL_MATCH = "partial_match"
     LANGUAGE_FALLBACK = "language_fallback"
-    WORD_REORDER = "word_reorder"
 
 
 @dataclass
@@ -128,6 +134,9 @@ class TMDBClient:
         self._setup_tmdb()
         self._cache: dict[str, Any] = {}
         self._rate_limited_until: float | None = None
+        
+        # Initialize cache key generator
+        self._key_generator = get_cache_key_generator()
 
         # Load additional settings from config manager if available
         self._load_additional_settings()
@@ -450,7 +459,7 @@ class TMDBClient:
         logger.info("Searching TMDB for TV series: '%s' (language: %s)", query, search_language)
 
         # Check cache first
-        cache_key = f"search_{query}_{search_language}"
+        cache_key = self._key_generator.generate_tmdb_search_key(query, search_language)
         if cache_key in self._cache:
             logger.debug("Cache hit for search: %s", query)
             self._cache_hits += 1
@@ -541,7 +550,9 @@ class TMDBClient:
         )
 
         # Check cache first
-        cache_key = f"multi_{query}_{search_language}_{search_region}_{include_adult}"
+        cache_key = self._key_generator.generate_tmdb_multi_key(
+            query, search_language, search_region, include_adult
+        )
         if cache_key in self._cache:
             logger.debug("Cache hit for multi search: %s", query)
             self._cache_hits += 1
@@ -579,14 +590,21 @@ class TMDBClient:
             search_results = results.get("results", []) if results else []
             logger.info("Raw search results: %d items", len(search_results))
 
-            # Log detailed JSON results for debugging
-            import json
-
+            # Log detailed results for debugging (optimized JSON serialization)
             for i, result in enumerate(search_results):
-                logger.info(
-                    "Result %d JSON: %s", i, json.dumps(result, ensure_ascii=False, indent=2)
-                )
-                logger.info(
+                # Only serialize to JSON for WARNING+ levels to reduce overhead
+                if logger.isEnabledFor(logging.WARNING):
+                    try:
+                        if ORJSON_AVAILABLE:
+                            json_str = orjson.dumps(result, option=orjson.OPT_INDENT_2).decode("utf-8")
+                        else:
+                            json_str = json.dumps(result, ensure_ascii=False, indent=2)
+                        logger.warning("Result %d JSON: %s", i, json_str)
+                    except (TypeError, ValueError) as e:
+                        logger.warning("Result %d JSON serialization failed: %s", i, e)
+                
+                # Always log key fields for debugging (no JSON serialization overhead)
+                logger.debug(
                     "Result %d - title: '%s', original_title: '%s', name: '%s', original_name: '%s'",
                     i,
                     result.get("title"),
@@ -840,13 +858,11 @@ class TMDBClient:
                     logger.info("Found single medium confidence result for '%s'", query)
                     return [medium_confidence_results[0]], False
 
-            # Try fallback strategies
+            # Try fallback strategies (limited to top 3 most effective)
             fallback_strategies = [
                 (FallbackStrategy.NORMALIZED, self._normalize_query),
                 (FallbackStrategy.WORD_REDUCTION, self._reduce_query_words),
-                (FallbackStrategy.PARTIAL_MATCH, self._create_partial_query),
                 (FallbackStrategy.LANGUAGE_FALLBACK, lambda q: q),  # Will use fallback language
-                (FallbackStrategy.WORD_REORDER, self._reorder_query_words),
             ]
 
             for round_num, (strategy, query_modifier) in enumerate(fallback_strategies, 1):
@@ -858,7 +874,7 @@ class TMDBClient:
                     modified_query = query_modifier(query)
                     fallback_language = search_language
 
-                if not modified_query or modified_query == query:
+                if not modified_query or (modified_query == query and strategy != FallbackStrategy.LANGUAGE_FALLBACK):
                     continue
 
                 logger.info(
@@ -992,19 +1008,6 @@ class TMDBClient:
             return ""
         return " ".join(words[:-1])
 
-    def _create_partial_query(self, query: str) -> str:
-        """Create partial match query using first few words."""
-        words = query.split()
-        if len(words) <= 2:
-            return ""
-        return " ".join(words[:2])
-
-    def _reorder_query_words(self, query: str) -> str:
-        """Reorder query words (simple reversal)."""
-        words = query.split()
-        if len(words) <= 1:
-            return query
-        return " ".join(reversed(words))
 
     def get_media_details(
         self, media_id: int, media_type: str, language: str | None = None
@@ -1030,7 +1033,9 @@ class TMDBClient:
         )
 
         # Check cache first
-        cache_key = f"details_{media_type}_{media_id}_{detail_language}"
+        cache_key = self._key_generator.generate_tmdb_details_key(
+            media_type, media_id, detail_language
+        )
         if cache_key in self._cache:
             logger.debug("Cache hit for %s details: ID %d", media_type, media_id)
             self._cache_hits += 1
@@ -1210,7 +1215,7 @@ class TMDBClient:
         )
 
         # Check cache first
-        cache_key = f"details_{series_id}_{detail_language}"
+        cache_key = self._key_generator.generate_tmdb_series_key(series_id, detail_language)
         if cache_key in self._cache:
             logger.debug("Cache hit for series details: ID %d", series_id)
             self._cache_hits += 1

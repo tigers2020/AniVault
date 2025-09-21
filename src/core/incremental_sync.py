@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
+from .cache_key_generator import get_cache_key_generator
 from .database import AnimeMetadata, ParsedFile
 from .logging_utils import logger
 from .sync_enums import SyncEntityType
@@ -269,7 +270,8 @@ class IncrementalSyncManager:
                     try:
                         # Convert to TMDBAnime and store in cache
                         tmdb_anime = metadata.to_tmdb_anime()
-                        cache_key = f"tmdb:{metadata.tmdb_id}"
+                        key_generator = get_cache_key_generator()
+                        cache_key = key_generator.generate_tmdb_anime_key(metadata.tmdb_id)
 
                         # Check if record exists in cache
                         existing = self.cache_manager.get(cache_key)
@@ -455,7 +457,8 @@ class IncrementalSyncManager:
                     try:
                         # Convert to ParsedAnimeInfo and store in cache
                         parsed_info = parsed_file.to_parsed_anime_info()
-                        cache_key = f"file:{parsed_file.file_path}"
+                        key_generator = get_cache_key_generator()
+                        cache_key = key_generator.generate_file_key(parsed_file.file_path)
 
                         # Check if record exists in cache
                         existing = self.cache_manager.get(cache_key)

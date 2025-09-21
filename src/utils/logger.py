@@ -14,6 +14,12 @@ from typing import Any, TypeVar
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
+from .conditional_json_formatter import (
+    ConditionalJsonFormatter,
+    create_optimized_formatter,
+    create_simple_formatter,
+)
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 
@@ -34,7 +40,8 @@ class QtLogHandler(logging.Handler):
             level: Minimum log level to handle
         """
         super().__init__(level)
-        self.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+        # Use simple formatter for UI display
+        self.setFormatter(create_simple_formatter())
 
     def emit(self: "QtLogHandler", record: logging.LogRecord) -> None:
         """Emit a log record as a Qt signal.
@@ -136,7 +143,7 @@ class LogManager(QObject):
             Logging level for file output
         """
         if self.environment == "production":
-            return logging.INFO
+            return logging.WARNING
         else:  # development, debug
             return logging.DEBUG
 
@@ -147,7 +154,7 @@ class LogManager(QObject):
             Logging level for application loggers
         """
         if self.environment == "production":
-            return logging.INFO
+            return logging.WARNING
         elif self.environment == "development":
             return logging.DEBUG
         else:  # debug
@@ -165,11 +172,21 @@ class LogManager(QObject):
         # Clear existing handlers
         root_logger.handlers.clear()
 
-        # Create formatters
+        # Create optimized formatters
+        # Use conditional JSON formatter for file handlers (WARNING+ as JSON)
+        json_formatter = create_optimized_formatter(
+            json_levels=[logging.WARNING, logging.ERROR, logging.CRITICAL],
+            use_orjson=True,
+            include_extra=True,
+        )
+        
+        # Use simple formatter for console and debug levels
+        simple_formatter = create_simple_formatter()
+        
+        # Detailed formatter for backward compatibility
         detailed_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
         )
-        simple_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
         # Console handler with environment-specific level
         console_handler = logging.StreamHandler(sys.stdout)
@@ -177,7 +194,7 @@ class LogManager(QObject):
         console_handler.setFormatter(simple_formatter)
         root_logger.addHandler(console_handler)
 
-        # File handler with environment-specific level
+        # File handler with conditional JSON formatting
         file_handler = logging.handlers.RotatingFileHandler(
             self.app_log_file,
             maxBytes=10 * 1024 * 1024,
@@ -185,10 +202,10 @@ class LogManager(QObject):
             encoding="utf-8",  # 10MB
         )
         file_handler.setLevel(self._get_file_log_level())
-        file_handler.setFormatter(detailed_formatter)
+        file_handler.setFormatter(json_formatter)
         root_logger.addHandler(file_handler)
 
-        # Error file handler (always ERROR and above)
+        # Error file handler (always ERROR and above) - use JSON formatting
         error_handler = logging.handlers.RotatingFileHandler(
             self.error_log_file,
             maxBytes=5 * 1024 * 1024,
@@ -196,10 +213,10 @@ class LogManager(QObject):
             encoding="utf-8",  # 5MB
         )
         error_handler.setLevel(logging.ERROR)
-        error_handler.setFormatter(detailed_formatter)
+        error_handler.setFormatter(json_formatter)
         root_logger.addHandler(error_handler)
 
-        # Debug file handler (only if debug is enabled)
+        # Debug file handler (only if debug is enabled) - use simple formatting
         if self.debug_enabled:
             debug_handler = logging.handlers.RotatingFileHandler(
                 self.debug_log_file,

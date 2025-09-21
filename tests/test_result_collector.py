@@ -28,7 +28,7 @@ class TestResultCollector(unittest.TestCase):
             result="test_result",
             metadata={"stage": "test"}
         )
-        
+
         self.assertTrue(success_result.success)
         self.assertEqual(success_result.result, "test_result")
         self.assertIsNone(success_result.error)
@@ -43,7 +43,7 @@ class TestResultCollector(unittest.TestCase):
             error_message="Test error message",
             metadata={"stage": "test"}
         )
-        
+
         self.assertFalse(failed_result.success)
         self.assertEqual(failed_result.error, error)
         self.assertEqual(failed_result.error_message, "Test error message")
@@ -57,7 +57,7 @@ class TestResultCollector(unittest.TestCase):
             successful_tasks=8,
             failed_tasks=2
         )
-        
+
         self.assertEqual(stage_result.success_rate, 80.0)
         self.assertTrue(stage_result.has_partial_success)
         self.assertEqual(len(stage_result.results), 0)
@@ -68,22 +68,22 @@ class TestResultCollector(unittest.TestCase):
         # Create mock futures
         future1 = Future()
         future2 = Future()
-        
+
         # Set results
         future1.set_result("result1")
         future2.set_result("result2")
-        
+
         future_to_stage = {
             future1: PipelineStage.SCANNING,
             future2: PipelineStage.GROUPING
         }
-        
+
         results = self.result_collector.collect_results_from_futures(future_to_stage)
-        
+
         self.assertEqual(len(results), 2)
         self.assertIn(PipelineStage.SCANNING, results)
         self.assertIn(PipelineStage.GROUPING, results)
-        
+
         # Check scanning stage results
         scanning_result = results[PipelineStage.SCANNING]
         self.assertTrue(scanning_result.success)
@@ -99,21 +99,21 @@ class TestResultCollector(unittest.TestCase):
         # Create mock futures
         future1 = Future()
         future2 = Future()
-        
+
         # Set results - one success, one failure
         future1.set_result("success_result")
         future2.set_exception(Exception("Test error"))
-        
+
         future_to_stage = {
             future1: PipelineStage.SCANNING,
             future2: PipelineStage.SCANNING  # Same stage, mixed results
         }
-        
+
         results = self.result_collector.collect_results_from_futures(future_to_stage)
-        
+
         self.assertEqual(len(results), 1)  # Only one stage
         self.assertIn(PipelineStage.SCANNING, results)
-        
+
         # Check scanning stage results
         scanning_result = results[PipelineStage.SCANNING]
         self.assertTrue(scanning_result.success)  # Overall success due to partial success
@@ -129,18 +129,18 @@ class TestResultCollector(unittest.TestCase):
         # Create mock futures
         future1 = Future()
         future2 = Future()
-        
+
         # Set exceptions
         future1.set_exception(Exception("Error 1"))
         future2.set_exception(Exception("Error 2"))
-        
+
         future_to_stage = {
             future1: PipelineStage.SCANNING,
             future2: PipelineStage.SCANNING
         }
-        
+
         results = self.result_collector.collect_results_from_futures(future_to_stage)
-        
+
         # Check scanning stage results
         scanning_result = results[PipelineStage.SCANNING]
         self.assertFalse(scanning_result.success)  # Complete failure
@@ -162,11 +162,11 @@ class TestResultCollector(unittest.TestCase):
             failed_tasks=2
         )
         stage_result.errors = ["Error 1", "Error 2"]
-        
+
         self.result_collector.stage_results[PipelineStage.SCANNING] = stage_result
-        
+
         summary = self.result_collector.get_stage_summary(PipelineStage.SCANNING)
-        
+
         self.assertEqual(summary["stage"], "scanning")
         self.assertTrue(summary["success"])
         self.assertEqual(summary["success_rate"], 60.0)
@@ -180,7 +180,7 @@ class TestResultCollector(unittest.TestCase):
     def test_get_stage_summary_nonexistent_stage(self):
         """Test getting summary for nonexistent stage."""
         summary = self.result_collector.get_stage_summary(PipelineStage.SCANNING)
-        
+
         self.assertIn("error", summary)
         self.assertIn("No results found", summary["error"])
 
@@ -194,7 +194,7 @@ class TestResultCollector(unittest.TestCase):
             successful_tasks=3,
             failed_tasks=0
         )
-        
+
         grouping_result = StageResult(
             stage=PipelineStage.GROUPING,
             success=True,
@@ -202,12 +202,12 @@ class TestResultCollector(unittest.TestCase):
             successful_tasks=1,
             failed_tasks=1
         )
-        
+
         self.result_collector.stage_results[PipelineStage.SCANNING] = scanning_result
         self.result_collector.stage_results[PipelineStage.GROUPING] = grouping_result
-        
+
         summary = self.result_collector.get_overall_summary()
-        
+
         self.assertEqual(summary["total_stages"], 2)
         self.assertEqual(summary["successful_stages"], 2)
         self.assertEqual(summary["failed_stages"], 0)
@@ -221,7 +221,7 @@ class TestResultCollector(unittest.TestCase):
         """Test checking for failures."""
         # Initially no failures
         self.assertFalse(self.result_collector.has_failures())
-        
+
         # Add a failed stage
         failed_result = StageResult(
             stage=PipelineStage.SCANNING,
@@ -231,7 +231,7 @@ class TestResultCollector(unittest.TestCase):
             failed_tasks=1
         )
         self.result_collector.stage_results[PipelineStage.SCANNING] = failed_result
-        
+
         self.assertTrue(self.result_collector.has_failures())
 
     def test_get_failed_stages(self):
@@ -244,7 +244,7 @@ class TestResultCollector(unittest.TestCase):
             successful_tasks=1,
             failed_tasks=0
         )
-        
+
         failed_result = StageResult(
             stage=PipelineStage.GROUPING,
             success=False,
@@ -252,12 +252,12 @@ class TestResultCollector(unittest.TestCase):
             successful_tasks=0,
             failed_tasks=1
         )
-        
+
         self.result_collector.stage_results[PipelineStage.SCANNING] = success_result
         self.result_collector.stage_results[PipelineStage.GROUPING] = failed_result
-        
+
         failed_stages = self.result_collector.get_failed_stages()
-        
+
         self.assertEqual(len(failed_stages), 1)
         self.assertIn(PipelineStage.GROUPING, failed_stages)
 
@@ -271,18 +271,18 @@ class TestResultCollector(unittest.TestCase):
             successful_tasks=2,
             failed_tasks=1
         )
-        
+
         # Add task results
         stage_result.results = [
             TaskResult(success=True, result="result1"),
             TaskResult(success=False, error=Exception("Error")),
             TaskResult(success=True, result="result2")
         ]
-        
+
         self.result_collector.stage_results[PipelineStage.SCANNING] = stage_result
-        
+
         successful_results = self.result_collector.get_successful_results(PipelineStage.SCANNING)
-        
+
         self.assertEqual(len(successful_results), 2)
         self.assertIn("result1", successful_results)
         self.assertIn("result2", successful_results)
@@ -297,7 +297,7 @@ class TestResultCollector(unittest.TestCase):
             successful_tasks=1,
             failed_tasks=2
         )
-        
+
         # Add task results
         error1 = Exception("Error 1")
         error2 = Exception("Error 2")
@@ -306,11 +306,11 @@ class TestResultCollector(unittest.TestCase):
             TaskResult(success=False, error=error1),
             TaskResult(success=False, error=error2)
         ]
-        
+
         self.result_collector.stage_results[PipelineStage.SCANNING] = stage_result
-        
+
         failed_tasks = self.result_collector.get_failed_tasks(PipelineStage.SCANNING)
-        
+
         self.assertEqual(len(failed_tasks), 2)
         self.assertEqual(failed_tasks[0].error, error1)
         self.assertEqual(failed_tasks[1].error, error2)

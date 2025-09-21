@@ -541,13 +541,10 @@ class FileProcessingViewModel(BaseViewModel):
             self.set_property("current_pipeline_step", "Failed")
 
     def _setup_pipeline_tasks(
-        self, 
-        pipeline_manager: ParallelPipelineManager, 
-        directories: list[str], 
-        target_dir: str
+        self, pipeline_manager: ParallelPipelineManager, directories: list[str], target_dir: str
     ) -> None:
         """Setup pipeline tasks with their dependencies and handlers.
-        
+
         Args:
             pipeline_manager: The parallel pipeline manager
             directories: List of directories to scan
@@ -556,7 +553,9 @@ class FileProcessingViewModel(BaseViewModel):
         # 1. File scanning (no dependencies)
         pipeline_manager.add_task_definition(
             stage=PipelineStage.SCANNING,
-            task_factory=lambda: ConcreteFileScanningTask(directories, self._get_supported_extensions()),
+            task_factory=lambda: ConcreteFileScanningTask(
+                directories, self._get_supported_extensions()
+            ),
             dependencies=set(),
             result_handler=self._handle_scanning_result,
         )
@@ -564,7 +563,9 @@ class FileProcessingViewModel(BaseViewModel):
         # 2. File grouping (depends on scanning)
         pipeline_manager.add_task_definition(
             stage=PipelineStage.GROUPING,
-            task_factory=lambda: ConcreteFileGroupingTask(self._scanned_files, self._similarity_threshold),
+            task_factory=lambda: ConcreteFileGroupingTask(
+                self._scanned_files, self._similarity_threshold
+            ),
             dependencies={PipelineStage.SCANNING},
             result_handler=self._handle_grouping_result,
         )
@@ -581,8 +582,7 @@ class FileProcessingViewModel(BaseViewModel):
         pipeline_manager.add_task_definition(
             stage=PipelineStage.GROUP_METADATA_RETRIEVAL,
             task_factory=lambda: ConcreteGroupBasedMetadataRetrievalTask(
-                self._file_groups, 
-                self.get_property("tmdb_api_key", "")
+                self._file_groups, self.get_property("tmdb_api_key", "")
             ),
             dependencies={PipelineStage.GROUPING},
             result_handler=self._handle_group_metadata_result,
@@ -598,7 +598,7 @@ class FileProcessingViewModel(BaseViewModel):
 
     def _get_files_from_groups(self) -> list[AnimeFile]:
         """Get all files from the current file groups.
-        
+
         Returns:
             List of all files from groups
         """
@@ -609,18 +609,18 @@ class FileProcessingViewModel(BaseViewModel):
 
     def _handle_pipeline_completion(self, results: dict[PipelineStage, Any]) -> None:
         """Handle the completion of the parallel pipeline.
-        
+
         Args:
             results: Dictionary mapping stage names to their results
         """
         logger.info("Parallel pipeline completed successfully")
         self.set_property("is_pipeline_running", False)
         self.set_property("current_pipeline_step", "Completed")
-        
+
         # Emit final signals based on results
         if PipelineStage.FILE_MOVING in results:
             self.files_moved.emit(results[PipelineStage.FILE_MOVING])
-        
+
         logger.info("Parallel pipeline execution completed")
 
     def _stop_processing_command(self) -> None:
@@ -1148,6 +1148,7 @@ class FileProcessingViewModel(BaseViewModel):
         # Shutdown ThreadExecutorManager to ensure all threads are properly cleaned up
         try:
             from ..core.thread_executor_manager import get_thread_executor_manager
+
             executor_manager = get_thread_executor_manager()
             executor_manager.shutdown_all(wait=True)
             logger.info("ThreadExecutorManager shutdown completed")

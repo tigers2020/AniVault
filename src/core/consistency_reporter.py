@@ -12,6 +12,12 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+try:
+    import orjson
+    ORJSON_AVAILABLE = True
+except ImportError:
+    ORJSON_AVAILABLE = False
+
 from .consistency_validator import DataConflict
 from .database import ConsistencyConflict, ConsistencyReport, DatabaseManager
 from .reconciliation_strategies import ReconciliationResult, ReconciliationStrategy
@@ -98,10 +104,14 @@ class ConsistencyReporter:
                 severity = conflict.severity.value
                 conflicts_by_severity[severity] = conflicts_by_severity.get(severity, 0) + 1
 
-            # Update report
+            # Update report (optimized JSON serialization)
             report.total_conflicts_detected = len(conflicts)
-            report.conflicts_by_type = json.dumps(conflicts_by_type)
-            report.conflicts_by_severity = json.dumps(conflicts_by_severity)
+            if ORJSON_AVAILABLE:
+                report.conflicts_by_type = orjson.dumps(conflicts_by_type).decode("utf-8")
+                report.conflicts_by_severity = orjson.dumps(conflicts_by_severity).decode("utf-8")
+            else:
+                report.conflicts_by_type = json.dumps(conflicts_by_type)
+                report.conflicts_by_severity = json.dumps(conflicts_by_severity)
             report.completed_at = completed_at
             report.duration_seconds = (completed_at - report.started_at).total_seconds()
 
@@ -141,10 +151,13 @@ class ConsistencyReporter:
                 "total": len(resolution_results),
             }
 
-            # Update report
+            # Update report (optimized JSON serialization)
             report.total_conflicts_resolved = successful
             report.resolution_strategy = strategy.value
-            report.resolution_results = json.dumps(resolution_results_dict)
+            if ORJSON_AVAILABLE:
+                report.resolution_results = orjson.dumps(resolution_results_dict).decode("utf-8")
+            else:
+                report.resolution_results = json.dumps(resolution_results_dict)
             report.status = status
 
             session.commit()
@@ -171,7 +184,10 @@ class ConsistencyReporter:
 
             report.error_message = error_message
             if error_details:
-                report.error_details = json.dumps(error_details)
+                if ORJSON_AVAILABLE:
+                    report.error_details = orjson.dumps(error_details).decode("utf-8")
+                else:
+                    report.error_details = json.dumps(error_details)
             report.status = status
             report.completed_at = datetime.now(timezone.utc)
             report.duration_seconds = (report.completed_at - report.started_at).total_seconds()
@@ -356,6 +372,22 @@ class ConsistencyReporter:
             report_id: ID of the report
             conflict: Conflict to store
         """
+        # Optimized JSON serialization for conflict data
+        db_data_str = None
+        cache_data_str = None
+        
+        if conflict.db_data:
+            if ORJSON_AVAILABLE:
+                db_data_str = orjson.dumps(conflict.db_data).decode("utf-8")
+            else:
+                db_data_str = json.dumps(conflict.db_data)
+        
+        if conflict.cache_data:
+            if ORJSON_AVAILABLE:
+                cache_data_str = orjson.dumps(conflict.cache_data).decode("utf-8")
+            else:
+                cache_data_str = json.dumps(conflict.cache_data)
+        
         conflict_record = ConsistencyConflict(
             report_id=report_id,
             conflict_type=conflict.conflict_type.value,
@@ -363,8 +395,8 @@ class ConsistencyReporter:
             entity_type=conflict.entity_type,
             entity_id=conflict.entity_id,
             conflict_description=conflict.details,
-            database_data=json.dumps(conflict.db_data) if conflict.db_data else None,
-            cache_data=json.dumps(conflict.cache_data) if conflict.cache_data else None,
+            database_data=db_data_str,
+            cache_data=cache_data_str,
         )
         session.add(conflict_record)
 
