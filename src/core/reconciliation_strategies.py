@@ -42,7 +42,7 @@ class ReconciliationResult:
         conflicts_failed: int,
         details: list[str],
         errors: list[str],
-    ):
+    ) -> None:
         self.success = success
         self.strategy_used = strategy_used
         self.conflicts_resolved = conflicts_resolved
@@ -63,7 +63,7 @@ class ReconciliationResult:
 class ReconciliationEngine:
     """Engine for executing reconciliation strategies."""
 
-    def __init__(self, metadata_cache: MetadataCache | None = None):
+    def __init__(self, metadata_cache: MetadataCache | None = None) -> None:
         """Initialize the reconciliation engine.
 
         Args:
@@ -651,7 +651,7 @@ class ReconciliationEngine:
 
             for conflict in conflicts:
                 if conflict.entity_type == ConflictType.PARSED_FILE:
-                    file_id = conflict.entity_id
+                    # file_id = conflict.entity_id  # Unused variable
                     cache_data = conflict.cache_data
 
                     # Prepare update data

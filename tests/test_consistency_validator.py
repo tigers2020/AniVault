@@ -40,7 +40,7 @@ class TestConsistencyValidator:
             severity=ConflictSeverity.HIGH,
             details="Version mismatch detected"
         )
-        
+
         assert conflict.conflict_type == ConflictType.VERSION_MISMATCH
         assert conflict.entity_type == "anime_metadata"
         assert conflict.entity_id == 12345
@@ -62,18 +62,18 @@ class TestConsistencyValidator:
         mock_anime.overview = "Test overview"
         mock_anime.status = "Released"
         mock_anime.vote_average = 8.5
-        
+
         mock_session.query.return_value.all.return_value = [mock_anime]
-        
+
         # Mock cache to return None (missing data)
         mock_metadata_cache.get.return_value = None
-        
+
         with patch.object(validator.db_manager, 'transaction') as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             conflicts = validator.validate_anime_metadata_consistency()
-        
+
         assert len(conflicts) == 1
         conflict = conflicts[0]
         assert conflict.conflict_type == ConflictType.MISSING_IN_CACHE
@@ -93,9 +93,9 @@ class TestConsistencyValidator:
         mock_anime.overview = "Test overview"
         mock_anime.status = "Released"
         mock_anime.vote_average = 8.5
-        
+
         mock_session.query.return_value.all.return_value = [mock_anime]
-        
+
         # Mock cache to return data with different version but same timestamp
         same_time = datetime.now(timezone.utc)
         cache_data = {
@@ -107,13 +107,13 @@ class TestConsistencyValidator:
             "updated_at": same_time.isoformat()
         }
         mock_metadata_cache.get.return_value = cache_data
-        
+
         with patch.object(validator.db_manager, 'transaction') as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             conflicts = validator.validate_anime_metadata_consistency()
-        
+
         # Should have version mismatch conflict
         version_conflicts = [c for c in conflicts if c.conflict_type == ConflictType.VERSION_MISMATCH]
         assert len(version_conflicts) == 1
@@ -134,9 +134,9 @@ class TestConsistencyValidator:
         mock_anime.overview = "Test overview"
         mock_anime.status = "Released"
         mock_anime.vote_average = 8.5
-        
+
         mock_session.query.return_value.all.return_value = [mock_anime]
-        
+
         # Mock cache to return data with different title but same timestamp
         same_time = datetime.now(timezone.utc)
         cache_data = {
@@ -148,13 +148,13 @@ class TestConsistencyValidator:
             "updated_at": same_time.isoformat()
         }
         mock_metadata_cache.get.return_value = cache_data
-        
+
         with patch.object(validator.db_manager, 'transaction') as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             conflicts = validator.validate_anime_metadata_consistency()
-        
+
         # Should have data mismatch conflict
         data_conflicts = [c for c in conflicts if c.conflict_type == ConflictType.DATA_MISMATCH]
         assert len(data_conflicts) == 1
@@ -175,18 +175,18 @@ class TestConsistencyValidator:
         mock_file.season = 1
         mock_file.episode = 1
         mock_file.file_path = "/test/path/test.mkv"
-        
+
         mock_session.query.return_value.all.return_value = [mock_file]
-        
+
         # Mock cache to return None (missing data)
         mock_metadata_cache.get.return_value = None
-        
+
         with patch.object(validator.db_manager, 'transaction') as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             conflicts = validator.validate_parsed_files_consistency()
-        
+
         assert len(conflicts) == 1
         conflict = conflicts[0]
         assert conflict.conflict_type == ConflictType.MISSING_IN_CACHE
@@ -206,9 +206,9 @@ class TestConsistencyValidator:
         mock_file.season = 1
         mock_file.episode = 1
         mock_file.file_path = "/test/path/test.mkv"
-        
+
         mock_session.query.return_value.all.return_value = [mock_file]
-        
+
         # Mock cache to return data with different version but same timestamp
         same_time = datetime.now(timezone.utc)
         cache_data = {
@@ -220,13 +220,13 @@ class TestConsistencyValidator:
             "db_updated_at": same_time.isoformat()
         }
         mock_metadata_cache.get.return_value = cache_data
-        
+
         with patch.object(validator.db_manager, 'transaction') as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             conflicts = validator.validate_parsed_files_consistency()
-        
+
         # Should have version mismatch conflict
         version_conflicts = [c for c in conflicts if c.conflict_type == ConflictType.VERSION_MISMATCH]
         assert len(version_conflicts) == 1
@@ -240,9 +240,9 @@ class TestConsistencyValidator:
         # Mock database session to raise an exception
         with patch.object(validator.db_manager, 'transaction') as mock_transaction:
             mock_transaction.side_effect = Exception("Database connection failed")
-            
+
             conflicts = validator.validate_anime_metadata_consistency()
-        
+
         assert len(conflicts) == 1
         conflict = conflicts[0]
         assert conflict.conflict_type == ConflictType.DATA_MISMATCH
@@ -274,9 +274,9 @@ class TestConsistencyValidator:
         mock_anime.created_at = datetime(2023, 1, 1, tzinfo=timezone.utc)
         mock_anime.updated_at = datetime(2023, 6, 1, tzinfo=timezone.utc)
         mock_anime.version = 2
-        
+
         result = validator._anime_metadata_to_dict(mock_anime)
-        
+
         assert result["tmdb_id"] == 12345
         assert result["title"] == "Test Anime"
         assert result["original_title"] == "Test Anime Original"
@@ -328,9 +328,9 @@ class TestConsistencyValidator:
         mock_file.db_created_at = datetime(2023, 1, 1, tzinfo=timezone.utc)
         mock_file.db_updated_at = datetime(2023, 6, 1, tzinfo=timezone.utc)
         mock_file.version = 2
-        
+
         result = validator._parsed_file_to_dict(mock_file)
-        
+
         assert result["id"] == 1
         assert result["file_path"] == "/test/path/test.mkv"
         assert result["filename"] == "test.mkv"

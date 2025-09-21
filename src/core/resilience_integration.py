@@ -8,13 +8,12 @@ and fallback strategies.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from .database import DatabaseManager
 from .database_health import create_database_health_checker
+from .logging_utils import log_operation_error
 from .metadata_cache import MetadataCache
 from .resilience_manager import create_resilience_manager, set_global_resilience_manager
-from .logging_utils import log_operation_error
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -31,14 +30,14 @@ def setup_resilience_system(
     recovery_check_interval: float = 60.0,
 ) -> None:
     """Set up the complete resilience system for the application.
-    
+
     This function initializes and configures all resilience mechanisms:
     - Database health monitoring
     - Circuit breaker protection
     - Retry logic with exponential backoff
     - Cache-only fallback mode
     - Automatic recovery
-    
+
     Args:
         db_manager: Database manager instance
         metadata_cache: Metadata cache instance
@@ -50,7 +49,7 @@ def setup_resilience_system(
         recovery_check_interval: Recovery check interval in seconds
     """
     logger.info("Setting up resilience system")
-    
+
     try:
         # Create and configure database health checker
         health_checker = create_database_health_checker(
@@ -60,9 +59,9 @@ def setup_resilience_system(
             failure_threshold=health_failure_threshold,
             recovery_threshold=health_recovery_threshold,
         )
-        
+
         logger.info("Created database health checker")
-        
+
         # Create resilience manager
         resilience_manager = create_resilience_manager(
             metadata_cache=metadata_cache,
@@ -70,17 +69,17 @@ def setup_resilience_system(
             auto_recovery_enabled=auto_recovery_enabled,
             recovery_check_interval=recovery_check_interval,
         )
-        
+
         logger.info("Created resilience manager")
-        
+
         # Set as global instance
         set_global_resilience_manager(resilience_manager)
-        
+
         # Initialize the resilience system
         resilience_manager.initialize()
-        
+
         logger.info("Resilience system setup complete")
-        
+
     except Exception as e:
         log_operation_error("setup resilience system", e)
         raise
@@ -89,36 +88,36 @@ def setup_resilience_system(
 def shutdown_resilience_system() -> None:
     """Shutdown the resilience system gracefully."""
     logger.info("Shutting down resilience system")
-    
+
     try:
         from .resilience_manager import get_resilience_manager
-        
+
         resilience_manager = get_resilience_manager()
         if resilience_manager:
             resilience_manager.shutdown()
             logger.info("Resilience system shutdown complete")
         else:
             logger.warning("No resilience manager found to shutdown")
-            
+
     except Exception as e:
         log_operation_error("resilience system shutdown", e)
 
 
 def get_resilience_status() -> dict:
     """Get the current resilience system status.
-    
+
     Returns:
         Dictionary containing resilience system status
     """
     try:
         from .resilience_manager import get_resilience_manager
-        
+
         resilience_manager = get_resilience_manager()
         if resilience_manager:
             return resilience_manager.get_system_status()
         else:
             return {"error": "No resilience manager available"}
-            
+
     except Exception as e:
         log_operation_error("get resilience status", e)
         return {"error": str(e)}
@@ -126,20 +125,20 @@ def get_resilience_status() -> dict:
 
 def force_recovery_check() -> bool:
     """Force a recovery check and attempt recovery if possible.
-    
+
     Returns:
         True if recovery was attempted, False otherwise
     """
     try:
         from .resilience_manager import get_resilience_manager
-        
+
         resilience_manager = get_resilience_manager()
         if resilience_manager:
             return resilience_manager.force_recovery_check()
         else:
             logger.warning("No resilience manager available for recovery check")
             return False
-            
+
     except Exception as e:
         log_operation_error("forced recovery check", e)
         return False

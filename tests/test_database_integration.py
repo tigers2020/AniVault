@@ -40,16 +40,16 @@ class TestDatabaseIntegration:
         # Database should be created successfully
         db_path = db_manager.database_url.replace("sqlite:///", "")
         assert os.path.exists(db_path)
-        
+
         # Test schema by initializing database
         db_manager.initialize()
-        
+
         # Verify tables exist by querying them
         with db_manager.get_session() as session:
             # Check if anime_metadata table exists
             result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='anime_metadata'"))
             assert result.fetchone() is not None
-            
+
             # Check if parsed_files table exists
             result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='parsed_files'"))
             assert result.fetchone() is not None
@@ -57,7 +57,7 @@ class TestDatabaseIntegration:
     def test_anime_metadata_crud_operations(self, db_manager: DatabaseManager) -> None:
         """Test CRUD operations for AnimeMetadata."""
         db_manager.initialize()
-        
+
         # Create test TMDB anime
         test_tmdb_anime = TMDBAnime(
             tmdb_id=12345,
@@ -72,24 +72,24 @@ class TestDatabaseIntegration:
             genres=["Animation", "Action"],
             original_title="テストアニメ"
         )
-        
+
         # Test Create
         created_metadata = db_manager.create_anime_metadata(test_tmdb_anime)
         assert created_metadata.tmdb_id is not None
         assert created_metadata.tmdb_id == test_tmdb_anime.tmdb_id
         assert created_metadata.title == test_tmdb_anime.title
-        
+
         # Test Read
         retrieved_metadata = db_manager.get_anime_metadata(test_tmdb_anime.tmdb_id)
         assert retrieved_metadata is not None
         assert retrieved_metadata.title == test_tmdb_anime.title
         assert retrieved_metadata.vote_average == test_tmdb_anime.vote_average
-        
+
         # Test Search
         search_results = db_manager.search_anime_metadata("Test Anime")
         assert len(search_results) > 0
         assert search_results[0].title == test_tmdb_anime.title
-        
+
         # Test Delete
         success = db_manager.delete_anime_metadata(test_tmdb_anime.tmdb_id)
         assert success is True
@@ -99,7 +99,7 @@ class TestDatabaseIntegration:
     def test_parsed_file_crud_operations(self, db_manager: DatabaseManager) -> None:
         """Test CRUD operations for ParsedFile."""
         db_manager.initialize()
-        
+
         # Create test parsed anime info
         test_parsed_info = ParsedAnimeInfo(
             title="Test Anime",
@@ -110,7 +110,7 @@ class TestDatabaseIntegration:
             release_group="TestGroup",
             file_extension="mkv"
         )
-        
+
         # Test Create
         created_file = db_manager.create_parsed_file(
             file_path="/test/path/anime.mkv",
@@ -124,12 +124,12 @@ class TestDatabaseIntegration:
         assert created_file.id is not None
         assert created_file.file_path == "/test/path/anime.mkv"
         assert created_file.parsed_title == test_parsed_info.title
-        
+
         # Test Read
         retrieved_file = db_manager.get_parsed_file("/test/path/anime.mkv")
         assert retrieved_file is not None
         assert retrieved_file.parsed_title == test_parsed_info.title
-        
+
         # Test Delete
         success = db_manager.delete_parsed_file("/test/path/anime.mkv")
         assert success is True
@@ -139,7 +139,7 @@ class TestDatabaseIntegration:
     def test_database_transactions(self, db_manager: DatabaseManager) -> None:
         """Test database transaction handling."""
         db_manager.initialize()
-        
+
         # Test successful transaction
         with db_manager.transaction() as session:
             metadata = AnimeMetadata(
@@ -158,7 +158,7 @@ class TestDatabaseIntegration:
             session.add(metadata)
             session.flush()
             assert metadata.tmdb_id is not None
-        
+
         # Verify data was committed
         retrieved = db_manager.get_anime_metadata(12345)
         assert retrieved is not None
@@ -167,7 +167,7 @@ class TestDatabaseIntegration:
     def test_database_error_handling(self, db_manager: DatabaseManager) -> None:
         """Test database error handling."""
         db_manager.initialize()
-        
+
         # Test with invalid data
         try:
             # This should fail gracefully
@@ -195,7 +195,7 @@ class TestDatabaseIntegration:
     def test_database_stats(self, db_manager: DatabaseManager) -> None:
         """Test database statistics."""
         db_manager.initialize()
-        
+
         # Get initial stats
         stats = db_manager.get_database_stats()
         assert isinstance(stats, dict)

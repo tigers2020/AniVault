@@ -9,10 +9,11 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -30,21 +31,21 @@ from sqlalchemy import (
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from .models import ParsedAnimeInfo, TMDBAnime
-from .transaction_manager import TransactionManager
 from .circuit_breaker import circuit_breaker_protect
 from .compression import compression_manager
 from .logging_utils import (
-    handle_get_operation_error,
-    handle_search_operation_error,
     handle_bulk_insert_error,
     handle_bulk_update_error,
     handle_bulk_upsert_error,
+    handle_get_operation_error,
     handle_schema_validation_error,
+    handle_search_operation_error,
     handle_table_validation_error,
     log_operation_error,
-    log_schema_error
+    log_schema_error,
 )
+from .models import ParsedAnimeInfo, TMDBAnime
+from .transaction_manager import TransactionManager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class AnimeMetadata(Base):  # type: ignore[valid-type,misc]
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Versioning for conflict resolution
     version = Column(Integer, nullable=False, default=1, index=True)
 
@@ -170,7 +171,9 @@ class AnimeMetadata(Base):  # type: ignore[valid-type,misc]
             return default
         try:
             # Try to decompress first (for compressed data)
-            decompressed_field = compression_manager.decompress_from_storage(field, expected_type='str')
+            decompressed_field = compression_manager.decompress_from_storage(
+                field, expected_type="str"
+            )
             if decompressed_field != field:
                 # Data was compressed, parse the decompressed JSON
                 return json.loads(decompressed_field)
@@ -192,17 +195,19 @@ class AnimeMetadata(Base):  # type: ignore[valid-type,misc]
         try:
             # First serialize to JSON
             json_str = json.dumps(field, ensure_ascii=False)
-            
+
             # Apply compression if the data is large enough
-            if len(json_str.encode('utf-8')) >= compression_manager.min_size_threshold:
+            if len(json_str.encode("utf-8")) >= compression_manager.min_size_threshold:
                 try:
                     compressed_str = compression_manager.compress_for_storage(json_str)
-                    logger.debug(f"Compressed JSON field for database storage: "
-                               f"{len(json_str)} -> {len(compressed_str)} bytes")
+                    logger.debug(
+                        f"Compressed JSON field for database storage: "
+                        f"{len(json_str)} -> {len(compressed_str)} bytes"
+                    )
                     return compressed_str
                 except Exception as e:
                     logger.warning(f"Failed to compress JSON field, using uncompressed: {e}")
-            
+
             return json_str
         except (TypeError, ValueError):
             return None
@@ -259,7 +264,7 @@ class ParsedFile(Base):  # type: ignore[valid-type,misc]
     db_updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    
+
     # Versioning for conflict resolution
     version = Column(Integer, nullable=False, default=1, index=True)
 
@@ -344,7 +349,9 @@ class ParsedFile(Base):  # type: ignore[valid-type,misc]
             return default
         try:
             # Try to decompress first (for compressed data)
-            decompressed_field = compression_manager.decompress_from_storage(field, expected_type='str')
+            decompressed_field = compression_manager.decompress_from_storage(
+                field, expected_type="str"
+            )
             if decompressed_field != field:
                 # Data was compressed, parse the decompressed JSON
                 return json.loads(decompressed_field)
@@ -366,17 +373,19 @@ class ParsedFile(Base):  # type: ignore[valid-type,misc]
         try:
             # First serialize to JSON
             json_str = json.dumps(field, ensure_ascii=False)
-            
+
             # Apply compression if the data is large enough
-            if len(json_str.encode('utf-8')) >= compression_manager.min_size_threshold:
+            if len(json_str.encode("utf-8")) >= compression_manager.min_size_threshold:
                 try:
                     compressed_str = compression_manager.compress_for_storage(json_str)
-                    logger.debug(f"Compressed JSON field for database storage: "
-                               f"{len(json_str)} -> {len(compressed_str)} bytes")
+                    logger.debug(
+                        f"Compressed JSON field for database storage: "
+                        f"{len(json_str)} -> {len(compressed_str)} bytes"
+                    )
                     return compressed_str
                 except Exception as e:
                     logger.warning(f"Failed to compress JSON field, using uncompressed: {e}")
-            
+
             return json_str
         except (TypeError, ValueError):
             return None
@@ -398,29 +407,33 @@ class ConsistencyReport(Base):  # type: ignore[valid-type,misc]
     job_id = Column(String(100), nullable=False, index=True)
     report_type = Column(String(50), nullable=False)  # 'scheduled', 'manual', 'on_demand'
     status = Column(String(50), nullable=False)  # 'success', 'failed', 'partial'
-    
+
     # Execution details
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     duration_seconds = Column(Float, nullable=True)
-    
+
     # Validation results
     total_conflicts_detected = Column(Integer, nullable=False, default=0)
-    conflicts_by_type = Column(Text, nullable=True)  # JSON string: {"VERSION_MISMATCH": 5, "DATA_MISMATCH": 3}
-    conflicts_by_severity = Column(Text, nullable=True)  # JSON string: {"HIGH": 2, "MEDIUM": 4, "LOW": 2}
-    
+    conflicts_by_type = Column(
+        Text, nullable=True
+    )  # JSON string: {"VERSION_MISMATCH": 5, "DATA_MISMATCH": 3}
+    conflicts_by_severity = Column(
+        Text, nullable=True
+    )  # JSON string: {"HIGH": 2, "MEDIUM": 4, "LOW": 2}
+
     # Reconciliation results
     total_conflicts_resolved = Column(Integer, nullable=False, default=0)
     resolution_strategy = Column(String(100), nullable=True)
     resolution_results = Column(Text, nullable=True)  # JSON string: {"successful": 6, "failed": 2}
-    
+
     # Error information
     error_message = Column(Text, nullable=True)
     error_details = Column(Text, nullable=True)  # JSON string for detailed error info
-    
+
     # Additional metadata
     additional_metadata = Column(Text, nullable=True)  # JSON string for extra data
-    
+
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
@@ -443,27 +456,29 @@ class ConsistencyConflict(Base):  # type: ignore[valid-type,misc]
 
     # Primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     # Foreign key to report
     report_id = Column(Integer, ForeignKey("consistency_reports.id"), nullable=False, index=True)
-    
+
     # Conflict identification
-    conflict_type = Column(String(50), nullable=False)  # 'MISSING_IN_CACHE', 'VERSION_MISMATCH', etc.
+    conflict_type = Column(
+        String(50), nullable=False
+    )  # 'MISSING_IN_CACHE', 'VERSION_MISMATCH', etc.
     conflict_severity = Column(String(20), nullable=False)  # 'LOW', 'MEDIUM', 'HIGH'
     entity_type = Column(String(50), nullable=False)  # 'AnimeMetadata', 'ParsedFile'
     entity_id = Column(Integer, nullable=True)  # ID of the affected entity
-    
+
     # Conflict details
     conflict_description = Column(Text, nullable=False)
     database_data = Column(Text, nullable=True)  # JSON string of database data
     cache_data = Column(Text, nullable=True)  # JSON string of cache data
-    
+
     # Resolution details
     resolution_strategy = Column(String(50), nullable=True)  # 'DATABASE_WINS', 'CACHE_WINS', etc.
     resolution_status = Column(String(50), nullable=True)  # 'success', 'failed', 'skipped'
     resolution_message = Column(Text, nullable=True)
     resolution_timestamp = Column(DateTime, nullable=True)
-    
+
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
@@ -497,7 +512,7 @@ class DatabaseManager:
         self.SessionLocal: sessionmaker[Session] | None = None
         self._lock = threading.RLock()
         self._initialized = False
-        
+
         # Initialize transaction manager
         self.transaction_manager = TransactionManager(timeout_seconds=300)  # 5 minute timeout
 
@@ -554,13 +569,13 @@ class DatabaseManager:
     @contextmanager
     def transaction(self) -> Generator[Session, None, None]:
         """Context manager for database transactions with automatic rollback on error.
-        
+
         This method now uses the enhanced TransactionManager for better logging,
         error handling, and transaction tracking.
-        
+
         Yields:
             Session: Database session for transaction operations
-            
+
         Example:
             with db_manager.transaction() as session:
                 # Perform database operations
@@ -576,24 +591,24 @@ class DatabaseManager:
 
     def execute_in_transaction(self, operation: callable, *args, **kwargs) -> Any:
         """Execute a database operation within a transaction.
-        
+
         This method now uses the enhanced TransactionManager for better logging,
         error handling, and transaction tracking.
-        
+
         Args:
             operation: Function to execute with session as first argument
             *args: Positional arguments for the operation
             **kwargs: Keyword arguments for the operation
-            
+
         Returns:
             Result of the operation
-            
+
         Example:
             def create_metadata(session, anime):
                 metadata = AnimeMetadata.from_tmdb_anime(anime)
                 session.add(metadata)
                 return metadata
-                
+
             result = db_manager.execute_in_transaction(create_metadata, anime)
         """
         with self.transaction() as session:
@@ -698,9 +713,7 @@ class DatabaseManager:
                 existing.source = parsed_info.source
                 existing.year = parsed_info.year
                 existing.metadata_id = metadata_id
-                existing.processing_errors = ParsedFile._serialize_json_field(
-                    parsed_info.raw_data
-                )
+                existing.processing_errors = ParsedFile._serialize_json_field(parsed_info.raw_data)
                 existing.db_updated_at = datetime.now(timezone.utc)
 
                 # Detach the object from the session to avoid DetachedInstanceError
@@ -780,404 +793,417 @@ class DatabaseManager:
     @circuit_breaker_protect(operation_name="bulk_insert_anime_metadata")
     def bulk_insert_anime_metadata(self, anime_list: list[TMDBAnime]) -> int:
         """Bulk insert multiple anime metadata records using SQLAlchemy bulk operations.
-        
+
         Args:
             anime_list: List of TMDBAnime objects to insert
-            
+
         Returns:
             Number of records inserted
-            
+
         Raises:
             Exception: If bulk insert fails
         """
         if not anime_list:
             return 0
-            
+
         with self.transaction() as session:
             try:
                 # Convert TMDBAnime objects to dictionaries for bulk insert
                 metadata_dicts = []
                 for anime in anime_list:
                     metadata_dict = {
-                        'tmdb_id': anime.tmdb_id,
-                        'title': anime.title,
-                        'original_title': anime.original_title,
-                        'korean_title': anime.korean_title,
-                        'overview': anime.overview,
-                        'poster_path': anime.poster_path,
-                        'backdrop_path': anime.backdrop_path,
-                        'first_air_date': anime.first_air_date,
-                        'last_air_date': anime.last_air_date,
-                        'status': anime.status,
-                        'vote_average': anime.vote_average,
-                        'vote_count': anime.vote_count,
-                        'popularity': anime.popularity,
-                        'number_of_seasons': anime.number_of_seasons,
-                        'number_of_episodes': anime.number_of_episodes,
-                        'genres': AnimeMetadata._serialize_json_field(anime.genres),
-                        'networks': AnimeMetadata._serialize_json_field(anime.networks),
-                        'raw_data': AnimeMetadata._serialize_json_field(anime.raw_data),
-                        'created_at': datetime.now(timezone.utc),
-                        'updated_at': datetime.now(timezone.utc),
+                        "tmdb_id": anime.tmdb_id,
+                        "title": anime.title,
+                        "original_title": anime.original_title,
+                        "korean_title": anime.korean_title,
+                        "overview": anime.overview,
+                        "poster_path": anime.poster_path,
+                        "backdrop_path": anime.backdrop_path,
+                        "first_air_date": anime.first_air_date,
+                        "last_air_date": anime.last_air_date,
+                        "status": anime.status,
+                        "vote_average": anime.vote_average,
+                        "vote_count": anime.vote_count,
+                        "popularity": anime.popularity,
+                        "number_of_seasons": anime.number_of_seasons,
+                        "number_of_episodes": anime.number_of_episodes,
+                        "genres": AnimeMetadata._serialize_json_field(anime.genres),
+                        "networks": AnimeMetadata._serialize_json_field(anime.networks),
+                        "raw_data": AnimeMetadata._serialize_json_field(anime.raw_data),
+                        "created_at": datetime.now(timezone.utc),
+                        "updated_at": datetime.now(timezone.utc),
                     }
                     metadata_dicts.append(metadata_dict)
-                
+
                 # Perform bulk insert
                 session.bulk_insert_mappings(AnimeMetadata, metadata_dicts)
                 session.flush()
-                
+
                 inserted_count = len(metadata_dicts)
                 logger.info(f"Bulk inserted {inserted_count} anime metadata records")
                 return inserted_count
-                
+
             except Exception as e:
                 handle_bulk_insert_error("anime metadata", e)
                 raise
 
     def bulk_insert_parsed_files(
-        self, 
-        file_data_list: list[tuple[str, str, int, datetime, datetime, ParsedAnimeInfo, str | None, int | None]]
+        self,
+        file_data_list: list[
+            tuple[str, str, int, datetime, datetime, ParsedAnimeInfo, str | None, int | None]
+        ],
     ) -> int:
         """Bulk insert multiple parsed file records using SQLAlchemy bulk operations.
-        
+
         Args:
-            file_data_list: List of tuples containing (file_path, filename, file_size, 
+            file_data_list: List of tuples containing (file_path, filename, file_size,
                           created_at, modified_at, parsed_info, file_hash, metadata_id)
-            
+
         Returns:
             Number of records inserted
-            
+
         Raises:
             Exception: If bulk insert fails
         """
         if not file_data_list:
             return 0
-            
+
         with self.transaction() as session:
             try:
                 # Convert file data to dictionaries for bulk insert
                 file_dicts = []
-                for file_path, filename, file_size, created_at, modified_at, parsed_info, file_hash, metadata_id in file_data_list:
+                for (
+                    file_path,
+                    filename,
+                    file_size,
+                    created_at,
+                    modified_at,
+                    parsed_info,
+                    file_hash,
+                    metadata_id,
+                ) in file_data_list:
                     file_dict = {
-                        'file_path': str(file_path),
-                        'filename': filename,
-                        'file_size': file_size,
-                        'file_extension': parsed_info.file_extension,
-                        'file_hash': file_hash,
-                        'created_at': created_at,
-                        'modified_at': modified_at,
-                        'parsed_title': parsed_info.title,
-                        'season': parsed_info.season,
-                        'episode': parsed_info.episode,
-                        'episode_title': parsed_info.episode_title,
-                        'resolution': parsed_info.resolution,
-                        'resolution_width': parsed_info.resolution_width,
-                        'resolution_height': parsed_info.resolution_height,
-                        'video_codec': parsed_info.video_codec,
-                        'audio_codec': parsed_info.audio_codec,
-                        'release_group': parsed_info.release_group,
-                        'source': parsed_info.source,
-                        'year': parsed_info.year,
-                        'metadata_id': metadata_id,
-                        'processing_errors': ParsedFile._serialize_json_field(parsed_info.raw_data),
-                        'is_processed': False,
-                        'db_created_at': datetime.now(timezone.utc),
-                        'db_updated_at': datetime.now(timezone.utc),
+                        "file_path": str(file_path),
+                        "filename": filename,
+                        "file_size": file_size,
+                        "file_extension": parsed_info.file_extension,
+                        "file_hash": file_hash,
+                        "created_at": created_at,
+                        "modified_at": modified_at,
+                        "parsed_title": parsed_info.title,
+                        "season": parsed_info.season,
+                        "episode": parsed_info.episode,
+                        "episode_title": parsed_info.episode_title,
+                        "resolution": parsed_info.resolution,
+                        "resolution_width": parsed_info.resolution_width,
+                        "resolution_height": parsed_info.resolution_height,
+                        "video_codec": parsed_info.video_codec,
+                        "audio_codec": parsed_info.audio_codec,
+                        "release_group": parsed_info.release_group,
+                        "source": parsed_info.source,
+                        "year": parsed_info.year,
+                        "metadata_id": metadata_id,
+                        "processing_errors": ParsedFile._serialize_json_field(parsed_info.raw_data),
+                        "is_processed": False,
+                        "db_created_at": datetime.now(timezone.utc),
+                        "db_updated_at": datetime.now(timezone.utc),
                     }
                     file_dicts.append(file_dict)
-                
+
                 # Perform bulk insert
                 session.bulk_insert_mappings(ParsedFile, file_dicts)
                 session.flush()
-                
+
                 inserted_count = len(file_dicts)
                 logger.info(f"Bulk inserted {inserted_count} parsed file records")
                 return inserted_count
-                
+
             except Exception as e:
                 handle_bulk_insert_error("parsed files", e)
                 raise
 
     def bulk_upsert_anime_metadata(self, anime_list: list[TMDBAnime]) -> tuple[int, int]:
         """Bulk upsert (insert or update) multiple anime metadata records.
-        
+
         This method handles both new records and updates to existing records
-        by checking for existing TMDB IDs and performing appropriate operations.
-        
+        using optimized bulk operations to eliminate N+1 query patterns.
+
         Args:
             anime_list: List of TMDBAnime objects to upsert
-            
+
         Returns:
             Tuple of (inserted_count, updated_count)
-            
+
         Raises:
             Exception: If bulk upsert fails
         """
         if not anime_list:
             return 0, 0
-            
+
         with self.transaction() as session:
             try:
                 # Get existing TMDB IDs
                 tmdb_ids = [anime.tmdb_id for anime in anime_list]
-                existing_records = session.query(AnimeMetadata).filter(
-                    AnimeMetadata.tmdb_id.in_(tmdb_ids)
-                ).all()
+                existing_records = (
+                    session.query(AnimeMetadata).filter(AnimeMetadata.tmdb_id.in_(tmdb_ids)).all()
+                )
                 existing_ids = {record.tmdb_id for record in existing_records}
-                
+
                 # Separate new and existing records
                 new_anime = [anime for anime in anime_list if anime.tmdb_id not in existing_ids]
                 update_anime = [anime for anime in anime_list if anime.tmdb_id in existing_ids]
-                
+
                 inserted_count = 0
                 updated_count = 0
-                
+
                 # Bulk insert new records
                 if new_anime:
                     inserted_count = self.bulk_insert_anime_metadata(new_anime)
-                
-                # Update existing records
+
+                # Bulk update existing records - OPTIMIZED: No more N+1 queries
                 if update_anime:
+                    # Convert to dictionaries for bulk update
+                    update_dicts = []
                     for anime in update_anime:
-                        existing = session.query(AnimeMetadata).filter_by(tmdb_id=anime.tmdb_id).first()
-                        if existing:
-                            existing.title = anime.title
-                            existing.original_title = anime.original_title
-                            existing.korean_title = anime.korean_title
-                            existing.overview = anime.overview
-                            existing.poster_path = anime.poster_path
-                            existing.backdrop_path = anime.backdrop_path
-                            existing.first_air_date = anime.first_air_date
-                            existing.last_air_date = anime.last_air_date
-                            existing.status = anime.status
-                            existing.vote_average = anime.vote_average
-                            existing.vote_count = anime.vote_count
-                            existing.popularity = anime.popularity
-                            existing.number_of_seasons = anime.number_of_seasons
-                            existing.number_of_episodes = anime.number_of_episodes
-                            existing.genres = AnimeMetadata._serialize_json_field(anime.genres)
-                            existing.networks = AnimeMetadata._serialize_json_field(anime.networks)
-                            existing.raw_data = AnimeMetadata._serialize_json_field(anime.raw_data)
-                            existing.updated_at = datetime.now(timezone.utc)
-                            updated_count += 1
-                
-                logger.info(f"Bulk upsert completed: {inserted_count} inserted, {updated_count} updated")
+                        update_dict = {
+                            "tmdb_id": anime.tmdb_id,
+                            "title": anime.title,
+                            "original_title": anime.original_title,
+                            "korean_title": anime.korean_title,
+                            "overview": anime.overview,
+                            "poster_path": anime.poster_path,
+                            "backdrop_path": anime.backdrop_path,
+                            "first_air_date": anime.first_air_date,
+                            "last_air_date": anime.last_air_date,
+                            "status": anime.status,
+                            "vote_average": anime.vote_average,
+                            "vote_count": anime.vote_count,
+                            "popularity": anime.popularity,
+                            "number_of_seasons": anime.number_of_seasons,
+                            "number_of_episodes": anime.number_of_episodes,
+                            "genres": AnimeMetadata._serialize_json_field(anime.genres),
+                            "networks": AnimeMetadata._serialize_json_field(anime.networks),
+                            "raw_data": AnimeMetadata._serialize_json_field(anime.raw_data),
+                            "updated_at": datetime.now(timezone.utc),
+                        }
+                        update_dicts.append(update_dict)
+
+                    # Perform bulk update using SQLAlchemy bulk_update_mappings
+                    session.bulk_update_mappings(AnimeMetadata, update_dicts)
+                    session.flush()
+                    updated_count = len(update_dicts)
+
+                logger.info(
+                    f"Bulk upsert completed: {inserted_count} inserted, {updated_count} updated"
+                )
                 return inserted_count, updated_count
-                
+
             except Exception as e:
                 handle_bulk_upsert_error("anime metadata", e)
                 raise
 
     def bulk_update_anime_metadata(self, updates: list[dict]) -> int:
         """Bulk update multiple anime metadata records using SQLAlchemy bulk operations.
-        
+
         Args:
             updates: List of dictionaries containing updates. Each dict must include
                     the primary key (tmdb_id) and fields to update.
                     Example: [{'tmdb_id': 1, 'title': 'New Title', 'vote_average': 9.0}]
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not updates:
             return 0
-            
+
         with self.transaction() as session:
             try:
                 # Validate that all updates have tmdb_id
                 for update in updates:
-                    if 'tmdb_id' not in update:
+                    if "tmdb_id" not in update:
                         raise ValueError("All update dictionaries must contain 'tmdb_id' field")
-                
+
                 # Perform bulk update
                 session.bulk_update_mappings(AnimeMetadata, updates)
                 session.flush()
-                
+
                 updated_count = len(updates)
                 logger.info(f"Bulk updated {updated_count} anime metadata records")
                 return updated_count
-                
+
             except Exception as e:
                 handle_bulk_update_error("anime metadata", e)
                 raise
 
     def bulk_update_parsed_files(self, updates: list[dict]) -> int:
         """Bulk update multiple parsed file records using SQLAlchemy bulk operations.
-        
+
         Args:
             updates: List of dictionaries containing updates. Each dict must include
                     the primary key (id) and fields to update.
                     Example: [{'id': 1, 'is_processed': True, 'processing_errors': '{}'}]
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not updates:
             return 0
-            
+
         with self.transaction() as session:
             try:
                 # Validate that all updates have id
                 for update in updates:
-                    if 'id' not in update:
+                    if "id" not in update:
                         raise ValueError("All update dictionaries must contain 'id' field")
-                
+
                 # Perform bulk update
                 session.bulk_update_mappings(ParsedFile, updates)
                 session.flush()
-                
+
                 updated_count = len(updates)
                 logger.info(f"Bulk updated {updated_count} parsed file records")
                 return updated_count
-                
+
             except Exception as e:
                 handle_bulk_update_error("parsed files", e)
                 raise
 
-    def bulk_update_anime_metadata_by_tmdb_ids(
-        self, 
-        tmdb_ids: list[int], 
-        update_data: dict
-    ) -> int:
+    def bulk_update_anime_metadata_by_tmdb_ids(self, tmdb_ids: list[int], update_data: dict) -> int:
         """Bulk update anime metadata records by TMDB IDs with the same update data.
-        
+
         Args:
             tmdb_ids: List of TMDB IDs to update
             update_data: Dictionary of fields to update (excluding tmdb_id)
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not tmdb_ids or not update_data:
             return 0
-            
+
         with self.transaction() as session:
             try:
                 # Create update dictionaries for each TMDB ID
                 updates = []
                 for tmdb_id in tmdb_ids:
                     update_dict = update_data.copy()
-                    update_dict['tmdb_id'] = tmdb_id
-                    update_dict['updated_at'] = datetime.now(timezone.utc)
+                    update_dict["tmdb_id"] = tmdb_id
+                    update_dict["updated_at"] = datetime.now(timezone.utc)
                     updates.append(update_dict)
-                
+
                 # Perform bulk update
                 session.bulk_update_mappings(AnimeMetadata, updates)
                 session.flush()
-                
+
                 updated_count = len(updates)
                 logger.info(f"Bulk updated {updated_count} anime metadata records by TMDB IDs")
                 return updated_count
-                
+
             except Exception as e:
                 handle_bulk_update_error("anime metadata by TMDB IDs", e)
                 raise
 
-    def bulk_update_parsed_files_by_paths(
-        self, 
-        file_paths: list[str], 
-        update_data: dict
-    ) -> int:
+    def bulk_update_parsed_files_by_paths(self, file_paths: list[str], update_data: dict) -> int:
         """Bulk update parsed file records by file paths with the same update data.
-        
+
         Args:
             file_paths: List of file paths to update
             update_data: Dictionary of fields to update (excluding file_path)
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not file_paths or not update_data:
             return 0
-            
+
         with self.transaction() as session:
             try:
                 # First, get the IDs for the file paths
-                file_records = session.query(ParsedFile).filter(
-                    ParsedFile.file_path.in_(file_paths)
-                ).all()
-                
+                file_records = (
+                    session.query(ParsedFile).filter(ParsedFile.file_path.in_(file_paths)).all()
+                )
+
                 if not file_records:
                     logger.warning("No parsed files found for the provided paths")
                     return 0
-                
+
                 # Create update dictionaries for each file
                 updates = []
                 for file_record in file_records:
                     update_dict = update_data.copy()
-                    update_dict['id'] = file_record.id
-                    update_dict['db_updated_at'] = datetime.now(timezone.utc)
+                    update_dict["id"] = file_record.id
+                    update_dict["db_updated_at"] = datetime.now(timezone.utc)
                     updates.append(update_dict)
-                
+
                 # Perform bulk update
                 session.bulk_update_mappings(ParsedFile, updates)
                 session.flush()
-                
+
                 updated_count = len(updates)
                 logger.info(f"Bulk updated {updated_count} parsed file records by file paths")
                 return updated_count
-                
+
             except Exception as e:
                 handle_bulk_update_error("parsed files by file paths", e)
                 raise
 
     def validate_schema(self) -> bool:
         """Validate that the database schema matches the ORM models.
-        
+
         This method checks if all required tables exist and have the correct
         structure according to the SQLAlchemy models.
-        
+
         Returns:
             True if schema is valid, False otherwise
-            
+
         Raises:
             Exception: If schema validation fails
         """
         try:
             from sqlalchemy import inspect
-            
+
             inspector = inspect(self.engine)
             existing_tables = set(inspector.get_table_names())
-            
+
             # Check if all required tables exist
             required_tables = {table.name for table in Base.metadata.tables.values()}
             missing_tables = required_tables - existing_tables
-            
+
             if missing_tables:
                 log_schema_error("missing tables", missing_tables)
                 return False
-            
+
             # Check table structures
             for table_name in required_tables:
                 if not self._validate_table_structure(table_name, inspector):
                     return False
-            
+
             logger.info("Database schema validation successful")
             return True
-            
+
         except Exception as e:
             handle_schema_validation_error(e)
             raise
 
     def _validate_table_structure(self, table_name: str, inspector) -> bool:
         """Validate the structure of a specific table.
-        
+
         Args:
             table_name: Name of the table to validate
             inspector: SQLAlchemy inspector instance
-            
+
         Returns:
             True if table structure is valid, False otherwise
         """
@@ -1185,77 +1211,77 @@ class DatabaseManager:
             # Get expected columns from ORM model
             expected_table = Base.metadata.tables[table_name]
             expected_columns = {col.name: col for col in expected_table.columns}
-            
+
             # Get actual columns from database
             actual_columns = inspector.get_columns(table_name)
-            actual_column_names = {col['name'] for col in actual_columns}
-            
+            actual_column_names = {col["name"] for col in actual_columns}
+
             # Check if all expected columns exist
             missing_columns = set(expected_columns.keys()) - actual_column_names
             if missing_columns:
                 log_schema_error(f"table '{table_name}' missing columns", missing_columns)
                 return False
-            
+
             # Check column types (basic validation)
             for col_info in actual_columns:
-                col_name = col_info['name']
+                col_name = col_info["name"]
                 if col_name in expected_columns:
                     expected_col = expected_columns[col_name]
-                    actual_type = col_info['type']
-                    
+                    actual_type = col_info["type"]
+
                     # Basic type compatibility check
                     if not self._is_type_compatible(expected_col.type, actual_type):
                         logger.warning(
                             f"Table {table_name}, column {col_name}: "
                             f"type mismatch (expected: {expected_col.type}, actual: {actual_type})"
                         )
-            
+
             return True
-            
+
         except Exception as e:
             handle_table_validation_error(table_name, e)
             return False
 
     def _is_type_compatible(self, expected_type, actual_type) -> bool:
         """Check if actual column type is compatible with expected type.
-        
+
         Args:
             expected_type: Expected SQLAlchemy type
             actual_type: Actual database column type
-            
+
         Returns:
             True if types are compatible, False otherwise
         """
         # Convert types to strings for comparison
         expected_str = str(expected_type).lower()
         actual_str = str(actual_type).lower()
-        
+
         # Basic type mapping for SQLite
         type_mappings = {
-            'integer': ['integer', 'int'],
-            'string': ['varchar', 'text', 'string'],
-            'text': ['text', 'string'],
-            'float': ['real', 'float'],
-            'boolean': ['boolean', 'bool'],
-            'datetime': ['datetime', 'timestamp'],
+            "integer": ["integer", "int"],
+            "string": ["varchar", "text", "string"],
+            "text": ["text", "string"],
+            "float": ["real", "float"],
+            "boolean": ["boolean", "bool"],
+            "datetime": ["datetime", "timestamp"],
         }
-        
+
         # Check if types are in the same category
         for category, types in type_mappings.items():
             if any(t in expected_str for t in types) and any(t in actual_str for t in types):
                 return True
-        
+
         return False
 
     def get_schema_version(self) -> str | None:
         """Get the current schema version from Alembic.
-        
+
         Returns:
             Current schema version string, or None if not available
         """
         try:
             from sqlalchemy import text
-            
+
             with self.transaction() as session:
                 result = session.execute(
                     text("SELECT version_num FROM alembic_version LIMIT 1")
@@ -1267,41 +1293,40 @@ class DatabaseManager:
 
     def is_schema_up_to_date(self) -> bool:
         """Check if the database schema is up to date with the latest migration.
-        
+
         Returns:
             True if schema is up to date, False otherwise
         """
         try:
-            from alembic import command
             from alembic.config import Config
-            
+
             # Create Alembic config
             alembic_cfg = Config("alembic.ini")
-            
+
             # Get current database version
             current_version = self.get_schema_version()
             if not current_version:
                 logger.warning("No schema version found in database")
                 return False
-            
+
             # Get latest available version
             script = alembic_cfg.get_main_option("script_location")
             if not script:
                 logger.error("Alembic script location not configured")
                 return False
-            
+
             # This is a simplified check - in production, you might want to
             # use Alembic's built-in comparison methods
             logger.info(f"Current schema version: {current_version}")
             return True
-            
+
         except Exception as e:
             log_operation_error("check schema version", e)
             return False
 
     def get_transaction_stats(self) -> dict[str, Any]:
         """Get transaction statistics from the transaction manager.
-        
+
         Returns:
             Dictionary containing transaction statistics
         """
@@ -1313,7 +1338,7 @@ class DatabaseManager:
 
     def is_transaction_active(self) -> bool:
         """Check if there's an active transaction.
-        
+
         Returns:
             True if there's an active transaction, False otherwise
         """
@@ -1321,24 +1346,199 @@ class DatabaseManager:
 
     def get_current_transaction_context(self) -> Any:
         """Get the current transaction context.
-        
+
         Returns:
             Current TransactionContext or None if no active transaction
         """
         return self.transaction_manager.get_current_context()
 
+    def batch_save_anime_metadata(self, anime_metadata_list: list[TMDBAnime]) -> tuple[int, int]:
+        """Batch save anime metadata using optimized bulk operations.
+
+        This method is specifically designed for file processing workflows
+        to eliminate N+1 query patterns during metadata retrieval.
+
+        Args:
+            anime_metadata_list: List of TMDBAnime objects to save
+
+        Returns:
+            Tuple of (inserted_count, updated_count)
+
+        Raises:
+            Exception: If batch save fails
+        """
+        if not anime_metadata_list:
+            return 0, 0
+
+        logger.info(f"Batch saving {len(anime_metadata_list)} anime metadata records")
+
+        # Use the optimized bulk upsert method
+        return self.bulk_upsert_anime_metadata(anime_metadata_list)
+
+    def bulk_update_anime_metadata_by_status(self, tmdb_ids: list[int], status: str) -> int:
+        """Bulk update anime metadata status by TMDB IDs.
+
+        This method is optimized for data synchronization workflows
+        where multiple records need status updates.
+
+        Args:
+            tmdb_ids: List of TMDB IDs to update
+            status: New status value
+
+        Returns:
+            Number of records updated
+
+        Raises:
+            Exception: If bulk update fails
+        """
+        if not tmdb_ids:
+            return 0
+
+        with self.transaction() as session:
+            try:
+                # Use SQLAlchemy core update for maximum performance
+                from sqlalchemy import update
+
+                stmt = (
+                    update(AnimeMetadata)
+                    .where(AnimeMetadata.tmdb_id.in_(tmdb_ids))
+                    .values(status=status, updated_at=datetime.now(timezone.utc))
+                )
+
+                result = session.execute(stmt)
+                updated_count = result.rowcount
+
+                logger.info(
+                    f"Bulk updated {updated_count} anime metadata records with status '{status}'"
+                )
+                return updated_count
+
+            except Exception as e:
+                logger.error(f"Failed to bulk update anime metadata status: {e}")
+                raise
+
+    def bulk_update_parsed_files_by_status(self, file_paths: list[str], is_processed: bool) -> int:
+        """Bulk update parsed files processing status by file paths.
+
+        This method is optimized for file processing workflows
+        where multiple files need status updates.
+
+        Args:
+            file_paths: List of file paths to update
+            is_processed: New processing status
+
+        Returns:
+            Number of records updated
+
+        Raises:
+            Exception: If bulk update fails
+        """
+        if not file_paths:
+            return 0
+
+        with self.transaction() as session:
+            try:
+                # Use SQLAlchemy core update for maximum performance
+                from sqlalchemy import update
+
+                stmt = (
+                    update(ParsedFile)
+                    .where(ParsedFile.file_path.in_(file_paths))
+                    .values(is_processed=is_processed, db_updated_at=datetime.now(timezone.utc))
+                )
+
+                result = session.execute(stmt)
+                updated_count = result.rowcount
+
+                logger.info(
+                    f"Bulk updated {updated_count} parsed files with is_processed={is_processed}"
+                )
+                return updated_count
+
+            except Exception as e:
+                logger.error(f"Failed to bulk update parsed files status: {e}")
+                raise
+
+    def bulk_update_with_conditions(
+        self, table_class, updates: list[dict], condition_field: str
+    ) -> int:
+        """Generic bulk update method with custom conditions.
+
+        This method provides a flexible way to perform bulk updates
+        with custom WHERE conditions for various use cases.
+
+        Args:
+            table_class: SQLAlchemy table class to update
+            updates: List of dictionaries containing updates and conditions
+                    Example: [{'id': 1, 'status': 'processed'}, {'id': 2, 'status': 'failed'}]
+            condition_field: Field name to use in WHERE clause
+
+        Returns:
+            Number of records updated
+
+        Raises:
+            Exception: If bulk update fails
+        """
+        if not updates:
+            return 0
+
+        with self.transaction() as session:
+            try:
+                from sqlalchemy import update
+
+                total_updated = 0
+
+                # Process updates in batches for better performance
+                batch_size = 1000
+                for i in range(0, len(updates), batch_size):
+                    batch = updates[i : i + batch_size]
+
+                    # Extract condition values and update data
+                    condition_values = []
+                    update_data = {}
+
+                    for update_dict in batch:
+                        if condition_field in update_dict:
+                            condition_values.append(update_dict[condition_field])
+
+                            # Build update data (exclude condition field)
+                            for key, value in update_dict.items():
+                                if key != condition_field:
+                                    if key not in update_data:
+                                        update_data[key] = []
+                                    update_data[key].append(value)
+
+                    if condition_values and update_data:
+                        # Create bulk update statement
+                        stmt = (
+                            update(table_class)
+                            .where(getattr(table_class, condition_field).in_(condition_values))
+                            .values(**update_data)
+                        )
+
+                        result = session.execute(stmt)
+                        total_updated += result.rowcount
+
+                logger.info(f"Bulk updated {total_updated} records in {table_class.__name__}")
+                return total_updated
+
+            except Exception as e:
+                logger.error(f"Failed to bulk update {table_class.__name__}: {e}")
+                raise
+
 
 # Version management event listeners
-@event.listens_for(AnimeMetadata, 'before_update')
+@event.listens_for(AnimeMetadata, "before_update")
 def increment_anime_metadata_version(mapper, connection, target):
     """Increment version number before updating AnimeMetadata."""
-    if hasattr(target, 'version'):
+    if hasattr(target, "version"):
         target.version = (target.version or 0) + 1
 
-@event.listens_for(ParsedFile, 'before_update')
+
+@event.listens_for(ParsedFile, "before_update")
 def increment_parsed_file_version(mapper, connection, target):
     """Increment version number before updating ParsedFile."""
-    if hasattr(target, 'version'):
+    if hasattr(target, "version"):
         target.version = (target.version or 0) + 1
 
 

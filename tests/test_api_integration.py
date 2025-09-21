@@ -36,10 +36,10 @@ class TestTMDBAPIIntegration:
         """Test real API search for anime."""
         # Test with a well-known anime
         results = tmdb_client.search_anime("Attack on Titan")
-        
+
         assert len(results) > 0
         assert all(isinstance(anime, TMDBAnime) for anime in results)
-        
+
         # Verify the first result has expected properties
         first_result = results[0]
         assert first_result.title is not None
@@ -53,10 +53,10 @@ class TestTMDBAPIIntegration:
         # First search for an anime to get an ID
         search_results = tmdb_client.search_anime("Attack on Titan")
         assert len(search_results) > 0
-        
+
         anime_id = search_results[0].id
         details = tmdb_client.get_anime_details(anime_id)
-        
+
         assert details is not None
         assert details.id == anime_id
         assert details.title is not None
@@ -66,7 +66,7 @@ class TestTMDBAPIIntegration:
         """Test API rate limiting behavior."""
         # Make multiple rapid requests to test rate limiting
         start_time = time.time()
-        
+
         for i in range(5):  # Make 5 requests
             try:
                 results, success = tmdb_client.search_comprehensive(f"Test Anime {i}")
@@ -78,7 +78,7 @@ class TestTMDBAPIIntegration:
                     break
                 else:
                     raise
-        
+
         # Should complete within reasonable time
         duration = time.time() - start_time
         assert duration < 10.0  # Should complete within 10 seconds
@@ -88,7 +88,7 @@ class TestTMDBAPIIntegration:
         # Mock requests to simulate network error
         with patch('requests.get') as mock_get:
             mock_get.side_effect = requests.exceptions.ConnectionError("Network error")
-            
+
             # Should handle network error gracefully
             results, success = tmdb_client.search_comprehensive("Test")
             assert results is None or results == []  # Should return None or empty list on error
@@ -99,7 +99,7 @@ class TestTMDBAPIIntegration:
         from src.core.tmdb_client import TMDBConfig
         config = TMDBConfig(api_key="invalid_key")
         invalid_client = TMDBClient(config=config)
-        
+
         # Should handle invalid key gracefully
         results, success = invalid_client.search_comprehensive("Test")
         assert results is None or results == []  # Should return None or empty list on error
@@ -110,7 +110,7 @@ class TestTMDBAPIIntegration:
         # Mock requests to simulate timeout
         with patch('requests.get') as mock_get:
             mock_get.side_effect = requests.exceptions.Timeout("Request timeout")
-            
+
             # Should handle timeout gracefully
             results, success = tmdb_client.search_comprehensive("Test")
             assert results is None or results == []  # Should return None or empty list on error
@@ -124,7 +124,7 @@ class TestTMDBAPIIntegration:
             mock_response.status_code = 500
             mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("Server error")
             mock_get.return_value = mock_response
-            
+
             # Should handle HTTP error gracefully
             results, success = tmdb_client.search_comprehensive("Test")
             assert results is None or results == []  # Should return None or empty list on error
@@ -139,7 +139,7 @@ class TestTMDBAPIIntegration:
             "Naruto: Shippuden",
             "Dragon Ball Z",
         ]
-        
+
         for title in special_titles:
             results = tmdb_client.search_anime(title)
             # Should handle special characters gracefully
@@ -162,38 +162,38 @@ class TestTMDBAPIIntegration:
         """Test API with concurrent requests."""
         import threading
         import queue
-        
+
         results_queue = queue.Queue()
-        
+
         def search_worker(query: str) -> None:
             try:
                 results = tmdb_client.search_anime(query)
                 results_queue.put((query, results))
             except Exception as e:
                 results_queue.put((query, e))
-        
+
         # Start multiple threads
         threads = []
         queries = ["Attack on Titan", "One Piece", "Naruto", "Dragon Ball"]
-        
+
         for query in queries:
             thread = threading.Thread(target=search_worker, args=(query,))
             thread.start()
             threads.append(thread)
             time.sleep(0.1)  # Stagger requests
-        
+
         # Wait for all threads to complete
         for thread in threads:
             thread.join(timeout=10)
-        
+
         # Collect results
         results = []
         while not results_queue.empty():
             results.append(results_queue.get())
-        
+
         # Should have results for all queries
         assert len(results) == len(queries)
-        
+
         # All results should be lists (successful searches)
         for query, result in results:
             if isinstance(result, Exception):
@@ -204,7 +204,7 @@ class TestTMDBAPIIntegration:
     def test_api_response_validation(self, tmdb_client: TMDBClient) -> None:
         """Test API response validation."""
         results = tmdb_client.search_anime("Attack on Titan")
-        
+
         if results:  # If we got results
             for anime in results:
                 # Validate required fields
@@ -214,14 +214,14 @@ class TestTMDBAPIIntegration:
                 assert hasattr(anime, 'release_date')
                 assert hasattr(anime, 'vote_average')
                 assert hasattr(anime, 'vote_count')
-                
+
                 # Validate data types
                 assert isinstance(anime.id, int)
                 assert isinstance(anime.title, str)
                 assert isinstance(anime.overview, str)
                 assert isinstance(anime.vote_average, (int, float))
                 assert isinstance(anime.vote_count, int)
-                
+
                 # Validate value ranges
                 assert anime.vote_average >= 0
                 assert anime.vote_average <= 10
@@ -231,7 +231,7 @@ class TestTMDBAPIIntegration:
         """Test API retry mechanism for transient failures."""
         # Mock requests to simulate transient failure followed by success
         call_count = 0
-        
+
         def mock_get(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -255,7 +255,7 @@ class TestTMDBAPIIntegration:
                 }
                 mock_response.raise_for_status.return_value = None
                 return mock_response
-        
+
         with patch('requests.get', side_effect=mock_get):
             results = tmdb_client.search_comprehensive("Test")
             # Should retry and eventually succeed
@@ -286,7 +286,7 @@ class TestTMDBAPIPerformance:
         start_time = time.time()
         results = tmdb_client.search_anime("Attack on Titan")
         response_time = time.time() - start_time
-        
+
         # Should respond within reasonable time
         assert response_time < 5.0  # Should respond within 5 seconds
         assert isinstance(results, list)
@@ -295,18 +295,18 @@ class TestTMDBAPIPerformance:
         """Test API memory usage with multiple requests."""
         import psutil
         import os
-        
+
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss
-        
+
         # Make multiple requests
         for i in range(10):
             results = tmdb_client.search_anime(f"Test Anime {i}")
             time.sleep(0.1)  # Small delay to avoid rate limiting
-        
+
         final_memory = process.memory_info().rss
         memory_increase = final_memory - initial_memory
-        
+
         # Memory increase should be reasonable (less than 10MB)
         assert memory_increase < 10 * 1024 * 1024  # 10MB
 
@@ -315,9 +315,9 @@ class TestTMDBAPIPerformance:
         import threading
         import queue
         import time
-        
+
         results_queue = queue.Queue()
-        
+
         def search_worker(query: str) -> None:
             start_time = time.time()
             try:
@@ -327,31 +327,31 @@ class TestTMDBAPIPerformance:
             except Exception as e:
                 end_time = time.time()
                 results_queue.put((query, e, end_time - start_time))
-        
+
         # Start multiple threads
         threads = []
         queries = ["Attack on Titan", "One Piece", "Naruto", "Dragon Ball", "Bleach"]
-        
+
         start_time = time.time()
         for query in queries:
             thread = threading.Thread(target=search_worker, args=(query,))
             thread.start()
             threads.append(thread)
             time.sleep(0.1)  # Stagger requests
-        
+
         # Wait for all threads to complete
         for thread in threads:
             thread.join(timeout=15)
-        
+
         total_time = time.time() - start_time
-        
+
         # Should complete all requests within reasonable time
         assert total_time < 20.0  # Should complete within 20 seconds
-        
+
         # Collect results
         results = []
         while not results_queue.empty():
             results.append(results_queue.get())
-        
+
         # Should have results for most queries
         assert len(results) >= len(queries) * 0.8  # At least 80% success rate

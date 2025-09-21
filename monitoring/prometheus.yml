@@ -16,7 +16,7 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 10s
     scrape_timeout: 5s
-    
+
     # Optional: Add labels to identify the instance
     relabel_configs:
       - source_labels: [__address__]

@@ -108,7 +108,7 @@ class TestBatchDBOperations:
             source="Blu-ray",
             raw_data={"quality": "high"}
         )
-        
+
         parsed_info2 = ParsedAnimeInfo(
             title="Demon Slayer",
             season=1,
@@ -125,12 +125,12 @@ class TestBatchDBOperations:
             source="Web",
             raw_data={"quality": "medium"}
         )
-        
+
         now = datetime.now(timezone.utc)
         return [
-            ("/path/to/attack_on_titan_s01e01.mkv", "attack_on_titan_s01e01.mkv", 
+            ("/path/to/attack_on_titan_s01e01.mkv", "attack_on_titan_s01e01.mkv",
              1024000000, now, now, parsed_info1, "hash1", 1),
-            ("/path/to/demon_slayer_s01e01.mp4", "demon_slayer_s01e01.mp4", 
+            ("/path/to/demon_slayer_s01e01.mp4", "demon_slayer_s01e01.mp4",
              512000000, now, now, parsed_info2, "hash2", 2)
         ]
 
@@ -144,12 +144,12 @@ class TestBatchDBOperations:
         # Insert the data
         result = db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
         assert result == 3
-        
+
         # Verify data was inserted
         with db_manager.get_session() as session:
             count = session.query(AnimeMetadata).count()
             assert count == 3
-            
+
             # Check specific records
             aot = session.query(AnimeMetadata).filter_by(tmdb_id=1).first()
             assert aot is not None
@@ -163,7 +163,7 @@ class TestBatchDBOperations:
         # Insert first time
         result1 = db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
         assert result1 == 3
-        
+
         # Try to insert again (should fail due to primary key constraint)
         with pytest.raises(Exception):
             db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
@@ -178,12 +178,12 @@ class TestBatchDBOperations:
         # Insert the data
         result = db_manager.bulk_insert_parsed_files(sample_parsed_file_data)
         assert result == 2
-        
+
         # Verify data was inserted
         with db_manager.get_session() as session:
             count = session.query(ParsedFile).count()
             assert count == 2
-            
+
             # Check specific records
             aot_file = session.query(ParsedFile).filter_by(file_path="/path/to/attack_on_titan_s01e01.mkv").first()
             assert aot_file is not None
@@ -198,7 +198,7 @@ class TestBatchDBOperations:
         inserted, updated = db_manager.bulk_upsert_anime_metadata(sample_tmdb_anime_list)
         assert inserted == 3
         assert updated == 0
-        
+
         # Verify all records exist
         with db_manager.get_session() as session:
             count = session.query(AnimeMetadata).count()
@@ -208,19 +208,19 @@ class TestBatchDBOperations:
         """Test bulk upsert with mix of new and existing records."""
         # Insert first two records
         db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list[:2])
-        
+
         # Create modified version of first record and add new third record
         modified_first = sample_tmdb_anime_list[0]
         modified_first.title = "Attack on Titan - Updated"
         modified_first.vote_average = 9.0
-        
+
         mixed_list = [modified_first, sample_tmdb_anime_list[2]]
-        
+
         # Upsert mixed list
         inserted, updated = db_manager.bulk_upsert_anime_metadata(mixed_list)
         assert inserted == 1  # Third record is new
         assert updated == 1   # First record is updated
-        
+
         # Verify updates
         with db_manager.get_session() as session:
             aot = session.query(AnimeMetadata).filter_by(tmdb_id=1).first()
@@ -236,7 +236,7 @@ class TestBatchDBOperations:
     def test_bulk_insert_performance(self, db_manager):
         """Test performance of bulk insert operations."""
         import time
-        
+
         # Create large dataset
         large_anime_list = []
         for i in range(1000):
@@ -254,18 +254,18 @@ class TestBatchDBOperations:
                 raw_data={"test_id": i}
             )
             large_anime_list.append(anime)
-        
+
         # Measure bulk insert time
         start_time = time.time()
         result = db_manager.bulk_insert_anime_metadata(large_anime_list)
         end_time = time.time()
-        
+
         assert result == 1000
         execution_time = end_time - start_time
-        
+
         # Should complete within reasonable time (adjust threshold as needed)
         assert execution_time < 5.0  # 5 seconds for 1000 records
-        
+
         # Verify all records were inserted
         with db_manager.get_session() as session:
             count = session.query(AnimeMetadata).count()
@@ -275,7 +275,7 @@ class TestBatchDBOperations:
         """Test that bulk insert maintains data integrity."""
         # Insert data
         db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
-        
+
         # Verify all fields are correctly stored
         with db_manager.get_session() as session:
             aot = session.query(AnimeMetadata).filter_by(tmdb_id=1).first()
@@ -293,7 +293,7 @@ class TestBatchDBOperations:
             assert aot.popularity == 95.5
             assert aot.number_of_seasons == 4
             assert aot.number_of_episodes == 75
-            
+
             # Check JSON fields
             assert aot.genres == '["Action", "Drama", "Fantasy"]'
             assert aot.networks == '["NHK"]'
@@ -308,10 +308,10 @@ class TestBatchDBOperations:
             title="Invalid Anime",
             overview="This should fail"
         )
-        
+
         with pytest.raises(Exception):
             db_manager.bulk_insert_anime_metadata([invalid_anime])
-        
+
         # Verify no data was inserted due to rollback
         with db_manager.get_session() as session:
             count = session.query(AnimeMetadata).count()
@@ -320,12 +320,12 @@ class TestBatchDBOperations:
     def test_bulk_insert_with_metadata_cache(self):
         """Test bulk insert functionality through MetadataCache."""
         from src.core.metadata_cache import MetadataCache
-        
+
         # Create cache with database
         db_manager = DatabaseManager("sqlite:///:memory:")
         db_manager.initialize()
         cache = MetadataCache(db_manager=db_manager, enable_db=True)
-        
+
         # Create sample data
         anime_list = [
             TMDBAnime(
@@ -347,15 +347,15 @@ class TestBatchDBOperations:
                 number_of_episodes=24
             )
         ]
-        
+
         # Test bulk store
         result = cache.bulk_store_tmdb_metadata(anime_list)
         assert result == 2
-        
+
         # Verify data is in both cache and database
         assert cache.get("tmdb:1") is not None
         assert cache.get("tmdb:2") is not None
-        
+
         with db_manager.get_session() as session:
             count = session.query(AnimeMetadata).count()
             assert count == 2

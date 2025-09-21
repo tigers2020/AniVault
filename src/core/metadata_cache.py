@@ -13,17 +13,19 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .database import DatabaseManager
-from .models import ParsedAnimeInfo, TMDBAnime
-from .transaction_manager import transactional
-from .database_health import DatabaseHealthChecker, HealthStatus, get_database_health_status
-from .logging_utils import log_operation_error
-from .sync_monitoring import sync_monitor, SyncOperationType, SyncOperationStatus
-from .incremental_sync import IncrementalSyncManager
-from .sync_enums import SyncEntityType
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 from .compression import compression_manager
+from .database import DatabaseManager
+from .database_health import HealthStatus, get_database_health_status
+from .incremental_sync import IncrementalSyncManager
+from .logging_utils import log_operation_error
+from .models import ParsedAnimeInfo, TMDBAnime
+from .sync_monitoring import SyncOperationStatus, SyncOperationType, sync_monitor
+from .transaction_manager import transactional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -89,12 +91,12 @@ class MetadataCache:
     """
 
     def __init__(
-        self, 
-        max_size: int = 1000, 
-        max_memory_mb: int = 100, 
+        self,
+        max_size: int = 1000,
+        max_memory_mb: int = 100,
         ttl_seconds: int | None = None,
         db_manager: DatabaseManager | None = None,
-        enable_db: bool = True
+        enable_db: bool = True,
     ) -> None:
         """Initialize the metadata cache with optional database integration.
 
@@ -130,14 +132,12 @@ class MetadataCache:
         # Cache-only mode for database failures
         self._cache_only_mode = False
         self._cache_only_reason = ""
-        
+
         # Incremental synchronization
         self._incremental_sync_enabled = True
         self._incremental_sync_manager = None
         if self.enable_db and self.db_manager:
-            self._incremental_sync_manager = IncrementalSyncManager(
-                self.db_manager, self
-            )
+            self._incremental_sync_manager = IncrementalSyncManager(self.db_manager, self)
 
     def get(
         self, key: str, default: ParsedAnimeInfo | TMDBAnime | None = None
@@ -161,10 +161,10 @@ class MetadataCache:
             if key not in self._cache:
                 self._stats.misses += 1
                 logger.debug(f"Cache miss for key: {key}")
-                
+
                 # Log cache miss
                 sync_monitor.log_cache_miss(key, SyncOperationType.READ_THROUGH)
-                
+
                 # Try to load from database (read-through) only if not in cache-only mode
                 if not self._cache_only_mode and self.enable_db and self.db_manager:
                     db_value = self._load_from_database(key)
@@ -178,7 +178,7 @@ class MetadataCache:
                         logger.debug(f"Database miss for key: {key}")
                 elif self._cache_only_mode:
                     logger.debug(f"Cache-only mode: skipping database read for key: {key}")
-                
+
                 return default
 
             entry = self._cache[key]
@@ -188,10 +188,10 @@ class MetadataCache:
                 logger.debug(f"Cache entry expired for key: {key}")
                 self._remove_entry(key)
                 self._stats.misses += 1
-                
+
                 # Log cache miss due to expiration
                 sync_monitor.log_cache_miss(key, SyncOperationType.READ_THROUGH)
-                
+
                 # Try to reload from database only if not in cache-only mode
                 if not self._cache_only_mode and self.enable_db and self.db_manager:
                     db_value = self._load_from_database(key)
@@ -203,8 +203,10 @@ class MetadataCache:
                     else:
                         logger.debug(f"Database miss after expiration for key: {key}")
                 elif self._cache_only_mode:
-                    logger.debug(f"Cache-only mode: skipping database reload for expired key: {key}")
-                
+                    logger.debug(
+                        f"Cache-only mode: skipping database reload for expired key: {key}"
+                    )
+
                 return default
 
             # Move to end (most recently used)
@@ -214,7 +216,7 @@ class MetadataCache:
             self._stats.hits += 1
             self._stats.cache_size = len(self._cache)
             logger.debug(f"Cache hit for key: {key}")
-            
+
             # Log cache hit
             sync_monitor.log_cache_hit(key, SyncOperationType.READ_THROUGH)
 
@@ -223,7 +225,7 @@ class MetadataCache:
             return decompressed_value
 
     @transactional
-    def put(self, key: str, value: ParsedAnimeInfo | TMDBAnime, session=None) -> None:
+    def put(self, key: str, value: ParsedAnimeInfo | TMDBAnime, session: Session | None = None) -> None:
         """Store a value in the cache with write-through to database.
 
         This method implements the write-through pattern by updating both
@@ -243,7 +245,7 @@ class MetadataCache:
             SyncOperationType.WRITE_THROUGH,
             cache_hit=False,
             key=key,
-            value_type=type(value).__name__
+            value_type=type(value).__name__,
         ) as metrics:
             with self._lock:
                 # Store in database first (write-through) with transactional context
@@ -257,7 +259,7 @@ class MetadataCache:
                         metrics.complete(
                             SyncOperationStatus.FAILED,
                             error_message=str(e),
-                            additional_context={'key_type': key.split(':')[0]}
+                            additional_context={"key_type": key.split(":")[0]},
                         )
                         # Continue with cache storage even if DB fails
                         # This maintains backward compatibility
@@ -272,9 +274,9 @@ class MetadataCache:
                     SyncOperationStatus.SUCCESS,
                     affected_records=1,
                     additional_context={
-                        'key_type': key.split(':')[0],
-                        'cache_only_mode': self._cache_only_mode
-                    }
+                        "key_type": key.split(":")[0],
+                        "cache_only_mode": self._cache_only_mode,
+                    },
                 )
 
                 # Perform cleanup if needed
@@ -282,7 +284,7 @@ class MetadataCache:
                     self._cleanup_expired_entries()
 
     @transactional
-    def delete(self, key: str, session=None) -> bool:
+    def delete(self, key: str, session: Session | None = None) -> bool:
         """Remove a value from the cache and database.
 
         This method implements the write-through pattern by removing data
@@ -344,15 +346,15 @@ class MetadataCache:
             # Update current stats
             self._stats.cache_size = len(self._cache)
             self._stats.memory_usage_bytes = self._current_memory_bytes
-            
+
             # Update Prometheus metrics
             hit_rate = (self._stats.hits / max(self._stats.total_requests, 1)) * 100
             sync_monitor.update_cache_metrics(
                 hit_rate=hit_rate,
                 size=self._stats.cache_size,
-                memory_bytes=self._stats.memory_usage_bytes
+                memory_bytes=self._stats.memory_usage_bytes,
             )
-            
+
             return CacheStats(
                 hits=self._stats.hits,
                 misses=self._stats.misses,
@@ -398,7 +400,7 @@ class MetadataCache:
 
     def enable_cache_only_mode(self, reason: str = "Database unavailable") -> None:
         """Enable cache-only mode when database is unavailable.
-        
+
         Args:
             reason: Reason for entering cache-only mode
         """
@@ -406,25 +408,25 @@ class MetadataCache:
             self._cache_only_mode = True
             self._cache_only_reason = reason
             logger.warning(f"Cache-only mode enabled: {reason}")
-    
+
     def disable_cache_only_mode(self) -> None:
         """Disable cache-only mode and return to normal operation."""
         with self._lock:
             self._cache_only_mode = False
             self._cache_only_reason = ""
             logger.info("Cache-only mode disabled, returning to normal operation")
-    
+
     def is_cache_only_mode(self) -> bool:
         """Check if cache is operating in cache-only mode.
-        
+
         Returns:
             True if in cache-only mode, False otherwise
         """
         return self._cache_only_mode
-    
+
     def get_cache_only_reason(self) -> str:
         """Get the reason for cache-only mode.
-        
+
         Returns:
             Reason string for cache-only mode
         """
@@ -432,26 +434,28 @@ class MetadataCache:
 
     def enable_auto_cache_only_mode(self) -> None:
         """Enable automatic cache-only mode based on database health status."""
+
         def health_status_callback(old_status: HealthStatus, new_status: HealthStatus) -> None:
             """Callback for database health status changes."""
             if new_status == HealthStatus.UNHEALTHY:
                 self.enable_cache_only_mode(f"Database unhealthy: {new_status.value}")
             elif new_status == HealthStatus.HEALTHY and self.is_cache_only_mode():
                 self.disable_cache_only_mode()
-        
+
         # Get the global health checker and register callback
         from .database_health import get_database_health_checker
+
         health_checker = get_database_health_checker()
         if health_checker:
             health_checker.add_status_change_callback(health_status_callback)
             logger.info("Enabled automatic cache-only mode based on database health")
         else:
             logger.warning("No database health checker available for auto cache-only mode")
-    
+
     def check_database_health_and_adapt(self) -> None:
         """Check current database health and adapt cache mode accordingly."""
         current_status = get_database_health_status()
-        
+
         if current_status == HealthStatus.UNHEALTHY and not self.is_cache_only_mode():
             self.enable_cache_only_mode(f"Database unhealthy: {current_status.value}")
         elif current_status == HealthStatus.HEALTHY and self.is_cache_only_mode():
@@ -542,7 +546,7 @@ class MetadataCache:
         """Evict the least recently used entry."""
         if self._cache:
             # Remove the first (oldest) entry
-            key, entry = self._cache.popitem(last=False)
+            _key, entry = self._cache.popitem(last=False)
             self._current_memory_bytes -= entry.size_bytes
             self._stats.evictions += 1
 
@@ -569,10 +573,10 @@ class MetadataCache:
 
     def _store_in_database(self, key: str, value: ParsedAnimeInfo | TMDBAnime) -> None:
         """Store a value in the database based on key type within a transaction.
-        
+
         This method implements the write-through pattern by persisting data
         to the database within a transactional context.
-        
+
         Args:
             key: Cache key
             value: Value to store in database
@@ -586,86 +590,88 @@ class MetadataCache:
             SyncOperationType.WRITE_THROUGH,
             cache_hit=False,
             key=key,
-            value_type=type(value).__name__
+            value_type=type(value).__name__,
         ) as metrics:
             try:
                 affected_records = 0
-                
+
                 if key.startswith("tmdb:") and isinstance(value, TMDBAnime):
                     # Store TMDB metadata
                     logger.debug(f"Storing TMDB metadata in database: {value.title}")
                     self.db_manager.create_anime_metadata(value)
                     affected_records = 1
                     logger.debug(f"Successfully stored TMDB metadata: {key}")
-                    
+
                 elif key.startswith("file:") and isinstance(value, ParsedAnimeInfo):
                     # For file keys, we need additional file information
                     # This is a simplified version - in practice, you'd need file path info
                     logger.warning(f"Cannot store ParsedAnimeInfo without file context: {key}")
-                    
+
                 else:
                     logger.warning(f"Unknown key type or value type: {key}, {type(value)}")
-                
+
                 # Update metrics with success information
                 metrics.complete(
                     SyncOperationStatus.SUCCESS,
                     affected_records=affected_records,
-                    additional_context={'key_type': key.split(':')[0]}
+                    additional_context={"key_type": key.split(":")[0]},
                 )
-                
+
             except Exception as e:
                 logger.error(f"Failed to store in database for key {key}: {e}")
                 metrics.complete(
                     SyncOperationStatus.FAILED,
                     error_message=str(e),
-                    additional_context={'key_type': key.split(':')[0]}
+                    additional_context={"key_type": key.split(":")[0]},
                 )
                 raise
 
     @transactional
-    def bulk_store_tmdb_metadata(self, session, anime_list: list[TMDBAnime]) -> int:
+    def bulk_store_tmdb_metadata(self, session: Session, anime_list: list[TMDBAnime]) -> int:
         """Bulk store multiple TMDB anime metadata records using batch operations.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             anime_list: List of TMDBAnime objects to store
-            
+
         Returns:
             Number of records stored
-            
+
         Raises:
             Exception: If bulk store fails
         """
         if not self.enable_db or not self.db_manager:
             logger.warning("Database not enabled, cannot bulk store metadata")
             return 0
-        
+
         # Monitor the bulk insert operation
         with sync_monitor.monitor_operation(
             SyncOperationType.BULK_INSERT,
             cache_hit=False,
             record_count=len(anime_list),
-            operation_subtype="tmdb_metadata"
+            operation_subtype="tmdb_metadata",
         ) as metrics:
             try:
                 # Log bulk operation start
                 sync_monitor.log_bulk_operation_start(
                     SyncOperationType.BULK_INSERT,
                     len(anime_list),
-                    operation_subtype="tmdb_metadata"
+                    operation_subtype="tmdb_metadata",
                 )
-                
+
                 # Use bulk upsert for efficiency
-                inserted_count, updated_count = self.db_manager.bulk_upsert_anime_metadata(anime_list)
+                inserted_count, updated_count = self.db_manager.bulk_upsert_anime_metadata(
+                    anime_list
+                )
                 total_stored = inserted_count + updated_count
-                
+
                 # Store in cache as well
                 cache_hits = 0
                 for anime in anime_list:
                     cache_key = f"tmdb:{anime.tmdb_id}"
                     self._store_in_cache(cache_key, anime)
                     cache_hits += 1
-                
+
                 # Log bulk operation completion
                 sync_monitor.log_bulk_operation_complete(
                     SyncOperationType.BULK_INSERT,
@@ -674,279 +680,286 @@ class MetadataCache:
                     total_stored,
                     inserted_count=inserted_count,
                     updated_count=updated_count,
-                    operation_subtype="tmdb_metadata"
+                    operation_subtype="tmdb_metadata",
                 )
-                
-                logger.info(f"Bulk stored {total_stored} TMDB metadata records ({inserted_count} inserted, {updated_count} updated)")
-                
+
+                logger.info(
+                    f"Bulk stored {total_stored} TMDB metadata records ({inserted_count} inserted, {updated_count} updated)"
+                )
+
                 # Update metrics with results
                 metrics.complete(
                     SyncOperationStatus.SUCCESS,
                     affected_records=total_stored,
                     additional_context={
-                        'inserted_count': inserted_count,
-                        'updated_count': updated_count,
-                        'cache_entries_updated': cache_hits
-                    }
+                        "inserted_count": inserted_count,
+                        "updated_count": updated_count,
+                        "cache_entries_updated": cache_hits,
+                    },
                 )
-                
+
                 return total_stored
-                
+
             except Exception as e:
                 log_operation_error("bulk store TMDB metadata", e)
                 metrics.complete(
                     SyncOperationStatus.FAILED,
                     error_message=str(e),
-                    additional_context={'operation_subtype': 'tmdb_metadata'}
+                    additional_context={"operation_subtype": "tmdb_metadata"},
                 )
                 raise
 
     @transactional
     def bulk_store_parsed_files(
-        self, 
-        session,
-        file_data_list: list[tuple[str, str, int, datetime, datetime, ParsedAnimeInfo, str | None, int | None]]
+        self,
+        session: Session,
+        file_data_list: list[
+            tuple[str, str, int, datetime, datetime, ParsedAnimeInfo, str | None, int | None]
+        ],
     ) -> int:
         """Bulk store multiple parsed file records using batch operations.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
-            file_data_list: List of tuples containing (file_path, filename, file_size, 
+            file_data_list: List of tuples containing (file_path, filename, file_size,
                           created_at, modified_at, parsed_info, file_hash, metadata_id)
-            
+
         Returns:
             Number of records stored
-            
+
         Raises:
             Exception: If bulk store fails
         """
         if not self.enable_db or not self.db_manager:
             logger.warning("Database not enabled, cannot bulk store files")
             return 0
-        
+
         # Monitor the bulk insert operation
         with sync_monitor.monitor_operation(
             SyncOperationType.BULK_INSERT,
             cache_hit=False,
             record_count=len(file_data_list),
-            operation_subtype="parsed_files"
+            operation_subtype="parsed_files",
         ) as metrics:
             try:
                 # Log bulk operation start
                 sync_monitor.log_bulk_operation_start(
                     SyncOperationType.BULK_INSERT,
                     len(file_data_list),
-                    operation_subtype="parsed_files"
+                    operation_subtype="parsed_files",
                 )
-                
+
                 # Use bulk insert for efficiency
                 inserted_count = self.db_manager.bulk_insert_parsed_files(file_data_list)
-                
+
                 # Store in cache as well
                 cache_hits = 0
-                for file_path, filename, file_size, created_at, modified_at, parsed_info, file_hash, metadata_id in file_data_list:
+                for (
+                    file_path,
+                    _filename,
+                    _file_size,
+                    _created_at,
+                    _modified_at,
+                    parsed_info,
+                    _file_hash,
+                    _metadata_id,
+                ) in file_data_list:
                     cache_key = f"file:{file_path}"
                     self._store_in_cache(cache_key, parsed_info)
                     cache_hits += 1
-                
+
                 # Log bulk operation completion
                 sync_monitor.log_bulk_operation_complete(
                     SyncOperationType.BULK_INSERT,
                     len(file_data_list),
                     metrics.duration_ms or 0,
                     inserted_count,
-                    operation_subtype="parsed_files"
+                    operation_subtype="parsed_files",
                 )
-                
+
                 logger.info(f"Bulk stored {inserted_count} parsed file records")
-                
+
                 # Update metrics with results
                 metrics.complete(
                     SyncOperationStatus.SUCCESS,
                     affected_records=inserted_count,
                     additional_context={
-                        'cache_entries_updated': cache_hits,
-                        'operation_subtype': 'parsed_files'
-                    }
+                        "cache_entries_updated": cache_hits,
+                        "operation_subtype": "parsed_files",
+                    },
                 )
-                
+
                 return inserted_count
-                
+
             except Exception as e:
                 log_operation_error("bulk store parsed files", e)
                 metrics.complete(
                     SyncOperationStatus.FAILED,
                     error_message=str(e),
-                    additional_context={'operation_subtype': 'parsed_files'}
+                    additional_context={"operation_subtype": "parsed_files"},
                 )
                 raise
 
     @transactional
-    def bulk_update_tmdb_metadata(self, session, updates: list[dict]) -> int:
+    def bulk_update_tmdb_metadata(self, session: Session, updates: list[dict]) -> int:
         """Bulk update multiple TMDB anime metadata records using batch operations.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             updates: List of dictionaries containing updates. Each dict must include
                     the primary key (tmdb_id) and fields to update.
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not self.enable_db or not self.db_manager:
             logger.warning("Database not enabled, cannot bulk update metadata")
             return 0
-            
+
         try:
             # Update database
             updated_count = self.db_manager.bulk_update_anime_metadata(updates)
-            
+
             # Update cache entries
             for update in updates:
-                if 'tmdb_id' in update:
+                if "tmdb_id" in update:
                     cache_key = f"tmdb:{update['tmdb_id']}"
                     # Remove from cache to force reload from database
                     if cache_key in self._cache:
                         self._remove_entry(cache_key)
-            
+
             logger.info(f"Bulk updated {updated_count} TMDB metadata records")
             return updated_count
-            
+
         except Exception as e:
             log_operation_error("bulk update TMDB metadata", e)
             raise
 
     @transactional
-    def bulk_update_parsed_files(self, session, updates: list[dict]) -> int:
+    def bulk_update_parsed_files(self, session: Session, updates: list[dict]) -> int:
         """Bulk update multiple parsed file records using batch operations.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             updates: List of dictionaries containing updates. Each dict must include
                     the primary key (id) and fields to update.
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not self.enable_db or not self.db_manager:
             logger.warning("Database not enabled, cannot bulk update files")
             return 0
-            
+
         try:
             # Update database
             updated_count = self.db_manager.bulk_update_parsed_files(updates)
-            
+
             # Note: For parsed files, we can't easily update cache without file path info
             # The cache will be refreshed on next access via read-through
-            
+
             logger.info(f"Bulk updated {updated_count} parsed file records")
             return updated_count
-            
+
         except Exception as e:
             log_operation_error("bulk update parsed files", e)
             raise
 
     @transactional
     def bulk_update_tmdb_metadata_by_ids(
-        self, 
-        session,
-        tmdb_ids: list[int], 
-        update_data: dict
+        self, session: Session, tmdb_ids: list[int], update_data: dict
     ) -> int:
         """Bulk update TMDB metadata records by TMDB IDs with the same update data.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             tmdb_ids: List of TMDB IDs to update
             update_data: Dictionary of fields to update (excluding tmdb_id)
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not self.enable_db or not self.db_manager:
             logger.warning("Database not enabled, cannot bulk update metadata")
             return 0
-            
+
         try:
             # Update database
             updated_count = self.db_manager.bulk_update_anime_metadata_by_tmdb_ids(
                 tmdb_ids, update_data
             )
-            
+
             # Remove updated entries from cache to force reload
             for tmdb_id in tmdb_ids:
                 cache_key = f"tmdb:{tmdb_id}"
                 if cache_key in self._cache:
                     self._remove_entry(cache_key)
-            
+
             logger.info(f"Bulk updated {updated_count} TMDB metadata records by IDs")
             return updated_count
-            
+
         except Exception as e:
             log_operation_error("bulk update TMDB metadata by IDs", e)
             raise
 
     @transactional
     def bulk_update_parsed_files_by_paths(
-        self, 
-        session,
-        file_paths: list[str], 
-        update_data: dict
+        self, session: Session, file_paths: list[str], update_data: dict
     ) -> int:
         """Bulk update parsed file records by file paths with the same update data.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             file_paths: List of file paths to update
             update_data: Dictionary of fields to update (excluding file_path)
-            
+
         Returns:
             Number of records updated
-            
+
         Raises:
             Exception: If bulk update fails
         """
         if not self.enable_db or not self.db_manager:
             logger.warning("Database not enabled, cannot bulk update files")
             return 0
-            
+
         try:
             # Update database
             updated_count = self.db_manager.bulk_update_parsed_files_by_paths(
                 file_paths, update_data
             )
-            
+
             # Remove updated entries from cache to force reload
             for file_path in file_paths:
                 cache_key = f"file:{file_path}"
                 if cache_key in self._cache:
                     self._remove_entry(cache_key)
-            
+
             logger.info(f"Bulk updated {updated_count} parsed file records by paths")
             return updated_count
-            
+
         except Exception as e:
             log_operation_error("bulk update parsed files by paths", e)
             raise
 
     def _load_from_database(self, key: str) -> ParsedAnimeInfo | TMDBAnime | None:
         """Load a value from the database based on key type.
-        
+
         This method implements the read-through pattern by fetching data
         from the database when it's not found in the cache.
-        
+
         Args:
             key: Cache key to load from database
-            
+
         Returns:
             Loaded value from database or None if not found
         """
@@ -956,14 +969,12 @@ class MetadataCache:
 
         # Monitor the read-through operation
         with sync_monitor.monitor_operation(
-            SyncOperationType.READ_THROUGH,
-            cache_hit=False,
-            key=key
+            SyncOperationType.READ_THROUGH, cache_hit=False, key=key
         ) as metrics:
             try:
                 result = None
                 affected_records = 0
-                
+
                 if key.startswith("tmdb:"):
                     # Extract TMDB ID from key
                     tmdb_id_str = key.replace("tmdb:", "")
@@ -979,41 +990,38 @@ class MetadataCache:
                             logger.debug(f"TMDB metadata not found in database: tmdb_id={tmdb_id}")
                     except ValueError as e:
                         logger.warning(f"Invalid TMDB ID in key: {key}, error: {e}")
-                        
+
                 elif key.startswith("file:"):
                     # For file keys, we'd need to implement file loading
                     # This is a simplified version - in practice, you'd need file path info
                     logger.warning(f"Cannot load ParsedAnimeInfo without file context: {key}")
                 else:
                     logger.warning(f"Unknown key type for database loading: {key}")
-                
+
                 # Update metrics with results
                 metrics.complete(
                     SyncOperationStatus.SUCCESS,
                     affected_records=affected_records,
-                    additional_context={
-                        'key_type': key.split(':')[0],
-                        'found': result is not None
-                    }
+                    additional_context={"key_type": key.split(":")[0], "found": result is not None},
                 )
-                
+
                 return result
-                
+
             except Exception as e:
                 logger.error(f"Failed to load from database for key {key}: {e}")
                 metrics.complete(
                     SyncOperationStatus.FAILED,
                     error_message=str(e),
-                    additional_context={'key_type': key.split(':')[0]}
+                    additional_context={"key_type": key.split(":")[0]},
                 )
                 return None
 
     def _delete_from_database(self, key: str) -> None:
         """Delete a value from the database based on key type within a transaction.
-        
+
         This method implements the write-through pattern by removing data
         from the database within a transactional context.
-        
+
         Args:
             key: Cache key to delete from database
         """
@@ -1023,13 +1031,11 @@ class MetadataCache:
 
         # Monitor the delete operation
         with sync_monitor.monitor_operation(
-            SyncOperationType.DELETE,
-            cache_hit=False,
-            key=key
+            SyncOperationType.DELETE, cache_hit=False, key=key
         ) as metrics:
             try:
                 affected_records = 0
-                
+
                 if key.startswith("file:"):
                     # Extract file path from key
                     file_path = key.replace("file:", "")
@@ -1037,7 +1043,7 @@ class MetadataCache:
                     self.db_manager.delete_parsed_file(file_path)
                     affected_records = 1
                     logger.debug(f"Successfully deleted parsed file: {key}")
-                    
+
                 elif key.startswith("tmdb:"):
                     # Extract TMDB ID from key and delete metadata
                     tmdb_id_str = key.replace("tmdb:", "")
@@ -1051,137 +1057,137 @@ class MetadataCache:
                         logger.warning(f"Invalid TMDB ID in key: {key}, error: {e}")
                 else:
                     logger.warning(f"Unknown key type for deletion: {key}")
-                
+
                 # Update metrics with success information
                 metrics.complete(
                     SyncOperationStatus.SUCCESS,
                     affected_records=affected_records,
-                    additional_context={'key_type': key.split(':')[0]}
+                    additional_context={"key_type": key.split(":")[0]},
                 )
-                
+
             except Exception as e:
                 logger.error(f"Failed to delete from database for key {key}: {e}")
                 metrics.complete(
                     SyncOperationStatus.FAILED,
                     error_message=str(e),
-                    additional_context={'key_type': key.split(':')[0]}
+                    additional_context={"key_type": key.split(":")[0]},
                 )
                 raise
 
     # Incremental Synchronization Methods
-    
+
     def enable_incremental_sync(self) -> None:
         """Enable incremental synchronization mode."""
         self._incremental_sync_enabled = True
         logger.info("Incremental synchronization enabled")
-    
+
     def disable_incremental_sync(self) -> None:
         """Disable incremental synchronization mode."""
         self._incremental_sync_enabled = False
         logger.info("Incremental synchronization disabled")
-    
+
     def is_incremental_sync_enabled(self) -> bool:
         """Check if incremental synchronization is enabled.
-        
+
         Returns:
             True if incremental sync is enabled, False otherwise
         """
         return self._incremental_sync_enabled
-    
+
     def get_incremental_sync_manager(self) -> IncrementalSyncManager | None:
         """Get the incremental sync manager instance.
-        
+
         Returns:
             IncrementalSyncManager instance or None if not available
         """
         return self._incremental_sync_manager
-    
+
     @transactional
-    def sync_tmdb_metadata_incremental(self, session=None, force_full_sync: bool = False):
+    def sync_tmdb_metadata_incremental(self, session: Session | None = None, force_full_sync: bool = False) -> None:
         """Perform incremental synchronization of TMDB metadata.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             force_full_sync: If True, perform full sync regardless of last sync state
-            
+
         Returns:
             IncrementalSyncResult with sync operation details
         """
         if not self._incremental_sync_enabled:
             logger.warning("Incremental sync is disabled, skipping TMDB metadata sync")
             return None
-        
+
         if not self._incremental_sync_manager:
             logger.error("Incremental sync manager not available")
             return None
-        
+
         logger.info(f"Starting incremental TMDB metadata sync (force_full={force_full_sync})")
         return self._incremental_sync_manager.sync_tmdb_metadata_incremental(
             session, force_full_sync
         )
-    
+
     @transactional
-    def sync_parsed_files_incremental(self, session=None, force_full_sync: bool = False):
+    def sync_parsed_files_incremental(self, session: Session | None = None, force_full_sync: bool = False) -> None:
         """Perform incremental synchronization of parsed files.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             force_full_sync: If True, perform full sync regardless of last sync state
-            
+
         Returns:
             IncrementalSyncResult with sync operation details
         """
         if not self._incremental_sync_enabled:
             logger.warning("Incremental sync is disabled, skipping parsed files sync")
             return None
-        
+
         if not self._incremental_sync_manager:
             logger.error("Incremental sync manager not available")
             return None
-        
+
         logger.info(f"Starting incremental parsed files sync (force_full={force_full_sync})")
         return self._incremental_sync_manager.sync_parsed_files_incremental(
             session, force_full_sync
         )
-    
+
     @transactional
-    def sync_all_entities_incremental(self, session=None, force_full_sync: bool = False):
+    def sync_all_entities_incremental(self, session: Session | None = None, force_full_sync: bool = False) -> None:
         """Perform incremental synchronization of all entity types.
-        
+
         Args:
             session: Database session (automatically provided by decorator)
             force_full_sync: If True, perform full sync regardless of last sync state
-            
+
         Returns:
             Dictionary mapping entity types to their sync results
         """
         if not self._incremental_sync_enabled:
             logger.warning("Incremental sync is disabled, skipping all entities sync")
             return {}
-        
+
         if not self._incremental_sync_manager:
             logger.error("Incremental sync manager not available")
             return {}
-        
+
         logger.info(f"Starting incremental sync for all entities (force_full={force_full_sync})")
         return self._incremental_sync_manager.sync_all_entities_incremental(
             session, force_full_sync
         )
-    
+
     def get_sync_status(self) -> dict:
         """Get the current sync status for all entity types.
-        
+
         Returns:
             Dictionary mapping entity types to their current sync states
         """
         if not self._incremental_sync_manager:
             return {}
-        
+
         return self._incremental_sync_manager.get_sync_status()
 
     def _store_in_cache(self, key: str, value: ParsedAnimeInfo | TMDBAnime) -> None:
         """Store a value in the cache without database operations.
-        
+
         Large objects are automatically compressed to reduce memory usage.
         """
         # Calculate entry size
@@ -1201,7 +1207,11 @@ class MetadataCache:
         # Create new entry
         now = time.time()
         entry = CacheEntry(
-            key=key, value=compressed_value, created_at=now, last_accessed=now, size_bytes=actual_entry_size
+            key=key,
+            value=compressed_value,
+            created_at=now,
+            last_accessed=now,
+            size_bytes=actual_entry_size,
         )
 
         # Add to cache
@@ -1211,33 +1221,37 @@ class MetadataCache:
         # Update statistics
         self._stats.cache_size = len(self._cache)
         self._stats.memory_usage_bytes = self._current_memory_bytes
-        
+
         # Log compression if applied
         if compressed_value != value:
             compression_saved = entry_size - actual_entry_size
-            logger.debug(f"Applied compression to cache entry {key}: "
-                        f"{entry_size} -> {actual_entry_size} bytes "
-                        f"({compression_saved} bytes saved)")
-    
-    def _apply_compression_if_needed(self, value: ParsedAnimeInfo | TMDBAnime) -> ParsedAnimeInfo | TMDBAnime:
+            logger.debug(
+                f"Applied compression to cache entry {key}: "
+                f"{entry_size} -> {actual_entry_size} bytes "
+                f"({compression_saved} bytes saved)"
+            )
+
+    def _apply_compression_if_needed(
+        self, value: ParsedAnimeInfo | TMDBAnime
+    ) -> ParsedAnimeInfo | TMDBAnime:
         """Apply compression to large metadata objects if beneficial.
-        
+
         Args:
             value: Metadata object to potentially compress
-            
+
         Returns:
             Original value or compressed version if compression is beneficial
         """
         # Check if this object has large raw_data that would benefit from compression
         if isinstance(value, TMDBAnime) and value.raw_data:
             # Estimate size of raw_data
-            raw_data_size = len(str(value.raw_data).encode('utf-8'))
-            
+            raw_data_size = len(str(value.raw_data).encode("utf-8"))
+
             if raw_data_size >= compression_manager.min_size_threshold:
                 try:
                     # Compress the raw_data
                     compressed_raw_data = compression_manager.compress_for_storage(value.raw_data)
-                    
+
                     # Create new TMDBAnime with compressed raw_data
                     compressed_value = TMDBAnime(
                         tmdb_id=value.tmdb_id,
@@ -1268,54 +1282,66 @@ class MetadataCache:
                         quality_score=value.quality_score,
                         search_strategy=value.search_strategy,
                         fallback_round=value.fallback_round,
-                        raw_data=compressed_raw_data  # Store compressed data
+                        raw_data=(
+                            compressed_raw_data if isinstance(compressed_raw_data, dict) else {}
+                        ),  # Store compressed data
                     )
-                    
-                    logger.debug(f"Compressed TMDBAnime raw_data: {raw_data_size} -> {len(compressed_raw_data)} bytes")
+
+                    logger.debug(
+                        f"Compressed TMDBAnime raw_data: {raw_data_size} -> {len(compressed_raw_data)} bytes"
+                    )
                     return compressed_value
-                    
+
                 except Exception as e:
                     logger.warning(f"Failed to compress TMDBAnime raw_data: {e}")
                     return value
-        
+
         elif isinstance(value, ParsedAnimeInfo) and value.raw_data:
             # Similar compression logic for ParsedAnimeInfo
-            raw_data_size = len(str(value.raw_data).encode('utf-8'))
-            
+            raw_data_size = len(str(value.raw_data).encode("utf-8"))
+
             if raw_data_size >= compression_manager.min_size_threshold:
                 try:
                     compressed_raw_data = compression_manager.compress_for_storage(value.raw_data)
-                    
+
                     compressed_value = ParsedAnimeInfo(
                         title=value.title,
+                        season=value.season,
+                        episode=value.episode,
                         episode_title=value.episode_title,
-                        episode_number=value.episode_number,
-                        season_number=value.season_number,
-                        year=value.year,
                         resolution=value.resolution,
+                        resolution_width=value.resolution_width,
+                        resolution_height=value.resolution_height,
                         video_codec=value.video_codec,
                         audio_codec=value.audio_codec,
                         release_group=value.release_group,
                         file_extension=value.file_extension,
+                        year=value.year,
                         source=value.source,
-                        raw_data=compressed_raw_data  # Store compressed data
+                        raw_data=(
+                            compressed_raw_data if isinstance(compressed_raw_data, dict) else {}
+                        ),  # Store compressed data
                     )
-                    
-                    logger.debug(f"Compressed ParsedAnimeInfo raw_data: {raw_data_size} -> {len(compressed_raw_data)} bytes")
+
+                    logger.debug(
+                        f"Compressed ParsedAnimeInfo raw_data: {raw_data_size} -> {len(compressed_raw_data)} bytes"
+                    )
                     return compressed_value
-                    
+
                 except Exception as e:
                     logger.warning(f"Failed to compress ParsedAnimeInfo raw_data: {e}")
                     return value
-        
+
         return value
-    
-    def _decompress_if_needed(self, value: ParsedAnimeInfo | TMDBAnime) -> ParsedAnimeInfo | TMDBAnime:
+
+    def _decompress_if_needed(
+        self, value: ParsedAnimeInfo | TMDBAnime
+    ) -> ParsedAnimeInfo | TMDBAnime:
         """Decompress metadata objects if they were compressed.
-        
+
         Args:
             value: Potentially compressed metadata object
-            
+
         Returns:
             Decompressed metadata object
         """
@@ -1323,9 +1349,9 @@ class MetadataCache:
             try:
                 # Try to decompress raw_data
                 decompressed_raw_data = compression_manager.decompress_from_storage(
-                    value.raw_data, expected_type='dict'
+                    value.raw_data, expected_type="dict"
                 )
-                
+
                 # If decompression succeeded, create new object with decompressed data
                 if decompressed_raw_data != value.raw_data:
                     decompressed_value = TMDBAnime(
@@ -1357,43 +1383,49 @@ class MetadataCache:
                         quality_score=value.quality_score,
                         search_strategy=value.search_strategy,
                         fallback_round=value.fallback_round,
-                        raw_data=decompressed_raw_data  # Decompressed data
+                        raw_data=(
+                            decompressed_raw_data if isinstance(decompressed_raw_data, dict) else {}
+                        ),  # Decompressed data
                     )
-                    
-                    logger.debug(f"Decompressed TMDBAnime raw_data")
+
+                    logger.debug("Decompressed TMDBAnime raw_data")
                     return decompressed_value
-                    
+
             except Exception as e:
                 logger.debug(f"Raw data was not compressed or decompression failed: {e}")
-        
+
         elif isinstance(value, ParsedAnimeInfo) and value.raw_data:
             try:
                 decompressed_raw_data = compression_manager.decompress_from_storage(
-                    value.raw_data, expected_type='dict'
+                    value.raw_data, expected_type="dict"
                 )
-                
+
                 if decompressed_raw_data != value.raw_data:
                     decompressed_value = ParsedAnimeInfo(
                         title=value.title,
+                        season=value.season,
+                        episode=value.episode,
                         episode_title=value.episode_title,
-                        episode_number=value.episode_number,
-                        season_number=value.season_number,
-                        year=value.year,
                         resolution=value.resolution,
+                        resolution_width=value.resolution_width,
+                        resolution_height=value.resolution_height,
                         video_codec=value.video_codec,
                         audio_codec=value.audio_codec,
                         release_group=value.release_group,
                         file_extension=value.file_extension,
+                        year=value.year,
                         source=value.source,
-                        raw_data=decompressed_raw_data  # Decompressed data
+                        raw_data=(
+                            decompressed_raw_data if isinstance(decompressed_raw_data, dict) else {}
+                        ),  # Decompressed data
                     )
-                    
-                    logger.debug(f"Decompressed ParsedAnimeInfo raw_data")
+
+                    logger.debug("Decompressed ParsedAnimeInfo raw_data")
                     return decompressed_value
-                    
+
             except Exception as e:
                 logger.debug(f"Raw data was not compressed or decompression failed: {e}")
-        
+
         return value
 
 
@@ -1428,8 +1460,7 @@ class MetadataCacheManager:
         with self._lock:
             if name not in self._caches:
                 self._caches[name] = MetadataCache(
-                    db_manager=self.db_manager,
-                    enable_db=self.enable_db
+                    db_manager=self.db_manager, enable_db=self.enable_db
                 )
             return self._caches[name]
 

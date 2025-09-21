@@ -37,7 +37,7 @@ class TestReconciliationEngine:
             details=["Resolved conflict 1", "Resolved conflict 2"],
             errors=[]
         )
-        
+
         assert result.success is True
         assert result.strategy_used == ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH
         assert result.conflicts_resolved == 5
@@ -55,9 +55,9 @@ class TestReconciliationEngine:
             db_data={"tmdb_id": 12345, "title": "Test Anime", "version": 2},
             severity=ConflictSeverity.MEDIUM
         )
-        
+
         result = engine.reconcile_conflicts([conflict], ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH)
-        
+
         assert result.success is True
         assert result.conflicts_resolved == 1
         assert result.conflicts_failed == 0
@@ -74,9 +74,9 @@ class TestReconciliationEngine:
             cache_data={"tmdb_id": 12345, "title": "Test Anime", "version": 1},
             severity=ConflictSeverity.HIGH
         )
-        
+
         result = engine.reconcile_conflicts([conflict], ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH)
-        
+
         assert result.success is True
         assert result.conflicts_resolved == 1
         assert result.conflicts_failed == 0
@@ -91,17 +91,17 @@ class TestReconciliationEngine:
             cache_data={"tmdb_id": 12345, "title": "Test Anime", "version": 2},
             severity=ConflictSeverity.HIGH
         )
-        
+
         with patch.object(engine.db_manager, 'transaction') as mock_transaction:
             mock_session = Mock()
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             # Mock database query to return None (not found)
             mock_session.query.return_value.filter.return_value.first.return_value = None
-            
+
             result = engine.reconcile_conflicts([conflict], ReconciliationStrategy.CACHE_IS_SOURCE_OF_TRUTH)
-        
+
         assert result.success is True
         assert result.conflicts_resolved == 1
         assert result.conflicts_failed == 0
@@ -112,7 +112,7 @@ class TestReconciliationEngine:
         # Create timestamps with cache being newer
         cache_time = datetime(2023, 6, 1, tzinfo=timezone.utc)
         db_time = datetime(2023, 5, 1, tzinfo=timezone.utc)
-        
+
         conflict = DataConflict(
             conflict_type=ConflictType.DATA_MISMATCH,
             entity_type="anime_metadata",
@@ -121,20 +121,20 @@ class TestReconciliationEngine:
             cache_data={"tmdb_id": 12345, "title": "Cache Title", "updated_at": cache_time.isoformat()},
             severity=ConflictSeverity.MEDIUM
         )
-        
+
         with patch.object(engine.db_manager, 'transaction') as mock_transaction:
             mock_session = Mock()
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             # Mock database query to return existing record
             mock_anime = Mock()
             mock_anime.tmdb_id = 12345
             mock_anime.version = 1
             mock_session.query.return_value.filter.return_value.first.return_value = mock_anime
-            
+
             result = engine.reconcile_conflicts([conflict], ReconciliationStrategy.LAST_MODIFIED_WINS)
-        
+
         assert result.success is True
         assert result.conflicts_resolved == 1
         assert result.conflicts_failed == 0
@@ -150,9 +150,9 @@ class TestReconciliationEngine:
             cache_data={"tmdb_id": 12345, "title": "Cache Title"},
             severity=ConflictSeverity.HIGH
         )
-        
+
         result = engine.reconcile_conflicts([conflict], ReconciliationStrategy.MANUAL_REVIEW)
-        
+
         assert result.success is True
         assert result.conflicts_resolved == 1  # Marked for review counts as resolved
         assert result.conflicts_failed == 0
@@ -176,9 +176,9 @@ class TestReconciliationEngine:
                 severity=ConflictSeverity.MEDIUM
             )
         ]
-        
+
         result = engine.reconcile_conflicts(conflicts, ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH)
-        
+
         assert result.success is True
         assert result.conflicts_resolved == 2
         assert result.conflicts_failed == 0
@@ -194,9 +194,9 @@ class TestReconciliationEngine:
             cache_data={"id": 12345, "data": "test"},
             severity=ConflictSeverity.HIGH
         )
-        
+
         result = engine.reconcile_conflicts([conflict], ReconciliationStrategy.CACHE_IS_SOURCE_OF_TRUTH)
-        
+
         assert result.success is False
         assert result.conflicts_resolved == 0
         assert result.conflicts_failed == 1
@@ -209,7 +209,7 @@ class TestReconciliationEngine:
             DataConflict(ConflictType.MISSING_IN_CACHE, "anime_metadata", 2),
             DataConflict(ConflictType.MISSING_IN_DATABASE, "anime_metadata", 3),
         ]
-        
+
         strategy = engine.get_recommended_strategy(conflicts)
         assert strategy == ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH
 
@@ -220,7 +220,7 @@ class TestReconciliationEngine:
             DataConflict(ConflictType.MISSING_IN_DATABASE, "anime_metadata", 2),
             DataConflict(ConflictType.MISSING_IN_CACHE, "anime_metadata", 3),
         ]
-        
+
         strategy = engine.get_recommended_strategy(conflicts)
         assert strategy == ReconciliationStrategy.CACHE_IS_SOURCE_OF_TRUTH
 
@@ -231,7 +231,7 @@ class TestReconciliationEngine:
             DataConflict(ConflictType.DATA_MISMATCH, "anime_metadata", 2),
             DataConflict(ConflictType.MISSING_IN_CACHE, "anime_metadata", 3),
         ]
-        
+
         strategy = engine.get_recommended_strategy(conflicts)
         assert strategy == ReconciliationStrategy.LAST_MODIFIED_WINS
 
@@ -286,12 +286,12 @@ class TestReconciliationEngine:
             },
             severity=ConflictSeverity.HIGH
         )
-        
+
         with patch.object(engine.db_manager, 'transaction') as mock_transaction:
             mock_session = Mock()
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             # Mock existing record
             mock_anime = Mock()
             mock_anime.tmdb_id = 12345
@@ -299,9 +299,9 @@ class TestReconciliationEngine:
             mock_anime.title = "Old Title"
             mock_anime.overview = "Old overview"
             mock_session.query.return_value.filter.return_value.first.return_value = mock_anime
-            
+
             result = engine._update_anime_metadata_from_cache(mock_session, conflict)
-            
+
             assert result is True
             assert mock_anime.title == "Updated Title"
             assert mock_anime.overview == "Updated overview"
@@ -322,17 +322,17 @@ class TestReconciliationEngine:
             },
             severity=ConflictSeverity.HIGH
         )
-        
+
         with patch.object(engine.db_manager, 'transaction') as mock_transaction:
             mock_session = Mock()
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             # Mock no existing record
             mock_session.query.return_value.filter.return_value.first.return_value = None
-            
+
             result = engine._update_anime_metadata_from_cache(mock_session, conflict)
-            
+
             assert result is True
             mock_session.add.assert_called_once()
             mock_session.commit.assert_called_once()
@@ -352,12 +352,12 @@ class TestReconciliationEngine:
             },
             severity=ConflictSeverity.HIGH
         )
-        
+
         with patch.object(engine.db_manager, 'transaction') as mock_transaction:
             mock_session = Mock()
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
-            
+
             # Mock existing record
             mock_file = Mock()
             mock_file.id = 1
@@ -366,9 +366,9 @@ class TestReconciliationEngine:
             mock_file.season = 1
             mock_file.episode = 1
             mock_session.query.return_value.filter.return_value.first.return_value = mock_file
-            
+
             result = engine._update_parsed_file_from_cache(mock_session, conflict)
-            
+
             assert result is True
             assert mock_file.parsed_title == "Updated Title"
             assert mock_file.season == 2

@@ -27,8 +27,8 @@ from .exceptions import (
     MoveValidationError,
 )
 from .file_classifier import FileClassifier
-from .logging_utils import log_operation_error
 from .file_namer import FileNamer
+from .logging_utils import log_operation_error
 from .models import AnimeFile, FileGroup
 
 
@@ -260,7 +260,7 @@ class FileMover:
             for series_title, series_files in series_groups.items():
                 # Use TMDB Korean title if available, otherwise use original title
                 folder_name = self._get_series_folder_name(series_files, series_title)
-                
+
                 # Create series directory
                 series_dir = target_directory / self._sanitize_directory_name(folder_name)
                 series_dir.mkdir(parents=True, exist_ok=True)
@@ -313,7 +313,7 @@ class FileMover:
             if organize_by_series:
                 # Use TMDB Korean title if available, otherwise use group name
                 folder_name = self._get_group_folder_name(group)
-                
+
                 # Create series directory
                 series_dir = target_directory / self._sanitize_directory_name(folder_name)
                 series_dir.mkdir(parents=True, exist_ok=True)
@@ -341,18 +341,20 @@ class FileMover:
 
     def cleanup_empty_directories(self, root_directory: Path) -> list[Path]:
         """Remove empty directories under the root directory.
-        
+
         Args:
             root_directory: Root directory to clean up (this directory itself is not removed)
-            
+
         Returns:
             List of removed directory paths
         """
         removed_dirs = []
-        
+
         try:
             # Walk through all subdirectories
-            for dir_path in sorted(root_directory.rglob('*'), key=lambda p: len(p.parts), reverse=True):
+            for dir_path in sorted(
+                root_directory.rglob("*"), key=lambda p: len(p.parts), reverse=True
+            ):
                 if dir_path.is_dir() and dir_path != root_directory:
                     try:
                         # Check if directory is empty
@@ -362,10 +364,10 @@ class FileMover:
                             self.logger.info(f"Removed empty directory: {dir_path}")
                     except OSError as e:
                         self.logger.warning(f"Could not remove directory {dir_path}: {e}")
-                        
+
         except Exception as e:
             log_operation_error("directory cleanup", e)
-            
+
         self.logger.info(f"Cleanup completed: {len(removed_dirs)} empty directories removed")
         return removed_dirs
 
@@ -632,10 +634,10 @@ class FileMover:
 
     def _get_group_folder_name(self, group: FileGroup) -> str:
         """Get the best folder name for a FileGroup using TMDB title (Korean).
-        
+
         Args:
             group: FileGroup object with TMDB metadata
-            
+
         Returns:
             Best folder name to use
         """
@@ -647,7 +649,7 @@ class FileMover:
                 return tmdb_info.title
             elif tmdb_info.original_title:
                 return tmdb_info.original_title
-        
+
         # Fallback to group name or series title
         if group.group_name:
             return group.group_name
@@ -658,17 +660,17 @@ class FileMover:
 
     def _get_series_folder_name(self, series_files: list[AnimeFile], fallback_title: str) -> str:
         """Get the best folder name for a series, preferring TMDB Korean title.
-        
+
         Args:
             series_files: List of files in the series
             fallback_title: Fallback title if no TMDB info available
-            
+
         Returns:
             Best folder name to use
         """
         # Look for TMDB info in any of the files
         for file in series_files:
-            if hasattr(file, 'file_group') and file.file_group and file.file_group.tmdb_info:
+            if hasattr(file, "file_group") and file.file_group and file.file_group.tmdb_info:
                 tmdb_info = file.file_group.tmdb_info
                 # Prefer Korean title, then original title, then fallback
                 if tmdb_info.korean_title:
@@ -677,7 +679,7 @@ class FileMover:
                     return tmdb_info.original_title
                 elif tmdb_info.title:
                     return tmdb_info.title
-        
+
         # If no TMDB info found, use fallback title
         return fallback_title
 

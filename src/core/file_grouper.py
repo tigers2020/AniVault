@@ -127,7 +127,9 @@ class FileGrouper:
             # Create FileGroup objects for all groups (including single-file groups)
             logger.debug("Creating FileGroup objects...")
             file_groups = self._create_file_groups(groups)
-            logger.info(f"Created {len(file_groups)} FileGroup objects, {len(ungrouped_files)} ungrouped files")
+            logger.info(
+                f"Created {len(file_groups)} FileGroup objects, {len(ungrouped_files)} ungrouped files"
+            )
 
             grouping_duration = time.time() - start_time
             grouped_files = sum(len(group.files) for group in file_groups)
@@ -338,7 +340,9 @@ class FileGrouper:
                 else:
                     # Single file goes to ungrouped
                     ungrouped_files.append(current_group[0])
-                    logger.debug(f"  Added single file to ungrouped. Total ungrouped: {len(ungrouped_files)}")
+                    logger.debug(
+                        f"  Added single file to ungrouped. Total ungrouped: {len(ungrouped_files)}"
+                    )
 
             logger.info(f"Similarity grouping completed: {len(groups)} groups created")
             return groups, ungrouped_files
@@ -355,32 +359,37 @@ class FileGrouper:
         # Check if one is video and one is subtitle - they should be grouped together
         file1_ext = Path(file1.filename).suffix.lower()
         file2_ext = Path(file2.filename).suffix.lower()
-        
+
         # Import here to avoid circular imports
         from .file_scanner import FileScanner
+
         is_video1 = file1_ext in FileScanner.SUPPORTED_EXTENSIONS
         is_video2 = file2_ext in FileScanner.SUPPORTED_EXTENSIONS
         is_subtitle1 = file1_ext in FileScanner.SUBTITLE_EXTENSIONS
         is_subtitle2 = file2_ext in FileScanner.SUBTITLE_EXTENSIONS
-        
+
         # If one is video and one is subtitle, check if they have similar base names
         if (is_video1 and is_subtitle2) or (is_subtitle1 and is_video2):
             # Remove extensions and compare base names
             base_name1 = Path(file1.filename).stem
             base_name2 = Path(file2.filename).stem
             similarity = SequenceMatcher(None, base_name1, base_name2).ratio()
-            
+
             logger.debug(
                 f"Comparing video/subtitle '{base_name1}' vs '{base_name2}': similarity={similarity:.3f}"
             )
-            
+
             # Use a lower threshold for video-subtitle matching
             subtitle_threshold = 0.6  # Lower threshold for subtitle matching
             if similarity >= subtitle_threshold:
-                logger.debug(f"  Video-subtitle files are similar: {similarity:.3f} >= {subtitle_threshold}")
+                logger.debug(
+                    f"  Video-subtitle files are similar: {similarity:.3f} >= {subtitle_threshold}"
+                )
                 return True
             else:
-                logger.debug(f"  Video-subtitle files not similar enough: {similarity:.3f} < {subtitle_threshold}")
+                logger.debug(
+                    f"  Video-subtitle files not similar enough: {similarity:.3f} < {subtitle_threshold}"
+                )
                 return False
 
         # Check base name similarity for same file types

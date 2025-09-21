@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -15,10 +16,12 @@ from ..anime_parser import AnimeParser
 from ..file_grouper import FileGrouper
 from ..file_mover import FileMover
 from ..file_scanner import FileScanner, ScanResult
+from ..logging_utils import log_operation_error
 from ..metadata_cache import MetadataCache
 from ..models import AnimeFile, FileGroup, TMDBAnime
+from ..thread_executor_manager import get_thread_executor_manager
 from ..tmdb_client import TMDBClient, TMDBConfig
-from ..logging_utils import log_operation_error
+from .bulk_update_task import ConcreteBulkUpdateTask
 from .file_pipeline_worker import WorkerTask
 
 # Logger for this module
@@ -160,55 +163,81 @@ class ConcreteFileParsingTask(WorkerTask):
         self._parsed_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """Execute the file parsing.
+        """Execute the file parsing using parallel processing.
 
         Returns:
             List of parsed files
         """
-        logger.debug(f"Starting file parsing for {len(self.files)} files")
+        logger.debug(f"Starting parallel file parsing for {len(self.files)} files")
 
         try:
             # Initialize anime parser
             self._anime_parser = AnimeParser()
 
-            # Parse each file
+            # Parse files in parallel using ThreadPoolExecutor
             self._parsed_files = []
-            for i, file in enumerate(self.files):
-                try:
-                    # Validate that we have an AnimeFile object
-                    if not hasattr(file, "filename"):
-                        error_msg = f"Invalid object type in parsing task: {type(file)}. Expected AnimeFile."
-                        logger.error(error_msg)
-                        raise ValueError(error_msg)
 
-                    # Parse the file
-                    parsed_info = self._anime_parser.parse_filename(file.filename)
-                    if parsed_info:
-                        file.parsed_info = parsed_info
+            # Use ThreadPoolExecutor for parallel file parsing
+            executor_manager = get_thread_executor_manager()
+            with executor_manager.get_general_executor() as executor:
+                # Submit all parsing tasks
+                future_to_file = {
+                    executor.submit(self._parse_single_file, file): file
+                    for file in self.files
+                }
 
-                    self._parsed_files.append(file)
+                # Process completed tasks
+                for future in as_completed(future_to_file):
+                    file = future_to_file[future]
 
-                    # Update progress if callback provided
-                    if self.progress_callback:
-                        progress = int((i + 1) / len(self.files) * 100)
-                        self.progress_callback(progress, len(self.files))
-
-                except Exception as e:
-                    if hasattr(file, "filename"):
+                    try:
+                        processed_file = future.result()
+                        self._parsed_files.append(processed_file)
+                    except Exception as e:
                         logger.warning(f"Failed to parse file {file.filename}: {e}")
                         # Add file with error
                         file.processing_errors.append(f"Parsing failed: {e!s}")
                         self._parsed_files.append(file)
-                    else:
-                        logger.error(f"Invalid object in parsing task: {type(file)} - {e}")
-                        raise
 
-            logger.info(f"File parsing completed: {len(self._parsed_files)} files parsed")
+                    # Update progress if callback provided
+                    if self.progress_callback:
+                        progress = int((len(self._parsed_files) / len(self.files)) * 100)
+                        self.progress_callback(progress, len(self.files))
+
+            logger.info(f"Parallel file parsing completed: {len(self._parsed_files)} files parsed")
             return self._parsed_files
 
         except Exception as e:
             log_operation_error("file parsing", e, exc_info=True)
             raise
+
+    def _parse_single_file(self, file: AnimeFile) -> AnimeFile:
+        """Parse a single file (thread-safe worker function).
+
+        Args:
+            file: AnimeFile to parse
+
+        Returns:
+            AnimeFile with parsed info applied
+        """
+        try:
+            # Validate that we have an AnimeFile object
+            if not hasattr(file, "filename"):
+                error_msg = f"Invalid object type in parsing task: {type(file)}. Expected AnimeFile."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+
+            # Parse the file using the instance parser
+            parsed_info = self._anime_parser.parse_filename(file.filename)
+            if parsed_info:
+                file.parsed_info = parsed_info
+
+            return file
+
+        except Exception as e:
+            # Add error to file and return it
+            file.processing_errors.append(f"Parsing failed: {e!s}")
+            return file
 
     def get_name(self) -> str:
         """Get task name."""
@@ -239,69 +268,97 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
         self._files_with_metadata: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """Execute the metadata retrieval.
+        """Execute the metadata retrieval using parallel processing.
 
         Returns:
             List of files with metadata
         """
-        logger.debug(f"Starting metadata retrieval for {len(self.files)} files")
+        logger.debug(f"Starting parallel metadata retrieval for {len(self.files)} files")
 
         try:
             # Initialize TMDB client
             tmdb_config = TMDBConfig(api_key=self.api_key)
             self._tmdb_client = TMDBClient(tmdb_config)
 
-            # Get metadata for each file
+            # Get metadata for each file using parallel processing
             self._files_with_metadata = []
-            for i, file in enumerate(self.files):
-                try:
-                    if file.parsed_info and file.parsed_info.title:
-                        # Search for anime metadata
-                        search_results = self._tmdb_client.search_tv_series(file.parsed_info.title)
+            
+            # Use ThreadPoolExecutor for parallel TMDB API calls
+            executor_manager = get_thread_executor_manager()
+            with executor_manager.get_tmdb_executor() as executor:
+                # Submit all metadata retrieval tasks
+                future_to_file = {
+                    executor.submit(self._retrieve_metadata_for_file, file): file
+                    for file in self.files
+                }
 
-                        if search_results:
-                            # Use the first (best) result and convert to TMDBAnime
-                            from ..models import TMDBAnime
-
-                            tmdb_data = search_results[0]
-                            file.tmdb_info = TMDBAnime(
-                                tmdb_id=tmdb_data.get("id", 0),
-                                title=tmdb_data.get("name", tmdb_data.get("title", "")),
-                                original_title=tmdb_data.get(
-                                    "original_name", tmdb_data.get("original_title", "")
-                                ),
-                                overview=tmdb_data.get("overview", ""),
-                                release_date=tmdb_data.get(
-                                    "first_air_date", tmdb_data.get("release_date", "")
-                                ),
-                                poster_path=tmdb_data.get("poster_path", ""),
-                                backdrop_path=tmdb_data.get("backdrop_path", ""),
-                                vote_average=tmdb_data.get("vote_average", 0.0),
-                                vote_count=tmdb_data.get("vote_count", 0),
-                                popularity=tmdb_data.get("popularity", 0.0),
-                            )
-
-                    self._files_with_metadata.append(file)
+                # Process completed tasks
+                for future in as_completed(future_to_file):
+                    file = future_to_file[future]
+                    
+                    try:
+                        processed_file = future.result()
+                        self._files_with_metadata.append(processed_file)
+                    except Exception as e:
+                        logger.warning(f"Failed to get metadata for file {file.filename}: {e}")
+                        # Add file with error
+                        file.processing_errors.append(f"Metadata retrieval failed: {e!s}")
+                        self._files_with_metadata.append(file)
 
                     # Update progress if callback provided
                     if self.progress_callback:
-                        progress = int((i + 1) / len(self.files) * 100)
+                        progress = int((len(self._files_with_metadata) / len(self.files)) * 100)
                         self.progress_callback(progress, len(self.files))
 
-                except Exception as e:
-                    logger.warning(f"Failed to get metadata for file {file.filename}: {e}")
-                    # Add file with error
-                    file.processing_errors.append(f"Metadata retrieval failed: {e!s}")
-                    self._files_with_metadata.append(file)
-
             logger.info(
-                f"Metadata retrieval completed: {len(self._files_with_metadata)} files processed"
+                f"Parallel metadata retrieval completed: {len(self._files_with_metadata)} files processed"
             )
             return self._files_with_metadata
 
         except Exception as e:
             log_operation_error("metadata retrieval", e, exc_info=True)
             raise
+
+    def _retrieve_metadata_for_file(self, file: AnimeFile) -> AnimeFile:
+        """Retrieve metadata for a single file.
+
+        Args:
+            file: AnimeFile to retrieve metadata for
+
+        Returns:
+            AnimeFile with metadata applied
+        """
+        try:
+            if file.parsed_info and file.parsed_info.title:
+                # Search for anime metadata
+                search_results = self._tmdb_client.search_tv_series(file.parsed_info.title)
+
+                if search_results:
+                    # Use the first (best) result and convert to TMDBAnime
+                    tmdb_data = search_results[0]
+                    file.tmdb_info = TMDBAnime(
+                        tmdb_id=tmdb_data.get("id", 0),
+                        title=tmdb_data.get("name", tmdb_data.get("title", "")),
+                        original_title=tmdb_data.get(
+                            "original_name", tmdb_data.get("original_title", "")
+                        ),
+                        overview=tmdb_data.get("overview", ""),
+                        release_date=tmdb_data.get(
+                            "first_air_date", tmdb_data.get("release_date", "")
+                        ),
+                        poster_path=tmdb_data.get("poster_path", ""),
+                        backdrop_path=tmdb_data.get("backdrop_path", ""),
+                        vote_average=tmdb_data.get("vote_average", 0.0),
+                        vote_count=tmdb_data.get("vote_count", 0),
+                        popularity=tmdb_data.get("popularity", 0.0),
+                    )
+
+            return file
+
+        except Exception as e:
+            # Add error to file and return it
+            file.processing_errors.append(f"Metadata retrieval failed: {e!s}")
+            return file
 
     def get_name(self) -> str:
         """Get task name."""
@@ -320,7 +377,11 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
     """
 
     def __init__(
-        self, groups: list[FileGroup], api_key: str, progress_callback: Callable | None = None
+        self,
+        groups: list[FileGroup],
+        api_key: str,
+        progress_callback: Callable | None = None,
+        db_manager: Any = None,
     ) -> None:
         """Initialize the group-based metadata retrieval task.
 
@@ -328,6 +389,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             groups: List of file groups to get metadata for
             api_key: TMDB API key
             progress_callback: Optional callback for progress updates
+            db_manager: Database manager instance for batch operations
         """
         self.groups = groups
         self.api_key = api_key
@@ -337,9 +399,11 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         self._pending_group_selection: dict[str, Any] | None = None
         self._viewmodel: Any | None = None  # Will be set by the ViewModel
         self._should_stop = False  # Flag to indicate if task should stop
+        self._db_manager = db_manager  # Database manager for batch operations
+        self._collected_metadata: list[TMDBAnime] = []  # Collect metadata for batch saving
 
     def execute(self) -> list[FileGroup]:
-        """Execute the group-based metadata retrieval.
+        """Execute the group-based metadata retrieval with batch processing.
 
         Returns:
             List of groups with metadata applied to their files
@@ -351,8 +415,11 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             tmdb_config = TMDBConfig(api_key=self.api_key)
             self._tmdb_client = TMDBClient(tmdb_config)
 
-            # Process each group
+            # Initialize batch collection
+            self._collected_metadata = []
             self._processed_groups = []
+
+            # Process each group
             for i, group in enumerate(self.groups):
                 # Check if task should stop
                 if self._should_stop:
@@ -508,6 +575,24 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                         file.processing_errors.append(f"Group metadata retrieval failed: {e!s}")
                     self._processed_groups.append(group)
 
+            # OPTIMIZED: Batch save all collected metadata to database
+            if self._collected_metadata and self._db_manager:
+                try:
+                    logger.info(
+                        f"Batch saving {len(self._collected_metadata)} metadata records to database"
+                    )
+                    inserted_count, updated_count = self._db_manager.batch_save_anime_metadata(
+                        self._collected_metadata
+                    )
+                    logger.info(
+                        f"Batch save completed: {inserted_count} inserted, {updated_count} updated"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to batch save metadata: {e}")
+                    # Continue execution even if batch save fails
+            elif self._collected_metadata:
+                logger.warning("No database manager provided, skipping batch save")
+
             logger.info(
                 f"Group-based metadata retrieval completed: {len(self._processed_groups)} groups processed"
             )
@@ -542,7 +627,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         return None
 
     def _apply_tmdb_metadata_to_group(self, group: FileGroup, tmdb_info: TMDBAnime) -> None:
-        """Apply TMDB metadata to a group and its files.
+        """Apply TMDB metadata to a group and its files with batch processing.
 
         Args:
             group: FileGroup to apply metadata to
@@ -559,6 +644,9 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         # Update group metadata with display title
         group.tmdb_info = tmdb_info
         group.series_title = display_title
+
+        # Collect metadata for batch saving (OPTIMIZED: No more N+1 queries)
+        self._collected_metadata.append(tmdb_info)
 
         logger.info(
             f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files"
@@ -696,9 +784,9 @@ class ConcreteFileMovingTask(WorkerTask):
                                 file.file_path = result.target_path
                                 self._moved_files.append(file)
                                 break
-                # Mark all groups as processed
-                for group in self.groups:
-                    group.is_processed = True
+
+                # OPTIMIZED: Batch update group processing status
+                self._batch_update_group_status(self.groups, is_processed=True)
             else:
                 # Add errors to group files
                 for result in move_results:
@@ -708,6 +796,17 @@ class ConcreteFileMovingTask(WorkerTask):
                                 if file.file_path == result.source_path:
                                     file.processing_errors.append(result.error_message)
                                     break
+
+                # OPTIMIZED: Batch update group processing status for failed groups
+                failed_groups = []
+                for group in self.groups:
+                    for file in group.files:
+                        if file.processing_errors:
+                            failed_groups.append(group)
+                            break
+
+                if failed_groups:
+                    self._batch_update_group_status(failed_groups, is_processed=False)
 
             # Update progress if callback provided
             if self.progress_callback:
@@ -733,6 +832,49 @@ class ConcreteFileMovingTask(WorkerTask):
     def get_progress_message(self) -> str:
         """Get progress message."""
         return f"Moving {len(self.groups)} file groups to target directory"
+
+    def _batch_update_group_status(self, groups: list[FileGroup], is_processed: bool) -> None:
+        """Batch update processing status for file groups.
+
+        This method eliminates N+1 query patterns by collecting all file paths
+        and updating their processing status in a single batch operation.
+
+        Args:
+            groups: List of file groups to update
+            is_processed: New processing status
+        """
+        try:
+            # Collect all file paths from groups
+            file_paths = []
+            for group in groups:
+                for file in group.files:
+                    if hasattr(file, "file_path"):
+                        file_paths.append(str(file.file_path))
+
+            if file_paths:
+                # Create bulk update task for parsed files
+                from ..database import db_manager
+
+                bulk_task = ConcreteBulkUpdateTask(
+                    update_type="parsed_files",
+                    updates=[
+                        {"file_path": path, "is_processed": is_processed} for path in file_paths
+                    ],
+                    db_manager=db_manager,
+                )
+
+                updated_count = bulk_task.execute()
+                logger.info(f"Batch updated {updated_count} files with is_processed={is_processed}")
+
+                # Update group status in memory
+                for group in groups:
+                    group.is_processed = is_processed
+
+        except Exception as e:
+            logger.error(f"Failed to batch update group status: {e}")
+            # Fallback to individual updates
+            for group in groups:
+                group.is_processed = is_processed
 
 
 class ConcreteMetadataCachingTask(WorkerTask):

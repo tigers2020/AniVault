@@ -23,12 +23,12 @@ class TestFileSystemIntegration:
         base_dir = Path(tempfile.mkdtemp())
         source_dir = base_dir / "source"
         target_dir = base_dir / "target"
-        
+
         source_dir.mkdir(parents=True)
         target_dir.mkdir(parents=True)
-        
+
         yield source_dir, target_dir
-        
+
         # Clean up
         import shutil
         shutil.rmtree(base_dir, ignore_errors=True)
@@ -36,7 +36,7 @@ class TestFileSystemIntegration:
     def test_file_scanner_basic_scanning(self, temp_dirs):
         """Test basic file scanning functionality."""
         source_dir, _ = temp_dirs
-        
+
         # Create test files
         test_files = [
             "Attack on Titan S01E01 [1080p].mkv",
@@ -66,7 +66,7 @@ class TestFileSystemIntegration:
     def test_file_grouper_basic_grouping(self, temp_dirs):
         """Test basic file grouping functionality."""
         source_dir, _ = temp_dirs
-        
+
         # Create test files
         test_files = [
             "Attack on Titan S01E01 [1080p] [GroupA].mkv",
@@ -106,7 +106,7 @@ class TestFileSystemIntegration:
     def test_file_mover_basic_moving(self, temp_dirs):
         """Test basic file moving functionality."""
         source_dir, target_dir = temp_dirs
-        
+
         # Create test files
         test_files = [
             "Attack on Titan S01E01 [1080p].mkv",
@@ -137,7 +137,7 @@ class TestFileSystemIntegration:
     def test_file_mover_with_directories(self, temp_dirs):
         """Test file mover with directory creation."""
         source_dir, target_dir = temp_dirs
-        
+
         # Create test file
         test_file = source_dir / "test.mkv"
         test_file.write_text("Test content")
@@ -158,7 +158,7 @@ class TestFileSystemIntegration:
     def test_file_mover_error_handling(self, temp_dirs):
         """Test file mover error handling."""
         source_dir, target_dir = temp_dirs
-        
+
         # Test moving non-existent file
         non_existent_file = source_dir / "non_existent.mkv"
         target_path = target_dir / "non_existent.mkv"
@@ -173,7 +173,7 @@ class TestFileSystemIntegration:
     def test_file_mover_concurrent_operations(self, temp_dirs):
         """Test file mover with concurrent operations."""
         source_dir, target_dir = temp_dirs
-        
+
         # Create test files
         test_files = [f"anime_{i}.mkv" for i in range(5)]
         for filename in test_files:
@@ -217,7 +217,7 @@ class TestFileSystemIntegration:
     def test_file_scanner_with_different_extensions(self, temp_dirs):
         """Test file scanner with different file extensions."""
         source_dir, _ = temp_dirs
-        
+
         # Create test files with different extensions
         test_files = [
             "anime1.mkv",
@@ -239,7 +239,7 @@ class TestFileSystemIntegration:
         # Should find video files but ignore non-video files
         assert scan_result.total_files_found >= 5  # At least the video files
         assert scan_result.supported_files >= 5
-        
+
         # Check that video files are found
         found_filenames = [file.filename for file in scan_result.files]
         for ext in ['.mkv', '.mp4', '.avi', '.mov', '.wmv']:
@@ -248,16 +248,16 @@ class TestFileSystemIntegration:
     def test_file_scanner_recursive_scanning(self, temp_dirs):
         """Test file scanner with recursive directory scanning."""
         source_dir, _ = temp_dirs
-        
+
         # Create nested directory structure
         subdir1 = source_dir / "Season1"
         subdir2 = source_dir / "Season2"
         subdir3 = source_dir / "Extras"
-        
+
         subdir1.mkdir()
         subdir2.mkdir()
         subdir3.mkdir()
-        
+
         # Create files in different directories
         test_files = [
             (subdir1 / "episode1.mkv", "Episode 1 content"),
@@ -276,7 +276,7 @@ class TestFileSystemIntegration:
         # Should find all files in subdirectories
         assert scan_result.total_files_found >= 5
         assert scan_result.supported_files >= 5
-        
+
         # Check that files from all subdirectories are found
         found_paths = [str(file.file_path) for file in scan_result.files]
         for file_path, _ in test_files:

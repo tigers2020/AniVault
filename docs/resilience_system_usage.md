@@ -161,22 +161,22 @@ from src.core.resilience_integration import get_resilience_status
 def collect_metrics():
     """메트릭 수집 함수"""
     status = get_resilience_status()
-    
+
     metrics = {
         'timestamp': time.time(),
         'is_operational': status['is_operational'],
         'cache_only_mode': status['cache_only_mode'],
         'health_status': status['health_status'],
         'cache_hit_rate': (
-            status['cache_statistics']['hits'] / 
+            status['cache_statistics']['hits'] /
             (status['cache_statistics']['hits'] + status['cache_statistics']['misses'])
-            if (status['cache_statistics']['hits'] + status['cache_statistics']['misses']) > 0 
+            if (status['cache_statistics']['hits'] + status['cache_statistics']['misses']) > 0
             else 0
         ),
         'total_failures': status['total_failures'],
         'total_recoveries': status['total_recoveries']
     }
-    
+
     return metrics
 
 # 주기적으로 메트릭 수집

@@ -32,7 +32,7 @@ class TestSchemaValidation:
         with patch('sqlalchemy.inspect') as mock_inspect:
             mock_inspector = Mock()
             mock_inspector.get_table_names.return_value = ['anime_metadata', 'parsed_files']
-            
+
             # Mock columns for anime_metadata table
             anime_columns = [
                 {'name': 'tmdb_id', 'type': 'INTEGER'},
@@ -56,7 +56,7 @@ class TestSchemaValidation:
                 {'name': 'created_at', 'type': 'DATETIME'},
                 {'name': 'updated_at', 'type': 'DATETIME'},
             ]
-            
+
             # Mock columns for parsed_files table
             parsed_columns = [
                 {'name': 'id', 'type': 'INTEGER'},
@@ -85,17 +85,17 @@ class TestSchemaValidation:
                 {'name': 'db_created_at', 'type': 'DATETIME'},
                 {'name': 'db_updated_at', 'type': 'DATETIME'},
             ]
-            
+
             def mock_get_columns(table_name):
                 if table_name == 'anime_metadata':
                     return anime_columns
                 elif table_name == 'parsed_files':
                     return parsed_columns
                 return []
-            
+
             mock_inspector.get_columns.side_effect = mock_get_columns
             mock_inspect.return_value = mock_inspector
-            
+
             result = db_manager.validate_schema()
             assert result is True
 
@@ -105,7 +105,7 @@ class TestSchemaValidation:
             mock_inspector = Mock()
             mock_inspector.get_table_names.return_value = ['anime_metadata']  # Missing parsed_files
             mock_inspect.return_value = mock_inspector
-            
+
             result = db_manager.validate_schema()
             assert result is False
 
@@ -119,7 +119,7 @@ class TestSchemaValidation:
                 # Missing required columns like 'title', 'overview'
             ]
             mock_inspect.return_value = mock_inspector
-            
+
             result = db_manager.validate_schema()
             assert result is False
 
@@ -151,7 +151,7 @@ class TestSchemaValidation:
                 {'name': 'updated_at', 'type': 'DATETIME'},
             ]
             mock_inspect.return_value = mock_inspector
-            
+
             result = db_manager._validate_table_structure('anime_metadata', mock_inspector)
             assert result is True
 
@@ -164,7 +164,7 @@ class TestSchemaValidation:
                 # Missing 'title' column
             ]
             mock_inspector.return_value = mock_inspector
-            
+
             result = db_manager._validate_table_structure('anime_metadata', mock_inspector)
             assert result is False
 
@@ -174,7 +174,7 @@ class TestSchemaValidation:
         assert db_manager._is_type_compatible('INTEGER', 'INTEGER') is True
         assert db_manager._is_type_compatible('TEXT', 'VARCHAR') is True
         assert db_manager._is_type_compatible('REAL', 'FLOAT') is True
-        
+
         # Test incompatible types
         assert db_manager._is_type_compatible('INTEGER', 'TEXT') is False
         assert db_manager._is_type_compatible('TEXT', 'INTEGER') is False
@@ -186,7 +186,7 @@ class TestSchemaValidation:
             # Mock the result tuple directly
             mock_session.execute.return_value.fetchone.return_value = ('3ff80129897d',)
             mock_transaction.return_value.__enter__.return_value = mock_session
-            
+
             version = db_manager.get_schema_version()
             assert version == '3ff80129897d'
 
@@ -196,7 +196,7 @@ class TestSchemaValidation:
             mock_session = Mock()
             mock_session.execute.return_value.fetchone.return_value = None
             mock_transaction.return_value.__enter__.return_value = mock_session
-            
+
             version = db_manager.get_schema_version()
             assert version is None
 
@@ -204,7 +204,7 @@ class TestSchemaValidation:
         """Test schema version retrieval with exception."""
         with patch.object(db_manager, 'transaction') as mock_transaction:
             mock_transaction.side_effect = Exception("Database error")
-            
+
             version = db_manager.get_schema_version()
             assert version is None
 
@@ -212,12 +212,12 @@ class TestSchemaValidation:
         """Test successful schema up-to-date check."""
         with patch.object(db_manager, 'get_schema_version') as mock_get_version:
             mock_get_version.return_value = '3ff80129897d'
-            
+
             with patch('alembic.config.Config') as mock_config:
                 mock_alembic_cfg = Mock()
                 mock_alembic_cfg.get_main_option.return_value = 'alembic'
                 mock_config.return_value = mock_alembic_cfg
-                
+
                 result = db_manager.is_schema_up_to_date()
                 assert result is True
 
@@ -225,7 +225,7 @@ class TestSchemaValidation:
         """Test schema up-to-date check with no version."""
         with patch.object(db_manager, 'get_schema_version') as mock_get_version:
             mock_get_version.return_value = None
-            
+
             result = db_manager.is_schema_up_to_date()
             assert result is False
 
@@ -233,7 +233,7 @@ class TestSchemaValidation:
         """Test schema up-to-date check with exception."""
         with patch.object(db_manager, 'get_schema_version') as mock_get_version:
             mock_get_version.side_effect = Exception("Database error")
-            
+
             result = db_manager.is_schema_up_to_date()
             assert result is False
 
@@ -257,7 +257,7 @@ class TestSchemaValidationIntegration:
     def test_get_schema_version_with_real_database(self, temp_db_manager):
         """Test schema version retrieval with a real database."""
         from sqlalchemy import text
-        
+
         # Create alembic_version table
         with temp_db_manager.transaction() as session:
             session.execute(text("""
@@ -269,6 +269,6 @@ class TestSchemaValidationIntegration:
             session.execute(text(
                 "INSERT INTO alembic_version (version_num) VALUES (:version)"
             ), {'version': 'test_version_123'})
-        
+
         version = temp_db_manager.get_schema_version()
         assert version == 'test_version_123'

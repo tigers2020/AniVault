@@ -32,13 +32,13 @@ def _cleanup_qt_threads():
 def qapp():
     """Create QApplication for the entire test session."""
     from PyQt5.QtWidgets import QApplication
-    
+
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
-    
+
     yield app
-    
+
     # Clean up
     app.processEvents()
     QtCore.QThreadPool.globalInstance().waitForDone(1000)

@@ -19,6 +19,8 @@ from ..core.file_mover import FileMover
 from ..core.file_scanner import FileScanner
 from ..core.metadata_cache import MetadataCache
 from ..core.models import AnimeFile, FileGroup
+from ..core.parallel_pipeline_manager import ParallelPipelineManager
+from ..core.pipeline_stages import PipelineStage
 from ..core.services.file_processing_tasks import (
     ConcreteFileGroupingTask,
     ConcreteFileMovingTask,
@@ -502,7 +504,7 @@ class FileProcessingViewModel(BaseViewModel):
         self._move_files_command(groups)
 
     def _run_full_pipeline_command(self) -> None:
-        """Command to run the complete file processing pipeline."""
+        """Command to run the complete file processing pipeline with parallel execution."""
         directories = self.get_property("scan_directories", [])
         if not directories:
             self.error_occurred.emit("No scan directories configured")
@@ -515,32 +517,111 @@ class FileProcessingViewModel(BaseViewModel):
 
         # Set pipeline state
         self.set_property("is_pipeline_running", True)
-        self.set_property("current_pipeline_step", "Initializing")
+        self.set_property("current_pipeline_step", "Initializing Parallel Pipeline")
         self.processing_pipeline_started.emit()
 
-        # Create full pipeline tasks
-        tasks: list[Any] = []
+        try:
+            # Create parallel pipeline manager
+            pipeline_manager = ParallelPipelineManager(max_workers=4)
 
-        # 1. File scanning
-        tasks.append(ConcreteFileScanningTask(directories, self._get_supported_extensions()))
+            # Define pipeline tasks with dependencies
+            self._setup_pipeline_tasks(pipeline_manager, directories, target_dir)
 
-        # 2. File grouping (will be added after scanning completes)
-        # 3. File parsing (will be added after grouping completes)
-        # 4. Metadata retrieval (will be added after parsing completes)
-        # 5. File moving (will be added after metadata retrieval completes)
+            # Execute the pipeline
+            logger.info("Starting parallel file processing pipeline")
+            results = pipeline_manager.execute_pipeline()
 
-        # Create worker if it doesn't exist
-        if not self.has_worker():
-            self.create_worker()
+            # Handle final results
+            self._handle_pipeline_completion(results)
 
-        # Add initial tasks
-        self.add_worker_tasks(tasks)
+        except Exception as e:
+            logger.error(f"Parallel pipeline execution failed: {e}", exc_info=True)
+            self.error_occurred.emit(f"Pipeline execution failed: {e}")
+            self.set_property("is_pipeline_running", False)
+            self.set_property("current_pipeline_step", "Failed")
 
-        # Start worker
-        if not self.is_worker_running():
-            self.start_worker()
+    def _setup_pipeline_tasks(
+        self, 
+        pipeline_manager: ParallelPipelineManager, 
+        directories: list[str], 
+        target_dir: str
+    ) -> None:
+        """Setup pipeline tasks with their dependencies and handlers.
+        
+        Args:
+            pipeline_manager: The parallel pipeline manager
+            directories: List of directories to scan
+            target_dir: Target directory for file organization
+        """
+        # 1. File scanning (no dependencies)
+        pipeline_manager.add_task_definition(
+            stage=PipelineStage.SCANNING,
+            task_factory=lambda: ConcreteFileScanningTask(directories, self._get_supported_extensions()),
+            dependencies=set(),
+            result_handler=self._handle_scanning_result,
+        )
 
-        logger.info("Started full file processing pipeline")
+        # 2. File grouping (depends on scanning)
+        pipeline_manager.add_task_definition(
+            stage=PipelineStage.GROUPING,
+            task_factory=lambda: ConcreteFileGroupingTask(self._scanned_files, self._similarity_threshold),
+            dependencies={PipelineStage.SCANNING},
+            result_handler=self._handle_grouping_result,
+        )
+
+        # 3. File parsing (depends on grouping, can run in parallel with metadata retrieval)
+        pipeline_manager.add_task_definition(
+            stage=PipelineStage.PARSING,
+            task_factory=lambda: ConcreteFileParsingTask(self._get_files_from_groups()),
+            dependencies={PipelineStage.GROUPING},
+            result_handler=self._handle_parsing_result,
+        )
+
+        # 4. Group-based metadata retrieval (depends on grouping, can run in parallel with parsing)
+        pipeline_manager.add_task_definition(
+            stage=PipelineStage.GROUP_METADATA_RETRIEVAL,
+            task_factory=lambda: ConcreteGroupBasedMetadataRetrievalTask(
+                self._file_groups, 
+                self.get_property("tmdb_api_key", "")
+            ),
+            dependencies={PipelineStage.GROUPING},
+            result_handler=self._handle_group_metadata_result,
+        )
+
+        # 5. File moving (depends on metadata retrieval)
+        pipeline_manager.add_task_definition(
+            stage=PipelineStage.FILE_MOVING,
+            task_factory=lambda: ConcreteFileMovingTask(self._file_groups, target_dir),
+            dependencies={PipelineStage.GROUP_METADATA_RETRIEVAL},
+            result_handler=self._handle_moving_result,
+        )
+
+    def _get_files_from_groups(self) -> list[AnimeFile]:
+        """Get all files from the current file groups.
+        
+        Returns:
+            List of all files from groups
+        """
+        all_files = []
+        for group in self._file_groups:
+            all_files.extend(group.files)
+        return all_files
+
+    def _handle_pipeline_completion(self, results: dict[PipelineStage, Any]) -> None:
+        """Handle the completion of the parallel pipeline.
+        
+        Args:
+            results: Dictionary mapping stage names to their results
+        """
+        logger.info("Parallel pipeline completed successfully")
+        self.set_property("is_pipeline_running", False)
+        self.set_property("current_pipeline_step", "Completed")
+        
+        # Emit final signals based on results
+        if PipelineStage.FILE_MOVING in results:
+            self.files_moved.emit(results[PipelineStage.FILE_MOVING])
+        
+        logger.info("Parallel pipeline execution completed")
 
     def _stop_processing_command(self) -> None:
         """Command to stop current processing."""
@@ -791,7 +872,7 @@ class FileProcessingViewModel(BaseViewModel):
         """
         self.error_occurred.emit(f"{task_name} failed: {error_message}")
         logger.error(f"Worker task error: {task_name} - {error_message}")
-        
+
         # Track failed files based on the task type
         self._track_failed_files(task_name, error_message)
 
@@ -948,7 +1029,7 @@ class FileProcessingViewModel(BaseViewModel):
 
     def _track_failed_files(self, task_name: str, error_message: str) -> None:
         """Track files that failed during processing.
-        
+
         Args:
             task_name: Name of the task that failed
             error_message: Error message describing the failure
@@ -956,7 +1037,7 @@ class FileProcessingViewModel(BaseViewModel):
         # For now, we'll create a generic failed file entry
         # In a more sophisticated implementation, we could track specific files
         from ..core.models import AnimeFile
-        
+
         # Create a placeholder failed file entry
         failed_file = AnimeFile(
             file_path=f"Failed during {task_name}",
@@ -964,13 +1045,13 @@ class FileProcessingViewModel(BaseViewModel):
             file_size=0,
             file_extension=".error",
             created_at=datetime.now(),
-            modified_at=datetime.now()
+            modified_at=datetime.now(),
         )
-        
+
         # Add to failed files list
         self._failed_files.append(failed_file)
         self.set_property("failed_files", self._failed_files)
-        
+
         logger.warning(f"Tracked failed file for task {task_name}: {error_message}")
 
     def clear_failed_files(self) -> None:
@@ -981,7 +1062,7 @@ class FileProcessingViewModel(BaseViewModel):
 
     def get_processing_statistics(self) -> dict[str, Any]:
         """Get comprehensive processing statistics.
-        
+
         Returns:
             Dictionary containing all processing statistics
         """
@@ -1063,6 +1144,15 @@ class FileProcessingViewModel(BaseViewModel):
 
         # Clear all data
         self._clear_results_command()
+
+        # Shutdown ThreadExecutorManager to ensure all threads are properly cleaned up
+        try:
+            from ..core.thread_executor_manager import get_thread_executor_manager
+            executor_manager = get_thread_executor_manager()
+            executor_manager.shutdown_all(wait=True)
+            logger.info("ThreadExecutorManager shutdown completed")
+        except Exception as e:
+            logger.warning(f"Failed to shutdown ThreadExecutorManager: {e}")
 
         # Call parent cleanup
         super().cleanup()

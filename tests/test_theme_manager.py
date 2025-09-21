@@ -22,7 +22,7 @@ class TestThemeManagerSingleton:
         # Ensure QApplication exists
         if QApplication.instance() is None:
             QApplication([])
-        
+
         # Reset ThemeManager singleton state
         ThemeManager._instance = None
         ThemeManager._initialized = False
@@ -60,7 +60,7 @@ class TestThemeManagerColors:
         # Ensure QApplication exists
         if QApplication.instance() is None:
             QApplication([])
-        
+
         # Reset ThemeManager singleton state
         ThemeManager._instance = None
         ThemeManager._initialized = False
@@ -105,7 +105,7 @@ class TestThemeManagerCallbacks:
         # Ensure QApplication exists
         if QApplication.instance() is None:
             QApplication([])
-        
+
         # Reset ThemeManager singleton state
         ThemeManager._instance = None
         ThemeManager._initialized = False
@@ -173,7 +173,7 @@ class TestDarkThemeNewColors:
         # Ensure QApplication exists
         if QApplication.instance() is None:
             QApplication([])
-        
+
         # Reset ThemeManager singleton state
         ThemeManager._instance = None
         ThemeManager._initialized = False
@@ -225,7 +225,7 @@ class TestThemeManagerIntegration:
         # Ensure QApplication exists
         if QApplication.instance() is None:
             QApplication([])
-        
+
         # Reset ThemeManager singleton state
         ThemeManager._instance = None
         ThemeManager._initialized = False

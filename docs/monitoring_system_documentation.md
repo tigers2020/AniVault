@@ -189,7 +189,7 @@ with sync_monitor.monitor_operation(
 ) as metrics:
     # Perform operation
     result = perform_sync_operation()
-    
+
     # Metrics are automatically recorded
     metrics.complete(SyncOperationStatus.SUCCESS, affected_records=1)
 ```

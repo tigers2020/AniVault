@@ -25,12 +25,12 @@ class TestE2EWorkflow:
         base_dir = Path(tempfile.mkdtemp())
         source_dir = base_dir / "source"
         target_dir = base_dir / "target"
-        
+
         source_dir.mkdir(parents=True)
         target_dir.mkdir(parents=True)
-        
+
         yield source_dir, target_dir
-        
+
         # Clean up
         import shutil
         shutil.rmtree(base_dir, ignore_errors=True)
@@ -95,7 +95,7 @@ class TestE2EWorkflow:
             # Test API call - use the mocked client
             tmdb_client = mock_tmdb_class.return_value
             results, success = tmdb_client.search_comprehensive("Attack on Titan")
-            
+
             assert success is True
             assert len(results) > 0
 
@@ -160,7 +160,7 @@ class TestE2EWorkflow:
 
         # Test cache put
         cache.put(test_key, test_data)
-        
+
         # Test cache get
         retrieved_data = cache.get(test_key)
         assert retrieved_data is not None
@@ -211,7 +211,7 @@ class TestE2EWorkflow:
     def test_workflow_with_empty_directories(self, temp_dirs):
         """Test workflow with empty directories."""
         source_dir, target_dir = temp_dirs
-        
+
         # Create empty directory
         empty_dir = source_dir / "empty"
         empty_dir.mkdir()
@@ -248,7 +248,7 @@ class TestE2EWorkflow:
             # Test API call should fail gracefully
             tmdb_client = TMDBClient(TMDBConfig(api_key="test_key"))
             results, success = tmdb_client.search_comprehensive("Test")
-            
+
             assert success is False
             assert results is None
 

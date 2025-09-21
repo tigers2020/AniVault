@@ -213,21 +213,21 @@ class FileClassifier:
 
     def _filter_video_files(self, files: list[AnimeFile]) -> list[AnimeFile]:
         """Filter out subtitle files, keeping only video files.
-        
+
         Args:
             files: List of AnimeFile objects to filter
-            
+
         Returns:
             List of video files only
         """
         from .file_scanner import FileScanner
-        
+
         video_files = []
         for file in files:
-            file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+            file_ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
             if f".{file_ext}" in FileScanner.SUPPORTED_EXTENSIONS:
                 video_files.append(file)
-        
+
         return video_files
 
     def group_by_series(self, files: list[AnimeFile]) -> dict[str, list[AnimeFile]]:

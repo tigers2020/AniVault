@@ -6,10 +6,15 @@ throughout the application to ensure consistent logging behavior.
 
 import logging
 import logging.handlers
+import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, TypeVar
 
 from PyQt5.QtCore import QObject, pyqtSignal
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class QtLogHandler(logging.Handler):
@@ -22,7 +27,7 @@ class QtLogHandler(logging.Handler):
     # Signal emitted when a log message is received
     log_message = pyqtSignal(str, int)  # message, level
 
-    def __init__(self, level: int = logging.NOTSET) -> None:
+    def __init__(self: "QtLogHandler", level: int = logging.NOTSET) -> None:
         """Initialize the Qt log handler.
 
         Args:
@@ -31,7 +36,7 @@ class QtLogHandler(logging.Handler):
         super().__init__(level)
         self.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 
-    def emit(self, record: logging.LogRecord) -> None:
+    def emit(self: "QtLogHandler", record: logging.LogRecord) -> None:
         """Emit a log record as a Qt signal.
 
         Args:
@@ -54,13 +59,17 @@ class LogManager(QObject):
     # Signal emitted when log configuration changes
     config_changed = pyqtSignal()
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self: "LogManager", parent: QObject | None = None) -> None:
         """Initialize the log manager.
 
         Args:
             parent: Parent QObject
         """
         super().__init__(parent)
+
+        # Determine environment and logging configuration
+        self.environment = self._determine_environment()
+        self.debug_enabled = self._should_enable_debug()
 
         # Log directory
         self.log_dir = Path("logs")
@@ -77,11 +86,81 @@ class LogManager(QObject):
         # Configure logging
         self._setup_logging()
 
-    def _setup_logging(self) -> None:
-        """Set up the logging configuration."""
+    def _determine_environment(self: "LogManager") -> str:
+        """Determine the current environment from environment variables or configuration.
+
+        Returns:
+            Environment string: 'production', 'development', or 'debug'
+        """
+        # Check APP_ENV environment variable first
+        app_env = os.getenv("APP_ENV", "").lower()
+        if app_env in ["production", "prod"]:
+            return "production"
+        elif app_env in ["development", "dev"]:
+            return "development"
+        elif app_env in ["debug", "test"]:
+            return "debug"
+
+        # Fallback: check DEBUG environment variable
+        if os.getenv("DEBUG", "").lower() in ["true", "1", "yes"]:
+            return "debug"
+
+        # Default to development for safety
+        return "development"
+
+    def _should_enable_debug(self: "LogManager") -> bool:
+        """Determine if debug logging should be enabled based on environment.
+
+        Returns:
+            True if debug logging should be enabled, False otherwise
+        """
+        return self.environment in ["development", "debug"]
+
+    def _get_console_log_level(self: "LogManager") -> int:
+        """Get the console log level based on environment.
+
+        Returns:
+            Logging level for console output
+        """
+        if self.environment == "production":
+            return logging.WARNING
+        elif self.environment == "development":
+            return logging.INFO
+        else:  # debug
+            return logging.DEBUG
+
+    def _get_file_log_level(self: "LogManager") -> int:
+        """Get the file log level based on environment.
+
+        Returns:
+            Logging level for file output
+        """
+        if self.environment == "production":
+            return logging.INFO
+        else:  # development, debug
+            return logging.DEBUG
+
+    def _get_application_log_level(self: "LogManager") -> int:
+        """Get the application logger level based on environment.
+
+        Returns:
+            Logging level for application loggers
+        """
+        if self.environment == "production":
+            return logging.INFO
+        elif self.environment == "development":
+            return logging.DEBUG
+        else:  # debug
+            return logging.DEBUG
+
+    def _setup_logging(self: "LogManager") -> None:
+        """Set up the logging configuration based on environment."""
         # Get root logger
         root_logger = logging.getLogger()
-        root_logger.setLevel(logging.DEBUG)
+
+        # Set root logger level based on environment
+        root_log_level = logging.DEBUG if self.debug_enabled else logging.INFO
+        root_logger.setLevel(root_log_level)
 
         # Clear existing handlers
         root_logger.handlers.clear()
@@ -92,24 +171,24 @@ class LogManager(QObject):
         )
         simple_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
-        # Console handler (INFO and above)
+        # Console handler with environment-specific level
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(self._get_console_log_level())
         console_handler.setFormatter(simple_formatter)
         root_logger.addHandler(console_handler)
 
-        # File handler for all logs (DEBUG and above)
+        # File handler with environment-specific level
         file_handler = logging.handlers.RotatingFileHandler(
             self.app_log_file,
             maxBytes=10 * 1024 * 1024,
             backupCount=5,
             encoding="utf-8",  # 10MB
         )
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(self._get_file_log_level())
         file_handler.setFormatter(detailed_formatter)
         root_logger.addHandler(file_handler)
 
-        # Error file handler (ERROR and above)
+        # Error file handler (always ERROR and above)
         error_handler = logging.handlers.RotatingFileHandler(
             self.error_log_file,
             maxBytes=5 * 1024 * 1024,
@@ -120,43 +199,48 @@ class LogManager(QObject):
         error_handler.setFormatter(detailed_formatter)
         root_logger.addHandler(error_handler)
 
-        # Debug file handler (DEBUG and above, separate file)
-        debug_handler = logging.handlers.RotatingFileHandler(
-            self.debug_log_file,
-            maxBytes=20 * 1024 * 1024,
-            backupCount=2,
-            encoding="utf-8",  # 20MB
-        )
-        debug_handler.setLevel(logging.DEBUG)
-        debug_handler.setFormatter(detailed_formatter)
-        root_logger.addHandler(debug_handler)
+        # Debug file handler (only if debug is enabled)
+        if self.debug_enabled:
+            debug_handler = logging.handlers.RotatingFileHandler(
+                self.debug_log_file,
+                maxBytes=20 * 1024 * 1024,
+                backupCount=2,
+                encoding="utf-8",  # 20MB
+            )
+            debug_handler.setLevel(logging.DEBUG)
+            debug_handler.setFormatter(detailed_formatter)
+            root_logger.addHandler(debug_handler)
 
         # Configure specific loggers
         self._configure_module_loggers()
 
-        logging.info("Logging system initialized")
+        # Log initialization with environment info
+        logging.info(
+            f"Logging system initialized - Environment: {self.environment}, Debug: {self.debug_enabled}"
+        )
 
-    def _configure_module_loggers(self) -> None:
-        """Configure specific module loggers with appropriate levels."""
-        # PyQt5 loggers (reduce noise)
+    def _configure_module_loggers(self: "LogManager") -> None:
+        """Configure specific module loggers with appropriate levels based on environment."""
+        # PyQt5 loggers (reduce noise in all environments)
         logging.getLogger("PyQt5").setLevel(logging.WARNING)
         logging.getLogger("PyQt5.QtCore").setLevel(logging.WARNING)
         logging.getLogger("PyQt5.QtGui").setLevel(logging.WARNING)
         logging.getLogger("PyQt5.QtWidgets").setLevel(logging.WARNING)
 
-        # Third-party library loggers
+        # Third-party library loggers (reduce noise in all environments)
         logging.getLogger("urllib3").setLevel(logging.WARNING)
         logging.getLogger("requests").setLevel(logging.WARNING)
         logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
-        # Application loggers
-        logging.getLogger("anivault").setLevel(logging.DEBUG)
-        logging.getLogger("anivault.core").setLevel(logging.DEBUG)
-        logging.getLogger("anivault.gui").setLevel(logging.DEBUG)
-        logging.getLogger("anivault.viewmodels").setLevel(logging.DEBUG)
-        logging.getLogger("anivault.utils").setLevel(logging.DEBUG)
+        # Application loggers with environment-specific levels
+        app_log_level = self._get_application_log_level()
+        logging.getLogger("anivault").setLevel(app_log_level)
+        logging.getLogger("anivault.core").setLevel(app_log_level)
+        logging.getLogger("anivault.gui").setLevel(app_log_level)
+        logging.getLogger("anivault.viewmodels").setLevel(app_log_level)
+        logging.getLogger("anivault.utils").setLevel(app_log_level)
 
-    def add_qt_handler(self) -> QtLogHandler:
+    def add_qt_handler(self: "LogManager") -> QtLogHandler:
         """Add Qt handler for UI integration.
 
         Returns:
@@ -173,14 +257,14 @@ class LogManager(QObject):
 
         return self.qt_handler
 
-    def remove_qt_handler(self) -> None:
+    def remove_qt_handler(self: "LogManager") -> None:
         """Remove Qt handler from logging."""
         if self.qt_handler is not None:
             logging.getLogger().removeHandler(self.qt_handler)
             self.qt_handler = None
             logging.info("Qt log handler removed")
 
-    def set_log_level(self, level: int) -> None:
+    def set_log_level(self: "LogManager", level: int) -> None:
         """Set the global log level.
 
         Args:
@@ -190,7 +274,7 @@ class LogManager(QObject):
         logging.info(f"Log level changed to {logging.getLevelName(level)}")
         self.config_changed.emit()
 
-    def set_module_log_level(self, module_name: str, level: int) -> None:
+    def set_module_log_level(self: "LogManager", module_name: str, level: int) -> None:
         """Set log level for a specific module.
 
         Args:
@@ -202,7 +286,7 @@ class LogManager(QObject):
         logging.info(f"Log level for '{module_name}' changed to {logging.getLevelName(level)}")
         self.config_changed.emit()
 
-    def get_log_files(self) -> list[Path]:
+    def get_log_files(self: "LogManager") -> list[Path]:
         """Get list of log files.
 
         Returns:
@@ -210,7 +294,7 @@ class LogManager(QObject):
         """
         return [self.app_log_file, self.error_log_file, self.debug_log_file]
 
-    def clear_logs(self) -> None:
+    def clear_logs(self: "LogManager") -> None:
         """Clear all log files."""
         for log_file in self.get_log_files():
             if log_file.exists():
@@ -218,7 +302,7 @@ class LogManager(QObject):
 
         logging.info("All log files cleared")
 
-    def get_log_size(self) -> dict[str, int]:
+    def get_log_size(self: "LogManager") -> dict[str, int]:
         """Get size of log files in bytes.
 
         Returns:
@@ -233,7 +317,22 @@ class LogManager(QObject):
 
         return sizes
 
-    def cleanup(self) -> None:
+    def get_environment_info(self: "LogManager") -> dict[str, Any]:
+        """Get information about the current logging environment.
+
+        Returns:
+            Dictionary containing environment information
+        """
+        return {
+            "environment": self.environment,
+            "debug_enabled": self.debug_enabled,
+            "console_log_level": logging.getLevelName(self._get_console_log_level()),
+            "file_log_level": logging.getLevelName(self._get_file_log_level()),
+            "application_log_level": logging.getLevelName(self._get_application_log_level()),
+            "debug_file_enabled": self.debug_enabled,
+        }
+
+    def cleanup(self: "LogManager") -> None:
         """Clean up logging resources."""
         logging.info("Cleaning up logging system")
 
@@ -264,6 +363,17 @@ def get_log_manager() -> LogManager:
     return _log_manager
 
 
+def reset_log_manager() -> None:
+    """Reset the global log manager instance.
+
+    This is useful for testing or when environment variables change.
+    """
+    global _log_manager
+    if _log_manager is not None:
+        _log_manager.cleanup()
+        _log_manager = None
+
+
 def setup_logging() -> LogManager:
     """Set up logging for the application.
 
@@ -288,7 +398,7 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def log_function_call(func):
+def log_function_call(func: F) -> F:
     """Decorator to log function calls.
 
     Args:
@@ -312,7 +422,7 @@ def log_function_call(func):
     return wrapper
 
 
-def log_class_methods(cls):
+def log_class_methods(cls: type) -> type:
     """Class decorator to add logging to all methods.
 
     Args:

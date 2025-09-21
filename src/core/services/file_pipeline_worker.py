@@ -154,7 +154,7 @@ class FilePipelineWorker(QThread):
         """Force the worker to stop immediately."""
         with self._state_mutex:
             self._should_stop = True
-        
+
         # Try graceful shutdown first
         if self.isRunning():
             self.quit()
@@ -162,7 +162,7 @@ class FilePipelineWorker(QThread):
                 # If graceful shutdown fails, terminate
                 self.terminate()
                 self.wait(1000)  # Wait for termination
-        
+
         logger.warning("Worker force stopped")
 
     def run(self) -> None:

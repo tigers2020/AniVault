@@ -1,15 +1,17 @@
 """Logging utilities for consistent logging across all levels (debug, info, warning, error)."""
 
 import logging
-from typing import Any, Optional, Union, Iterable
 from functools import wraps
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def log_operation_error(operation_name: str, error: Exception, additional_context: Optional[str] = None) -> None:
+def log_operation_error(
+    operation_name: str, error: Exception, additional_context: str | None = None
+) -> None:
     """Log operation errors with consistent formatting.
-    
+
     Args:
         operation_name: Name of the operation that failed
         error: The exception that occurred
@@ -19,9 +21,11 @@ def log_operation_error(operation_name: str, error: Exception, additional_contex
     logger.error(f"Failed to {operation_name}: {error}{context_msg}")
 
 
-def log_database_error(operation_name: str, error: Exception, table_name: Optional[str] = None) -> None:
+def log_database_error(
+    operation_name: str, error: Exception, table_name: str | None = None
+) -> None:
     """Log database operation errors with consistent formatting.
-    
+
     Args:
         operation_name: Name of the database operation that failed
         error: The exception that occurred
@@ -31,9 +35,11 @@ def log_database_error(operation_name: str, error: Exception, table_name: Option
     logger.error(f"Failed to {operation_name}{table_msg}: {error}")
 
 
-def log_bulk_operation_error(operation_name: str, error: Exception, record_type: str, count: Optional[int] = None) -> None:
+def log_bulk_operation_error(
+    operation_name: str, error: Exception, record_type: str, count: int | None = None
+) -> None:
     """Log bulk operation errors with consistent formatting.
-    
+
     Args:
         operation_name: Name of the bulk operation that failed
         error: The exception that occurred
@@ -46,7 +52,7 @@ def log_bulk_operation_error(operation_name: str, error: Exception, record_type:
 
 def log_schema_error(error_type: str, error_details: Any) -> None:
     """Log schema-related errors with consistent formatting.
-    
+
     Args:
         error_type: Type of schema error
         error_details: Details about the error
@@ -55,19 +61,19 @@ def log_schema_error(error_type: str, error_details: Any) -> None:
 
 
 def handle_database_operation_error(
-    operation_name: str, 
-    error: Exception, 
+    operation_name: str,
+    error: Exception,
     return_value: Any = None,
-    table_name: Optional[str] = None
+    table_name: str | None = None,
 ) -> Any:
     """Handle database operation errors with consistent logging and return value.
-    
+
     Args:
         operation_name: Name of the operation that failed
         error: The exception that occurred
         return_value: Value to return after logging the error
         table_name: Optional table name for additional context
-        
+
     Returns:
         The provided return_value
     """
@@ -77,14 +83,15 @@ def handle_database_operation_error(
 
 def error_handler_decorator(operation_name: str, return_value: Any = None):
     """Decorator for consistent error handling in database operations.
-    
+
     Args:
         operation_name: Name of the operation for logging
         return_value: Value to return on error
-        
+
     Returns:
         Decorator function
     """
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -93,7 +100,9 @@ def error_handler_decorator(operation_name: str, return_value: Any = None):
             except Exception as e:
                 log_operation_error(operation_name, e)
                 return return_value
+
         return wrapper
+
     return decorator
 
 
@@ -137,7 +146,7 @@ def handle_table_validation_error(table_name: str, error: Exception) -> None:
 # Generic logging utilities for all levels
 def log_operation(level: int, operation_name: str, message: str, *args, **kwargs) -> None:
     """Generic operation logging with consistent formatting.
-    
+
     Args:
         level: Logging level (logging.DEBUG, logging.INFO, etc.)
         operation_name: Name of the operation
@@ -145,7 +154,9 @@ def log_operation(level: int, operation_name: str, message: str, *args, **kwargs
         *args: Additional format arguments
         **kwargs: Additional logging keyword arguments
     """
-    formatted_msg = f"{operation_name}: {message}".format(*args) if args else f"{operation_name}: {message}"
+    formatted_msg = (
+        f"{operation_name}: {message}".format(*args) if args else f"{operation_name}: {message}"
+    )
     logger.log(level, formatted_msg, **kwargs)
 
 
@@ -164,7 +175,9 @@ def log_operation_warning(operation_name: str, message: str, *args, **kwargs) ->
     log_operation(logging.WARNING, operation_name, message, *args, **kwargs)
 
 
-def log_operation_error(operation_name: str, error: Exception, level: int = logging.ERROR, exc_info: bool = False) -> None:
+def log_operation_error(
+    operation_name: str, error: Exception, level: int = logging.ERROR, exc_info: bool = False
+) -> None:
     """Logs an error for a given operation."""
     logger.log(level, f"Operation '{operation_name}' failed: {error}", exc_info=exc_info)
 
@@ -186,7 +199,9 @@ def log_database_operation(level: int, operation: str, entity: str, *args, **kwa
     logger.log(level, message, **kwargs)
 
 
-def log_circuit_breaker_operation(level: int, operation: str, op_name: str, *args, **kwargs) -> None:
+def log_circuit_breaker_operation(
+    level: int, operation: str, op_name: str, *args, **kwargs
+) -> None:
     """Log circuit breaker operations with consistent formatting."""
     message = f"{operation} for operation: {op_name}"
     if args:

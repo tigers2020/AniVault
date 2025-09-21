@@ -120,9 +120,11 @@ class MainWindow(QMainWindow):
             payload = task.payload
             query = payload.get("query", "")
             results = payload.get("results", [])
-            
+
             # 디버깅을 위한 로그 추가
-            logger.info(f"Creating TMDB selection dialog: query='{query}', results_count={len(results)}")
+            logger.info(
+                f"Creating TMDB selection dialog: query='{query}', results_count={len(results)}"
+            )
             if results:
                 logger.debug(f"First result: {results[0] if results else 'None'}")
 
@@ -431,7 +433,7 @@ class MainWindow(QMainWindow):
         try:
             # Get TMDB API key from ViewModel
             api_key = self.file_processing_vm.get_property("tmdb_api_key", "")
-            
+
             if not api_key:
                 logger.warning("TMDB API key not available")
                 self.log_panel.add_log("TMDB API 키가 설정되지 않았습니다.")
@@ -439,19 +441,19 @@ class MainWindow(QMainWindow):
 
             # Create TMDB selection dialog
             dialog = TMDBSelectionDialog(self, self.theme_manager, api_key)
-            
+
             # Set initial search query to the group's series title
             search_query = group.series_title or group.group_id
             dialog.set_initial_search(search_query)
-            
+
             # Connect dialog result signal
             dialog.result_selected.connect(
                 lambda result: self._on_tmdb_result_selected_for_group(group, result)
             )
-            
+
             # Show dialog
             dialog.exec_()
-            
+
         except Exception as e:
             logger.error(f"Failed to open TMDB manual search dialog: {e}")
             self.log_panel.add_log(f"TMDB 검색 다이얼로그 열기 실패: {e}")
@@ -466,39 +468,39 @@ class MainWindow(QMainWindow):
         try:
             logger.info(f"Updating group metadata: {group.series_title}")
             self.log_panel.add_log(f"그룹 메타데이터 업데이트 중: {group.series_title}")
-            
+
             # Update group metadata with TMDB result
             if "name" in tmdb_result:
                 group.series_title = tmdb_result["name"]
-            
+
             if "overview" in tmdb_result:
                 group.description = tmdb_result["overview"]
-            
+
             if "first_air_date" in tmdb_result:
                 group.release_date = tmdb_result["first_air_date"]
-            
+
             if "poster_path" in tmdb_result:
                 group.poster_path = tmdb_result["poster_path"]
-            
+
             if "id" in tmdb_result:
                 group.tmdb_id = str(tmdb_result["id"])
-            
+
             # Update the group in the ViewModel
             groups = self.file_processing_vm.get_property("file_groups", [])
             for i, g in enumerate(groups):
                 if g.group_id == group.group_id:
                     groups[i] = group
                     break
-            
+
             # Trigger property change to update UI
             self.file_processing_vm.set_property("file_groups", groups)
-            
+
             # Refresh the result panel to show updated data
             self.result_panel.update_groups(groups)
-            
+
             logger.info(f"Group metadata updated successfully: {group.series_title}")
             self.log_panel.add_log(f"그룹 메타데이터 업데이트 완료: {group.series_title}")
-            
+
         except Exception as e:
             logger.error(f"Failed to update group metadata: {e}")
             self.log_panel.add_log(f"그룹 메타데이터 업데이트 실패: {e}")
@@ -951,7 +953,7 @@ class MainWindow(QMainWindow):
 
             stat_widget = self._create_stat_card(label, value, color_name)
             stats_layout.addWidget(stat_widget, row, col)
-            
+
             # Store reference to the stat card for later updates
             self.stats_cards[label] = stat_widget
 
@@ -1038,14 +1040,14 @@ class MainWindow(QMainWindow):
 
     def _update_stat_card(self, label: str, new_value: str) -> None:
         """Update a statistics card with new value.
-        
+
         Args:
             label: The label of the stat card to update
             new_value: The new value to display
         """
         if not hasattr(self, "stats_cards") or label not in self.stats_cards:
             return
-            
+
         card = self.stats_cards[label]
         if hasattr(card, "value_label"):
             card.value_label.setText(new_value)

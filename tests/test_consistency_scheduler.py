@@ -77,9 +77,9 @@ class TestConsistencyJob:
     def test_job_execution_success_no_conflicts(self, job, mock_validator, mock_reconciliation_engine, mock_reporter):
         """Test successful job execution with no conflicts."""
         mock_validator.validate_all_consistency.return_value = []
-        
+
         result = job.execute()
-        
+
         assert result["job_id"] == "test_job"
         assert result["report_id"] == 1
         assert result["status"] == "success"
@@ -88,12 +88,12 @@ class TestConsistencyJob:
         assert result["conflicts_failed"] == 0
         assert result["strategy_used"] == "database_is_source_of_truth"
         assert result["reconciliation_success"] is True
-        
+
         # Check reporter calls
         mock_reporter.create_report.assert_called_once()
         mock_reporter.update_report_with_conflicts.assert_called_once()
         mock_reporter.update_report_with_resolution.assert_called_once()
-        
+
         # Check job state
         assert job.last_run is not None
         assert job.run_count == 1
@@ -112,7 +112,7 @@ class TestConsistencyJob:
             )
         ]
         mock_validator.validate_all_consistency.return_value = conflicts
-        
+
         # Mock reconciliation result
         reconciliation_result = ReconciliationResult(
             success=True,
@@ -123,9 +123,9 @@ class TestConsistencyJob:
             errors=[]
         )
         mock_reconciliation_engine.reconcile_conflicts.return_value = reconciliation_result
-        
+
         result = job.execute()
-        
+
         assert result["job_id"] == "test_job"
         assert result["report_id"] == 1
         assert result["status"] == "success"
@@ -134,7 +134,7 @@ class TestConsistencyJob:
         assert result["conflicts_failed"] == 0
         assert len(result["conflicts"]) == 1
         assert len(result["reconciliation_details"]) == 1
-        
+
         # Check reporter calls
         mock_reporter.create_report.assert_called_once()
         mock_reporter.update_report_with_conflicts.assert_called_once()
@@ -143,9 +143,9 @@ class TestConsistencyJob:
     def test_job_execution_error(self, job, mock_validator, mock_reporter):
         """Test job execution with error."""
         mock_validator.validate_all_consistency.side_effect = Exception("Validation failed")
-        
+
         result = job.execute()
-        
+
         assert result["job_id"] == "test_job"
         assert result["report_id"] == 1
         assert result["status"] == "error"
@@ -153,11 +153,11 @@ class TestConsistencyJob:
         assert result["conflicts_found"] == 0
         assert result["conflicts_resolved"] == 0
         assert result["conflicts_failed"] == 0
-        
+
         # Check reporter calls
         mock_reporter.create_report.assert_called_once()
         mock_reporter.update_report_with_error.assert_called_once()
-        
+
         # Check job state
         assert job.last_run is not None
         assert job.run_count == 1
@@ -166,13 +166,13 @@ class TestConsistencyJob:
     def test_job_execution_disabled(self, job):
         """Test job execution when disabled."""
         job.enabled = False
-        
+
         result = job.execute()
-        
+
         assert result["job_id"] == "test_job"
         assert result["status"] == "disabled"
         assert result["message"] == "Job is disabled"
-        
+
         # Check job state (should not change)
         assert job.last_run is None
         assert job.run_count == 0
@@ -187,9 +187,9 @@ class TestConsistencyJob:
             severity=ConflictSeverity.HIGH,
             details="Version mismatch detected"
         )
-        
+
         result = job._conflict_to_dict(conflict)
-        
+
         assert result["conflict_type"] == "version_mismatch"
         assert result["entity_type"] == "anime_metadata"
         assert result["entity_id"] == 12345
@@ -231,7 +231,7 @@ class TestConsistencyScheduler:
             strategy=ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH,
             enabled=True
         )
-        
+
         assert job.job_id == "test_job"
         assert job.enabled is True
         assert job.strategy == ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH
@@ -241,12 +241,12 @@ class TestConsistencyScheduler:
     def test_remove_job(self, scheduler):
         """Test removing a job from the scheduler."""
         scheduler.add_job("test_job", 300)
-        
+
         result = scheduler.remove_job("test_job")
-        
+
         assert result is True
         assert "test_job" not in scheduler.jobs
-        
+
         # Try to remove non-existent job
         result = scheduler.remove_job("nonexistent")
         assert result is False
@@ -254,11 +254,11 @@ class TestConsistencyScheduler:
     def test_run_job_now(self, scheduler):
         """Test running a job immediately."""
         job = scheduler.add_job("test_job", 300)
-        
+
         with patch.object(job, 'execute') as mock_execute:
             mock_execute.return_value = {"status": "success"}
             result = scheduler.run_job_now("test_job")
-        
+
         assert result is not None
         assert result["status"] == "success"
         mock_execute.assert_called_once()
@@ -273,14 +273,14 @@ class TestConsistencyScheduler:
         job1 = scheduler.add_job("job1", 300, enabled=True)
         job2 = scheduler.add_job("job2", 300, enabled=False)  # Disabled
         job3 = scheduler.add_job("job3", 300, enabled=True)
-        
+
         with patch.object(job1, 'execute') as mock_execute1, \
              patch.object(job3, 'execute') as mock_execute3:
             mock_execute1.return_value = {"status": "success", "job_id": "job1"}
             mock_execute3.return_value = {"status": "success", "job_id": "job3"}
-            
+
             results = scheduler.run_all_jobs_now()
-        
+
         assert len(results) == 2  # Only enabled jobs
         assert "job1" in results
         assert "job2" not in results
@@ -291,9 +291,9 @@ class TestConsistencyScheduler:
     def test_get_job_status(self, scheduler):
         """Test getting job status."""
         job = scheduler.add_job("test_job", 300)
-        
+
         status = scheduler.get_job_status("test_job")
-        
+
         assert status is not None
         assert status["job_id"] == "test_job"
         assert status["enabled"] is True
@@ -311,9 +311,9 @@ class TestConsistencyScheduler:
         """Test getting status for all jobs."""
         scheduler.add_job("job1", 300)
         scheduler.add_job("job2", 600)
-        
+
         all_status = scheduler.get_all_job_status()
-        
+
         assert len(all_status) == 2
         assert "job1" in all_status
         assert "job2" in all_status
@@ -322,18 +322,18 @@ class TestConsistencyScheduler:
         """Test adding a callback function."""
         callback = Mock()
         scheduler.add_callback(callback)
-        
+
         assert callback in scheduler.callbacks
 
     def test_remove_callback(self, scheduler):
         """Test removing a callback function."""
         callback = Mock()
         scheduler.add_callback(callback)
-        
+
         result = scheduler.remove_callback(callback)
         assert result is True
         assert callback not in scheduler.callbacks
-        
+
         # Try to remove non-existent callback
         result = scheduler.remove_callback(Mock())
         assert result is False
@@ -342,30 +342,30 @@ class TestConsistencyScheduler:
         """Test callback notification after job execution."""
         callback = Mock()
         scheduler.add_callback(callback)
-        
+
         job = scheduler.add_job("test_job", 300)
-        
+
         with patch.object(job, 'execute') as mock_execute:
             mock_execute.return_value = {"status": "success"}
             scheduler.run_job_now("test_job")
-        
+
         callback.assert_called_once_with({"status": "success"})
 
     def test_callback_error_handling(self, scheduler):
         """Test error handling in callbacks."""
         def failing_callback(result):
             raise Exception("Callback failed")
-        
+
         callback = Mock()
         scheduler.add_callback(failing_callback)
         scheduler.add_callback(callback)
-        
+
         job = scheduler.add_job("test_job", 300)
-        
+
         with patch.object(job, 'execute') as mock_execute:
             mock_execute.return_value = {"status": "success"}
             scheduler.run_job_now("test_job")
-        
+
         # Both callbacks should be called despite the first one failing
         callback.assert_called_once_with({"status": "success"})
 
@@ -376,7 +376,7 @@ class TestConsistencyScheduler:
         assert scheduler.running is True
         assert scheduler.scheduler_thread is not None
         assert scheduler.scheduler_thread.is_alive()
-        
+
         # Stop scheduler
         scheduler.stop_scheduler()
         assert scheduler.running is False
@@ -385,7 +385,7 @@ class TestConsistencyScheduler:
         """Test starting scheduler when already running."""
         scheduler.start_scheduler()
         assert scheduler.running is True
-        
+
         # Try to start again
         scheduler.start_scheduler()
         assert scheduler.running is True
@@ -404,7 +404,7 @@ class TestGlobalScheduler:
         """Test getting global scheduler instance."""
         scheduler1 = get_global_scheduler()
         scheduler2 = get_global_scheduler()
-        
+
         # Should return the same instance
         assert scheduler1 is scheduler2
 
@@ -416,7 +416,7 @@ class TestGlobalScheduler:
             strategy=ReconciliationStrategy.LAST_MODIFIED_WINS,
             enabled=True
         )
-        
+
         assert job.job_id == "global_test_job"
         assert job.strategy == ReconciliationStrategy.LAST_MODIFIED_WINS
         assert job.enabled is True
@@ -425,11 +425,11 @@ class TestGlobalScheduler:
         """Test starting and stopping the global scheduler."""
         # Start global scheduler
         start_global_scheduler(check_interval=1)
-        
+
         # Get scheduler and check it's running
         scheduler = get_global_scheduler()
         assert scheduler.running is True
-        
+
         # Stop global scheduler
         stop_global_scheduler()
         assert scheduler.running is False
@@ -439,33 +439,33 @@ class TestGlobalScheduler:
         # Create a mock database manager for the reporter
         mock_db_manager = Mock()
         mock_session = Mock()
-        
+
         # Create a context manager mock
         context_manager = Mock()
         context_manager.__enter__ = Mock(return_value=mock_session)
         context_manager.__exit__ = Mock(return_value=None)
         mock_db_manager.get_session.return_value = context_manager
-        
+
         # Mock the report object with proper datetime attributes
         mock_report = Mock()
         mock_report.id = 1
         mock_report.started_at = datetime.now(timezone.utc)
         mock_session.get.return_value = mock_report
-        
+
         # Add a job with proper reporter
         job = add_global_job("integration_test", 300, db_manager=mock_db_manager)
-        
+
         # Start scheduler
         start_global_scheduler(check_interval=1)
-        
+
         try:
             # Run job immediately
             scheduler = get_global_scheduler()
             result = scheduler.run_job_now("integration_test")
-            
+
             assert result is not None
             assert result["job_id"] == "integration_test"
-            
+
         finally:
             # Clean up
             stop_global_scheduler()

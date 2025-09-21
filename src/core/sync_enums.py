@@ -1,5 +1,4 @@
-"""
-Enums for synchronization operations and monitoring.
+"""Enums for synchronization operations and monitoring.
 
 This module contains shared enums used across the synchronization system
 to avoid circular import issues.
@@ -10,6 +9,7 @@ from enum import Enum
 
 class SyncOperationType(Enum):
     """Types of synchronization operations."""
+
     READ_THROUGH = "read_through"
     WRITE_THROUGH = "write_through"
     BULK_INSERT = "bulk_insert"
@@ -23,6 +23,7 @@ class SyncOperationType(Enum):
 
 class SyncOperationStatus(Enum):
     """Status of synchronization operations."""
+
     STARTED = "started"
     SUCCESS = "success"
     FAILED = "failed"
@@ -34,5 +35,6 @@ class SyncOperationStatus(Enum):
 
 class SyncEntityType(Enum):
     """Types of entities that can be synchronized."""
+
     TMDB_ANIME = "tmdb_anime"
     PARSED_FILES = "parsed_files"

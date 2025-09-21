@@ -183,11 +183,10 @@ class TMDBClient:
         tmdb.language = self.config.language
 
         # Update session parameters if available
-        if hasattr(tmdb, 'REQUESTS_SESSION') and tmdb.REQUESTS_SESSION is not None:
-            tmdb.REQUESTS_SESSION.params.update({
-                'api_key': self.config.api_key,
-                'language': self.config.language
-            })
+        if hasattr(tmdb, "REQUESTS_SESSION") and tmdb.REQUESTS_SESSION is not None:
+            tmdb.REQUESTS_SESSION.params.update(
+                {"api_key": self.config.api_key, "language": self.config.language}
+            )
 
         logger.debug("TMDB API configured with language: %s", self.config.language)
 

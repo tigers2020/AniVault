@@ -122,7 +122,7 @@ class TMDBSelectionDialog(QDialog):
         self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.results_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.results_table.setAlternatingRowColors(True)
-        
+
         # 선택 가능하도록 설정
         self.results_table.setFocusPolicy(Qt.StrongFocus)
         self.results_table.setTabKeyNavigation(True)
@@ -175,8 +175,10 @@ class TMDBSelectionDialog(QDialog):
 
     def set_initial_search(self, query: str, results: list[dict[str, Any]] | None = None):
         """초기 검색어와 결과 설정"""
-        logger.info(f"Setting initial search: query='{query}', results_count={len(results) if results else 0}")
-        
+        logger.info(
+            f"Setting initial search: query='{query}', results_count={len(results) if results else 0}"
+        )
+
         self.search_input.setText(query)
         if results:
             logger.info(f"Displaying {len(results)} pre-loaded results")
@@ -303,9 +305,11 @@ class TMDBSelectionDialog(QDialog):
         current_row = self.results_table.currentRow()
         has_selection = current_row >= 0 and current_row < len(self.search_results)
         self.select_btn.setEnabled(has_selection)
-        
+
         # 디버깅을 위한 로그
-        logger.debug(f"Selection changed: row={current_row}, has_selection={has_selection}, total_results={len(self.search_results)}")
+        logger.debug(
+            f"Selection changed: row={current_row}, has_selection={has_selection}, total_results={len(self.search_results)}"
+        )
 
     def _select_result(self, result: dict):
         """결과를 자동으로 선택"""
@@ -316,15 +320,19 @@ class TMDBSelectionDialog(QDialog):
     def _on_select_clicked(self):
         """선택 버튼 클릭 시"""
         current_row = self.results_table.currentRow()
-        logger.debug(f"Select button clicked: current_row={current_row}, total_results={len(self.search_results)}")
-        
+        logger.debug(
+            f"Select button clicked: current_row={current_row}, total_results={len(self.search_results)}"
+        )
+
         if current_row >= 0 and current_row < len(self.search_results):
             self.selected_result = self.search_results[current_row]
             logger.info(f"Selected result: {self.selected_result.get('name', 'Unknown')}")
             self.result_selected.emit(self.selected_result)
             self.accept()
         else:
-            logger.warning(f"Invalid selection: row={current_row}, total_results={len(self.search_results)}")
+            logger.warning(
+                f"Invalid selection: row={current_row}, total_results={len(self.search_results)}"
+            )
             QMessageBox.warning(self, "선택 오류", "유효한 항목을 선택해주세요.")
 
     def get_selected_result(self) -> dict[str, Any] | None:

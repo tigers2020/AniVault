@@ -249,7 +249,7 @@ class TestFilePipelineWorker:
         # Clean up worker properly - force stop if still running
         if worker.is_running():
             worker.force_stop()
-        
+
         # Wait a bit for cleanup
         import time
         time.sleep(0.1)
@@ -277,7 +277,7 @@ class TestFilePipelineWorker:
         # Clean up worker properly - force stop if still running
         if worker.is_running():
             worker.force_stop()
-        
+
         # Wait a bit for cleanup
         import time
         time.sleep(0.1)
@@ -324,7 +324,7 @@ class TestFilePipelineWorker:
         # Use qtbot.waitSignal for proper event loop handling
         with qtbot.waitSignal(worker.task_error, timeout=5000) as error_signal, \
              qtbot.waitSignal(worker.task_finished, timeout=5000) as finished_signal:
-            
+
             worker.add_task(FailingTask())
             worker.start()
 
@@ -341,7 +341,7 @@ class TestFilePipelineWorker:
         # Ensure worker is properly stopped
         if worker.is_running():
             worker.force_stop()
-        
+
         # Wait for worker to actually stop
         qtbot.waitUntil(lambda: not worker.is_running(), timeout=1000)
 
@@ -357,7 +357,7 @@ class TestFilePipelineWorkerIntegration:
         # Create worker directly to avoid signal connection issues
         worker = FilePipelineWorker()
         viewmodel._worker = worker
-        
+
         assert viewmodel.has_worker()
         assert not viewmodel.is_worker_running()
 
@@ -379,13 +379,13 @@ class TestFilePipelineWorkerIntegration:
         import time
         start_time = time.time()
         timeout = 5.0  # 5 seconds
-        
+
         while time.time() - start_time < timeout:
             if not viewmodel.is_worker_running():
                 break
             time.sleep(0.1)
             QtCore.QCoreApplication.processEvents()
-        
+
         assert not viewmodel.is_worker_running()
 
         # Clean up worker properly
@@ -416,13 +416,13 @@ class TestFilePipelineWorkerIntegration:
         import time
         start_time = time.time()
         timeout = 5.0  # 5 seconds
-        
+
         while time.time() - start_time < timeout:
             if not viewmodel.is_worker_running():
                 break
             time.sleep(0.1)
             QtCore.QCoreApplication.processEvents()
-        
+
         assert not viewmodel.is_worker_running()
 
         # Clean up worker properly

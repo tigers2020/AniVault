@@ -30,7 +30,7 @@ class TestPanelRefactoring:
         # Ensure QApplication exists
         if QApplication.instance() is None:
             QApplication([])
-        
+
         # Reset ThemeManager singleton state
         from src.themes.theme_manager import ThemeManager
         ThemeManager._instance = None

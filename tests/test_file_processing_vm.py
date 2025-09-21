@@ -276,7 +276,7 @@ class TestFileProcessingViewModel:
         # Check that the command executed successfully
         # The command should have created a worker and added a task
         assert viewmodel.has_worker(), "Worker should be created after scan_files command"
-        
+
         # The command should have executed without errors
         # We don't need to wait for completion since the command itself is what we're testing
 
@@ -332,7 +332,7 @@ class TestFileProcessingViewModel:
         # Check that the command executed successfully
         # The command should have created a worker and added a task
         assert viewmodel.has_worker(), "Worker should be created after move_files command"
-        
+
         # Clean up any created directories to prevent teardown issues
         try:
             import shutil

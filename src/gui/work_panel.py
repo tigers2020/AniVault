@@ -260,7 +260,11 @@ class WorkPanel(QGroupBox):
                     f"DEBUG: execute_command method: {self._viewmodel.execute_command}"
                 )  # 강제 출력
 
-        if self._viewmodel and hasattr(self._viewmodel, "execute_command") and callable(self._viewmodel.execute_command):
+        if (
+            self._viewmodel
+            and hasattr(self._viewmodel, "execute_command")
+            and callable(self._viewmodel.execute_command)
+        ):
             logger.debug("ViewModel and execute_command method available")
             # Get source path and set as scan directory
             source_path = self.get_source_path()
@@ -297,7 +301,11 @@ class WorkPanel(QGroupBox):
 
     def _on_organize_clicked(self) -> None:
         """Handle organize button click."""
-        if self._viewmodel and hasattr(self._viewmodel, "execute_command") and callable(self._viewmodel.execute_command):
+        if (
+            self._viewmodel
+            and hasattr(self._viewmodel, "execute_command")
+            and callable(self._viewmodel.execute_command)
+        ):
             # Get target path and set it
             target_path = self.get_target_path()
             if target_path:

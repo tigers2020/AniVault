@@ -68,7 +68,7 @@ class FileScanner:
         ".m2ts",
         ".mts",
     }
-    
+
     # Supported subtitle file extensions
     SUBTITLE_EXTENSIONS: set[str] = {
         ".srt",
@@ -122,7 +122,7 @@ class FileScanner:
             # Get all files to process
             file_paths = self._collect_file_paths(directory, recursive, follow_symlinks)
             total_files = len(file_paths)
-            
+
             # Count all files (including non-video files) for total_files_found
             all_files = self._collect_all_files(directory, recursive, follow_symlinks)
             total_files_found = len(all_files)

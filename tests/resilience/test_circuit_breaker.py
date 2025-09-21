@@ -42,15 +42,15 @@ from src.core.circuit_breaker import (
 
 class TestCircuitBreakerStateTransitions:
     """Test cases for circuit breaker state transitions in isolation."""
-    
+
     def setup_method(self):
         """Set up test method by clearing circuit breaker manager."""
         circuit_breaker_manager._circuit_breakers.clear()
-    
+
     def test_circuit_breaker_closed_to_open_transition(self):
         """Test circuit breaker transitioning from CLOSED to OPEN state.
-        
-        This test simulates failures (sqlalchemy.exc.OperationalError) exceeding 
+
+        This test simulates failures (sqlalchemy.exc.OperationalError) exceeding
         the threshold and asserts the state becomes OPEN.
         """
         config = CircuitBreakerConfiguration(
@@ -77,10 +77,10 @@ class TestCircuitBreakerStateTransitions:
         with pytest.raises(CircuitBreakerError):
             failing_database_operation()
         assert circuit_breaker.current_state == "open"
-    
+
     def test_circuit_breaker_open_state_rejects_calls(self):
         """Test that subsequent calls are immediately rejected when OPEN.
-        
+
         When the circuit breaker is in OPEN state, it should immediately reject
         calls without attempting the operation.
         """
@@ -104,14 +104,14 @@ class TestCircuitBreakerStateTransitions:
         # Subsequent calls should be immediately rejected with CircuitBreakerError
         with pytest.raises(CircuitBreakerError):
             failing_database_operation()
-        
+
         # Verify the operation function was not called (circuit is open)
         # The circuit breaker should reject immediately without calling the function
         assert circuit_breaker.current_state == "open"
-    
+
     def test_circuit_breaker_open_to_half_open_transition(self):
         """Test circuit breaker transitioning from OPEN to HALF-OPEN state.
-        
+
         After the reset_timeout period, the circuit should transition to HALF-OPEN
         and allow a single trial operation.
         """
@@ -131,20 +131,20 @@ class TestCircuitBreakerStateTransitions:
         with pytest.raises(CircuitBreakerError):
             failing_database_operation()
         assert circuit_breaker.current_state == "open"
-        
+
         # Wait for reset timeout to elapse
         time.sleep(1.1)
-        
+
         # Try to call the operation - should transition to half-open and then back to open
         with pytest.raises(CircuitBreakerError):
             failing_database_operation()
 
         # The circuit should be back to open because the trial failed
         assert circuit_breaker.current_state == "open"
-    
+
     def test_circuit_breaker_half_open_to_closed_recovery(self):
         """Test circuit breaker transitioning from HALF-OPEN to CLOSED on success.
-        
+
         A successful trial operation in the HALF-OPEN state should move the breaker
         back to CLOSED.
         """
@@ -177,10 +177,10 @@ class TestCircuitBreakerStateTransitions:
         result = successful_database_operation()
         assert result == "operation_successful"
         assert circuit_breaker.current_state == "closed"
-    
+
     def test_circuit_breaker_half_open_to_open_repeated_failure(self):
         """Test circuit breaker transitioning from HALF-OPEN back to OPEN on failure.
-        
+
         A failed trial operation in the HALF-OPEN state should move the breaker
         back to OPEN.
         """
@@ -209,10 +209,10 @@ class TestCircuitBreakerStateTransitions:
             failing_database_operation()
 
         assert circuit_breaker.current_state == "open"
-    
+
     def test_circuit_breaker_state_persistence_across_operations(self):
         """Test that circuit breaker state persists across multiple operation calls.
-        
+
         The circuit breaker should maintain its state across different operations
         that use the same breaker instance.
         """
@@ -249,13 +249,13 @@ class TestCircuitBreakerStateTransitions:
         # Both operations should now be rejected
         with pytest.raises(CircuitBreakerError):
             database_operation_1()
-        
+
         with pytest.raises(CircuitBreakerError):
             database_operation_2()
-    
+
     def test_circuit_breaker_with_time_mock(self):
         """Test circuit breaker state transitions using time mocking.
-        
+
         This test uses a shorter reset_timeout to verify the half-open transition.
         """
         config = CircuitBreakerConfiguration(
@@ -277,14 +277,14 @@ class TestCircuitBreakerStateTransitions:
 
         # Wait for reset timeout to actually elapse
         time.sleep(1.1)
-        
+
         # Try the operation - should transition to half-open and then back to open
         with pytest.raises(CircuitBreakerError):
             failing_database_operation()
 
         # The circuit should be back to open because the trial failed
         assert circuit_breaker.current_state == "open"
-    
+
     def test_circuit_breaker_statistics_tracking(self):
         """Test that circuit breaker correctly tracks statistics during state transitions."""
         config = CircuitBreakerConfiguration(
@@ -314,7 +314,7 @@ class TestCircuitBreakerStateTransitions:
             failing_database_operation()
         assert circuit_breaker.fail_counter == 2
         assert circuit_breaker.current_state == "open"
-    
+
     def test_circuit_breaker_configuration_validation(self):
         """Test that circuit breaker respects configuration parameters."""
         # Test with custom fail_max
@@ -346,11 +346,11 @@ class TestCircuitBreakerStateTransitions:
 
 class TestCircuitBreakerIsolation:
     """Test cases for circuit breaker isolation and independent operation."""
-    
+
     def setup_method(self):
         """Set up test method by clearing circuit breaker manager."""
         circuit_breaker_manager._circuit_breakers.clear()
-    
+
     def test_multiple_circuit_breakers_independence(self):
         """Test that multiple circuit breakers operate independently."""
         config1 = CircuitBreakerConfiguration(
@@ -359,11 +359,11 @@ class TestCircuitBreakerIsolation:
             reset_timeout=1,
         )
         config2 = CircuitBreakerConfiguration(
-            name="test_circuit_2", 
+            name="test_circuit_2",
             fail_max=2,
             reset_timeout=1,
         )
-        
+
         circuit_breaker1 = create_database_circuit_breaker(config1)
         circuit_breaker2 = create_database_circuit_breaker(config2)
 
@@ -392,7 +392,7 @@ class TestCircuitBreakerIsolation:
             operation_2()
         assert circuit_breaker1.current_state == "open"
         assert circuit_breaker2.current_state == "open"
-    
+
     def test_circuit_breaker_listener_integration(self):
         """Test that circuit breaker listeners are properly integrated."""
         config = CircuitBreakerConfiguration(
@@ -400,7 +400,7 @@ class TestCircuitBreakerIsolation:
             fail_max=1,
             reset_timeout=1,
         )
-        
+
         # Create a mock listener with all required methods
         mock_listener = Mock()
         mock_listener.before_call = Mock()
@@ -410,7 +410,7 @@ class TestCircuitBreakerIsolation:
         mock_listener.on_half_open = Mock()
         mock_listener.on_close = Mock()
         mock_listener.on_timeout = Mock()
-        
+
         circuit_breaker = create_database_circuit_breaker(config, listener=mock_listener)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
