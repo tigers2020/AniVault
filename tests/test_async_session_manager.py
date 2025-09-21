@@ -376,6 +376,172 @@ class TestAsyncSessionManager:
 
         assert stats == {"error": "Connector not available"}
 
+    @pytest.mark.asyncio
+    async def test_optimized_tcp_connector_settings(self, session_manager: AsyncSessionManager, mock_config) -> None:
+        """Test that optimized TCPConnector settings are applied correctly."""
+        with patch.object(session_manager, '_config', mock_config):
+            with patch('aiohttp.ClientSession') as mock_session_class:
+                mock_session = AsyncMock()
+                mock_session.closed = False
+                mock_session_class.return_value = mock_session
+
+                await session_manager._create_session()
+
+                # Verify ClientSession was called with optimized TCPConnector
+                call_args = mock_session_class.call_args
+                assert call_args is not None
+
+                # Check optimized connector configuration
+                connector = call_args[1]['connector']
+                assert isinstance(connector, aiohttp.TCPConnector)
+
+                # Verify optimized settings
+                assert connector.limit == 200  # Total connection pool size
+                assert connector.limit_per_host == 20  # Per-host connection limit
+                assert connector.use_dns_cache is True  # DNS cache enabled
+                assert connector._keepalive_timeout == 60  # Keepalive timeout (private attribute)
+                # Note: Some attributes may not be directly accessible in all aiohttp versions
+                # We'll test the core functionality instead
+                assert connector.family == 0  # Use both IPv4 and IPv6
+
+    @pytest.mark.asyncio
+    async def test_optimized_timeout_settings(self, session_manager: AsyncSessionManager, mock_config) -> None:
+        """Test that optimized timeout settings are applied correctly."""
+        with patch.object(session_manager, '_config', mock_config):
+            with patch('aiohttp.ClientSession') as mock_session_class:
+                mock_session = AsyncMock()
+                mock_session.closed = False
+                mock_session_class.return_value = mock_session
+
+                await session_manager._create_session()
+
+                # Verify timeout configuration
+                call_args = mock_session_class.call_args
+                assert call_args is not None
+
+                timeout = call_args[1]['timeout']
+                assert isinstance(timeout, aiohttp.ClientTimeout)
+
+                # Verify optimized timeout settings
+                assert timeout.total == 60  # Total timeout (increased for reliability)
+                assert timeout.connect == 15  # Connection timeout (increased for slow networks)
+                assert timeout.sock_read == 30  # Socket read timeout (increased for large responses)
+
+    @pytest.mark.asyncio
+    async def test_optimized_headers_configuration(self, session_manager: AsyncSessionManager, mock_config) -> None:
+        """Test that optimized headers are configured correctly."""
+        with patch.object(session_manager, '_config', mock_config):
+            with patch('aiohttp.ClientSession') as mock_session_class:
+                mock_session = AsyncMock()
+                mock_session.closed = False
+                mock_session_class.return_value = mock_session
+
+                await session_manager._create_session()
+
+                # Verify headers configuration
+                call_args = mock_session_class.call_args
+                assert call_args is not None
+
+                headers = call_args[1]['headers']
+
+                # Verify optimized headers
+                assert headers['User-Agent'] == 'AniVault/1.0.0'
+                assert headers['Accept'] == 'application/json'
+                assert headers['Accept-Encoding'] == 'gzip, deflate, br'  # Added brotli support
+                assert headers['Accept-Language'] == 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'  # Language preferences
+                assert headers['Connection'] == 'keep-alive'  # Explicit keep-alive
+                assert headers['Cache-Control'] == 'no-cache'  # Prevent caching of API responses
+
+    @pytest.mark.asyncio
+    async def test_optimized_session_configuration(self, session_manager: AsyncSessionManager, mock_config) -> None:
+        """Test that optimized session configuration is applied correctly."""
+        with patch.object(session_manager, '_config', mock_config):
+            with patch('aiohttp.ClientSession') as mock_session_class:
+                mock_session = AsyncMock()
+                mock_session.closed = False
+                mock_session_class.return_value = mock_session
+
+                await session_manager._create_session()
+
+                # Verify session configuration
+                call_args = mock_session_class.call_args
+                assert call_args is not None
+
+                # Check optimized session settings
+                assert call_args[1]['raise_for_status'] is True  # Raise for HTTP errors
+                assert call_args[1]['auto_decompress'] is True  # Automatically decompress responses
+                assert call_args[1]['version'] == aiohttp.HttpVersion11  # Use HTTP/1.1
+                assert isinstance(call_args[1]['cookie_jar'], aiohttp.CookieJar)  # Cookie jar for session management
+                assert call_args[1]['json_serialize'] is None  # Use default JSON serialization
+                assert call_args[1]['requote_redirect_url'] is True  # Requote redirect URLs
+                assert call_args[1]['read_bufsize'] == 65536  # Read buffer size (64KB)
+                assert call_args[1]['max_line_size'] == 8192  # Max line size for headers
+                assert call_args[1]['max_field_size'] == 8192  # Max field size for headers
+
+    @pytest.mark.asyncio
+    async def test_connection_pool_monitoring(self, session_manager: AsyncSessionManager, mock_config) -> None:
+        """Test connection pool monitoring and statistics."""
+        with patch.object(session_manager, '_config', mock_config):
+            with patch('aiohttp.ClientSession') as mock_session_class:
+                mock_session = AsyncMock()
+                mock_session.closed = False
+
+                # Mock connector with statistics
+                mock_connector = Mock()
+                mock_connector.limit = 200
+                mock_connector.limit_per_host = 20
+                mock_connector.ttl_dns_cache = 600
+                mock_connector.keepalive_timeout = 60
+                mock_connector._closed = set()
+                mock_connector._acquired = {1, 2, 3}
+                mock_connector._available = {4, 5}
+                mock_connector.ssl = True
+                mock_connector.family = 0
+
+                mock_session.connector = mock_connector
+                mock_session_class.return_value = mock_session
+
+                await session_manager._create_session()
+
+                # Test connection statistics
+                stats = session_manager.get_connection_stats()
+
+                # Verify statistics are accessible
+                assert stats["total_connections"] == 200
+                assert stats["per_host_limit"] == 20
+                assert stats["dns_cache_ttl"] == 600
+                assert stats["keepalive_timeout"] == 60
+                assert stats["closed_connections"] == set()
+                assert stats["acquired_connections"] == 3
+                assert stats["available_connections"] == 2
+                assert stats["is_ssl_enabled"] is True
+                assert stats["family"] == 0
+
+    @pytest.mark.asyncio
+    async def test_connection_pool_efficiency(self, session_manager: AsyncSessionManager, mock_config) -> None:
+        """Test that connection pool is efficiently managed."""
+        with patch.object(session_manager, '_config', mock_config):
+            with patch('aiohttp.ClientSession') as mock_session_class:
+                mock_session = AsyncMock()
+                mock_session.closed = False
+                mock_session_class.return_value = mock_session
+
+                # Test session reuse
+                session1 = await session_manager.get_session()
+                session2 = await session_manager.get_session()
+
+                # Should return the same session instance
+                assert session1 is session2
+                assert mock_session_class.call_count == 1
+
+                # Test session recreation when closed
+                mock_session.closed = True
+                session3 = await session_manager.get_session()
+
+                # Should create a new session
+                assert session3 is not session1
+                assert mock_session_class.call_count == 2
+
 
 class TestAsyncSessionManagerGlobals:
     """Test global functions and instances."""
