@@ -1,5 +1,4 @@
-"""
-Tests for anime filename parsing functionality.
+"""Tests for anime filename parsing functionality.
 
 This module tests the anime parser, validation, and fallback mechanisms
 to ensure accurate parsing of anime filenames with 95%+ accuracy.

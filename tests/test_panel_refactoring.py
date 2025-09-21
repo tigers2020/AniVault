@@ -18,12 +18,23 @@ def qapp() -> Generator[QApplication, None, None]:
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
-    yield app
+    return app
     # Don't quit the app as it might be used by other tests
 
 
 class TestPanelRefactoring:
     """Test that refactored panels work with new theme system."""
+
+    def setup_method(self) -> None:
+        """Set up test environment."""
+        # Ensure QApplication exists
+        if QApplication.instance() is None:
+            QApplication([])
+        
+        # Reset ThemeManager singleton state
+        from src.themes.theme_manager import ThemeManager
+        ThemeManager._instance = None
+        ThemeManager._initialized = False
 
     def test_work_panel_theme_integration(self, qapp: QApplication) -> None:
         """Test work panel uses theme manager correctly."""

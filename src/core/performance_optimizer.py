@@ -1,5 +1,4 @@
-"""
-Performance optimization module for AniVault application.
+"""Performance optimization module for AniVault application.
 
 This module provides performance testing, profiling, and optimization utilities
 for the file scanning and grouping operations.
@@ -95,7 +94,7 @@ class PerformanceProfiler:
         start_time = time.time()
 
         try:
-            result = operation()
+            operation()
         finally:
             end_time = time.time()
             current_memory, peak_memory = self.stop_monitoring()
@@ -158,8 +157,7 @@ def performance_test(
     similarity_threshold: float = 0.75,
     max_workers: int = 4,
 ) -> dict[str, Any]:
-    """
-    Run a comprehensive performance test of the file scanning and grouping system.
+    """Run a comprehensive performance test of the file scanning and grouping system.
 
     Args:
         test_directory: Directory to test with
@@ -213,7 +211,7 @@ def performance_test(
         # Calculate totals
         results["total_duration"] = scan_metrics.duration
         results["total_files_processed"] = scan_metrics.files_processed
-        if "grouping_metrics" in results and results["grouping_metrics"]:
+        if results.get("grouping_metrics"):
             results["total_duration"] += results["grouping_metrics"].duration
 
         # Get recommendations
@@ -226,9 +224,7 @@ def performance_test(
 
 
 class OptimizedFileProcessor:
-    """
-    Optimized file processor that combines scanning and grouping with performance optimizations.
-    """
+    """Optimized file processor that combines scanning and grouping with performance optimizations."""
 
     def __init__(
         self,
@@ -237,8 +233,7 @@ class OptimizedFileProcessor:
         batch_size: int = 100,
         enable_caching: bool = True,
     ) -> None:
-        """
-        Initialize the optimized file processor.
+        """Initialize the optimized file processor.
 
         Args:
             similarity_threshold: Similarity threshold for grouping
@@ -258,8 +253,7 @@ class OptimizedFileProcessor:
     def process_directory(
         self, directory: Path, progress_callback: Callable[[int, str], None] | None = None
     ) -> tuple[ScanResult, GroupingResult]:
-        """
-        Process a directory with optimized scanning and grouping.
+        """Process a directory with optimized scanning and grouping.
 
         Args:
             directory: Directory to process
@@ -274,9 +268,9 @@ class OptimizedFileProcessor:
 
         scanner = FileScanner(
             max_workers=self.max_workers,
-            progress_callback=lambda p, msg: progress_callback(p // 2, f"Scanning: {msg}")
-            if progress_callback
-            else None,
+            progress_callback=lambda p, msg: (
+                progress_callback(p // 2, f"Scanning: {msg}") if progress_callback else None
+            ),
         )
 
         scan_result = scanner.scan_directory(directory, recursive=True)
@@ -299,9 +293,9 @@ class OptimizedFileProcessor:
         grouper = FileGrouper(
             similarity_threshold=self.similarity_threshold,
             max_workers=self.max_workers,
-            progress_callback=lambda p, msg: progress_callback(50 + p // 2, f"Grouping: {msg}")
-            if progress_callback
-            else None,
+            progress_callback=lambda p, msg: (
+                progress_callback(50 + p // 2, f"Grouping: {msg}") if progress_callback else None
+            ),
         )
 
         # Process files in batches for better memory management
@@ -406,8 +400,7 @@ class OptimizedFileProcessor:
 
 
 def optimize_worker_count(file_count: int, available_cores: int | None = None) -> int:
-    """
-    Calculate optimal worker count based on file count and system resources.
+    """Calculate optimal worker count based on file count and system resources.
 
     Args:
         file_count: Number of files to process
@@ -435,8 +428,7 @@ def memory_efficient_scan(
     max_memory_mb: int = 500,
     progress_callback: Callable[[int, str], None] | None = None,
 ) -> ScanResult:
-    """
-    Memory-efficient file scanning that processes files in small batches.
+    """Memory-efficient file scanning that processes files in small batches.
 
     Args:
         directory: Directory to scan
@@ -447,7 +439,7 @@ def memory_efficient_scan(
         ScanResult with scanned files
     """
     # Calculate batch size based on available memory
-    available_memory = psutil.virtual_memory().available / (1024 * 1024)
+    # available_memory = psutil.virtual_memory().available / (1024 * 1024)
     estimated_memory_per_file = 0.1  # MB per file (rough estimate)
     batch_size = max(10, int(max_memory_mb / estimated_memory_per_file))
 

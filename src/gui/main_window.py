@@ -1,6 +1,7 @@
 """Main window for AniVault application."""
 
 import logging
+from typing import Any
 
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import (
@@ -39,8 +40,7 @@ class MainWindow(QMainWindow):
     """Main window for AniVault application."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        """
-        Initialize the main window.
+        """Initialize the main window.
 
         Args:
             parent: Parent widget
@@ -56,6 +56,9 @@ class MainWindow(QMainWindow):
 
         # Initialize theme manager
         self.theme_manager = get_theme_manager()
+
+        # Initialize TMDB callbacks storage
+        self._tmdb_callbacks: dict[str, Any] = {}
 
         # Apply theme
         self.theme_manager.apply_theme(self)
@@ -104,7 +107,7 @@ class MainWindow(QMainWindow):
 
         logger.info("Dialog orchestrator setup completed")
 
-    def _create_tmdb_selection_dialog(self, task) -> QDialog:
+    def _create_tmdb_selection_dialog(self, task) -> QDialog | None:
         """Create TMDB selection dialog for the given task."""
         try:
             # Get TMDB API key from ViewModel
@@ -117,6 +120,11 @@ class MainWindow(QMainWindow):
             payload = task.payload
             query = payload.get("query", "")
             results = payload.get("results", [])
+            
+            # 디버깅을 위한 로그 추가
+            logger.info(f"Creating TMDB selection dialog: query='{query}', results_count={len(results)}")
+            if results:
+                logger.debug(f"First result: {results[0] if results else 'None'}")
 
             dialog.set_initial_search(query, results)
 
@@ -126,7 +134,7 @@ class MainWindow(QMainWindow):
             logger.error(f"Failed to create TMDB selection dialog: {e}")
             return None
 
-    def _create_manual_search_dialog(self, task) -> QDialog:
+    def _create_manual_search_dialog(self, task) -> QDialog | None:
         """Create manual search dialog for the given task."""
         try:
             # Get TMDB API key from ViewModel
@@ -201,7 +209,7 @@ class MainWindow(QMainWindow):
             logger.info("ViewModels initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize ViewModels: {e}")
-            self._on_error_occurred(f"ViewModel 초기화 실패: {str(e)}")
+            self._on_error_occurred(f"ViewModel 초기화 실패: {e!s}")
 
     def _load_configuration_to_viewmodel(self) -> None:
         """Load configuration from config manager and set it in ViewModel."""
@@ -253,7 +261,7 @@ class MainWindow(QMainWindow):
             logger.info("All configuration loaded successfully to ViewModel")
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}", exc_info=True)
-            self._on_error_occurred(f"설정 로드 실패: {str(e)}")
+            self._on_error_occurred(f"설정 로드 실패: {e!s}")
 
     def _connect_panels_to_viewmodels(self) -> None:
         """Connect panels to their ViewModels after both are created."""
@@ -268,7 +276,7 @@ class MainWindow(QMainWindow):
                 logger.info("ResultPanel connected to FileProcessingViewModel")
         except Exception as e:
             logger.error(f"Failed to connect panels to ViewModels: {e}")
-            self._on_error_occurred(f"패널 연결 실패: {str(e)}")
+            self._on_error_occurred(f"패널 연결 실패: {e!s}")
 
     def _connect_signals(self) -> None:
         """Connect signals between UI components and ViewModels."""
@@ -285,6 +293,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "result_panel"):
             self.result_panel.file_selected.connect(self._on_file_selected)
             self.result_panel.group_selected.connect(self._on_group_selected)
+            self.result_panel.group_double_clicked.connect(self._on_group_double_clicked)
             self.result_panel.retry_requested.connect(self._on_retry_requested)
             self.result_panel.clear_requested.connect(self._on_clear_requested)
 
@@ -323,12 +332,11 @@ class MainWindow(QMainWindow):
             logger.debug("FileProcessingViewModel signals connected successfully")
         except Exception as e:
             logger.error(f"Failed to connect FileProcessingViewModel signals: {e}")
-            self._on_error_occurred(f"시그널 연결 실패: {str(e)}")
+            self._on_error_occurred(f"시그널 연결 실패: {e!s}")
 
     @pyqtSlot(str)
     def _on_error_occurred(self, error_message: str) -> None:
-        """
-        Handle error signals from ViewModels.
+        """Handle error signals from ViewModels.
 
         Args:
             error_message: Error message to display
@@ -342,27 +350,29 @@ class MainWindow(QMainWindow):
         self.log_panel.add_log(f"오류: {error_message}")
 
         # Update status bar with error indication
-        self.statusBar().showMessage(f"오류: {error_message}")
+        status_bar = self.statusBar()
+        if status_bar:
+            status_bar.showMessage(f"오류: {error_message}")
 
         # Update UI state to show error condition
         # Could disable certain buttons or show error indicators
 
     @pyqtSlot(str)
     def _on_status_changed(self, status_message: str) -> None:
-        """
-        Handle status change signals from ViewModels.
+        """Handle status change signals from ViewModels.
 
         Args:
             status_message: Status message to display
         """
         logger.debug(f"Status changed: {status_message}")
-        self.statusBar().showMessage(f"상태: {status_message}")
+        status_bar = self.statusBar()
+        if status_bar:
+            status_bar.showMessage(f"상태: {status_message}")
         self.log_panel.add_log(f"상태: {status_message}")
 
     @pyqtSlot(str)
     def _on_file_selected(self, file_name: str) -> None:
-        """
-        Handle file selection from result panel.
+        """Handle file selection from result panel.
 
         Args:
             file_name: Selected file name
@@ -372,8 +382,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str)
     def _on_group_selected(self, group_identifier: str) -> None:
-        """
-        Handle group selection from result panel.
+        """Handle group selection from result panel.
 
         Args:
             group_identifier: Selected group ID or name
@@ -387,9 +396,115 @@ class MainWindow(QMainWindow):
         # Filter files to show only files from the selected group
         self.result_panel.filter_files_by_group(group_identifier)
 
-    def _display_group_details(self, group_identifier: str) -> None:
+    @pyqtSlot(str)
+    def _on_group_double_clicked(self, group_identifier: str) -> None:
+        """Handle group double-click event to open TMDB manual search dialog.
+
+        Args:
+            group_identifier: Selected group ID or name
         """
-        Display details for the selected group.
+        logger.debug(f"Group double-clicked: {group_identifier}")
+        self.log_panel.add_log(f"그룹 더블클릭됨: {group_identifier}")
+
+        # Find the selected group to get its current metadata
+        groups = self.file_processing_vm.get_property("file_groups", [])
+        selected_group = None
+        for group in groups:
+            if group.group_id == group_identifier or group.series_title == group_identifier:
+                selected_group = group
+                break
+
+        if not selected_group:
+            logger.warning(f"Group not found: {group_identifier}")
+            self.log_panel.add_log(f"그룹을 찾을 수 없습니다: {group_identifier}")
+            return
+
+        # Open TMDB manual search dialog for this group
+        self._open_tmdb_manual_search_for_group(selected_group)
+
+    def _open_tmdb_manual_search_for_group(self, group) -> None:
+        """Open TMDB manual search dialog for the specified group.
+
+        Args:
+            group: FileGroup object to update metadata for
+        """
+        try:
+            # Get TMDB API key from ViewModel
+            api_key = self.file_processing_vm.get_property("tmdb_api_key", "")
+            
+            if not api_key:
+                logger.warning("TMDB API key not available")
+                self.log_panel.add_log("TMDB API 키가 설정되지 않았습니다.")
+                return
+
+            # Create TMDB selection dialog
+            dialog = TMDBSelectionDialog(self, self.theme_manager, api_key)
+            
+            # Set initial search query to the group's series title
+            search_query = group.series_title or group.group_id
+            dialog.set_initial_search(search_query)
+            
+            # Connect dialog result signal
+            dialog.result_selected.connect(
+                lambda result: self._on_tmdb_result_selected_for_group(group, result)
+            )
+            
+            # Show dialog
+            dialog.exec_()
+            
+        except Exception as e:
+            logger.error(f"Failed to open TMDB manual search dialog: {e}")
+            self.log_panel.add_log(f"TMDB 검색 다이얼로그 열기 실패: {e}")
+
+    def _on_tmdb_result_selected_for_group(self, group, tmdb_result: dict) -> None:
+        """Handle TMDB result selection for group metadata update.
+
+        Args:
+            group: FileGroup object to update
+            tmdb_result: Selected TMDB result data
+        """
+        try:
+            logger.info(f"Updating group metadata: {group.series_title}")
+            self.log_panel.add_log(f"그룹 메타데이터 업데이트 중: {group.series_title}")
+            
+            # Update group metadata with TMDB result
+            if "name" in tmdb_result:
+                group.series_title = tmdb_result["name"]
+            
+            if "overview" in tmdb_result:
+                group.description = tmdb_result["overview"]
+            
+            if "first_air_date" in tmdb_result:
+                group.release_date = tmdb_result["first_air_date"]
+            
+            if "poster_path" in tmdb_result:
+                group.poster_path = tmdb_result["poster_path"]
+            
+            if "id" in tmdb_result:
+                group.tmdb_id = str(tmdb_result["id"])
+            
+            # Update the group in the ViewModel
+            groups = self.file_processing_vm.get_property("file_groups", [])
+            for i, g in enumerate(groups):
+                if g.group_id == group.group_id:
+                    groups[i] = group
+                    break
+            
+            # Trigger property change to update UI
+            self.file_processing_vm.set_property("file_groups", groups)
+            
+            # Refresh the result panel to show updated data
+            self.result_panel.update_groups(groups)
+            
+            logger.info(f"Group metadata updated successfully: {group.series_title}")
+            self.log_panel.add_log(f"그룹 메타데이터 업데이트 완료: {group.series_title}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update group metadata: {e}")
+            self.log_panel.add_log(f"그룹 메타데이터 업데이트 실패: {e}")
+
+    def _display_group_details(self, group_identifier: str) -> None:
+        """Display details for the selected group.
 
         Args:
             group_identifier: Group ID or name of the selected group
@@ -427,8 +542,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str)
     def _on_retry_requested(self, file_name: str) -> None:
-        """
-        Handle retry request for a file.
+        """Handle retry request for a file.
 
         Args:
             file_name: File name to retry
@@ -471,7 +585,7 @@ class MainWindow(QMainWindow):
                 logger.warning("Result panel not available")
         except Exception as e:
             logger.error(f"Error handling files scanned signal: {e}")
-            self._on_error_occurred(f"파일 스캔 결과 처리 오류: {str(e)}")
+            self._on_error_occurred(f"파일 스캔 결과 처리 오류: {e!s}")
 
     @pyqtSlot(list)
     def _on_files_grouped(self, groups) -> None:
@@ -494,7 +608,7 @@ class MainWindow(QMainWindow):
                 logger.debug(f"Updated anime groups panel with {len(groups)} groups")
         except Exception as e:
             logger.error(f"Error handling files grouped signal: {e}")
-            self._on_error_occurred(f"파일 그룹화 결과 처리 오류: {str(e)}")
+            self._on_error_occurred(f"파일 그룹화 결과 처리 오류: {e!s}")
 
     @pyqtSlot(list)
     def _on_files_parsed(self, files) -> None:
@@ -627,7 +741,9 @@ class MainWindow(QMainWindow):
                 if hasattr(self, "work_panel"):
                     self.work_panel.set_processing_state(bool(value))
             elif property_name == "processing_status":
-                self.statusBar().showMessage(f"상태: {value}")
+                status_bar = self.statusBar()
+                if status_bar:
+                    status_bar.showMessage(f"상태: {value}")
             elif property_name in [
                 "scanned_files",
                 "file_groups",
@@ -647,35 +763,40 @@ class MainWindow(QMainWindow):
 
         vm = self.file_processing_vm
 
-        # Get current data from ViewModel
-        scanned_files = vm.get_property("scanned_files", [])
-        file_groups = vm.get_property("file_groups", [])
-        processed_files = vm.get_property("processed_files", [])
-        moved_files = vm.get_property("moved_files", [])
+        # Get comprehensive statistics from ViewModel
+        stats = vm.get_processing_statistics()
 
-        # Calculate statistics
-        total_files = len(scanned_files)
-        total_groups = len(file_groups)
-        pending_files = total_files - len(processed_files)
-        completed_files = len(processed_files)
-        unclassified_files = total_files - len(moved_files)
-        failed_items = 0  # This would need to be tracked in ViewModel
+        # Extract key statistics
+        total_files = stats["total_files_scanned"]
+        total_groups = stats["total_groups_created"]
+        pending_files = stats["pending_files"]
+        completed_files = stats["total_files_processed"]
+        unclassified_files = stats["unclassified_files"]
+        failed_items = stats["total_files_failed"]
 
         # Update statistics cards if they exist
-        # Note: The stat cards are created in _create_left_panel but not stored as instance variables
-        # For now, just log the statistics - in a real implementation, you'd update the UI elements
+        if hasattr(self, "stats_cards"):
+            self._update_stat_card("전체 파일", str(total_files))
+            self._update_stat_card("전체 그룹", str(total_groups))
+            self._update_stat_card("대기 파일", str(pending_files))
+            self._update_stat_card("완료 파일", str(completed_files))
+            self._update_stat_card("미분류 파일", str(unclassified_files))
+            self._update_stat_card("실패 항목", str(failed_items))
+
+        # Log statistics for debugging
         logger.debug(
-            f"Statistics updated: {total_files} files, {total_groups} groups, {completed_files} completed, {pending_files} pending"
+            f"Statistics updated: {total_files} files, {total_groups} groups, {completed_files} completed, {pending_files} pending, {unclassified_files} unclassified, {failed_items} failed"
         )
 
         # Update status bar with current statistics
-        self.statusBar().showMessage(
-            f"파일: {total_files}개, 그룹: {total_groups}개, 완료: {completed_files}개"
-        )
+        status_bar = self.statusBar()
+        if status_bar:
+            status_bar.showMessage(
+                f"파일: {total_files}개, 그룹: {total_groups}개, 완료: {completed_files}개, 실패: {failed_items}개"
+            )
 
     def get_viewmodel(self, name: str) -> BaseViewModel | None:
-        """
-        Get a ViewModel by name.
+        """Get a ViewModel by name.
 
         Args:
             name: ViewModel name
@@ -686,8 +807,7 @@ class MainWindow(QMainWindow):
         return self._viewmodels.get(name)
 
     def add_viewmodel(self, name: str, viewmodel: BaseViewModel) -> None:
-        """
-        Add a ViewModel to the main window.
+        """Add a ViewModel to the main window.
 
         Args:
             name: ViewModel name
@@ -701,34 +821,41 @@ class MainWindow(QMainWindow):
     def _create_menu_bar(self) -> None:
         """Create the menu bar."""
         menubar = self.menuBar()
+        if not menubar:
+            return
 
         # File menu
         file_menu = menubar.addMenu("파일")
-        file_menu.addAction("열기", self._open_files)
-        file_menu.addAction("저장", self._save_settings)
-        file_menu.addSeparator()
-        file_menu.addAction("종료", self.close)
+        if file_menu:
+            file_menu.addAction("열기", self._open_files)
+            file_menu.addAction("저장", self._save_settings)
+            file_menu.addSeparator()
+            file_menu.addAction("종료", self.close)
 
         # Edit menu
         edit_menu = menubar.addMenu("편집")
-        edit_menu.addAction("설정", self._open_settings)
-        edit_menu.addAction("테마", self._change_theme)
+        if edit_menu:
+            edit_menu.addAction("설정", self._open_settings)
+            edit_menu.addAction("테마", self._change_theme)
 
         # View menu
         view_menu = menubar.addMenu("보기")
-        view_menu.addAction("전체 화면", self._toggle_fullscreen)
-        view_menu.addAction("패널 숨기기", self._toggle_panels)
+        if view_menu:
+            view_menu.addAction("전체 화면", self._toggle_fullscreen)
+            view_menu.addAction("패널 숨기기", self._toggle_panels)
 
         # Tools menu
         tools_menu = menubar.addMenu("도구")
-        tools_menu.addAction("스캔", self._scan_files)
-        tools_menu.addAction("정리", self._organize_files)
-        tools_menu.addAction("미리보기", self._preview_organization)
+        if tools_menu:
+            tools_menu.addAction("스캔", self._scan_files)
+            tools_menu.addAction("정리", self._organize_files)
+            tools_menu.addAction("미리보기", self._preview_organization)
 
         # Help menu
         help_menu = menubar.addMenu("도움말")
-        help_menu.addAction("도움말", self._show_help)
-        help_menu.addAction("정보", self._show_about)
+        if help_menu:
+            help_menu.addAction("도움말", self._show_help)
+            help_menu.addAction("정보", self._show_about)
 
     def _create_central_widget(self) -> None:
         """Create the central widget with 4-panel layout."""
@@ -807,14 +934,15 @@ class MainWindow(QMainWindow):
 
         stats_layout = QGridLayout(stats_group)
 
-        # Statistics cards
+        # Initialize statistics cards with references for later updates
+        self.stats_cards = {}
         stats_data = [
-            ("전체 파일", "120", "primary"),
-            ("전체 그룹", "15", "secondary"),
-            ("대기 파일", "12", "warning"),
-            ("완료 파일", "108", "accent"),
-            ("미분류 파일", "5", "error"),
-            ("실패 항목", "2", "text_muted"),
+            ("전체 파일", "0", "primary"),
+            ("전체 그룹", "0", "secondary"),
+            ("대기 파일", "0", "warning"),
+            ("완료 파일", "0", "accent"),
+            ("미분류 파일", "0", "error"),
+            ("실패 항목", "0", "text_muted"),
         ]
 
         for i, (label, value, color_name) in enumerate(stats_data):
@@ -823,6 +951,9 @@ class MainWindow(QMainWindow):
 
             stat_widget = self._create_stat_card(label, value, color_name)
             stats_layout.addWidget(stat_widget, row, col)
+            
+            # Store reference to the stat card for later updates
+            self.stats_cards[label] = stat_widget
 
         layout.addWidget(stats_group)
         layout.addStretch()
@@ -890,17 +1021,34 @@ class MainWindow(QMainWindow):
         """
         )
         value_label.setAlignment(Qt.AlignCenter)
-
         # Label
         label_widget = QLabel(label)
         label_widget.label_type = "stat_label"
         label_widget.setStyleSheet(self.theme_manager.current_theme.get_label_style("stat_label"))
         label_widget.setAlignment(Qt.AlignCenter)
-
         layout.addWidget(value_label)
         layout.addWidget(label_widget)
 
+        # Store references to the labels for later updates
+        card.value_label = value_label
+        card.label_widget = label_widget
+        card.color_name = color_name
+
         return card
+
+    def _update_stat_card(self, label: str, new_value: str) -> None:
+        """Update a statistics card with new value.
+        
+        Args:
+            label: The label of the stat card to update
+            new_value: The new value to display
+        """
+        if not hasattr(self, "stats_cards") or label not in self.stats_cards:
+            return
+            
+        card = self.stats_cards[label]
+        if hasattr(card, "value_label"):
+            card.value_label.setText(new_value)
 
     def _create_status_bar(self) -> None:
         """Create the status bar."""
@@ -931,7 +1079,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             logger.error("Failed to open settings dialog: %s", str(e))
-            self._on_error_occurred(f"설정 대화상자 열기 실패: {str(e)}")
+            self._on_error_occurred(f"설정 대화상자 열기 실패: {e!s}")
 
     def _on_settings_saved(self) -> None:
         """Handle settings saved signal."""
@@ -987,7 +1135,7 @@ class MainWindow(QMainWindow):
                 self.log_panel.update_settings()
 
             # Update log level if changed
-            log_level = self.config_manager.get("application.logging_config.log_level", "INFO")
+            # log_level = self.config_manager.get("application.logging_config.log_level", "INFO")
             # TODO: Update logging configuration
 
             # Update other settings as needed
@@ -1015,14 +1163,14 @@ class MainWindow(QMainWindow):
         """Handle scan files action."""
         if hasattr(self, "file_processing_vm"):
             # Get scan directories from work panel or use default
-            scan_dirs = getattr(self.work_panel, "get_scan_directories", lambda: [])()
+            scan_dirs: list[str] = getattr(self.work_panel, "get_scan_directories", lambda: [])()
             if not scan_dirs:
                 # Use a default directory or show dialog
                 from PyQt5.QtWidgets import QFileDialog
 
-                scan_dirs = QFileDialog.getExistingDirectory(self, "스캔할 디렉토리 선택")
-                if scan_dirs:
-                    scan_dirs = [scan_dirs]
+                selected_dir = QFileDialog.getExistingDirectory(self, "스캔할 디렉토리 선택")
+                if selected_dir:
+                    scan_dirs = [selected_dir]
 
             if scan_dirs:
                 self.file_processing_vm.execute_command("scan_files", scan_dirs)

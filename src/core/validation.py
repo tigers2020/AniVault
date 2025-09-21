@@ -1,5 +1,4 @@
-"""
-Validation logic for parsed anime information.
+"""Validation logic for parsed anime information.
 
 This module provides comprehensive validation and normalization functions
 for parsed anime data to ensure data quality and consistency.
@@ -26,8 +25,7 @@ class ValidationResult:
 
 
 class AnimeDataValidator:
-    """
-    Validates and normalizes parsed anime information.
+    """Validates and normalizes parsed anime information.
 
     Provides comprehensive validation for all aspects of parsed anime data
     including title validation, episode/season validation, resolution validation,
@@ -100,8 +98,7 @@ class AnimeDataValidator:
         }
 
     def validate_title(self, title: str) -> tuple[bool, list[str], str]:
-        """
-        Validate and normalize anime title.
+        """Validate and normalize anime title.
 
         Args:
             title: Raw title string
@@ -109,7 +106,7 @@ class AnimeDataValidator:
         Returns:
             Tuple of (is_valid, errors, normalized_title)
         """
-        errors = []
+        errors: list[str] = []
 
         if not title:
             errors.append("Title cannot be empty")
@@ -136,8 +133,7 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, normalized
 
     def validate_episode_number(self, episode: int | None) -> tuple[bool, list[str], int | None]:
-        """
-        Validate episode number.
+        """Validate episode number.
 
         Args:
             episode: Episode number to validate
@@ -145,14 +141,10 @@ class AnimeDataValidator:
         Returns:
             Tuple of (is_valid, errors, normalized_episode)
         """
-        errors = []
+        errors: list[str] = []
 
         if episode is None:
             return True, errors, None
-
-        if not isinstance(episode, int):
-            errors.append("Episode number must be an integer")
-            return False, errors, None
 
         if episode < 0:
             errors.append("Episode number cannot be negative")
@@ -163,8 +155,7 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, episode
 
     def validate_season_number(self, season: int | None) -> tuple[bool, list[str], int | None]:
-        """
-        Validate season number.
+        """Validate season number.
 
         Args:
             season: Season number to validate
@@ -172,14 +163,10 @@ class AnimeDataValidator:
         Returns:
             Tuple of (is_valid, errors, normalized_season)
         """
-        errors = []
+        errors: list[str] = []
 
         if season is None:
             return True, errors, None
-
-        if not isinstance(season, int):
-            errors.append("Season number must be an integer")
-            return False, errors, None
 
         if season < 0:
             errors.append("Season number cannot be negative")
@@ -192,8 +179,7 @@ class AnimeDataValidator:
     def validate_resolution(
         self, resolution: str | None, width: int | None, height: int | None
     ) -> tuple[bool, list[str], tuple[str | None, int | None, int | None]]:
-        """
-        Validate resolution information.
+        """Validate resolution information.
 
         Args:
             resolution: Resolution string (e.g., '1080p')
@@ -203,7 +189,7 @@ class AnimeDataValidator:
         Returns:
             Tuple of (is_valid, errors, (normalized_resolution, normalized_width, normalized_height))
         """
-        errors = []
+        errors: list[str] = []
         warnings = []
 
         # If no resolution info, that's valid
@@ -241,8 +227,7 @@ class AnimeDataValidator:
     def validate_codec(
         self, codec: str | None, codec_type: str
     ) -> tuple[bool, list[str], str | None]:
-        """
-        Validate video or audio codec.
+        """Validate video or audio codec.
 
         Args:
             codec: Codec string to validate
@@ -251,7 +236,7 @@ class AnimeDataValidator:
         Returns:
             Tuple of (is_valid, errors, normalized_codec)
         """
-        errors = []
+        errors: list[str] = []
 
         if not codec:
             return True, errors, None
@@ -265,8 +250,7 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, codec_upper
 
     def validate_year(self, year: int | None) -> tuple[bool, list[str], int | None]:
-        """
-        Validate release year.
+        """Validate release year.
 
         Args:
             year: Year to validate
@@ -274,14 +258,10 @@ class AnimeDataValidator:
         Returns:
             Tuple of (is_valid, errors, normalized_year)
         """
-        errors = []
+        errors: list[str] = []
 
         if year is None:
             return True, errors, None
-
-        if not isinstance(year, int):
-            errors.append("Year must be an integer")
-            return False, errors, None
 
         if year < 1900:
             errors.append("Year is too early for anime")
@@ -292,8 +272,7 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, year
 
     def validate_source(self, source: str | None) -> tuple[bool, list[str], str | None]:
-        """
-        Validate source type.
+        """Validate source type.
 
         Args:
             source: Source string to validate
@@ -301,7 +280,7 @@ class AnimeDataValidator:
         Returns:
             Tuple of (is_valid, errors, normalized_source)
         """
-        errors = []
+        errors: list[str] = []
 
         if not source:
             return True, errors, None
@@ -314,8 +293,7 @@ class AnimeDataValidator:
         return len(errors) == 0, errors, source_normalized
 
     def validate_parsed_info(self, parsed_info: ParsedAnimeInfo) -> ValidationResult:
-        """
-        Comprehensive validation of ParsedAnimeInfo.
+        """Comprehensive validation of ParsedAnimeInfo.
 
         Args:
             parsed_info: ParsedAnimeInfo object to validate
@@ -323,9 +301,9 @@ class AnimeDataValidator:
         Returns:
             ValidationResult with validation status and details
         """
-        errors = []
+        errors: list[str] = []
         warnings = []
-        normalized_data = {}
+        normalized_data: dict[str, Any] = {}
 
         # Validate title
         title_valid, title_errors, normalized_title = self.validate_title(parsed_info.title)
@@ -402,8 +380,7 @@ class AnimeDataValidator:
         )
 
     def normalize_parsed_info(self, parsed_info: ParsedAnimeInfo) -> ParsedAnimeInfo:
-        """
-        Normalize a ParsedAnimeInfo object based on validation results.
+        """Normalize a ParsedAnimeInfo object based on validation results.
 
         Args:
             parsed_info: ParsedAnimeInfo object to normalize

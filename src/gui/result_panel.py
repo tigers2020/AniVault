@@ -1,6 +1,7 @@
 """Result panel for displaying file processing results and real-time status updates."""
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
@@ -35,6 +36,7 @@ class ResultPanel(QGroupBox):
     # Signals
     file_selected = pyqtSignal(str)  # Emits file path when selected
     group_selected = pyqtSignal(str)  # Emits group name when selected
+    group_double_clicked = pyqtSignal(str)  # Emits group name when double-clicked
     retry_requested = pyqtSignal(str)  # Emits file path for retry
     clear_requested = pyqtSignal()  # Emits when clear is requested
 
@@ -159,12 +161,13 @@ class ResultPanel(QGroupBox):
 
         # Set column widths
         header = self.files_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)  # File name
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Size
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Status
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Group
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Error
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Actions
+        if header:
+            header.setSectionResizeMode(0, QHeaderView.Stretch)  # File name
+            header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Size
+            header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Status
+            header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Group
+            header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Error
+            header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Actions
 
         # Connect selection signal
         self.files_table.itemSelectionChanged.connect(self._on_file_selection_changed)
@@ -206,14 +209,16 @@ class ResultPanel(QGroupBox):
 
         # Set column widths
         header = self.groups_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)  # Group name
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # File count
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Completed
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Errors
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Status
+        if header:
+            header.setSectionResizeMode(0, QHeaderView.Stretch)  # Group name
+            header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # File count
+            header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Completed
+            header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Errors
+            header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Status
 
-        # Connect selection signal
+        # Connect selection and double-click signals
         self.groups_table.itemSelectionChanged.connect(self._on_group_selection_changed)
+        self.groups_table.itemDoubleClicked.connect(self._on_group_double_clicked)
 
         layout.addWidget(self.groups_table)
 
@@ -463,6 +468,21 @@ class ResultPanel(QGroupBox):
                     group_name = group_name_item.text()
                     self.group_selected.emit(group_name)
 
+    def _on_group_double_clicked(self, item: QTableWidgetItem) -> None:
+        """Handle group double-click event."""
+        current_row = self.groups_table.currentRow()
+        if current_row >= 0:
+            group_name_item = self.groups_table.item(current_row, 0)
+            if group_name_item:
+                # Use the group_id from UserRole for reliable lookup
+                group_id = group_name_item.data(Qt.UserRole)
+                if group_id:
+                    self.group_double_clicked.emit(group_id)
+                else:
+                    # Fallback to displayed text if group_id is not available
+                    group_name = group_name_item.text()
+                    self.group_double_clicked.emit(group_name)
+
     def _clear_results(self) -> None:
         """Clear all results."""
         self.files_table.setRowCount(0)
@@ -495,8 +515,7 @@ class ResultPanel(QGroupBox):
         """Update the status of a specific file."""
         for row in range(self.files_table.rowCount()):
             name_item = self.files_table.item(row, 0)
-            if name_item and name_item.data(Qt.UserRole) == file_name:
-                # Update status
+            if name_item and name_item.data(Qt.UserRole) == file_name:  # Update status
                 status_item = self.files_table.item(row, 2)
                 if status_item:
                     status_item.setText(status)
@@ -537,8 +556,7 @@ class ResultPanel(QGroupBox):
         self.progress_info.setText(f"0 / {count} 파일 처리됨")
 
     def set_viewmodel(self, viewmodel: BaseViewModel) -> None:
-        """
-        Set the ViewModel for this panel.
+        """Set the ViewModel for this panel.
 
         Args:
             viewmodel: ViewModel instance to connect to
@@ -568,8 +586,7 @@ class ResultPanel(QGroupBox):
             self._viewmodel.worker_task_progress.connect(self._on_progress_updated)
 
     def update_files(self, files: list[AnimeFile]) -> None:
-        """
-        Update the files table with scanned files.
+        """Update the files table with scanned files.
 
         Args:
             files: List of AnimeFile objects
@@ -584,7 +601,7 @@ class ResultPanel(QGroupBox):
         # Add files to table
         for i, file in enumerate(files):
             result = {
-                "file_name": file.file_path.name,
+                "file_name": Path(file.file_path).name,
                 "size": self._format_file_size(file.file_size),
                 "status": "스캔됨",
                 "group": "",
@@ -593,15 +610,14 @@ class ResultPanel(QGroupBox):
             }
             self.add_processing_result(result)
             if i < 5:  # Log first 5 files for debugging
-                logger.debug(f"Added file {i+1}: {file.file_path.name}")
+                logger.debug(f"Added file {i+1}: {Path(file.file_path).name}")
 
         # Update progress
         self.set_total_files(len(files))
         logger.info(f"Updated files table with {len(files)} files")
 
     def filter_files_by_group(self, group_id: str) -> None:
-        """
-        Filter files table to show only files from the selected group.
+        """Filter files table to show only files from the selected group.
 
         Args:
             group_id: ID of the group to filter by
@@ -648,8 +664,7 @@ class ResultPanel(QGroupBox):
         self._update_files_table(all_files)
 
     def _update_files_table(self, files: list) -> None:
-        """
-        Update the files table with the provided files.
+        """Update the files table with the provided files.
 
         Args:
             files: List of AnimeFile objects to display
@@ -662,7 +677,7 @@ class ResultPanel(QGroupBox):
         # Add files to table
         for i, file in enumerate(files):
             result = {
-                "file_name": file.file_path.name,
+                "file_name": Path(file.file_path).name,
                 "size": self._format_file_size(file.file_size),
                 "status": "스캔됨",
                 "group": "",
@@ -671,15 +686,14 @@ class ResultPanel(QGroupBox):
             }
             self.add_processing_result(result)
             if i < 5:  # Log first 5 files for debugging
-                logger.debug(f"Added file {i+1}: {file.file_path.name}")
+                logger.debug(f"Added file {i+1}: {Path(file.file_path).name}")
 
         # Update progress
         self.set_total_files(len(files))
         logger.info(f"Updated files table with {len(files)} files")
 
     def update_groups(self, groups: list[FileGroup]) -> None:
-        """
-        Update the groups table with file groups.
+        """Update the groups table with file groups.
 
         Args:
             groups: List of FileGroup objects
@@ -688,7 +702,7 @@ class ResultPanel(QGroupBox):
         self.groups_table.setRowCount(0)
 
         # Track series titles to handle duplicates
-        title_counts = {}
+        title_counts: dict[str, int] = {}
 
         # Add groups to table
         for group in groups:
@@ -734,11 +748,12 @@ class ResultPanel(QGroupBox):
 
         size_names = ["B", "KB", "MB", "GB", "TB"]
         i = 0
-        while size_bytes >= 1024 and i < len(size_names) - 1:
-            size_bytes /= 1024.0
+        size_float = float(size_bytes)
+        while size_float >= 1024 and i < len(size_names) - 1:
+            size_float /= 1024.0
             i += 1
 
-        return f"{size_bytes:.1f} {size_names[i]}"
+        return f"{size_float:.1f} {size_names[i]}"
 
     def _on_property_changed(self, property_name: str, value) -> None:
         """Handle property changes from ViewModel."""

@@ -1,5 +1,4 @@
-"""
-Tests for the file scanner module.
+"""Tests for the file scanner module.
 
 This module contains comprehensive tests for the FileScanner class and related functionality.
 """
@@ -126,7 +125,7 @@ class TestFileScanner:
         """Test AnimeFile creation with non-existent file."""
         nonexistent_file = self.temp_dir / "nonexistent.mkv"
 
-        with pytest.raises(Exception):
+        with pytest.raises(FileNotFoundError):
             self.scanner._create_anime_file(nonexistent_file)
 
     def test_progress_callback(self) -> None:
@@ -137,7 +136,7 @@ class TestFileScanner:
             progress_calls.append((progress, message))
 
         scanner = FileScanner(progress_callback=progress_callback)
-        result = scanner.scan_directory(self.temp_dir, recursive=True)
+        _result = scanner.scan_directory(self.temp_dir, recursive=True)
 
         assert len(progress_calls) > 0
         assert any("Found" in msg for _, msg in progress_calls)

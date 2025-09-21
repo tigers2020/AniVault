@@ -211,8 +211,7 @@ class WorkPanel(QGroupBox):
         self.preview_requested.emit()
 
     def set_viewmodel(self, viewmodel: BaseViewModel) -> None:
-        """
-        Set the ViewModel for this panel.
+        """Set the ViewModel for this panel.
 
         Args:
             viewmodel: ViewModel instance to connect to
@@ -261,7 +260,7 @@ class WorkPanel(QGroupBox):
                     f"DEBUG: execute_command method: {self._viewmodel.execute_command}"
                 )  # 강제 출력
 
-        if self._viewmodel and hasattr(self._viewmodel, "execute_command"):
+        if self._viewmodel and hasattr(self._viewmodel, "execute_command") and callable(self._viewmodel.execute_command):
             logger.debug("ViewModel and execute_command method available")
             # Get source path and set as scan directory
             source_path = self.get_source_path()
@@ -298,7 +297,7 @@ class WorkPanel(QGroupBox):
 
     def _on_organize_clicked(self) -> None:
         """Handle organize button click."""
-        if self._viewmodel and hasattr(self._viewmodel, "execute_command"):
+        if self._viewmodel and hasattr(self._viewmodel, "execute_command") and callable(self._viewmodel.execute_command):
             # Get target path and set it
             target_path = self.get_target_path()
             if target_path:
@@ -393,8 +392,7 @@ class WorkPanel(QGroupBox):
         # For now, just log the error as WorkPanel doesn't have a status label
 
     def set_processing_state(self, is_processing: bool) -> None:
-        """
-        Set the processing state of the panel.
+        """Set the processing state of the panel.
 
         Args:
             is_processing: Whether processing is currently active
@@ -413,8 +411,7 @@ class WorkPanel(QGroupBox):
             self.progress_bar.setValue(0)
 
     def update_progress(self, progress: int) -> None:
-        """
-        Update the progress bar.
+        """Update the progress bar.
 
         Args:
             progress: Progress percentage (0-100)

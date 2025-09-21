@@ -14,6 +14,10 @@
 				"AZURE_OPENAI_API_KEY": "YOUR_AZURE_KEY_HERE",
 				"OLLAMA_API_KEY": "YOUR_OLLAMA_API_KEY_HERE"
 			}
+		},
+		"serena": {
+			"command": "C:\\Users\\hyper\\.local\\bin\\uvx.exe",
+			"args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "ide-assistant", "--project", "F:\\Python_Projects\\AniVault"]
 		}
 	}
 }

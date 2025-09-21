@@ -1,5 +1,4 @@
-"""
-Base ViewModel class for AniVault application.
+"""Base ViewModel class for AniVault application.
 
 This module provides the foundational ViewModel class that all other ViewModels
 inherit from, implementing common functionality and PyQt signal/slot mechanisms.
@@ -26,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseViewModel(QObject):
-    """
-    Base class for all ViewModels in the MVVM architecture.
+    """Base class for all ViewModels in the MVVM architecture.
 
     This class provides common functionality including:
     - Signal/slot mechanisms for UI updates
@@ -61,8 +59,7 @@ class BaseViewModel(QObject):
     worker_finished = pyqtSignal()  # when worker finishes all tasks
 
     def __init__(self, parent: QObject | None = None) -> None:
-        """
-        Initialize the BaseViewModel.
+        """Initialize the BaseViewModel.
 
         Args:
             parent: Parent QObject for Qt object hierarchy
@@ -100,8 +97,7 @@ class BaseViewModel(QObject):
         logger.debug(f"Initialized {self.__class__.__name__}")
 
     def initialize(self) -> None:
-        """
-        Initialize the ViewModel after construction.
+        """Initialize the ViewModel after construction.
 
         This method should be called after the ViewModel is created to set up
         any required resources or connections. Subclasses should override this
@@ -119,8 +115,7 @@ class BaseViewModel(QObject):
 
     @abstractmethod
     def _setup_commands(self) -> None:
-        """
-        Set up available commands for this ViewModel.
+        """Set up available commands for this ViewModel.
 
         Subclasses must implement this method to define their specific commands.
         Commands should be added to self._commands dictionary.
@@ -129,8 +124,7 @@ class BaseViewModel(QObject):
 
     @abstractmethod
     def _setup_properties(self) -> None:
-        """
-        Set up initial property values for this ViewModel.
+        """Set up initial property values for this ViewModel.
 
         Subclasses must implement this method to define their specific properties.
         Properties should be added to self._properties dictionary.
@@ -138,8 +132,7 @@ class BaseViewModel(QObject):
         pass
 
     def get_property(self, name: str, default: Any = None) -> Any:
-        """
-        Get a property value by name.
+        """Get a property value by name.
 
         Args:
             name: Property name
@@ -154,8 +147,7 @@ class BaseViewModel(QObject):
     def set_property(
         self, name: str, value: Any, notify: bool = True, validate: bool = True
     ) -> None:
-        """
-        Set a property value and optionally notify listeners.
+        """Set a property value and optionally notify listeners.
 
         Args:
             name: Property name
@@ -181,8 +173,7 @@ class BaseViewModel(QObject):
             logger.debug(f"Property '{name}' changed: {old_value} -> {value}")
 
     def has_property(self, name: str) -> bool:
-        """
-        Check if a property exists.
+        """Check if a property exists.
 
         Args:
             name: Property name
@@ -194,8 +185,7 @@ class BaseViewModel(QObject):
             return name in self._properties
 
     def get_all_properties(self) -> dict[str, Any]:
-        """
-        Get all properties as a dictionary.
+        """Get all properties as a dictionary.
 
         Returns:
             Dictionary of all properties
@@ -204,8 +194,7 @@ class BaseViewModel(QObject):
             return self._properties.copy()
 
     def execute_command(self, command_name: str, *args, **kwargs) -> Any:
-        """
-        Execute a command by name.
+        """Execute a command by name.
 
         Args:
             command_name: Name of the command to execute
@@ -255,7 +244,7 @@ class BaseViewModel(QObject):
             print(f"DEBUG: command_finished signal emitted for {command_name}")  # 강제 출력
             return result
         except Exception as e:
-            error_msg = f"Command '{command_name}' failed: {str(e)}"
+            error_msg = f"Command '{command_name}' failed: {e!s}"
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
             self.command_finished.emit(command_name, False)
@@ -265,8 +254,7 @@ class BaseViewModel(QObject):
             self._executing_commands.discard(command_name)
 
     def add_command(self, name: str, func: Callable) -> None:
-        """
-        Add a command to this ViewModel.
+        """Add a command to this ViewModel.
 
         Args:
             name: Command name
@@ -277,8 +265,7 @@ class BaseViewModel(QObject):
             logger.debug(f"Added command '{name}'")
 
     def remove_command(self, name: str) -> bool:
-        """
-        Remove a command from this ViewModel.
+        """Remove a command from this ViewModel.
 
         Args:
             name: Command name
@@ -294,8 +281,7 @@ class BaseViewModel(QObject):
             return False
 
     def get_available_commands(self) -> list[str]:
-        """
-        Get list of available command names.
+        """Get list of available command names.
 
         Returns:
             List of command names
@@ -304,8 +290,7 @@ class BaseViewModel(QObject):
             return list(self._commands.keys())
 
     def has_command(self, name: str) -> bool:
-        """
-        Check if a command exists.
+        """Check if a command exists.
 
         Args:
             name: Command name
@@ -317,8 +302,7 @@ class BaseViewModel(QObject):
             return name in self._commands
 
     def bind_to_property(self, property_name: str, callback: Callable[[Any], None]) -> None:
-        """
-        Bind a callback to property changes.
+        """Bind a callback to property changes.
 
         Args:
             property_name: Name of the property to bind to
@@ -330,8 +314,7 @@ class BaseViewModel(QObject):
         logger.debug(f"Bound callback to property '{property_name}'")
 
     def bind_to_error(self, callback: Callable[[str], None]) -> None:
-        """
-        Bind a callback to error events.
+        """Bind a callback to error events.
 
         Args:
             callback: Function to call when an error occurs
@@ -340,8 +323,7 @@ class BaseViewModel(QObject):
         logger.debug("Bound callback to error events")
 
     def bind_to_status(self, callback: Callable[[str], None]) -> None:
-        """
-        Bind a callback to status changes.
+        """Bind a callback to status changes.
 
         Args:
             callback: Function to call when status changes
@@ -352,8 +334,7 @@ class BaseViewModel(QObject):
     def add_validation_rule(
         self, property_name: str, validator: Callable[[Any], bool], error_message: str = ""
     ) -> None:
-        """
-        Add a validation rule for a property.
+        """Add a validation rule for a property.
 
         Args:
             property_name: Name of the property to validate
@@ -365,8 +346,7 @@ class BaseViewModel(QObject):
         logger.debug(f"Added validation rule for property '{property_name}'")
 
     def remove_validation_rule(self, property_name: str) -> bool:
-        """
-        Remove a validation rule for a property.
+        """Remove a validation rule for a property.
 
         Args:
             property_name: Name of the property
@@ -382,8 +362,7 @@ class BaseViewModel(QObject):
         return False
 
     def _validate_property(self, property_name: str, value: Any) -> bool:
-        """
-        Validate a property value using its validation rule.
+        """Validate a property value using its validation rule.
 
         Args:
             property_name: Name of the property
@@ -402,8 +381,7 @@ class BaseViewModel(QObject):
             return False
 
     def validate_all_properties(self) -> dict[str, str]:
-        """
-        Validate all properties that have validation rules.
+        """Validate all properties that have validation rules.
 
         Returns:
             Dictionary of property names to error messages for invalid properties
@@ -420,8 +398,7 @@ class BaseViewModel(QObject):
         return errors
 
     def is_command_executing(self, command_name: str) -> bool:
-        """
-        Check if a command is currently executing.
+        """Check if a command is currently executing.
 
         Args:
             command_name: Name of the command to check
@@ -433,8 +410,7 @@ class BaseViewModel(QObject):
             return command_name in self._executing_commands
 
     def get_executing_commands(self) -> list[str]:
-        """
-        Get list of currently executing commands.
+        """Get list of currently executing commands.
 
         Returns:
             List of executing command names
@@ -443,8 +419,7 @@ class BaseViewModel(QObject):
             return list(self._executing_commands)
 
     def create_worker(self) -> FilePipelineWorker:
-        """
-        Create and configure a new FilePipelineWorker.
+        """Create and configure a new FilePipelineWorker.
 
         Returns:
             Configured FilePipelineWorker instance
@@ -468,8 +443,7 @@ class BaseViewModel(QObject):
             return self._worker
 
     def get_worker(self) -> FilePipelineWorker | None:
-        """
-        Get the current worker instance.
+        """Get the current worker instance.
 
         Returns:
             Current worker or None if not created
@@ -478,8 +452,7 @@ class BaseViewModel(QObject):
             return self._worker
 
     def has_worker(self) -> bool:
-        """
-        Check if a worker is currently available.
+        """Check if a worker is currently available.
 
         Returns:
             True if worker exists
@@ -488,8 +461,7 @@ class BaseViewModel(QObject):
             return self._worker is not None
 
     def is_worker_running(self) -> bool:
-        """
-        Check if the worker is currently running.
+        """Check if the worker is currently running.
 
         Returns:
             True if worker is running
@@ -498,8 +470,7 @@ class BaseViewModel(QObject):
             return self._worker is not None and self._worker.is_running()
 
     def add_worker_task(self, task: WorkerTask) -> None:
-        """
-        Add a task to the worker queue.
+        """Add a task to the worker queue.
 
         Args:
             task: Task to add to the worker queue
@@ -512,8 +483,7 @@ class BaseViewModel(QObject):
             logger.debug(f"Added task '{task.get_name()}' to worker queue")
 
     def add_worker_tasks(self, tasks: list[WorkerTask]) -> None:
-        """
-        Add multiple tasks to the worker queue.
+        """Add multiple tasks to the worker queue.
 
         Args:
             tasks: List of tasks to add
@@ -526,9 +496,7 @@ class BaseViewModel(QObject):
             logger.debug(f"Added {len(tasks)} tasks to worker queue")
 
     def start_worker(self) -> None:
-        """
-        Start the worker thread.
-        """
+        """Start the worker thread."""
         with self._worker_mutex:
             if self._worker is None:
                 raise RuntimeError("Worker not created. Call create_worker() first.")
@@ -542,8 +510,7 @@ class BaseViewModel(QObject):
             logger.info(f"Worker thread started, running: {self._worker.is_running()}")
 
     def stop_worker(self, force: bool = False) -> None:
-        """
-        Stop the worker thread.
+        """Stop the worker thread.
 
         Args:
             force: Whether to force stop immediately
@@ -565,8 +532,7 @@ class BaseViewModel(QObject):
                 logger.debug("Requested worker to stop")
 
     def wait_for_worker(self, timeout: int = 30000) -> bool:
-        """
-        Wait for the worker to complete all tasks.
+        """Wait for the worker to complete all tasks.
 
         Args:
             timeout: Maximum time to wait in milliseconds
@@ -582,8 +548,7 @@ class BaseViewModel(QObject):
             return self._worker.wait_for_completion(timeout)
 
     def wait_for_worker_start(self, timeout: int = 1000) -> bool:
-        """
-        Wait for the worker to actually start running.
+        """Wait for the worker to actually start running.
 
         Args:
             timeout: Maximum time to wait in milliseconds
@@ -599,8 +564,7 @@ class BaseViewModel(QObject):
             return self._worker.wait_for_start(timeout)
 
     def get_worker_queue_size(self) -> int:
-        """
-        Get the number of pending tasks in the worker queue.
+        """Get the number of pending tasks in the worker queue.
 
         Returns:
             Number of pending tasks
@@ -639,8 +603,7 @@ class BaseViewModel(QObject):
 
     @pyqtSlot(str)
     def _on_processing_error(self, error_message: str) -> None:
-        """
-        Handle processing errors from the processing state.
+        """Handle processing errors from the processing state.
 
         Args:
             error_message: Error message from processing state
@@ -650,8 +613,7 @@ class BaseViewModel(QObject):
 
     @pyqtSlot(str)
     def _on_status_changed(self, status_message: str) -> None:
-        """
-        Handle status changes from the processing state.
+        """Handle status changes from the processing state.
 
         Args:
             status_message: Status message from processing state
@@ -660,8 +622,7 @@ class BaseViewModel(QObject):
         self.status_changed.emit(status_message)
 
     def reset(self) -> None:
-        """
-        Reset the ViewModel to its initial state.
+        """Reset the ViewModel to its initial state.
 
         This method should be overridden by subclasses to reset their
         specific state while maintaining the base functionality.
@@ -674,8 +635,7 @@ class BaseViewModel(QObject):
         logger.info(f"Reset {self.__class__.__name__}")
 
     def cleanup(self) -> None:
-        """
-        Clean up resources used by this ViewModel.
+        """Clean up resources used by this ViewModel.
 
         This method should be called when the ViewModel is no longer needed
         to ensure proper cleanup of resources.
@@ -760,8 +720,7 @@ class BaseViewModel(QObject):
 
 
 class ViewModelFactory:
-    """
-    Factory class for creating ViewModel instances.
+    """Factory class for creating ViewModel instances.
 
     This class provides a centralized way to create ViewModel instances
     with proper initialization and dependency injection.
@@ -771,8 +730,7 @@ class ViewModelFactory:
 
     @classmethod
     def register_viewmodel(cls, name: str, viewmodel_class: type[BaseViewModel]) -> None:
-        """
-        Register a ViewModel class.
+        """Register a ViewModel class.
 
         Args:
             name: Name to register the ViewModel under
@@ -786,8 +744,7 @@ class ViewModelFactory:
 
     @classmethod
     def create_viewmodel(cls, name: str, parent: QObject | None = None, **kwargs) -> BaseViewModel:
-        """
-        Create a ViewModel instance by name.
+        """Create a ViewModel instance by name.
 
         Args:
             name: Registered name of the ViewModel
@@ -812,8 +769,7 @@ class ViewModelFactory:
 
     @classmethod
     def get_registered_viewmodels(cls) -> list[str]:
-        """
-        Get list of registered ViewModel names.
+        """Get list of registered ViewModel names.
 
         Returns:
             List of registered ViewModel names
@@ -822,8 +778,7 @@ class ViewModelFactory:
 
     @classmethod
     def is_registered(cls, name: str) -> bool:
-        """
-        Check if a ViewModel is registered.
+        """Check if a ViewModel is registered.
 
         Args:
             name: ViewModel name to check

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-MVVM Integration Test for AniVault Application
+"""MVVM Integration Test for AniVault Application
 
 This script tests the MVVM pattern implementation by verifying:
 1. ViewModel initialization and property management
@@ -148,7 +147,7 @@ class MVVMIntegrationTest:
 
             # Test property change propagation to UI
             vm.set_property("is_pipeline_running", True)
-            assert vm.get_property("is_pipeline_running") == True
+            assert vm.get_property("is_pipeline_running") is True
 
             # Restore original value
             vm.set_property("processing_status", original_value)
@@ -247,7 +246,7 @@ class MVVMIntegrationTest:
             try:
                 vm.execute_command("invalid_command")
                 # Should not reach here
-                assert False, "Invalid command should raise KeyError"
+                raise AssertionError("Invalid command should raise KeyError")
             except KeyError:
                 # Expected behavior
                 pass

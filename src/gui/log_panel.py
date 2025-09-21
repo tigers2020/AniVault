@@ -65,11 +65,9 @@ class LogPanel(QGroupBox):
         self.log_text.setStyleSheet(self.theme_manager.current_theme.get_text_edit_style())
 
         # Auto-scroll to bottom
-        self.log_text.verticalScrollBar().rangeChanged.connect(
-            lambda: self.log_text.verticalScrollBar().setValue(
-                self.log_text.verticalScrollBar().maximum()
-            )
-        )
+        scroll_bar = self.log_text.verticalScrollBar()
+        if scroll_bar:
+            scroll_bar.rangeChanged.connect(lambda: scroll_bar.setValue(scroll_bar.maximum()))
 
         layout.addLayout(controls_layout)
         layout.addWidget(self.log_text)
@@ -156,7 +154,10 @@ class LogPanel(QGroupBox):
 
     def get_log_count(self) -> int:
         """Get the number of log entries."""
-        return int(self.log_text.document().blockCount())
+        document = self.log_text.document()
+        if document:
+            return int(document.blockCount())
+        return 0
 
     def cleanup(self) -> None:
         """Clean up resources when the panel is destroyed."""

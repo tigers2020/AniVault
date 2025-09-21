@@ -1,5 +1,4 @@
-"""
-TMDB API Client for retrieving anime metadata.
+"""TMDB API Client for retrieving anime metadata.
 
 This module provides a comprehensive client for interacting with The Movie Database (TMDB) API
 to search for anime series and retrieve detailed metadata including Korean titles, ratings,
@@ -113,16 +112,14 @@ class TMDBRateLimitError(TMDBError):
 
 
 class TMDBClient:
-    """
-    Client for interacting with The Movie Database (TMDB) API.
+    """Client for interacting with The Movie Database (TMDB) API.
 
     This client provides methods to search for anime series, retrieve detailed metadata,
     and handle various error conditions including rate limiting and network issues.
     """
 
     def __init__(self, config: TMDBConfig):
-        """
-        Initialize the TMDB client.
+        """Initialize the TMDB client.
 
         Args:
             config: TMDB configuration object containing API key and settings
@@ -185,13 +182,22 @@ class TMDBClient:
         # Set default language
         tmdb.language = self.config.language
 
+        # Update session parameters if available
+        if hasattr(tmdb, 'REQUESTS_SESSION') and tmdb.REQUESTS_SESSION is not None:
+            tmdb.REQUESTS_SESSION.params.update({
+                'api_key': self.config.api_key,
+                'language': self.config.language
+            })
+
         logger.debug("TMDB API configured with language: %s", self.config.language)
 
     def _mask_api_key(self, api_key: str) -> str:
         """Mask API key for logging purposes."""
+        if not api_key:
+            return ""
         if len(api_key) <= 8:
             return "***"
-        return f"{api_key[:4]}...{api_key[-4:]}"
+        return f"{api_key[:6]}****{api_key[-4:]}"
 
     def _is_rate_limited(self) -> bool:
         """Check if we're currently rate limited."""
@@ -210,8 +216,7 @@ class TMDBClient:
         logger.info("Rate limit cleared")
 
     def _calculate_retry_delay(self, attempt: int, error_type: str = "generic") -> float:
-        """
-        Calculate exponential backoff delay with jitter and error-specific adjustments.
+        """Calculate exponential backoff delay with jitter and error-specific adjustments.
 
         Args:
             attempt: Current attempt number (0-based)
@@ -257,11 +262,10 @@ class TMDBClient:
             error_type,
         )
 
-        return final_delay
+        return float(final_delay)
 
     def _handle_api_error(self, error: Exception, attempt: int) -> None:
-        """
-        Handle API errors and determine if retry is appropriate with improved error classification.
+        """Handle API errors and determine if retry is appropriate with improved error classification.
 
         Args:
             error: The exception that occurred
@@ -327,7 +331,7 @@ class TMDBClient:
 
             elif status_code in [400, 401, 403, 404]:  # Client errors (don't retry)
                 raise TMDBAPIError(
-                    f"Client error {status_code}: {str(error)}", status_code=status_code
+                    f"Client error {status_code}: {error!s}", status_code=status_code
                 )
 
             else:  # Other HTTP errors
@@ -362,13 +366,10 @@ class TMDBClient:
             )
             time.sleep(delay)
         else:
-            raise TMDBAPIError(
-                f"Network error after {self.config.max_retries} retries: {str(error)}"
-            )
+            raise TMDBAPIError(f"Network error after {self.config.max_retries} retries: {error!s}")
 
     def _make_request(self, func, *args, **kwargs) -> Any:
-        """
-        Make a request with retry logic and error handling.
+        """Make a request with retry logic and error handling.
 
         Args:
             func: TMDB API function to call
@@ -427,8 +428,7 @@ class TMDBClient:
         raise TMDBError("Unexpected error in _make_request")
 
     def search_tv_series(self, query: str, language: str | None = None) -> list[dict[str, Any]]:
-        """
-        Search for TV series using the TMDB API.
+        """Search for TV series using the TMDB API.
 
         Args:
             query: Search query (anime title)
@@ -455,7 +455,7 @@ class TMDBClient:
         if cache_key in self._cache:
             logger.debug("Cache hit for search: %s", query)
             self._cache_hits += 1
-            return self._cache[cache_key]
+            return self._cache[cache_key]  # type: ignore[no-any-return]
 
         logger.debug("Cache miss for search: %s", query)
         self._cache_misses += 1
@@ -467,6 +467,11 @@ class TMDBClient:
             results = self._make_request(
                 search.tv, query=query.strip(), language=search_language, include_adult=False
             )
+
+            # Handle cache-only mode
+            if results is None:
+                logger.info("Cache-only mode: returning empty results for '%s'", query)
+                return []
 
             if not results.get("results"):
                 logger.info(
@@ -488,7 +493,7 @@ class TMDBClient:
             # Cache the results
             self._cache[cache_key] = search_results
 
-            return search_results
+            return search_results  # type: ignore[no-any-return]
 
         except TMDBRateLimitError:
             logger.error("Rate limited while searching for '%s'", query)
@@ -498,7 +503,7 @@ class TMDBClient:
             raise
         except Exception as e:
             logger.error("Unexpected error while searching for '%s': %s", query, str(e))
-            raise TMDBError(f"Search failed: {str(e)}")
+            raise TMDBError(f"Search failed: {e!s}") from e
 
     def search_multi(
         self,
@@ -507,8 +512,7 @@ class TMDBClient:
         region: str | None = None,
         include_adult: bool = False,
     ) -> list[dict[str, Any]]:
-        """
-        Search for movies and TV series using TMDB Multi Search API.
+        """Search for movies and TV series using TMDB Multi Search API.
 
         Args:
             query: Search query
@@ -542,7 +546,7 @@ class TMDBClient:
         if cache_key in self._cache:
             logger.debug("Cache hit for multi search: %s", query)
             self._cache_hits += 1
-            return self._cache[cache_key]
+            return self._cache[cache_key]  # type: ignore[no-any-return]
 
         logger.debug("Cache miss for multi search: %s", query)
         self._cache_misses += 1
@@ -646,13 +650,12 @@ class TMDBClient:
             raise
         except Exception as e:
             logger.error("Unexpected error while multi searching for '%s': %s", query, str(e))
-            raise TMDBError(f"Multi search failed: {str(e)}")
+            raise TMDBError(f"Multi search failed: {e!s}") from e
 
     def _calculate_quality_score(
         self, result: dict[str, Any], query: str, language: str, year_hint: int | None = None
     ) -> float:
-        """
-        Calculate quality score for a search result.
+        """Calculate quality score for a search result.
 
         Args:
             result: TMDB search result
@@ -773,8 +776,7 @@ class TMDBClient:
     def search_comprehensive(
         self, query: str, language: str | None = None, min_quality: float | None = None
     ) -> tuple[list[SearchResult] | None, bool]:
-        """
-        Comprehensive search using Multi Search with fallback strategies.
+        """Comprehensive search using Multi Search with fallback strategies.
 
         Args:
             query: Search query
@@ -1008,8 +1010,7 @@ class TMDBClient:
     def get_media_details(
         self, media_id: int, media_type: str, language: str | None = None
     ) -> dict[str, Any]:
-        """
-        Get detailed information for TV series or movies using append_to_response.
+        """Get detailed information for TV series or movies using append_to_response.
 
         Args:
             media_id: TMDB media ID
@@ -1034,7 +1035,7 @@ class TMDBClient:
         if cache_key in self._cache:
             logger.debug("Cache hit for %s details: ID %d", media_type, media_id)
             self._cache_hits += 1
-            return self._cache[cache_key]
+            return self._cache[cache_key]  # type: ignore[no-any-return]
 
         logger.debug("Cache miss for %s details: ID %d", media_type, media_id)
         self._cache_misses += 1
@@ -1062,7 +1063,7 @@ class TMDBClient:
             # Cache the results
             self._cache[cache_key] = details
 
-            return details
+            return details  # type: ignore[no-any-return]
 
         except TMDBRateLimitError:
             logger.error("Rate limited while getting %s details for ID %d", media_type, media_id)
@@ -1077,11 +1078,10 @@ class TMDBClient:
                 media_id,
                 str(e),
             )
-            raise TMDBError(f"Details retrieval failed: {str(e)}")
+            raise TMDBError(f"Details retrieval failed: {e!s}") from e
 
     def get_display_title(self, details: dict[str, Any], language: str | None = None) -> str:
-        """
-        Get the best display title from media details.
+        """Get the best display title from media details.
 
         Args:
             details: Media details from TMDB API
@@ -1103,25 +1103,24 @@ class TMDBClient:
                 translated_data = translation.get("data", {})
                 title = translated_data.get("title") or translated_data.get("name")
                 if title:
-                    return title
+                    return title  # type: ignore[no-any-return]
 
         # Fallback to main title
         title = details.get("title") or details.get("name")
         if title:
-            return title
+            return title  # type: ignore[no-any-return]
 
         # Fallback to original title
         original_title = details.get("original_title") or details.get("original_name")
         if original_title:
-            return original_title
+            return original_title  # type: ignore[no-any-return]
 
         return "Unknown"
 
     def search_and_get_metadata_with_dialog(
         self, query: str, language: str | None = None, min_quality: float | None = None
     ) -> tuple[TMDBAnime | None, bool]:
-        """
-        Search and get metadata with dialog integration support.
+        """Search and get metadata with dialog integration support.
 
         Args:
             query: Search query
@@ -1180,7 +1179,7 @@ class TMDBClient:
             anime.vote_average = search_result.vote_average
             anime.vote_count = search_result.vote_count
             anime.popularity = search_result.popularity
-            anime.poster_path = search_result.poster_path
+            anime.poster_path = search_result.poster_path or ""
             anime.quality_score = search_result.quality_score
             anime.search_strategy = search_result.strategy_used.value
             anime.fallback_round = search_result.fallback_round
@@ -1192,8 +1191,7 @@ class TMDBClient:
             return None
 
     def get_tv_series_details(self, series_id: int, language: str | None = None) -> dict[str, Any]:
-        """
-        Get detailed information for a TV series.
+        """Get detailed information for a TV series.
 
         Args:
             series_id: TMDB series ID
@@ -1217,7 +1215,7 @@ class TMDBClient:
         if cache_key in self._cache:
             logger.debug("Cache hit for series details: ID %d", series_id)
             self._cache_hits += 1
-            return self._cache[cache_key]
+            return self._cache[cache_key]  # type: ignore[no-any-return]
 
         logger.debug("Cache miss for series details: ID %d", series_id)
         self._cache_misses += 1
@@ -1236,7 +1234,7 @@ class TMDBClient:
             # Cache the results
             self._cache[cache_key] = details
 
-            return details
+            return details  # type: ignore[no-any-return]
 
         except TMDBRateLimitError:
             logger.error("Rate limited while getting details for series ID %d", series_id)
@@ -1248,11 +1246,10 @@ class TMDBClient:
             logger.error(
                 "Unexpected error while getting details for series ID %d: %s", series_id, str(e)
             )
-            raise TMDBError(f"Failed to get series details: {str(e)}")
+            raise TMDBError(f"Failed to get series details: {e!s}") from e
 
     def find_korean_title(self, series_data: dict[str, Any]) -> str:
-        """
-        Find the best Korean title from series data using comprehensive priority logic.
+        """Find the best Korean title from series data using comprehensive priority logic.
 
         Args:
             series_data: Series data from TMDB API
@@ -1293,8 +1290,7 @@ class TMDBClient:
         return korean_title
 
     def _contains_korean_characters(self, text: str) -> bool:
-        """
-        Check if text contains Korean characters.
+        """Check if text contains Korean characters.
 
         Args:
             text: Text to check
@@ -1311,17 +1307,16 @@ class TMDBClient:
         # Hangul Compatibility Jamo: U+3130–U+318F
         for char in text:
             if (
-                "\u1100" <= char <= "\u11FF"
-                or "\u3130" <= char <= "\u318F"
-                or "\uAC00" <= char <= "\uD7AF"
+                "\u1100" <= char <= "\u11ff"
+                or "\u3130" <= char <= "\u318f"
+                or "\uac00" <= char <= "\ud7af"
             ):
                 return True
 
         return False
 
     def get_title_priority_matrix(self, series_data: dict[str, Any]) -> dict[str, str]:
-        """
-        Get all available titles with their priority ranking for display purposes.
+        """Get all available titles with their priority ranking for display purposes.
 
         Args:
             series_data: Series data from TMDB API
@@ -1356,8 +1351,7 @@ class TMDBClient:
     def _find_best_match(
         self, query: str, search_results: list[dict[str, Any]], threshold: float = 0.7
     ) -> dict[str, Any] | None:
-        """
-        Find the best matching series from search results using similarity scoring.
+        """Find the best matching series from search results using similarity scoring.
 
         Args:
             query: Original search query
@@ -1417,8 +1411,7 @@ class TMDBClient:
         return best_match
 
     def _clean_title_for_comparison(self, title: str) -> str:
-        """
-        Clean a title for similarity comparison by removing common prefixes/suffixes.
+        """Clean a title for similarity comparison by removing common prefixes/suffixes.
 
         Args:
             title: Title to clean
@@ -1447,6 +1440,10 @@ class TMDBClient:
             "[manga]",
             "[tv]",
             "[movie]",
+            "[애니]",
+            "[만화]",
+            "[드라마]",
+            "[영화]",
             "【애니】",
             "【만화】",
             "【드라마】",
@@ -1483,8 +1480,7 @@ class TMDBClient:
         return title
 
     def extract_metadata(self, series_data: dict[str, Any]) -> TMDBAnime:
-        """
-        Extract and normalize metadata from TMDB series data with comprehensive validation.
+        """Extract and normalize metadata from TMDB series data with comprehensive validation.
 
         Args:
             series_data: Raw series data from TMDB API
@@ -1669,7 +1665,7 @@ class TMDBClient:
         try:
             rating = float(rating)
             # Ensure rating is within valid range
-            return max(0.0, min(10.0, rating))
+            return max(0.0, min(10.0, rating))  # type: ignore[no-any-return]
         except (ValueError, TypeError):
             return 0.0
 
@@ -1677,7 +1673,7 @@ class TMDBClient:
         """Normalize vote count to non-negative integer."""
         try:
             count = int(count)
-            return max(0, count)
+            return max(0, count)  # type: ignore[no-any-return]
         except (ValueError, TypeError):
             return 0
 
@@ -1685,7 +1681,7 @@ class TMDBClient:
         """Normalize popularity score."""
         try:
             popularity = float(popularity)
-            return max(0.0, popularity)
+            return max(0.0, popularity)  # type: ignore[no-any-return]
         except (ValueError, TypeError):
             return 0.0
 
@@ -1693,15 +1689,14 @@ class TMDBClient:
         """Normalize season/episode count to non-negative integer."""
         try:
             count = int(count)
-            return max(0, count)
+            return max(0, count)  # type: ignore[no-any-return]
         except (ValueError, TypeError):
             return 0
 
     def search_and_get_metadata(
         self, query: str, language: str | None = None, similarity_threshold: float = 0.7
     ) -> TMDBAnime | None:
-        """
-        Search for a series and retrieve its metadata in one operation with improved accuracy.
+        """Search for a series and retrieve its metadata in one operation with improved accuracy.
 
         Args:
             query: Search query (anime title)
@@ -1750,8 +1745,7 @@ class TMDBClient:
         return self.extract_metadata(series_details)
 
     def set_cache_only_mode(self, enabled: bool) -> None:
-        """
-        Enable or disable cache-only mode.
+        """Enable or disable cache-only mode.
 
         Args:
             enabled: Whether to enable cache-only mode
@@ -1763,8 +1757,7 @@ class TMDBClient:
             logger.info("Cache-only mode disabled - API requests will be made")
 
     def get_cache_info(self) -> dict[str, Any]:
-        """
-        Get detailed cache information including hit rates and usage statistics.
+        """Get detailed cache information including hit rates and usage statistics.
 
         Returns:
             Dictionary containing cache statistics and information
@@ -1793,7 +1786,7 @@ class TMDBClient:
 
         try:
             return sys.getsizeof(self._cache)
-        except:
+        except Exception:
             return 0
 
     def _get_oldest_cache_entry(self) -> str | None:
@@ -1834,15 +1827,15 @@ class TMDBClient:
 
         # Calculate success rate
         if stats["total_requests"] > 0:
-            stats["success_rate"] = stats["successful_requests"] / stats["total_requests"]
+            stats["success_rate"] = int(stats["successful_requests"] / stats["total_requests"])
         else:
-            stats["success_rate"] = 0.0
+            stats["success_rate"] = 0
 
         # Calculate average retry attempts per request
         if stats["total_requests"] > 0:
-            stats["avg_retry_attempts"] = stats["retry_attempts"] / stats["total_requests"]
+            stats["avg_retry_attempts"] = int(stats["retry_attempts"] / stats["total_requests"])
         else:
-            stats["avg_retry_attempts"] = 0.0
+            stats["avg_retry_attempts"] = 0
 
         return stats
 
@@ -1862,8 +1855,7 @@ class TMDBClient:
 
 
 def create_tmdb_client() -> TMDBClient:
-    """
-    Create a TMDB client using configuration from the config manager.
+    """Create a TMDB client using configuration from the config manager.
 
     Returns:
         Configured TMDBClient instance
@@ -1891,8 +1883,7 @@ def create_tmdb_client() -> TMDBClient:
 def create_tmdb_client_with_config(
     api_key: str, language: str = "ko-KR", fallback_language: str = "en-US"
 ) -> TMDBClient:
-    """
-    Create a TMDB client with explicit configuration.
+    """Create a TMDB client with explicit configuration.
 
     Args:
         api_key: TMDB API key

@@ -1,5 +1,4 @@
-"""
-Tests for file movement system.
+"""Tests for file movement system.
 
 This module contains comprehensive tests for the file movement functionality,
 including transactional operations, conflict resolution, and error handling.
@@ -14,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.core.exceptions import (
+    FileNamingError,
     MoveRollbackError,
 )
 from src.core.file_classifier import FileClassifier
@@ -233,10 +233,10 @@ class TestFileMover:
         source_file = test_files[0]
         target_file = temp_dir / "transaction_target.txt"
 
-        with file_mover.transaction() as transaction_id:
-            result = file_mover.move_file(source_file, target_file, transaction_id=transaction_id)
+        with file_mover.transaction() as transaction:
+            result = file_mover.move_file(source_file, target_file, transaction_id=transaction.transaction_id)
             assert result.success
-            assert transaction_id in file_mover._transactions
+            assert transaction.transaction_id in file_mover._transactions
 
     def test_rollback_transaction(self, file_mover, temp_dir, test_files) -> None:
         """Test transaction rollback."""
@@ -453,7 +453,7 @@ class TestFileNamer:
         assert safe_name == "test_file_.txt"
 
         # Test empty filename
-        with pytest.raises(Exception):  # Should raise FileNamingError
+        with pytest.raises(FileNamingError):  # Should raise FileNamingError
             namer.generate_safe_filename("")
 
         # Test reserved names

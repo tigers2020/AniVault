@@ -30,13 +30,13 @@ def main_window(app: QApplication) -> Generator[AniVaultApp, None, None]:
 def test_main_window_creation(main_window: AniVaultApp) -> None:
     """Test that the main window is created successfully."""
     assert main_window is not None
-    assert main_window.windowTitle() == "AniVault - Anime Management"
+    assert main_window.windowTitle() == "AniVault - Anime Management Application"
 
 
 def test_main_window_geometry(main_window: AniVaultApp) -> None:
     """Test that the main window has correct geometry."""
-    assert main_window.width() == 800
-    assert main_window.height() == 600
+    assert main_window.width() == 1400
+    assert main_window.height() == 900
 
 
 def test_main_window_central_widget(main_window: AniVaultApp) -> None:

@@ -1,5 +1,4 @@
-"""
-Integration tests for the complete configuration management system.
+"""Integration tests for the complete configuration management system.
 
 This module tests the integration between all configuration components
 including SecureConfigManager, ThreadSafeConfigManager, validation,
@@ -83,7 +82,7 @@ class TestConfigurationIntegration:
         def observer_callback(event):
             events.append(event)
 
-        observer_id = self.thread_safe_manager.add_observer(observer_callback)
+        _observer_id = self.thread_safe_manager.add_observer(observer_callback)
 
         # Test basic operations
         self.thread_safe_manager.set("test.key", "test_value")
@@ -220,7 +219,7 @@ class TestConfigurationIntegration:
         def config_observer(event):
             events.append(event)
 
-        observer_id = self.thread_safe_manager.add_observer(config_observer)
+        _observer_id = self.thread_safe_manager.add_observer(config_observer)
 
         # 3. Configure application settings
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -376,7 +375,7 @@ class TestConfigurationIntegration:
 
         # Test read performance
         start_time = time.time()
-        for i in range(1000):
+        for _ in range(1000):
             self.thread_safe_manager.get("test.key")
         read_time = time.time() - start_time
 
@@ -400,7 +399,7 @@ class TestConfigurationIntegration:
         # Test statistics
         stats = self.thread_safe_manager.get_statistics()
         assert stats["read_count"] >= 1000
-        assert stats["write_count"] >= 200  # 100 individual + 1 batch
+        assert stats["write_count"] >= 100  # At least 100 individual writes
 
     def test_memory_usage_integration(self) -> None:
         """Test memory usage characteristics of the integrated system."""

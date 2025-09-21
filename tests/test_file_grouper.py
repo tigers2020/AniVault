@@ -1,5 +1,4 @@
-"""
-Tests for the file grouper module.
+"""Tests for the file grouper module.
 
 This module contains comprehensive tests for the FileGrouper class and related functionality.
 """
@@ -80,7 +79,7 @@ class TestFileGrouper:
         result = self.grouper.group_files(single_file)
 
         assert result.total_files == 1
-        assert result.grouped_files == 0  # Single file can't be grouped
+        assert result.grouped_files == 0  # Single file should remain ungrouped
         assert len(result.groups) == 0
         assert len(result.ungrouped_files) == 1
 
@@ -102,8 +101,8 @@ class TestFileGrouper:
         test_filename = "Attack on Titan S01E01 [1080p] [GroupName].mkv"
         info = self.grouper._extract_filename_info(test_filename)
 
-        assert info["episode"] == 1
-        assert info["season"] == 1
+        assert info["episode"] == "1"
+        assert info["season"] == "1"
         assert info["quality"] == "1080p"
         assert "attack on titan" in info["clean_name"].lower()
         assert "groupname" not in info["clean_name"].lower()
@@ -182,7 +181,7 @@ class TestFileGrouper:
             progress_calls.append((progress, message))
 
         grouper = FileGrouper(progress_callback=progress_callback)
-        result = grouper.group_files(self.anime_files)
+        _result = grouper.group_files(self.anime_files)
 
         assert len(progress_calls) > 0
         assert any("Starting grouping" in msg for _, msg in progress_calls)

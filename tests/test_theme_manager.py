@@ -2,6 +2,7 @@
 
 
 import pytest
+from PyQt5.QtWidgets import QApplication
 
 from src.themes.dark_theme import DarkTheme
 from src.themes.theme_manager import (
@@ -15,6 +16,16 @@ from src.themes.theme_manager import (
 
 class TestThemeManagerSingleton:
     """Test singleton pattern implementation."""
+
+    def setup_method(self) -> None:
+        """Set up test environment."""
+        # Ensure QApplication exists
+        if QApplication.instance() is None:
+            QApplication([])
+        
+        # Reset ThemeManager singleton state
+        ThemeManager._instance = None
+        ThemeManager._initialized = False
 
     def test_singleton_instance(self) -> None:
         """Test that only one instance is created."""
@@ -43,6 +54,16 @@ class TestThemeManagerSingleton:
 
 class TestThemeManagerColors:
     """Test color management functionality."""
+
+    def setup_method(self) -> None:
+        """Set up test environment."""
+        # Ensure QApplication exists
+        if QApplication.instance() is None:
+            QApplication([])
+        
+        # Reset ThemeManager singleton state
+        ThemeManager._instance = None
+        ThemeManager._initialized = False
 
     def test_get_color(self) -> None:
         """Test getting colors from theme."""
@@ -78,6 +99,16 @@ class TestThemeManagerColors:
 
 class TestThemeManagerCallbacks:
     """Test theme change callback system."""
+
+    def setup_method(self) -> None:
+        """Set up test environment."""
+        # Ensure QApplication exists
+        if QApplication.instance() is None:
+            QApplication([])
+        
+        # Reset ThemeManager singleton state
+        ThemeManager._instance = None
+        ThemeManager._initialized = False
 
     def test_register_callback(self) -> None:
         """Test registering theme change callbacks."""
@@ -137,6 +168,16 @@ class TestThemeManagerCallbacks:
 class TestDarkThemeNewColors:
     """Test new color functionality in DarkTheme."""
 
+    def setup_method(self) -> None:
+        """Set up test environment."""
+        # Ensure QApplication exists
+        if QApplication.instance() is None:
+            QApplication([])
+        
+        # Reset ThemeManager singleton state
+        ThemeManager._instance = None
+        ThemeManager._initialized = False
+
     def test_log_level_colors(self) -> None:
         """Test log level color methods."""
         # Test individual log level colors
@@ -178,6 +219,16 @@ class TestDarkThemeNewColors:
 
 class TestThemeManagerIntegration:
     """Test integration between ThemeManager and DarkTheme."""
+
+    def setup_method(self) -> None:
+        """Set up test environment."""
+        # Ensure QApplication exists
+        if QApplication.instance() is None:
+            QApplication([])
+        
+        # Reset ThemeManager singleton state
+        ThemeManager._instance = None
+        ThemeManager._initialized = False
 
     def test_theme_switching(self) -> None:
         """Test theme switching functionality."""

@@ -1,5 +1,4 @@
-"""
-Configuration management for AniVault application.
+"""Configuration management for AniVault application.
 
 This module provides centralized configuration management for the application,
 including API keys, user preferences, and application settings.
@@ -16,16 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
-    """
-    Manages application configuration including API keys, settings, and user preferences.
+    """Manages application configuration including API keys, settings, and user preferences.
 
     This class provides a centralized way to access and modify configuration
     settings throughout the application.
     """
 
     def __init__(self, config_path: Path | None = None):
-        """
-        Initialize the configuration manager.
+        """Initialize the configuration manager.
 
         Args:
             config_path: Path to the configuration file. If None, uses default location.
@@ -94,8 +91,7 @@ class ConfigManager:
         }
 
     def get(self, key_path: str, default: Any = None) -> Any:
-        """
-        Get a configuration value using dot notation.
+        """Get a configuration value using dot notation.
 
         Args:
             key_path: Dot-separated path to the configuration key (e.g., 'services.tmdb_api.api_key')
@@ -115,8 +111,7 @@ class ConfigManager:
             return default
 
     def set(self, key_path: str, value: Any) -> None:
-        """
-        Set a configuration value using dot notation.
+        """Set a configuration value using dot notation.
 
         Args:
             key_path: Dot-separated path to the configuration key
@@ -137,15 +132,18 @@ class ConfigManager:
 
     def get_tmdb_api_key(self) -> str | None:
         """Get TMDB API key."""
-        return self.get("services.tmdb_api.api_key") or self.get("services.api_keys.tmdb")
+        result = self.get("services.tmdb_api.api_key") or self.get("services.api_keys.tmdb")
+        return str(result) if result is not None else None
 
     def get_tmdb_language(self) -> str:
         """Get TMDB language setting."""
-        return self.get("services.tmdb_api.language", "ko-KR")
+        result = self.get("services.tmdb_api.language", "ko-KR")
+        return str(result)
 
     def get_tmdb_high_confidence_threshold(self) -> float:
         """Get TMDB high confidence threshold."""
-        return self.get("services.tmdb_api.high_confidence_threshold", 0.7)
+        result = self.get("services.tmdb_api.high_confidence_threshold", 0.7)
+        return float(result)
 
     def set_tmdb_high_confidence_threshold(self, threshold: float) -> None:
         """Set TMDB high confidence threshold."""
@@ -153,7 +151,8 @@ class ConfigManager:
 
     def get_tmdb_medium_confidence_threshold(self) -> float:
         """Get TMDB medium confidence threshold."""
-        return self.get("services.tmdb_api.medium_confidence_threshold", 0.1)
+        result = self.get("services.tmdb_api.medium_confidence_threshold", 0.1)
+        return float(result)
 
     def set_tmdb_medium_confidence_threshold(self, threshold: float) -> None:
         """Set TMDB medium confidence threshold."""
@@ -161,7 +160,8 @@ class ConfigManager:
 
     def get_tmdb_similarity_weight(self) -> float:
         """Get TMDB similarity weight for scoring."""
-        return self.get("services.tmdb_api.similarity_weight", 0.6)
+        result = self.get("services.tmdb_api.similarity_weight", 0.6)
+        return float(result)
 
     def set_tmdb_similarity_weight(self, weight: float) -> None:
         """Set TMDB similarity weight for scoring."""
@@ -169,7 +169,8 @@ class ConfigManager:
 
     def get_tmdb_year_weight(self) -> float:
         """Get TMDB year weight for scoring."""
-        return self.get("services.tmdb_api.year_weight", 0.2)
+        result = self.get("services.tmdb_api.year_weight", 0.2)
+        return float(result)
 
     def set_tmdb_year_weight(self, weight: float) -> None:
         """Set TMDB year weight for scoring."""
@@ -177,7 +178,8 @@ class ConfigManager:
 
     def get_tmdb_language_weight(self) -> float:
         """Get TMDB language weight for scoring."""
-        return self.get("services.tmdb_api.language_weight", 0.2)
+        result = self.get("services.tmdb_api.language_weight", 0.2)
+        return float(result)
 
     def set_tmdb_language_weight(self, weight: float) -> None:
         """Set TMDB language weight for scoring."""
@@ -185,7 +187,8 @@ class ConfigManager:
 
     def get_tmdb_include_person_results(self) -> bool:
         """Get whether to include person results in search."""
-        return self.get("services.tmdb_api.include_person_results", False)
+        result = self.get("services.tmdb_api.include_person_results", False)
+        return bool(result)
 
     def set_tmdb_include_person_results(self, include: bool) -> None:
         """Set whether to include person results in search."""
@@ -193,7 +196,8 @@ class ConfigManager:
 
     def get_destination_root(self) -> str:
         """Get destination root directory."""
-        return self.get("application.file_organization.destination_root", "")
+        result = self.get("application.file_organization.destination_root", "")
+        return str(result)
 
     def set_destination_root(self, path: str) -> None:
         """Set destination root directory."""
@@ -201,7 +205,8 @@ class ConfigManager:
 
     def get_last_source_directory(self) -> str:
         """Get last used source directory."""
-        return self.get("user_preferences.gui_state.last_source_directory", "")
+        result = self.get("user_preferences.gui_state.last_source_directory", "")
+        return str(result)
 
     def set_last_source_directory(self, path: str) -> None:
         """Set last used source directory."""
@@ -209,7 +214,8 @@ class ConfigManager:
 
     def get_last_destination_directory(self) -> str:
         """Get last used destination directory."""
-        return self.get("user_preferences.gui_state.last_destination_directory", "")
+        result = self.get("user_preferences.gui_state.last_destination_directory", "")
+        return str(result)
 
     def set_last_destination_directory(self, path: str) -> None:
         """Set last used destination directory."""
@@ -217,7 +223,8 @@ class ConfigManager:
 
     def get_theme(self) -> str:
         """Get current theme."""
-        return self.get("user_preferences.theme_preferences.theme", "auto")
+        result = self.get("user_preferences.theme_preferences.theme", "auto")
+        return str(result)
 
     def set_theme(self, theme: str) -> None:
         """Set current theme."""
@@ -225,15 +232,15 @@ class ConfigManager:
 
     def get_language(self) -> str:
         """Get current language."""
-        return self.get("user_preferences.theme_preferences.language", "ko")
+        result = self.get("user_preferences.theme_preferences.language", "ko")
+        return str(result)
 
     def set_language(self, language: str) -> None:
         """Set current language."""
         self.set("user_preferences.theme_preferences.language", language)
 
     def save_config(self) -> bool:
-        """
-        Save configuration to file.
+        """Save configuration to file.
 
         Returns:
             True if saved successfully, False otherwise
@@ -260,8 +267,7 @@ class ConfigManager:
         return self._config.copy()
 
     def validate_config(self) -> bool:
-        """
-        Validate the current configuration.
+        """Validate the current configuration.
 
         Returns:
             True if configuration is valid, False otherwise
@@ -277,8 +283,8 @@ class ConfigManager:
 
             # Validate TMDB API key if present
             api_key = self.get_tmdb_api_key()
-            if api_key and not isinstance(api_key, str):
-                logger.error("TMDB API key must be a string")
+            if api_key and not api_key:
+                logger.error("TMDB API key is empty")
                 return False
 
             # Basic validation for other settings
@@ -296,8 +302,7 @@ class ConfigManager:
             return False
 
     def backup_config(self, backup_path: Path | None = None) -> bool:
-        """
-        Create a backup of the current configuration.
+        """Create a backup of the current configuration.
 
         Args:
             backup_path: Path for backup file. If None, creates timestamped backup.
@@ -330,8 +335,7 @@ _config_manager: ConfigManager | None = None
 
 
 def get_config_manager() -> ConfigManager:
-    """
-    Get the global configuration manager instance.
+    """Get the global configuration manager instance.
 
     Returns:
         Global ConfigManager instance
@@ -343,8 +347,7 @@ def get_config_manager() -> ConfigManager:
 
 
 def initialize_config(config_path: Path | None = None) -> ConfigManager:
-    """
-    Initialize the global configuration manager.
+    """Initialize the global configuration manager.
 
     Args:
         config_path: Path to configuration file

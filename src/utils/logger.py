@@ -1,5 +1,4 @@
-"""
-Centralized logging system for AniVault application.
+"""Centralized logging system for AniVault application.
 
 This module provides a centralized logging configuration that can be used
 throughout the application to ensure consistent logging behavior.
@@ -14,8 +13,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 
 class QtLogHandler(logging.Handler):
-    """
-    Custom logging handler that emits Qt signals for UI integration.
+    """Custom logging handler that emits Qt signals for UI integration.
 
     This handler allows log messages to be displayed in the UI by emitting
     Qt signals that can be connected to UI components.
@@ -25,8 +23,7 @@ class QtLogHandler(logging.Handler):
     log_message = pyqtSignal(str, int)  # message, level
 
     def __init__(self, level: int = logging.NOTSET) -> None:
-        """
-        Initialize the Qt log handler.
+        """Initialize the Qt log handler.
 
         Args:
             level: Minimum log level to handle
@@ -35,8 +32,7 @@ class QtLogHandler(logging.Handler):
         self.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 
     def emit(self, record: logging.LogRecord) -> None:
-        """
-        Emit a log record as a Qt signal.
+        """Emit a log record as a Qt signal.
 
         Args:
             record: Log record to emit
@@ -49,8 +45,7 @@ class QtLogHandler(logging.Handler):
 
 
 class LogManager(QObject):
-    """
-    Centralized log manager for the AniVault application.
+    """Centralized log manager for the AniVault application.
 
     This class manages all logging configuration and provides a single
     point of control for logging behavior throughout the application.
@@ -60,8 +55,7 @@ class LogManager(QObject):
     config_changed = pyqtSignal()
 
     def __init__(self, parent: QObject | None = None) -> None:
-        """
-        Initialize the log manager.
+        """Initialize the log manager.
 
         Args:
             parent: Parent QObject
@@ -163,8 +157,7 @@ class LogManager(QObject):
         logging.getLogger("anivault.utils").setLevel(logging.DEBUG)
 
     def add_qt_handler(self) -> QtLogHandler:
-        """
-        Add Qt handler for UI integration.
+        """Add Qt handler for UI integration.
 
         Returns:
             QtLogHandler instance for connecting to UI
@@ -188,8 +181,7 @@ class LogManager(QObject):
             logging.info("Qt log handler removed")
 
     def set_log_level(self, level: int) -> None:
-        """
-        Set the global log level.
+        """Set the global log level.
 
         Args:
             level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -199,8 +191,7 @@ class LogManager(QObject):
         self.config_changed.emit()
 
     def set_module_log_level(self, module_name: str, level: int) -> None:
-        """
-        Set log level for a specific module.
+        """Set log level for a specific module.
 
         Args:
             module_name: Name of the module logger
@@ -212,8 +203,7 @@ class LogManager(QObject):
         self.config_changed.emit()
 
     def get_log_files(self) -> list[Path]:
-        """
-        Get list of log files.
+        """Get list of log files.
 
         Returns:
             List of log file paths
@@ -229,8 +219,7 @@ class LogManager(QObject):
         logging.info("All log files cleared")
 
     def get_log_size(self) -> dict[str, int]:
-        """
-        Get size of log files in bytes.
+        """Get size of log files in bytes.
 
         Returns:
             Dictionary mapping log file names to sizes
@@ -264,8 +253,7 @@ _log_manager: LogManager | None = None
 
 
 def get_log_manager() -> LogManager:
-    """
-    Get the global log manager instance.
+    """Get the global log manager instance.
 
     Returns:
         LogManager instance
@@ -277,8 +265,7 @@ def get_log_manager() -> LogManager:
 
 
 def setup_logging() -> LogManager:
-    """
-    Set up logging for the application.
+    """Set up logging for the application.
 
     This function should be called early in the application startup
     to ensure proper logging configuration.
@@ -290,8 +277,7 @@ def setup_logging() -> LogManager:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    Get a logger for the specified name.
+    """Get a logger for the specified name.
 
     Args:
         name: Logger name (usually __name__)
@@ -303,8 +289,7 @@ def get_logger(name: str) -> logging.Logger:
 
 
 def log_function_call(func):
-    """
-    Decorator to log function calls.
+    """Decorator to log function calls.
 
     Args:
         func: Function to decorate
@@ -328,8 +313,7 @@ def log_function_call(func):
 
 
 def log_class_methods(cls):
-    """
-    Class decorator to add logging to all methods.
+    """Class decorator to add logging to all methods.
 
     Args:
         cls: Class to decorate

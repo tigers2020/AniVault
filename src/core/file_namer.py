@@ -1,5 +1,4 @@
-"""
-File naming and conflict resolution system.
+"""File naming and conflict resolution system.
 
 This module provides functionality to handle filename conflicts and generate
 safe, unique filenames while preserving the original base name.
@@ -34,8 +33,7 @@ class NamingResult:
 
 
 class FileNamer:
-    """
-    Handles file naming and conflict resolution.
+    """Handles file naming and conflict resolution.
 
     This class provides methods to:
     - Generate safe filenames
@@ -77,8 +75,7 @@ class FileNamer:
     }
 
     def __init__(self, strategy: NamingStrategy = NamingStrategy.SUFFIX_NUMERIC) -> None:
-        """
-        Initialize the file namer.
+        """Initialize the file namer.
 
         Args:
             strategy: Default strategy for handling conflicts
@@ -87,8 +84,7 @@ class FileNamer:
         self._invalid_chars_pattern = re.compile(self.INVALID_CHARS)
 
     def generate_safe_filename(self, filename: str) -> str:
-        """
-        Generate a safe filename by removing or replacing invalid characters.
+        """Generate a safe filename by removing or replacing invalid characters.
 
         Args:
             filename: Original filename
@@ -148,8 +144,7 @@ class FileNamer:
     def resolve_conflict(
         self, target_path: Path, strategy: NamingStrategy | None = None
     ) -> NamingResult:
-        """
-        Resolve a filename conflict by generating a unique name.
+        """Resolve a filename conflict by generating a unique name.
 
         Args:
             target_path: The target path where conflict occurs
@@ -201,14 +196,13 @@ class FileNamer:
 
         except Exception as e:
             raise FileNamingError(
-                f"Failed to resolve filename conflict: {str(e)}", original_name, "", str(e)
+                f"Failed to resolve filename conflict: {e!s}", original_name, "", str(e)
             ) from e
 
     def get_available_filename(
         self, target_path: Path, strategy: NamingStrategy | None = None
     ) -> Path:
-        """
-        Get an available filename for the target path.
+        """Get an available filename for the target path.
 
         Args:
             target_path: The target path
@@ -224,8 +218,7 @@ class FileNamer:
         return target_path.parent / result.new_name
 
     def _split_filename(self, filename: str) -> tuple[str, str]:
-        """
-        Split filename into name and extension parts.
+        """Split filename into name and extension parts.
 
         Args:
             filename: The filename to split
@@ -317,8 +310,7 @@ class FileNamer:
                 )
 
     def validate_filename(self, filename: str) -> bool:
-        """
-        Validate if a filename is safe to use.
+        """Validate if a filename is safe to use.
 
         Args:
             filename: The filename to validate
@@ -333,8 +325,7 @@ class FileNamer:
             return False
 
     def get_filename_suggestions(self, original_filename: str, count: int = 5) -> list[str]:
-        """
-        Get filename suggestions for conflict resolution.
+        """Get filename suggestions for conflict resolution.
 
         Args:
             original_filename: The original filename
@@ -371,8 +362,6 @@ class FileNamer:
                     suffix = f"_{hash_value}"
                 elif strategy == NamingStrategy.PARENTHESES:
                     suffix = f"({i+1})"
-                else:
-                    continue
 
                 suggestion = f"{base_name}{suffix}{extension}"
                 suggestions.append(suggestion)

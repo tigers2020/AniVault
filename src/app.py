@@ -11,7 +11,7 @@ class AniVaultApp(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the main application window."""
         super().__init__(parent)
-        self.setWindowTitle("AnimeSorter")
+        self.setWindowTitle("AniVault - Anime Management Application")
         self.setGeometry(100, 100, 1400, 900)
 
         # Create the main window with all panels

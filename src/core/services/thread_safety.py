@@ -1,5 +1,4 @@
-"""
-Thread Safety Utilities for AniVault application.
+"""Thread Safety Utilities for AniVault application.
 
 This module provides utilities and decorators for ensuring thread safety
 across the application, particularly in the MVVM architecture.
@@ -11,7 +10,7 @@ import functools
 import logging
 import threading
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, Generic, TypeVar
 
 from PyQt5.QtCore import QMutex, QMutexLocker
 
@@ -22,9 +21,8 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-class ThreadSafeProperty:
-    """
-    Thread-safe property descriptor that uses QMutex for synchronization.
+class ThreadSafeProperty(Generic[T]):
+    """Thread-safe property descriptor that uses QMutex for synchronization.
 
     This class provides a thread-safe way to create properties that can be
     safely accessed from multiple threads.
@@ -33,8 +31,7 @@ class ThreadSafeProperty:
     def __init__(
         self, getter: Callable[[Any], T], setter: Callable[[Any, T], None] | None = None
     ) -> None:
-        """
-        Initialize the thread-safe property.
+        """Initialize the thread-safe property.
 
         Args:
             getter: Function to get the property value
@@ -48,7 +45,7 @@ class ThreadSafeProperty:
     def __get__(self, instance: Any, owner: Any) -> T:
         """Get the property value in a thread-safe manner."""
         if instance is None:
-            return self
+            return self  # type: ignore[return-value]
 
         with QMutexLocker(self._mutex):
             return self._getter(instance)
@@ -63,8 +60,7 @@ class ThreadSafeProperty:
 
 
 def thread_safe_method(mutex_attr: str = "_mutex"):
-    """
-    Decorator to make a method thread-safe using a QMutex.
+    """Decorator to make a method thread-safe using a QMutex.
 
     Args:
         mutex_attr: Name of the mutex attribute on the instance
@@ -90,8 +86,7 @@ def thread_safe_method(mutex_attr: str = "_mutex"):
 
 
 def python_thread_safe_method(lock_attr: str = "_python_lock"):
-    """
-    Decorator to make a method thread-safe using a Python threading.Lock.
+    """Decorator to make a method thread-safe using a Python threading.Lock.
 
     Args:
         lock_attr: Name of the lock attribute on the instance
@@ -117,13 +112,10 @@ def python_thread_safe_method(lock_attr: str = "_python_lock"):
 
 
 class ThreadSafeCounter:
-    """
-    Thread-safe counter using QMutex.
-    """
+    """Thread-safe counter using QMutex."""
 
     def __init__(self, initial_value: int = 0) -> None:
-        """
-        Initialize the counter.
+        """Initialize the counter.
 
         Args:
             initial_value: Initial counter value
@@ -132,8 +124,7 @@ class ThreadSafeCounter:
         self._mutex = QMutex()
 
     def increment(self, amount: int = 1) -> int:
-        """
-        Increment the counter by the specified amount.
+        """Increment the counter by the specified amount.
 
         Args:
             amount: Amount to increment by
@@ -146,8 +137,7 @@ class ThreadSafeCounter:
             return self._value
 
     def decrement(self, amount: int = 1) -> int:
-        """
-        Decrement the counter by the specified amount.
+        """Decrement the counter by the specified amount.
 
         Args:
             amount: Amount to decrement by
@@ -160,8 +150,7 @@ class ThreadSafeCounter:
             return self._value
 
     def get_value(self) -> int:
-        """
-        Get the current counter value.
+        """Get the current counter value.
 
         Returns:
             Current counter value
@@ -170,8 +159,7 @@ class ThreadSafeCounter:
             return self._value
 
     def set_value(self, value: int) -> None:
-        """
-        Set the counter value.
+        """Set the counter value.
 
         Args:
             value: New counter value
@@ -186,13 +174,10 @@ class ThreadSafeCounter:
 
 
 class ThreadSafeList:
-    """
-    Thread-safe list using QMutex.
-    """
+    """Thread-safe list using QMutex."""
 
     def __init__(self, initial_items: list | None = None) -> None:
-        """
-        Initialize the thread-safe list.
+        """Initialize the thread-safe list.
 
         Args:
             initial_items: Initial list items
@@ -216,8 +201,7 @@ class ThreadSafeList:
             self._items.insert(index, item)
 
     def remove(self, item: Any) -> bool:
-        """
-        Remove the first occurrence of an item.
+        """Remove the first occurrence of an item.
 
         Returns:
             True if item was removed, False if not found
@@ -261,13 +245,10 @@ class ThreadSafeList:
 
 
 class ThreadSafeDict:
-    """
-    Thread-safe dictionary using QMutex.
-    """
+    """Thread-safe dictionary using QMutex."""
 
     def __init__(self, initial_items: dict | None = None) -> None:
-        """
-        Initialize the thread-safe dictionary.
+        """Initialize the thread-safe dictionary.
 
         Args:
             initial_items: Initial dictionary items
@@ -286,8 +267,7 @@ class ThreadSafeDict:
             self._items[key] = value
 
     def delete(self, key: Any) -> bool:
-        """
-        Delete a key-value pair.
+        """Delete a key-value pair.
 
         Returns:
             True if key was deleted, False if not found
@@ -320,8 +300,7 @@ class ThreadSafeDict:
 
 
 def ensure_main_thread(func: Callable[..., T]) -> Callable[..., T]:
-    """
-    Decorator to ensure a method is called on the main thread.
+    """Decorator to ensure a method is called on the main thread.
 
     This is useful for UI operations that must be performed on the main thread.
 
@@ -336,7 +315,11 @@ def ensure_main_thread(func: Callable[..., T]) -> Callable[..., T]:
     def wrapper(self, *args, **kwargs) -> T:
         from PyQt5.QtCore import QThread
 
-        if QThread.currentThread() != QThread.mainThread():
+        # Check if we're on the main thread by checking if current thread is the application thread
+        from PyQt5.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app and QThread.currentThread() != app.thread():
             logger.warning(f"Method '{func.__name__}' called from non-main thread")
             # In a real implementation, you might want to use QMetaObject.invokeMethod
             # to schedule the call on the main thread
@@ -347,8 +330,7 @@ def ensure_main_thread(func: Callable[..., T]) -> Callable[..., T]:
 
 
 def prevent_deadlock(timeout_ms: int = 5000):
-    """
-    Decorator to prevent deadlocks by adding timeout to mutex operations.
+    """Decorator to prevent deadlocks by adding timeout to mutex operations.
 
     Args:
         timeout_ms: Timeout in milliseconds
@@ -371,14 +353,11 @@ def prevent_deadlock(timeout_ms: int = 5000):
 
 
 class ThreadSafetyValidator:
-    """
-    Utility class for validating thread safety in the application.
-    """
+    """Utility class for validating thread safety in the application."""
 
     @staticmethod
     def validate_mutex_usage(obj: Any, mutex_attr: str = "_mutex") -> bool:
-        """
-        Validate that mutex is being used correctly in an object.
+        """Validate that mutex is being used correctly in an object.
 
         Args:
             obj: Object to validate
@@ -400,8 +379,7 @@ class ThreadSafetyValidator:
 
     @staticmethod
     def validate_lock_usage(obj: Any, lock_attr: str = "_python_lock") -> bool:
-        """
-        Validate that Python lock is being used correctly in an object.
+        """Validate that Python lock is being used correctly in an object.
 
         Args:
             obj: Object to validate

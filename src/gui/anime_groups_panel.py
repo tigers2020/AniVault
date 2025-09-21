@@ -65,9 +65,10 @@ class AnimeGroupsPanel(QGroupBox):
 
         # Set column widths
         header = self.groups_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)  # Group name
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # File count
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Status
+        if header is not None:
+            header.setSectionResizeMode(0, QHeaderView.Stretch)  # Group name
+            header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # File count
+            header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Status
 
         # Connect selection signal
         self.groups_table.itemSelectionChanged.connect(self._on_selection_changed)
@@ -126,17 +127,19 @@ class AnimeGroupsPanel(QGroupBox):
         for row, (group_name, file_count, status) in enumerate(sample_groups):
             # Group name
             name_item = QTableWidgetItem(group_name)
-            name_item.setData(Qt.UserRole, group_name)  # Store group name for selection
+            name_item.setData(
+                Qt.ItemDataRole.UserRole, group_name
+            )  # Store group name for selection
             self.groups_table.setItem(row, 0, name_item)
 
             # File count
             count_item = QTableWidgetItem(file_count)
-            count_item.setTextAlignment(Qt.AlignCenter)
+            count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.groups_table.setItem(row, 1, count_item)
 
             # Status
             status_item = QTableWidgetItem(status)
-            status_item.setTextAlignment(Qt.AlignCenter)
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
             # Color code status using theme manager
             self._set_status_color(status_item, status)
@@ -163,8 +166,7 @@ class AnimeGroupsPanel(QGroupBox):
         return ""
 
     def update_groups(self, groups) -> None:
-        """
-        Update the groups table with actual group data.
+        """Update the groups table with actual group data.
 
         Args:
             groups: List of FileGroup objects
@@ -184,8 +186,7 @@ class AnimeGroupsPanel(QGroupBox):
         logger.info(f"Updated groups table with {len(groups)} groups")
 
     def _add_group_row(self, group) -> None:
-        """
-        Add a single group row to the table.
+        """Add a single group row to the table.
 
         Args:
             group: FileGroup object to add
@@ -196,7 +197,9 @@ class AnimeGroupsPanel(QGroupBox):
         # Group name (use Korean title if available)
         group_name = group.series_title or group.group_id
         group_name_item = QTableWidgetItem(group_name)
-        group_name_item.setData(Qt.UserRole, group.group_id)  # Store group ID for selection
+        group_name_item.setData(
+            Qt.ItemDataRole.UserRole, group.group_id
+        )  # Store group ID for selection
 
         # File count
         file_count_item = QTableWidgetItem(str(len(group.files)))
@@ -229,17 +232,17 @@ class AnimeGroupsPanel(QGroupBox):
 
         # Group name
         name_item = QTableWidgetItem(group_name)
-        name_item.setData(Qt.UserRole, group_name)
+        name_item.setData(Qt.ItemDataRole.UserRole, group_name)
         self.groups_table.setItem(row_count, 0, name_item)
 
         # File count
         count_item = QTableWidgetItem(str(file_count))
-        count_item.setTextAlignment(Qt.AlignCenter)
+        count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.groups_table.setItem(row_count, 1, count_item)
 
         # Status
         status_item = QTableWidgetItem(status)
-        status_item.setTextAlignment(Qt.AlignCenter)
+        status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Color code status using theme manager
         self._set_status_color(status_item, status)
@@ -250,7 +253,7 @@ class AnimeGroupsPanel(QGroupBox):
         """Update the status of a specific group."""
         for row in range(self.groups_table.rowCount()):
             name_item = self.groups_table.item(row, 0)
-            if name_item and name_item.data(Qt.UserRole) == group_name:
+            if name_item and name_item.data(Qt.ItemDataRole.UserRole) == group_name:
                 status_item = self.groups_table.item(row, 2)
                 if status_item:
                     status_item.setText(status)

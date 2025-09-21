@@ -1,5 +1,4 @@
-"""
-Fallback parsing mechanisms for anime filenames.
+"""Fallback parsing mechanisms for anime filenames.
 
 This module provides alternative parsing strategies when anitopy fails
 to extract meaningful information from anime filenames.
@@ -16,8 +15,7 @@ logger = get_logger(__name__)
 
 
 class FallbackAnimeParser:
-    """
-    Provides fallback parsing strategies for anime filenames.
+    """Provides fallback parsing strategies for anime filenames.
 
     When anitopy fails to parse a filename, this class attempts to extract
     basic information using regex patterns and heuristics.
@@ -59,8 +57,7 @@ class FallbackAnimeParser:
         ]
 
     def extract_basic_info(self, filename: str) -> dict[str, Any]:
-        """
-        Extract basic information using regex patterns.
+        """Extract basic information using regex patterns.
 
         Args:
             filename: Filename to parse
@@ -112,8 +109,8 @@ class FallbackAnimeParser:
         # Check for 4K first
         if self.patterns["resolution_4k"].search(filename):
             info["resolution"] = "4K"
-            info["resolution_width"] = 3840
-            info["resolution_height"] = 2160
+            info["resolution_width"] = "3840"
+            info["resolution_height"] = "2160"
         else:
             # Check for explicit width x height
             match = self.patterns["resolution_x"].search(filename)
@@ -122,8 +119,8 @@ class FallbackAnimeParser:
                     width = int(match.group(1))
                     height = int(match.group(2))
                     info["resolution"] = f"{width}x{height}"
-                    info["resolution_width"] = width
-                    info["resolution_height"] = height
+                    info["resolution_width"] = str(width)
+                    info["resolution_height"] = str(height)
                 except (ValueError, IndexError):
                     pass
             else:
@@ -135,8 +132,8 @@ class FallbackAnimeParser:
                         info["resolution"] = f"{height}p"
                         # Assume 16:9 aspect ratio
                         width = int(height * (16 / 9))
-                        info["resolution_width"] = width
-                        info["resolution_height"] = height
+                        info["resolution_width"] = str(width)
+                        info["resolution_height"] = str(height)
                     except (ValueError, IndexError):
                         pass
 
@@ -148,7 +145,7 @@ class FallbackAnimeParser:
                     try:
                         year = int(match.group(1))
                         if 1900 <= year <= 2030:  # Reasonable year range
-                            info["year"] = year
+                            info["year"] = str(year)
                             break
                     except (ValueError, IndexError):
                         continue
@@ -173,7 +170,7 @@ class FallbackAnimeParser:
             if matches:
                 # Take the first match that looks like a release group
                 for match in matches:
-                    if len(match) > 2 and not match.isdigit():
+                    if match and len(match) > 2 and not match.isdigit():
                         info["release_group"] = match
                         break
 
@@ -184,8 +181,7 @@ class FallbackAnimeParser:
         return info
 
     def _extract_title(self, filename: str, info: dict[str, Any]) -> str:
-        """
-        Extract title from filename by removing known patterns.
+        """Extract title from filename by removing known patterns.
 
         Args:
             filename: Original filename
@@ -226,8 +222,7 @@ class FallbackAnimeParser:
         return title
 
     def create_fallback_parsed_info(self, filename: str) -> ParsedAnimeInfo | None:
-        """
-        Create a ParsedAnimeInfo object using fallback parsing.
+        """Create a ParsedAnimeInfo object using fallback parsing.
 
         Args:
             filename: Filename to parse
@@ -271,8 +266,7 @@ class FallbackAnimeParser:
             return None
 
     def is_likely_anime_file(self, filename: str) -> bool:
-        """
-        Check if a filename is likely to be an anime file.
+        """Check if a filename is likely to be an anime file.
 
         Args:
             filename: Filename to check

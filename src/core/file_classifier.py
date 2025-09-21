@@ -1,5 +1,4 @@
-"""
-File classification system for anime files.
+"""File classification system for anime files.
 
 This module provides functionality to classify anime files based on resolution,
 quality, and other criteria to determine the best file to keep when multiple
@@ -41,8 +40,7 @@ class FileClassification:
 
 
 class FileClassifier:
-    """
-    Classifies anime files based on resolution, quality, and other criteria.
+    """Classifies anime files based on resolution, quality, and other criteria.
 
     This class provides methods to:
     - Extract resolution information from filenames and metadata
@@ -117,8 +115,7 @@ class FileClassifier:
         ]
 
     def classify_file(self, file: AnimeFile) -> FileClassification:
-        """
-        Classify a single anime file based on its properties.
+        """Classify a single anime file based on its properties.
 
         Args:
             file: The AnimeFile to classify
@@ -163,8 +160,7 @@ class FileClassifier:
             ) from e
 
     def classify_files(self, files: list[AnimeFile]) -> list[FileClassification]:
-        """
-        Classify multiple anime files.
+        """Classify multiple anime files.
 
         Args:
             files: List of AnimeFile objects to classify
@@ -185,8 +181,7 @@ class FileClassifier:
         return classifications
 
     def find_best_file(self, files: list[AnimeFile]) -> AnimeFile | None:
-        """
-        Find the best file among multiple versions of the same content.
+        """Find the best file among multiple versions of the same content.
 
         Args:
             files: List of AnimeFile objects to compare
@@ -197,7 +192,13 @@ class FileClassifier:
         if not files:
             return None
 
-        classifications = self.classify_files(files)
+        # Filter out subtitle files - only process video files for best file selection
+        video_files = self._filter_video_files(files)
+        if not video_files:
+            # If no video files, return the first file (could be subtitle)
+            return files[0] if files else None
+
+        classifications = self.classify_files(video_files)
         if not classifications:
             return None
 
@@ -210,9 +211,27 @@ class FileClassifier:
 
         return best_classification.file
 
-    def group_by_series(self, files: list[AnimeFile]) -> dict[str, list[AnimeFile]]:
+    def _filter_video_files(self, files: list[AnimeFile]) -> list[AnimeFile]:
+        """Filter out subtitle files, keeping only video files.
+        
+        Args:
+            files: List of AnimeFile objects to filter
+            
+        Returns:
+            List of video files only
         """
-        Group files by series title for classification.
+        from .file_scanner import FileScanner
+        
+        video_files = []
+        for file in files:
+            file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+            if f".{file_ext}" in FileScanner.SUPPORTED_EXTENSIONS:
+                video_files.append(file)
+        
+        return video_files
+
+    def group_by_series(self, files: list[AnimeFile]) -> dict[str, list[AnimeFile]]:
+        """Group files by series title for classification.
 
         Args:
             files: List of AnimeFile objects to group
@@ -238,8 +257,7 @@ class FileClassifier:
         return groups
 
     def _extract_resolution(self, file: AnimeFile) -> tuple[ResolutionQuality, int, int]:
-        """
-        Extract resolution information from a file.
+        """Extract resolution information from a file.
 
         Args:
             file: The AnimeFile to analyze
@@ -277,8 +295,7 @@ class FileClassifier:
         return ResolutionQuality.UNKNOWN, 0, 0
 
     def _get_quality_from_dimensions(self, width: int, height: int) -> ResolutionQuality:
-        """
-        Determine ResolutionQuality from width and height dimensions.
+        """Determine ResolutionQuality from width and height dimensions.
 
         Args:
             width: Video width in pixels
@@ -318,8 +335,7 @@ class FileClassifier:
         height: int,
         file_size_mb: float,
     ) -> float:
-        """
-        Calculate a quality score for a file.
+        """Calculate a quality score for a file.
 
         Args:
             file: The AnimeFile to score
@@ -368,8 +384,7 @@ class FileClassifier:
     def _get_classification_reason(
         self, file: AnimeFile, resolution: ResolutionQuality, quality_score: float
     ) -> str:
-        """
-        Generate a human-readable reason for the classification.
+        """Generate a human-readable reason for the classification.
 
         Args:
             file: The classified file

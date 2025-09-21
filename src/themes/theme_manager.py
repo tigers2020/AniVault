@@ -14,14 +14,14 @@ class ThemeManager(QObject):
     # Signal emitted when theme changes
     theme_changed = pyqtSignal(object)
 
-    _instance = None
+    _instance: "ThemeManager | None" = None
     _initialized = False
 
     def __new__(cls) -> "ThemeManager":
         """Ensure only one instance exists (singleton pattern)."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-        return cls._instance  # type: ignore
+        return cls._instance
 
     def __init__(self) -> None:
         """Initialize theme manager (only once)."""
@@ -42,7 +42,7 @@ class ThemeManager(QObject):
             widget.setStyleSheet(theme.get_complete_style())
 
         # Recursively apply to children
-        for child in widget.findChildren(object):
+        for child in widget.findChildren(QWidget):
             if hasattr(child, "setStyleSheet"):
                 self._apply_widget_theme(child, theme)
 

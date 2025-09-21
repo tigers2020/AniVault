@@ -1,5 +1,4 @@
-"""
-File Pipeline Worker for AniVault application.
+"""File Pipeline Worker for AniVault application.
 
 This module provides a QThread-based background worker for handling
 file processing operations without blocking the UI thread.
@@ -21,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class WorkerTask(ABC):
-    """
-    Abstract base class for worker tasks.
+    """Abstract base class for worker tasks.
 
     This class defines the interface that all worker tasks must implement
     to be executed by the FilePipelineWorker.
@@ -30,8 +28,7 @@ class WorkerTask(ABC):
 
     @abstractmethod
     def execute(self) -> Any:
-        """
-        Execute the task.
+        """Execute the task.
 
         Returns:
             Task result
@@ -40,8 +37,7 @@ class WorkerTask(ABC):
 
     @abstractmethod
     def get_name(self) -> str:
-        """
-        Get the name of this task.
+        """Get the name of this task.
 
         Returns:
             Task name
@@ -49,8 +45,7 @@ class WorkerTask(ABC):
         pass
 
     def get_progress_message(self) -> str:
-        """
-        Get a progress message for this task.
+        """Get a progress message for this task.
 
         Returns:
             Progress message
@@ -59,8 +54,7 @@ class WorkerTask(ABC):
 
 
 class FilePipelineWorker(QThread):
-    """
-    QThread-based background worker for file processing operations.
+    """QThread-based background worker for file processing operations.
 
     This worker handles heavy processing tasks in a separate thread to
     prevent UI blocking. It provides signals for progress updates and
@@ -75,8 +69,7 @@ class FilePipelineWorker(QThread):
     worker_finished = pyqtSignal()  # when worker thread finishes
 
     def __init__(self, parent: QObject | None = None) -> None:
-        """
-        Initialize the FilePipelineWorker.
+        """Initialize the FilePipelineWorker.
 
         Args:
             parent: Parent QObject for Qt object hierarchy
@@ -99,8 +92,7 @@ class FilePipelineWorker(QThread):
         logger.debug("FilePipelineWorker initialized")
 
     def set_processing_state(self, processing_state: ProcessingState) -> None:
-        """
-        Set the processing state object for progress updates.
+        """Set the processing state object for progress updates.
 
         Args:
             processing_state: ProcessingState instance
@@ -109,8 +101,7 @@ class FilePipelineWorker(QThread):
         logger.debug("Processing state set")
 
     def add_task(self, task: WorkerTask) -> None:
-        """
-        Add a task to the worker queue.
+        """Add a task to the worker queue.
 
         Args:
             task: Task to add to the queue
@@ -120,8 +111,7 @@ class FilePipelineWorker(QThread):
             logger.debug(f"Added task '{task.get_name()}' to queue")
 
     def add_tasks(self, tasks: list[WorkerTask]) -> None:
-        """
-        Add multiple tasks to the worker queue.
+        """Add multiple tasks to the worker queue.
 
         Args:
             tasks: List of tasks to add
@@ -137,8 +127,7 @@ class FilePipelineWorker(QThread):
             logger.debug("Cleared task queue")
 
     def get_queue_size(self) -> int:
-        """
-        Get the number of pending tasks.
+        """Get the number of pending tasks.
 
         Returns:
             Number of pending tasks
@@ -147,8 +136,7 @@ class FilePipelineWorker(QThread):
             return len(self._task_queue)
 
     def is_running(self) -> bool:
-        """
-        Check if the worker is currently running.
+        """Check if the worker is currently running.
 
         Returns:
             True if worker is running
@@ -166,12 +154,19 @@ class FilePipelineWorker(QThread):
         """Force the worker to stop immediately."""
         with self._state_mutex:
             self._should_stop = True
-        self.terminate()  # Force terminate the thread
+        
+        # Try graceful shutdown first
+        if self.isRunning():
+            self.quit()
+            if not self.wait(2000):  # Wait up to 2 seconds
+                # If graceful shutdown fails, terminate
+                self.terminate()
+                self.wait(1000)  # Wait for termination
+        
         logger.warning("Worker force stopped")
 
     def run(self) -> None:
-        """
-        Main worker thread execution loop.
+        """Main worker thread execution loop.
 
         This method runs in the background thread and processes tasks
         from the queue until stopped or no more tasks remain.
@@ -214,8 +209,7 @@ class FilePipelineWorker(QThread):
             self.worker_finished.emit()
 
     def wait_for_start(self, timeout_ms: int = 1000) -> bool:
-        """
-        Wait for the worker to actually start running.
+        """Wait for the worker to actually start running.
 
         Args:
             timeout_ms: Maximum time to wait in milliseconds
@@ -236,8 +230,7 @@ class FilePipelineWorker(QThread):
         return False
 
     def _execute_task(self, task: WorkerTask) -> None:
-        """
-        Execute a single task.
+        """Execute a single task.
 
         Args:
             task: Task to execute
@@ -265,7 +258,7 @@ class FilePipelineWorker(QThread):
             logger.debug(f"Task '{task_name}' completed successfully")
 
         except Exception as e:
-            error_msg = f"Task '{task_name}' failed: {str(e)}"
+            error_msg = f"Task '{task_name}' failed: {e!s}"
             logger.error(error_msg, exc_info=True)
 
             # Emit error signal
@@ -284,8 +277,7 @@ class FilePipelineWorker(QThread):
                 self._current_task = None
 
     def get_current_task(self) -> WorkerTask | None:
-        """
-        Get the currently executing task.
+        """Get the currently executing task.
 
         Returns:
             Current task or None if no task is executing
@@ -294,8 +286,7 @@ class FilePipelineWorker(QThread):
             return self._current_task
 
     def wait_for_completion(self, timeout: int = 30000) -> bool:
-        """
-        Wait for the worker to complete all tasks.
+        """Wait for the worker to complete all tasks.
 
         Args:
             timeout: Maximum time to wait in milliseconds
@@ -317,13 +308,10 @@ class FilePipelineWorker(QThread):
 
 
 class FileScanningTask(WorkerTask):
-    """
-    Task for scanning directories for anime files.
-    """
+    """Task for scanning directories for anime files."""
 
     def __init__(self, scan_directories: list[str], supported_extensions: list[str]) -> None:
-        """
-        Initialize the file scanning task.
+        """Initialize the file scanning task.
 
         Args:
             scan_directories: List of directories to scan
@@ -334,8 +322,7 @@ class FileScanningTask(WorkerTask):
         self._files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the file scanning.
+        """Execute the file scanning.
 
         Returns:
             List of found anime files
@@ -355,13 +342,10 @@ class FileScanningTask(WorkerTask):
 
 
 class FileGroupingTask(WorkerTask):
-    """
-    Task for grouping similar anime files.
-    """
+    """Task for grouping similar anime files."""
 
     def __init__(self, files: list[AnimeFile], similarity_threshold: float = 0.7) -> None:
-        """
-        Initialize the file grouping task.
+        """Initialize the file grouping task.
 
         Args:
             files: List of files to group
@@ -372,8 +356,7 @@ class FileGroupingTask(WorkerTask):
         self._groups: list[FileGroup] = []
 
     def execute(self) -> list[FileGroup]:
-        """
-        Execute the file grouping.
+        """Execute the file grouping.
 
         Returns:
             List of file groups
@@ -393,13 +376,10 @@ class FileGroupingTask(WorkerTask):
 
 
 class FileParsingTask(WorkerTask):
-    """
-    Task for parsing anime file information.
-    """
+    """Task for parsing anime file information."""
 
     def __init__(self, files: list[AnimeFile]) -> None:
-        """
-        Initialize the file parsing task.
+        """Initialize the file parsing task.
 
         Args:
             files: List of files to parse
@@ -408,8 +388,7 @@ class FileParsingTask(WorkerTask):
         self._parsed_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the file parsing.
+        """Execute the file parsing.
 
         Returns:
             List of parsed files
@@ -429,13 +408,10 @@ class FileParsingTask(WorkerTask):
 
 
 class MetadataRetrievalTask(WorkerTask):
-    """
-    Task for retrieving metadata from TMDB.
-    """
+    """Task for retrieving metadata from TMDB."""
 
     def __init__(self, files: list[AnimeFile], api_key: str) -> None:
-        """
-        Initialize the metadata retrieval task.
+        """Initialize the metadata retrieval task.
 
         Args:
             files: List of files to get metadata for
@@ -446,8 +422,7 @@ class MetadataRetrievalTask(WorkerTask):
         self._files_with_metadata: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the metadata retrieval.
+        """Execute the metadata retrieval.
 
         Returns:
             List of files with metadata
@@ -467,13 +442,10 @@ class MetadataRetrievalTask(WorkerTask):
 
 
 class FileMovingTask(WorkerTask):
-    """
-    Task for moving and organizing files.
-    """
+    """Task for moving and organizing files."""
 
     def __init__(self, groups: list[FileGroup], target_directory: str) -> None:
-        """
-        Initialize the file moving task.
+        """Initialize the file moving task.
 
         Args:
             groups: List of file groups to move
@@ -484,8 +456,7 @@ class FileMovingTask(WorkerTask):
         self._moved_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the file moving.
+        """Execute the file moving.
 
         Returns:
             List of moved files

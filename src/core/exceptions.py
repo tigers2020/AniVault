@@ -1,5 +1,4 @@
-"""
-Custom exceptions for file movement operations.
+"""Custom exceptions for file movement operations.
 
 This module defines specific exceptions for handling various error conditions
 that can occur during file movement, renaming, and transactional operations.
@@ -29,8 +28,7 @@ class FileMovementException(AniVaultException):
 
 
 class MoveRollbackError(FileMovementException):
-    """
-    Raised when a file movement operation fails and rollback cannot be completed.
+    """Raised when a file movement operation fails and rollback cannot be completed.
 
     This exception indicates that the original file state cannot be restored
     after a failed move operation, potentially leaving the system in an
@@ -52,8 +50,7 @@ class MoveRollbackError(FileMovementException):
 
 
 class MoveConflictError(FileMovementException):
-    """
-    Raised when a file movement operation encounters a naming conflict.
+    """Raised when a file movement operation encounters a naming conflict.
 
     This exception is raised when attempting to move a file to a location
     where a file with the same name already exists and cannot be resolved
@@ -75,8 +72,7 @@ class MoveConflictError(FileMovementException):
 
 
 class MovePermissionError(FileMovementException):
-    """
-    Raised when file movement fails due to insufficient permissions.
+    """Raised when file movement fails due to insufficient permissions.
 
     This exception covers various permission-related issues including:
     - Read permission on source file
@@ -93,8 +89,7 @@ class MovePermissionError(FileMovementException):
 
 
 class MoveDiskSpaceError(FileMovementException):
-    """
-    Raised when file movement fails due to insufficient disk space.
+    """Raised when file movement fails due to insufficient disk space.
 
     This exception is raised when there's not enough space to complete
     the file movement operation, including temporary file creation.
@@ -115,8 +110,7 @@ class MoveDiskSpaceError(FileMovementException):
 
 
 class MoveValidationError(FileMovementException):
-    """
-    Raised when file movement fails validation checks.
+    """Raised when file movement fails validation checks.
 
     This exception covers various validation failures including:
     - File integrity checks
@@ -133,8 +127,7 @@ class MoveValidationError(FileMovementException):
 
 
 class MoveTransactionError(FileMovementException):
-    """
-    Raised when a transactional file movement operation fails.
+    """Raised when a transactional file movement operation fails.
 
     This exception indicates that the entire transaction should be rolled back
     and provides information about which operations failed.
@@ -153,8 +146,7 @@ class MoveTransactionError(FileMovementException):
 
 
 class FileClassificationError(AniVaultException):
-    """
-    Raised when file classification fails.
+    """Raised when file classification fails.
 
     This exception covers errors in determining file resolution,
     quality, or other classification criteria.
@@ -169,8 +161,7 @@ class FileClassificationError(AniVaultException):
 
 
 class FileNamingError(AniVaultException):
-    """
-    Raised when file naming operations fail.
+    """Raised when file naming operations fail.
 
     This exception covers errors in generating safe filenames,
     handling conflicts, or applying naming rules.

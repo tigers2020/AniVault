@@ -1,5 +1,4 @@
-"""
-Utility functions for parsing and normalizing anime-related data.
+"""Utility functions for parsing and normalizing anime-related data.
 
 This module provides helper functions for processing parsed anime information,
 including resolution parsing, title normalization, and data validation.
@@ -9,8 +8,7 @@ import re
 
 
 def parse_resolution_string(res_str: str | None) -> tuple[int | None, int | None]:
-    """
-    Parses a resolution string (e.g., '1080p', '1920x1080', '4K') into width and height.
+    """Parses a resolution string (e.g., '1080p', '1920x1080', '4K') into width and height.
 
     Assumes 16:9 aspect ratio for 'p' resolutions where width is not explicitly given.
 
@@ -71,8 +69,7 @@ def parse_resolution_string(res_str: str | None) -> tuple[int | None, int | None
 
 
 def normalize_title(title: str) -> str:
-    """
-    Normalizes an anime title by cleaning up common artifacts.
+    """Normalizes an anime title by cleaning up common artifacts.
 
     Args:
         title: Raw title string from parsing
@@ -100,8 +97,7 @@ def normalize_title(title: str) -> str:
 
 
 def validate_episode_number(episode: int | None) -> int | None:
-    """
-    Validates and normalizes episode numbers.
+    """Validates and normalizes episode numbers.
 
     Args:
         episode: Raw episode number
@@ -120,8 +116,7 @@ def validate_episode_number(episode: int | None) -> int | None:
 
 
 def validate_season_number(season: int | None) -> int | None:
-    """
-    Validates and normalizes season numbers.
+    """Validates and normalizes season numbers.
 
     Args:
         season: Raw season number
@@ -140,8 +135,7 @@ def validate_season_number(season: int | None) -> int | None:
 
 
 def validate_year(year: int | None) -> int | None:
-    """
-    Validates and normalizes year values.
+    """Validates and normalizes year values.
 
     Args:
         year: Raw year value

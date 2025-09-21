@@ -1,5 +1,4 @@
-"""
-Thread-safe configuration management for AniVault application.
+"""Thread-safe configuration management for AniVault application.
 
 This module provides advanced thread safety features for configuration management
 including atomic operations, change notifications, and concurrent access patterns.
@@ -24,8 +23,7 @@ class ConfigurationChangeEvent:
     """Represents a configuration change event."""
 
     def __init__(self, key_path: str, old_value: Any, new_value: Any, timestamp: float):
-        """
-        Initialize configuration change event.
+        """Initialize configuration change event.
 
         Args:
             key_path: The configuration key that changed
@@ -51,8 +49,7 @@ class ConfigurationObserver:
         callback: Callable[[ConfigurationChangeEvent], None],
         key_patterns: list[str] | None = None,
     ):
-        """
-        Initialize configuration observer.
+        """Initialize configuration observer.
 
         Args:
             callback: Function to call when configuration changes
@@ -63,8 +60,7 @@ class ConfigurationObserver:
         self.observer_id = id(self)
 
     def should_notify(self, key_path: str) -> bool:
-        """
-        Check if this observer should be notified for the given key.
+        """Check if this observer should be notified for the given key.
 
         Args:
             key_path: The configuration key that changed
@@ -79,8 +75,7 @@ class ConfigurationObserver:
         return any(re.match(pattern.replace("*", ".*"), key_path) for pattern in self.key_patterns)
 
     def notify(self, event: ConfigurationChangeEvent) -> None:
-        """
-        Notify the observer of a configuration change.
+        """Notify the observer of a configuration change.
 
         Args:
             event: The configuration change event
@@ -92,8 +87,7 @@ class ConfigurationObserver:
 
 
 class ThreadSafeConfigManager:
-    """
-    Advanced thread-safe configuration manager with observer pattern and atomic operations.
+    """Advanced thread-safe configuration manager with observer pattern and atomic operations.
 
     This class provides enhanced thread safety features including:
     - Atomic configuration updates
@@ -104,8 +98,7 @@ class ThreadSafeConfigManager:
     """
 
     def __init__(self, config_path: Path | None = None):
-        """
-        Initialize the thread-safe configuration manager.
+        """Initialize the thread-safe configuration manager.
 
         Args:
             config_path: Path to the configuration file
@@ -131,8 +124,7 @@ class ThreadSafeConfigManager:
         callback: Callable[[ConfigurationChangeEvent], None],
         key_patterns: list[str] | None = None,
     ) -> int:
-        """
-        Add a configuration change observer.
+        """Add a configuration change observer.
 
         Args:
             callback: Function to call when configuration changes
@@ -148,8 +140,7 @@ class ThreadSafeConfigManager:
             return observer.observer_id
 
     def remove_observer(self, observer_id: int) -> bool:
-        """
-        Remove a configuration change observer.
+        """Remove a configuration change observer.
 
         Args:
             observer_id: The observer ID to remove
@@ -191,8 +182,7 @@ class ThreadSafeConfigManager:
         self._notify_observers(event)
 
     def get(self, key_path: str, default: Any = None) -> Any:
-        """
-        Get a configuration value with thread safety.
+        """Get a configuration value with thread safety.
 
         Args:
             key_path: Dot-separated path to the configuration key
@@ -207,8 +197,7 @@ class ThreadSafeConfigManager:
             return self._base_manager.get(key_path, default)
 
     def set(self, key_path: str, value: Any, encrypt: bool | None = None) -> None:
-        """
-        Set a configuration value with thread safety and change notification.
+        """Set a configuration value with thread safety and change notification.
 
         Args:
             key_path: Dot-separated path to the configuration key
@@ -229,8 +218,7 @@ class ThreadSafeConfigManager:
             self._last_access_time = time.time()
 
     def batch_update(self, updates: dict[str, Any]) -> None:
-        """
-        Perform atomic batch update of multiple configuration values.
+        """Perform atomic batch update of multiple configuration values.
 
         Args:
             updates: Dictionary of key_path -> value mappings
@@ -267,8 +255,7 @@ class ThreadSafeConfigManager:
                 self._batch_mode = False
 
     def atomic_update(self, key_path: str, update_func: Callable[[Any], Any]) -> Any:
-        """
-        Perform atomic update using a function.
+        """Perform atomic update using a function.
 
         Args:
             key_path: Dot-separated path to the configuration key
@@ -292,8 +279,7 @@ class ThreadSafeConfigManager:
     def get_change_history(
         self, key_pattern: str | None = None, limit: int | None = None
     ) -> list[ConfigurationChangeEvent]:
-        """
-        Get configuration change history.
+        """Get configuration change history.
 
         Args:
             key_pattern: Optional pattern to filter changes by key
@@ -315,8 +301,7 @@ class ThreadSafeConfigManager:
             return filtered_changes.copy()
 
     def get_statistics(self) -> dict[str, Any]:
-        """
-        Get configuration manager statistics.
+        """Get configuration manager statistics.
 
         Returns:
             Dictionary containing usage statistics
@@ -414,8 +399,7 @@ class ThreadSafeConfigManager:
             return self._base_manager.set_language(language)
 
     def wait_for_change(self, key_path: str, timeout: float = 10.0) -> bool:
-        """
-        Wait for a configuration change to occur.
+        """Wait for a configuration change to occur.
 
         Args:
             key_path: The configuration key to watch
@@ -436,8 +420,7 @@ class ThreadSafeConfigManager:
         return False
 
     def get_concurrent_readers(self) -> int:
-        """
-        Get the number of concurrent readers (approximate).
+        """Get the number of concurrent readers (approximate).
 
         Returns:
             Approximate number of concurrent readers
@@ -452,8 +435,7 @@ _thread_safe_config_manager: ThreadSafeConfigManager | None = None
 
 
 def get_thread_safe_config_manager() -> ThreadSafeConfigManager:
-    """
-    Get the global thread-safe configuration manager instance.
+    """Get the global thread-safe configuration manager instance.
 
     Returns:
         Global ThreadSafeConfigManager instance
@@ -465,8 +447,7 @@ def get_thread_safe_config_manager() -> ThreadSafeConfigManager:
 
 
 def initialize_thread_safe_config(config_path: Path | None = None) -> ThreadSafeConfigManager:
-    """
-    Initialize the global thread-safe configuration manager.
+    """Initialize the global thread-safe configuration manager.
 
     Args:
         config_path: Path to configuration file

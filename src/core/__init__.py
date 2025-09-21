@@ -1,5 +1,4 @@
-"""
-Core module for AniVault application.
+"""Core module for AniVault application.
 
 This module contains the core data models and business logic components.
 """

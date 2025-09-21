@@ -52,11 +52,11 @@ class ImageLoaderThread(QThread):
                 logger.error(f"Failed to load image data from: {self.image_url}")
 
         except URLError as e:
-            error_msg = f"Network error loading image: {str(e)}"
+            error_msg = f"Network error loading image: {e!s}"
             self.load_failed.emit(error_msg)
             logger.error(error_msg)
         except Exception as e:
-            error_msg = f"Error loading image: {str(e)}"
+            error_msg = f"Error loading image: {e!s}"
             self.load_failed.emit(error_msg)
             logger.error(error_msg)
 
@@ -68,7 +68,7 @@ class AnimeDetailsPanel(QGroupBox):
         """Initialize the anime details panel."""
         super().__init__("애니 디테일", parent)
         self.theme_manager = get_theme_manager()
-        self.image_loader_thread = None
+        self.image_loader_thread: ImageLoaderThread | None = None
         # Apply theme to the GroupBox first
         self.setStyleSheet(self.theme_manager.current_theme.get_group_box_style())
         self._setup_ui()
@@ -194,8 +194,7 @@ class AnimeDetailsPanel(QGroupBox):
         pass
 
     def display_group_details(self, group) -> None:
-        """
-        Display anime details for a selected group.
+        """Display anime details for a selected group.
 
         Args:
             group: FileGroup object with TMDB information
@@ -223,8 +222,7 @@ class AnimeDetailsPanel(QGroupBox):
         # This would require implementing image loading from URLs
 
     def _update_tmdb_fields(self, tmdb_info) -> None:
-        """
-        Update TMDB information fields.
+        """Update TMDB information fields.
 
         Args:
             tmdb_info: TMDBAnime object with metadata
@@ -286,8 +284,7 @@ class AnimeDetailsPanel(QGroupBox):
             self.poster_label.setText("포스터\n(이미지 없음)")
 
     def _update_info_field(self, field_name: str, field_value: str) -> None:
-        """
-        Update a specific info field value.
+        """Update a specific info field value.
 
         Args:
             field_name: Name of the field to update
@@ -298,9 +295,11 @@ class AnimeDetailsPanel(QGroupBox):
             # Find the value label (second child in the layout)
             layout = field_widget.layout()
             if layout and layout.count() >= 2:
-                value_label = layout.itemAt(1).widget()
-                if value_label:
-                    value_label.setText(field_value)
+                item = layout.itemAt(1)
+                if item:
+                    value_label = item.widget()
+                    if value_label:
+                        value_label.setText(field_value)
 
     def clear_details(self) -> None:
         """Clear all anime details."""
@@ -323,7 +322,7 @@ class AnimeDetailsPanel(QGroupBox):
     def _load_poster_image(self, image_url: str) -> None:
         """Load poster image from URL in background thread."""
         # Cancel any existing image loading
-        if self.image_loader_thread and self.image_loader_thread.isRunning():
+        if self.image_loader_thread is not None and self.image_loader_thread.isRunning():
             self.image_loader_thread.quit()
             self.image_loader_thread.wait()
 
@@ -332,6 +331,8 @@ class AnimeDetailsPanel(QGroupBox):
 
         # Create and start new image loader thread
         self.image_loader_thread = ImageLoaderThread(image_url)
+        # At this point, image_loader_thread is guaranteed to be ImageLoaderThread
+        assert self.image_loader_thread is not None
         self.image_loader_thread.image_loaded.connect(self._on_image_loaded)
         self.image_loader_thread.load_failed.connect(self._on_image_load_failed)
         self.image_loader_thread.start()

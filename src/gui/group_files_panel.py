@@ -62,9 +62,10 @@ class GroupFilesPanel(QGroupBox):
 
         # Set column widths
         header = self.files_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)  # File name
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Resolution
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Duration
+        if header is not None:
+            header.setSectionResizeMode(0, QHeaderView.Stretch)  # File name
+            header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Resolution
+            header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Duration
 
         # Connect selection signal
         self.files_table.itemSelectionChanged.connect(self._on_selection_changed)
@@ -115,17 +116,17 @@ class GroupFilesPanel(QGroupBox):
         for row, (file_name, resolution, duration) in enumerate(sample_files):
             # File name
             name_item = QTableWidgetItem(file_name)
-            name_item.setData(Qt.UserRole, file_name)  # Store file name for selection
+            name_item.setData(Qt.ItemDataRole.UserRole, file_name)  # Store file name for selection
             self.files_table.setItem(row, 0, name_item)
 
             # Resolution
             res_item = QTableWidgetItem(resolution)
-            res_item.setTextAlignment(Qt.AlignCenter)
+            res_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.files_table.setItem(row, 1, res_item)
 
             # Duration
             dur_item = QTableWidgetItem(duration)
-            dur_item.setTextAlignment(Qt.AlignCenter)
+            dur_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.files_table.setItem(row, 2, dur_item)
 
     def _on_selection_changed(self) -> None:
@@ -134,7 +135,7 @@ class GroupFilesPanel(QGroupBox):
         if current_row >= 0:
             file_name_item = self.files_table.item(current_row, 0)
             if file_name_item:
-                file_name = file_name_item.data(Qt.UserRole)
+                file_name = file_name_item.data(Qt.ItemDataRole.UserRole)
                 self.file_selected.emit(file_name)
 
     def get_selected_file(self) -> str:
@@ -143,7 +144,7 @@ class GroupFilesPanel(QGroupBox):
         if current_row >= 0:
             file_name_item = self.files_table.item(current_row, 0)
             if file_name_item:
-                return str(file_name_item.data(Qt.UserRole))
+                return str(file_name_item.data(Qt.ItemDataRole.UserRole))
         return ""
 
     def load_group_files(self, group_name: str, files: list[dict[str, Any]]) -> None:
@@ -156,17 +157,17 @@ class GroupFilesPanel(QGroupBox):
 
             # File name
             name_item = QTableWidgetItem(file_info.get("name", ""))
-            name_item.setData(Qt.UserRole, file_info.get("path", ""))
+            name_item.setData(Qt.ItemDataRole.UserRole, file_info.get("path", ""))
             self.files_table.setItem(row_count, 0, name_item)
 
             # Resolution
             res_item = QTableWidgetItem(file_info.get("resolution", ""))
-            res_item.setTextAlignment(Qt.AlignCenter)
+            res_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.files_table.setItem(row_count, 1, res_item)
 
             # Duration
             dur_item = QTableWidgetItem(file_info.get("duration", ""))
-            dur_item.setTextAlignment(Qt.AlignCenter)
+            dur_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.files_table.setItem(row_count, 2, dur_item)
 
     def add_file(self, file_name: str, resolution: str, duration: str) -> None:
@@ -176,15 +177,15 @@ class GroupFilesPanel(QGroupBox):
 
         # File name
         name_item = QTableWidgetItem(file_name)
-        name_item.setData(Qt.UserRole, file_name)
+        name_item.setData(Qt.ItemDataRole.UserRole, file_name)
         self.files_table.setItem(row_count, 0, name_item)
 
         # Resolution
         res_item = QTableWidgetItem(resolution)
-        res_item.setTextAlignment(Qt.AlignCenter)
+        res_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.files_table.setItem(row_count, 1, res_item)
 
         # Duration
         dur_item = QTableWidgetItem(duration)
-        dur_item.setTextAlignment(Qt.AlignCenter)
+        dur_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.files_table.setItem(row_count, 2, dur_item)

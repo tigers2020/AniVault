@@ -1,5 +1,4 @@
-"""
-Secure storage implementation for AniVault application.
+"""Secure storage implementation for AniVault application.
 
 This module provides advanced security features for storing sensitive configuration
 data including encryption, key management, and secure data handling.
@@ -27,8 +26,7 @@ class SecureKeyManager:
     """Manages encryption keys and provides secure key operations."""
 
     def __init__(self, key_file_path: Path | None = None):
-        """
-        Initialize the secure key manager.
+        """Initialize the secure key manager.
 
         Args:
             key_file_path: Path to store the encryption key. If None, uses default location.
@@ -111,18 +109,19 @@ class SecureKeyManager:
         with self._lock:
             if self._key is None:
                 self._load_or_generate_key()
+            if self._key is None:
+                raise RuntimeError("Failed to generate encryption key")
             return self._key
 
     def rotate_key(self) -> bool:
-        """
-        Rotate the encryption key.
+        """Rotate the encryption key.
 
         Returns:
             True if key rotation was successful, False otherwise
         """
         with self._lock:
             try:
-                old_key = self._key
+                # old_key = self._key
                 self._generate_new_key()
                 logger.info("Encryption key rotated successfully")
                 return True
@@ -132,16 +131,14 @@ class SecureKeyManager:
 
 
 class SecureStorage:
-    """
-    Advanced secure storage with encryption and key management.
+    """Advanced secure storage with encryption and key management.
 
     This class provides secure storage capabilities for sensitive configuration
     data with automatic encryption/decryption and key management.
     """
 
     def __init__(self, key_manager: SecureKeyManager | None = None):
-        """
-        Initialize the secure storage.
+        """Initialize the secure storage.
 
         Args:
             key_manager: SecureKeyManager instance. If None, creates a new one.
@@ -162,8 +159,7 @@ class SecureStorage:
                 self._cipher_suite = None
 
     def encrypt_data(self, data: str) -> str:
-        """
-        Encrypt sensitive data.
+        """Encrypt sensitive data.
 
         Args:
             data: The data to encrypt
@@ -171,10 +167,8 @@ class SecureStorage:
         Returns:
             Base64-encoded encrypted data
         """
-        if data is None:
-            return ""
         if not data:
-            return data
+            return ""
 
         with self._lock:
             try:
@@ -195,8 +189,7 @@ class SecureStorage:
                 return base64.b64encode(data.encode("utf-8")).decode("utf-8")
 
     def decrypt_data(self, encrypted_data: str) -> str:
-        """
-        Decrypt sensitive data.
+        """Decrypt sensitive data.
 
         Args:
             encrypted_data: Base64-encoded encrypted data
@@ -204,10 +197,8 @@ class SecureStorage:
         Returns:
             Decrypted data
         """
-        if encrypted_data is None:
-            return ""
         if not encrypted_data:
-            return encrypted_data
+            return ""
 
         with self._lock:
             try:
@@ -222,7 +213,7 @@ class SecureStorage:
                 encrypted_bytes = base64.b64decode(encrypted_data.encode("utf-8"))
 
                 # Decrypt the data
-                decrypted_bytes = self._cipher_suite.decrypt(encrypted_bytes)
+                decrypted_bytes: bytes = self._cipher_suite.decrypt(encrypted_bytes)
                 return decrypted_bytes.decode("utf-8")
 
             except Exception as e:
@@ -231,8 +222,7 @@ class SecureStorage:
                 raise
 
     def hash_data(self, data: str) -> str:
-        """
-        Create a secure hash of data for integrity checking.
+        """Create a secure hash of data for integrity checking.
 
         Args:
             data: The data to hash
@@ -250,8 +240,7 @@ class SecureStorage:
             return ""
 
     def verify_data_integrity(self, data: str, expected_hash: str) -> bool:
-        """
-        Verify data integrity using hash comparison.
+        """Verify data integrity using hash comparison.
 
         Args:
             data: The data to verify
@@ -271,8 +260,7 @@ class SecureStorage:
             return False
 
     def secure_store(self, key: str, value: str, include_hash: bool = True) -> dict[str, Any]:
-        """
-        Securely store a value with optional integrity checking.
+        """Securely store a value with optional integrity checking.
 
         Args:
             key: The key to store the value under
@@ -303,8 +291,7 @@ class SecureStorage:
     def secure_retrieve(
         self, stored_data: dict[str, Any], verify_integrity: bool = True
     ) -> str | None:
-        """
-        Securely retrieve a value with optional integrity verification.
+        """Securely retrieve a value with optional integrity verification.
 
         Args:
             stored_data: Dictionary containing encrypted data and metadata
@@ -347,8 +334,7 @@ class SecureStorage:
         return datetime.now().isoformat()
 
     def rotate_encryption_key(self) -> bool:
-        """
-        Rotate the encryption key.
+        """Rotate the encryption key.
 
         Returns:
             True if key rotation was successful, False otherwise
@@ -369,8 +355,7 @@ _secure_storage: SecureStorage | None = None
 
 
 def get_secure_storage() -> SecureStorage:
-    """
-    Get the global secure storage instance.
+    """Get the global secure storage instance.
 
     Returns:
         Global SecureStorage instance
@@ -382,8 +367,7 @@ def get_secure_storage() -> SecureStorage:
 
 
 def initialize_secure_storage(key_file_path: Path | None = None) -> SecureStorage:
-    """
-    Initialize the global secure storage.
+    """Initialize the global secure storage.
 
     Args:
         key_file_path: Path to encryption key file

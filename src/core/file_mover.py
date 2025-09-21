@@ -1,5 +1,4 @@
-"""
-Transactional file movement system with robust error handling.
+"""Transactional file movement system with robust error handling.
 
 This module provides functionality to safely move and rename files with
 transactional guarantees, including rollback capabilities and comprehensive
@@ -12,6 +11,7 @@ import shutil
 import tempfile
 import time
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
@@ -27,8 +27,9 @@ from .exceptions import (
     MoveValidationError,
 )
 from .file_classifier import FileClassifier
+from .logging_utils import log_operation_error
 from .file_namer import FileNamer
-from .models import AnimeFile
+from .models import AnimeFile, FileGroup
 
 
 class MoveOperation(Enum):
@@ -50,7 +51,7 @@ class MoveTransaction:
     status: str = "pending"  # pending, committed, rolled_back, failed
     rollback_operations: list[dict[str, Any]] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.rollback_operations is None:
             self.rollback_operations = []
 
@@ -71,8 +72,7 @@ class MoveResult:
 
 
 class FileMover:
-    """
-    Handles transactional file movement operations.
+    """Handles transactional file movement operations.
 
     This class provides methods to:
     - Move files with transactional guarantees
@@ -83,8 +83,7 @@ class FileMover:
     """
 
     def __init__(self, temp_dir: Path | None = None) -> None:
-        """
-        Initialize the file mover.
+        """Initialize the file mover.
 
         Args:
             temp_dir: Directory for temporary files (uses system temp if None)
@@ -108,8 +107,7 @@ class FileMover:
         overwrite: bool = False,
         transaction_id: str | None = None,
     ) -> MoveResult:
-        """
-        Move a file from source to target with transactional safety.
+        """Move a file from source to target with transactional safety.
 
         Args:
             source_path: Source file path
@@ -143,6 +141,9 @@ class FileMover:
             # Check disk space
             self._check_disk_space(source_path, target_path)
 
+            # Store file size before moving
+            file_size = source_path.stat().st_size if source_path.exists() else 0
+
             # Perform the move operation
             if self._is_same_filesystem(source_path, target_path):
                 result = self._move_direct(source_path, target_path, transaction_id)
@@ -151,7 +152,7 @@ class FileMover:
 
             # Set final result
             result.duration = time.time() - start_time
-            result.file_size = source_path.stat().st_size if source_path.exists() else 0
+            result.file_size = file_size
 
             self.logger.info(
                 f"File moved successfully: {source_path} -> {target_path} "
@@ -181,8 +182,7 @@ class FileMover:
         create_dirs: bool = True,
         overwrite: bool = False,
     ) -> list[MoveResult]:
-        """
-        Move multiple files in a batch operation.
+        """Move multiple files in a batch operation.
 
         Args:
             file_operations: List of (source_path, target_path) tuples
@@ -212,7 +212,7 @@ class FileMover:
                     break
 
             except Exception as e:
-                self.logger.error(f"Unexpected error in batch operation: {e}")
+                log_operation_error("batch operation", e)
                 results.append(
                     MoveResult(
                         success=False,
@@ -238,10 +238,9 @@ class FileMover:
         files: list[AnimeFile],
         target_directory: Path,
         organize_by_series: bool = True,
-        keep_best_quality: bool = True,
+        keep_best_quality: bool = False,  # Changed default to False to move all files
     ) -> list[MoveResult]:
-        """
-        Move anime files with intelligent organization.
+        """Move anime files with intelligent organization.
 
         Args:
             files: List of AnimeFile objects to move
@@ -259,34 +258,119 @@ class FileMover:
             series_groups = self.classifier.group_by_series(files)
 
             for series_title, series_files in series_groups.items():
+                # Use TMDB Korean title if available, otherwise use original title
+                folder_name = self._get_series_folder_name(series_files, series_title)
+                
                 # Create series directory
-                series_dir = target_directory / self._sanitize_directory_name(series_title)
+                series_dir = target_directory / self._sanitize_directory_name(folder_name)
                 series_dir.mkdir(parents=True, exist_ok=True)
 
-                # Select files to move
+                # Select files to move (all files by default, including subtitles)
                 if keep_best_quality:
-                    files_to_move = [self.classifier.find_best_file(series_files)]
-                    files_to_move = [f for f in files_to_move if f is not None]
+                    best_file = self.classifier.find_best_file(series_files)
+                    files_to_move = [best_file] if best_file is not None else []
                 else:
                     files_to_move = series_files
 
                 # Move files
                 for file in files_to_move:
                     target_path = series_dir / file.filename
-                    result = self.move_file(file.file_path, target_path)
+                    result = self.move_file(Path(file.file_path), target_path)
                     results.append(result)
         else:
             # Move all files to target directory
             for file in files:
                 target_path = target_directory / file.filename
-                result = self.move_file(file.file_path, target_path)
+                result = self.move_file(Path(file.file_path), target_path)
                 results.append(result)
 
         return results
 
-    def rollback_transaction(self, transaction_id: str) -> bool:
+    def move_file_groups(
+        self,
+        groups: list[FileGroup],
+        target_directory: Path,
+        organize_by_series: bool = True,
+        keep_best_quality: bool = False,
+    ) -> list[MoveResult]:
+        """Move file groups using TMDB metadata for folder names.
+
+        Args:
+            groups: List of FileGroup objects to move
+            target_directory: Target directory for files
+            organize_by_series: Create subdirectories by series name
+            keep_best_quality: Only move the best quality file from each group
+
+        Returns:
+            List of MoveResult objects
         """
-        Rollback a transaction by undoing all operations.
+        results = []
+
+        for group in groups:
+            if not group.files:
+                continue
+
+            if organize_by_series:
+                # Use TMDB Korean title if available, otherwise use group name
+                folder_name = self._get_group_folder_name(group)
+                
+                # Create series directory
+                series_dir = target_directory / self._sanitize_directory_name(folder_name)
+                series_dir.mkdir(parents=True, exist_ok=True)
+
+                # Select files to move (all files by default, including subtitles)
+                if keep_best_quality:
+                    best_file = self.classifier.find_best_file(group.files)
+                    files_to_move = [best_file] if best_file is not None else []
+                else:
+                    files_to_move = group.files
+
+                # Move files
+                for file in files_to_move:
+                    target_path = series_dir / file.filename
+                    result = self.move_file(Path(file.file_path), target_path)
+                    results.append(result)
+            else:
+                # Move all files to target directory
+                for file in group.files:
+                    target_path = target_directory / file.filename
+                    result = self.move_file(Path(file.file_path), target_path)
+                    results.append(result)
+
+        return results
+
+    def cleanup_empty_directories(self, root_directory: Path) -> list[Path]:
+        """Remove empty directories under the root directory.
+        
+        Args:
+            root_directory: Root directory to clean up (this directory itself is not removed)
+            
+        Returns:
+            List of removed directory paths
+        """
+        removed_dirs = []
+        
+        try:
+            # Walk through all subdirectories
+            for dir_path in sorted(root_directory.rglob('*'), key=lambda p: len(p.parts), reverse=True):
+                if dir_path.is_dir() and dir_path != root_directory:
+                    try:
+                        # Check if directory is empty
+                        if not any(dir_path.iterdir()):
+                            dir_path.rmdir()
+                            removed_dirs.append(dir_path)
+                            self.logger.info(f"Removed empty directory: {dir_path}")
+                    except OSError as e:
+                        self.logger.warning(f"Could not remove directory {dir_path}: {e}")
+                        
+        except Exception as e:
+            log_operation_error("directory cleanup", e)
+            
+        self.logger.info(f"Cleanup completed: {len(removed_dirs)} empty directories removed")
+        return removed_dirs
+
+    def rollback_transaction(self, transaction_id: str) -> bool:
+        """Rollback a transaction by undoing all operations.
 
         Args:
             transaction_id: ID of the transaction to rollback
@@ -328,7 +412,7 @@ class FileMover:
             transaction.status = "failed"
             self.logger.error(f"Rollback failed for transaction {transaction_id}: {e}")
             raise MoveRollbackError(
-                f"Failed to rollback transaction {transaction_id}: {str(e)}",
+                f"Failed to rollback transaction {transaction_id}: {e!s}",
                 "",
                 "",
                 len(transaction.rollback_operations or []),
@@ -543,8 +627,59 @@ class FileMover:
                 shutil.move(source, target)
                 self.logger.info(f"Rollback: moved {source} -> {target}")
             except Exception as e:
-                self.logger.error(f"Rollback failed: {e}")
+                log_operation_error("rollback", e)
                 raise
+
+    def _get_group_folder_name(self, group: FileGroup) -> str:
+        """Get the best folder name for a FileGroup using TMDB title (Korean).
+        
+        Args:
+            group: FileGroup object with TMDB metadata
+            
+        Returns:
+            Best folder name to use
+        """
+        # Check if group has TMDB info
+        if group.tmdb_info:
+            tmdb_info = group.tmdb_info
+            # Use title (which is Korean when language is set to Korean)
+            if tmdb_info.title:
+                return tmdb_info.title
+            elif tmdb_info.original_title:
+                return tmdb_info.original_title
+        
+        # Fallback to group name or series title
+        if group.group_name:
+            return group.group_name
+        elif group.series_title:
+            return group.series_title
+        else:
+            return "Unknown"
+
+    def _get_series_folder_name(self, series_files: list[AnimeFile], fallback_title: str) -> str:
+        """Get the best folder name for a series, preferring TMDB Korean title.
+        
+        Args:
+            series_files: List of files in the series
+            fallback_title: Fallback title if no TMDB info available
+            
+        Returns:
+            Best folder name to use
+        """
+        # Look for TMDB info in any of the files
+        for file in series_files:
+            if hasattr(file, 'file_group') and file.file_group and file.file_group.tmdb_info:
+                tmdb_info = file.file_group.tmdb_info
+                # Prefer Korean title, then original title, then fallback
+                if tmdb_info.korean_title:
+                    return f"{tmdb_info.korean_title} ({tmdb_info.original_title})"
+                elif tmdb_info.original_title:
+                    return tmdb_info.original_title
+                elif tmdb_info.title:
+                    return tmdb_info.title
+        
+        # If no TMDB info found, use fallback title
+        return fallback_title
 
     def _sanitize_directory_name(self, name: str) -> str:
         """Sanitize a directory name for safe filesystem use."""
@@ -560,7 +695,9 @@ class FileMover:
         return sanitized
 
     @contextmanager
-    def transaction(self, transaction_id: str | None = None):
+    def transaction(
+        self, transaction_id: str | None = None
+    ) -> Generator[MoveTransaction, None, None]:
         """Context manager for transactional file operations."""
         tid = transaction_id or str(uuid.uuid4())
         transaction = MoveTransaction(transaction_id=tid, operations=[], created_at=time.time())
@@ -568,7 +705,7 @@ class FileMover:
         self._transactions[tid] = transaction
 
         try:
-            yield tid
+            yield transaction
             transaction.status = "committed"
         except Exception:
             transaction.status = "failed"
@@ -576,7 +713,7 @@ class FileMover:
             try:
                 self.rollback_transaction(tid)
             except Exception as rollback_error:
-                self.logger.error(f"Rollback failed: {rollback_error}")
+                log_operation_error("rollback", rollback_error)
             raise
         finally:
             # Clean up transaction after some time

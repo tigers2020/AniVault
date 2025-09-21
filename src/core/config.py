@@ -1,5 +1,4 @@
-"""
-Enhanced configuration management for AniVault application.
+"""Enhanced configuration management for AniVault application.
 
 This module provides a comprehensive configuration system with security features,
 validation, and thread-safe access for managing application settings.
@@ -59,8 +58,7 @@ class ConfigValidator:
 
 
 class SecureConfigManager:
-    """
-    Enhanced configuration manager with security features and thread safety.
+    """Enhanced configuration manager with security features and thread safety.
 
     This class wraps the base ConfigManager and adds:
     - Base64 encoding for sensitive data
@@ -70,8 +68,7 @@ class SecureConfigManager:
     """
 
     def __init__(self, config_path: Path | None = None):
-        """
-        Initialize the secure configuration manager.
+        """Initialize the secure configuration manager.
 
         Args:
             config_path: Path to the configuration file. If None, uses default location.
@@ -138,8 +135,7 @@ class SecureConfigManager:
         return any(encrypted_key in key_path for encrypted_key in self._encrypted_keys)
 
     def get(self, key_path: str, default: Any = None) -> Any:
-        """
-        Get a configuration value with automatic decryption.
+        """Get a configuration value with automatic decryption.
 
         Args:
             key_path: Dot-separated path to the configuration key
@@ -162,8 +158,7 @@ class SecureConfigManager:
             return value
 
     def set(self, key_path: str, value: Any, encrypt: bool | None = None) -> None:
-        """
-        Set a configuration value with optional encryption.
+        """Set a configuration value with optional encryption.
 
         Args:
             key_path: Dot-separated path to the configuration key
@@ -199,8 +194,7 @@ class SecureConfigManager:
         return result if isinstance(result, str) else None
 
     def set_tmdb_api_key(self, api_key: str) -> bool:
-        """
-        Set TMDB API key with validation and encryption.
+        """Set TMDB API key with validation and encryption.
 
         Args:
             api_key: The API key to set
@@ -223,8 +217,7 @@ class SecureConfigManager:
         return str(path) if path else ""
 
     def set_destination_root(self, path: str) -> bool:
-        """
-        Set destination root directory with validation.
+        """Set destination root directory with validation.
 
         Args:
             path: The destination path to set
@@ -248,8 +241,7 @@ class SecureConfigManager:
         return theme
 
     def set_theme(self, theme: str) -> bool:
-        """
-        Set current theme with validation.
+        """Set current theme with validation.
 
         Args:
             theme: The theme to set
@@ -273,8 +265,7 @@ class SecureConfigManager:
         return language
 
     def set_language(self, language: str) -> bool:
-        """
-        Set current language with validation.
+        """Set current language with validation.
 
         Args:
             language: The language to set
@@ -300,8 +291,7 @@ class SecureConfigManager:
             self._base_manager.reload_config()
 
     def validate_config(self) -> bool:
-        """
-        Validate the current configuration with enhanced checks.
+        """Validate the current configuration with enhanced checks.
 
         Returns:
             True if configuration is valid, False otherwise
@@ -336,8 +326,7 @@ class SecureConfigManager:
                 return False
 
     def get_validation_errors(self) -> list[str]:
-        """
-        Get detailed validation errors for the current configuration.
+        """Get detailed validation errors for the current configuration.
 
         Returns:
             List of validation error messages
@@ -348,7 +337,7 @@ class SecureConfigManager:
                 return self._schema_validator.get_schema_errors(config)
             except Exception as e:
                 logger.error("Failed to get validation errors: %s", str(e))
-                return [f"Error retrieving validation errors: {str(e)}"]
+                return [f"Error retrieving validation errors: {e!s}"]
 
     def get_all_config(self) -> dict[str, Any]:
         """Get the entire configuration dictionary (sensitive data will be decrypted)."""
@@ -381,7 +370,7 @@ class SecureConfigManager:
                                         obj[original_key] = decoded
                                         # Mark the encrypted key for removal
                                         keys_to_remove.append(key)
-                                except:
+                                except Exception:
                                     pass  # Keep original value if decoding fails
                         elif isinstance(value, str) and self._is_sensitive_key(current_path):
                             # Try to decrypt if it looks like base64
@@ -389,7 +378,7 @@ class SecureConfigManager:
                                 decoded = self._decode_sensitive_data(value)
                                 if decoded != value:  # Only replace if decoding was successful
                                     obj[key] = decoded
-                            except:
+                            except Exception:
                                 pass  # Keep original value if decoding fails
                         elif isinstance(value, dict):
                             decrypt_sensitive_values(value, current_path)
@@ -407,8 +396,7 @@ class SecureConfigManager:
             return self._base_manager.backup_config(backup_path)
 
     def rotate_encryption_key(self) -> bool:
-        """
-        Rotate the encryption key for enhanced security.
+        """Rotate the encryption key for enhanced security.
 
         Returns:
             True if key rotation was successful, False otherwise
@@ -439,8 +427,7 @@ class SecureConfigManager:
                 return False
 
     def get_security_status(self) -> dict[str, Any]:
-        """
-        Get security status information.
+        """Get security status information.
 
         Returns:
             Dictionary containing security status information
@@ -450,9 +437,11 @@ class SecureConfigManager:
                 "encryption_enabled": self._base_manager.get("security.encryption_enabled", True),
                 "encrypted_keys_count": len(self._encrypted_keys),
                 "secure_storage_available": self._secure_storage is not None,
-                "key_file_exists": self._secure_storage.key_manager.key_file_path.exists()
-                if self._secure_storage
-                else False,
+                "key_file_exists": (
+                    self._secure_storage.key_manager.key_file_path.exists()
+                    if self._secure_storage
+                    else False
+                ),
             }
 
 
@@ -461,8 +450,7 @@ _secure_config_manager: SecureConfigManager | None = None
 
 
 def get_secure_config_manager() -> SecureConfigManager:
-    """
-    Get the global secure configuration manager instance.
+    """Get the global secure configuration manager instance.
 
     Returns:
         Global SecureConfigManager instance
@@ -474,8 +462,7 @@ def get_secure_config_manager() -> SecureConfigManager:
 
 
 def initialize_secure_config(config_path: Path | None = None) -> SecureConfigManager:
-    """
-    Initialize the global secure configuration manager.
+    """Initialize the global secure configuration manager.
 
     Args:
         config_path: Path to configuration file

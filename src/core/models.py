@@ -1,5 +1,4 @@
-"""
-Core data models for AniVault application.
+"""Core data models for AniVault application.
 
 This module defines the fundamental data structures used throughout the application
 for representing anime files, file groups, parsed information, and TMDB metadata.
@@ -17,8 +16,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 @dataclass
 class AnimeFile:
-    """
-    Represents a single anime file with its metadata and properties.
+    """Represents a single anime file with its metadata and properties.
 
     Attributes:
         file_path: Absolute path to the file
@@ -33,7 +31,7 @@ class AnimeFile:
         processing_errors: List of errors encountered during processing
     """
 
-    file_path: Path
+    file_path: Path | str
     filename: str
     file_size: int
     file_extension: str
@@ -59,10 +57,6 @@ class AnimeFile:
             return False
         return self.file_path == other.file_path
 
-        # Ensure filename is just the basename
-        if not self.filename:
-            self.filename = self.file_path.name
-
     @property
     def file_size_mb(self) -> float:
         """Return file size in megabytes."""
@@ -71,6 +65,8 @@ class AnimeFile:
     @property
     def exists(self) -> bool:
         """Check if the file still exists on disk."""
+        if isinstance(self.file_path, str):
+            return Path(self.file_path).exists()
         return self.file_path.exists()
 
     def to_dict(self) -> dict[str, Any]:
@@ -91,8 +87,7 @@ class AnimeFile:
 
 @dataclass
 class FileGroup:
-    """
-    Represents a group of similar anime files that belong to the same series.
+    """Represents a group of similar anime files that belong to the same series.
 
     Attributes:
         group_id: Unique identifier for the group
@@ -104,6 +99,10 @@ class FileGroup:
         episode_range: Range of episodes in this group
         created_at: When the group was created
         is_processed: Whether the group has been processed
+        description: Description of the series from TMDB
+        release_date: Release date of the series
+        poster_path: Path to the poster image
+        tmdb_id: TMDB ID for the series
     """
 
     group_id: str
@@ -117,6 +116,10 @@ class FileGroup:
     created_at: datetime = field(default_factory=datetime.now)
     is_processed: bool = False
     tmdb_info: TMDBAnime | None = None
+    description: str = ""  # Series description from TMDB
+    release_date: str = ""  # Release date from TMDB
+    poster_path: str = ""  # Poster image path from TMDB
+    tmdb_id: str = ""  # TMDB ID for the series
 
     def add_file(self, file: AnimeFile) -> None:
         """Add a file to this group."""
@@ -184,13 +187,16 @@ class FileGroup:
             "episode_range": self.episode_range,
             "created_at": self.created_at.isoformat(),
             "is_processed": self.is_processed,
+            "description": self.description,
+            "release_date": self.release_date,
+            "poster_path": self.poster_path,
+            "tmdb_id": self.tmdb_id,
         }
 
 
 @dataclass
 class ParsedAnimeInfo:
-    """
-    Represents parsed information from an anime filename using anitopy.
+    """Represents parsed information from an anime filename using anitopy.
 
     Attributes:
         title: Anime series title
@@ -348,8 +354,7 @@ class ParsedAnimeInfo:
 
 @dataclass
 class TMDBAnime:
-    """
-    Represents metadata retrieved from TMDB API for an anime series or movie.
+    """Represents metadata retrieved from TMDB API for an anime series or movie.
 
     Attributes:
         tmdb_id: TMDB series/movie ID
@@ -415,8 +420,7 @@ class TMDBAnime:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TMDBAnime:
-        """
-        Create TMDBAnime instance from TMDB API response data.
+        """Create TMDBAnime instance from TMDB API response data.
 
         Args:
             data: Raw data from TMDB API
@@ -568,8 +572,7 @@ class TMDBAnime:
 
 
 class ProcessingState(QObject):
-    """
-    Observable state object for tracking processing progress and status.
+    """Observable state object for tracking processing progress and status.
 
     This class provides signals for UI updates and maintains the current
     processing state of the application.

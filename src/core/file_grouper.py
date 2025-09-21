@@ -1,5 +1,4 @@
-"""
-File grouper module for AniVault application.
+"""File grouper module for AniVault application.
 
 This module provides functionality to group similar anime files based on
 filename similarity using SequenceMatcher and other heuristics.
@@ -14,6 +13,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from pathlib import Path
 from typing import Any
 
 from .models import AnimeFile, FileGroup
@@ -43,8 +43,7 @@ class GroupingResult:
 
 
 class FileGrouper:
-    """
-    Groups similar anime files based on filename similarity and other heuristics.
+    """Groups similar anime files based on filename similarity and other heuristics.
 
     This class provides intelligent file grouping using:
     - SequenceMatcher for similarity calculation
@@ -60,8 +59,7 @@ class FileGrouper:
         max_workers: int = 4,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> None:
-        """
-        Initialize the file grouper.
+        """Initialize the file grouper.
 
         Args:
             similarity_threshold: Minimum similarity score for grouping (0.0-1.0)
@@ -80,8 +78,7 @@ class FileGrouper:
         self._resolution_pattern = re.compile(r"(\d{3,4}x\d{3,4})", re.IGNORECASE)
 
     def group_files(self, files: list[AnimeFile]) -> GroupingResult:
-        """
-        Group similar anime files together.
+        """Group similar anime files together.
 
         Args:
             files: List of AnimeFile objects to group
@@ -127,10 +124,10 @@ class FileGrouper:
             groups = self._postprocess_groups(groups)
             logger.info(f"After post-processing: {len(groups)} groups")
 
-            # Create FileGroup objects
+            # Create FileGroup objects for all groups (including single-file groups)
             logger.debug("Creating FileGroup objects...")
             file_groups = self._create_file_groups(groups)
-            logger.info(f"Created {len(file_groups)} FileGroup objects")
+            logger.info(f"Created {len(file_groups)} FileGroup objects, {len(ungrouped_files)} ungrouped files")
 
             grouping_duration = time.time() - start_time
             grouped_files = sum(len(group.files) for group in file_groups)
@@ -154,7 +151,7 @@ class FileGrouper:
             )
 
         except Exception as e:
-            error_msg = f"Error during file grouping: {str(e)}"
+            error_msg = f"Error during file grouping: {e!s}"
             errors.append(error_msg)
 
             if self.progress_callback:
@@ -177,16 +174,15 @@ class FileGrouper:
 
         for i, file in enumerate(files):
             # Extract additional metadata from filename
-            file._extracted_info = self._extract_filename_info(file.filename)
+            extracted_info = self._extract_filename_info(file.filename)
             processed_files.append(file)
 
             if i < 3:  # Log first 3 files for debugging
-                info = file._extracted_info
                 logger.debug(f"  File {i+1}: {file.filename}")
-                logger.debug(f"    Clean name: '{info.get('clean_name', 'N/A')}'")
-                logger.debug(f"    Episode: {info.get('episode', 'N/A')}")
-                logger.debug(f"    Season: {info.get('season', 'N/A')}")
-                logger.debug(f"    Quality: {info.get('quality', 'N/A')}")
+                logger.debug(f"    Clean name: '{extracted_info.get('clean_name', 'N/A')}'")
+                logger.debug(f"    Episode: {extracted_info.get('episode', 'N/A')}")
+                logger.debug(f"    Season: {extracted_info.get('season', 'N/A')}")
+                logger.debug(f"    Quality: {extracted_info.get('quality', 'N/A')}")
 
         logger.debug(f"Preprocessing completed for {len(processed_files)} files")
         return processed_files
@@ -211,12 +207,12 @@ class FileGrouper:
             # Try group 1 first (E01 pattern), then group 2 (- 01 pattern)
             episode_num = episode_match.group(1) or episode_match.group(2)
             if episode_num:
-                info["episode"] = int(episode_num)
+                info["episode"] = str(int(episode_num))
 
         # Extract season number
         season_match = self._season_pattern.search(name_without_ext)
         if season_match:
-            info["season"] = int(season_match.group(1))
+            info["season"] = str(int(season_match.group(1)))
 
         # Extract quality (1080p, 720p, etc.)
         quality_match = self._quality_pattern.search(name_without_ext)
@@ -282,15 +278,15 @@ class FileGrouper:
         try:
             groups: list[list[AnimeFile]] = []
             ungrouped_files: list[AnimeFile] = []
-            processed_files = set()
+            processed_files: set[AnimeFile] = set()
             logger.debug(
                 f"Initialized variables: groups={len(groups)}, ungrouped={len(ungrouped_files)}, processed={len(processed_files)}"
             )
 
             for i, file1 in enumerate(files):
-                logger.debug(f"=== Processing file {i+1}/{len(files)}: {file1.filename} ===")
+                logger.debug(f"=== Processing file: {file1.filename} ===")
                 if file1 in processed_files:
-                    logger.debug(f"Skipping file {i+1}: {file1.filename} (already processed)")
+                    logger.debug(f"Skipping file: {file1.filename} (already processed)")
                     continue
 
                 if self.progress_callback and i % 10 == 0:
@@ -335,9 +331,14 @@ class FileGrouper:
                 logger.debug(
                     f"  Created group with {len(current_group)} files (found {similar_count} similar files)"
                 )
-                # Create groups (including single-file groups)
-                groups.append(current_group)
-                logger.debug(f"  Total groups so far: {len(groups)}")
+                # Only create groups for files that have similar files
+                if len(current_group) > 1:
+                    groups.append(current_group)
+                    logger.debug(f"  Added multi-file group. Total groups so far: {len(groups)}")
+                else:
+                    # Single file goes to ungrouped
+                    ungrouped_files.append(current_group[0])
+                    logger.debug(f"  Added single file to ungrouped. Total ungrouped: {len(ungrouped_files)}")
 
             logger.info(f"Similarity grouping completed: {len(groups)} groups created")
             return groups, ungrouped_files
@@ -351,7 +352,38 @@ class FileGrouper:
         info1 = getattr(file1, "_extracted_info", {})
         info2 = getattr(file2, "_extracted_info", {})
 
-        # Check base name similarity
+        # Check if one is video and one is subtitle - they should be grouped together
+        file1_ext = Path(file1.filename).suffix.lower()
+        file2_ext = Path(file2.filename).suffix.lower()
+        
+        # Import here to avoid circular imports
+        from .file_scanner import FileScanner
+        is_video1 = file1_ext in FileScanner.SUPPORTED_EXTENSIONS
+        is_video2 = file2_ext in FileScanner.SUPPORTED_EXTENSIONS
+        is_subtitle1 = file1_ext in FileScanner.SUBTITLE_EXTENSIONS
+        is_subtitle2 = file2_ext in FileScanner.SUBTITLE_EXTENSIONS
+        
+        # If one is video and one is subtitle, check if they have similar base names
+        if (is_video1 and is_subtitle2) or (is_subtitle1 and is_video2):
+            # Remove extensions and compare base names
+            base_name1 = Path(file1.filename).stem
+            base_name2 = Path(file2.filename).stem
+            similarity = SequenceMatcher(None, base_name1, base_name2).ratio()
+            
+            logger.debug(
+                f"Comparing video/subtitle '{base_name1}' vs '{base_name2}': similarity={similarity:.3f}"
+            )
+            
+            # Use a lower threshold for video-subtitle matching
+            subtitle_threshold = 0.6  # Lower threshold for subtitle matching
+            if similarity >= subtitle_threshold:
+                logger.debug(f"  Video-subtitle files are similar: {similarity:.3f} >= {subtitle_threshold}")
+                return True
+            else:
+                logger.debug(f"  Video-subtitle files not similar enough: {similarity:.3f} < {subtitle_threshold}")
+                return False
+
+        # Check base name similarity for same file types
         clean_name1 = info1.get("clean_name", file1.filename)
         clean_name2 = info2.get("clean_name", file2.filename)
 
@@ -410,7 +442,12 @@ class FileGrouper:
                 if j in processed_groups:
                     continue
 
-                if self._should_merge_groups(current_group, group2):
+                # Create temporary FileGroup objects for comparison
+                import uuid
+
+                temp_group1 = FileGroup(group_id=str(uuid.uuid4()), files=current_group)
+                temp_group2 = FileGroup(group_id=str(uuid.uuid4()), files=group2)
+                if self._should_merge_groups(temp_group1, temp_group2):
                     current_group.extend(group2)
                     processed_groups.add(j)
 
@@ -424,7 +461,7 @@ class FileGrouper:
             return groups
 
         # Group by name (including groups without TMDB metadata)
-        groups_by_name = {}
+        groups_by_name: dict[str, list[FileGroup]] = {}
         for group in groups:
             # Use group_name if available, otherwise use series_title as fallback
             group_name = group.group_name or group.series_title or "Unknown"
@@ -464,11 +501,13 @@ class FileGrouper:
         )
         return merged_groups
 
-    def _should_merge_groups(self, group1: list[AnimeFile], group2: list[AnimeFile]) -> bool:
+    def _should_merge_groups(self, group1: FileGroup, group2: FileGroup) -> bool:
         """Check if two groups should be merged."""
         # Get representative files from each group
-        file1 = group1[0]
-        file2 = group2[0]
+        if not group1.files or not group2.files:
+            return False
+        file1 = group1.files[0]
+        file2 = group2.files[0]
 
         # Check similarity between representative files
         return self._are_files_similar(file1, file2)
@@ -477,7 +516,7 @@ class FileGrouper:
         """Create FileGroup objects from grouped files."""
         file_groups = []
 
-        for i, group_files in enumerate(groups):
+        for group_files in groups:
             if not group_files:
                 continue
 
@@ -557,8 +596,7 @@ def group_files(
     max_workers: int = 4,
     progress_callback: Callable[[int, str], None] | None = None,
 ) -> GroupingResult:
-    """
-    Convenience function to group anime files by similarity.
+    """Convenience function to group anime files by similarity.
 
     Args:
         files: List of AnimeFile objects to group

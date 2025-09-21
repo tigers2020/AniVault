@@ -1,5 +1,4 @@
-"""
-Tests for the secure storage system.
+"""Tests for the secure storage system.
 
 This module tests the SecureKeyManager and SecureStorage classes
 to ensure proper encryption, decryption, and key management.
@@ -167,7 +166,7 @@ class TestSecureStorage:
         for test_data in test_cases:
             encrypted = self.storage.encrypt_data(test_data)
             decrypted = self.storage.decrypt_data(encrypted)
-            assert decrypted == test_data, f"Failed for: {repr(test_data)}"
+            assert decrypted == test_data, f"Failed for: {test_data!r}"
 
     def test_hash_data(self) -> None:
         """Test data hashing."""

@@ -1,5 +1,4 @@
-"""
-Anime filename parsing using anitopy library.
+"""Anime filename parsing using anitopy library.
 
 This module provides functionality to parse anime filenames and extract
 structured information like title, season, episode, resolution, etc.
@@ -25,8 +24,7 @@ logger = get_logger(__name__)
 
 
 class AnimeParser:
-    """
-    Wraps anitopy functionality for parsing anime filenames.
+    """Wraps anitopy functionality for parsing anime filenames.
 
     Handles normalization, validation, and fallback mechanisms for
     extracting structured information from anime filenames.
@@ -40,8 +38,7 @@ class AnimeParser:
         self.fallback_parser = FallbackAnimeParser()
 
     def _map_anitopy_to_model(self, parsed_data: dict[str, Any]) -> ParsedAnimeInfo | None:
-        """
-        Maps the raw dictionary output from anitopy to a ParsedAnimeInfo dataclass.
+        """Maps the raw dictionary output from anitopy to a ParsedAnimeInfo dataclass.
 
         Includes normalization and validation of the parsed data.
 
@@ -112,8 +109,7 @@ class AnimeParser:
             return None
 
     def parse_filename(self, filename: str, use_fallback: bool = True) -> ParsedAnimeInfo | None:
-        """
-        Parses a single anime filename using anitopy with fallback support.
+        """Parses a single anime filename using anitopy with fallback support.
 
         Args:
             filename: The filename to parse
@@ -150,8 +146,7 @@ class AnimeParser:
         return None
 
     def parse_anime_file(self, anime_file: AnimeFile) -> ParsedAnimeInfo | None:
-        """
-        Parses the filename from an AnimeFile object.
+        """Parses the filename from an AnimeFile object.
 
         Updates the AnimeFile's processing_errors if parsing fails.
 
@@ -169,8 +164,7 @@ class AnimeParser:
         return parsed_info
 
     def parse_filenames_batch(self, filenames: list[str]) -> list[ParsedAnimeInfo | None]:
-        """
-        Parses a list of anime filenames using individual parsing.
+        """Parses a list of anime filenames using individual parsing.
 
         Args:
             filenames: List of filenames to parse
@@ -192,8 +186,7 @@ class AnimeParser:
         return results
 
     def parse_anime_files_batch(self, anime_files: list[AnimeFile]) -> list[ParsedAnimeInfo | None]:
-        """
-        Parses a list of AnimeFile objects in batch.
+        """Parses a list of AnimeFile objects in batch.
 
         Updates each AnimeFile's processing_errors if parsing fails.
 
@@ -219,8 +212,7 @@ class AnimeParser:
     def get_parsing_statistics(
         self, parsed_results: list[ParsedAnimeInfo | None]
     ) -> dict[str, Any]:
-        """
-        Generates statistics about parsing results.
+        """Generates statistics about parsing results.
 
         Args:
             parsed_results: List of parsing results
@@ -267,8 +259,7 @@ class AnimeParser:
         }
 
     def get_parsing_failures(self, anime_files: list[AnimeFile]) -> list[dict[str, Any]]:
-        """
-        Get detailed information about parsing failures.
+        """Get detailed information about parsing failures.
 
         Args:
             anime_files: List of AnimeFile objects that were processed
@@ -294,8 +285,7 @@ class AnimeParser:
         return failures
 
     def suggest_manual_input(self, failed_filename: str) -> dict[str, Any]:
-        """
-        Suggest manual input fields for a failed parsing attempt.
+        """Suggest manual input fields for a failed parsing attempt.
 
         Args:
             failed_filename: Filename that failed to parse

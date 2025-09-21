@@ -1,5 +1,4 @@
-"""
-Configuration schema definition and validation for AniVault application.
+"""Configuration schema definition and validation for AniVault application.
 
 This module defines the complete configuration schema and provides
 comprehensive validation for all configuration sections.
@@ -8,7 +7,7 @@ comprehensive validation for all configuration sections.
 from __future__ import annotations
 
 import logging
-from typing import Any, Union
+from typing import Any
 
 from src.utils.validators import ConfigValidator
 
@@ -16,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConfigSchemaValidator:
-    """
-    Comprehensive configuration schema validator.
+    """Comprehensive configuration schema validator.
 
     This class provides detailed validation for the entire configuration
     structure including type checking, value validation, and dependency validation.
@@ -220,7 +218,7 @@ class ConfigSchemaValidator:
                         "required": True,
                         "properties": {
                             "window_geometry": {
-                                "type": Union[dict, type(None)],
+                                "type": dict | type(None),
                                 "required": False,
                                 "default": None,
                             },
@@ -325,8 +323,7 @@ class ConfigSchemaValidator:
         }
 
     def validate_config(self, config: dict[str, Any]) -> tuple[bool, list[str]]:
-        """
-        Validate the entire configuration against the schema.
+        """Validate the entire configuration against the schema.
 
         Args:
             config: The configuration to validate
@@ -350,7 +347,7 @@ class ConfigSchemaValidator:
 
         except Exception as e:
             logger.error("Configuration validation failed: %s", str(e))
-            errors.append(f"Validation error: {str(e)}")
+            errors.append(f"Validation error: {e!s}")
             return False, errors
 
     def _validate_structure(
@@ -369,7 +366,7 @@ class ConfigSchemaValidator:
                 expected_type = schema_def.get("type")
 
                 # Handle Union types
-                if isinstance(expected_type, type(Union)):
+                if hasattr(expected_type, "__args__") and expected_type.__args__:
                     if not isinstance(value, expected_type.__args__):
                         errors.append(
                             f"Invalid type for {key}: expected {expected_type}, got {type(value)}"
@@ -454,7 +451,7 @@ class ConfigSchemaValidator:
                             errors.append(f"Invalid value for {full_key}: {value}")
 
                 # Range validation for numeric values
-                if isinstance(value, (int, float)) and "range" in prop_schema:
+                if isinstance(value, int | float) and "range" in prop_schema:
                     min_val, max_val = prop_schema["range"]
                     if not self.validator.validate_numeric_range(value, min_val, max_val):
                         errors.append(
@@ -498,9 +495,6 @@ class ConfigSchemaValidator:
 
     def _validate_value(self, value: str, validation_type: str, schema: dict[str, Any]) -> bool:
         """Validate a value using the specified validation type."""
-        if not isinstance(value, str):
-            return False
-
         if validation_type == "tmdb_api_key":
             return self.validator.validate_api_key(value, "tmdb")
         elif validation_type == "language":
@@ -724,7 +718,7 @@ class ConfigSchemaValidator:
                         errors.append(f"Invalid value for {full_key}: {value}")
 
             # Range validation for numeric values
-            if isinstance(value, (int, float)) and "range" in prop_schema:
+            if isinstance(value, int | float) and "range" in prop_schema:
                 min_val, max_val = prop_schema["range"]
                 if not self.validator.validate_numeric_range(value, min_val, max_val):
                     errors.append(
@@ -773,8 +767,7 @@ class ConfigSchemaValidator:
                         errors.append(f"Invalid path for {full_key}: {value}")
 
     def get_default_config(self) -> dict[str, Any]:
-        """
-        Get a complete default configuration based on the schema.
+        """Get a complete default configuration based on the schema.
 
         Returns:
             Dictionary containing default configuration values
@@ -792,8 +785,7 @@ class ConfigSchemaValidator:
         return extract_defaults(self._schema)
 
     def get_schema_errors(self, config: dict[str, Any]) -> list[str]:
-        """
-        Get detailed schema validation errors.
+        """Get detailed schema validation errors.
 
         Args:
             config: The configuration to validate
@@ -810,8 +802,7 @@ _schema_validator: ConfigSchemaValidator | None = None
 
 
 def get_schema_validator() -> ConfigSchemaValidator:
-    """
-    Get the global configuration schema validator instance.
+    """Get the global configuration schema validator instance.
 
     Returns:
         Global ConfigSchemaValidator instance

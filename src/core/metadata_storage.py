@@ -1,5 +1,4 @@
-"""
-Metadata storage system with cache-DB synchronization.
+"""Metadata storage system with cache-DB synchronization.
 
 This module provides a unified interface for storing and retrieving anime metadata
 with automatic synchronization between in-memory cache and SQLite database.
@@ -17,14 +16,15 @@ from typing import Any
 from .database import db_manager
 from .metadata_cache import cache_manager
 from .models import ParsedAnimeInfo, TMDBAnime
+from .transaction_manager import transactional
+from .logging_utils import log_operation_error
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 class MetadataStorage:
-    """
-    Unified metadata storage system with cache-DB synchronization.
+    """Unified metadata storage system with cache-DB synchronization.
 
     This class provides a high-level interface for storing and retrieving
     anime metadata with automatic synchronization between cache and database.
@@ -38,8 +38,7 @@ class MetadataStorage:
         enable_cache: bool = True,
         enable_db: bool = True,
     ) -> None:
-        """
-        Initialize the metadata storage system.
+        """Initialize the metadata storage system.
 
         Args:
             cache_max_size: Maximum number of entries in cache
@@ -48,6 +47,10 @@ class MetadataStorage:
             enable_cache: Whether to enable caching
             enable_db: Whether to enable database storage
         """
+        # Type annotations for instance variables
+        self.cache: Any | None = None
+        self.db: Any | None = None
+
         self.enable_cache = enable_cache
         self.enable_db = enable_db
 
@@ -81,11 +84,12 @@ class MetadataStorage:
             "sync_operations": 0,
         }
 
-    def store_tmdb_metadata(self, anime: TMDBAnime) -> bool:
-        """
-        Store TMDB metadata in both cache and database.
+    @transactional
+    def store_tmdb_metadata(self, session, anime: TMDBAnime) -> bool:
+        """Store TMDB metadata in both cache and database with atomicity.
 
         Args:
+            session: Database session (automatically provided by decorator)
             anime: TMDBAnime object to store
 
         Returns:
@@ -94,28 +98,29 @@ class MetadataStorage:
         with self._lock:
             try:
                 key = f"tmdb:{anime.tmdb_id}"
-                success = True
-
-                # Store in cache
+                
+                # Store in database first (atomic operation)
+                if self.enable_db and self.db:
+                    self.db.create_anime_metadata(anime)
+                    logger.debug(f"Stored TMDB metadata in database: {anime.tmdb_id}")
+                
+                # Only update cache after successful database operation
                 if self.enable_cache and self.cache:
                     self.cache.put(key, anime)
                     logger.debug(f"Stored TMDB metadata in cache: {key}")
 
-                # Store in database
-                if self.enable_db and self.db:
-                    self.db.create_anime_metadata(anime)
-                    logger.debug(f"Stored TMDB metadata in database: {anime.tmdb_id}")
-
                 self._stats["sync_operations"] += 1
-                return success
+                return True
 
             except Exception as e:
-                logger.error(f"Failed to store TMDB metadata: {e}")
+                log_operation_error("store TMDB metadata", e)
+                # If database operation failed, ensure cache is not updated
+                if self.enable_cache and self.cache:
+                    self.cache.delete(key)
                 return False
 
     def get_tmdb_metadata(self, tmdb_id: int) -> TMDBAnime | None:
-        """
-        Retrieve TMDB metadata from cache or database.
+        """Retrieve TMDB metadata from cache or database.
 
         Args:
             tmdb_id: TMDB ID to retrieve
@@ -133,7 +138,11 @@ class MetadataStorage:
                 if cached:
                     self._stats["cache_hits"] += 1
                     logger.debug(f"Retrieved TMDB metadata from cache: {key}")
-                    return cached
+                    # Ensure we return TMDBAnime or None
+                    if isinstance(cached, TMDBAnime):
+                        return cached
+                    # If it's ParsedAnimeInfo, we can't convert it to TMDBAnime here
+                    # so we'll fall through to database lookup
                 else:
                     self._stats["cache_misses"] += 1
 
@@ -150,19 +159,18 @@ class MetadataStorage:
 
                         self._stats["db_hits"] += 1
                         logger.debug(f"Retrieved TMDB metadata from database: {tmdb_id}")
-                        return anime
+                        return anime  # type: ignore[no-any-return]
                     else:
                         self._stats["db_misses"] += 1
 
                 except Exception as e:
-                    logger.error(f"Failed to retrieve TMDB metadata from database: {e}")
+                    log_operation_error("retrieve TMDB metadata from database", e)
                     self._stats["db_misses"] += 1
 
             return None
 
     def search_tmdb_metadata(self, title: str, limit: int = 10) -> list[TMDBAnime]:
-        """
-        Search TMDB metadata by title.
+        """Search TMDB metadata by title.
 
         Args:
             title: Title to search for
@@ -192,11 +200,13 @@ class MetadataStorage:
                 return results
 
             except Exception as e:
-                logger.error(f"Failed to search TMDB metadata: {e}")
+                log_operation_error("search TMDB metadata", e)
                 return []
 
+    @transactional
     def store_parsed_file(
         self,
+        session,
         file_path: str | Path,
         filename: str,
         file_size: int,
@@ -205,10 +215,10 @@ class MetadataStorage:
         parsed_info: ParsedAnimeInfo,
         tmdb_id: int | None = None,
     ) -> bool:
-        """
-        Store parsed file information in both cache and database.
+        """Store parsed file information in both cache and database with atomicity.
 
         Args:
+            session: Database session (automatically provided by decorator)
             file_path: Path to the file
             filename: Name of the file
             file_size: Size of the file in bytes
@@ -224,27 +234,11 @@ class MetadataStorage:
             try:
                 file_path_str = str(file_path)
                 key = f"file:{file_path_str}"
-                success = True
 
                 # Calculate file hash for change detection
                 file_hash = self._calculate_file_hash(file_path)
 
-                # Store in cache
-                if self.enable_cache and self.cache:
-                    cache_data = {
-                        "file_path": file_path_str,
-                        "filename": filename,
-                        "file_size": file_size,
-                        "created_at": created_at,
-                        "modified_at": modified_at,
-                        "parsed_info": parsed_info,
-                        "tmdb_id": tmdb_id,
-                        "file_hash": file_hash,
-                    }
-                    self.cache.put(key, cache_data)
-                    logger.debug(f"Stored parsed file in cache: {key}")
-
-                # Store in database
+                # Store in database first (atomic operation)
                 if self.enable_db and self.db:
                     self.db.create_parsed_file(
                         file_path=file_path,
@@ -258,16 +252,24 @@ class MetadataStorage:
                     )
                     logger.debug(f"Stored parsed file in database: {file_path_str}")
 
+                # Only update cache after successful database operation
+                if self.enable_cache and self.cache:
+                    # Store the parsed_info directly as it implements the cache interface
+                    self.cache.put(key, parsed_info)
+                    logger.debug(f"Stored parsed file in cache: {key}")
+
                 self._stats["sync_operations"] += 1
-                return success
+                return True
 
             except Exception as e:
-                logger.error(f"Failed to store parsed file: {e}")
+                log_operation_error("store parsed file", e)
+                # If database operation failed, ensure cache is not updated
+                if self.enable_cache and self.cache:
+                    self.cache.delete(key)
                 return False
 
     def get_parsed_file(self, file_path: str | Path) -> dict[str, Any] | None:
-        """
-        Retrieve parsed file information from cache or database.
+        """Retrieve parsed file information from cache or database.
 
         Args:
             file_path: Path to the file
@@ -286,7 +288,21 @@ class MetadataStorage:
                 if cached:
                     self._stats["cache_hits"] += 1
                     logger.debug(f"Retrieved parsed file from cache: {key}")
-                    return cached
+                    # Convert ParsedAnimeInfo to dict format
+                    if hasattr(cached, "__dict__"):
+                        # Convert to the same format as database result
+                        result = {
+                            "file_path": str(file_path),
+                            "filename": getattr(cached, 'filename', ''),
+                            "file_size": getattr(cached, 'file_size', 0),
+                            "created_at": getattr(cached, 'created_at', None),
+                            "modified_at": getattr(cached, 'modified_at', None),
+                            "parsed_info": cached,
+                            "tmdb_id": getattr(cached, 'tmdb_id', None),
+                            "file_hash": getattr(cached, 'file_hash', None),
+                        }
+                        return result
+                    return None
                 else:
                     self._stats["cache_misses"] += 1
 
@@ -318,14 +334,13 @@ class MetadataStorage:
                         self._stats["db_misses"] += 1
 
                 except Exception as e:
-                    logger.error(f"Failed to retrieve parsed file from database: {e}")
+                    log_operation_error("retrieve parsed file from database", e)
                     self._stats["db_misses"] += 1
 
             return None
 
     def get_files_by_tmdb_id(self, tmdb_id: int) -> list[dict[str, Any]]:
-        """
-        Get all parsed files associated with a TMDB ID.
+        """Get all parsed files associated with a TMDB ID.
 
         Args:
             tmdb_id: TMDB ID to search for
@@ -358,14 +373,15 @@ class MetadataStorage:
                 return results
 
             except Exception as e:
-                logger.error(f"Failed to get files by TMDB ID: {e}")
+                log_operation_error("get files by TMDB ID", e)
                 return []
 
-    def delete_parsed_file(self, file_path: str | Path) -> bool:
-        """
-        Delete parsed file information from both cache and database.
+    @transactional
+    def delete_parsed_file(self, session, file_path: str | Path) -> bool:
+        """Delete parsed file information from both cache and database with atomicity.
 
         Args:
+            session: Database session (automatically provided by decorator)
             file_path: Path to the file to delete
 
         Returns:
@@ -377,26 +393,28 @@ class MetadataStorage:
                 key = f"file:{file_path_str}"
                 success = True
 
-                # Remove from cache
-                if self.enable_cache and self.cache:
-                    self.cache.delete(key)
-                    logger.debug(f"Removed parsed file from cache: {key}")
-
-                # Remove from database
+                # Remove from database first (atomic operation)
                 if self.enable_db and self.db:
                     success = self.db.delete_parsed_file(file_path)
                     if success:
                         logger.debug(f"Removed parsed file from database: {file_path_str}")
+                    else:
+                        logger.warning(f"Failed to remove parsed file from database: {file_path_str}")
+                        return False
+
+                # Only remove from cache after successful database operation
+                if self.enable_cache and self.cache:
+                    self.cache.delete(key)
+                    logger.debug(f"Removed parsed file from cache: {key}")
 
                 return success
 
             except Exception as e:
-                logger.error(f"Failed to delete parsed file: {e}")
+                log_operation_error("delete parsed file", e)
                 return False
 
     def sync_cache_to_db(self) -> int:
-        """
-        Synchronize all cache entries to database.
+        """Synchronize all cache entries to database.
 
         Returns:
             Number of entries synchronized
@@ -440,7 +458,7 @@ class MetadataStorage:
                 return synced_count
 
             except Exception as e:
-                logger.error(f"Failed to sync cache to database: {e}")
+                log_operation_error("sync cache to database", e)
                 return 0
 
     def clear_cache(self) -> None:
@@ -460,10 +478,12 @@ class MetadataStorage:
                 cache_stats = self.cache.get_stats()
                 stats.update(
                     {
-                        "cache_hit_rate": cache_stats.hit_rate,
-                        "cache_miss_rate": cache_stats.miss_rate,
-                        "cache_size": cache_stats.cache_size,
-                        "cache_memory_mb": cache_stats.memory_usage_bytes / (1024 * 1024),
+                        "cache_hit_rate": int(cache_stats.hit_rate * 100),  # Convert to percentage
+                        "cache_miss_rate": int(
+                            cache_stats.miss_rate * 100
+                        ),  # Convert to percentage
+                        "cache_size": int(cache_stats.cache_size),
+                        "cache_memory_mb": int(cache_stats.memory_usage_bytes / (1024 * 1024)),
                     }
                 )
 
@@ -502,7 +522,7 @@ class MetadataStorage:
                     hash_sha256.update(chunk)
             return hash_sha256.hexdigest()
         except Exception as e:
-            logger.error(f"Failed to calculate file hash: {e}")
+            log_operation_error("calculate file hash", e)
             return None
 
 

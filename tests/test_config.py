@@ -1,5 +1,4 @@
-"""
-Tests for the enhanced configuration management system.
+"""Tests for the enhanced configuration management system.
 
 This module tests the SecureConfigManager and ConfigValidator classes
 to ensure proper functionality, security, and thread safety.

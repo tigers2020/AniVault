@@ -1,5 +1,4 @@
-"""
-TMDB 검색 결과 선택 다이얼로그
+"""TMDB 검색 결과 선택 다이얼로그
 
 TMDB 검색 결과가 없거나 여러 개일 때 사용자가 수동으로 선택할 수 있는 다이얼로그입니다.
 """
@@ -44,9 +43,9 @@ class TMDBSelectionDialog(QDialog):
         super().__init__(parent)
         self.theme_manager = theme_manager or ThemeManager()
         self.api_key = api_key
-        self.tmdb_client = None
-        self.search_results = []
-        self.selected_result = None
+        self.tmdb_client: TMDBClient | None = None
+        self.search_results: list[dict[str, Any]] = []
+        self.selected_result: dict[str, Any] | None = None
 
         self.setWindowTitle("TMDB 검색 결과 선택")
         self.setModal(True)
@@ -123,13 +122,18 @@ class TMDBSelectionDialog(QDialog):
         self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.results_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.results_table.setAlternatingRowColors(True)
+        
+        # 선택 가능하도록 설정
+        self.results_table.setFocusPolicy(Qt.StrongFocus)
+        self.results_table.setTabKeyNavigation(True)
 
         # 컬럼 너비 설정
         header = self.results_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 포스터
-        header.setSectionResizeMode(1, QHeaderView.Stretch)  # 제목
-        header.setSectionResizeMode(2, QHeaderView.Stretch)  # 원제
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # 첫 방영일
+        if header:
+            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 포스터
+            header.setSectionResizeMode(1, QHeaderView.Stretch)  # 제목
+            header.setSectionResizeMode(2, QHeaderView.Stretch)  # 원제
+            header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # 첫 방영일
 
         # 더블클릭으로 선택
         self.results_table.itemDoubleClicked.connect(self._on_result_double_clicked)
@@ -169,12 +173,16 @@ class TMDBSelectionDialog(QDialog):
         # ThemeManager를 통해 테마 적용
         self.theme_manager.apply_theme(self)
 
-    def set_initial_search(self, query: str, results: list[dict[str, Any]] = None):
+    def set_initial_search(self, query: str, results: list[dict[str, Any]] | None = None):
         """초기 검색어와 결과 설정"""
+        logger.info(f"Setting initial search: query='{query}', results_count={len(results) if results else 0}")
+        
         self.search_input.setText(query)
         if results:
+            logger.info(f"Displaying {len(results)} pre-loaded results")
             self._display_results(results)
         else:
+            logger.info("No pre-loaded results, performing new search")
             self._perform_search()
 
     def _perform_search(self):
@@ -197,6 +205,8 @@ class TMDBSelectionDialog(QDialog):
                 self.tmdb_client = TMDBClient(config)
 
             # TMDB Multi Search 수행
+            # At this point, tmdb_client is guaranteed to be initialized
+
             search_results, needs_selection = self.tmdb_client.search_comprehensive(
                 query, language="ko-KR"
             )
@@ -222,8 +232,6 @@ class TMDBSelectionDialog(QDialog):
                     }
                     results.append(result_dict)
 
-            self.search_results = results
-
             # 단일 결과이고 선택이 필요하지 않은 경우 자동 선택
             if not needs_selection and len(results) == 1:
                 logger.info(f"Single result found, auto-selecting: {results[0]['name']}")
@@ -239,52 +247,65 @@ class TMDBSelectionDialog(QDialog):
 
         except TMDBError as e:
             logger.error(f"TMDB search failed: {e}")
-            self.status_label.setText(f"검색 실패: {str(e)}")
-            QMessageBox.warning(self, "검색 오류", f"TMDB 검색 중 오류가 발생했습니다:\n{str(e)}")
+            self.status_label.setText(f"검색 실패: {e!s}")
+            QMessageBox.warning(self, "검색 오류", f"TMDB 검색 중 오류가 발생했습니다:\n{e!s}")
         except Exception as e:
             logger.error(f"Unexpected error during TMDB search: {e}")
             self.status_label.setText("검색 중 오류가 발생했습니다.")
-            QMessageBox.critical(self, "오류", f"예상치 못한 오류가 발생했습니다:\n{str(e)}")
+            QMessageBox.critical(self, "오류", f"예상치 못한 오류가 발생했습니다:\n{e!s}")
         finally:
             self.search_btn.setEnabled(True)
 
     def _display_results(self, results: list[dict[str, Any]]):
         """검색 결과를 테이블에 표시"""
+        # 결과를 인스턴스 변수에 저장
+        self.search_results = results
         self.results_table.setRowCount(len(results))
 
         for i, result in enumerate(results):
             # 포스터 (이미지 URL만 표시, 실제 이미지는 나중에 로드)
             poster_item = QTableWidgetItem("📷")
             poster_item.setData(Qt.UserRole, result.get("poster_path"))
+            poster_item.setFlags(poster_item.flags() | Qt.ItemIsSelectable)
             self.results_table.setItem(i, 0, poster_item)
 
             # 제목
             title = result.get("name", "제목 없음")
             title_item = QTableWidgetItem(title)
+            title_item.setFlags(title_item.flags() | Qt.ItemIsSelectable)
             self.results_table.setItem(i, 1, title_item)
 
             # 원제
             original_title = result.get("original_name", title)
             original_item = QTableWidgetItem(original_title)
+            original_item.setFlags(original_item.flags() | Qt.ItemIsSelectable)
             self.results_table.setItem(i, 2, original_item)
 
             # 첫 방영일
             first_air_date = result.get("first_air_date", "알 수 없음")
             date_item = QTableWidgetItem(first_air_date)
+            date_item.setFlags(date_item.flags() | Qt.ItemIsSelectable)
             self.results_table.setItem(i, 3, date_item)
 
         # 첫 번째 결과 선택
         if results:
             self.results_table.selectRow(0)
+            # 선택 상태 업데이트
+            self._on_selection_changed()
 
-    def _on_result_double_clicked(self, item):
+    def _on_result_double_clicked(self, item: QTableWidgetItem):
         """결과 더블클릭 시 선택"""
+        logger.debug(f"Double-clicked on item at row {item.row()}")
         self._on_select_clicked()
 
     def _on_selection_changed(self):
         """선택 변경 시"""
         current_row = self.results_table.currentRow()
-        self.select_btn.setEnabled(current_row >= 0)
+        has_selection = current_row >= 0 and current_row < len(self.search_results)
+        self.select_btn.setEnabled(has_selection)
+        
+        # 디버깅을 위한 로그
+        logger.debug(f"Selection changed: row={current_row}, has_selection={has_selection}, total_results={len(self.search_results)}")
 
     def _select_result(self, result: dict):
         """결과를 자동으로 선택"""
@@ -295,12 +316,17 @@ class TMDBSelectionDialog(QDialog):
     def _on_select_clicked(self):
         """선택 버튼 클릭 시"""
         current_row = self.results_table.currentRow()
+        logger.debug(f"Select button clicked: current_row={current_row}, total_results={len(self.search_results)}")
+        
         if current_row >= 0 and current_row < len(self.search_results):
             self.selected_result = self.search_results[current_row]
+            logger.info(f"Selected result: {self.selected_result.get('name', 'Unknown')}")
             self.result_selected.emit(self.selected_result)
             self.accept()
+        else:
+            logger.warning(f"Invalid selection: row={current_row}, total_results={len(self.search_results)}")
+            QMessageBox.warning(self, "선택 오류", "유효한 항목을 선택해주세요.")
 
     def get_selected_result(self) -> dict[str, Any] | None:
         """선택된 결과 반환"""
-
         return self.selected_result

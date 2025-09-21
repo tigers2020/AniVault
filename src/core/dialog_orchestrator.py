@@ -1,5 +1,4 @@
-"""
-Dialog Orchestration System for TMDB Search
+"""Dialog Orchestration System for TMDB Search
 
 This module provides a queue-based dialog orchestration system to handle
 concurrent dialog requests from multiple threads in a thread-safe manner.
@@ -65,8 +64,7 @@ class DialogResult:
 
 
 class DialogTaskQueue:
-    """
-    Thread-safe FIFO queue for dialog tasks with coalescing support.
+    """Thread-safe FIFO queue for dialog tasks with coalescing support.
 
     This queue supports:
     - Thread-safe operations
@@ -82,8 +80,7 @@ class DialogTaskQueue:
         self._cancelled_tasks: set[str] = set()
 
     def put(self, task: DialogTask) -> None:
-        """
-        Add a task to the queue with coalescing support.
+        """Add a task to the queue with coalescing support.
 
         Args:
             task: Dialog task to add
@@ -115,8 +112,7 @@ class DialogTaskQueue:
             logger.debug("Added task %s to queue (type: %s)", task.task_id, task.task_type.value)
 
     def get(self, timeout: float | None = None) -> DialogTask | None:
-        """
-        Get the next task from the queue.
+        """Get the next task from the queue.
 
         Args:
             timeout: Maximum time to wait for a task
@@ -149,8 +145,7 @@ class DialogTaskQueue:
         self._queue.task_done()
 
     def cancel_task(self, task_id: str) -> bool:
-        """
-        Cancel a specific task.
+        """Cancel a specific task.
 
         Args:
             task_id: ID of task to cancel
@@ -164,8 +159,7 @@ class DialogTaskQueue:
             return True
 
     def cancel_by_coalesce_key(self, coalesce_key: str) -> int:
-        """
-        Cancel all tasks with a specific coalesce key.
+        """Cancel all tasks with a specific coalesce key.
 
         Args:
             coalesce_key: Coalesce key to cancel
@@ -211,8 +205,7 @@ class DialogTaskQueue:
 
 
 class DialogOrchestrator(QObject):
-    """
-    Main thread dialog orchestrator for managing dialog display.
+    """Main thread dialog orchestrator for managing dialog display.
 
     This orchestrator ensures that only one dialog is shown at a time
     and handles the queue of dialog requests from worker threads.
@@ -243,8 +236,7 @@ class DialogOrchestrator(QObject):
     def register_dialog_creator(
         self, task_type: DialogTaskType, creator_func: Callable[[DialogTask], Any]
     ) -> None:
-        """
-        Register a dialog creator function for a specific task type.
+        """Register a dialog creator function for a specific task type.
 
         Args:
             task_type: Type of dialog task
@@ -260,8 +252,7 @@ class DialogOrchestrator(QObject):
         coalesce_key: str | None = None,
         priority: int = 0,
     ) -> str:
-        """
-        Request a dialog to be shown.
+        """Request a dialog to be shown.
 
         Args:
             task_type: Type of dialog to show
@@ -288,8 +279,7 @@ class DialogOrchestrator(QObject):
         return task_id
 
     def cancel_request(self, task_id: str) -> bool:
-        """
-        Cancel a dialog request.
+        """Cancel a dialog request.
 
         Args:
             task_id: ID of the request to cancel
@@ -300,8 +290,7 @@ class DialogOrchestrator(QObject):
         return self._queue.cancel_task(task_id)
 
     def cancel_by_coalesce_key(self, coalesce_key: str) -> int:
-        """
-        Cancel all requests with a specific coalesce key.
+        """Cancel all requests with a specific coalesce key.
 
         Args:
             coalesce_key: Coalesce key to cancel

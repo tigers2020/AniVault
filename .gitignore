@@ -194,10 +194,6 @@ node_modules/
 *.sln
 *.sw?
 
-# Task files
-# tasks.json
-# tasks/
-
 # Debug and testing files
 debug*.py
 test_debug*.py
@@ -274,6 +270,7 @@ ENV/
 env.bak/
 venv.bak/
 .venv/
+.cursor/
 
 # Logs
 logs/
@@ -326,3 +323,7 @@ activate.bat
 # Documentation files that are generated
 MVVM_IMPLEMENTATION_REPORT.md
 README_Setup_Guide.md
+
+# Task files
+# tasks.json
+# tasks/ 

@@ -1,5 +1,4 @@
-"""
-Services module for AniVault application.
+"""Services module for AniVault application.
 
 This module contains service classes that handle background operations
 and provide interfaces between the ViewModel and Model layers.
@@ -20,13 +19,13 @@ from .thread_safety import (
 
 __all__ = [
     "FilePipelineWorker",
-    "ThreadSafeProperty",
     "ThreadSafeCounter",
-    "ThreadSafeList",
     "ThreadSafeDict",
-    "thread_safe_method",
-    "python_thread_safe_method",
+    "ThreadSafeList",
+    "ThreadSafeProperty",
+    "ThreadSafetyValidator",
     "ensure_main_thread",
     "prevent_deadlock",
-    "ThreadSafetyValidator",
+    "python_thread_safe_method",
+    "thread_safe_method",
 ]

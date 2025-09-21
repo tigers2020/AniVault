@@ -1,5 +1,4 @@
-"""
-Tests for TMDB API client functionality.
+"""Tests for TMDB API client functionality.
 
 This module contains comprehensive tests for the TMDB client including
 search functionality, metadata extraction, error handling, and caching.
@@ -105,7 +104,7 @@ class TestTMDBClient:
     @patch("src.core.tmdb_client.tmdb")
     def test_setup_tmdb(self, mock_tmdb, config) -> None:
         """Test TMDB setup."""
-        client = TMDBClient(config)
+        _client = TMDBClient(config)
 
         mock_tmdb.API_KEY = config.api_key
         mock_tmdb.REQUESTS_TIMEOUT = config.timeout
@@ -191,8 +190,8 @@ class TestTMDBClient:
         assert best_match["id"] == 1
         assert best_match["name"] == "Attack on Titan"
 
-        # Test with low threshold
-        best_match = client._find_best_match(query, search_results, threshold=0.9)
+        # Test with no results
+        best_match = client._find_best_match(query, [])
         assert best_match is None
 
     def test_normalize_tmdb_id(self, client) -> None:

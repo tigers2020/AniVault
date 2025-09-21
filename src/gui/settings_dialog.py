@@ -33,8 +33,7 @@ class SettingsDialog(QDialog):
     settings_saved = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None, config_manager: ConfigManager | None = None):
-        """
-        Initialize the settings dialog.
+        """Initialize the settings dialog.
 
         Args:
             parent: Parent widget
@@ -72,9 +71,9 @@ class SettingsDialog(QDialog):
         )
         self.button_box.accepted.connect(self._save_settings)
         self.button_box.rejected.connect(self.reject)
-        self.button_box.button(QDialogButtonBox.RestoreDefaults).clicked.connect(
-            self._restore_defaults
-        )
+        restore_button = self.button_box.button(QDialogButtonBox.RestoreDefaults)
+        if restore_button:
+            restore_button.clicked.connect(self._restore_defaults)
 
         layout.addWidget(self.button_box)
 

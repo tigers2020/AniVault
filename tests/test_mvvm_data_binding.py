@@ -1,5 +1,4 @@
-"""
-Test cases for MVVM data binding between View and ViewModel.
+"""Test cases for MVVM data binding between View and ViewModel.
 
 This module tests the data binding between GUI components and ViewModels,
 ensuring that UI events correctly trigger ViewModel commands and that
@@ -27,7 +26,7 @@ class TestMVVMDataBinding:
             app = QApplication([])
         else:
             app = QApplication.instance()
-        yield app
+        return app
 
     @pytest.fixture
     def viewmodel(self):

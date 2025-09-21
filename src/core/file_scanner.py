@@ -1,5 +1,4 @@
-"""
-File scanner module for AniVault application.
+"""File scanner module for AniVault application.
 
 This module provides functionality to scan directories for animation files,
 filter by supported extensions, and collect file metadata efficiently.
@@ -34,10 +33,16 @@ class ScanResult:
             return 0.0
         return (self.supported_files / self.total_files_found) * 100
 
+    @property
+    def files_per_second(self) -> float:
+        """Calculate files processed per second."""
+        if self.scan_duration == 0:
+            return 0.0
+        return self.supported_files / self.scan_duration
+
 
 class FileScanner:
-    """
-    Scans directories for animation files and creates AnimeFile objects.
+    """Scans directories for animation files and creates AnimeFile objects.
 
     This class provides efficient directory scanning with support for:
     - Recursive directory traversal
@@ -63,12 +68,23 @@ class FileScanner:
         ".m2ts",
         ".mts",
     }
+    
+    # Supported subtitle file extensions
+    SUBTITLE_EXTENSIONS: set[str] = {
+        ".srt",
+        ".ass",
+        ".ssa",
+        ".vtt",
+        ".sub",
+        ".idx",
+        ".smi",
+        ".sami",
+    }
 
     def __init__(
         self, max_workers: int = 4, progress_callback: Callable[[int, str], None] | None = None
     ) -> None:
-        """
-        Initialize the file scanner.
+        """Initialize the file scanner.
 
         Args:
             max_workers: Maximum number of worker threads for parallel processing
@@ -81,8 +97,7 @@ class FileScanner:
     def scan_directory(
         self, directory: Path, recursive: bool = True, follow_symlinks: bool = False
     ) -> ScanResult:
-        """
-        Scan a directory for animation files.
+        """Scan a directory for animation files.
 
         Args:
             directory: Directory path to scan
@@ -107,6 +122,10 @@ class FileScanner:
             # Get all files to process
             file_paths = self._collect_file_paths(directory, recursive, follow_symlinks)
             total_files = len(file_paths)
+            
+            # Count all files (including non-video files) for total_files_found
+            all_files = self._collect_all_files(directory, recursive, follow_symlinks)
+            total_files_found = len(all_files)
 
             if self.progress_callback:
                 self.progress_callback(0, f"Found {total_files} files to process...")
@@ -123,13 +142,13 @@ class FileScanner:
             return ScanResult(
                 files=files,
                 scan_duration=scan_duration,
-                total_files_found=total_files,
+                total_files_found=total_files_found,
                 supported_files=len(files),
                 errors=errors,
             )
 
         except Exception as e:
-            error_msg = f"Error scanning directory {directory}: {str(e)}"
+            error_msg = f"Error scanning directory {directory}: {e!s}"
             errors.append(error_msg)
 
             if self.progress_callback:
@@ -169,9 +188,36 @@ class FileScanner:
 
         return file_paths
 
+    def _collect_all_files(
+        self, directory: Path, recursive: bool, follow_symlinks: bool
+    ) -> list[Path]:
+        """Collect all file paths (including non-video files) for counting."""
+        file_paths: list[Path] = []
+
+        try:
+            if recursive:
+                # Use rglob for recursive search
+                pattern = "**/*" if follow_symlinks else "**/*"
+                for file_path in directory.rglob(pattern):
+                    if file_path.is_file():
+                        file_paths.append(file_path)
+            else:
+                # Scan only the immediate directory
+                for file_path in directory.iterdir():
+                    if file_path.is_file():
+                        file_paths.append(file_path)
+
+        except PermissionError as e:
+            # Handle permission errors gracefully
+            if self.progress_callback:
+                self.progress_callback(0, f"Permission denied accessing {directory}: {e}")
+
+        return file_paths
+
     def _is_supported_file(self, file_path: Path) -> bool:
-        """Check if a file has a supported extension."""
-        return file_path.suffix.lower() in self.SUPPORTED_EXTENSIONS
+        """Check if a file has a supported extension (video or subtitle)."""
+        extension = file_path.suffix.lower()
+        return extension in self.SUPPORTED_EXTENSIONS or extension in self.SUBTITLE_EXTENSIONS
 
     def _process_files_parallel(
         self, file_paths: list[Path], total_files: int
@@ -201,7 +247,7 @@ class FileScanner:
                     if anime_file:
                         files.append(anime_file)
                 except Exception as e:
-                    error_msg = f"Error processing {file_path}: {str(e)}"
+                    error_msg = f"Error processing {file_path}: {e!s}"
                     errors.append(error_msg)
 
                 # Update progress
@@ -214,8 +260,7 @@ class FileScanner:
         return files, errors
 
     def _create_anime_file(self, file_path: Path) -> AnimeFile | None:
-        """
-        Create an AnimeFile object from a file path.
+        """Create an AnimeFile object from a file path.
 
         Args:
             file_path: Path to the file
@@ -239,6 +284,9 @@ class FileScanner:
 
             return anime_file
 
+        except FileNotFoundError as e:
+            # File not found - re-raise as is
+            raise e
         except OSError as e:
             # File might be inaccessible or deleted
             raise Exception(f"Cannot access file {file_path}: {e}") from e
@@ -276,8 +324,7 @@ def scan_directory(
     max_workers: int = 4,
     progress_callback: Callable[[int, str], None] | None = None,
 ) -> ScanResult:
-    """
-    Convenience function to scan a directory for animation files.
+    """Convenience function to scan a directory for animation files.
 
     Args:
         directory: Directory path to scan

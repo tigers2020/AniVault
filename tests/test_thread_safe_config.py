@@ -1,5 +1,4 @@
-"""
-Tests for the thread-safe configuration management system.
+"""Tests for the thread-safe configuration management system.
 
 This module tests the ThreadSafeConfigManager class to ensure proper
 thread safety, observer pattern functionality, and concurrent access patterns.
@@ -9,6 +8,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from src.core.thread_safe_config import (
     ConfigurationChangeEvent,
@@ -45,7 +45,10 @@ class TestConfigurationObserver:
 
     def test_initialization(self) -> None:
         """Test ConfigurationObserver initialization."""
-        callback = lambda x: None
+
+        def callback(x: Any) -> None:
+            return None
+
         observer = ConfigurationObserver(callback, ["test.*"])
 
         assert observer.callback == callback
@@ -54,7 +57,10 @@ class TestConfigurationObserver:
 
     def test_should_notify_all_keys(self) -> None:
         """Test notification for all keys when no patterns specified."""
-        callback = lambda x: None
+
+        def callback(x: Any) -> None:
+            return None
+
         observer = ConfigurationObserver(callback)
 
         assert observer.should_notify("any.key") is True
@@ -62,7 +68,10 @@ class TestConfigurationObserver:
 
     def test_should_notify_pattern_matching(self) -> None:
         """Test notification based on key patterns."""
-        callback = lambda x: None
+
+        def callback(x: Any) -> None:
+            return None
+
         observer = ConfigurationObserver(callback, ["test.*", "user.*"])
 
         assert observer.should_notify("test.key") is True
@@ -74,7 +83,7 @@ class TestConfigurationObserver:
         """Test observer notification."""
         events = []
 
-        def callback(event):
+        def callback(event: Any) -> None:
             events.append(event)
 
         observer = ConfigurationObserver(callback)
@@ -126,7 +135,7 @@ class TestThreadSafeConfigManager:
         """Test adding and removing observers."""
         events = []
 
-        def callback(event):
+        def callback(event: Any) -> None:
             events.append(event)
 
         # Add observer
@@ -148,11 +157,11 @@ class TestThreadSafeConfigManager:
         """Test observer with key patterns."""
         events = []
 
-        def callback(event):
+        def callback(event: Any) -> None:
             events.append(event)
 
         # Add observer with pattern
-        observer_id = self.manager.add_observer(callback, ["test.*"])
+        _observer_id = self.manager.add_observer(callback, ["test.*"])
 
         # Set values
         self.manager.set("test.key1", "value1")
@@ -224,7 +233,7 @@ class TestThreadSafeConfigManager:
         """Test atomic batch update."""
         events = []
 
-        def callback(event):
+        def callback(event: Any) -> None:
             events.append(event)
 
         self.manager.add_observer(callback)
@@ -249,7 +258,7 @@ class TestThreadSafeConfigManager:
         self.manager.set("counter", 5)
 
         # Atomic increment
-        def increment(value):
+        def increment(value: Any) -> int:
             return (value or 0) + 1
 
         new_value = self.manager.atomic_update("counter", increment)
@@ -259,9 +268,9 @@ class TestThreadSafeConfigManager:
         # Atomic append to list
         self.manager.set("list", [1, 2, 3])
 
-        def append_item(value):
+        def append_item(value: Any) -> list[Any]:
             if isinstance(value, list):
-                return value + [4]
+                return [*value, 4]
             return [4]
 
         new_list = self.manager.atomic_update("list", append_item)
@@ -290,7 +299,7 @@ class TestThreadSafeConfigManager:
         self.manager.set("test.key", "initial")
 
         # Start a thread that will change the value after a delay
-        def change_value():
+        def change_value() -> None:
             time.sleep(0.1)
             self.manager.set("test.key", "changed")
 
@@ -324,7 +333,7 @@ class TestThreadSafeConfigManager:
         results = []
         errors = []
 
-        def reader(thread_id):
+        def reader(thread_id: int) -> None:
             try:
                 for i in range(100):
                     key = f"key{i % 10}"
@@ -352,7 +361,7 @@ class TestThreadSafeConfigManager:
         assert len(results) == 500  # 5 threads * 100 reads each
 
         # Verify data consistency
-        for thread_id, key, value in results:
+        for _thread_id, key, value in results:
             expected_value = test_data[key]
             assert (
                 value == expected_value
@@ -363,7 +372,7 @@ class TestThreadSafeConfigManager:
         results = []
         errors = []
 
-        def writer(thread_id):
+        def writer(thread_id: int) -> None:
             try:
                 for i in range(50):
                     key = f"thread_{thread_id}_key_{i}"
@@ -392,7 +401,7 @@ class TestThreadSafeConfigManager:
         assert len(results) == 150  # 3 threads * 50 writes each
 
         # Verify data consistency
-        for thread_id, key, value in results:
+        for _thread_id, key, value in results:
             stored_value = self.manager.get(key)
             assert (
                 stored_value == value
@@ -403,7 +412,7 @@ class TestThreadSafeConfigManager:
         results = []
         errors = []
 
-        def mixed_worker(thread_id):
+        def mixed_worker(thread_id: int) -> None:
             try:
                 for i in range(50):
                     # Read operation
@@ -443,7 +452,7 @@ class TestThreadSafeConfigManager:
         # This test is more of a stress test to ensure no deadlocks occur
         # during complex operations
 
-        def complex_operation(thread_id):
+        def complex_operation(thread_id: int) -> None:
             try:
                 for i in range(20):
                     # Multiple operations that could potentially cause deadlocks
@@ -482,14 +491,14 @@ class TestThreadSafeConfigManager:
         events = []
         event_lock = threading.Lock()
 
-        def callback(event):
+        def callback(event: Any) -> None:
             with event_lock:
                 events.append(event)
 
         # Add observer
         self.manager.add_observer(callback)
 
-        def writer(thread_id):
+        def writer(thread_id: int) -> None:
             for i in range(10):
                 key = f"thread_{thread_id}_key_{i}"
                 value = f"thread_{thread_id}_value_{i}"
@@ -536,8 +545,8 @@ class TestThreadSafeConfigManager:
         # Set some test data
         self.manager.set("test.key", "test_value")
 
-        def validator(thread_id):
-            for i in range(10):
+        def validator(thread_id: int) -> None:
+            for _i in range(10):
                 # Validate configuration
                 is_valid = self.manager.validate_config()
                 assert is_valid is True
@@ -564,7 +573,7 @@ class TestThreadSafeConfigManager:
 
         # Test encryption key rotation
         def security_worker(thread_id):
-            for i in range(5):
+            for _i in range(5):
                 # Get security status
                 status = self.manager.get_security_status()
                 assert isinstance(status, dict)
@@ -574,7 +583,7 @@ class TestThreadSafeConfigManager:
                     self.manager.set_tmdb_api_key("test_api_key_12345")
 
                 # Get API key
-                api_key = self.manager.get_tmdb_api_key()
+                _api_key = self.manager.get_tmdb_api_key()
 
                 time.sleep(0.001)
 

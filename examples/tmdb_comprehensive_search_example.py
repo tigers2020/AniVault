@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-TMDB Comprehensive Search Example
+"""TMDB Comprehensive Search Example
 
 This example demonstrates the new comprehensive TMDB search flow:
 1. TMDB TV search → if no results → TMDB Movie search
@@ -59,7 +58,7 @@ class TMDBSearchExample(QMainWindow):
         # Title
         title_label = QLabel("TMDB Comprehensive Search Example")
         title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
 
         # Search input
@@ -145,13 +144,15 @@ class TMDBSearchExample(QMainWindow):
                 self.status_label.setStyleSheet("color: orange;")
 
         except Exception as e:
-            self.status_label.setText(f"Search error: {str(e)}")
+            self.status_label.setText(f"Search error: {e!s}")
             self.status_label.setStyleSheet("color: red;")
         finally:
             self.search_btn.setEnabled(True)
 
     def show_selection_dialog(self, search_result):
         """Show selection dialog for multiple results."""
+        if self.tmdb_client is None or self.tmdb_client.config is None:
+            return
         dialog = TMDBSelectionDialog(parent=self, api_key=self.tmdb_client.config.api_key)
 
         dialog.set_initial_search(search_result.query_used, search_result.results)
@@ -165,6 +166,8 @@ class TMDBSearchExample(QMainWindow):
         """Show manual search dialog."""
         query = self.search_input.text().strip()
 
+        if self.tmdb_client is None or self.tmdb_client.config is None:
+            return
         dialog = TMDBSelectionDialog(parent=self, api_key=self.tmdb_client.config.api_key)
 
         dialog.set_initial_search(query, [])

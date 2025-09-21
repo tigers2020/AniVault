@@ -1,5 +1,4 @@
-"""
-File Processing ViewModel for AniVault application.
+"""File Processing ViewModel for AniVault application.
 
 This module provides the FileProcessingViewModel that orchestrates the file processing
 pipeline including scanning, parsing, metadata retrieval, and file moving operations.
@@ -8,6 +7,7 @@ pipeline including scanning, parsing, metadata retrieval, and file moving operat
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -35,8 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 class FileProcessingViewModel(BaseViewModel):
-    """
-    ViewModel for orchestrating file processing operations.
+    """ViewModel for orchestrating file processing operations.
 
     This ViewModel manages the complete file processing pipeline:
     1. File scanning and discovery
@@ -63,8 +62,7 @@ class FileProcessingViewModel(BaseViewModel):
     tmdb_selection_completed = pyqtSignal(dict)  # selected result
 
     def __init__(self, parent=None) -> None:
-        """
-        Initialize the FileProcessingViewModel.
+        """Initialize the FileProcessingViewModel.
 
         Args:
             parent: Parent QObject for Qt object hierarchy
@@ -84,6 +82,7 @@ class FileProcessingViewModel(BaseViewModel):
         self._file_groups: list[FileGroup] = []
         self._processed_files: list[AnimeFile] = []
         self._moved_files: list[AnimeFile] = []
+        self._failed_files: list[AnimeFile] = []
 
         # Configuration
         self._scan_directories: list[str] = []
@@ -127,6 +126,7 @@ class FileProcessingViewModel(BaseViewModel):
 
         # Utility commands
         self.add_command("clear_results", self._clear_results_command)
+        self.add_command("clear_failed_files", self.clear_failed_files)
         self.add_command("reset_pipeline", self._reset_pipeline_command)
 
         # Auto chaining control commands
@@ -142,6 +142,7 @@ class FileProcessingViewModel(BaseViewModel):
         self.set_property("file_groups", [], notify=False)
         self.set_property("processed_files", [], notify=False)
         self.set_property("moved_files", [], notify=False)
+        self.set_property("failed_files", [], notify=False)
 
         # Configuration
         self.set_property("scan_directories", [], notify=False)
@@ -172,8 +173,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.debug("File processing properties set up")
 
     def initialize_components(self) -> None:
-        """
-        Initialize all model components.
+        """Initialize all model components.
 
         This method should be called after setting configuration properties
         to initialize the underlying model components.
@@ -186,12 +186,14 @@ class FileProcessingViewModel(BaseViewModel):
             self._anime_parser = AnimeParser()
 
             # Initialize TMDB client if API key is available
-            if self._tmdb_api_key:
+            api_key = self.get_property("tmdb_api_key", "")
+            if api_key:
                 logger.info(
-                    f"Initializing TMDB client during component initialization with API key: ***{self._tmdb_api_key[-4:]}"
+                    f"Initializing TMDB client during component initialization with API key: ***{api_key[-4:]}"
                 )
-                tmdb_config = TMDBConfig(api_key=self._tmdb_api_key)
+                tmdb_config = TMDBConfig(api_key=api_key)
                 self._tmdb_client = TMDBClient(tmdb_config)
+                self._tmdb_api_key = api_key  # Keep private attribute in sync
                 logger.info("TMDB client initialized successfully during component initialization")
             else:
                 logger.warning("TMDB API key not set, metadata retrieval will be disabled")
@@ -208,14 +210,13 @@ class FileProcessingViewModel(BaseViewModel):
             logger.info("All model components initialized successfully")
 
         except Exception as e:
-            error_msg = f"Failed to initialize model components: {str(e)}"
+            error_msg = f"Failed to initialize model components: {e!s}"
             logger.error(error_msg, exc_info=True)
             self.error_occurred.emit(error_msg)
             raise
 
     def create_worker(self):
-        """
-        Create and configure a new FilePipelineWorker with additional signal connections.
+        """Create and configure a new FilePipelineWorker with additional signal connections.
 
         Returns:
             Configured FilePipelineWorker instance
@@ -232,13 +233,13 @@ class FileProcessingViewModel(BaseViewModel):
     # Command implementations
 
     def _scan_files_command(self, directories: list[str]) -> None:
-        """
-        Command to scan directories for anime files.
+        """Command to scan directories for anime files.
 
         Args:
             directories: List of directories to scan
         """
         logger.debug(f"_scan_files_command called with directories: {directories}")
+        logger.debug(f"_file_scanner is None: {self._file_scanner is None}")
 
         if not directories:
             logger.error("No directories specified for scanning")
@@ -247,6 +248,7 @@ class FileProcessingViewModel(BaseViewModel):
 
         if not self._file_scanner:
             logger.error("File scanner not initialized")
+            logger.debug("File scanner not initialized, returning early")
             self.error_occurred.emit("File scanner not initialized")
             return
 
@@ -258,12 +260,16 @@ class FileProcessingViewModel(BaseViewModel):
             logger.debug("Worker created successfully")
 
         logger.debug("Creating scanning task")
+        logger.debug("About to create ConcreteFileScanningTask")
         # Create and add scanning task
         task = ConcreteFileScanningTask(directories, self._get_supported_extensions())
+        logger.debug(f"Created task: {task}")
         logger.debug(f"Created task: {task.get_name()}")
 
         logger.debug("Adding task to worker")
+        logger.debug("About to add task to worker")
         self.add_worker_task(task)
+        logger.debug("Task added to worker successfully")
         logger.debug("Task added to worker successfully")
 
         # Start worker if not running
@@ -291,8 +297,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.debug("_scan_files_command completed")
 
     def _process_files_command(self, files: list[AnimeFile]) -> None:
-        """
-        Command to process a list of files (group, parse, retrieve metadata).
+        """Command to process a list of files (group, parse, retrieve metadata).
 
         Args:
             files: List of files to process
@@ -302,7 +307,7 @@ class FileProcessingViewModel(BaseViewModel):
             return
 
         # Create processing tasks
-        tasks = []
+        tasks: list[Any] = []
 
         # Grouping task
         if self._file_grouper:
@@ -313,8 +318,9 @@ class FileProcessingViewModel(BaseViewModel):
             tasks.append(ConcreteFileParsingTask(files))
 
         # Metadata retrieval task
-        if self._tmdb_client and self._tmdb_api_key:
-            tasks.append(ConcreteMetadataRetrievalTask(files, self._tmdb_api_key))
+        api_key = self.get_property("tmdb_api_key", "")
+        if self._tmdb_client and api_key:
+            tasks.append(ConcreteMetadataRetrievalTask(files, api_key))
 
         if not tasks:
             self.error_occurred.emit("No processing components available")
@@ -334,8 +340,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.info(f"Started processing {len(files)} files")
 
     def _group_files_command(self, files: list[AnimeFile]) -> None:
-        """
-        Command to group similar files.
+        """Command to group similar files.
 
         Args:
             files: List of files to group
@@ -361,8 +366,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.info(f"Started grouping {len(files)} files")
 
     def _parse_files_command(self, files: list[AnimeFile]) -> None:
-        """
-        Command to parse anime information from files.
+        """Command to parse anime information from files.
 
         Args:
             files: List of files to parse
@@ -388,8 +392,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.info(f"Started parsing {len(files)} files")
 
     def _retrieve_metadata_command(self, files: list[AnimeFile]) -> None:
-        """
-        Command to retrieve metadata from TMDB.
+        """Command to retrieve metadata from TMDB.
 
         Args:
             files: List of files to get metadata for
@@ -399,7 +402,8 @@ class FileProcessingViewModel(BaseViewModel):
             return
 
         # Check if TMDB client is available
-        if not self._tmdb_client or not self._tmdb_api_key:
+        api_key = self.get_property("tmdb_api_key", "")
+        if not self._tmdb_client or not api_key:
             logger.warning(
                 "TMDB client not initialized or API key not set - skipping metadata retrieval"
             )
@@ -412,7 +416,7 @@ class FileProcessingViewModel(BaseViewModel):
         if not self.has_worker():
             self.create_worker()
 
-        task = ConcreteMetadataRetrievalTask(files, self._tmdb_api_key)
+        task = ConcreteMetadataRetrievalTask(files, api_key)
         self.add_worker_task(task)
 
         if not self.is_worker_running():
@@ -421,8 +425,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.info(f"Started metadata retrieval for {len(files)} files")
 
     def _retrieve_group_metadata_command(self, groups: list[FileGroup]) -> None:
-        """
-        Command to retrieve metadata from TMDB for groups.
+        """Command to retrieve metadata from TMDB for groups.
 
         Args:
             groups: List of file groups to get metadata for
@@ -432,7 +435,8 @@ class FileProcessingViewModel(BaseViewModel):
             return
 
         # Check if TMDB client is available
-        if not self._tmdb_client or not self._tmdb_api_key:
+        api_key = self.get_property("tmdb_api_key", "")
+        if not self._tmdb_client or not api_key:
             logger.warning(
                 "TMDB client not initialized or API key not set - skipping group metadata retrieval"
             )
@@ -448,7 +452,7 @@ class FileProcessingViewModel(BaseViewModel):
         if not self.has_worker():
             self.create_worker()
 
-        task = ConcreteGroupBasedMetadataRetrievalTask(groups, self._tmdb_api_key)
+        task = ConcreteGroupBasedMetadataRetrievalTask(groups, api_key)
         task.set_viewmodel(self)  # Set ViewModel reference for signal communication
         self.add_worker_task(task)
 
@@ -458,8 +462,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.info(f"Started group-based metadata retrieval for {len(groups)} groups")
 
     def _move_files_command(self, groups: list[FileGroup]) -> None:
-        """
-        Command to move and organize files.
+        """Command to move and organize files.
 
         Args:
             groups: List of file groups to move
@@ -516,7 +519,7 @@ class FileProcessingViewModel(BaseViewModel):
         self.processing_pipeline_started.emit()
 
         # Create full pipeline tasks
-        tasks = []
+        tasks: list[Any] = []
 
         # 1. File scanning
         tasks.append(ConcreteFileScanningTask(directories, self._get_supported_extensions()))
@@ -550,8 +553,7 @@ class FileProcessingViewModel(BaseViewModel):
             logger.warning("No processing currently running")
 
     def _set_scan_directories_command(self, directories: list[str]) -> None:
-        """
-        Command to set scan directories.
+        """Command to set scan directories.
 
         Args:
             directories: List of directory paths to scan
@@ -605,8 +607,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.debug("set_scan_directories_command completed successfully")
 
     def _set_target_directory_command(self, directory: str) -> None:
-        """
-        Command to set target directory.
+        """Command to set target directory.
 
         Args:
             directory: Target directory path
@@ -617,7 +618,7 @@ class FileProcessingViewModel(BaseViewModel):
                 path.mkdir(parents=True, exist_ok=True)
                 logger.info(f"Created target directory: {directory}")
             except Exception as e:
-                self.error_occurred.emit(f"Failed to create target directory: {str(e)}")
+                self.error_occurred.emit(f"Failed to create target directory: {e!s}")
                 return
         elif not path.is_dir():
             self.error_occurred.emit("Target path is not a directory")
@@ -628,8 +629,7 @@ class FileProcessingViewModel(BaseViewModel):
         logger.info(f"Set target directory: {directory}")
 
     def _set_tmdb_api_key_command(self, api_key: str) -> None:
-        """
-        Command to set TMDB API key.
+        """Command to set TMDB API key.
 
         Args:
             api_key: TMDB API key
@@ -650,13 +650,12 @@ class FileProcessingViewModel(BaseViewModel):
                 logger.info("TMDB client initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to reinitialize TMDB client: {e}")
-                self.error_occurred.emit(f"Failed to initialize TMDB client: {str(e)}")
+                self.error_occurred.emit(f"Failed to initialize TMDB client: {e!s}")
 
         logger.info("TMDB API key set")
 
     def _set_similarity_threshold_command(self, threshold: float) -> None:
-        """
-        Command to set similarity threshold for file grouping.
+        """Command to set similarity threshold for file grouping.
 
         Args:
             threshold: Similarity threshold (0.0-1.0)
@@ -680,11 +679,13 @@ class FileProcessingViewModel(BaseViewModel):
         self.set_property("file_groups", [])
         self.set_property("processed_files", [])
         self.set_property("moved_files", [])
+        self.set_property("failed_files", [])
 
         self._scanned_files.clear()
         self._file_groups.clear()
         self._processed_files.clear()
         self._moved_files.clear()
+        self._failed_files.clear()
 
         # Reset statistics
         self.set_property("total_files_scanned", 0)
@@ -709,8 +710,7 @@ class FileProcessingViewModel(BaseViewModel):
 
     @pyqtSlot(str)
     def _on_worker_task_started(self, task_name: str) -> None:
-        """
-        Handle worker task started signal.
+        """Handle worker task started signal.
 
         Args:
             task_name: Name of the started task
@@ -721,8 +721,7 @@ class FileProcessingViewModel(BaseViewModel):
 
     @pyqtSlot(str, int)
     def _on_worker_task_progress(self, task_name: str, progress: int) -> None:
-        """
-        Handle worker task progress signal.
+        """Handle worker task progress signal.
 
         Args:
             task_name: Name of the task
@@ -734,8 +733,7 @@ class FileProcessingViewModel(BaseViewModel):
 
     @pyqtSlot(str, object, bool)
     def _on_worker_task_finished(self, task_name: str, result: Any, success: bool) -> None:
-        """
-        Handle worker task finished signal.
+        """Handle worker task finished signal.
 
         Args:
             task_name: Name of the finished task
@@ -779,21 +777,23 @@ class FileProcessingViewModel(BaseViewModel):
                 logger.warning(f"Unknown task type or result format: {task_name}")
         except Exception as e:
             logger.error(f"Error processing task result for {task_name}: {e}")
-            self.error_occurred.emit(f"결과 처리 오류: {task_name} - {str(e)}")
+            self.error_occurred.emit(f"결과 처리 오류: {task_name} - {e!s}")
 
         logger.debug(f"Worker task finished: {task_name}")
 
     @pyqtSlot(str, str)
     def _on_worker_task_error(self, task_name: str, error_message: str) -> None:
-        """
-        Handle worker task error signal.
+        """Handle worker task error signal.
 
         Args:
             task_name: Name of the task that failed
             error_message: Error message
         """
-        self.error_occurred.emit(f"{task_name} 실패: {error_message}")
+        self.error_occurred.emit(f"{task_name} failed: {error_message}")
         logger.error(f"Worker task error: {task_name} - {error_message}")
+        
+        # Track failed files based on the task type
+        self._track_failed_files(task_name, error_message)
 
     @pyqtSlot()
     def _on_worker_finished(self) -> None:
@@ -946,6 +946,58 @@ class FileProcessingViewModel(BaseViewModel):
         self.files_moved.emit(files)
         logger.info(f"File moving completed: {len(files)} files moved")
 
+    def _track_failed_files(self, task_name: str, error_message: str) -> None:
+        """Track files that failed during processing.
+        
+        Args:
+            task_name: Name of the task that failed
+            error_message: Error message describing the failure
+        """
+        # For now, we'll create a generic failed file entry
+        # In a more sophisticated implementation, we could track specific files
+        from ..core.models import AnimeFile
+        
+        # Create a placeholder failed file entry
+        failed_file = AnimeFile(
+            file_path=f"Failed during {task_name}",
+            filename=f"Error: {error_message[:50]}...",
+            file_size=0,
+            file_extension=".error",
+            created_at=datetime.now(),
+            modified_at=datetime.now()
+        )
+        
+        # Add to failed files list
+        self._failed_files.append(failed_file)
+        self.set_property("failed_files", self._failed_files)
+        
+        logger.warning(f"Tracked failed file for task {task_name}: {error_message}")
+
+    def clear_failed_files(self) -> None:
+        """Clear the list of failed files."""
+        self._failed_files = []
+        self.set_property("failed_files", [])
+        logger.info("Cleared failed files list")
+
+    def get_processing_statistics(self) -> dict[str, Any]:
+        """Get comprehensive processing statistics.
+        
+        Returns:
+            Dictionary containing all processing statistics
+        """
+        return {
+            "total_files_scanned": len(self._scanned_files),
+            "total_groups_created": len(self._file_groups),
+            "total_files_processed": len(self._processed_files),
+            "total_files_moved": len(self._moved_files),
+            "total_files_failed": len(self._failed_files),
+            "pending_files": len(self._scanned_files) - len(self._processed_files),
+            "unclassified_files": len(self._scanned_files) - len(self._moved_files),
+            "is_pipeline_running": self.get_property("is_pipeline_running", False),
+            "current_pipeline_step": self.get_property("current_pipeline_step", ""),
+            "processing_status": self.get_property("processing_status", "Ready"),
+        }
+
     # Utility methods
 
     def _get_supported_extensions(self) -> list[str]:
@@ -983,15 +1035,15 @@ class FileProcessingViewModel(BaseViewModel):
 
     def is_pipeline_running(self) -> bool:
         """Check if processing pipeline is running."""
-        return self.get_property("is_pipeline_running", False)
+        return self.get_property("is_pipeline_running", False)  # type: ignore[no-any-return]
 
     def get_processing_status(self) -> str:
         """Get current processing status."""
-        return self.get_property("processing_status", "Ready")
+        return self.get_property("processing_status", "Ready")  # type: ignore[no-any-return]
 
     def get_scan_progress(self) -> int:
         """Get current scan progress percentage."""
-        return self.get_property("scan_progress", 0)
+        return self.get_property("scan_progress", 0)  # type: ignore[no-any-return]
 
     def set_auto_chaining_enabled(self, enabled: bool) -> None:
         """Enable or disable automatic pipeline chaining."""

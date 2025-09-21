@@ -1,5 +1,4 @@
-"""
-Concrete file processing tasks for AniVault application.
+"""Concrete file processing tasks for AniVault application.
 
 This module provides concrete implementations of WorkerTask classes that
 integrate with the actual model components for file processing operations.
@@ -9,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from ..anime_parser import AnimeParser
@@ -18,6 +18,7 @@ from ..file_scanner import FileScanner, ScanResult
 from ..metadata_cache import MetadataCache
 from ..models import AnimeFile, FileGroup, TMDBAnime
 from ..tmdb_client import TMDBClient, TMDBConfig
+from ..logging_utils import log_operation_error
 from .file_pipeline_worker import WorkerTask
 
 # Logger for this module
@@ -25,9 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConcreteFileScanningTask(WorkerTask):
-    """
-    Concrete task for scanning directories for anime files.
-    """
+    """Concrete task for scanning directories for anime files."""
 
     def __init__(
         self,
@@ -35,8 +34,7 @@ class ConcreteFileScanningTask(WorkerTask):
         supported_extensions: list[str],
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
-        """
-        Initialize the file scanning task.
+        """Initialize the file scanning task.
 
         Args:
             scan_directories: List of directories to scan
@@ -50,8 +48,7 @@ class ConcreteFileScanningTask(WorkerTask):
         self._result: ScanResult | None = None
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the file scanning.
+        """Execute the file scanning.
 
         Returns:
             List of found anime files
@@ -62,9 +59,7 @@ class ConcreteFileScanningTask(WorkerTask):
             # Initialize file scanner
             self._file_scanner = FileScanner()
 
-            # Set up progress callback if provided
-            if self.progress_callback:
-                self._file_scanner.set_progress_callback(self.progress_callback)
+            # Progress callback is already set in FileScanner constructor
 
             # Perform scanning
             from pathlib import Path
@@ -75,7 +70,7 @@ class ConcreteFileScanningTask(WorkerTask):
             return self._result.files
 
         except Exception as e:
-            logger.error(f"File scanning failed: {e}", exc_info=True)
+            log_operation_error("file scanning", e, exc_info=True)
             raise
 
     def get_name(self) -> str:
@@ -92,9 +87,7 @@ class ConcreteFileScanningTask(WorkerTask):
 
 
 class ConcreteFileGroupingTask(WorkerTask):
-    """
-    Concrete task for grouping similar anime files.
-    """
+    """Concrete task for grouping similar anime files."""
 
     def __init__(
         self,
@@ -102,8 +95,7 @@ class ConcreteFileGroupingTask(WorkerTask):
         similarity_threshold: float = 0.75,
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
-        """
-        Initialize the file grouping task.
+        """Initialize the file grouping task.
 
         Args:
             files: List of files to group
@@ -117,8 +109,7 @@ class ConcreteFileGroupingTask(WorkerTask):
         self._groups: list[FileGroup] = []
 
     def execute(self) -> list[FileGroup]:
-        """
-        Execute the file grouping.
+        """Execute the file grouping.
 
         Returns:
             List of file groups
@@ -129,9 +120,7 @@ class ConcreteFileGroupingTask(WorkerTask):
             # Initialize file grouper
             self._file_grouper = FileGrouper(similarity_threshold=self.similarity_threshold)
 
-            # Set up progress callback if provided
-            if self.progress_callback:
-                self._file_grouper.set_progress_callback(self.progress_callback)
+            # Progress callback is already set in FileGrouper constructor
 
             # Perform grouping
             logger.debug(f"Calling FileGrouper.group_files with {len(self.files)} files")
@@ -143,7 +132,7 @@ class ConcreteFileGroupingTask(WorkerTask):
             return self._groups
 
         except Exception as e:
-            logger.error(f"File grouping failed: {e}", exc_info=True)
+            log_operation_error("file grouping", e, exc_info=True)
             raise
 
     def get_name(self) -> str:
@@ -156,13 +145,10 @@ class ConcreteFileGroupingTask(WorkerTask):
 
 
 class ConcreteFileParsingTask(WorkerTask):
-    """
-    Concrete task for parsing anime file information.
-    """
+    """Concrete task for parsing anime file information."""
 
     def __init__(self, files: list[AnimeFile], progress_callback: Callable | None = None) -> None:
-        """
-        Initialize the file parsing task.
+        """Initialize the file parsing task.
 
         Args:
             files: List of files to parse
@@ -174,8 +160,7 @@ class ConcreteFileParsingTask(WorkerTask):
         self._parsed_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the file parsing.
+        """Execute the file parsing.
 
         Returns:
             List of parsed files
@@ -206,13 +191,13 @@ class ConcreteFileParsingTask(WorkerTask):
                     # Update progress if callback provided
                     if self.progress_callback:
                         progress = int((i + 1) / len(self.files) * 100)
-                        self.progress_callback(progress)
+                        self.progress_callback(progress, len(self.files))
 
                 except Exception as e:
                     if hasattr(file, "filename"):
                         logger.warning(f"Failed to parse file {file.filename}: {e}")
                         # Add file with error
-                        file.processing_errors.append(f"Parsing failed: {str(e)}")
+                        file.processing_errors.append(f"Parsing failed: {e!s}")
                         self._parsed_files.append(file)
                     else:
                         logger.error(f"Invalid object in parsing task: {type(file)} - {e}")
@@ -222,7 +207,7 @@ class ConcreteFileParsingTask(WorkerTask):
             return self._parsed_files
 
         except Exception as e:
-            logger.error(f"File parsing failed: {e}", exc_info=True)
+            log_operation_error("file parsing", e, exc_info=True)
             raise
 
     def get_name(self) -> str:
@@ -235,15 +220,12 @@ class ConcreteFileParsingTask(WorkerTask):
 
 
 class ConcreteMetadataRetrievalTask(WorkerTask):
-    """
-    Concrete task for retrieving metadata from TMDB.
-    """
+    """Concrete task for retrieving metadata from TMDB."""
 
     def __init__(
         self, files: list[AnimeFile], api_key: str, progress_callback: Callable | None = None
     ) -> None:
-        """
-        Initialize the metadata retrieval task.
+        """Initialize the metadata retrieval task.
 
         Args:
             files: List of files to get metadata for
@@ -257,8 +239,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
         self._files_with_metadata: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the metadata retrieval.
+        """Execute the metadata retrieval.
 
         Returns:
             List of files with metadata
@@ -279,20 +260,38 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
                         search_results = self._tmdb_client.search_tv_series(file.parsed_info.title)
 
                         if search_results:
-                            # Use the first (best) result
-                            file.tmdb_info = search_results[0]
+                            # Use the first (best) result and convert to TMDBAnime
+                            from ..models import TMDBAnime
+
+                            tmdb_data = search_results[0]
+                            file.tmdb_info = TMDBAnime(
+                                tmdb_id=tmdb_data.get("id", 0),
+                                title=tmdb_data.get("name", tmdb_data.get("title", "")),
+                                original_title=tmdb_data.get(
+                                    "original_name", tmdb_data.get("original_title", "")
+                                ),
+                                overview=tmdb_data.get("overview", ""),
+                                release_date=tmdb_data.get(
+                                    "first_air_date", tmdb_data.get("release_date", "")
+                                ),
+                                poster_path=tmdb_data.get("poster_path", ""),
+                                backdrop_path=tmdb_data.get("backdrop_path", ""),
+                                vote_average=tmdb_data.get("vote_average", 0.0),
+                                vote_count=tmdb_data.get("vote_count", 0),
+                                popularity=tmdb_data.get("popularity", 0.0),
+                            )
 
                     self._files_with_metadata.append(file)
 
                     # Update progress if callback provided
                     if self.progress_callback:
                         progress = int((i + 1) / len(self.files) * 100)
-                        self.progress_callback(progress)
+                        self.progress_callback(progress, len(self.files))
 
                 except Exception as e:
                     logger.warning(f"Failed to get metadata for file {file.filename}: {e}")
                     # Add file with error
-                    file.processing_errors.append(f"Metadata retrieval failed: {str(e)}")
+                    file.processing_errors.append(f"Metadata retrieval failed: {e!s}")
                     self._files_with_metadata.append(file)
 
             logger.info(
@@ -301,7 +300,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
             return self._files_with_metadata
 
         except Exception as e:
-            logger.error(f"Metadata retrieval failed: {e}", exc_info=True)
+            log_operation_error("metadata retrieval", e, exc_info=True)
             raise
 
     def get_name(self) -> str:
@@ -314,8 +313,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
 
 
 class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
-    """
-    Optimized task for retrieving metadata from TMDB on a group basis.
+    """Optimized task for retrieving metadata from TMDB on a group basis.
 
     This task groups files by their parsed title and searches TMDB once per group,
     then applies the metadata to all files in that group.
@@ -324,8 +322,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
     def __init__(
         self, groups: list[FileGroup], api_key: str, progress_callback: Callable | None = None
     ) -> None:
-        """
-        Initialize the group-based metadata retrieval task.
+        """Initialize the group-based metadata retrieval task.
 
         Args:
             groups: List of file groups to get metadata for
@@ -337,13 +334,12 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         self.progress_callback = progress_callback
         self._tmdb_client: TMDBClient | None = None
         self._processed_groups: list[FileGroup] = []
-        self._pending_group_selection = None
-        self._viewmodel = None  # Will be set by the ViewModel
+        self._pending_group_selection: dict[str, Any] | None = None
+        self._viewmodel: Any | None = None  # Will be set by the ViewModel
         self._should_stop = False  # Flag to indicate if task should stop
 
     def execute(self) -> list[FileGroup]:
-        """
-        Execute the group-based metadata retrieval.
+        """Execute the group-based metadata retrieval.
 
         Returns:
             List of groups with metadata applied to their files
@@ -383,23 +379,24 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                                     search_result, "ko-KR"
                                 )
 
-                                # Use display title (Korean title if available, otherwise original title)
-                                display_title = tmdb_info.display_title
-                                logger.info(
-                                    f"Found TMDB metadata for group '{representative_title}': {display_title}"
-                                )
+                                if tmdb_info is not None:
+                                    # Use display title (Korean title if available, otherwise original title)
+                                    display_title = tmdb_info.display_title
+                                    logger.info(
+                                        f"Found TMDB metadata for group '{representative_title}': {display_title}"
+                                    )
 
-                                # Apply metadata to all files in the group
-                                for file in group.files:
-                                    file.tmdb_info = tmdb_info
+                                    # Apply metadata to all files in the group
+                                    for file in group.files:
+                                        file.tmdb_info = tmdb_info
 
-                                # Update group metadata with display title
-                                group.tmdb_info = tmdb_info
-                                group.series_title = display_title
+                                    # Update group metadata with display title
+                                    group.tmdb_info = tmdb_info
+                                    group.series_title = display_title
 
-                                logger.info(
-                                    f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files"
-                                )
+                                    logger.info(
+                                        f"Updated group name to '{display_title}' and applied TMDB metadata to {len(group.files)} files"
+                                    )
                             else:
                                 # Multiple results or needs selection, request user selection
                                 logger.info(
@@ -458,7 +455,8 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                                                 search_results[0], "ko-KR"
                                             )
                                         )
-                                        self._apply_tmdb_metadata_to_group(group, tmdb_info)
+                                        if tmdb_info is not None:
+                                            self._apply_tmdb_metadata_to_group(group, tmdb_info)
                                 else:
                                     # Fallback: use first result if no ViewModel available
                                     logger.warning(
@@ -467,7 +465,8 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                                     tmdb_info = self._tmdb_client._convert_search_result_to_anime(
                                         search_results[0], "ko-KR"
                                     )
-                                    self._apply_tmdb_metadata_to_group(group, tmdb_info)
+                                    if tmdb_info is not None:
+                                        self._apply_tmdb_metadata_to_group(group, tmdb_info)
                         else:
                             logger.warning(
                                 f"No TMDB results found for group '{representative_title}'"
@@ -500,13 +499,13 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
                     # Update progress if callback provided
                     if self.progress_callback:
                         progress = int((i + 1) / len(self.groups) * 100)
-                        self.progress_callback(progress)
+                        self.progress_callback(progress, len(self.groups))
 
                 except Exception as e:
                     logger.warning(f"Failed to get metadata for group {group.group_id}: {e}")
                     # Add group with error
                     for file in group.files:
-                        file.processing_errors.append(f"Group metadata retrieval failed: {str(e)}")
+                        file.processing_errors.append(f"Group metadata retrieval failed: {e!s}")
                     self._processed_groups.append(group)
 
             logger.info(
@@ -515,12 +514,11 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             return self._processed_groups
 
         except Exception as e:
-            logger.error(f"Group-based metadata retrieval failed: {e}", exc_info=True)
+            log_operation_error("group-based metadata retrieval", e, exc_info=True)
             raise
 
     def _get_representative_title(self, group: FileGroup) -> str | None:
-        """
-        Get the most representative title from a group for TMDB search.
+        """Get the most representative title from a group for TMDB search.
 
         Args:
             group: FileGroup to get title from
@@ -544,8 +542,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         return None
 
     def _apply_tmdb_metadata_to_group(self, group: FileGroup, tmdb_info: TMDBAnime) -> None:
-        """
-        Apply TMDB metadata to a group and its files.
+        """Apply TMDB metadata to a group and its files.
 
         Args:
             group: FileGroup to apply metadata to
@@ -568,8 +565,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         )
 
     def _wait_for_user_selection(self, timeout_seconds: int = 30) -> dict | None:
-        """
-        Wait for user selection with timeout to prevent infinite blocking.
+        """Wait for user selection with timeout to prevent infinite blocking.
 
         Args:
             timeout_seconds: Maximum time to wait for user selection
@@ -603,8 +599,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
         return None
 
     def _on_tmdb_selection_callback(self, selected_result: dict) -> None:
-        """
-        Callback for when user selects a TMDB result.
+        """Callback for when user selects a TMDB result.
 
         Args:
             selected_result: Selected TMDB result dictionary
@@ -624,7 +619,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
             self._pending_group_selection = None
 
         except Exception as e:
-            logger.error(f"Failed to apply selected TMDB result: {e}")
+            log_operation_error("apply selected TMDB result", e)
             # Clear pending selection even on error
             self._pending_group_selection = None
 
@@ -650,9 +645,7 @@ class ConcreteGroupBasedMetadataRetrievalTask(WorkerTask):
 
 
 class ConcreteFileMovingTask(WorkerTask):
-    """
-    Concrete task for moving and organizing files.
-    """
+    """Concrete task for moving and organizing files."""
 
     def __init__(
         self,
@@ -660,8 +653,7 @@ class ConcreteFileMovingTask(WorkerTask):
         target_directory: str,
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
-        """
-        Initialize the file moving task.
+        """Initialize the file moving task.
 
         Args:
             groups: List of file groups to move
@@ -675,8 +667,7 @@ class ConcreteFileMovingTask(WorkerTask):
         self._moved_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the file moving.
+        """Execute the file moving.
 
         Returns:
             List of moved files
@@ -687,39 +678,52 @@ class ConcreteFileMovingTask(WorkerTask):
             # Initialize file mover
             self._file_mover = FileMover()
 
-            # Move each group
+            # Move all groups using TMDB metadata for folder names
             self._moved_files = []
-            for i, group in enumerate(self.groups):
-                try:
-                    # Move the group
-                    move_result = self._file_mover.move_anime_files(
-                        group.files, self.target_directory
-                    )
+            move_results = self._file_mover.move_file_groups(
+                self.groups, Path(self.target_directory)
+            )
 
-                    if move_result.success:
-                        self._moved_files.extend(move_result.moved_files)
-                        group.is_processed = True
-                    else:
-                        # Add errors to group files
+            # Check if all moves were successful
+            all_successful = all(result.success for result in move_results)
+            if all_successful:
+                # Collect all moved files
+                for result in move_results:
+                    # Find the corresponding AnimeFile for this result
+                    for group in self.groups:
                         for file in group.files:
-                            file.processing_errors.extend(move_result.errors)
+                            if file.file_path == result.source_path:
+                                file.file_path = result.target_path
+                                self._moved_files.append(file)
+                                break
+                # Mark all groups as processed
+                for group in self.groups:
+                    group.is_processed = True
+            else:
+                # Add errors to group files
+                for result in move_results:
+                    if not result.success and result.error_message:
+                        for group in self.groups:
+                            for file in group.files:
+                                if file.file_path == result.source_path:
+                                    file.processing_errors.append(result.error_message)
+                                    break
 
-                    # Update progress if callback provided
-                    if self.progress_callback:
-                        progress = int((i + 1) / len(self.groups) * 100)
-                        self.progress_callback(progress)
+            # Update progress if callback provided
+            if self.progress_callback:
+                self.progress_callback(100, len(self.groups))
 
-                except Exception as e:
-                    logger.warning(f"Failed to move group {group.group_id}: {e}")
-                    # Add error to all files in group
-                    for file in group.files:
-                        file.processing_errors.append(f"Moving failed: {str(e)}")
+            # Clean up empty directories after moving files
+            logger.info("Cleaning up empty directories...")
+            removed_dirs = self._file_mover.cleanup_empty_directories(Path(self.target_directory))
+            if removed_dirs:
+                logger.info(f"Removed {len(removed_dirs)} empty directories")
 
             logger.info(f"File moving completed: {len(self._moved_files)} files moved")
             return self._moved_files
 
         except Exception as e:
-            logger.error(f"File moving failed: {e}", exc_info=True)
+            log_operation_error("file moving", e, exc_info=True)
             raise
 
     def get_name(self) -> str:
@@ -732,9 +736,7 @@ class ConcreteFileMovingTask(WorkerTask):
 
 
 class ConcreteMetadataCachingTask(WorkerTask):
-    """
-    Concrete task for caching metadata.
-    """
+    """Concrete task for caching metadata."""
 
     def __init__(
         self,
@@ -742,8 +744,7 @@ class ConcreteMetadataCachingTask(WorkerTask):
         cache_duration_hours: int = 24,
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
-        """
-        Initialize the metadata caching task.
+        """Initialize the metadata caching task.
 
         Args:
             files: List of files to cache metadata for
@@ -757,8 +758,7 @@ class ConcreteMetadataCachingTask(WorkerTask):
         self._cached_files: list[AnimeFile] = []
 
     def execute(self) -> list[AnimeFile]:
-        """
-        Execute the metadata caching.
+        """Execute the metadata caching.
 
         Returns:
             List of files with cached metadata
@@ -782,19 +782,19 @@ class ConcreteMetadataCachingTask(WorkerTask):
                     # Update progress if callback provided
                     if self.progress_callback:
                         progress = int((i + 1) / len(self.files) * 100)
-                        self.progress_callback(progress)
+                        self.progress_callback(progress, len(self.files))
 
                 except Exception as e:
                     logger.warning(f"Failed to cache metadata for file {file.filename}: {e}")
                     # Add file with error
-                    file.processing_errors.append(f"Caching failed: {str(e)}")
+                    file.processing_errors.append(f"Caching failed: {e!s}")
                     self._cached_files.append(file)
 
             logger.info(f"Metadata caching completed: {len(self._cached_files)} files cached")
             return self._cached_files
 
         except Exception as e:
-            logger.error(f"Metadata caching failed: {e}", exc_info=True)
+            log_operation_error("metadata caching", e, exc_info=True)
             raise
 
     def get_name(self) -> str:
