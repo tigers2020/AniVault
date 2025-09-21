@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any
+from typing import Any, List
+
+from .smart_cache_matcher import smart_cache_matcher
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +249,103 @@ class CacheKeyGenerator:
         }
 
         return info
+
+    def generate_smart_tmdb_search_key(self, query: str, language: str = "ko-KR") -> str:
+        """Generate smart cache key for TMDB search results with enhanced normalization.
+
+        Args:
+            query: Search query string
+            language: Language code
+
+        Returns:
+            Generated smart cache key
+        """
+        # Use smart normalizer for better query processing
+        normalized_query = smart_cache_matcher.normalize_query(query)
+        key = f"{self.PREFIXES['tmdb_search']}:smart:{normalized_query}:{language}"
+        return self._finalize_key(key)
+
+    def generate_similarity_keys(self, query: str, language: str = "ko-KR") -> List[str]:
+        """Generate multiple similarity keys for a query to improve cache hit rates.
+
+        Args:
+            query: Search query string
+            language: Language code
+
+        Returns:
+            List of similarity keys that could match this query
+        """
+        # Get similarity keys from smart matcher
+        similarity_keys = smart_cache_matcher.generate_similarity_keys(query)
+        
+        # Generate cache keys for each similarity key
+        cache_keys = []
+        for sim_key in similarity_keys:
+            if sim_key.startswith("phonetic:"):
+                # Phonetic key
+                phonetic_key = sim_key.replace("phonetic:", "")
+                key = f"{self.PREFIXES['tmdb_search']}:phonetic:{phonetic_key}:{language}"
+            else:
+                # Normalized key
+                key = f"{self.PREFIXES['tmdb_search']}:smart:{sim_key}:{language}"
+            
+            cache_keys.append(self._finalize_key(key))
+        
+        return cache_keys
+
+    def find_similar_cache_keys(
+        self, 
+        target_query: str, 
+        existing_keys: List[str],
+        language: str = "ko-KR"
+    ) -> List[tuple[str, float]]:
+        """Find existing cache keys similar to the target query.
+
+        Args:
+            target_query: Query to find matches for
+            existing_keys: List of existing cache keys
+            language: Language code
+
+        Returns:
+            List of (key, similarity_score) tuples sorted by score (highest first)
+        """
+        # Filter keys for the same language and search type
+        search_prefix = f"{self.PREFIXES['tmdb_search']}:"
+        language_suffix = f":{language}"
+        
+        relevant_keys = [
+            key for key in existing_keys 
+            if key.startswith(search_prefix) and key.endswith(language_suffix)
+        ]
+        
+        # Extract queries from keys for similarity comparison
+        candidate_queries = []
+        for key in relevant_keys:
+            # Extract query from key (between prefix and language)
+            parts = key.split(":")
+            if len(parts) >= 3:
+                # Handle both old format and new smart format
+                if parts[1] in ["smart", "phonetic"]:
+                    query_part = ":".join(parts[2:-1])  # Everything between type and language
+                else:
+                    query_part = ":".join(parts[1:-1])  # Everything between prefix and language
+                candidate_queries.append(query_part)
+        
+        # Find similar queries
+        matches = smart_cache_matcher.find_similar_cache_keys(
+            target_query, candidate_queries
+        )
+        
+        # Map back to original keys
+        result = []
+        for match in matches:
+            # Find the original key that corresponds to this match
+            for key in relevant_keys:
+                if match.key in key:
+                    result.append((key, match.similarity_score))
+                    break
+        
+        return result
 
 
 # Global instance for easy access

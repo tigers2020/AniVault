@@ -216,26 +216,6 @@ class MetadataCache:
     def set_max_memory_mb(self, max_memory_mb: int) -> None:
         """Set maximum memory usage in MB."""
         self.cache_core.set_max_memory_mb(max_memory_mb)
-    
-    @property
-    def max_size(self) -> int:
-        """Get maximum cache size."""
-        return self.cache_core.max_size
-    
-    @property
-    def max_memory_mb(self) -> int:
-        """Get maximum memory usage in MB."""
-        return self.cache_core.max_memory_mb
-    
-    @property
-    def max_memory_bytes(self) -> int:
-        """Get maximum memory usage in bytes."""
-        return self.cache_core.max_memory_mb * 1024 * 1024
-    
-    @property
-    def ttl_seconds(self) -> int | None:
-        """Get default TTL in seconds."""
-        return self.cache_core.default_ttl_seconds
 
     def enable_cache_only_mode(self, reason: str = "Database unavailable") -> None:
         """Enable cache-only mode."""
@@ -416,4 +396,9 @@ class MetadataCache:
 
     def __del__(self) -> None:
         """Cleanup when cache is destroyed."""
-        self.stop_background_cleanup()
+        try:
+            if hasattr(self, 'cache_core'):
+                self.cache_core.stop_background_cleanup()
+        except Exception:
+            # Ignore errors during cleanup
+            pass

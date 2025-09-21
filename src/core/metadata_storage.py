@@ -15,7 +15,10 @@ from typing import Any
 
 from .database import db_manager
 from .logging_utils import log_operation_error
-from .metadata_cache import cache_manager
+from .metadata_cache_manager import MetadataCacheManager
+
+# Global cache manager instance
+cache_manager = MetadataCacheManager()
 from .models import ParsedAnimeInfo, TMDBAnime
 from .transaction_manager import transactional
 

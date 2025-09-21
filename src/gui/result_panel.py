@@ -383,17 +383,21 @@ class ResultPanel(QGroupBox):
         error_item.setTextAlignment(Qt.AlignCenter)
         if error:
             from PyQt5.QtGui import QColor
-
             error_item.setForeground(QColor(self.theme_manager.get_color("error")))
         self.files_table.setItem(row, 4, error_item)
 
-        # Action button
-        action_btn = QPushButton(action)
-        action_btn.setMaximumWidth(80)
-        action_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("small"))
+        # Action button - only create if needed
         if action == "재시도":
+            action_btn = QPushButton(action)
+            action_btn.setMaximumWidth(80)
+            action_btn.setStyleSheet(self.theme_manager.current_theme.get_button_style("small"))
             action_btn.clicked.connect(lambda: self.retry_requested.emit(file_name))
-        self.files_table.setCellWidget(row, 5, action_btn)
+            self.files_table.setCellWidget(row, 5, action_btn)
+        else:
+            # For "대기" status, just set text without creating button
+            action_item = QTableWidgetItem(action)
+            action_item.setTextAlignment(Qt.AlignCenter)
+            self.files_table.setItem(row, 5, action_item)
 
     def _add_group_row(
         self, row: int, group_name: str, file_count: str, completed: str, errors: str, status: str
@@ -593,28 +597,54 @@ class ResultPanel(QGroupBox):
         """
         logger.info(f"ResultPanel.update_files called with {len(files)} files")
 
-        # Clear existing data
-        self.files_table.setRowCount(0)
-        self._processing_results.clear()
-        logger.info("Cleared existing data from files table")
+        # Disable UI updates for batch operation
+        self.files_table.setUpdatesEnabled(False)
+        
+        try:
+            # Clear existing data
+            self.files_table.setRowCount(0)
+            self._processing_results.clear()
+            logger.info("Cleared existing data from files table")
 
-        # Add files to table
-        for i, file in enumerate(files):
-            result = {
-                "file_name": Path(file.file_path).name,
-                "size": self._format_file_size(file.file_size),
-                "status": "스캔됨",
-                "group": "",
-                "error": "",
-                "action": "대기",
-            }
-            self.add_processing_result(result)
-            if i < 5:  # Log first 5 files for debugging
-                logger.debug(f"Added file {i+1}: {Path(file.file_path).name}")
+            # Prepare all data at once
+            file_data = []
+            for file in files:
+                result = {
+                    "file_name": Path(file.file_path).name,
+                    "size": self._format_file_size(file.file_size),
+                    "status": "스캔됨",
+                    "group": "",
+                    "error": "",
+                    "action": "대기",
+                }
+                file_data.append(result)
+                self._processing_results.append(result)
 
-        # Update progress
-        self.set_total_files(len(files))
-        logger.info(f"Updated files table with {len(files)} files")
+            # Batch add all rows to table
+            self.files_table.setRowCount(len(file_data))
+            
+            for i, result in enumerate(file_data):
+                self._add_file_row(
+                    i,
+                    result["file_name"],
+                    result["size"],
+                    result["status"],
+                    result["group"],
+                    result["error"],
+                    result["action"],
+                )
+                
+                # Log first 5 files for debugging
+                if i < 5:
+                    logger.debug(f"Added file {i+1}: {result['file_name']}")
+
+            # Update progress
+            self.set_total_files(len(files))
+            logger.info(f"Updated files table with {len(files)} files")
+            
+        finally:
+            # Re-enable UI updates
+            self.files_table.setUpdatesEnabled(True)
 
     def filter_files_by_group(self, group_id: str) -> None:
         """Filter files table to show only files from the selected group.
