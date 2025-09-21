@@ -44,6 +44,16 @@ class ReconciliationResult:
         details: list[str],
         errors: list[str],
     ) -> None:
+        """Initialize the reconciliation result.
+
+        Args:
+            success (bool): Whether the reconciliation was successful.
+            strategy_used (ReconciliationStrategy): Strategy used for reconciliation.
+            conflicts_resolved (int): Number of conflicts successfully resolved.
+            conflicts_failed (int): Number of conflicts that failed to resolve.
+            details (list[str]): List of detailed information about the reconciliation.
+            errors (list[str]): List of errors encountered during reconciliation.
+        """
         self.success = success
         self.strategy_used = strategy_used
         self.conflicts_resolved = conflicts_resolved
@@ -53,6 +63,11 @@ class ReconciliationResult:
         self.timestamp = datetime.now(timezone.utc)
 
     def __repr__(self) -> str:
+        """Return a string representation of the reconciliation result.
+
+        Returns:
+            str: String representation of the result.
+        """
         return (
             f"ReconciliationResult(success={self.success}, "
             f"strategy={self.strategy_used.value}, "

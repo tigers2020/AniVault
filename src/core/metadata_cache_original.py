@@ -24,12 +24,12 @@ from .cache_key_generator import get_cache_key_generator
 from .cache_metrics_exporter import update_cache_metrics, update_cache_size, update_memory_usage
 from .cache_tracker import CacheMetrics, get_cache_tracker
 from .compression import compression_manager
-from .smart_cache_matcher import smart_cache_matcher
 from .database import DatabaseManager
 from .database_health import HealthStatus, get_database_health_status
 from .incremental_sync import IncrementalSyncManager
 from .logging_utils import log_operation_error
 from .models import ParsedAnimeInfo, TMDBAnime
+from .smart_cache_matcher import smart_cache_matcher
 from .sync_monitoring import SyncOperationStatus, SyncOperationType, sync_monitor
 from .transaction_manager import transactional
 
@@ -300,10 +300,10 @@ class MetadataCache:
             return decompressed_value
 
     def get_smart(
-        self, 
-        key: str, 
+        self,
+        key: str,
         default: ParsedAnimeInfo | TMDBAnime | None = None,
-        enable_smart_matching: bool = True
+        enable_smart_matching: bool = True,
     ) -> ParsedAnimeInfo | TMDBAnime | None:
         """Retrieve a value from the cache with smart matching capabilities.
 
@@ -328,7 +328,7 @@ class MetadataCache:
             # First, try direct cache lookup
             if key in self._cache:
                 entry = self._cache[key]
-                
+
                 # Check TTL expiration
                 if entry.is_expired():
                     logger.debug(f"Cache entry expired for key: {key}")
@@ -341,16 +341,16 @@ class MetadataCache:
                     # Move to end (most recently used)
                     self._cache.move_to_end(key)
                     entry.update_access()
-                    
+
                     self._stats.hits += 1
                     self._stats.ttl_hits += 1
                     self._cache_tracker.track_hit()
                     self._stats.cache_size = len(self._cache)
                     logger.debug(f"Cache hit for key: {key}")
-                    
+
                     # Log cache hit
                     sync_monitor.log_cache_hit(key, SyncOperationType.READ_THROUGH)
-                    
+
                     # Decompress value if it was compressed
                     decompressed_value = self._decompress_if_needed(entry.value)
                     return decompressed_value
@@ -358,24 +358,22 @@ class MetadataCache:
             # If direct lookup failed and smart matching is enabled
             if enable_smart_matching and smart_cache_matcher.should_use_smart_matching(key):
                 logger.debug(f"Attempting smart matching for key: {key}")
-                
+
                 # Get all existing cache keys
                 existing_keys = list(self._cache.keys())
-                
+
                 # Find similar keys using the enhanced key generator
-                similar_keys = self._key_generator.find_similar_cache_keys(
-                    key, existing_keys
-                )
-                
+                similar_keys = self._key_generator.find_similar_cache_keys(key, existing_keys)
+
                 if similar_keys:
                     # Use the best match (highest similarity score)
                     best_match_key, similarity_score = similar_keys[0]
                     logger.debug(f"Found similar key: {best_match_key} (score: {similarity_score})")
-                    
+
                     # Get the value from the similar key
                     if best_match_key in self._cache:
                         entry = self._cache[best_match_key]
-                        
+
                         # Check TTL expiration for the similar key
                         if entry.is_expired():
                             logger.debug(f"Similar cache entry expired for key: {best_match_key}")
@@ -388,16 +386,16 @@ class MetadataCache:
                             # Move to end (most recently used)
                             self._cache.move_to_end(best_match_key)
                             entry.update_access()
-                            
+
                             self._stats.hits += 1
                             self._stats.ttl_hits += 1
                             self._cache_tracker.track_hit()
                             self._stats.cache_size = len(self._cache)
                             logger.debug(f"Smart cache hit for key: {key} -> {best_match_key}")
-                            
+
                             # Log smart cache hit
                             sync_monitor.log_cache_hit(key, SyncOperationType.READ_THROUGH)
-                            
+
                             # Decompress value if it was compressed
                             decompressed_value = self._decompress_if_needed(entry.value)
                             return decompressed_value
@@ -429,11 +427,11 @@ class MetadataCache:
 
     @transactional
     def put(
-        self, 
-        key: str, 
-        value: ParsedAnimeInfo | TMDBAnime, 
+        self,
+        key: str,
+        value: ParsedAnimeInfo | TMDBAnime,
         session: Session | None = None,
-        ttl_seconds: int | None = None
+        ttl_seconds: int | None = None,
     ) -> None:
         """Store a value in the cache with write-through to database.
 
@@ -478,7 +476,7 @@ class MetadataCache:
 
                 # Update cache after successful database write (or in cache-only mode)
                 self._store_in_cache(key, value, ttl_seconds)
-                
+
                 # Store additional similarity keys for smart matching
                 self._store_similarity_keys(key, value, ttl_seconds)
 
@@ -656,7 +654,7 @@ class MetadataCache:
             self._cache_only_mode = True
             self._cache_only_reason = reason
             logger.warning(f"Cache-only mode enabled: {reason}")
-            
+
             # Start background cleanup when entering cache-only mode
             if self._background_cleanup_enabled and self._cleanup_executor is None:
                 self.start_background_cleanup()
@@ -667,7 +665,7 @@ class MetadataCache:
             self._cache_only_mode = False
             self._cache_only_reason = ""
             logger.info("Cache-only mode disabled, returning to normal operation")
-            
+
             # Continue background cleanup even in normal mode for TTL management
             if self._background_cleanup_enabled and self._cleanup_executor is None:
                 self.start_background_cleanup()
@@ -762,15 +760,15 @@ class MetadataCache:
                 "average_remaining_ttl": 0,
                 "min_remaining_ttl": None,
                 "max_remaining_ttl": None,
-                "entry_details": []
+                "entry_details": [],
             }
-            
+
             remaining_ttls = []
-            
+
             for key, entry in self._cache.items():
                 is_expired = entry.is_expired(self.ttl_seconds)
                 remaining_ttl = entry.get_remaining_ttl(self.ttl_seconds)
-                
+
                 if is_expired:
                     ttl_info["expired_entries"] += 1
                 else:
@@ -779,21 +777,23 @@ class MetadataCache:
                         ttl_info["entries_with_ttl"] += 1
                     else:
                         ttl_info["entries_without_ttl"] += 1
-                
-                ttl_info["entry_details"].append({
-                    "key": key,
-                    "is_expired": is_expired,
-                    "remaining_ttl": remaining_ttl,
-                    "per_entry_ttl": entry.ttl_seconds,
-                    "age_seconds": current_time - entry.created_at,
-                    "access_count": entry.access_count
-                })
-            
+
+                ttl_info["entry_details"].append(
+                    {
+                        "key": key,
+                        "is_expired": is_expired,
+                        "remaining_ttl": remaining_ttl,
+                        "per_entry_ttl": entry.ttl_seconds,
+                        "age_seconds": current_time - entry.created_at,
+                        "access_count": entry.access_count,
+                    }
+                )
+
             if remaining_ttls:
                 ttl_info["average_remaining_ttl"] = sum(remaining_ttls) / len(remaining_ttls)
                 ttl_info["min_remaining_ttl"] = min(remaining_ttls)
                 ttl_info["max_remaining_ttl"] = max(remaining_ttls)
-            
+
             return ttl_info
 
     def set_ttl(self, key: str, ttl_seconds: int | None) -> bool:
@@ -839,10 +839,10 @@ class MetadataCache:
             self._cleanup_expired_entries()
             after_count = len(self._cache)
             cleaned_count = before_count - after_count
-            
+
             if cleaned_count > 0:
                 logger.info(f"Manually cleaned up {cleaned_count} expired cache entries")
-            
+
             return cleaned_count
 
     def _remove_entry(self, key: str) -> None:
@@ -850,23 +850,25 @@ class MetadataCache:
         if key in self._cache:
             entry = self._cache.pop(key)
             self._current_memory_bytes -= entry.size_bytes
-            
+
             # Remove from heap if it has an expiration time
             if entry.expires_at is not None:
                 with self._heap_lock:
                     # Find and remove the entry from heap
                     # Note: This is O(n) but necessary for correctness
                     # In practice, this is acceptable as heap size is typically small
-                    self._expiry_heap = [(exp_time, k) for exp_time, k in self._expiry_heap if k != key]
+                    self._expiry_heap = [
+                        (exp_time, k) for exp_time, k in self._expiry_heap if k != key
+                    ]
                     heapq.heapify(self._expiry_heap)  # Re-heapify after removal
-            
+
             # Note: We don't remove from heap here as it would be O(n)
             # Stale heap entries are handled during cleanup by checking
             # if the entry still exists and has the same expiry timestamp
 
     def _remove_entry_from_cache_only(self, key: str) -> None:
         """Remove an entry from the cache only (without heap operations).
-        
+
         This method is used during cleanup to avoid deadlocks.
         """
         if key in self._cache:
@@ -943,20 +945,20 @@ class MetadataCache:
 
     def _cleanup_expired_entries(self) -> int:
         """Remove expired entries from the cache using optimized heap-based approach.
-        
+
         This method now uses a min-heap to efficiently find expired entries
         instead of scanning the entire cache (O(log N) vs O(N)).
         """
         current_time = time.time()
         cleaned_count = 0
         expired_keys = []
-        
+
         # First, collect expired keys from heap (without holding locks)
         with self._heap_lock:
             while self._expiry_heap and self._expiry_heap[0][0] <= current_time:
                 expiry_timestamp, key = heapq.heappop(self._expiry_heap)
                 expired_keys.append((expiry_timestamp, key))
-        
+
         # Then, process expired keys with main lock
         with self._lock:
             for expiry_timestamp, key in expired_keys:
@@ -974,25 +976,25 @@ class MetadataCache:
                 # If key not in cache, it was already removed by lazy deletion
 
         self._last_cleanup = current_time
-        
+
         if cleaned_count > 0:
             logger.debug(f"Optimized cleanup removed {cleaned_count} expired cache entries")
-        
+
         return cleaned_count
 
     def _background_cleanup_worker(self) -> None:
         """Background worker for periodic cache cleanup.
-        
+
         This method runs in a separate thread to perform cleanup
         without blocking the main application.
         """
         try:
             cleaned_count = self._cleanup_expired_entries()
-            
+
             # Log performance metrics
             if cleaned_count > 0:
                 logger.debug(f"Background cleanup completed: {cleaned_count} entries removed")
-                
+
         except Exception as e:
             logger.error(f"Error in background cleanup: {e}")
         finally:
@@ -1004,11 +1006,10 @@ class MetadataCache:
         """Schedule the next background cleanup task."""
         if not self._background_cleanup_enabled:
             return
-            
+
         try:
             self._cleanup_timer = threading.Timer(
-                self._cleanup_interval, 
-                self._background_cleanup_worker
+                self._cleanup_interval, self._background_cleanup_worker
             )
             self._cleanup_timer.daemon = True  # Allow program to exit
             self._cleanup_timer.start()
@@ -1017,70 +1018,71 @@ class MetadataCache:
 
     def start_background_cleanup(self) -> None:
         """Start the background cleanup process.
-        
+
         This creates a dedicated thread pool executor for cleanup tasks
         and schedules the first cleanup.
         """
         if not self._background_cleanup_enabled:
             return
-            
+
         try:
             # Create dedicated cleanup executor
             self._cleanup_executor = ThreadPoolExecutor(
-                max_workers=1,
-                thread_name_prefix="CacheCleanup"
+                max_workers=1, thread_name_prefix="CacheCleanup"
             )
-            
+
             # Schedule first cleanup
             self._schedule_next_cleanup()
-            
+
             logger.info("Background cache cleanup started")
-            
+
         except Exception as e:
             logger.error(f"Failed to start background cleanup: {e}")
 
     def stop_background_cleanup(self) -> None:
         """Stop the background cleanup process."""
         self._background_cleanup_enabled = False
-        
+
         # Cancel pending timer
         if self._cleanup_timer and self._cleanup_timer.is_alive():
             self._cleanup_timer.cancel()
             self._cleanup_timer = None
-        
+
         # Shutdown executor
         if self._cleanup_executor:
             self._cleanup_executor.shutdown(wait=True)
             self._cleanup_executor = None
-            
+
         logger.info("Background cache cleanup stopped")
 
-    def _batch_cleanup_expired_entries(self, max_items: int = None) -> int:
+    def _batch_cleanup_expired_entries(self, max_items: int | None = None) -> int:
         """Perform batch cleanup of expired entries with throttling.
-        
+
         Args:
             max_items: Maximum number of items to clean in this batch
-            
+
         Returns:
             Number of items cleaned
         """
         if max_items is None:
             max_items = self._cleanup_batch_size
-            
+
         current_time = time.time()
         cleaned_count = 0
-        
+
         expired_keys = []
-        
+
         # First, collect expired keys from heap (without holding locks)
         with self._heap_lock:
-            while (self._expiry_heap and 
-                   self._expiry_heap[0][0] <= current_time and 
-                   len(expired_keys) < max_items):
-                
+            while (
+                self._expiry_heap
+                and self._expiry_heap[0][0] <= current_time
+                and len(expired_keys) < max_items
+            ):
+
                 expiry_timestamp, key = heapq.heappop(self._expiry_heap)
                 expired_keys.append((expiry_timestamp, key))
-        
+
         # Then, process expired keys with main lock
         with self._lock:
             for expiry_timestamp, key in expired_keys:
@@ -1091,7 +1093,7 @@ class MetadataCache:
                         cleaned_count += 1
                         self._stats.expirations += 1
                         self._stats.ttl_expirations += 1
-                        
+
                 # Small delay to prevent overwhelming the system (only for large batches)
                 if cleaned_count > 0 and cleaned_count % 50 == 0 and len(expired_keys) > 100:
                     time.sleep(self._cleanup_delay)
@@ -1718,11 +1720,13 @@ class MetadataCache:
 
         return self._incremental_sync_manager.get_sync_status()
 
-    def _store_in_cache(self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None) -> None:
+    def _store_in_cache(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None
+    ) -> None:
         """Store a value in the cache without database operations.
 
         Large objects are automatically compressed to reduce memory usage.
-        
+
         Args:
             key: Cache key
             value: Value to cache
@@ -1745,7 +1749,7 @@ class MetadataCache:
         # Determine effective TTL and expiration
         effective_ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
         now = time.time()
-        
+
         # Handle zero or negative TTL as immediate expiration
         if effective_ttl is not None and effective_ttl <= 0:
             expires_at = now  # Immediate expiration

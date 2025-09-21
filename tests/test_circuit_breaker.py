@@ -1,5 +1,4 @@
-"""
-Unit tests for circuit breaker module.
+"""Unit tests for circuit breaker module.
 
 Tests the circuit breaker functionality, state transitions, error handling,
 and integration with database operations.
@@ -8,42 +7,36 @@ Author: AniVault Development Team
 Created: 2025-01-19
 """
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from typing import Any, Callable
+from typing import NoReturn
+from unittest.mock import Mock
 
-from pybreaker import CircuitBreaker, CircuitBreakerError
-
+import pytest
 from sqlalchemy.exc import (
-    OperationalError,
     DisconnectionError,
-    InterfaceError,
-    TimeoutError,
     IntegrityError,
-    ProgrammingError,
-    DataError,
+    OperationalError,
+    TimeoutError,
 )
 
 from src.core.circuit_breaker import (
-    CircuitState,
     CircuitBreakerConfiguration,
-    DatabaseCircuitBreakerListener,
     CircuitBreakerManager,
-    create_database_circuit_breaker,
-    get_database_circuit_breaker,
-    circuit_breaker_protect,
-    is_circuit_breaker_open,
-    get_circuit_breaker_health,
-    default_database_circuit_breaker,
+    CircuitState,
+    DatabaseCircuitBreakerListener,
     circuit_breaker_manager,
+    circuit_breaker_protect,
+    create_database_circuit_breaker,
+    get_circuit_breaker_health,
+    get_database_circuit_breaker,
+    is_circuit_breaker_open,
 )
 
 
 class TestCircuitBreakerConfiguration:
     """Test cases for CircuitBreakerConfiguration class."""
 
-    def test_default_configuration(self):
+    def test_default_configuration(self) -> None:
         """Test default configuration values."""
         config = CircuitBreakerConfiguration()
 
@@ -54,7 +47,7 @@ class TestCircuitBreakerConfiguration:
         assert len(config.expected_exception) > 0
         assert len(config.exclude) > 0
 
-    def test_custom_configuration(self):
+    def test_custom_configuration(self) -> None:
         """Test custom configuration values."""
         custom_exceptions = {OperationalError, DisconnectionError}
         custom_exclude = {IntegrityError}
@@ -79,17 +72,17 @@ class TestCircuitBreakerConfiguration:
 class TestDatabaseCircuitBreakerListener:
     """Test cases for DatabaseCircuitBreakerListener class."""
 
-    def test_listener_initialization(self):
+    def test_listener_initialization(self) -> None:
         """Test listener initialization."""
         listener = DatabaseCircuitBreakerListener()
         assert listener.logger is not None
 
-    def test_listener_with_custom_logger(self):
+    def test_listener_with_custom_logger(self) -> None:
         """Test listener with custom logger name."""
         listener = DatabaseCircuitBreakerListener("custom_logger")
         assert listener.logger.name == "custom_logger"
 
-    def test_before_call(self):
+    def test_before_call(self) -> None:
         """Test before_call method."""
         listener = DatabaseCircuitBreakerListener()
         mock_cb = Mock()
@@ -101,7 +94,7 @@ class TestDatabaseCircuitBreakerListener:
         # Should not raise any exceptions
         listener.before_call(mock_cb, mock_func, "arg1", "arg2", kwarg1="value1")
 
-    def test_on_success(self):
+    def test_on_success(self) -> None:
         """Test on_success method."""
         listener = DatabaseCircuitBreakerListener()
         mock_cb = Mock()
@@ -113,7 +106,7 @@ class TestDatabaseCircuitBreakerListener:
         # Should not raise any exceptions
         listener.on_success(mock_cb, mock_func, "arg1", "arg2", kwarg1="value1")
 
-    def test_on_failure(self):
+    def test_on_failure(self) -> None:
         """Test on_failure method."""
         listener = DatabaseCircuitBreakerListener()
         mock_cb = Mock()
@@ -126,7 +119,7 @@ class TestDatabaseCircuitBreakerListener:
         # Should not raise any exceptions
         listener.on_failure(mock_cb, mock_func, mock_exc, "arg1", "arg2", kwarg1="value1")
 
-    def test_on_timeout(self):
+    def test_on_timeout(self) -> None:
         """Test on_timeout method."""
         listener = DatabaseCircuitBreakerListener()
         mock_cb = Mock()
@@ -139,7 +132,7 @@ class TestDatabaseCircuitBreakerListener:
         # Should not raise any exceptions
         listener.on_timeout(mock_cb, mock_func, mock_exc, "arg1", "arg2", kwarg1="value1")
 
-    def test_on_open(self):
+    def test_on_open(self) -> None:
         """Test on_open method."""
         listener = DatabaseCircuitBreakerListener()
         mock_cb = Mock()
@@ -150,7 +143,7 @@ class TestDatabaseCircuitBreakerListener:
         # Should not raise any exceptions
         listener.on_open(mock_cb)
 
-    def test_on_half_open(self):
+    def test_on_half_open(self) -> None:
         """Test on_half_open method."""
         listener = DatabaseCircuitBreakerListener()
         mock_cb = Mock()
@@ -159,7 +152,7 @@ class TestDatabaseCircuitBreakerListener:
         # Should not raise any exceptions
         listener.on_half_open(mock_cb)
 
-    def test_on_close(self):
+    def test_on_close(self) -> None:
         """Test on_close method."""
         listener = DatabaseCircuitBreakerListener()
         mock_cb = Mock()
@@ -172,11 +165,11 @@ class TestDatabaseCircuitBreakerListener:
 class TestCircuitBreakerManager:
     """Test cases for CircuitBreakerManager class."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset manager before each test."""
         self.manager = CircuitBreakerManager()
 
-    def test_create_circuit_breaker(self):
+    def test_create_circuit_breaker(self) -> None:
         """Test creating a circuit breaker."""
         config = CircuitBreakerConfiguration(name="test_circuit")
         circuit_breaker = self.manager.create_circuit_breaker(config)
@@ -185,7 +178,7 @@ class TestCircuitBreakerManager:
         assert circuit_breaker.name == "test_circuit"
         assert self.manager.get_circuit_breaker("test_circuit") == circuit_breaker
 
-    def test_create_duplicate_circuit_breaker(self):
+    def test_create_duplicate_circuit_breaker(self) -> None:
         """Test creating a duplicate circuit breaker."""
         config = CircuitBreakerConfiguration(name="test_circuit")
         circuit_breaker1 = self.manager.create_circuit_breaker(config)
@@ -193,7 +186,7 @@ class TestCircuitBreakerManager:
 
         assert circuit_breaker1 == circuit_breaker2
 
-    def test_get_circuit_breaker(self):
+    def test_get_circuit_breaker(self) -> None:
         """Test getting a circuit breaker."""
         config = CircuitBreakerConfiguration(name="test_circuit")
         circuit_breaker = self.manager.create_circuit_breaker(config)
@@ -204,7 +197,7 @@ class TestCircuitBreakerManager:
         not_found = self.manager.get_circuit_breaker("nonexistent")
         assert not_found is None
 
-    def test_get_all_circuit_breakers(self):
+    def test_get_all_circuit_breakers(self) -> None:
         """Test getting all circuit breakers."""
         config1 = CircuitBreakerConfiguration(name="test_circuit1")
         config2 = CircuitBreakerConfiguration(name="test_circuit2")
@@ -217,10 +210,10 @@ class TestCircuitBreakerManager:
         assert all_breakers["test_circuit1"] == circuit_breaker1
         assert all_breakers["test_circuit2"] == circuit_breaker2
 
-    def test_get_circuit_breaker_state(self):
+    def test_get_circuit_breaker_state(self) -> None:
         """Test getting circuit breaker state."""
         config = CircuitBreakerConfiguration(name="test_circuit")
-        circuit_breaker = self.manager.create_circuit_breaker(config)
+        self.manager.create_circuit_breaker(config)
 
         state = self.manager.get_circuit_breaker_state("test_circuit")
         assert state == CircuitState.CLOSED
@@ -228,10 +221,10 @@ class TestCircuitBreakerManager:
         not_found = self.manager.get_circuit_breaker_state("nonexistent")
         assert not_found is None
 
-    def test_get_circuit_breaker_stats(self):
+    def test_get_circuit_breaker_stats(self) -> None:
         """Test getting circuit breaker statistics."""
         config = CircuitBreakerConfiguration(name="test_circuit")
-        circuit_breaker = self.manager.create_circuit_breaker(config)
+        self.manager.create_circuit_breaker(config)
 
         stats = self.manager.get_circuit_breaker_stats("test_circuit")
         assert stats is not None
@@ -244,7 +237,7 @@ class TestCircuitBreakerManager:
         not_found = self.manager.get_circuit_breaker_stats("nonexistent")
         assert not_found is None
 
-    def test_reset_circuit_breaker(self):
+    def test_reset_circuit_breaker(self) -> None:
         """Test resetting a circuit breaker."""
         config = CircuitBreakerConfiguration(name="test_circuit")
         circuit_breaker = self.manager.create_circuit_breaker(config)
@@ -264,7 +257,7 @@ class TestCircuitBreakerManager:
 class TestCircuitBreakerIntegration:
     """Test cases for circuit breaker integration."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test method by clearing circuit breaker manager."""
         circuit_breaker_manager._circuit_breakers.clear()
         # Reset the default circuit breaker
@@ -273,13 +266,13 @@ class TestCircuitBreakerIntegration:
         # Force recreation of circuit breakers by clearing the manager's internal state
         circuit_breaker_manager._circuit_breakers = {}
 
-    def test_create_database_circuit_breaker_default(self):
+    def test_create_database_circuit_breaker_default(self) -> None:
         """Test creating database circuit breaker with default config."""
         circuit_breaker = create_database_circuit_breaker()
         assert circuit_breaker is not None
         assert circuit_breaker.name == "database_circuit_breaker"
 
-    def test_create_database_circuit_breaker_custom(self):
+    def test_create_database_circuit_breaker_custom(self) -> None:
         """Test creating database circuit breaker with custom config."""
         config = CircuitBreakerConfiguration(
             name="custom_db_circuit",
@@ -290,7 +283,7 @@ class TestCircuitBreakerIntegration:
         assert circuit_breaker is not None
         assert circuit_breaker.name == "custom_db_circuit"
 
-    def test_get_database_circuit_breaker(self):
+    def test_get_database_circuit_breaker(self) -> None:
         """Test getting database circuit breaker."""
         circuit_breaker = get_database_circuit_breaker()
         assert circuit_breaker is not None
@@ -299,7 +292,7 @@ class TestCircuitBreakerIntegration:
         custom_circuit = get_database_circuit_breaker("custom_name")
         assert custom_circuit is None  # Should not exist
 
-    def test_circuit_breaker_protect_decorator_success(self):
+    def test_circuit_breaker_protect_decorator_success(self) -> None:
         """Test circuit breaker protect decorator with successful operation."""
         config = CircuitBreakerConfiguration(
             name="test_circuit",
@@ -309,13 +302,13 @@ class TestCircuitBreakerIntegration:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_operation")
-        def test_operation():
+        def test_operation() -> str:
             return "success"
 
         result = test_operation()
         assert result == "success"
 
-    def test_circuit_breaker_protect_decorator_with_fallback(self):
+    def test_circuit_breaker_protect_decorator_with_fallback(self) -> None:
         """Test circuit breaker protect decorator with fallback function."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_fallback",
@@ -324,7 +317,7 @@ class TestCircuitBreakerIntegration:
         )
         circuit_breaker = create_database_circuit_breaker(config)
 
-        def fallback_func():
+        def fallback_func() -> str:
             return "fallback_result"
 
         @circuit_breaker_protect(
@@ -332,7 +325,7 @@ class TestCircuitBreakerIntegration:
             operation_name="test_operation",
             fallback_func=fallback_func,
         )
-        def test_operation():
+        def test_operation() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         # First call should fail and trip the circuit
@@ -343,16 +336,17 @@ class TestCircuitBreakerIntegration:
         result = test_operation()
         assert result == "fallback_result"
 
-    def test_circuit_breaker_protect_decorator_no_circuit_breaker(self):
+    def test_circuit_breaker_protect_decorator_no_circuit_breaker(self) -> None:
         """Test circuit breaker protect decorator without circuit breaker."""
+
         @circuit_breaker_protect(operation_name="test_operation")
-        def test_operation():
+        def test_operation() -> str:
             return "success"
 
         result = test_operation()
         assert result == "success"
 
-    def test_is_circuit_breaker_open(self):
+    def test_is_circuit_breaker_open(self) -> None:
         """Test checking if circuit breaker is open."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_open",
@@ -366,7 +360,7 @@ class TestCircuitBreakerIntegration:
 
         # Trip the circuit
         @circuit_breaker_protect(circuit_breaker)
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         with pytest.raises(OperationalError):
@@ -375,7 +369,7 @@ class TestCircuitBreakerIntegration:
         # Now should be open
         assert is_circuit_breaker_open(circuit_breaker)
 
-    def test_get_circuit_breaker_health(self):
+    def test_get_circuit_breaker_health(self) -> None:
         """Test getting circuit breaker health information."""
         config1 = CircuitBreakerConfiguration(name="test_circuit1")
         config2 = CircuitBreakerConfiguration(name="test_circuit2")
@@ -393,7 +387,7 @@ class TestCircuitBreakerIntegration:
 class TestCircuitBreakerStateTransitions:
     """Test cases for circuit breaker state transitions."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test method by clearing circuit breaker manager."""
         circuit_breaker_manager._circuit_breakers.clear()
         # Reset the default circuit breaker
@@ -402,7 +396,7 @@ class TestCircuitBreakerStateTransitions:
         # Force recreation of circuit breakers by clearing the manager's internal state
         circuit_breaker_manager._circuit_breakers = {}
 
-    def test_circuit_breaker_closed_to_open(self):
+    def test_circuit_breaker_closed_to_open(self) -> None:
         """Test circuit breaker transitioning from closed to open."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_closed_to_open",
@@ -415,7 +409,7 @@ class TestCircuitBreakerStateTransitions:
         assert circuit_breaker.current_state == "closed"
 
         @circuit_breaker_protect(circuit_breaker)
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         # First failure
@@ -428,7 +422,7 @@ class TestCircuitBreakerStateTransitions:
             failing_operation()
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_open_to_half_open(self):
+    def test_circuit_breaker_open_to_half_open(self) -> None:
         """Test circuit breaker transitioning from open to half-open."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_open_to_half_open",
@@ -439,7 +433,7 @@ class TestCircuitBreakerStateTransitions:
 
         # Trip the circuit
         @circuit_breaker_protect(circuit_breaker)
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         with pytest.raises(OperationalError):
@@ -456,7 +450,7 @@ class TestCircuitBreakerStateTransitions:
 
         assert circuit_breaker.current_state == "half_open"
 
-    def test_circuit_breaker_half_open_to_closed(self):
+    def test_circuit_breaker_half_open_to_closed(self) -> None:
         """Test circuit breaker transitioning from half-open to closed."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_half_open_to_closed",
@@ -467,7 +461,7 @@ class TestCircuitBreakerStateTransitions:
 
         # Trip the circuit
         @circuit_breaker_protect(circuit_breaker)
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         with pytest.raises(OperationalError):
@@ -480,7 +474,7 @@ class TestCircuitBreakerStateTransitions:
 
         # Define a successful operation
         @circuit_breaker_protect(circuit_breaker)
-        def successful_operation():
+        def successful_operation() -> str:
             return "success"
 
         # First call should be in half-open state
@@ -488,7 +482,7 @@ class TestCircuitBreakerStateTransitions:
         assert result == "success"
         assert circuit_breaker.current_state == "closed"
 
-    def test_circuit_breaker_half_open_to_open(self):
+    def test_circuit_breaker_half_open_to_open(self) -> None:
         """Test circuit breaker transitioning from half-open back to open."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_half_open_to_open",
@@ -499,7 +493,7 @@ class TestCircuitBreakerStateTransitions:
 
         # Trip the circuit
         @circuit_breaker_protect(circuit_breaker)
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         with pytest.raises(OperationalError):
@@ -520,7 +514,7 @@ class TestCircuitBreakerStateTransitions:
 class TestCircuitBreakerExceptionHandling:
     """Test cases for circuit breaker exception handling."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test method by clearing circuit breaker manager."""
         circuit_breaker_manager._circuit_breakers.clear()
         # Reset the default circuit breaker
@@ -529,7 +523,7 @@ class TestCircuitBreakerExceptionHandling:
         # Force recreation of circuit breakers by clearing the manager's internal state
         circuit_breaker_manager._circuit_breakers = {}
 
-    def test_expected_exceptions_trip_circuit(self):
+    def test_expected_exceptions_trip_circuit(self) -> None:
         """Test that expected exceptions trip the circuit."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_expected_exceptions",
@@ -539,7 +533,7 @@ class TestCircuitBreakerExceptionHandling:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker)
-        def operation_with_operational_error():
+        def operation_with_operational_error() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         with pytest.raises(OperationalError):
@@ -547,7 +541,7 @@ class TestCircuitBreakerExceptionHandling:
 
         assert circuit_breaker.current_state == "open"
 
-    def test_excluded_exceptions_dont_trip_circuit(self):
+    def test_excluded_exceptions_dont_trip_circuit(self) -> None:
         """Test that excluded exceptions don't trip the circuit."""
         config = CircuitBreakerConfiguration(
             name="test_circuit",
@@ -557,7 +551,7 @@ class TestCircuitBreakerExceptionHandling:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker)
-        def operation_with_integrity_error():
+        def operation_with_integrity_error() -> NoReturn:
             raise IntegrityError("Unique constraint violation", {}, None)
 
         with pytest.raises(IntegrityError):
@@ -566,7 +560,7 @@ class TestCircuitBreakerExceptionHandling:
         # Circuit should still be closed
         assert circuit_breaker.current_state == "closed"
 
-    def test_circuit_breaker_with_custom_timeout_config(self):
+    def test_circuit_breaker_with_custom_timeout_config(self) -> None:
         """Test circuit breaker with custom timeout configuration."""
         config = CircuitBreakerConfiguration(
             name="test_circuit",

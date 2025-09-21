@@ -11,9 +11,12 @@ import logging
 from collections.abc import Callable
 from enum import Enum
 from functools import wraps
-from typing import Any
+from typing import Any, TypeVar
 
 from pybreaker import CircuitBreaker, CircuitBreakerError, CircuitBreakerListener
+
+# Type variable for generic function return types
+T = TypeVar("T")
 from sqlalchemy.exc import (
     DataError,
     DisconnectionError,
@@ -46,7 +49,7 @@ class CircuitBreakerConfiguration:
         expected_exception: set[type[Exception]] | None = None,
         exclude: set[type[Exception]] | None = None,
         name: str = "database_circuit_breaker",
-    ):
+    ) -> None:
         """Initialize circuit breaker configuration.
 
         Args:
@@ -77,7 +80,7 @@ class CircuitBreakerConfiguration:
 class DatabaseCircuitBreakerListener(CircuitBreakerListener):
     """Listener for circuit breaker events with comprehensive logging."""
 
-    def __init__(self, logger_name: str = __name__):
+    def __init__(self, logger_name: str = __name__) -> None:
         """Initialize the listener.
 
         Args:
@@ -85,14 +88,14 @@ class DatabaseCircuitBreakerListener(CircuitBreakerListener):
         """
         self.logger = logging.getLogger(logger_name)
 
-    def before_call(self, cb: CircuitBreaker, func: Callable, *args, **kwargs) -> None:
+    def before_call(self, cb: CircuitBreaker, func: Callable, *args: Any, **kwargs: Any) -> None:
         """Called before a function is executed through the circuit breaker."""
         self.logger.debug(
             f"CircuitBreaker '{cb.name}' before_call for {func.__name__}. "
             f"State: {cb.current_state}"
         )
 
-    def on_success(self, cb: CircuitBreaker, func: Callable, *args, **kwargs) -> None:
+    def on_success(self, cb: CircuitBreaker, func: Callable, *args: Any, **kwargs: Any) -> None:
         """Called when a function executed through the circuit breaker succeeds."""
         self.logger.info(
             f"CircuitBreaker '{cb.name}' on_success for {func.__name__}. "
@@ -100,7 +103,7 @@ class DatabaseCircuitBreakerListener(CircuitBreakerListener):
         )
 
     def on_failure(
-        self, cb: CircuitBreaker, func: Callable, exc: Exception, *args, **kwargs
+        self, cb: CircuitBreaker, func: Callable, exc: Exception, *args: Any, **kwargs: Any
     ) -> None:
         """Called when a function executed through the circuit breaker fails."""
         self.logger.warning(
@@ -109,7 +112,7 @@ class DatabaseCircuitBreakerListener(CircuitBreakerListener):
         )
 
     def on_timeout(
-        self, cb: CircuitBreaker, func: Callable, exc: Exception, *args, **kwargs
+        self, cb: CircuitBreaker, func: Callable, exc: Exception, *args: Any, **kwargs: Any
     ) -> None:
         """Called when a function executed through the circuit breaker times out."""
         self.logger.error(
@@ -138,7 +141,7 @@ class DatabaseCircuitBreakerListener(CircuitBreakerListener):
 class CircuitBreakerManager:
     """Manager class for circuit breaker instances."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the circuit breaker manager."""
         self._circuit_breakers: dict[str, CircuitBreaker] = {}
         self._listeners: dict[str, DatabaseCircuitBreakerListener] = {}
@@ -311,7 +314,7 @@ def circuit_breaker_protect(
     circuit_breaker: CircuitBreaker | None = None,
     operation_name: str | None = None,
     fallback_func: Callable | None = None,
-):
+) -> Callable:
     """Decorator to protect database operations with circuit breaker.
 
     Args:
@@ -326,9 +329,9 @@ def circuit_breaker_protect(
             pass
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             op_name = operation_name or func.__name__
             cb = circuit_breaker or get_database_circuit_breaker()
 

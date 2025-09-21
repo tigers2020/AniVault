@@ -8,7 +8,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from src.core.thread_safe_config import (
     ConfigurationChangeEvent,
@@ -96,7 +96,7 @@ class TestConfigurationObserver:
     def test_notify_callback_error(self) -> None:
         """Test observer notification with callback error."""
 
-        def callback(event):
+        def callback(event) -> NoReturn:
             raise ValueError("Test error")
 
         observer = ConfigurationObserver(callback)
@@ -572,7 +572,7 @@ class TestThreadSafeConfigManager:
         """Test that security operations are thread-safe."""
 
         # Test encryption key rotation
-        def security_worker(thread_id):
+        def security_worker(thread_id) -> None:
             for _i in range(5):
                 # Get security status
                 status = self.manager.get_security_status()

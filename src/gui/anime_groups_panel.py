@@ -1,6 +1,7 @@
 """Anime groups panel for displaying grouped anime files."""
 
 import logging
+from typing import Any
 
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
@@ -165,7 +166,7 @@ class AnimeGroupsPanel(QGroupBox):
                 return str(group_name_item.text())
         return ""
 
-    def update_groups(self, groups) -> None:
+    def update_groups(self, groups: Any) -> None:
         """Update the groups table with actual group data.
 
         Args:
@@ -185,7 +186,7 @@ class AnimeGroupsPanel(QGroupBox):
 
         logger.info(f"Updated groups table with {len(groups)} groups")
 
-    def _add_group_row(self, group) -> None:
+    def _add_group_row(self, group: Any) -> None:
         """Add a single group row to the table.
 
         Args:

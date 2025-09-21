@@ -57,7 +57,7 @@ class PerformanceBenchmark:
         self,
         metadata_cache: MetadataCache | None = None,
         profiler: SyncProfiler | None = None,
-    ):
+    ) -> None:
         """Initialize the performance benchmark.
 
         Args:
@@ -373,7 +373,7 @@ class PerformanceBenchmark:
                 self.metadata_cache.set(key, data)
 
                 # Also test get operation
-                retrieved = self.metadata_cache.get(key)
+                self.metadata_cache.get(key)
 
                 # Test delete operation occasionally
                 if i % 10 == 0:
@@ -505,7 +505,7 @@ class PerformanceBenchmark:
         """Execute concurrent operations benchmark."""
         start_time = time.time()
 
-        def concurrent_operation():
+        def concurrent_operation() -> None:
             # Mix of cache and sync operations
             for i in range(batch_size // 4):  # Smaller batch per thread
                 # Cache operation

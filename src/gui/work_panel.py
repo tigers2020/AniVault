@@ -1,6 +1,7 @@
 """Work panel for file operations and controls."""
 
 import logging
+from typing import Any
 
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (
@@ -334,7 +335,7 @@ class WorkPanel(QGroupBox):
         logger.info("Stop processing requested")
 
     @pyqtSlot(str, object)
-    def _on_property_changed(self, property_name: str, value) -> None:
+    def _on_property_changed(self, property_name: str, value: Any) -> None:
         """Handle property changes from ViewModel."""
         if property_name == "scan_directories" and isinstance(value, list) and value:
             self.source_path_edit.setText(value[0])

@@ -7,6 +7,7 @@ different types of synchronization jobs.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from .sync_enums import SyncEntityType
 from .sync_scheduler import SyncJobConfig, SyncJobType, SyncTrigger
@@ -97,7 +98,7 @@ MAINTENANCE_FULL_SYNC_CONFIG = SyncJobConfig(
 class SyncConfigManager:
     """Manager for synchronization configurations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the configuration manager."""
         self.configs: dict[str, SyncJobConfig] = {}
         self.scheduler_config = SyncSchedulerConfig()
@@ -179,7 +180,7 @@ class SyncConfigManager:
         self.configs[job_id] = config
         return config
 
-    def update_config(self, config_name: str, **kwargs) -> bool:
+    def update_config(self, config_name: str, **kwargs: Any) -> bool:
         """Update an existing configuration.
 
         Args:

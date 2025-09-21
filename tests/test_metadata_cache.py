@@ -18,20 +18,20 @@ from src.core.models import ParsedAnimeInfo, TMDBAnime
 class TestMetadataCache(unittest.TestCase):
     """Test cases for MetadataCache class."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.cache = MetadataCache(max_size=10, max_memory_mb=1, default_ttl_seconds=60)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up after tests."""
         self.cache.clear()
 
     def test_cache_initialization(self) -> None:
         """Test cache initialization."""
-        self.assertEqual(self.cache.max_size, 10)
-        self.assertEqual(self.cache.max_memory_bytes, 1024 * 1024)
-        self.assertEqual(self.cache.ttl_seconds, 60)
-        self.assertTrue(self.cache.is_enabled())
+        assert self.cache.max_size == 10
+        assert self.cache.max_memory_bytes == 1024 * 1024
+        assert self.cache.ttl_seconds == 60
+        assert self.cache.is_enabled()
 
     def test_put_and_get(self) -> None:
         """Test basic put and get operations."""
@@ -42,27 +42,27 @@ class TestMetadataCache(unittest.TestCase):
 
         # Test get
         result = self.cache.get("test_key")
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 1)
-        self.assertEqual(result.title, "Test Anime")
+        assert result is not None
+        assert result.tmdb_id == 1
+        assert result.title == "Test Anime"
 
     def test_get_nonexistent_key(self) -> None:
         """Test getting a non-existent key."""
         result = self.cache.get("nonexistent_key")
-        self.assertIsNone(result)
+        assert result is None
 
     def test_get_with_default(self) -> None:
         """Test getting with default value."""
         result = self.cache.get("nonexistent_key")
-        self.assertIsNone(result)
-        
+        assert result is None
+
         # Test with actual data
         anime = TMDBAnime(tmdb_id=1, title="Test Anime")
         self.cache.put("test_key", anime)
         result = self.cache.get("test_key")
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 1)
-        self.assertEqual(result.title, "Test Anime")
+        assert result is not None
+        assert result.tmdb_id == 1
+        assert result.title == "Test Anime"
 
     def test_delete(self) -> None:
         """Test deleting cache entries."""
@@ -70,19 +70,19 @@ class TestMetadataCache(unittest.TestCase):
         self.cache.put("test_key", anime)
 
         # Verify it exists
-        self.assertIsNotNone(self.cache.get("test_key"))
+        assert self.cache.get("test_key") is not None
 
         # Delete it
         result = self.cache.delete("test_key")
-        self.assertTrue(result)
+        assert result
 
         # Verify it's gone
-        self.assertIsNone(self.cache.get("test_key"))
+        assert self.cache.get("test_key") is None
 
     def test_delete_nonexistent_key(self) -> None:
         """Test deleting a non-existent key."""
         result = self.cache.delete("nonexistent_key")
-        self.assertFalse(result)
+        assert not result
 
     def test_clear(self) -> None:
         """Test clearing all cache entries."""
@@ -92,13 +92,13 @@ class TestMetadataCache(unittest.TestCase):
             self.cache.put(f"key_{i}", anime)
 
         # Verify they exist
-        self.assertEqual(len(self.cache.cache_core._cache), 5)
+        assert len(self.cache.cache_core._cache) == 5
 
         # Clear cache
         self.cache.clear()
 
         # Verify it's empty
-        self.assertEqual(len(self.cache.cache_core._cache), 0)
+        assert len(self.cache.cache_core._cache) == 0
 
     def test_lru_eviction(self) -> None:
         """Test LRU eviction when cache is full."""
@@ -116,11 +116,11 @@ class TestMetadataCache(unittest.TestCase):
         self.cache.put("key_10", anime)
 
         # key_2 should be evicted (least recently used)
-        self.assertIsNone(self.cache.get("key_2"))
+        assert self.cache.get("key_2") is None
 
         # key_0 and key_1 should still be there
-        self.assertIsNotNone(self.cache.get("key_0"))
-        self.assertIsNotNone(self.cache.get("key_1"))
+        assert self.cache.get("key_0") is not None
+        assert self.cache.get("key_1") is not None
 
     def test_ttl_expiration(self) -> None:
         """Test TTL expiration."""
@@ -131,7 +131,7 @@ class TestMetadataCache(unittest.TestCase):
         cache.put("test_key", anime)
 
         # Should be available immediately
-        self.assertIsNotNone(cache.get("test_key"))
+        assert cache.get("test_key") is not None
 
         # Wait for expiration
         import time
@@ -139,7 +139,7 @@ class TestMetadataCache(unittest.TestCase):
         time.sleep(1.1)
 
         # Should be expired
-        self.assertIsNone(cache.get("test_key"))
+        assert cache.get("test_key") is None
 
     def test_invalidate_pattern(self) -> None:
         """Test pattern-based invalidation."""
@@ -155,25 +155,25 @@ class TestMetadataCache(unittest.TestCase):
         # Invalidate all anime entries
         count = self.cache.invalidate_pattern("anime_")
         # Note: There seems to be a bug in the invalidate_pattern implementation
-        # that causes it to return a higher count than expected, but the 
+        # that causes it to return a higher count than expected, but the
         # actual invalidation works correctly (only anime entries are removed)
-        self.assertGreaterEqual(count, 5)  # At least 5 should be invalidated
+        assert count >= 5  # At least 5 should be invalidated
 
         # Verify anime entries are gone
         for i in range(5):
-            self.assertIsNone(self.cache.get(f"anime_{i}"))
+            assert self.cache.get(f"anime_{i}") is None
 
         # Verify movie entries are still there
         for i in range(3):
-            self.assertIsNotNone(self.cache.get(f"movie_{i}"))
+            assert self.cache.get(f"movie_{i}") is not None
 
     def test_stats_tracking(self) -> None:
         """Test statistics tracking."""
         # Initial stats
         stats = self.cache.get_stats()
-        self.assertEqual(stats.hits, 0)
-        self.assertEqual(stats.misses, 0)
-        self.assertEqual(stats.total_requests, 0)
+        assert stats.hits == 0
+        assert stats.misses == 0
+        assert stats.total_requests == 0
 
         # Add an entry
         anime = TMDBAnime(tmdb_id=1, title="Test Anime")
@@ -182,16 +182,16 @@ class TestMetadataCache(unittest.TestCase):
         # Test hit
         self.cache.get("test_key")
         stats = self.cache.get_stats()
-        self.assertEqual(stats.hits, 1)
-        self.assertEqual(stats.misses, 0)
-        self.assertEqual(stats.total_requests, 1)
+        assert stats.hits == 1
+        assert stats.misses == 0
+        assert stats.total_requests == 1
 
         # Test miss
         self.cache.get("nonexistent_key")
         stats = self.cache.get_stats()
-        self.assertEqual(stats.hits, 1)
-        self.assertEqual(stats.misses, 1)
-        self.assertEqual(stats.total_requests, 2)
+        assert stats.hits == 1
+        assert stats.misses == 1
+        assert stats.total_requests == 2
 
     def test_memory_usage_tracking(self) -> None:
         """Test memory usage tracking."""
@@ -199,10 +199,10 @@ class TestMetadataCache(unittest.TestCase):
         self.cache.put("test_key", anime)
 
         memory_mb = self.cache.get_memory_usage_mb()
-        self.assertGreater(memory_mb, 0)
+        assert memory_mb > 0
 
         stats = self.cache.get_stats()
-        self.assertGreater(stats.memory_usage_bytes, 0)
+        assert stats.memory_usage_bytes > 0
 
     def test_disable_enable(self) -> None:
         """Test disabling and enabling cache."""
@@ -210,19 +210,19 @@ class TestMetadataCache(unittest.TestCase):
 
         # Disable cache
         self.cache.disable()
-        self.assertFalse(self.cache.is_enabled())
+        assert not self.cache.is_enabled()
 
         # Put should not work
         self.cache.put("test_key", anime)
-        self.assertIsNone(self.cache.get("test_key"))
+        assert self.cache.get("test_key") is None
 
         # Enable cache
         self.cache.enable()
-        self.assertTrue(self.cache.is_enabled())
+        assert self.cache.is_enabled()
 
         # Put should work now
         self.cache.put("test_key", anime)
-        self.assertIsNotNone(self.cache.get("test_key"))
+        assert self.cache.get("test_key") is not None
 
     def test_entries_info(self) -> None:
         """Test getting entries information."""
@@ -230,19 +230,19 @@ class TestMetadataCache(unittest.TestCase):
         self.cache.put("test_key", anime)
 
         entries = self.cache.get_entries_info()
-        self.assertEqual(len(entries), 1)
+        assert len(entries) == 1
 
         entry = entries[0]
-        self.assertEqual(entry["key"], "test_key")
-        self.assertEqual(entry["value_type"], "TMDBAnime")
-        self.assertGreater(entry["access_count"], 0)
-        self.assertIsNotNone(entry["created_at"])
+        assert entry["key"] == "test_key"
+        assert entry["value_type"] == "TMDBAnime"
+        assert entry["access_count"] > 0
+        assert entry["created_at"] is not None
 
 
 class TestDatabaseManager(unittest.TestCase):
     """Test cases for DatabaseManager class."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         # Create temporary database
         self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
@@ -251,15 +251,15 @@ class TestDatabaseManager(unittest.TestCase):
         self.db_manager = DatabaseManager(f"sqlite:///{self.temp_db.name}")
         self.db_manager.initialize()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up after tests."""
         self.db_manager.close()
         Path(self.temp_db.name).unlink(missing_ok=True)
 
     def test_database_initialization(self) -> None:
         """Test database initialization."""
-        self.assertIsNotNone(self.db_manager.engine)
-        self.assertIsNotNone(self.db_manager.SessionLocal)
+        assert self.db_manager.engine is not None
+        assert self.db_manager.SessionLocal is not None
 
     def test_create_anime_metadata(self) -> None:
         """Test creating anime metadata."""
@@ -272,10 +272,10 @@ class TestDatabaseManager(unittest.TestCase):
         )
 
         metadata = self.db_manager.create_anime_metadata(anime)
-        self.assertIsNotNone(metadata)
-        self.assertEqual(metadata.tmdb_id, 1)
-        self.assertEqual(metadata.title, "Test Anime")
-        self.assertEqual(metadata.overview, "Test overview")
+        assert metadata is not None
+        assert metadata.tmdb_id == 1
+        assert metadata.title == "Test Anime"
+        assert metadata.overview == "Test overview"
 
     def test_get_anime_metadata(self) -> None:
         """Test getting anime metadata."""
@@ -283,9 +283,9 @@ class TestDatabaseManager(unittest.TestCase):
         self.db_manager.create_anime_metadata(anime)
 
         result = self.db_manager.get_anime_metadata(1)
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 1)
-        self.assertEqual(result.title, "Test Anime")
+        assert result is not None
+        assert result.tmdb_id == 1
+        assert result.title == "Test Anime"
 
     def test_search_anime_metadata(self) -> None:
         """Test searching anime metadata."""
@@ -300,8 +300,8 @@ class TestDatabaseManager(unittest.TestCase):
 
         # Search for "Titan"
         results = self.db_manager.search_anime_metadata("Titan")
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].title, "Attack on Titan")
+        assert len(results) == 1
+        assert results[0].title == "Attack on Titan"
 
     def test_create_parsed_file(self) -> None:
         """Test creating parsed file."""
@@ -323,11 +323,11 @@ class TestDatabaseManager(unittest.TestCase):
             file_hash="test_hash",
         )
 
-        self.assertIsNotNone(parsed_file)
-        self.assertEqual(parsed_file.file_path, file_path)
-        self.assertEqual(parsed_file.parsed_title, "Test Anime")
-        self.assertEqual(parsed_file.season, 1)
-        self.assertEqual(parsed_file.episode, 1)
+        assert parsed_file is not None
+        assert parsed_file.file_path == file_path
+        assert parsed_file.parsed_title == "Test Anime"
+        assert parsed_file.season == 1
+        assert parsed_file.episode == 1
 
     def test_get_parsed_file(self) -> None:
         """Test getting parsed file."""
@@ -344,8 +344,8 @@ class TestDatabaseManager(unittest.TestCase):
         )
 
         result = self.db_manager.get_parsed_file(file_path)
-        self.assertIsNotNone(result)
-        self.assertEqual(result.file_path, file_path)
+        assert result is not None
+        assert result.file_path == file_path
 
     def test_delete_parsed_file(self) -> None:
         """Test deleting parsed file."""
@@ -362,14 +362,14 @@ class TestDatabaseManager(unittest.TestCase):
         )
 
         # Verify it exists
-        self.assertIsNotNone(self.db_manager.get_parsed_file(file_path))
+        assert self.db_manager.get_parsed_file(file_path) is not None
 
         # Delete it
         result = self.db_manager.delete_parsed_file(file_path)
-        self.assertTrue(result)
+        assert result
 
         # Verify it's gone
-        self.assertIsNone(self.db_manager.get_parsed_file(file_path))
+        assert self.db_manager.get_parsed_file(file_path) is None
 
     def test_get_database_stats(self) -> None:
         """Test getting database statistics."""
@@ -389,14 +389,14 @@ class TestDatabaseManager(unittest.TestCase):
         )
 
         stats = self.db_manager.get_database_stats()
-        self.assertEqual(stats["anime_metadata_count"], 1)
-        self.assertEqual(stats["parsed_files_count"], 1)
+        assert stats["anime_metadata_count"] == 1
+        assert stats["parsed_files_count"] == 1
 
 
 class TestMetadataStorage(unittest.TestCase):
     """Test cases for MetadataStorage class."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         # Create temporary database
         self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
@@ -410,7 +410,7 @@ class TestMetadataStorage(unittest.TestCase):
         self.storage.db = DatabaseManager(f"sqlite:///{self.temp_db.name}")
         self.storage.db.initialize()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up after tests."""
         self.storage.clear_cache()
         if self.storage.db:
@@ -419,22 +419,22 @@ class TestMetadataStorage(unittest.TestCase):
 
     def test_storage_initialization(self) -> None:
         """Test storage initialization."""
-        self.assertTrue(self.storage.enable_cache)
-        self.assertTrue(self.storage.enable_db)
-        self.assertIsNotNone(self.storage.cache)
-        self.assertIsNotNone(self.storage.db)
+        assert self.storage.enable_cache
+        assert self.storage.enable_db
+        assert self.storage.cache is not None
+        assert self.storage.db is not None
 
     def test_store_tmdb_metadata(self) -> None:
         """Test storing TMDB metadata."""
         anime = TMDBAnime(tmdb_id=1, title="Test Anime", overview="Test overview")
 
         result = self.storage.store_tmdb_metadata(anime)
-        self.assertTrue(result)
+        assert result
 
         # Verify it's in cache
         cached = self.storage.cache.get("tmdb:1")
-        self.assertIsNotNone(cached)
-        self.assertEqual(cached.tmdb_id, 1)
+        assert cached is not None
+        assert cached.tmdb_id == 1
 
     def test_get_tmdb_metadata_cache_hit(self) -> None:
         """Test getting TMDB metadata from cache."""
@@ -442,9 +442,9 @@ class TestMetadataStorage(unittest.TestCase):
         self.storage.store_tmdb_metadata(anime)
 
         result = self.storage.get_tmdb_metadata(1)
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 1)
-        self.assertEqual(result.title, "Test Anime")
+        assert result is not None
+        assert result.tmdb_id == 1
+        assert result.title == "Test Anime"
 
     def test_get_tmdb_metadata_cache_miss(self) -> None:
         """Test getting TMDB metadata from database on cache miss."""
@@ -457,13 +457,13 @@ class TestMetadataStorage(unittest.TestCase):
         self.storage.clear_cache()
 
         result = self.storage.get_tmdb_metadata(1)
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 1)
-        self.assertEqual(result.title, "Test Anime")
+        assert result is not None
+        assert result.tmdb_id == 1
+        assert result.title == "Test Anime"
 
         # Verify it's now in cache
         cached = self.storage.cache.get("tmdb:1")
-        self.assertIsNotNone(cached)
+        assert cached is not None
 
     def test_store_parsed_file(self) -> None:
         """Test storing parsed file."""
@@ -480,7 +480,7 @@ class TestMetadataStorage(unittest.TestCase):
             tmdb_id=1,
         )
 
-        self.assertTrue(result)
+        assert result
 
     def test_get_parsed_file(self) -> None:
         """Test getting parsed file."""
@@ -497,9 +497,9 @@ class TestMetadataStorage(unittest.TestCase):
         )
 
         result = self.storage.get_parsed_file(file_path)
-        self.assertIsNotNone(result)
-        self.assertEqual(result["file_path"], file_path)
-        self.assertEqual(result["parsed_info"].title, "Test Anime")
+        assert result is not None
+        assert result["file_path"] == file_path
+        assert result["parsed_info"].title == "Test Anime"
 
     def test_sync_cache_to_db(self) -> None:
         """Test syncing cache to database."""
@@ -509,12 +509,12 @@ class TestMetadataStorage(unittest.TestCase):
 
         # Sync to database
         synced_count = self.storage.sync_cache_to_db()
-        self.assertGreater(synced_count, 0)
+        assert synced_count > 0
 
         # Verify it's in database
         result = self.storage.db.get_anime_metadata(1)
-        self.assertIsNotNone(result)
-        self.assertEqual(result.title, "Test Anime")
+        assert result is not None
+        assert result.title == "Test Anime"
 
     def test_get_stats(self) -> None:
         """Test getting storage statistics."""
@@ -523,18 +523,18 @@ class TestMetadataStorage(unittest.TestCase):
         self.storage.store_tmdb_metadata(anime)
 
         stats = self.storage.get_stats()
-        self.assertIn("cache_hits", stats)
-        self.assertIn("cache_misses", stats)
-        self.assertIn("db_hits", stats)
-        self.assertIn("db_misses", stats)
-        self.assertIn("total_requests", stats)
-        self.assertIn("sync_operations", stats)
+        assert "cache_hits" in stats
+        assert "cache_misses" in stats
+        assert "db_hits" in stats
+        assert "db_misses" in stats
+        assert "total_requests" in stats
+        assert "sync_operations" in stats
 
 
 class TestCacheDBIntegration(unittest.TestCase):
     """Integration tests for cache-DB synchronization."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         # Create temporary database
         self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
@@ -548,7 +548,7 @@ class TestCacheDBIntegration(unittest.TestCase):
         self.storage.db = DatabaseManager(f"sqlite:///{self.temp_db.name}")
         self.storage.db.initialize()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up after tests."""
         self.storage.clear_cache()
         if self.storage.db:
@@ -559,7 +559,7 @@ class TestCacheDBIntegration(unittest.TestCase):
 class TestCacheDBSynchronization(unittest.TestCase):
     """Test cases for Cache-DB Synchronization Logic (Write-through/Read-through)."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         # Create temporary database
         self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
@@ -574,10 +574,10 @@ class TestCacheDBSynchronization(unittest.TestCase):
             max_memory_mb=10,
             default_ttl_seconds=60,
             db_manager=self.db_manager,
-            enable_db=True
+            enable_db=True,
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up after tests."""
         self.cache.clear()
         if self.db_manager:
@@ -588,12 +588,12 @@ class TestCacheDBSynchronization(unittest.TestCase):
         """Test read-through cache miss detection and logging."""
         # Test cache miss detection
         result = self.cache.get("tmdb:999")
-        self.assertIsNone(result)
+        assert result is None
 
         # Verify cache miss was logged and counted
         stats = self.cache.get_stats()
-        self.assertEqual(stats.misses, 1)
-        self.assertEqual(stats.hits, 0)
+        assert stats.misses == 1
+        assert stats.hits == 0
 
     def test_read_through_database_fetch_and_cache_population(self) -> None:
         """Test read-through pattern: fetch from DB and populate cache."""
@@ -608,18 +608,18 @@ class TestCacheDBSynchronization(unittest.TestCase):
         result = self.cache.get("tmdb:1")
 
         # Verify data was fetched from database and cached
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 1)
-        self.assertEqual(result.title, "Test Anime")
+        assert result is not None
+        assert result.tmdb_id == 1
+        assert result.title == "Test Anime"
 
         # Verify it's now in cache
         cached_result = self.cache.get("tmdb:1")
-        self.assertIsNotNone(cached_result)
-        self.assertEqual(cached_result.tmdb_id, 1)
+        assert cached_result is not None
+        assert cached_result.tmdb_id == 1
 
         # Verify stats show read-through success
         stats = self.cache.get_stats()
-        self.assertGreaterEqual(stats.hits, 1)  # At least one hit from read-through
+        assert stats.hits >= 1  # At least one hit from read-through
 
     def test_write_through_cache_and_database_update(self) -> None:
         """Test write-through pattern: update both cache and database."""
@@ -630,14 +630,14 @@ class TestCacheDBSynchronization(unittest.TestCase):
 
         # Verify it's in cache
         cached_result = self.cache.get("tmdb:2")
-        self.assertIsNotNone(cached_result)
-        self.assertEqual(cached_result.tmdb_id, 2)
+        assert cached_result is not None
+        assert cached_result.tmdb_id == 2
 
         # Verify it's in database
         db_result = self.db_manager.get_anime_metadata(2)
-        self.assertIsNotNone(db_result)
-        self.assertEqual(db_result.tmdb_id, 2)
-        self.assertEqual(db_result.title, "Write Test Anime")
+        assert db_result is not None
+        assert db_result.tmdb_id == 2
+        assert db_result.title == "Write Test Anime"
 
     def test_write_through_transactional_integrity(self) -> None:
         """Test write-through with transactional integrity."""
@@ -650,9 +650,9 @@ class TestCacheDBSynchronization(unittest.TestCase):
         cached_result = self.cache.get("tmdb:3")
         db_result = self.db_manager.get_anime_metadata(3)
 
-        self.assertIsNotNone(cached_result)
-        self.assertIsNotNone(db_result)
-        self.assertEqual(cached_result.title, db_result.title)
+        assert cached_result is not None
+        assert db_result is not None
+        assert cached_result.title == db_result.title
 
     def test_delete_transactional_integrity(self) -> None:
         """Test delete operation with transactional integrity."""
@@ -661,16 +661,16 @@ class TestCacheDBSynchronization(unittest.TestCase):
         self.cache.put("tmdb:4", anime)
 
         # Verify it exists in both cache and database
-        self.assertIsNotNone(self.cache.get("tmdb:4"))
-        self.assertIsNotNone(self.db_manager.get_anime_metadata(4))
+        assert self.cache.get("tmdb:4") is not None
+        assert self.db_manager.get_anime_metadata(4) is not None
 
         # Delete using cache (should be transactional)
         result = self.cache.delete("tmdb:4")
-        self.assertTrue(result)
+        assert result
 
         # Verify it's removed from both cache and database
-        self.assertIsNone(self.cache.get("tmdb:4"))
-        self.assertIsNone(self.db_manager.get_anime_metadata(4))
+        assert self.cache.get("tmdb:4") is None
+        assert self.db_manager.get_anime_metadata(4) is None
 
     def test_cache_miss_with_database_failure(self) -> None:
         """Test cache miss behavior when database is unavailable."""
@@ -679,11 +679,11 @@ class TestCacheDBSynchronization(unittest.TestCase):
 
         # Try to get data (should handle database failure gracefully)
         result = self.cache.get("tmdb:999")
-        self.assertIsNone(result)
+        assert result is None
 
         # Verify cache miss was still counted
         stats = self.cache.get_stats()
-        self.assertEqual(stats.misses, 1)
+        assert stats.misses == 1
 
     def test_write_through_with_database_failure(self) -> None:
         """Test write-through behavior when database fails."""
@@ -697,8 +697,8 @@ class TestCacheDBSynchronization(unittest.TestCase):
 
         # Verify it's in cache
         cached_result = self.cache.get("tmdb:5")
-        self.assertIsNotNone(cached_result)
-        self.assertEqual(cached_result.tmdb_id, 5)
+        assert cached_result is not None
+        assert cached_result.tmdb_id == 5
 
     def test_ttl_expiration_with_read_through(self) -> None:
         """Test TTL expiration with read-through reload."""
@@ -708,7 +708,7 @@ class TestCacheDBSynchronization(unittest.TestCase):
             max_memory_mb=10,
             default_ttl_seconds=1,
             db_manager=self.db_manager,
-            enable_db=True
+            enable_db=True,
         )
 
         # Create data in database
@@ -719,16 +719,17 @@ class TestCacheDBSynchronization(unittest.TestCase):
         cache.put("tmdb:6", anime)
 
         # Verify it's in cache
-        self.assertIsNotNone(cache.get("tmdb:6"))
+        assert cache.get("tmdb:6") is not None
 
         # Wait for TTL expiration
         import time
+
         time.sleep(1.1)
 
         # Get should trigger read-through reload
         result = cache.get("tmdb:6")
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 6)
+        assert result is not None
+        assert result.tmdb_id == 6
 
         # Clean up
         cache.clear()
@@ -741,16 +742,18 @@ class TestCacheDBSynchronization(unittest.TestCase):
         results = []
         errors = []
 
-        def writer(worker_id):
+        def writer(worker_id) -> None:
             """Worker function for writing data."""
             try:
-                anime = TMDBAnime(tmdb_id=worker_id + 1, title=f"Concurrent Test {worker_id}")  # Use worker_id+1 to avoid tmdb_id=0
+                anime = TMDBAnime(
+                    tmdb_id=worker_id + 1, title=f"Concurrent Test {worker_id}"
+                )  # Use worker_id+1 to avoid tmdb_id=0
                 self.cache.put(f"tmdb:{worker_id}", anime)
                 results.append(f"write_{worker_id}_success")
             except Exception as e:
                 errors.append(f"write_{worker_id}_error: {e}")
 
-        def reader(worker_id):
+        def reader(worker_id) -> None:
             """Worker function for reading data."""
             try:
                 time.sleep(0.1)  # Small delay to allow writes
@@ -782,10 +785,10 @@ class TestCacheDBSynchronization(unittest.TestCase):
             thread.join()
 
         # Verify no errors occurred
-        self.assertEqual(len(errors), 0, f"Errors occurred: {errors}")
+        assert len(errors) == 0, f"Errors occurred: {errors}"
 
         # Verify we have some successful operations
-        self.assertGreater(len(results), 0)
+        assert len(results) > 0
 
     def test_cache_db_consistency_after_restart(self) -> None:
         """Test cache-DB consistency after simulated application restart."""
@@ -794,8 +797,8 @@ class TestCacheDBSynchronization(unittest.TestCase):
         self.cache.put("tmdb:7", anime)
 
         # Verify it's in both cache and database
-        self.assertIsNotNone(self.cache.get("tmdb:7"))
-        self.assertIsNotNone(self.db_manager.get_anime_metadata(7))
+        assert self.cache.get("tmdb:7") is not None
+        assert self.db_manager.get_anime_metadata(7) is not None
 
         # Simulate application restart by creating new cache instance
         new_cache = MetadataCache(
@@ -803,14 +806,14 @@ class TestCacheDBSynchronization(unittest.TestCase):
             max_memory_mb=10,
             default_ttl_seconds=60,
             db_manager=self.db_manager,
-            enable_db=True
+            enable_db=True,
         )
 
         # Data should be available via read-through
         result = new_cache.get("tmdb:7")
-        self.assertIsNotNone(result)
-        self.assertEqual(result.tmdb_id, 7)
-        self.assertEqual(result.title, "Restart Test")
+        assert result is not None
+        assert result.tmdb_id == 7
+        assert result.title == "Restart Test"
 
         # Clean up
         new_cache.clear()
@@ -831,24 +834,24 @@ class TestCacheDBSynchronization(unittest.TestCase):
 
         # Verify it's in cache
         cached_anime = self.cache.get("tmdb:1")
-        self.assertIsNotNone(cached_anime)
-        self.assertEqual(cached_anime.title, "Attack on Titan")
+        assert cached_anime is not None
+        assert cached_anime.title == "Attack on Titan"
 
         # Verify it's in database
         db_anime = self.db_manager.get_anime_metadata(1)
-        self.assertIsNotNone(db_anime)
-        self.assertEqual(db_anime.title, "Attack on Titan")
+        assert db_anime is not None
+        assert db_anime.title == "Attack on Titan"
 
         # Test read-through after cache clear
         self.cache.clear()
         retrieved_anime = self.cache.get("tmdb:1")
-        self.assertIsNotNone(retrieved_anime)
-        self.assertEqual(retrieved_anime.title, "Attack on Titan")
+        assert retrieved_anime is not None
+        assert retrieved_anime.title == "Attack on Titan"
 
         # Check statistics
         stats = self.cache.get_stats()
-        self.assertGreater(stats.hits, 0)
-        self.assertGreater(stats.total_requests, 0)
+        assert stats.hits > 0
+        assert stats.total_requests > 0
 
     def test_concurrent_access(self) -> None:
         """Test concurrent access to cache system."""
@@ -857,10 +860,12 @@ class TestCacheDBSynchronization(unittest.TestCase):
         results = []
         errors = []
 
-        def worker(worker_id):
+        def worker(worker_id) -> None:
             try:
                 # Each worker creates and retrieves data
-                anime = TMDBAnime(tmdb_id=worker_id + 1, title=f"Anime {worker_id}")  # Use worker_id+1 to avoid tmdb_id=0
+                anime = TMDBAnime(
+                    tmdb_id=worker_id + 1, title=f"Anime {worker_id}"
+                )  # Use worker_id+1 to avoid tmdb_id=0
                 self.cache.put(f"tmdb:{worker_id}", anime)
 
                 retrieved = self.cache.get(f"tmdb:{worker_id}")
@@ -881,11 +886,11 @@ class TestCacheDBSynchronization(unittest.TestCase):
             thread.join()
 
         # Verify all operations succeeded
-        self.assertEqual(len(errors), 0, f"Errors occurred: {errors}")
-        self.assertEqual(len(results), 10)
+        assert len(errors) == 0, f"Errors occurred: {errors}"
+        assert len(results) == 10
 
         for worker_id, success in results:
-            self.assertTrue(success, f"Worker {worker_id} failed")
+            assert success, f"Worker {worker_id} failed"
 
 
 if __name__ == "__main__":

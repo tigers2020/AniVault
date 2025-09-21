@@ -324,7 +324,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
             raise
 
     def _retrieve_metadata_for_file_with_manager(
-        self, file: AnimeFile, thread_local_manager
+        self, file: AnimeFile, thread_local_manager: Any
     ) -> AnimeFile:
         """Retrieve metadata for a single file using thread-local TMDB client manager.
 

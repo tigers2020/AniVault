@@ -60,7 +60,7 @@ class SearchAnalysisResult:
 class SearchStrategyAnalyzer:
     """Analyzer for TMDB search strategy performance."""
 
-    def __init__(self, tmdb_client: TMDBClient):
+    def __init__(self, tmdb_client: TMDBClient) -> None:
         """Initialize the analyzer.
 
         Args:
@@ -73,7 +73,7 @@ class SearchStrategyAnalyzer:
         # Initialize metrics for each strategy
         self._initialize_metrics()
 
-    def _initialize_metrics(self):
+    def _initialize_metrics(self) -> None:
         """Initialize metrics for all strategies."""
         strategies = [
             "initial_multi_search",
@@ -123,7 +123,7 @@ class SearchStrategyAnalyzer:
             # Track API calls by patching the search method
             original_search = self.tmdb_client.search_multi
 
-            def tracked_search(*args, **kwargs):
+            def tracked_search(*args: Any, **kwargs: Any) -> Any:
                 result.total_api_calls += 1
                 return original_search(*args, **kwargs)
 
@@ -131,7 +131,7 @@ class SearchStrategyAnalyzer:
             self.tmdb_client.search_multi = tracked_search
 
             # Run comprehensive search
-            search_results, needs_selection = self.tmdb_client.search_comprehensive(query)
+            search_results, _needs_selection = self.tmdb_client.search_comprehensive(query)
 
             # Restore original method
             self.tmdb_client.search_multi = original_search
@@ -179,7 +179,7 @@ class SearchStrategyAnalyzer:
 
         return result
 
-    def _update_metrics(self, result: SearchAnalysisResult):
+    def _update_metrics(self, result: SearchAnalysisResult) -> None:
         """Update metrics based on analysis result.
 
         Args:
@@ -304,7 +304,7 @@ class SearchStrategyAnalyzer:
         """
         return self.analysis_results.copy()
 
-    def export_analysis(self, filename: str):
+    def export_analysis(self, filename: str) -> None:
         """Export analysis results to file.
 
         Args:

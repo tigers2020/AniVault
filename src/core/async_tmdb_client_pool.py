@@ -37,7 +37,7 @@ class AsyncTMDBClientPool:
         initial_size: int = 2,
         max_size: int = 8,
         pool_name: str = "AsyncTMDBPool",
-    ):
+    ) -> None:
         """Initialize the async TMDB client pool.
 
         Args:

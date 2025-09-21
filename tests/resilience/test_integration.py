@@ -6,35 +6,34 @@ cache-only mode transition, and recovery scenarios.
 """
 
 import time
-from unittest.mock import Mock, patch, MagicMock
-from typing import Any
+from typing import NoReturn
+from unittest.mock import Mock, patch
 
 import pytest
 import sqlalchemy.exc
 
-from src.core.metadata_cache import MetadataCache, CacheEntry
-from src.core.models import ParsedAnimeInfo, TMDBAnime
+from src.core.cache_core import CacheEntry
 from src.core.circuit_breaker import CircuitBreakerManager, get_database_circuit_breaker
 from src.core.database_health import DatabaseHealthChecker, HealthStatus
+from src.core.metadata_cache import MetadataCache
+from src.core.models import ParsedAnimeInfo, TMDBAnime
 from src.core.resilience_manager import ResilienceManager
 
 
 class TestFailureLifecycleIntegration:
     """Integration tests for database failure and recovery scenarios."""
 
-    def _create_cache_entry(self, key: str, value: ParsedAnimeInfo | TMDBAnime, created_at: float = None) -> CacheEntry:
+    def _create_cache_entry(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, created_at: float | None = None
+    ) -> CacheEntry:
         """Helper method to create a CacheEntry."""
         if created_at is None:
             created_at = time.time()
         return CacheEntry(
-            key=key,
-            value=value,
-            created_at=created_at,
-            last_accessed=created_at,
-            size_bytes=100
+            key=key, value=value, created_at=created_at, last_accessed=created_at, size_bytes=100
         )
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         # Create mock database with proper session support
         self.mock_db = Mock()
@@ -43,15 +42,13 @@ class TestFailureLifecycleIntegration:
 
         # Mock transaction manager
         self.mock_tx_manager = Mock()
-        self.mock_tx_manager.transaction_scope.return_value.__enter__ = Mock(return_value=self.mock_session)
+        self.mock_tx_manager.transaction_scope.return_value.__enter__ = Mock(
+            return_value=self.mock_session
+        )
         self.mock_tx_manager.transaction_scope.return_value.__exit__ = Mock(return_value=None)
 
         # Create MetadataCache instance
-        self.cache = MetadataCache(
-            max_size=100,
-            db_manager=self.mock_db,
-            enable_db=True
-        )
+        self.cache = MetadataCache(max_size=100, db_manager=self.mock_db, enable_db=True)
 
         # Patch transaction manager in the cache
         self.cache._tx_manager = self.mock_tx_manager
@@ -60,10 +57,7 @@ class TestFailureLifecycleIntegration:
         self.circuit_breaker_manager = CircuitBreakerManager()
 
         # Create health checker
-        self.health_checker = DatabaseHealthChecker(
-            db_manager=self.mock_db,
-            check_interval=1.0
-        )
+        self.health_checker = DatabaseHealthChecker(db_manager=self.mock_db, check_interval=1.0)
 
         # Create resilience manager
         self.resilience_manager = ResilienceManager(
@@ -71,20 +65,15 @@ class TestFailureLifecycleIntegration:
             health_checker=self.health_checker,
             circuit_breaker_manager=self.circuit_breaker_manager,
             auto_recovery_enabled=True,
-            recovery_check_interval=0.1  # Fast recovery checks for testing
+            recovery_check_interval=0.1,  # Fast recovery checks for testing
         )
 
         # Create sample data
-        self.sample_parsed_info = ParsedAnimeInfo(
-            title="Attack on Titan"
-        )
+        self.sample_parsed_info = ParsedAnimeInfo(title="Attack on Titan")
 
-        self.sample_tmdb_anime = TMDBAnime(
-            tmdb_id=12345,
-            title="Attack on Titan"
-        )
+        self.sample_tmdb_anime = TMDBAnime(tmdb_id=12345, title="Attack on Titan")
 
-    def test_healthy_system_initial_operation(self):
+    def test_healthy_system_initial_operation(self) -> None:
         """Test that the system works normally when healthy."""
         # Mock successful database operation
         self.mock_session.execute.return_value = Mock()
@@ -102,7 +91,7 @@ class TestFailureLifecycleIntegration:
         # self.mock_db.get_session.assert_called()
         # self.mock_session.commit.assert_called()
 
-    def test_database_outage_circuit_breaker_trip(self):
+    def test_database_outage_circuit_breaker_trip(self) -> None:
         """Test that circuit breaker trips during database outage."""
         # Start with healthy system
         self.mock_session.execute.return_value = Mock()
@@ -123,10 +112,10 @@ class TestFailureLifecycleIntegration:
 
         # Verify circuit breaker is operational
         assert db_breaker is not None
-        assert hasattr(db_breaker, 'current_state')
+        assert hasattr(db_breaker, "current_state")
         assert db_breaker.current_state in ["closed", "open", "half_open"]
 
-    def test_cache_only_mode_activation_after_breaker_trip(self):
+    def test_cache_only_mode_activation_after_breaker_trip(self) -> None:
         """Test that cache-only mode is activated after circuit breaker trips."""
         # Start with healthy system and populate cache
         self.mock_session.execute.return_value = Mock()
@@ -177,7 +166,7 @@ class TestFailureLifecycleIntegration:
         # Verify no database calls were made during cache-only operations
         self.mock_db.reset_mock()
 
-    def test_cache_only_mode_write_operations(self):
+    def test_cache_only_mode_write_operations(self) -> None:
         """Test write operations in cache-only mode."""
         # Setup cache-only mode
         self.cache.enable_cache_only_mode()
@@ -206,15 +195,19 @@ class TestFailureLifecycleIntegration:
         # Verify no database operations were attempted
         self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_read_operations(self):
+    def test_cache_only_mode_read_operations(self) -> None:
         """Test read operations in cache-only mode."""
         # Setup cache-only mode
         self.cache.enable_cache_only_mode()
         assert self.cache.is_cache_only_mode()
 
         # Manually populate cache with test data
-        self.cache._cache["hit_key"] = self._create_cache_entry("hit_key", self.sample_parsed_info)
-        self.cache._cache["another_hit"] = self._create_cache_entry("another_hit", self.sample_tmdb_anime)
+        self.cache.cache_core._cache["hit_key"] = self._create_cache_entry(
+            "hit_key", self.sample_parsed_info
+        )
+        self.cache.cache_core._cache["another_hit"] = self._create_cache_entry(
+            "another_hit", self.sample_tmdb_anime
+        )
 
         # Clear any previous database calls
         self.mock_db.reset_mock()
@@ -238,11 +231,11 @@ class TestFailureLifecycleIntegration:
         # Verify no database operations were attempted
         self.mock_db.assert_not_called()
 
-    def test_health_checker_integration(self):
+    def test_health_checker_integration(self) -> None:
         """Test health checker integration with circuit breaker."""
         # Test that health checker is properly initialized
         assert self.health_checker is not None
-        assert hasattr(self.health_checker, 'check_health')
+        assert hasattr(self.health_checker, "check_health")
 
         # Test that we can call the health check method
         # Note: The actual health status depends on the mock database setup
@@ -250,13 +243,17 @@ class TestFailureLifecycleIntegration:
         try:
             health_status = self.health_checker.check_health()
             # Verify it returns a valid HealthStatus enum value
-            assert health_status in [HealthStatus.HEALTHY, HealthStatus.UNHEALTHY, HealthStatus.UNKNOWN]
+            assert health_status in [
+                HealthStatus.HEALTHY,
+                HealthStatus.UNHEALTHY,
+                HealthStatus.UNKNOWN,
+            ]
         except Exception as e:
             # If there's an exception due to mocking complexity, that's acceptable
             # as long as the health checker is properly initialized
             assert "health" in str(type(e)).lower() or "database" in str(type(e)).lower()
 
-    def test_resilience_manager_integration(self):
+    def test_resilience_manager_integration(self) -> None:
         """Test resilience manager integration with all components."""
         # Test that resilience manager can detect cache-only mode
         self.cache.enable_cache_only_mode()
@@ -266,7 +263,7 @@ class TestFailureLifecycleIntegration:
         self.cache.disable_cache_only_mode()
         assert not self.cache.is_cache_only_mode()
 
-    def test_end_to_end_failure_recovery_workflow(self):
+    def test_end_to_end_failure_recovery_workflow(self) -> None:
         """Test complete end-to-end failure and recovery workflow."""
         # Phase 1: Healthy system
         self.mock_session.execute.return_value = Mock()
@@ -307,7 +304,7 @@ class TestFailureLifecycleIntegration:
         self.mock_session.commit.return_value = None
 
         # Wait for circuit breaker reset timeout (mocked)
-        with patch('time.sleep'):  # Skip actual waiting
+        with patch("time.sleep"):  # Skip actual waiting
             # Force circuit breaker to half-open state
             db_breaker._state = "half_open"
 
@@ -329,7 +326,7 @@ class TestFailureLifecycleIntegration:
         # Verify normal operations are working
         assert result.title == "Attack on Titan"
 
-    def test_database_recovery_lifecycle_scenario(self):
+    def test_database_recovery_lifecycle_scenario(self) -> None:
         """Test complete database recovery lifecycle scenario.
 
         This test simulates:
@@ -395,13 +392,16 @@ class TestFailureLifecycleIntegration:
 
         # Simulate health checker detecting recovery
         # Mock health checker to return healthy status
-        with patch.object(self.health_checker, 'check_health', return_value=HealthStatus.HEALTHY):
+        with patch.object(self.health_checker, "check_health", return_value=HealthStatus.HEALTHY):
             health_status = self.health_checker.check_health()
             assert health_status == HealthStatus.HEALTHY
 
         # Phase 5: Circuit breaker recovery simulation with proper state transitions
         # Create a new circuit breaker with short reset timeout for testing
-        from src.core.circuit_breaker import CircuitBreakerConfiguration, create_database_circuit_breaker
+        from src.core.circuit_breaker import (
+            CircuitBreakerConfiguration,
+            create_database_circuit_breaker,
+        )
 
         test_config = CircuitBreakerConfiguration(
             name="test_recovery_breaker",
@@ -415,7 +415,7 @@ class TestFailureLifecycleIntegration:
 
         # Simulate a failure to trip the circuit breaker
         @test_breaker
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise sqlalchemy.exc.OperationalError("Connection lost", None, None)
 
         # Trip the circuit breaker
@@ -429,7 +429,7 @@ class TestFailureLifecycleIntegration:
 
         # Test successful operation that should transition to HALF-OPEN then CLOSED
         @test_breaker
-        def successful_operation():
+        def successful_operation() -> str:
             return "operation_successful"
 
         # This should transition the breaker to HALF-OPEN, succeed, then go to CLOSED
@@ -492,12 +492,7 @@ class TestFailureLifecycleIntegration:
 
         # Phase 11: Final verification - system is fully operational
         # Perform a comprehensive test of all operations
-        final_data = ParsedAnimeInfo(
-            title="Final Test Anime",
-            season=4,
-            episode=1,
-            year=2024
-        )
+        final_data = ParsedAnimeInfo(title="Final Test Anime", season=4, episode=1, year=2024)
 
         self.cache._store_in_cache("final_test", final_data)
         result = self.cache.get("final_test")

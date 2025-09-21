@@ -19,7 +19,7 @@ from src.core.models import ParsedAnimeInfo, TMDBAnime
 class TestCacheValidation:
     """Test cache validation functionality."""
 
-    def test_validate_cache_key_valid(self):
+    def test_validate_cache_key_valid(self) -> None:
         """Test validation of valid cache keys."""
         cache = MetadataCache()
 
@@ -35,7 +35,7 @@ class TestCacheValidation:
         for key in valid_keys:
             cache._validate_cache_key(key)  # Should not raise
 
-    def test_validate_cache_key_invalid(self):
+    def test_validate_cache_key_invalid(self) -> None:
         """Test validation of invalid cache keys."""
         cache = MetadataCache()
 
@@ -57,7 +57,7 @@ class TestCacheValidation:
             assert expected_message in str(exc_info.value)
             assert exc_info.value.key == key
 
-    def test_validate_cache_value_valid(self):
+    def test_validate_cache_value_valid(self) -> None:
         """Test validation of valid cache values."""
         cache = MetadataCache()
 
@@ -109,7 +109,7 @@ class TestCacheValidation:
         )
         cache._validate_cache_value(tmdb_anime, "test_key")  # Should not raise
 
-    def test_validate_cache_value_invalid(self):
+    def test_validate_cache_value_invalid(self) -> None:
         """Test validation of invalid cache values."""
         cache = MetadataCache()
 
@@ -146,7 +146,7 @@ class TestCacheValidation:
 class TestCacheErrorHandling:
     """Test cache error handling in main operations."""
 
-    def test_get_with_invalid_key(self):
+    def test_get_with_invalid_key(self) -> None:
         """Test get() with invalid key raises CacheValidationError."""
         cache = MetadataCache()
 
@@ -159,7 +159,7 @@ class TestCacheErrorHandling:
         with pytest.raises(CacheValidationError):
             cache.get("key\x00with_null")  # Invalid character
 
-    def test_put_with_invalid_key(self):
+    def test_put_with_invalid_key(self) -> None:
         """Test put() with invalid key raises CacheValidationError."""
         cache = MetadataCache()
         valid_value = ParsedAnimeInfo(title="Test Anime")
@@ -170,7 +170,7 @@ class TestCacheErrorHandling:
         with pytest.raises(CacheValidationError):
             cache.put(None, valid_value)  # None key
 
-    def test_put_with_invalid_value(self):
+    def test_put_with_invalid_value(self) -> None:
         """Test put() with invalid value raises CacheValidationError."""
         cache = MetadataCache()
 
@@ -180,7 +180,7 @@ class TestCacheErrorHandling:
         with pytest.raises(CacheValidationError):
             cache.put("test_key", "invalid")  # Wrong type
 
-    def test_delete_with_invalid_key(self):
+    def test_delete_with_invalid_key(self) -> None:
         """Test delete() with invalid key raises CacheValidationError."""
         cache = MetadataCache()
 
@@ -190,7 +190,7 @@ class TestCacheErrorHandling:
         with pytest.raises(CacheValidationError):
             cache.delete(None)  # None key
 
-    def test_get_with_corrupted_cache_entry(self):
+    def test_get_with_corrupted_cache_entry(self) -> None:
         """Test get() handles corrupted cache entries gracefully."""
         cache = MetadataCache()
         cache._enabled = True
@@ -201,16 +201,16 @@ class TestCacheErrorHandling:
         corrupted_entry.created_at = 0  # Not expired
         corrupted_entry.value = "corrupted_data"
 
-        with patch.object(cache, '_decompress_if_needed') as mock_decompress:
+        with patch.object(cache, "_decompress_if_needed") as mock_decompress:
             mock_decompress.side_effect = CacheSerializationError("Decompression failed")
 
             # Mock _cache as OrderedDict with move_to_end method
             mock_cache = OrderedDict({"test_key": corrupted_entry})
             mock_cache.move_to_end = MagicMock()
 
-            with patch.object(cache, '_cache', mock_cache):
-                with patch.object(cache, '_lock'):
-                    with patch.object(cache, '_remove_entry') as mock_remove:
+            with patch.object(cache, "_cache", mock_cache):
+                with patch.object(cache, "_lock"):
+                    with patch.object(cache, "_remove_entry") as mock_remove:
                         # Should not raise exception, should return default
                         result = cache.get("test_key", "default_value")
 
@@ -219,14 +219,14 @@ class TestCacheErrorHandling:
                         # Should return default value
                         assert result == "default_value"
 
-    def test_put_with_compression_failure(self):
+    def test_put_with_compression_failure(self) -> None:
         """Test put() handles compression failures."""
         cache = MetadataCache()
         cache._enabled = True
 
         valid_value = ParsedAnimeInfo(title="Test Anime")
 
-        with patch.object(cache, '_apply_compression_if_needed') as mock_compress:
+        with patch.object(cache, "_apply_compression_if_needed") as mock_compress:
             mock_compress.side_effect = CacheSerializationError("Compression failed")
 
             with pytest.raises(CacheStorageError) as exc_info:
@@ -235,14 +235,14 @@ class TestCacheErrorHandling:
             assert "Compression failed" in str(exc_info.value)
             assert exc_info.value.operation == "store"
 
-    def test_put_with_cache_storage_failure(self):
+    def test_put_with_cache_storage_failure(self) -> None:
         """Test put() handles cache storage failures."""
         cache = MetadataCache()
         cache._enabled = True
 
         valid_value = ParsedAnimeInfo(title="Test Anime")
 
-        with patch.object(cache, '_store_in_cache') as mock_store:
+        with patch.object(cache, "_store_in_cache") as mock_store:
             mock_store.side_effect = CacheStorageError("Storage failed")
 
             with pytest.raises(CacheStorageError) as exc_info:
@@ -250,7 +250,7 @@ class TestCacheErrorHandling:
 
             assert "Storage failed" in str(exc_info.value)
 
-    def test_store_in_cache_with_validation_failure(self):
+    def test_store_in_cache_with_validation_failure(self) -> None:
         """Test _store_in_cache() handles validation failures."""
         cache = MetadataCache()
 
@@ -260,7 +260,7 @@ class TestCacheErrorHandling:
         assert "Validation failed" in str(exc_info.value)
         assert exc_info.value.operation == "store"
 
-    def test_apply_compression_with_failure(self):
+    def test_apply_compression_with_failure(self) -> None:
         """Test _apply_compression_if_needed() handles compression failures."""
         cache = MetadataCache()
 
@@ -268,12 +268,14 @@ class TestCacheErrorHandling:
         value = TMDBAnime(
             tmdb_id=123,
             title="Test",
-            raw_data={"large": "data" * 1000}  # Large data to trigger compression
+            raw_data={"large": "data" * 1000},  # Large data to trigger compression
         )
 
-        with patch('src.core.metadata_cache.compression_manager') as mock_compression:
+        with patch("src.core.metadata_cache.compression_manager") as mock_compression:
             mock_compression.min_size_threshold = 100
-            mock_compression.compress_for_storage.side_effect = CacheDeserializationError("Compression failed")
+            mock_compression.compress_for_storage.side_effect = CacheDeserializationError(
+                "Compression failed"
+            )
 
             with pytest.raises(CacheSerializationError) as exc_info:
                 cache._apply_compression_if_needed(value)
@@ -281,19 +283,17 @@ class TestCacheErrorHandling:
             assert "TMDBAnime compression failed" in str(exc_info.value)
             assert exc_info.value.data_type == "TMDBAnime"
 
-    def test_decompress_with_failure(self):
+    def test_decompress_with_failure(self) -> None:
         """Test _decompress_if_needed() handles decompression failures."""
         cache = MetadataCache()
 
         # Create a value with compressed raw_data that will fail decompression
-        value = TMDBAnime(
-            tmdb_id=123,
-            title="Test",
-            raw_data="compressed_data"
-        )
+        value = TMDBAnime(tmdb_id=123, title="Test", raw_data="compressed_data")
 
-        with patch('src.core.metadata_cache.compression_manager') as mock_compression:
-            mock_compression.decompress_from_storage.side_effect = CacheDeserializationError("Decompression failed")
+        with patch("src.core.metadata_cache.compression_manager") as mock_compression:
+            mock_compression.decompress_from_storage.side_effect = CacheDeserializationError(
+                "Decompression failed"
+            )
 
             with pytest.raises(CacheSerializationError) as exc_info:
                 cache._decompress_if_needed(value)
@@ -305,7 +305,7 @@ class TestCacheErrorHandling:
 class TestCacheErrorRecovery:
     """Test cache error recovery mechanisms."""
 
-    def test_cache_remains_stable_after_errors(self):
+    def test_cache_remains_stable_after_errors(self) -> None:
         """Test that cache remains stable after various errors."""
         cache = MetadataCache()
         cache._enabled = True
@@ -331,11 +331,11 @@ class TestCacheErrorRecovery:
         # Verify existing data is still there
         assert cache.get("valid_key") is not None
 
-    def test_error_logging(self):
+    def test_error_logging(self) -> None:
         """Test that errors are properly logged."""
         cache = MetadataCache()
 
-        with patch('src.core.metadata_cache.logger') as mock_logger:
+        with patch("src.core.metadata_cache.logger") as mock_logger:
             # Test validation error logging
             with pytest.raises(CacheValidationError):
                 cache.get("")
@@ -345,7 +345,7 @@ class TestCacheErrorRecovery:
             error_call = mock_logger.error.call_args[0][0]
             assert "Invalid cache key in get()" in error_call
 
-    def test_custom_exception_attributes(self):
+    def test_custom_exception_attributes(self) -> None:
         """Test that custom exceptions have correct attributes."""
         # Test CacheValidationError
         error = CacheValidationError("Test message", "test_key", "test_field")

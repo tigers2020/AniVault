@@ -1,15 +1,14 @@
 """Pytest configuration and fixtures for AniVault tests."""
 
-import os
 import pytest
 from PyQt5 import QtCore
 
 
 @pytest.fixture(autouse=True)
-def _qt_offscreen_env(monkeypatch):
+def _qt_offscreen_env(monkeypatch) -> None:
     """Set Qt to offscreen mode for CI compatibility."""
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
-    yield
+    return
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +17,9 @@ def _cleanup_qt_threads():
     yield
     try:
         # Wait for global thread pool to finish
-        QtCore.QThreadPool.globalInstance().waitForDone(500)
+        thread_pool = QtCore.QThreadPool.globalInstance()
+        if thread_pool is not None:
+            thread_pool.waitForDone(500)
     except Exception:
         pass
     # Process any remaining events
@@ -41,4 +42,6 @@ def qapp():
 
     # Clean up
     app.processEvents()
-    QtCore.QThreadPool.globalInstance().waitForDone(1000)
+    thread_pool = QtCore.QThreadPool.globalInstance()
+    if thread_pool is not None:
+        thread_pool.waitForDone(1000)

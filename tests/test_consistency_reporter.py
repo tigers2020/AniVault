@@ -1,20 +1,21 @@
 """Tests for consistency reporter module."""
 
 import json
+from datetime import datetime, timezone
+from unittest.mock import Mock
+
 import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, MagicMock
 
 from src.core.consistency_reporter import ConsistencyReporter, ReportSummary
-from src.core.consistency_validator import ConflictType, ConflictSeverity, DataConflict
-from src.core.reconciliation_strategies import ReconciliationStrategy, ReconciliationResult
-from src.core.database import ConsistencyReport, ConsistencyConflict
+from src.core.consistency_validator import ConflictSeverity, ConflictType, DataConflict
+from src.core.database import ConsistencyReport
+from src.core.reconciliation_strategies import ReconciliationResult, ReconciliationStrategy
 
 
 class TestConsistencyReporter:
     """Test cases for ConsistencyReporter class."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.db_manager = Mock()
         self.session = Mock()
@@ -27,7 +28,7 @@ class TestConsistencyReporter:
 
         self.reporter = ConsistencyReporter(self.db_manager)
 
-    def test_create_report(self):
+    def test_create_report(self) -> None:
         """Test creating a new report."""
         # Mock database response
         mock_report = Mock()
@@ -50,7 +51,7 @@ class TestConsistencyReporter:
         self.session.commit.assert_called_once()
         self.session.refresh.assert_called_once()
 
-    def test_update_report_with_conflicts(self):
+    def test_update_report_with_conflicts(self) -> None:
         """Test updating report with detected conflicts."""
         # Mock report
         mock_report = Mock()
@@ -67,7 +68,7 @@ class TestConsistencyReporter:
                 entity_id=1,
                 details="Version mismatch detected",
                 db_data={"version": 2},
-                cache_data={"version": 1}
+                cache_data={"version": 1},
             ),
             DataConflict(
                 conflict_type=ConflictType.DATA_MISMATCH,
@@ -76,8 +77,8 @@ class TestConsistencyReporter:
                 entity_id=2,
                 details="Data mismatch detected",
                 db_data={"title": "Anime A"},
-                cache_data={"title": "Anime B"}
-            )
+                cache_data={"title": "Anime B"},
+            ),
         ]
 
         # Test updating report
@@ -101,7 +102,7 @@ class TestConsistencyReporter:
         # Verify database operations
         self.session.commit.assert_called_once()
 
-    def test_update_report_with_resolution(self):
+    def test_update_report_with_resolution(self) -> None:
         """Test updating report with resolution results."""
         # Mock report
         mock_report = Mock()
@@ -115,7 +116,7 @@ class TestConsistencyReporter:
                 conflicts_resolved=1,
                 conflicts_failed=0,
                 details=["Successfully resolved"],
-                errors=[]
+                errors=[],
             ),
             ReconciliationResult(
                 success=False,
@@ -123,8 +124,8 @@ class TestConsistencyReporter:
                 conflicts_resolved=0,
                 conflicts_failed=1,
                 details=[],
-                errors=["Failed to resolve"]
-            )
+                errors=["Failed to resolve"],
+            ),
         ]
 
         # Test updating report
@@ -146,7 +147,7 @@ class TestConsistencyReporter:
         # Verify database operations
         self.session.commit.assert_called_once()
 
-    def test_update_report_with_error(self):
+    def test_update_report_with_error(self) -> None:
         """Test updating report with error information."""
         # Mock report
         mock_report = Mock()
@@ -171,7 +172,7 @@ class TestConsistencyReporter:
         # Verify database operations
         self.session.commit.assert_called_once()
 
-    def test_get_report(self):
+    def test_get_report(self) -> None:
         """Test retrieving a specific report."""
         # Mock report
         mock_report = Mock()
@@ -184,7 +185,7 @@ class TestConsistencyReporter:
         assert report == mock_report
         self.session.get.assert_called_once_with(ConsistencyReport, 1)
 
-    def test_get_reports_by_job(self):
+    def test_get_reports_by_job(self) -> None:
         """Test retrieving reports by job ID."""
         # Mock query results
         mock_reports = [Mock(), Mock()]
@@ -206,7 +207,7 @@ class TestConsistencyReporter:
         mock_filtered.order_by.assert_called_once()
         mock_ordered.all.assert_called_once()
 
-    def test_get_recent_reports(self):
+    def test_get_recent_reports(self) -> None:
         """Test retrieving recent reports."""
         # Mock query results
         mock_reports = [Mock(), Mock()]
@@ -228,7 +229,7 @@ class TestConsistencyReporter:
         mock_ordered.limit.assert_called_once_with(5)
         mock_limited.all.assert_called_once()
 
-    def test_get_report_summary(self):
+    def test_get_report_summary(self) -> None:
         """Test getting report summary."""
         # Mock report with JSON data
         mock_report = Mock()
@@ -257,7 +258,7 @@ class TestConsistencyReporter:
         assert summary.duration_seconds == 10.5
         assert summary.status == "success"
 
-    def test_get_report_summary_not_found(self):
+    def test_get_report_summary_not_found(self) -> None:
         """Test getting report summary when report not found."""
         # Mock report not found
         self.session.get.return_value = None
@@ -268,7 +269,7 @@ class TestConsistencyReporter:
         # Verify summary
         assert summary is None
 
-    def test_generate_detailed_report(self):
+    def test_generate_detailed_report(self) -> None:
         """Test generating detailed report."""
         # Mock report
         mock_report = Mock()
@@ -303,7 +304,7 @@ class TestConsistencyReporter:
                 resolution_status="success",
                 resolution_message="Resolved",
                 resolution_timestamp=datetime.now(timezone.utc),
-                created_at=datetime.now(timezone.utc)
+                created_at=datetime.now(timezone.utc),
             )
         ]
 
@@ -329,7 +330,7 @@ class TestConsistencyReporter:
         assert detailed_report["conflicts"][0]["conflict_type"] == "VERSION_MISMATCH"
         assert detailed_report["error"] is None
 
-    def test_update_conflict_resolution(self):
+    def test_update_conflict_resolution(self) -> None:
         """Test updating conflict resolution."""
         # Mock conflict
         mock_conflict = Mock()
@@ -349,7 +350,7 @@ class TestConsistencyReporter:
         # Verify database operations
         self.session.commit.assert_called_once()
 
-    def test_cleanup_old_reports(self):
+    def test_cleanup_old_reports(self) -> None:
         """Test cleaning up old reports."""
         # Mock old reports and conflicts
         mock_old_conflicts = [Mock(), Mock()]
@@ -357,7 +358,9 @@ class TestConsistencyReporter:
 
         # Mock query for old conflicts
         mock_conflict_query = Mock()
-        mock_conflict_query.join.return_value.filter.return_value.all.return_value = mock_old_conflicts
+        mock_conflict_query.join.return_value.filter.return_value.all.return_value = (
+            mock_old_conflicts
+        )
         self.session.query.return_value = mock_conflict_query
 
         # Mock query for old reports
@@ -374,7 +377,7 @@ class TestConsistencyReporter:
         assert mock_report_query.filter.called
         self.session.commit.assert_called_once()
 
-    def test_report_not_found_error(self):
+    def test_report_not_found_error(self) -> None:
         """Test error handling when report not found."""
         # Mock report not found
         self.session.get.return_value = None
@@ -384,16 +387,20 @@ class TestConsistencyReporter:
             self.reporter.update_report_with_conflicts(999, [])
 
         with pytest.raises(ValueError, match="Report 999 not found"):
-            self.reporter.update_report_with_resolution(999, [], ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH)
+            self.reporter.update_report_with_resolution(
+                999, [], ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH
+            )
 
         with pytest.raises(ValueError, match="Report 999 not found"):
             self.reporter.update_report_with_error(999, "Test error")
 
-    def test_conflict_not_found_error(self):
+    def test_conflict_not_found_error(self) -> None:
         """Test error handling when conflict not found."""
         # Mock conflict not found
         self.session.get.return_value = None
 
         # Test updating non-existent conflict
         with pytest.raises(ValueError, match="Conflict 999 not found"):
-            self.reporter.update_conflict_resolution(999, ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH, True)
+            self.reporter.update_conflict_resolution(
+                999, ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH, True
+            )

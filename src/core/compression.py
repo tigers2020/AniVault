@@ -20,6 +20,27 @@ except ImportError:
 from .logging_utils import logger
 
 
+class CacheDeserializationError(Exception):
+    """Exception raised when cache data deserialization fails."""
+
+    def __init__(self, message: str, original_error: Exception | None = None) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Error message describing the deserialization failure
+            original_error: The original exception that caused the failure
+        """
+        super().__init__(message)
+        self.message = message
+        self.original_error = original_error
+
+    def __str__(self) -> str:
+        """Return string representation of the exception."""
+        if self.original_error:
+            return f"{self.message} (Original error: {self.original_error})"
+        return self.message
+
+
 @dataclass
 class CompressionStats:
     """Statistics for compression operations."""
@@ -364,3 +385,53 @@ class CompressionManager:
 
 # Global compression manager instance
 compression_manager = CompressionManager()
+
+
+# Export public classes and functions
+@dataclass
+class VersionedDataWrapper:
+    """Wrapper for versioned data with compression support."""
+
+    version: int
+    data_type: str
+    compressed: bool
+    data: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert wrapper to dictionary.
+
+        Returns:
+            Dictionary representation of the wrapper
+        """
+        return {
+            "v": self.version,
+            "type": self.data_type,
+            "compressed": self.compressed,
+            "data": self.data,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "VersionedDataWrapper":
+        """Create wrapper from dictionary.
+
+        Args:
+            data: Dictionary containing wrapper data
+
+        Returns:
+            VersionedDataWrapper instance
+        """
+        return cls(
+            version=data["v"],
+            data_type=data["type"],
+            compressed=data["compressed"],
+            data=data["data"],
+        )
+
+
+__all__ = [
+    "CacheDeserializationError",
+    "CompressionManager",
+    "CompressionStats",
+    "VersionedDataWrapper",
+    "compression_manager",
+]

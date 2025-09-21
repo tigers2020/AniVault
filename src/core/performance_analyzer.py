@@ -66,7 +66,7 @@ class BottleneckAnalysis:
 class PerformanceAnalyzer:
     """Analyzes performance data and provides optimization recommendations."""
 
-    def __init__(self, profiler: SyncProfiler | None = None):
+    def __init__(self, profiler: SyncProfiler | None = None) -> None:
         """Initialize the performance analyzer.
 
         Args:
@@ -200,7 +200,7 @@ class PerformanceAnalyzer:
 
         thresholds = self.performance_thresholds[event_type]
         avg_duration = bottleneck_data["avg_duration_ms"]
-        max_duration = bottleneck_data["max_duration_ms"]
+        bottleneck_data["max_duration_ms"]
         throughput = bottleneck_data["avg_throughput_per_sec"]
         total_ops = bottleneck_data["total_operations"]
         success_rate = bottleneck_data["success_rate"]

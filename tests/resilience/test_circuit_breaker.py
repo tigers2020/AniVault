@@ -1,5 +1,4 @@
-"""
-Unit tests for circuit breaker state transitions.
+"""Unit tests for circuit breaker state transitions.
 
 This module contains isolated unit tests to verify the circuit breaker's core state
 transitions: CLOSED -> OPEN, OPEN -> HALF-OPEN, and recovery/re-opening from HALF-OPEN.
@@ -11,43 +10,32 @@ Author: AniVault Development Team
 Created: 2025-01-20
 """
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from typing import Any, Callable
+from typing import NoReturn
+from unittest.mock import Mock
 
-from pybreaker import CircuitBreaker, CircuitBreakerError
-
+import pytest
+from pybreaker import CircuitBreakerError
 from sqlalchemy.exc import (
     OperationalError,
-    DisconnectionError,
-    InterfaceError,
-    TimeoutError,
-    IntegrityError,
-    ProgrammingError,
-    DataError,
 )
 
 from src.core.circuit_breaker import (
-    CircuitState,
     CircuitBreakerConfiguration,
-    DatabaseCircuitBreakerListener,
-    CircuitBreakerManager,
-    create_database_circuit_breaker,
-    circuit_breaker_protect,
-    is_circuit_breaker_open,
     circuit_breaker_manager,
+    circuit_breaker_protect,
+    create_database_circuit_breaker,
 )
 
 
 class TestCircuitBreakerStateTransitions:
     """Test cases for circuit breaker state transitions in isolation."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test method by clearing circuit breaker manager."""
         circuit_breaker_manager._circuit_breakers.clear()
 
-    def test_circuit_breaker_closed_to_open_transition(self):
+    def test_circuit_breaker_closed_to_open_transition(self) -> None:
         """Test circuit breaker transitioning from CLOSED to OPEN state.
 
         This test simulates failures (sqlalchemy.exc.OperationalError) exceeding
@@ -64,7 +52,7 @@ class TestCircuitBreakerStateTransitions:
         assert circuit_breaker.current_state == "closed"
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails with OperationalError."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -78,7 +66,7 @@ class TestCircuitBreakerStateTransitions:
             failing_database_operation()
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_open_state_rejects_calls(self):
+    def test_circuit_breaker_open_state_rejects_calls(self) -> None:
         """Test that subsequent calls are immediately rejected when OPEN.
 
         When the circuit breaker is in OPEN state, it should immediately reject
@@ -92,7 +80,7 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -109,7 +97,7 @@ class TestCircuitBreakerStateTransitions:
         # The circuit breaker should reject immediately without calling the function
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_open_to_half_open_transition(self):
+    def test_circuit_breaker_open_to_half_open_transition(self) -> None:
         """Test circuit breaker transitioning from OPEN to HALF-OPEN state.
 
         After the reset_timeout period, the circuit should transition to HALF-OPEN
@@ -123,7 +111,7 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -142,7 +130,7 @@ class TestCircuitBreakerStateTransitions:
         # The circuit should be back to open because the trial failed
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_half_open_to_closed_recovery(self):
+    def test_circuit_breaker_half_open_to_closed_recovery(self) -> None:
         """Test circuit breaker transitioning from HALF-OPEN to CLOSED on success.
 
         A successful trial operation in the HALF-OPEN state should move the breaker
@@ -156,12 +144,12 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="failing_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="successful_operation")
-        def successful_database_operation():
+        def successful_database_operation() -> str:
             """Simulate a successful database operation."""
             return "operation_successful"
 
@@ -178,7 +166,7 @@ class TestCircuitBreakerStateTransitions:
         assert result == "operation_successful"
         assert circuit_breaker.current_state == "closed"
 
-    def test_circuit_breaker_half_open_to_open_repeated_failure(self):
+    def test_circuit_breaker_half_open_to_open_repeated_failure(self) -> None:
         """Test circuit breaker transitioning from HALF-OPEN back to OPEN on failure.
 
         A failed trial operation in the HALF-OPEN state should move the breaker
@@ -192,7 +180,7 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -210,7 +198,7 @@ class TestCircuitBreakerStateTransitions:
 
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_state_persistence_across_operations(self):
+    def test_circuit_breaker_state_persistence_across_operations(self) -> None:
         """Test that circuit breaker state persists across multiple operation calls.
 
         The circuit breaker should maintain its state across different operations
@@ -224,12 +212,12 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="operation1")
-        def database_operation_1():
+        def database_operation_1() -> NoReturn:
             """First database operation."""
             raise OperationalError("Connection lost", {}, None)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="operation2")
-        def database_operation_2():
+        def database_operation_2() -> NoReturn:
             """Second database operation."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -253,7 +241,7 @@ class TestCircuitBreakerStateTransitions:
         with pytest.raises(CircuitBreakerError):
             database_operation_2()
 
-    def test_circuit_breaker_with_time_mock(self):
+    def test_circuit_breaker_with_time_mock(self) -> None:
         """Test circuit breaker state transitions using time mocking.
 
         This test uses a shorter reset_timeout to verify the half-open transition.
@@ -266,7 +254,7 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -285,7 +273,7 @@ class TestCircuitBreakerStateTransitions:
         # The circuit should be back to open because the trial failed
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_statistics_tracking(self):
+    def test_circuit_breaker_statistics_tracking(self) -> None:
         """Test that circuit breaker correctly tracks statistics during state transitions."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_stats",
@@ -295,7 +283,7 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -315,7 +303,7 @@ class TestCircuitBreakerStateTransitions:
         assert circuit_breaker.fail_counter == 2
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_configuration_validation(self):
+    def test_circuit_breaker_configuration_validation(self) -> None:
         """Test that circuit breaker respects configuration parameters."""
         # Test with custom fail_max
         config = CircuitBreakerConfiguration(
@@ -326,7 +314,7 @@ class TestCircuitBreakerStateTransitions:
         circuit_breaker = create_database_circuit_breaker(config)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 
@@ -347,11 +335,11 @@ class TestCircuitBreakerStateTransitions:
 class TestCircuitBreakerIsolation:
     """Test cases for circuit breaker isolation and independent operation."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test method by clearing circuit breaker manager."""
         circuit_breaker_manager._circuit_breakers.clear()
 
-    def test_multiple_circuit_breakers_independence(self):
+    def test_multiple_circuit_breakers_independence(self) -> None:
         """Test that multiple circuit breakers operate independently."""
         config1 = CircuitBreakerConfiguration(
             name="test_circuit_1",
@@ -368,11 +356,11 @@ class TestCircuitBreakerIsolation:
         circuit_breaker2 = create_database_circuit_breaker(config2)
 
         @circuit_breaker_protect(circuit_breaker1, operation_name="operation1")
-        def operation_1():
+        def operation_1() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         @circuit_breaker_protect(circuit_breaker2, operation_name="operation2")
-        def operation_2():
+        def operation_2() -> NoReturn:
             raise OperationalError("Connection lost", {}, None)
 
         # Trip circuit breaker 1
@@ -393,7 +381,7 @@ class TestCircuitBreakerIsolation:
         assert circuit_breaker1.current_state == "open"
         assert circuit_breaker2.current_state == "open"
 
-    def test_circuit_breaker_listener_integration(self):
+    def test_circuit_breaker_listener_integration(self) -> None:
         """Test that circuit breaker listeners are properly integrated."""
         config = CircuitBreakerConfiguration(
             name="test_circuit_with_listener",
@@ -414,7 +402,7 @@ class TestCircuitBreakerIsolation:
         circuit_breaker = create_database_circuit_breaker(config, listener=mock_listener)
 
         @circuit_breaker_protect(circuit_breaker, operation_name="test_db_operation")
-        def failing_database_operation():
+        def failing_database_operation() -> NoReturn:
             """Simulate a database operation that fails."""
             raise OperationalError("Connection lost", {}, None)
 

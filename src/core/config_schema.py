@@ -21,7 +21,7 @@ class ConfigSchemaValidator:
     structure including type checking, value validation, and dependency validation.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the schema validator."""
         self.validator = ConfigValidator()
         self._schema = self._define_schema()

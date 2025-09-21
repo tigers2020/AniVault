@@ -5,13 +5,14 @@ deterministic behavior, no collisions, and improved cache hit rates.
 """
 
 import pytest
+
 from src.core.cache_key_generator import CacheKeyGenerator, get_cache_key_generator
 
 
 class TestCacheKeyGenerator:
     """Test cases for CacheKeyGenerator class."""
 
-    def test_tmdb_search_key_generation(self):
+    def test_tmdb_search_key_generation(self) -> None:
         """Test TMDB search key generation with various inputs."""
         generator = CacheKeyGenerator()
 
@@ -33,7 +34,7 @@ class TestCacheKeyGenerator:
         key6 = generator.generate_tmdb_search_key("Attack on Titan Final Season", "ko-KR")
         assert key5 == key6, "Special characters should be normalized consistently"
 
-    def test_tmdb_multi_key_generation(self):
+    def test_tmdb_multi_key_generation(self) -> None:
         """Test TMDB multi search key generation."""
         generator = CacheKeyGenerator()
 
@@ -50,7 +51,7 @@ class TestCacheKeyGenerator:
         key4 = generator.generate_tmdb_multi_key("One Piece", "ko-KR", "KR", True)
         assert key1 != key4, "Different include_adult values should generate different keys"
 
-    def test_tmdb_details_key_generation(self):
+    def test_tmdb_details_key_generation(self) -> None:
         """Test TMDB details key generation."""
         generator = CacheKeyGenerator()
 
@@ -67,7 +68,7 @@ class TestCacheKeyGenerator:
         key4 = generator.generate_tmdb_details_key("tv", 67890, "ko-KR")
         assert key1 != key4, "Different IDs should generate different keys"
 
-    def test_tmdb_series_key_generation(self):
+    def test_tmdb_series_key_generation(self) -> None:
         """Test TMDB series key generation."""
         generator = CacheKeyGenerator()
 
@@ -80,7 +81,7 @@ class TestCacheKeyGenerator:
         key3 = generator.generate_tmdb_series_key(12345, "en-US")
         assert key1 != key3, "Different languages should generate different keys"
 
-    def test_tmdb_anime_key_generation(self):
+    def test_tmdb_anime_key_generation(self) -> None:
         """Test TMDB anime key generation."""
         generator = CacheKeyGenerator()
 
@@ -93,7 +94,7 @@ class TestCacheKeyGenerator:
         key3 = generator.generate_tmdb_anime_key(67890)
         assert key1 != key3, "Different IDs should generate different keys"
 
-    def test_file_key_generation(self):
+    def test_file_key_generation(self) -> None:
         """Test file key generation."""
         generator = CacheKeyGenerator()
 
@@ -108,10 +109,10 @@ class TestCacheKeyGenerator:
 
         # Test path normalization
         key4 = generator.generate_file_key("\\path\\to\\anime.mkv")  # Windows path
-        key5 = generator.generate_file_key("/path/to/anime.mkv")    # Unix path
+        key5 = generator.generate_file_key("/path/to/anime.mkv")  # Unix path
         assert key4 == key5, "Normalized paths should generate same keys"
 
-    def test_anime_metadata_key_generation(self):
+    def test_anime_metadata_key_generation(self) -> None:
         """Test anime metadata key generation."""
         generator = CacheKeyGenerator()
 
@@ -124,7 +125,7 @@ class TestCacheKeyGenerator:
         key3 = generator.generate_anime_metadata_key(67890)
         assert key1 != key3, "Different IDs should generate different keys"
 
-    def test_parsed_file_meta_key_generation(self):
+    def test_parsed_file_meta_key_generation(self) -> None:
         """Test parsed file metadata key generation."""
         generator = CacheKeyGenerator()
 
@@ -137,7 +138,7 @@ class TestCacheKeyGenerator:
         key3 = generator.generate_parsed_file_meta_key(456)
         assert key1 != key3, "Different IDs should generate different keys"
 
-    def test_key_normalization(self):
+    def test_key_normalization(self) -> None:
         """Test key normalization functionality."""
         generator = CacheKeyGenerator()
 
@@ -155,7 +156,7 @@ class TestCacheKeyGenerator:
         key4 = generator.generate_tmdb_search_key(query4, "ko-KR")
         assert key3 == key4, "Special characters should be normalized consistently"
 
-    def test_key_hashing(self):
+    def test_key_hashing(self) -> None:
         """Test key hashing for long keys."""
         generator = CacheKeyGenerator(use_hashing=True)
 
@@ -171,7 +172,7 @@ class TestCacheKeyGenerator:
         key2 = generator.generate_tmdb_search_key(long_query, "ko-KR")
         assert key == key2, "Same long query should generate same hashed key"
 
-    def test_no_hashing_mode(self):
+    def test_no_hashing_mode(self) -> None:
         """Test key generation without hashing."""
         generator = CacheKeyGenerator(use_hashing=False)
 
@@ -180,9 +181,11 @@ class TestCacheKeyGenerator:
         key = generator.generate_tmdb_search_key(long_query, "ko-KR")
 
         # Key should contain the full query
-        assert long_query.lower().strip() in key, "Key should contain full query when hashing disabled"
+        assert (
+            long_query.lower().strip() in key
+        ), "Key should contain full query when hashing disabled"
 
-    def test_key_collision_detection(self):
+    def test_key_collision_detection(self) -> None:
         """Test that different inputs don't generate colliding keys."""
         generator = CacheKeyGenerator()
 
@@ -209,7 +212,7 @@ class TestCacheKeyGenerator:
         # All keys should be unique (3 search + 2 details + 2 tmdb + 2 file = 9)
         assert len(keys) == 9, f"Expected 9 unique keys, got {len(keys)}: {keys}"
 
-    def test_semantic_equivalence(self):
+    def test_semantic_equivalence(self) -> None:
         """Test that semantically equivalent inputs generate same keys."""
         generator = CacheKeyGenerator()
 
@@ -226,21 +229,23 @@ class TestCacheKeyGenerator:
         keys = [generator.generate_tmdb_search_key(q, "ko-KR") for q in queries]
 
         # All should generate the same key
-        assert all(key == keys[0] for key in keys), "Semantically equivalent queries should generate same keys"
+        assert all(
+            key == keys[0] for key in keys
+        ), "Semantically equivalent queries should generate same keys"
 
-    def test_key_info_extraction(self):
+    def test_key_info_extraction(self) -> None:
         """Test key information extraction for debugging."""
         generator = CacheKeyGenerator()
 
         key = generator.generate_tmdb_search_key("Test Query", "ko-KR")
         info = generator.extract_key_info(key)
 
-        assert info['type'] == 'search'
-        assert 'raw' in info
-        assert 'parts' in info
-        assert 'is_hashed' in info
+        assert info["type"] == "search"
+        assert "raw" in info
+        assert "parts" in info
+        assert "is_hashed" in info
 
-    def test_global_generator_instance(self):
+    def test_global_generator_instance(self) -> None:
         """Test global generator instance."""
         generator1 = get_cache_key_generator()
         generator2 = get_cache_key_generator()
@@ -253,7 +258,7 @@ class TestCacheKeyGenerator:
         key2 = generator2.generate_tmdb_search_key("Test", "ko-KR")
         assert key1 == key2, "Global generator should work consistently"
 
-    def test_edge_cases(self):
+    def test_edge_cases(self) -> None:
         """Test edge cases and error conditions."""
         generator = CacheKeyGenerator()
 
@@ -267,7 +272,7 @@ class TestCacheKeyGenerator:
         key4 = generator.generate_tmdb_search_key("", "ko-KR")
         assert key3 == key4, "Whitespace-only queries should be normalized to empty"
 
-    def test_performance_with_many_keys(self):
+    def test_performance_with_many_keys(self) -> None:
         """Test performance with many key generations."""
         generator = CacheKeyGenerator()
 
@@ -289,7 +294,7 @@ class TestCacheKeyGenerator:
 class TestCacheKeyIntegration:
     """Integration tests for cache key generation with real data."""
 
-    def test_real_anime_queries(self):
+    def test_real_anime_queries(self) -> None:
         """Test with real anime query examples."""
         generator = CacheKeyGenerator()
 
@@ -304,7 +309,7 @@ class TestCacheKeyIntegration:
             "Fullmetal Alchemist: Brotherhood",
             "Hunter x Hunter",
             "Dragon Ball Z",
-            "Spirited Away"
+            "Spirited Away",
         ]
 
         keys = []
@@ -320,7 +325,7 @@ class TestCacheKeyIntegration:
             key = generator.generate_tmdb_search_key(title, "ko-KR")
             assert key == keys[i], f"Key for '{title}' should be deterministic"
 
-    def test_file_path_variations(self):
+    def test_file_path_variations(self) -> None:
         """Test with various file path formats."""
         generator = CacheKeyGenerator()
 
@@ -330,7 +335,7 @@ class TestCacheKeyIntegration:
             "C:\\Users\\user\\anime\\One Piece\\episode_001.mp4",
             "/anime/Naruto/season_1/episode_01.avi",
             "D:/Anime/Demon Slayer/S01E01.mkv",
-            "/media/anime/My Hero Academia/season_1/episode_01.mkv"
+            "/media/anime/My Hero Academia/season_1/episode_01.mkv",
         ]
 
         keys = []
@@ -346,7 +351,7 @@ class TestCacheKeyIntegration:
             key = generator.generate_file_key(path)
             assert key == keys[i], f"Key for '{path}' should be deterministic"
 
-    def test_language_variations(self):
+    def test_language_variations(self) -> None:
         """Test with different language codes."""
         generator = CacheKeyGenerator()
 

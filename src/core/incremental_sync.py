@@ -7,6 +7,7 @@ since the last successful synchronization, rather than transferring entire datas
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
@@ -48,7 +49,7 @@ class IncrementalSyncResult:
 class SyncStateManager:
     """Manages synchronization state for different entity types."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the sync state manager."""
         self._sync_states: dict[SyncEntityType, SyncState] = {}
         self._state_lock = {}
@@ -170,7 +171,7 @@ class SyncStateManager:
 class IncrementalSyncManager:
     """Manages incremental synchronization operations."""
 
-    def __init__(self, db_manager, cache_manager):
+    def __init__(self, db_manager: Any, cache_manager: Any) -> None:
         """Initialize the incremental sync manager.
 
         Args:

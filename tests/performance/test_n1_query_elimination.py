@@ -6,11 +6,9 @@ and replaced with efficient batch operations.
 
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
-from sqlalchemy import event, text
-from sqlalchemy.engine import Engine
 
 from src.core.database import DatabaseManager
 from src.core.services.bulk_update_task import ConcreteBulkUpdateTask
@@ -24,10 +22,22 @@ class QueryInterceptor:
     """Intercepts and counts database queries for analysis."""
 
     def __init__(self) -> None:
-        self.queries: List[str] = []
+        """Initialize the query interceptor.
+
+        Sets up tracking variables for database query monitoring.
+        """
+        self.queries: list[str] = []
         self.query_count = 0
 
-    def intercept_query(self, conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, executemany: Any) -> None:
+    def intercept_query(
+        self,
+        conn: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: Any,
+    ) -> None:
         """Intercept and log database queries."""
         self.queries.append(statement)
         self.query_count += 1
@@ -38,15 +48,9 @@ class QueryInterceptor:
         self.queries.clear()
         self.query_count = 0
 
-    def get_query_types(self) -> Dict[str, int]:
+    def get_query_types(self) -> dict[str, int]:
         """Analyze query types from intercepted queries."""
-        query_types = {
-            "SELECT": 0,
-            "INSERT": 0,
-            "UPDATE": 0,
-            "DELETE": 0,
-            "BULK_UPDATE": 0
-        }
+        query_types = {"SELECT": 0, "INSERT": 0, "UPDATE": 0, "DELETE": 0, "BULK_UPDATE": 0}
 
         for query in self.queries:
             query_upper = query.upper().strip()
@@ -66,6 +70,11 @@ class N1QueryEliminationTest:
     """Test suite for verifying N+1 query elimination."""
 
     def __init__(self, db_manager: DatabaseManager) -> None:
+        """Initialize the N+1 query elimination test suite.
+
+        Args:
+            db_manager: Database manager instance for database operations.
+        """
         self.db_manager = db_manager
         self.db_manager.initialize()  # Ensure database is initialized
         self.interceptor = QueryInterceptor()
@@ -80,7 +89,7 @@ class N1QueryEliminationTest:
         # No cleanup needed for simple approach
         pass
 
-    def test_bulk_anime_metadata_status_update_n1_elimination(self) -> Dict[str, Any]:
+    def test_bulk_anime_metadata_status_update_n1_elimination(self) -> dict[str, Any]:
         """Test that bulk anime metadata status updates eliminate N+1 queries.
 
         Returns:
@@ -95,11 +104,13 @@ class N1QueryEliminationTest:
 
             # Test bulk update (optimized approach)
             start_time = time.time()
-            updated_count = self.db_manager.bulk_update_anime_metadata_by_status(tmdb_ids, "processed")
+            updated_count = self.db_manager.bulk_update_anime_metadata_by_status(
+                tmdb_ids, "processed"
+            )
             end_time = time.time()
             execution_time = end_time - start_time
 
-            logger.info(f"Bulk anime metadata status update results:")
+            logger.info("Bulk anime metadata status update results:")
             logger.info(f"  Records updated: {updated_count}")
             logger.info(f"  Execution time: {execution_time:.3f}s")
 
@@ -117,7 +128,7 @@ class N1QueryEliminationTest:
                 "execution_time": execution_time,
                 "is_n1_eliminated": is_n1_eliminated,
                 "total_queries": 1,  # Assumed for bulk update
-                "query_types": {"UPDATE": 1, "TOTAL": 1}
+                "query_types": {"UPDATE": 1, "TOTAL": 1},
             }
 
         except Exception as e:
@@ -126,10 +137,10 @@ class N1QueryEliminationTest:
                 "test_name": "bulk_anime_metadata_status_update_n1_elimination",
                 "status": "FAILED",
                 "error": str(e),
-                "is_n1_eliminated": False
+                "is_n1_eliminated": False,
             }
 
-    def test_bulk_parsed_files_status_update_n1_elimination(self) -> Dict[str, Any]:
+    def test_bulk_parsed_files_status_update_n1_elimination(self) -> dict[str, Any]:
         """Test that bulk parsed files status updates eliminate N+1 queries.
 
         Returns:
@@ -140,11 +151,13 @@ class N1QueryEliminationTest:
         # Setup test data
         test_updates = []
         for i in range(100):
-            test_updates.append({
-                "file_path": f"/test/path/anime_{i}.mkv",
-                "is_processed": True,
-                "processing_status": "completed"
-            })
+            test_updates.append(
+                {
+                    "file_path": f"/test/path/anime_{i}.mkv",
+                    "is_processed": True,
+                    "processing_status": "completed",
+                }
+            )
 
         self.interceptor.clear()
         self.setup_query_interception()
@@ -154,9 +167,7 @@ class N1QueryEliminationTest:
 
             # Execute bulk update
             bulk_task = ConcreteBulkUpdateTask(
-                update_type="parsed_files",
-                updates=test_updates,
-                db_manager=self.db_manager
+                update_type="parsed_files", updates=test_updates, db_manager=self.db_manager
             )
             updated_count = bulk_task.execute()
 
@@ -167,7 +178,7 @@ class N1QueryEliminationTest:
             query_types = self.interceptor.get_query_types()
             total_queries = self.interceptor.query_count
 
-            logger.info(f"Bulk parsed files status update results:")
+            logger.info("Bulk parsed files status update results:")
             logger.info(f"  Records updated: {updated_count}")
             logger.info(f"  Total queries: {total_queries}")
             logger.info(f"  Query types: {query_types}")
@@ -188,13 +199,13 @@ class N1QueryEliminationTest:
                 "execution_time": execution_time,
                 "is_n1_eliminated": is_n1_eliminated,
                 "has_bulk_updates": has_bulk_updates,
-                "queries_per_record": total_queries / len(test_updates) if test_updates else 0
+                "queries_per_record": total_queries / len(test_updates) if test_updates else 0,
             }
 
         finally:
             self.teardown_query_interception()
 
-    def test_mixed_update_types_n1_elimination(self) -> Dict[str, Any]:
+    def test_mixed_update_types_n1_elimination(self) -> dict[str, Any]:
         """Test N+1 elimination with mixed update types.
 
         Returns:
@@ -207,17 +218,17 @@ class N1QueryEliminationTest:
         file_updates = []
 
         for i in range(50):
-            anime_updates.append({
-                "tmdb_id": 2000 + i,
-                "status": "processed",
-                "title": f"Test Anime {i}"
-            })
+            anime_updates.append(
+                {"tmdb_id": 2000 + i, "status": "processed", "title": f"Test Anime {i}"}
+            )
 
-            file_updates.append({
-                "file_path": f"/test/mixed/anime_{i}.mkv",
-                "is_processed": True,
-                "processing_status": "completed"
-            })
+            file_updates.append(
+                {
+                    "file_path": f"/test/mixed/anime_{i}.mkv",
+                    "is_processed": True,
+                    "processing_status": "completed",
+                }
+            )
 
         total_updates = len(anime_updates) + len(file_updates)
 
@@ -229,17 +240,13 @@ class N1QueryEliminationTest:
 
             # Execute anime metadata bulk update
             anime_task = ConcreteBulkUpdateTask(
-                update_type="anime_metadata",
-                updates=anime_updates,
-                db_manager=self.db_manager
+                update_type="anime_metadata", updates=anime_updates, db_manager=self.db_manager
             )
             anime_updated = anime_task.execute()
 
             # Execute parsed files bulk update
             file_task = ConcreteBulkUpdateTask(
-                update_type="parsed_files",
-                updates=file_updates,
-                db_manager=self.db_manager
+                update_type="parsed_files", updates=file_updates, db_manager=self.db_manager
             )
             file_updated = file_task.execute()
 
@@ -250,7 +257,7 @@ class N1QueryEliminationTest:
             query_types = self.interceptor.get_query_types()
             total_queries = self.interceptor.query_count
 
-            logger.info(f"Mixed update types results:")
+            logger.info("Mixed update types results:")
             logger.info(f"  Anime records updated: {anime_updated}")
             logger.info(f"  File records updated: {file_updated}")
             logger.info(f"  Total queries: {total_queries}")
@@ -274,13 +281,13 @@ class N1QueryEliminationTest:
                 "execution_time": execution_time,
                 "is_n1_eliminated": is_n1_eliminated,
                 "has_bulk_updates": has_bulk_updates,
-                "queries_per_record": total_queries / total_updates if total_updates > 0 else 0
+                "queries_per_record": total_queries / total_updates if total_updates > 0 else 0,
             }
 
         finally:
             self.teardown_query_interception()
 
-    def test_large_batch_n1_elimination(self) -> Dict[str, Any]:
+    def test_large_batch_n1_elimination(self) -> dict[str, Any]:
         """Test N+1 elimination with large batch sizes.
 
         Returns:
@@ -291,10 +298,7 @@ class N1QueryEliminationTest:
         # Setup large test data
         test_updates = []
         for i in range(1000):
-            test_updates.append({
-                "tmdb_id": 3000 + i,
-                "status": "processed"
-            })
+            test_updates.append({"tmdb_id": 3000 + i, "status": "processed"})
 
         self.interceptor.clear()
         self.setup_query_interception()
@@ -304,9 +308,7 @@ class N1QueryEliminationTest:
 
             # Execute bulk update
             bulk_task = ConcreteBulkUpdateTask(
-                update_type="anime_metadata",
-                updates=test_updates,
-                db_manager=self.db_manager
+                update_type="anime_metadata", updates=test_updates, db_manager=self.db_manager
             )
             updated_count = bulk_task.execute()
 
@@ -317,7 +319,7 @@ class N1QueryEliminationTest:
             query_types = self.interceptor.get_query_types()
             total_queries = self.interceptor.query_count
 
-            logger.info(f"Large batch update results:")
+            logger.info("Large batch update results:")
             logger.info(f"  Records updated: {updated_count}")
             logger.info(f"  Total queries: {total_queries}")
             logger.info(f"  Query types: {query_types}")
@@ -344,13 +346,13 @@ class N1QueryEliminationTest:
                 "is_n1_eliminated": is_n1_eliminated,
                 "has_bulk_updates": has_bulk_updates,
                 "queries_per_record": queries_per_record,
-                "records_per_query": records_per_query
+                "records_per_query": records_per_query,
             }
 
         finally:
             self.teardown_query_interception()
 
-    def run_all_n1_elimination_tests(self) -> Dict[str, Any]:
+    def run_all_n1_elimination_tests(self) -> dict[str, Any]:
         """Run all N+1 query elimination tests.
 
         Returns:
@@ -362,7 +364,7 @@ class N1QueryEliminationTest:
             "anime_metadata_test": self.test_bulk_anime_metadata_status_update_n1_elimination(),
             "parsed_files_test": self.test_bulk_parsed_files_status_update_n1_elimination(),
             "mixed_updates_test": self.test_mixed_update_types_n1_elimination(),
-            "large_batch_test": self.test_large_batch_n1_elimination()
+            "large_batch_test": self.test_large_batch_n1_elimination(),
         }
 
         # Generate summary
@@ -370,7 +372,7 @@ class N1QueryEliminationTest:
 
         return results
 
-    def _generate_n1_elimination_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_n1_elimination_summary(self, results: dict[str, Any]) -> dict[str, Any]:
         """Generate summary of N+1 elimination test results.
 
         Args:
@@ -384,7 +386,7 @@ class N1QueryEliminationTest:
             "total_tests": len(results) - 1,  # Exclude summary itself
             "n1_eliminated_tests": 0,
             "average_queries_per_record": 0.0,
-            "efficiency_metrics": {}
+            "efficiency_metrics": {},
         }
 
         total_queries = 0
@@ -412,7 +414,7 @@ class N1QueryEliminationTest:
         summary["efficiency_metrics"] = {
             "n1_elimination_rate": (summary["n1_eliminated_tests"] / summary["total_tests"]) * 100,
             "total_queries_analyzed": total_queries,
-            "total_records_processed": total_records
+            "total_records_processed": total_records,
         }
 
         return summary
@@ -432,19 +434,25 @@ async def test_n1_query_elimination():
         results = n1_test.run_all_n1_elimination_tests()
 
         # Log final results
-        logger.info("\n" + "="*60)
+        logger.info("\n" + "=" * 60)
         logger.info("N+1 QUERY ELIMINATION TEST RESULTS")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         summary = results["summary"]
 
-        logger.info(f"Test Summary:")
+        logger.info("Test Summary:")
         logger.info(f"  Total tests run: {summary['total_tests']}")
         logger.info(f"  N+1 eliminated tests: {summary['n1_eliminated_tests']}")
-        logger.info(f"  N+1 elimination rate: {summary['efficiency_metrics']['n1_elimination_rate']:.1f}%")
+        logger.info(
+            f"  N+1 elimination rate: {summary['efficiency_metrics']['n1_elimination_rate']:.1f}%"
+        )
         logger.info(f"  Average queries per record: {summary['average_queries_per_record']:.4f}")
-        logger.info(f"  Total queries analyzed: {summary['efficiency_metrics']['total_queries_analyzed']}")
-        logger.info(f"  Total records processed: {summary['efficiency_metrics']['total_records_processed']}")
+        logger.info(
+            f"  Total queries analyzed: {summary['efficiency_metrics']['total_queries_analyzed']}"
+        )
+        logger.info(
+            f"  Total records processed: {summary['efficiency_metrics']['total_records_processed']}"
+        )
 
         # Log individual test results
         for test_name, test_result in results.items():
@@ -454,15 +462,23 @@ async def test_n1_query_elimination():
             logger.info(f"\n{test_result['test_name']}:")
             logger.info(f"  Records updated: {test_result.get('records_updated', 0)}")
             logger.info(f"  Total queries: {test_result.get('total_queries', 0)}")
-            logger.info(f"  N+1 eliminated: {'✅' if test_result.get('is_n1_eliminated', False) else '❌'}")
-            logger.info(f"  Has bulk updates: {'✅' if test_result.get('has_bulk_updates', False) else '❌'}")
-            if 'queries_per_record' in test_result:
+            logger.info(
+                f"  N+1 eliminated: {'✅' if test_result.get('is_n1_eliminated', False) else '❌'}"
+            )
+            logger.info(
+                f"  Has bulk updates: {'✅' if test_result.get('has_bulk_updates', False) else '❌'}"
+            )
+            if "queries_per_record" in test_result:
                 logger.info(f"  Queries per record: {test_result['queries_per_record']:.4f}")
 
         # Assert N+1 elimination
         assert summary["all_tests_passed"], "Not all tests passed N+1 elimination"
-        assert summary["efficiency_metrics"]["n1_elimination_rate"] == 100.0, "N+1 elimination rate should be 100%"
-        assert summary["average_queries_per_record"] < 0.1, "Average queries per record should be < 0.1"
+        assert (
+            summary["efficiency_metrics"]["n1_elimination_rate"] == 100.0
+        ), "N+1 elimination rate should be 100%"
+        assert (
+            summary["average_queries_per_record"] < 0.1
+        ), "Average queries per record should be < 0.1"
 
         logger.info("\n✅ All N+1 query elimination tests passed!")
 
@@ -470,11 +486,12 @@ async def test_n1_query_elimination():
 
     finally:
         # Cleanup
-        if hasattr(db_manager, 'close'):
+        if hasattr(db_manager, "close"):
             db_manager.close()
 
 
 if __name__ == "__main__":
     # Run N+1 elimination tests directly
     import asyncio
+
     asyncio.run(test_n1_query_elimination())

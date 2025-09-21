@@ -1,11 +1,10 @@
 """Unit tests for database versioning functionality."""
 
 import pytest
-from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.database import AnimeMetadata, ParsedFile, Base
+from src.core.database import AnimeMetadata, Base, ParsedFile
 
 
 class TestDatabaseVersioning:
@@ -25,13 +24,9 @@ class TestDatabaseVersioning:
 
         session.close()
 
-    def test_anime_metadata_version_initialization(self, db_session):
+    def test_anime_metadata_version_initialization(self, db_session) -> None:
         """Test that AnimeMetadata version is initialized to 1."""
-        anime = AnimeMetadata(
-            tmdb_id=12345,
-            title="Test Anime",
-            overview="Test overview"
-        )
+        anime = AnimeMetadata(tmdb_id=12345, title="Test Anime", overview="Test overview")
 
         db_session.add(anime)
         db_session.commit()
@@ -39,13 +34,9 @@ class TestDatabaseVersioning:
         # Check that version is initialized to 1
         assert anime.version == 1
 
-    def test_anime_metadata_version_increment_on_update(self, db_session):
+    def test_anime_metadata_version_increment_on_update(self, db_session) -> None:
         """Test that AnimeMetadata version increments on update."""
-        anime = AnimeMetadata(
-            tmdb_id=12345,
-            title="Test Anime",
-            overview="Test overview"
-        )
+        anime = AnimeMetadata(tmdb_id=12345, title="Test Anime", overview="Test overview")
 
         db_session.add(anime)
         db_session.commit()
@@ -60,13 +51,9 @@ class TestDatabaseVersioning:
         # Check that version incremented
         assert anime.version == initial_version + 1
 
-    def test_anime_metadata_version_multiple_updates(self, db_session):
+    def test_anime_metadata_version_multiple_updates(self, db_session) -> None:
         """Test that AnimeMetadata version increments on multiple updates."""
-        anime = AnimeMetadata(
-            tmdb_id=12345,
-            title="Test Anime",
-            overview="Test overview"
-        )
+        anime = AnimeMetadata(tmdb_id=12345, title="Test Anime", overview="Test overview")
 
         db_session.add(anime)
         db_session.commit()
@@ -79,13 +66,13 @@ class TestDatabaseVersioning:
         # Check that version incremented for each update
         assert anime.version == 6  # 1 initial + 5 updates
 
-    def test_parsed_file_version_initialization(self, db_session):
+    def test_parsed_file_version_initialization(self, db_session) -> None:
         """Test that ParsedFile version is initialized to 1."""
         parsed_file = ParsedFile(
             file_path="/test/path/test.mkv",
             filename="test.mkv",
             file_size=1024,
-            parsed_title="Test Anime"
+            parsed_title="Test Anime",
         )
 
         db_session.add(parsed_file)
@@ -94,13 +81,13 @@ class TestDatabaseVersioning:
         # Check that version is initialized to 1
         assert parsed_file.version == 1
 
-    def test_parsed_file_version_increment_on_update(self, db_session):
+    def test_parsed_file_version_increment_on_update(self, db_session) -> None:
         """Test that ParsedFile version increments on update."""
         parsed_file = ParsedFile(
             file_path="/test/path/test.mkv",
             filename="test.mkv",
             file_size=1024,
-            parsed_title="Test Anime"
+            parsed_title="Test Anime",
         )
 
         db_session.add(parsed_file)
@@ -116,13 +103,13 @@ class TestDatabaseVersioning:
         # Check that version incremented
         assert parsed_file.version == initial_version + 1
 
-    def test_parsed_file_version_multiple_updates(self, db_session):
+    def test_parsed_file_version_multiple_updates(self, db_session) -> None:
         """Test that ParsedFile version increments on multiple updates."""
         parsed_file = ParsedFile(
             file_path="/test/path/test.mkv",
             filename="test.mkv",
             file_size=1024,
-            parsed_title="Test Anime"
+            parsed_title="Test Anime",
         )
 
         db_session.add(parsed_file)
@@ -136,13 +123,10 @@ class TestDatabaseVersioning:
         # Check that version incremented for each update
         assert parsed_file.version == 4  # 1 initial + 3 updates
 
-    def test_version_preserves_other_fields(self, db_session):
+    def test_version_preserves_other_fields(self, db_session) -> None:
         """Test that versioning doesn't affect other field updates."""
         anime = AnimeMetadata(
-            tmdb_id=12345,
-            title="Test Anime",
-            overview="Test overview",
-            vote_average=8.5
+            tmdb_id=12345, title="Test Anime", overview="Test overview", vote_average=8.5
         )
 
         db_session.add(anime)
@@ -165,13 +149,9 @@ class TestDatabaseVersioning:
         assert anime.overview == "Updated overview"
         assert anime.vote_average == 9.0
 
-    def test_version_with_transaction_rollback(self, db_session):
+    def test_version_with_transaction_rollback(self, db_session) -> None:
         """Test that version doesn't increment on rollback."""
-        anime = AnimeMetadata(
-            tmdb_id=12345,
-            title="Test Anime",
-            overview="Test overview"
-        )
+        anime = AnimeMetadata(tmdb_id=12345, title="Test Anime", overview="Test overview")
 
         db_session.add(anime)
         db_session.commit()
@@ -188,15 +168,13 @@ class TestDatabaseVersioning:
         assert anime.version == initial_version
         assert anime.title == "Test Anime"  # Should be reverted
 
-    def test_version_with_bulk_operations(self, db_session):
+    def test_version_with_bulk_operations(self, db_session) -> None:
         """Test that version increments work with bulk operations."""
         # Create multiple anime records
         anime_list = []
         for i in range(3):
             anime = AnimeMetadata(
-                tmdb_id=12345 + i,
-                title=f"Test Anime {i}",
-                overview=f"Test overview {i}"
+                tmdb_id=12345 + i, title=f"Test Anime {i}", overview=f"Test overview {i}"
             )
             anime_list.append(anime)
             db_session.add(anime)
@@ -217,14 +195,10 @@ class TestDatabaseVersioning:
         for anime in anime_list:
             assert anime.version == 2
 
-    def test_version_with_relationship_updates(self, db_session):
+    def test_version_with_relationship_updates(self, db_session) -> None:
         """Test that version increments work with relationship updates."""
         # Create anime metadata
-        anime = AnimeMetadata(
-            tmdb_id=12345,
-            title="Test Anime",
-            overview="Test overview"
-        )
+        anime = AnimeMetadata(tmdb_id=12345, title="Test Anime", overview="Test overview")
         db_session.add(anime)
         db_session.commit()
 
@@ -234,7 +208,7 @@ class TestDatabaseVersioning:
             filename="test.mkv",
             file_size=1024,
             parsed_title="Test Anime",
-            metadata_id=anime.tmdb_id
+            metadata_id=anime.tmdb_id,
         )
         db_session.add(parsed_file)
         db_session.commit()

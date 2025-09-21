@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CacheCompression:
     """Compression functionality for cache system."""
 
-    def __init__(self, enable_compression: bool = True, compression_threshold: int = 1024):
+    def __init__(self, enable_compression: bool = True, compression_threshold: int = 1024) -> None:
         """Initialize compression handler.
 
         Args:
@@ -29,7 +29,9 @@ class CacheCompression:
         self.enable_compression = enable_compression
         self.compression_threshold = compression_threshold
 
-    def apply_compression_if_needed(self, value: ParsedAnimeInfo | TMDBAnime) -> ParsedAnimeInfo | TMDBAnime | None:
+    def apply_compression_if_needed(
+        self, value: ParsedAnimeInfo | TMDBAnime
+    ) -> ParsedAnimeInfo | TMDBAnime | None:
         """Apply compression to value if beneficial.
 
         Args:
@@ -59,7 +61,7 @@ class CacheCompression:
 
             # Create a wrapper object to hold compressed data
             class CompressedValue:
-                def __init__(self, data: bytes, original_type: type):
+                def __init__(self, data: bytes, original_type: type) -> None:
                     self.compressed_data = data
                     self.original_type = original_type
 
@@ -69,7 +71,9 @@ class CacheCompression:
             logger.warning(f"Compression failed for value: {e}")
             return None
 
-    def decompress_if_needed(self, value: Any) -> ParsedAnimeInfo | TMDBAnime:
+    def decompress_if_needed(
+        self, value: ParsedAnimeInfo | TMDBAnime
+    ) -> ParsedAnimeInfo | TMDBAnime:
         """Decompress value if it's compressed.
 
         Args:
@@ -83,9 +87,11 @@ class CacheCompression:
 
         try:
             # Check if value is compressed
-            if hasattr(value, 'compressed_data') and hasattr(value, 'original_type'):
+            if hasattr(value, "compressed_data") and hasattr(value, "original_type"):
                 # Decompress
-                decompressed = compression_manager.decompress(value.compressed_data, value.original_type)
+                decompressed = compression_manager.decompress(
+                    value.compressed_data, value.original_type
+                )
                 if decompressed is not None:
                     return decompressed
 
@@ -120,10 +126,10 @@ class CacheCompression:
             Estimated size in bytes
         """
         size = 0
-        for field_name in ['title', 'season', 'episode', 'year', 'quality', 'group', 'file_path']:
+        for field_name in ["title", "season", "episode", "year", "quality", "group", "file_path"]:
             value = getattr(info, field_name, None)
             if value is not None:
-                size += len(str(value).encode('utf-8'))
+                size += len(str(value).encode("utf-8"))
         return size
 
     def _calculate_tmdb_anime_size(self, anime: TMDBAnime) -> int:
@@ -136,13 +142,13 @@ class CacheCompression:
             Estimated size in bytes
         """
         size = 0
-        for field_name in ['title', 'original_title', 'overview', 'poster_path', 'backdrop_path']:
+        for field_name in ["title", "original_title", "overview", "poster_path", "backdrop_path"]:
             value = getattr(anime, field_name, None)
             if value is not None:
-                size += len(str(value).encode('utf-8'))
+                size += len(str(value).encode("utf-8"))
         return size
 
-    def is_compressed(self, value: Any) -> bool:
+    def is_compressed(self, value: ParsedAnimeInfo | TMDBAnime) -> bool:
         """Check if value is compressed.
 
         Args:
@@ -151,9 +157,11 @@ class CacheCompression:
         Returns:
             True if value is compressed
         """
-        return hasattr(value, 'compressed_data') and hasattr(value, 'original_type')
+        return hasattr(value, "compressed_data") and hasattr(value, "original_type")
 
-    def get_compression_ratio(self, original_value: ParsedAnimeInfo | TMDBAnime, compressed_value: Any) -> float:
+    def get_compression_ratio(
+        self, original_value: ParsedAnimeInfo | TMDBAnime, compressed_value: bytes
+    ) -> float:
         """Calculate compression ratio.
 
         Args:
@@ -174,7 +182,9 @@ class CacheCompression:
 
         return compressed_size / original_size
 
-    def get_compression_savings(self, original_value: ParsedAnimeInfo | TMDBAnime, compressed_value: Any) -> int:
+    def get_compression_savings(
+        self, original_value: ParsedAnimeInfo | TMDBAnime, compressed_value: bytes
+    ) -> int:
         """Calculate compression savings in bytes.
 
         Args:
@@ -202,5 +212,7 @@ class CacheCompression:
             "compression_enabled": self.enable_compression,
             "compression_threshold": self.compression_threshold,
             "compression_manager_available": compression_manager is not None,
-            "compression_manager_status": compression_manager.get_status() if compression_manager else None
+            "compression_manager_status": (
+                compression_manager.get_status() if compression_manager else None
+            ),
         }

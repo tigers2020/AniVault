@@ -1,29 +1,31 @@
-"""
-Tests for synchronization monitoring and metrics collection.
-"""
+"""Tests for synchronization monitoring and metrics collection."""
+
+import time
+from typing import NoReturn
 
 import pytest
-import time
-from unittest.mock import Mock, patch
 
-from src.core.sync_monitoring import (
-    SyncMonitor, SyncOperationType, SyncOperationStatus,
-    SyncOperationMetrics, sync_monitor
-)
 from src.core.metrics_exporter import SyncMetricsExporter, metrics_exporter
-from src.core.metrics_server import MetricsServer, metrics_server
+from src.core.metrics_server import MetricsServer
+from src.core.sync_monitoring import (
+    SyncMonitor,
+    SyncOperationMetrics,
+    SyncOperationStatus,
+    SyncOperationType,
+    sync_monitor,
+)
 
 
 class TestSyncOperationMetrics:
     """Test SyncOperationMetrics dataclass."""
 
-    def test_metrics_creation(self):
+    def test_metrics_creation(self) -> None:
         """Test creating sync operation metrics."""
         metrics = SyncOperationMetrics(
             operation_id="test_1",
             operation_type=SyncOperationType.READ_THROUGH,
             status=SyncOperationStatus.STARTED,
-            start_time=time.time()
+            start_time=time.time(),
         )
 
         assert metrics.operation_id == "test_1"
@@ -32,40 +34,38 @@ class TestSyncOperationMetrics:
         assert metrics.affected_records == 0
         assert metrics.cache_hit is False
 
-    def test_metrics_completion(self):
+    def test_metrics_completion(self) -> None:
         """Test completing sync operation metrics."""
         metrics = SyncOperationMetrics(
             operation_id="test_2",
             operation_type=SyncOperationType.WRITE_THROUGH,
             status=SyncOperationStatus.STARTED,
-            start_time=time.time()
+            start_time=time.time(),
         )
 
         time.sleep(0.01)  # Small delay to ensure duration > 0
         metrics.complete(
             status=SyncOperationStatus.SUCCESS,
             affected_records=5,
-            additional_context={'key_type': 'tmdb'}
+            additional_context={"key_type": "tmdb"},
         )
 
         assert metrics.status == SyncOperationStatus.SUCCESS
         assert metrics.affected_records == 5
         assert metrics.duration_ms is not None
         assert metrics.duration_ms > 0
-        assert metrics.additional_context['key_type'] == 'tmdb'
+        assert metrics.additional_context["key_type"] == "tmdb"
 
 
 class TestSyncMonitor:
     """Test SyncMonitor class."""
 
-    def test_monitor_operation_success(self):
+    def test_monitor_operation_success(self) -> None:
         """Test monitoring a successful operation."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
         with monitor.monitor_operation(
-            SyncOperationType.READ_THROUGH,
-            cache_hit=False,
-            key="test_key"
+            SyncOperationType.READ_THROUGH, cache_hit=False, key="test_key"
         ) as metrics:
             time.sleep(0.01)  # Simulate work
             metrics.complete(SyncOperationStatus.SUCCESS, affected_records=1)
@@ -78,15 +78,12 @@ class TestSyncMonitor:
         assert stats.cache_misses == 1
         assert stats.total_affected_records == 1
 
-    def test_monitor_operation_failure(self):
+    def test_monitor_operation_failure(self) -> NoReturn:
         """Test monitoring a failed operation."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
         with pytest.raises(ValueError):
-            with monitor.monitor_operation(
-                SyncOperationType.WRITE_THROUGH,
-                cache_hit=True
-            ) as metrics:
+            with monitor.monitor_operation(SyncOperationType.WRITE_THROUGH, cache_hit=True):
                 raise ValueError("Test error")
 
         # Check that metrics were recorded
@@ -96,7 +93,7 @@ class TestSyncMonitor:
         assert stats.failed_operations == 1
         assert stats.cache_hits == 1
 
-    def test_cache_event_logging(self):
+    def test_cache_event_logging(self) -> None:
         """Test cache event logging."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
@@ -109,15 +106,13 @@ class TestSyncMonitor:
         # No exceptions should be raised
         assert True
 
-    def test_bulk_operation_logging(self):
+    def test_bulk_operation_logging(self) -> None:
         """Test bulk operation logging."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
         # Test bulk operation start
         monitor.log_bulk_operation_start(
-            SyncOperationType.BULK_INSERT,
-            record_count=100,
-            operation_subtype="test"
+            SyncOperationType.BULK_INSERT, record_count=100, operation_subtype="test"
         )
 
         # Test bulk operation complete
@@ -126,13 +121,13 @@ class TestSyncMonitor:
             record_count=100,
             duration_ms=50.0,
             success_count=95,
-            operation_subtype="test"
+            operation_subtype="test",
         )
 
         # No exceptions should be raised
         assert True
 
-    def test_consistency_check_logging(self):
+    def test_consistency_check_logging(self) -> None:
         """Test consistency check logging."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
@@ -141,21 +136,18 @@ class TestSyncMonitor:
             check_type="test_check",
             records_checked=1000,
             inconsistencies_found=5,
-            duration_ms=100.0
+            duration_ms=100.0,
         )
 
         # Test with no inconsistencies
         monitor.log_consistency_check(
-            check_type="test_check",
-            records_checked=500,
-            inconsistencies_found=0,
-            duration_ms=50.0
+            check_type="test_check", records_checked=500, inconsistencies_found=0, duration_ms=50.0
         )
 
         # No exceptions should be raised
         assert True
 
-    def test_reconciliation_event_logging(self):
+    def test_reconciliation_event_logging(self) -> None:
         """Test reconciliation event logging."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
@@ -163,13 +155,13 @@ class TestSyncMonitor:
             event_type="test_reconciliation",
             records_affected=10,
             strategy="database_wins",
-            duration_ms=25.0
+            duration_ms=25.0,
         )
 
         # No exceptions should be raised
         assert True
 
-    def test_performance_summary(self):
+    def test_performance_summary(self) -> None:
         """Test performance summary logging."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
@@ -183,7 +175,7 @@ class TestSyncMonitor:
         # No exceptions should be raised
         assert True
 
-    def test_stats_reset(self):
+    def test_stats_reset(self) -> None:
         """Test statistics reset functionality."""
         monitor = SyncMonitor(enable_detailed_logging=False)
 
@@ -206,7 +198,7 @@ class TestSyncMonitor:
 class TestSyncMetricsExporter:
     """Test SyncMetricsExporter class."""
 
-    def test_exporter_initialization(self):
+    def test_exporter_initialization(self) -> None:
         """Test metrics exporter initialization."""
         exporter = SyncMetricsExporter()
 
@@ -222,7 +214,7 @@ class TestSyncMetricsExporter:
         assert exporter.circuit_breaker_state is not None
         assert exporter.application_info is not None
 
-    def test_record_sync_operation(self):
+    def test_record_sync_operation(self) -> None:
         """Test recording sync operations."""
         exporter = SyncMetricsExporter()
 
@@ -231,7 +223,7 @@ class TestSyncMetricsExporter:
             SyncOperationType.READ_THROUGH,
             SyncOperationStatus.SUCCESS,
             duration_seconds=0.1,
-            affected_records=5
+            affected_records=5,
         )
 
         # Record a failed operation
@@ -239,13 +231,13 @@ class TestSyncMetricsExporter:
             SyncOperationType.WRITE_THROUGH,
             SyncOperationStatus.FAILED,
             duration_seconds=0.05,
-            affected_records=0
+            affected_records=0,
         )
 
         # No exceptions should be raised
         assert True
 
-    def test_record_cache_event(self):
+    def test_record_cache_event(self) -> None:
         """Test recording cache events."""
         exporter = SyncMetricsExporter()
 
@@ -258,20 +250,16 @@ class TestSyncMetricsExporter:
         # No exceptions should be raised
         assert True
 
-    def test_update_cache_metrics(self):
+    def test_update_cache_metrics(self) -> None:
         """Test updating cache metrics."""
         exporter = SyncMetricsExporter()
 
-        exporter.update_cache_metrics(
-            hit_rate=85.5,
-            size=1000,
-            memory_bytes=1024 * 1024
-        )
+        exporter.update_cache_metrics(hit_rate=85.5, size=1000, memory_bytes=1024 * 1024)
 
         # No exceptions should be raised
         assert True
 
-    def test_update_database_health(self):
+    def test_update_database_health(self) -> None:
         """Test updating database health."""
         exporter = SyncMetricsExporter()
 
@@ -281,7 +269,7 @@ class TestSyncMetricsExporter:
         # No exceptions should be raised
         assert True
 
-    def test_record_database_error(self):
+    def test_record_database_error(self) -> None:
         """Test recording database errors."""
         exporter = SyncMetricsExporter()
 
@@ -291,7 +279,7 @@ class TestSyncMetricsExporter:
         # No exceptions should be raised
         assert True
 
-    def test_update_circuit_breaker_state(self):
+    def test_update_circuit_breaker_state(self) -> None:
         """Test updating circuit breaker state."""
         exporter = SyncMetricsExporter()
 
@@ -302,51 +290,39 @@ class TestSyncMetricsExporter:
         # No exceptions should be raised
         assert True
 
-    def test_record_consistency_check(self):
+    def test_record_consistency_check(self) -> None:
         """Test recording consistency checks."""
         exporter = SyncMetricsExporter()
 
         # Record check with inconsistencies
         exporter.record_consistency_check(
-            "data_integrity",
-            duration_seconds=1.5,
-            inconsistencies_found=3,
-            severity="medium"
+            "data_integrity", duration_seconds=1.5, inconsistencies_found=3, severity="medium"
         )
 
         # Record check with no inconsistencies
         exporter.record_consistency_check(
-            "data_integrity",
-            duration_seconds=0.8,
-            inconsistencies_found=0,
-            severity="low"
+            "data_integrity", duration_seconds=0.8, inconsistencies_found=0, severity="low"
         )
 
         # No exceptions should be raised
         assert True
 
-    def test_record_reconciliation(self):
+    def test_record_reconciliation(self) -> None:
         """Test recording reconciliation operations."""
         exporter = SyncMetricsExporter()
 
         exporter.record_reconciliation(
-            "database_wins",
-            "success",
-            duration_seconds=2.0,
-            records_affected=50
+            "database_wins", "success", duration_seconds=2.0, records_affected=50
         )
 
         exporter.record_reconciliation(
-            "last_modified_wins",
-            "partial",
-            duration_seconds=1.2,
-            records_affected=25
+            "last_modified_wins", "partial", duration_seconds=1.2, records_affected=25
         )
 
         # No exceptions should be raised
         assert True
 
-    def test_generate_metrics(self):
+    def test_generate_metrics(self) -> None:
         """Test generating metrics output."""
         exporter = SyncMetricsExporter()
 
@@ -355,7 +331,7 @@ class TestSyncMetricsExporter:
             SyncOperationType.READ_THROUGH,
             SyncOperationStatus.SUCCESS,
             duration_seconds=0.1,
-            affected_records=1
+            affected_records=1,
         )
 
         # Generate metrics
@@ -371,19 +347,19 @@ class TestSyncMetricsExporter:
 class TestMetricsServer:
     """Test MetricsServer class."""
 
-    def test_server_initialization(self):
+    def test_server_initialization(self) -> None:
         """Test metrics server initialization."""
-        server = MetricsServer(host='localhost', port=8081)
+        server = MetricsServer(host="localhost", port=8081)
 
-        assert server.host == 'localhost'
+        assert server.host == "localhost"
         assert server.port == 8081
         assert not server.running
         assert server.server is None
         assert server.server_thread is None
 
-    def test_server_start_stop(self):
+    def test_server_start_stop(self) -> None:
         """Test starting and stopping the metrics server."""
-        server = MetricsServer(host='localhost', port=8082)
+        server = MetricsServer(host="localhost", port=8082)
 
         # Start server
         success = server.start()
@@ -397,9 +373,9 @@ class TestMetricsServer:
         server.stop()
         assert not server.running
 
-    def test_server_already_running(self):
+    def test_server_already_running(self) -> None:
         """Test starting server when already running."""
-        server = MetricsServer(host='localhost', port=8083)
+        server = MetricsServer(host="localhost", port=8083)
 
         # Start server twice
         success1 = server.start()
@@ -411,10 +387,10 @@ class TestMetricsServer:
         # Clean up
         server.stop()
 
-    def test_server_invalid_port(self):
+    def test_server_invalid_port(self) -> None:
         """Test server with invalid port."""
         # This should fail gracefully
-        server = MetricsServer(host='localhost', port=99999)
+        server = MetricsServer(host="localhost", port=99999)
 
         success = server.start()
         # May succeed or fail depending on system, but shouldn't crash
@@ -427,7 +403,7 @@ class TestMetricsServer:
 class TestIntegration:
     """Integration tests for monitoring system."""
 
-    def test_monitor_with_metrics_integration(self):
+    def test_monitor_with_metrics_integration(self) -> None:
         """Test integration between SyncMonitor and metrics exporter."""
         # Use the global instances
         monitor = sync_monitor
@@ -437,9 +413,7 @@ class TestIntegration:
 
         # Perform some operations
         with monitor.monitor_operation(
-            SyncOperationType.READ_THROUGH,
-            cache_hit=False,
-            key="integration_test"
+            SyncOperationType.READ_THROUGH, cache_hit=False, key="integration_test"
         ) as metrics:
             time.sleep(0.01)
             metrics.complete(SyncOperationStatus.SUCCESS, affected_records=2)
@@ -455,14 +429,10 @@ class TestIntegration:
         assert "read_through" in metrics_output
         assert "success" in metrics_output
 
-    def test_cache_metrics_integration(self):
+    def test_cache_metrics_integration(self) -> None:
         """Test cache metrics integration."""
         # Update cache metrics
-        sync_monitor.update_cache_metrics(
-            hit_rate=75.0,
-            size=500,
-            memory_bytes=512 * 1024
-        )
+        sync_monitor.update_cache_metrics(hit_rate=75.0, size=500, memory_bytes=512 * 1024)
 
         # Check metrics output
         metrics_output = metrics_exporter.generate_metrics()

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class SyncIntegrationManager:
     """Manager for integrating synchronization with the application."""
 
-    def __init__(self, metadata_cache: MetadataCache | None = None):
+    def __init__(self, metadata_cache: MetadataCache | None = None) -> None:
         """Initialize the sync integration manager.
 
         Args:

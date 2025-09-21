@@ -1,30 +1,27 @@
 """Test cases for optimized quality score calculator."""
 
 import time
-import pytest
-from unittest.mock import Mock
+
 from src.core.optimized_quality_calculator import (
+    LegacyQualityCalculator,
     OptimizedQualityCalculator,
-    QualityScoreConfig,
     QualityScoreCalculatorFactory,
-    LegacyQualityCalculator
+    QualityScoreConfig,
 )
 
 
 class TestOptimizedQualityCalculator:
     """Test cases for the optimized quality score calculator."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.config = QualityScoreConfig(
-            similarity_weight=0.6,
-            year_weight=0.2,
-            language_weight=0.2
+            similarity_weight=0.6, year_weight=0.2, language_weight=0.2
         )
         self.calculator = OptimizedQualityCalculator(self.config)
         self.legacy_calculator = LegacyQualityCalculator()
 
-    def test_quality_score_calculation_accuracy(self):
+    def test_quality_score_calculation_accuracy(self) -> None:
         """Test that optimized calculator produces accurate results."""
         test_cases = [
             {
@@ -36,14 +33,14 @@ class TestOptimizedQualityCalculator:
                     "translations": {
                         "translations": [
                             {"iso_639_1": "ko", "name": "Korean"},
-                            {"iso_639_1": "en", "name": "English"}
+                            {"iso_639_1": "en", "name": "English"},
                         ]
-                    }
+                    },
                 },
                 "query": "Attack on Titan (2023)",
                 "language": "ko-KR",
                 "year_hint": 2023,
-                "expected_min_score": 0.8
+                "expected_min_score": 0.8,
             },
             {
                 "result": {
@@ -51,16 +48,12 @@ class TestOptimizedQualityCalculator:
                     "original_title": "ワンピース",
                     "first_air_date": "1999-10-20",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": [
-                            {"iso_639_1": "ko", "name": "Korean"}
-                        ]
-                    }
+                    "translations": {"translations": [{"iso_639_1": "ko", "name": "Korean"}]},
                 },
                 "query": "One Piece Season 1",
                 "language": "ko-KR",
                 "year_hint": None,
-                "expected_min_score": 0.6
+                "expected_min_score": 0.6,
             },
             {
                 "result": {
@@ -68,31 +61,26 @@ class TestOptimizedQualityCalculator:
                     "original_title": "ナルト疾風伝",
                     "first_air_date": "2007-02-15",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": [
-                            {"iso_639_1": "en", "name": "English"}
-                        ]
-                    }
+                    "translations": {"translations": [{"iso_639_1": "en", "name": "English"}]},
                 },
                 "query": "Naruto Shippuden 720p",
                 "language": "en-US",
                 "year_hint": None,
-                "expected_min_score": 0.5
-            }
+                "expected_min_score": 0.5,
+            },
         ]
 
         for case in test_cases:
             score = self.calculator.calculate_quality_score(
-                case["result"],
-                case["query"],
-                case["language"],
-                case["year_hint"]
+                case["result"], case["query"], case["language"], case["year_hint"]
             )
 
             assert 0.0 <= score <= 1.0, f"Score out of range: {score}"
-            assert score >= case["expected_min_score"], f"Score too low: {score} < {case['expected_min_score']}"
+            assert (
+                score >= case["expected_min_score"]
+            ), f"Score too low: {score} < {case['expected_min_score']}"
 
-    def test_optimized_vs_legacy_accuracy(self):
+    def test_optimized_vs_legacy_accuracy(self) -> None:
         """Test that optimized calculator produces same results as legacy."""
         test_cases = [
             {
@@ -101,15 +89,11 @@ class TestOptimizedQualityCalculator:
                     "original_title": "進撃の巨人",
                     "release_date": "2023-01-01",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": [
-                            {"iso_639_1": "ko", "name": "Korean"}
-                        ]
-                    }
+                    "translations": {"translations": [{"iso_639_1": "ko", "name": "Korean"}]},
                 },
                 "query": "Attack on Titan (2023)",
                 "language": "ko-KR",
-                "year_hint": 2023
+                "year_hint": 2023,
             },
             {
                 "result": {
@@ -117,13 +101,11 @@ class TestOptimizedQualityCalculator:
                     "original_title": "ワンピース",
                     "first_air_date": "1999-10-20",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": []
-                    }
+                    "translations": {"translations": []},
                 },
                 "query": "One Piece Season 1",
                 "language": "en-US",
-                "year_hint": None
+                "year_hint": None,
             },
             {
                 "result": {
@@ -131,38 +113,29 @@ class TestOptimizedQualityCalculator:
                     "original_title": "ナルト疾風伝",
                     "first_air_date": "2007-02-15",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": [
-                            {"iso_639_1": "en", "name": "English"}
-                        ]
-                    }
+                    "translations": {"translations": [{"iso_639_1": "en", "name": "English"}]},
                 },
                 "query": "Naruto Shippuden 720p",
                 "language": "en-US",
-                "year_hint": None
-            }
+                "year_hint": None,
+            },
         ]
 
         for case in test_cases:
             optimized_score = self.calculator.calculate_quality_score(
-                case["result"],
-                case["query"],
-                case["language"],
-                case["year_hint"]
+                case["result"], case["query"], case["language"], case["year_hint"]
             )
 
             legacy_score = self.legacy_calculator.calculate_quality_score(
-                case["result"],
-                case["query"],
-                case["language"],
-                case["year_hint"]
+                case["result"], case["query"], case["language"], case["year_hint"]
             )
 
             # Scores should be very close (within 0.001 tolerance for floating point)
-            assert abs(optimized_score - legacy_score) < 0.001, \
-                f"Score mismatch: optimized={optimized_score}, legacy={legacy_score}"
+            assert (
+                abs(optimized_score - legacy_score) < 0.001
+            ), f"Score mismatch: optimized={optimized_score}, legacy={legacy_score}"
 
-    def test_performance_improvement(self):
+    def test_performance_improvement(self) -> None:
         """Test that optimized calculator is faster than legacy."""
         test_cases = [
             {
@@ -171,15 +144,11 @@ class TestOptimizedQualityCalculator:
                     "original_title": "進撃の巨人",
                     "release_date": "2023-01-01",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": [
-                            {"iso_639_1": "ko", "name": "Korean"}
-                        ]
-                    }
+                    "translations": {"translations": [{"iso_639_1": "ko", "name": "Korean"}]},
                 },
                 "query": "Attack on Titan (2023)",
                 "language": "ko-KR",
-                "year_hint": 2023
+                "year_hint": 2023,
             },
             {
                 "result": {
@@ -187,13 +156,11 @@ class TestOptimizedQualityCalculator:
                     "original_title": "ワンピース",
                     "first_air_date": "1999-10-20",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": []
-                    }
+                    "translations": {"translations": []},
                 },
                 "query": "One Piece Season 1",
                 "language": "en-US",
-                "year_hint": None
+                "year_hint": None,
             },
             {
                 "result": {
@@ -201,16 +168,12 @@ class TestOptimizedQualityCalculator:
                     "original_title": "ナルト疾風伝",
                     "first_air_date": "2007-02-15",
                     "original_language": "ja",
-                    "translations": {
-                        "translations": [
-                            {"iso_639_1": "en", "name": "English"}
-                        ]
-                    }
+                    "translations": {"translations": [{"iso_639_1": "en", "name": "English"}]},
                 },
                 "query": "Naruto Shippuden 720p",
                 "language": "en-US",
-                "year_hint": None
-            }
+                "year_hint": None,
+            },
         ]
 
         iterations = 1000
@@ -220,10 +183,7 @@ class TestOptimizedQualityCalculator:
         for _ in range(iterations):
             for case in test_cases:
                 self.calculator.calculate_quality_score(
-                    case["result"],
-                    case["query"],
-                    case["language"],
-                    case["year_hint"]
+                    case["result"], case["query"], case["language"], case["year_hint"]
                 )
         optimized_time = time.time() - start_time
 
@@ -232,16 +192,14 @@ class TestOptimizedQualityCalculator:
         for _ in range(iterations):
             for case in test_cases:
                 self.legacy_calculator.calculate_quality_score(
-                    case["result"],
-                    case["query"],
-                    case["language"],
-                    case["year_hint"]
+                    case["result"], case["query"], case["language"], case["year_hint"]
                 )
         legacy_time = time.time() - start_time
 
         # Optimized should be faster
-        assert optimized_time < legacy_time, \
-            f"Optimized calculator not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
+        assert (
+            optimized_time < legacy_time
+        ), f"Optimized calculator not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
 
         # Calculate improvement percentage
         improvement = (legacy_time - optimized_time) / legacy_time * 100
@@ -250,7 +208,7 @@ class TestOptimizedQualityCalculator:
         # Should have at least 20% improvement
         assert improvement >= 20.0, f"Insufficient performance improvement: {improvement:.1f}%"
 
-    def test_caching_effectiveness(self):
+    def test_caching_effectiveness(self) -> None:
         """Test that caching improves performance for repeated calculations."""
         # Test case with repeated queries
         result = {
@@ -258,11 +216,7 @@ class TestOptimizedQualityCalculator:
             "original_title": "進撃の巨人",
             "release_date": "2023-01-01",
             "original_language": "ja",
-            "translations": {
-                "translations": [
-                    {"iso_639_1": "ko", "name": "Korean"}
-                ]
-            }
+            "translations": {"translations": [{"iso_639_1": "ko", "name": "Korean"}]},
         }
 
         query = "Attack on Titan (2023)"
@@ -282,22 +236,21 @@ class TestOptimizedQualityCalculator:
         warm_time = time.time() - start_time
 
         # Warm cache should be faster
-        assert warm_time < cold_time, \
-            f"Warm cache not faster: {warm_time:.3f}s vs {cold_time:.3f}s"
+        assert warm_time < cold_time, f"Warm cache not faster: {warm_time:.3f}s vs {cold_time:.3f}s"
 
         # Check cache stats
         cache_stats = self.calculator.get_cache_stats()
         assert cache_stats["token_normalization_cache"] > 0, "Token normalization cache not working"
         assert cache_stats["year_extraction_cache"] > 0, "Year extraction cache not working"
 
-    def test_token_normalization_optimization(self):
+    def test_token_normalization_optimization(self) -> None:
         """Test that token normalization is optimized."""
         test_queries = [
             "Attack on Titan [1080p] [SubsPlease]",
             "One Piece Season 1 (2023) [720p]",
             "Naruto Shippuden - Episode 1 [1080p] [Fansub]",
             "Dragon Ball Z - Episode 1 [1080p] [60fps]",
-            "My Hero Academia S01E01 [1080p] [Dual Audio]"
+            "My Hero Academia S01E01 [1080p] [Dual Audio]",
         ]
 
         # Time optimized normalization
@@ -317,17 +270,18 @@ class TestOptimizedQualityCalculator:
         legacy_time = time.time() - start_time
 
         # Optimized should be faster
-        assert optimized_time < legacy_time, \
-            f"Optimized normalization not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
+        assert (
+            optimized_time < legacy_time
+        ), f"Optimized normalization not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
 
-    def test_jaccard_similarity_optimization(self):
+    def test_jaccard_similarity_optimization(self) -> None:
         """Test that Jaccard similarity calculation is optimized."""
         test_cases = [
             (("attack", "on", "titan"), ("attack", "on", "titan")),
             (("one", "piece"), ("one", "piece", "season")),
             (("naruto", "shippuden"), ("naruto", "shippuden", "episode")),
             (("dragon", "ball", "z"), ("dragon", "ball", "z", "episode")),
-            (("my", "hero", "academia"), ("my", "hero", "academia", "season"))
+            (("my", "hero", "academia"), ("my", "hero", "academia", "season")),
         ]
 
         # Time optimized Jaccard similarity
@@ -347,10 +301,11 @@ class TestOptimizedQualityCalculator:
         legacy_time = time.time() - start_time
 
         # Optimized should be faster
-        assert optimized_time < legacy_time, \
-            f"Optimized Jaccard similarity not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
+        assert (
+            optimized_time < legacy_time
+        ), f"Optimized Jaccard similarity not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
 
-    def test_year_score_caching(self):
+    def test_year_score_caching(self) -> None:
         """Test that year score calculation uses caching effectively."""
         test_cases = [
             (2023, 2023),  # Exact match
@@ -378,10 +333,11 @@ class TestOptimizedQualityCalculator:
         warm_time = time.time() - start_time
 
         # Warm cache should be faster
-        assert warm_time < cold_time, \
-            f"Year score caching not effective: {warm_time:.3f}s vs {cold_time:.3f}s"
+        assert (
+            warm_time < cold_time
+        ), f"Year score caching not effective: {warm_time:.3f}s vs {cold_time:.3f}s"
 
-    def test_language_score_optimization(self):
+    def test_language_score_optimization(self) -> None:
         """Test that language score calculation is optimized."""
         test_cases = [
             {
@@ -390,32 +346,23 @@ class TestOptimizedQualityCalculator:
                     "translations": {
                         "translations": [
                             {"iso_639_1": "ko", "name": "Korean"},
-                            {"iso_639_1": "en", "name": "English"}
+                            {"iso_639_1": "en", "name": "English"},
                         ]
-                    }
+                    },
                 },
-                "language": "ko-KR"
+                "language": "ko-KR",
             },
             {
                 "result": {
                     "original_language": "en",
-                    "translations": {
-                        "translations": [
-                            {"iso_639_1": "ja", "name": "Japanese"}
-                        ]
-                    }
+                    "translations": {"translations": [{"iso_639_1": "ja", "name": "Japanese"}]},
                 },
-                "language": "en-US"
+                "language": "en-US",
             },
             {
-                "result": {
-                    "original_language": "ja",
-                    "translations": {
-                        "translations": []
-                    }
-                },
-                "language": "ko-KR"
-            }
+                "result": {"original_language": "ja", "translations": {"translations": []}},
+                "language": "ko-KR",
+            },
         ]
 
         # Time optimized language score
@@ -439,10 +386,11 @@ class TestOptimizedQualityCalculator:
         legacy_time = time.time() - start_time
 
         # Optimized should be faster
-        assert optimized_time < legacy_time, \
-            f"Optimized language score not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
+        assert (
+            optimized_time < legacy_time
+        ), f"Optimized language score not faster: {optimized_time:.3f}s vs {legacy_time:.3f}s"
 
-    def test_edge_cases(self):
+    def test_edge_cases(self) -> None:
         """Test edge cases and error handling."""
         # Empty result
         empty_result = {}
@@ -457,10 +405,7 @@ class TestOptimizedQualityCalculator:
         # Very long query
         long_query = "Attack on Titan " * 100
         score = self.calculator.calculate_quality_score(
-            {"title": "Attack on Titan", "original_title": "進撃の巨人"},
-            long_query,
-            "ko-KR",
-            None
+            {"title": "Attack on Titan", "original_title": "進撃の巨人"}, long_query, "ko-KR", None
         )
         assert 0.0 <= score <= 1.0
 
@@ -470,11 +415,11 @@ class TestOptimizedQualityCalculator:
             {"title": "Attack on Titan", "original_title": "進撃の巨人"},
             special_query,
             "ko-KR",
-            2023
+            2023,
         )
         assert 0.0 <= score <= 1.0
 
-    def test_cache_management(self):
+    def test_cache_management(self) -> None:
         """Test cache management functionality."""
         # Test cache clearing
         self.calculator.clear_caches()
@@ -492,11 +437,7 @@ class TestOptimizedQualityCalculator:
             "original_title": "進撃の巨人",
             "release_date": "2023-01-01",
             "original_language": "ja",
-            "translations": {
-                "translations": [
-                    {"iso_639_1": "ko", "name": "Korean"}
-                ]
-            }
+            "translations": {"translations": [{"iso_639_1": "ko", "name": "Korean"}]},
         }
 
         self.calculator.calculate_quality_score(result, "Attack on Titan (2023)", "ko-KR", 2023)
@@ -506,13 +447,11 @@ class TestOptimizedQualityCalculator:
         assert cache_stats["token_normalization_cache"] > 0
         assert cache_stats["language_code_cache"] > 0
 
-    def test_factory_methods(self):
+    def test_factory_methods(self) -> None:
         """Test factory methods for creating calculators."""
         # Test optimized calculator factory
         calculator = QualityScoreCalculatorFactory.create_optimized_calculator(
-            similarity_weight=0.7,
-            year_weight=0.2,
-            language_weight=0.1
+            similarity_weight=0.7, year_weight=0.2, language_weight=0.1
         )
         assert isinstance(calculator, OptimizedQualityCalculator)
         assert calculator.config.similarity_weight == 0.7
@@ -523,10 +462,11 @@ class TestOptimizedQualityCalculator:
         legacy_calculator = QualityScoreCalculatorFactory.create_legacy_calculator()
         assert isinstance(legacy_calculator, LegacyQualityCalculator)
 
-    def test_memory_usage(self):
+    def test_memory_usage(self) -> None:
         """Test that optimized calculator doesn't use excessive memory."""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss
@@ -538,11 +478,7 @@ class TestOptimizedQualityCalculator:
                 "original_title": "進撃の巨人",
                 "release_date": "2023-01-01",
                 "original_language": "ja",
-                "translations": {
-                    "translations": [
-                        {"iso_639_1": "ko", "name": "Korean"}
-                    ]
-                }
+                "translations": {"translations": [{"iso_639_1": "ko", "name": "Korean"}]},
             }
             self.calculator.calculate_quality_score(result, "Attack on Titan (2023)", "ko-KR", 2023)
 
@@ -550,20 +486,18 @@ class TestOptimizedQualityCalculator:
         memory_increase = final_memory - initial_memory
 
         # Memory increase should be reasonable (< 20MB)
-        assert memory_increase < 20 * 1024 * 1024, f"Excessive memory usage: {memory_increase / 1024 / 1024:.2f}MB"
+        assert (
+            memory_increase < 20 * 1024 * 1024
+        ), f"Excessive memory usage: {memory_increase / 1024 / 1024:.2f}MB"
 
-    def test_deterministic_results(self):
+    def test_deterministic_results(self) -> None:
         """Test that results are deterministic and consistent."""
         result = {
             "title": "Attack on Titan",
             "original_title": "進撃の巨人",
             "release_date": "2023-01-01",
             "original_language": "ja",
-            "translations": {
-                "translations": [
-                    {"iso_639_1": "ko", "name": "Korean"}
-                ]
-            }
+            "translations": {"translations": [{"iso_639_1": "ko", "name": "Korean"}]},
         }
 
         query = "Attack on Titan (2023)"

@@ -90,7 +90,22 @@ ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
-    "D203", "D213"   # D200계열 취향 충돌 피하기
+    "D203", "D213",   # D200계열 취향 충돌 피하기
+    "UP035",  # deprecated-import (can be addressed later)
+    "RUF003",  # ambiguous-unicode-character-comment (Korean comments)
+    "N806",  # non-lowercase-variable-in-function (test fixtures)
+    "B017",  # assert-raises-exception (pytest patterns)
+    "PT017",  # pytest-assert-in-except (pytest patterns)
+    "PT012",  # pytest-raises-with-multiple-statements (pytest patterns)
+    "B019",  # cached-instance-method (SQLAlchemy patterns)
+    "B904",  # raise-without-from-inside-except (legacy code)
+    "N802",  # invalid-function-name (test methods)
+    "RUF034",  # useless-if-else (legacy code)
+    "E722",  # bare-except (legacy code)
+    "F811",  # redefined-while-unused (test patterns)
+    "F822",  # undefined-export (legacy code)
+    "N818",  # error-suffix-on-exception-name (legacy code)
+    "RUF006",  # asyncio-dangling-task (test patterns)
 ]
 
 [tool.ruff.lint.pydocstyle]

@@ -22,7 +22,7 @@ from .conditional_json_formatter import (
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-class QtLogHandler(logging.Handler):
+class QtLogHandler(logging.Handler, QObject):
     """Custom logging handler that emits Qt signals for UI integration.
 
     This handler allows log messages to be displayed in the UI by emitting
@@ -424,7 +424,7 @@ def log_function_call(func: F) -> F:
         Decorated function
     """
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger = get_logger(func.__module__)
         logger.debug(f"Calling {func.__name__} with args={args}, kwargs={kwargs}")
         try:
@@ -435,7 +435,7 @@ def log_function_call(func: F) -> F:
             logger.error(f"{func.__name__} failed with error: {e}", exc_info=True)
             raise
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
 def log_class_methods(cls: type) -> type:

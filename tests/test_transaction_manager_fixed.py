@@ -1,26 +1,27 @@
 """Tests for transaction management system."""
 
 import logging
-import pytest
+from typing import NoReturn
 from unittest.mock import Mock, patch
-from contextlib import contextmanager
 
+import pytest
+
+from src.core.database import AnimeMetadata
 from src.core.transaction_manager import (
     TransactionContext,
-    TransactionManager,
     TransactionError,
+    TransactionManager,
     TransactionNestingError,
     TransactionTimeoutError,
+    get_transaction_manager,
     transactional,
-    get_transaction_manager
 )
-from src.core.database import AnimeMetadata
 
 
 class TestTransactionContext:
     """Test cases for TransactionContext dataclass."""
 
-    def test_transaction_context_creation(self):
+    def test_transaction_context_creation(self) -> None:
         """Test creating a transaction context."""
         mock_session = Mock()
         context = TransactionContext(session=mock_session)
@@ -34,7 +35,7 @@ class TestTransactionContext:
         assert context.parent_id is None
         assert context.error is None
 
-    def test_transaction_context_duration(self):
+    def test_transaction_context_duration(self) -> None:
         """Test transaction context duration calculation."""
         import time
 
@@ -48,7 +49,7 @@ class TestTransactionContext:
         assert duration > 0
         assert isinstance(duration, float)
 
-    def test_transaction_context_status(self):
+    def test_transaction_context_status(self) -> None:
         """Test transaction context status properties."""
         mock_session = Mock()
         context = TransactionContext(session=mock_session)
@@ -70,7 +71,7 @@ class TestTransactionContext:
 class TestTransactionManager:
     """Test cases for TransactionManager class."""
 
-    def test_transaction_manager_initialization(self):
+    def test_transaction_manager_initialization(self) -> None:
         """Test transaction manager initialization."""
         manager = TransactionManager()
 
@@ -83,7 +84,7 @@ class TestTransactionManager:
         assert manager._stats["nested_transactions"] == 0
         assert manager._stats["timeouts"] == 0
 
-    def test_begin_transaction(self):
+    def test_begin_transaction(self) -> None:
         """Test beginning a transaction."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -99,7 +100,7 @@ class TestTransactionManager:
         assert manager.get_nesting_level() == 1
         mock_session.begin.assert_called_once()
 
-    def test_begin_nested_transaction(self):
+    def test_begin_nested_transaction(self) -> None:
         """Test beginning a nested transaction."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -118,7 +119,7 @@ class TestTransactionManager:
         assert manager.get_nesting_level() == 2
         mock_session.begin_nested.assert_called_once()
 
-    def test_begin_nested_transaction_without_parent(self):
+    def test_begin_nested_transaction_without_parent(self) -> None:
         """Test that nested transaction without parent raises error."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -126,14 +127,14 @@ class TestTransactionManager:
         with pytest.raises(TransactionNestingError):
             manager.begin(mock_session, nested=True)
 
-    def test_commit_transaction(self):
+    def test_commit_transaction(self) -> None:
         """Test committing a transaction."""
         manager = TransactionManager()
         mock_session = Mock()
         mock_session.begin = Mock()
         mock_session.commit = Mock()
 
-        context = manager.begin(mock_session, nested=False)
+        manager.begin(mock_session, nested=False)
         manager.commit()
 
         assert not manager.is_active()
@@ -141,7 +142,7 @@ class TestTransactionManager:
         mock_session.commit.assert_called_once()
         assert manager._stats["successful_commits"] == 1
 
-    def test_commit_nested_transaction(self):
+    def test_commit_nested_transaction(self) -> None:
         """Test committing a nested transaction."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -151,7 +152,7 @@ class TestTransactionManager:
 
         # Start parent and nested transactions
         manager.begin(mock_session, nested=False)
-        nested_context = manager.begin(mock_session, nested=True)
+        manager.begin(mock_session, nested=True)
 
         # Commit nested transaction
         manager.commit()
@@ -159,14 +160,14 @@ class TestTransactionManager:
         assert manager.get_nesting_level() == 1  # Parent still active
         assert manager._stats["successful_commits"] == 1
 
-    def test_rollback_transaction(self):
+    def test_rollback_transaction(self) -> None:
         """Test rolling back a transaction."""
         manager = TransactionManager()
         mock_session = Mock()
         mock_session.begin = Mock()
         mock_session.rollback = Mock()
 
-        context = manager.begin(mock_session, nested=False)
+        manager.begin(mock_session, nested=False)
         manager.rollback()
 
         assert not manager.is_active()
@@ -174,7 +175,7 @@ class TestTransactionManager:
         mock_session.rollback.assert_called_once()
         assert manager._stats["rollbacks"] == 1
 
-    def test_rollback_nested_transaction(self):
+    def test_rollback_nested_transaction(self) -> None:
         """Test rolling back a nested transaction."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -184,7 +185,7 @@ class TestTransactionManager:
 
         # Start parent and nested transactions
         manager.begin(mock_session, nested=False)
-        nested_context = manager.begin(mock_session, nested=True)
+        manager.begin(mock_session, nested=True)
 
         # Rollback nested transaction
         manager.rollback()
@@ -192,31 +193,32 @@ class TestTransactionManager:
         assert manager.get_nesting_level() == 1  # Parent still active
         assert manager._stats["rollbacks"] == 1
 
-    def test_commit_without_active_transaction(self):
+    def test_commit_without_active_transaction(self) -> None:
         """Test that committing without active transaction raises error."""
         manager = TransactionManager()
 
         with pytest.raises(TransactionError):
             manager.commit()
 
-    def test_transaction_timeout(self):
+    def test_transaction_timeout(self) -> None:
         """Test transaction timeout handling."""
         manager = TransactionManager(timeout_seconds=0.001)  # Very short timeout
         mock_session = Mock()
         mock_session.begin = Mock()
 
         # Start transaction
-        context = manager.begin(mock_session, nested=False)
+        manager.begin(mock_session, nested=False)
 
         # Wait for timeout
         import time
+
         time.sleep(0.002)
 
         # Try to start another transaction (should trigger timeout check)
         with pytest.raises(TransactionTimeoutError):
             manager.begin(mock_session, nested=False)
 
-    def test_increment_affected_rows(self):
+    def test_increment_affected_rows(self) -> None:
         """Test incrementing affected rows count."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -227,14 +229,14 @@ class TestTransactionManager:
 
         assert context.affected_rows == 5
 
-    def test_increment_affected_rows_without_active_transaction(self):
+    def test_increment_affected_rows_without_active_transaction(self) -> None:
         """Test that incrementing affected rows without active transaction is ignored."""
         manager = TransactionManager()
 
         # Should not raise error, just ignore
         manager.increment_affected_rows(5)
 
-    def test_get_current_context(self):
+    def test_get_current_context(self) -> None:
         """Test getting current transaction context."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -247,7 +249,7 @@ class TestTransactionManager:
         context = manager.begin(mock_session, nested=False)
         assert manager.get_current_context() == context
 
-    def test_is_active(self):
+    def test_is_active(self) -> None:
         """Test checking if transaction is active."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -264,7 +266,7 @@ class TestTransactionManager:
         manager.commit()
         assert not manager.is_active()
 
-    def test_get_nesting_level(self):
+    def test_get_nesting_level(self) -> None:
         """Test getting current nesting level."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -290,7 +292,7 @@ class TestTransactionManager:
         manager.commit()
         assert manager.get_nesting_level() == 0
 
-    def test_get_stats(self):
+    def test_get_stats(self) -> None:
         """Test getting transaction statistics."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -307,7 +309,7 @@ class TestTransactionManager:
         assert stats["successful_commits"] == 1
         assert stats["rollbacks"] == 0
 
-    def test_reset_stats(self):
+    def test_reset_stats(self) -> None:
         """Test resetting transaction statistics."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -325,7 +327,7 @@ class TestTransactionManager:
         assert stats["total_transactions"] == 0
         assert stats["successful_commits"] == 0
 
-    def test_transaction_scope_context_manager(self):
+    def test_transaction_scope_context_manager(self) -> None:
         """Test transaction scope as context manager."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -340,7 +342,7 @@ class TestTransactionManager:
         mock_session.begin.assert_called_once()
         mock_session.commit.assert_called_once()
 
-    def test_transaction_scope_with_exception(self):
+    def test_transaction_scope_with_exception(self) -> NoReturn:
         """Test transaction scope with exception (rollback)."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -374,20 +376,22 @@ class TestTransactionalDecorator:
         mock_session._transaction_manager = None
         return mock_session
 
-    def test_transactional_decorator_success(self, mock_db_manager):
+    def test_transactional_decorator_success(self, mock_db_manager) -> None:
         """Test successful execution with @transactional decorator."""
+
         @transactional
         def test_function(session, value):
             return value * 2
 
         # Mock the global db_manager import
-        with patch('src.core.database.db_manager', mock_db_manager):
+        with patch("src.core.database.db_manager", mock_db_manager):
             result = test_function(5)
             assert result == 10
             mock_db_manager.get_session.assert_called_once()
 
-    def test_transactional_decorator_with_exception(self, mock_db_manager):
+    def test_transactional_decorator_with_exception(self, mock_db_manager) -> None:
         """Test @transactional decorator with exception (rollback)."""
+
         @transactional
         def test_function(session, value):
             if value < 0:
@@ -395,7 +399,7 @@ class TestTransactionalDecorator:
             return value * 2
 
         # Mock the global db_manager import
-        with patch('src.core.database.db_manager', mock_db_manager):
+        with patch("src.core.database.db_manager", mock_db_manager):
             # Test successful case
             result = test_function(5)
             assert result == 10
@@ -404,48 +408,52 @@ class TestTransactionalDecorator:
             with pytest.raises(ValueError):
                 test_function(-1)
 
-    def test_transactional_decorator_nested(self, mock_db_manager):
+    def test_transactional_decorator_nested(self, mock_db_manager) -> None:
         """Test @transactional decorator with nested transactions."""
+
         @transactional
         def parent_function(session, value):
             # Simulate nested transaction by calling another function
             return value + 1
 
         # Mock the global db_manager import
-        with patch('src.core.database.db_manager', mock_db_manager):
+        with patch("src.core.database.db_manager", mock_db_manager):
             result = parent_function(5)
             assert result == 6
 
-    def test_transactional_decorator_with_timeout(self, mock_db_manager):
+    def test_transactional_decorator_with_timeout(self, mock_db_manager) -> None:
         """Test @transactional decorator with timeout."""
+
         @transactional(timeout=1)
         def test_function(session, value):
             return value * 2
 
         # Mock the global db_manager import
-        with patch('src.core.database.db_manager', mock_db_manager):
+        with patch("src.core.database.db_manager", mock_db_manager):
             result = test_function(5)
             assert result == 10
 
-    def test_transactional_decorator_auto_session_disabled(self, mock_db_manager):
+    def test_transactional_decorator_auto_session_disabled(self, mock_db_manager) -> None:
         """Test @transactional decorator with auto_session disabled."""
+
         @transactional(auto_session=False)
         def test_function(value):
             return value * 2
 
         # Mock the global db_manager import
-        with patch('src.core.database.db_manager', mock_db_manager):
+        with patch("src.core.database.db_manager", mock_db_manager):
             result = test_function(5)
             assert result == 10
 
-    def test_transactional_decorator_no_session_available(self):
+    def test_transactional_decorator_no_session_available(self) -> None:
         """Test @transactional decorator when no session is available."""
+
         @transactional
         def test_function(session, value):
             return value * 2
 
         # Mock the global db_manager to be None
-        with patch('src.core.database.db_manager', None):
+        with patch("src.core.database.db_manager", None):
             with pytest.raises(TransactionError):
                 test_function(5)
 
@@ -458,6 +466,7 @@ class TestTransactionIntegration:
         """Create a test database."""
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
+
         from src.core.database import Base
 
         # Create in-memory SQLite database
@@ -467,9 +476,9 @@ class TestTransactionIntegration:
 
         return engine, SessionLocal
 
-    def test_transaction_atomicity_success(self, test_db):
+    def test_transaction_atomicity_success(self, test_db) -> None:
         """Test transaction atomicity on successful operations."""
-        engine, SessionLocal = test_db
+        _engine, SessionLocal = test_db
         session = SessionLocal()
         manager = TransactionManager()
 
@@ -494,7 +503,7 @@ class TestTransactionIntegration:
                     networks="[]",
                     number_of_seasons=1,
                     number_of_episodes=12,
-                    raw_data="{}"
+                    raw_data="{}",
                 )
 
                 tx_session.add(anime)
@@ -512,9 +521,9 @@ class TestTransactionIntegration:
         finally:
             session.close()
 
-    def test_transaction_atomicity_rollback(self, test_db):
+    def test_transaction_atomicity_rollback(self, test_db) -> None:
         """Test transaction atomicity on rollback."""
-        engine, SessionLocal = test_db
+        _engine, SessionLocal = test_db
         session = SessionLocal()
         manager = TransactionManager()
 
@@ -540,7 +549,7 @@ class TestTransactionIntegration:
                         networks="[]",
                         number_of_seasons=1,
                         number_of_episodes=12,
-                        raw_data="{}"
+                        raw_data="{}",
                     )
 
                     tx_session.add(anime)
@@ -560,9 +569,9 @@ class TestTransactionIntegration:
         finally:
             session.close()
 
-    def test_nested_transaction_rollback(self, test_db):
+    def test_nested_transaction_rollback(self, test_db) -> None:
         """Test nested transaction rollback behavior."""
-        engine, SessionLocal = test_db
+        _engine, SessionLocal = test_db
         session = SessionLocal()
         manager = TransactionManager()
 
@@ -588,7 +597,7 @@ class TestTransactionIntegration:
                     networks="[]",
                     number_of_seasons=1,
                     number_of_episodes=12,
-                    raw_data="{}"
+                    raw_data="{}",
                 )
 
                 tx_session.add(anime1)
@@ -615,7 +624,7 @@ class TestTransactionIntegration:
                             networks="[]",
                             number_of_seasons=1,
                             number_of_episodes=12,
-                            raw_data="{}"
+                            raw_data="{}",
                         )
 
                         nested_session.add(anime2)
@@ -646,7 +655,7 @@ class TestTransactionIntegration:
 class TestTransactionLogging:
     """Test cases for transaction logging."""
 
-    def test_transaction_logging_messages(self, caplog):
+    def test_transaction_logging_messages(self, caplog) -> None:
         """Test that transaction events are properly logged."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -669,7 +678,7 @@ class TestTransactionLogging:
             assert f"Transaction {context.id} committed successfully" in caplog.text
             assert "duration:" in caplog.text
 
-    def test_transaction_rollback_logging(self, caplog):
+    def test_transaction_rollback_logging(self, caplog) -> None:
         """Test that transaction rollback events are properly logged."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -689,7 +698,7 @@ class TestTransactionLogging:
             assert f"Rollback reason for transaction {context.id}" in caplog.text
             assert "ValueError: Test error" in caplog.text
 
-    def test_nested_transaction_logging(self, caplog):
+    def test_nested_transaction_logging(self, caplog) -> None:
         """Test that nested transaction events are properly logged."""
         manager = TransactionManager()
         mock_session = Mock()
@@ -699,7 +708,7 @@ class TestTransactionLogging:
 
         with caplog.at_level(logging.INFO):
             # Start parent transaction
-            parent_context = manager.begin(mock_session, nested=False)
+            manager.begin(mock_session, nested=False)
 
             # Start nested transaction
             nested_context = manager.begin(mock_session, nested=True)
@@ -712,7 +721,7 @@ class TestTransactionLogging:
             assert "parent:" in caplog.text
 
 
-def test_get_transaction_manager():
+def test_get_transaction_manager() -> None:
     """Test getting a new transaction manager instance."""
     manager = get_transaction_manager()
     assert isinstance(manager, TransactionManager)
@@ -723,13 +732,13 @@ def test_get_transaction_manager():
     assert isinstance(manager2, TransactionManager)
 
 
-def test_transaction_context_without_session():
+def test_transaction_context_without_session() -> None:
     """Test TransactionContext creation without session (should fail)."""
     with pytest.raises(TypeError):
         TransactionContext()  # session is now required
 
 
-def test_transaction_manager_edge_cases():
+def test_transaction_manager_edge_cases() -> None:
     """Test edge cases for TransactionManager."""
     manager = TransactionManager()
 
@@ -747,7 +756,7 @@ def test_transaction_manager_edge_cases():
     assert manager.get_nesting_level() == 0
 
 
-def test_transaction_manager_stats_consistency():
+def test_transaction_manager_stats_consistency() -> None:
     """Test that transaction statistics are consistent."""
     manager = TransactionManager()
 

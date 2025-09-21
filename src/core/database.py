@@ -9,11 +9,17 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, Union
+
+# Type alias for JSON field values
+JSONValue = Union[str, int, float, bool, list, dict, None]
+
+# Type variable for generic operations
+T = TypeVar("T")
 
 try:
     import orjson
@@ -172,7 +178,7 @@ class AnimeMetadata(Base):  # type: ignore[valid-type,misc]
         )
 
     @staticmethod
-    def _parse_json_field(field: str | None, default: Any) -> Any:
+    def _parse_json_field(field: str | None, default: JSONValue) -> JSONValue:
         """Parse JSON field safely with decompression support."""
         if not field:
             return default
@@ -353,7 +359,7 @@ class ParsedFile(Base):  # type: ignore[valid-type,misc]
         )
 
     @staticmethod
-    def _parse_json_field(field: str | None, default: Any) -> Any:
+    def _parse_json_field(field: str | None, default: JSONValue) -> JSONValue:
         """Parse JSON field safely with decompression support."""
         if not field:
             return default
@@ -602,7 +608,7 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def execute_in_transaction(self, operation: callable, *args, **kwargs) -> Any:
+    def execute_in_transaction(self, operation: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """Execute a database operation within a transaction.
 
         This method now uses the enhanced TransactionManager for better logging,
@@ -1210,7 +1216,7 @@ class DatabaseManager:
             handle_schema_validation_error(e)
             raise
 
-    def _validate_table_structure(self, table_name: str, inspector) -> bool:
+    def _validate_table_structure(self, table_name: str, inspector: Any) -> bool:
         """Validate the structure of a specific table.
 
         Args:
@@ -1255,7 +1261,7 @@ class DatabaseManager:
             handle_table_validation_error(table_name, e)
             return False
 
-    def _is_type_compatible(self, expected_type, actual_type) -> bool:
+    def _is_type_compatible(self, expected_type: Any, actual_type: Any) -> bool:
         """Check if actual column type is compatible with expected type.
 
         Args:
@@ -1280,7 +1286,7 @@ class DatabaseManager:
         }
 
         # Check if types are in the same category
-        for category, types in type_mappings.items():
+        for _category, types in type_mappings.items():
             if any(t in expected_str for t in types) and any(t in actual_str for t in types):
                 return True
 
@@ -1357,7 +1363,7 @@ class DatabaseManager:
         """
         return self.transaction_manager.is_active()
 
-    def get_current_transaction_context(self) -> Any:
+    def get_current_transaction_context(self) -> object | None:
         """Get the current transaction context.
 
         Returns:
@@ -1473,7 +1479,7 @@ class DatabaseManager:
                 raise
 
     def bulk_update_with_conditions(
-        self, table_class, updates: list[dict], condition_field: str
+        self, table_class: Any, updates: list[dict], condition_field: str
     ) -> int:
         """Generic bulk update method with custom conditions.
 
@@ -1542,14 +1548,14 @@ class DatabaseManager:
 
 # Version management event listeners
 @event.listens_for(AnimeMetadata, "before_update")
-def increment_anime_metadata_version(mapper, connection, target):
+def increment_anime_metadata_version(mapper: Any, connection: Any, target: Any) -> None:
     """Increment version number before updating AnimeMetadata."""
     if hasattr(target, "version"):
         target.version = (target.version or 0) + 1
 
 
 @event.listens_for(ParsedFile, "before_update")
-def increment_parsed_file_version(mapper, connection, target):
+def increment_parsed_file_version(mapper: Any, connection: Any, target: Any) -> None:
     """Increment version number before updating ParsedFile."""
     if hasattr(target, "version"):
         target.version = (target.version or 0) + 1

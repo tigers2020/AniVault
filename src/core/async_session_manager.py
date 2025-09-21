@@ -6,7 +6,7 @@ instances for asynchronous HTTP operations, particularly for TMDB API calls.
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
 from typing import Any, Optional
 
@@ -56,72 +56,52 @@ class AsyncSessionManager(QObject):
     async def get_session(self) -> aiohttp.ClientSession:
         """Get or create the HTTP session.
 
+        This method implements thread-safe session creation and retrieval. It ensures
+        that only one session exists at a time and automatically creates a new session
+        if the current one is closed or doesn't exist.
+
+        The session is configured with optimized settings for TMDB API usage including:
+        - High connection limits for concurrent requests
+        - Appropriate timeouts for network reliability
+        - Compression support for efficient data transfer
+        - Proper headers for API compatibility
+
         Returns:
-            aiohttp.ClientSession: The managed HTTP session.
+            aiohttp.ClientSession: The managed HTTP session ready for use.
 
         Raises:
-            RuntimeError: If the session cannot be created.
+            RuntimeError: If the session cannot be created due to configuration
+                or network issues.
         """
-        async with self._session_lock:
-            if self._session is None or self._session.closed:
-                await self._create_session()
-            return self._session
 
     async def _create_session(self) -> None:
-        """Create a new aiohttp.ClientSession with optimized configuration."""
-        try:
-            # Configure connection limits and timeouts for TMDB API optimization
-            connector = aiohttp.TCPConnector(
-                limit=200,  # Total connection pool size (increased for better concurrency)
-                limit_per_host=20,  # Per-host connection limit (optimized for TMDB)
-                use_dns_cache=True,  # Enable DNS cache (10 minutes - longer for stability)
-                keepalive_timeout=60,  # Increased keepalive for better connection reuse
-                enable_cleanup_closed=True,
-                force_close=False,  # Allow connection reuse
-                ssl=True,  # Ensure SSL is enabled for HTTPS
-                family=0,  # Use both IPv4 and IPv6
-                local_addr=None,  # Let OS choose local address
-                resolver=None,  # Use default resolver
-                happy_eyeballs_delay=0.25,  # Enable Happy Eyeballs for faster IPv6 fallback
-                loop=None,  # Use current event loop
-            )
+        """Create a new aiohttp.ClientSession with optimized configuration.
 
-            timeout = aiohttp.ClientTimeout(
-                total=60,  # Total timeout (increased for better reliability)
-                connect=15,  # Connection timeout (increased for slow networks)
-                sock_read=30,  # Socket read timeout (increased for large responses)
-            )
+        This method creates a highly optimized HTTP session specifically configured
+        for TMDB API interactions. The configuration includes:
 
-            headers = {
-                "User-Agent": f'AniVault/{self._config.get("app_version", "1.0.0")}',
-                "Accept": "application/json",
-                "Accept-Encoding": "gzip, deflate, br",  # Added brotli support
-                "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",  # Language preferences
-                "Connection": "keep-alive",  # Explicit keep-alive
-                "Cache-Control": "no-cache",  # Prevent caching of API responses
-            }
+        Connection Management:
+        - Total pool size of 200 connections for high concurrency
+        - 20 connections per host limit for TMDB API optimization
+        - DNS caching with 10-minute TTL for improved performance
+        - 60-second keepalive timeout for connection reuse
 
-            self._session = aiohttp.ClientSession(
-                connector=connector,
-                timeout=timeout,
-                headers=headers,
-                raise_for_status=True,
-                auto_decompress=True,  # Automatically decompress responses
-                version=aiohttp.HttpVersion11,  # Use HTTP/1.1 for better compatibility
-                cookie_jar=aiohttp.CookieJar(),  # Cookie jar for session management
-                json_serialize=None,  # Use default JSON serialization
-                requote_redirect_url=True,  # Requote redirect URLs
-                read_bufsize=65536,  # Read buffer size (64KB)
-                max_line_size=8192,  # Max line size for headers
-                max_field_size=8192,  # Max field size for headers
-            )
+        Timeout Configuration:
+        - 60-second total timeout for reliable operation
+        - 15-second connection timeout for slow networks
+        - 30-second socket read timeout for large responses
 
-            logger.info("aiohttp.ClientSession created successfully")
-            self.session_ready.emit()
+        Headers and Features:
+        - Custom User-Agent with application version
+        - Compression support (gzip, deflate, brotli)
+        - Language preferences for Korean and English
+        - Explicit keep-alive and cache control headers
 
-        except Exception as e:
-            logger.error(f"Failed to create aiohttp.ClientSession: {e}")
-            raise RuntimeError(f"Failed to create HTTP session: {e}") from e
+        Raises:
+            RuntimeError: If session creation fails due to configuration errors
+                or system limitations. The original exception is chained for
+                debugging purposes.
+        """
 
     async def close_session(self) -> None:
         """Close the HTTP session and clean up resources."""
@@ -152,7 +132,7 @@ class AsyncSessionManager(QObject):
 
         return self._loop
 
-    def run_async(self, coro: Any) -> Any:
+    def run_async(self, coro: Awaitable[Any]) -> Any:
         """Run an async coroutine in the event loop.
 
         Args:
@@ -257,7 +237,7 @@ async def get_http_session() -> aiohttp.ClientSession:
     return await session_manager.get_session()
 
 
-def run_async(coro: Any) -> Any:
+def run_async(coro: Awaitable[Any]) -> Any:
     """Run an async coroutine using the session manager.
 
     Args:

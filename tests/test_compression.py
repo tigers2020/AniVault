@@ -1,5 +1,4 @@
-"""
-Tests for data compression functionality.
+"""Tests for data compression functionality.
 
 This module tests the compression system for large metadata objects,
 including data integrity, performance impact, and integration with
@@ -8,43 +7,41 @@ cache and database operations.
 
 import json
 import time
-import pytest
-from unittest.mock import Mock, patch
 
-from src.core.compression import CompressionManager, compression_manager, CompressionStats
-from src.core.models import TMDBAnime, ParsedAnimeInfo
+from src.core.compression import CompressionManager
+from src.core.database import AnimeMetadata
 from src.core.metadata_cache import MetadataCache
-from src.core.database import AnimeMetadata, ParsedFile
+from src.core.models import ParsedAnimeInfo, TMDBAnime
 
 
 class TestCompressionManager:
     """Test cases for CompressionManager class."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.compression_manager = CompressionManager(
             compression_level=6,
             min_size_threshold=50,  # Lower threshold for testing
-            max_compression_ratio=0.8
+            max_compression_ratio=0.8,
         )
 
-    def test_should_compress_small_data(self):
+    def test_should_compress_small_data(self) -> None:
         """Test that small data is not compressed."""
         small_data = "small"
         assert not self.compression_manager.should_compress(small_data)
 
-    def test_should_compress_large_data(self):
+    def test_should_compress_large_data(self) -> None:
         """Test that large data is compressed."""
         large_data = "x" * 1000  # 1KB of data
         assert self.compression_manager.should_compress(large_data)
 
-    def test_compress_data_success(self):
+    def test_compress_data_success(self) -> None:
         """Test successful data compression."""
         # Create large JSON data
         large_data = {
             "title": "Test Anime",
             "description": "x" * 1000,  # Large description
-            "metadata": {"key": "value" * 100}
+            "metadata": {"key": "value" * 100},
         }
 
         compressed_bytes, stats = self.compression_manager.compress_data(large_data)
@@ -54,19 +51,19 @@ class TestCompressionManager:
         assert stats.compression_ratio < 1.0
         assert stats.compression_time_ms > 0
 
-    def test_decompress_data_success(self):
+    def test_decompress_data_success(self) -> None:
         """Test successful data decompression."""
         original_data = {"test": "data", "large": "x" * 1000}
 
         compressed_bytes, _ = self.compression_manager.compress_data(original_data)
         decompressed_data, stats = self.compression_manager.decompress_data(
-            compressed_bytes, expected_type='dict'
+            compressed_bytes, expected_type="dict"
         )
 
         assert decompressed_data == original_data
         assert stats.decompression_time_ms > 0
 
-    def test_compress_for_storage_success(self):
+    def test_compress_for_storage_success(self) -> None:
         """Test compression for storage format."""
         large_data = {"test": "x" * 1000}
 
@@ -75,47 +72,47 @@ class TestCompressionManager:
         assert isinstance(stored_data, str)
         assert len(stored_data) < len(json.dumps(large_data))
 
-    def test_decompress_from_storage_success(self):
+    def test_decompress_from_storage_success(self) -> None:
         """Test decompression from storage format."""
         original_data = {"test": "x" * 1000}
 
         stored_data = self.compression_manager.compress_for_storage(original_data)
         decompressed_data = self.compression_manager.decompress_from_storage(
-            stored_data, expected_type='dict'
+            stored_data, expected_type="dict"
         )
 
         assert decompressed_data == original_data
 
-    def test_decompress_from_storage_uncompressed(self):
+    def test_decompress_from_storage_uncompressed(self) -> None:
         """Test decompression from uncompressed storage."""
         original_data = {"test": "small"}
 
         # This should not be compressed due to size
         stored_data = self.compression_manager.compress_for_storage(original_data)
         decompressed_data = self.compression_manager.decompress_from_storage(
-            stored_data, expected_type='dict'
+            stored_data, expected_type="dict"
         )
 
         assert decompressed_data == original_data
 
-    def test_compression_stats(self):
+    def test_compression_stats(self) -> None:
         """Test compression statistics tracking."""
         large_data = {"test": "x" * 1000}
 
         # Compress and decompress data
         self.compression_manager.compress_for_storage(large_data)
         self.compression_manager.decompress_from_storage(
-            self.compression_manager.compress_for_storage(large_data), 'dict'
+            self.compression_manager.compress_for_storage(large_data), "dict"
         )
 
         stats = self.compression_manager.get_compression_stats()
 
-        assert stats['total_compressions'] > 0
-        assert stats['total_decompressions'] > 0
-        assert stats['total_space_saved_bytes'] > 0
-        assert stats['compression_efficiency'] > 0
+        assert stats["total_compressions"] > 0
+        assert stats["total_decompressions"] > 0
+        assert stats["total_space_saved_bytes"] > 0
+        assert stats["compression_efficiency"] > 0
 
-    def test_reset_stats(self):
+    def test_reset_stats(self) -> None:
         """Test statistics reset."""
         large_data = {"test": "x" * 1000}
         self.compression_manager.compress_for_storage(large_data)
@@ -123,43 +120,38 @@ class TestCompressionManager:
         self.compression_manager.reset_stats()
         stats = self.compression_manager.get_compression_stats()
 
-        assert stats['total_compressions'] == 0
-        assert stats['total_decompressions'] == 0
+        assert stats["total_compressions"] == 0
+        assert stats["total_decompressions"] == 0
 
 
 class TestCompressionIntegration:
     """Test integration of compression with cache and database."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.compression_manager = CompressionManager(
-            min_size_threshold=50,
-            max_compression_ratio=0.8
+            min_size_threshold=50, max_compression_ratio=0.8
         )
 
-    def test_tmdb_anime_compression(self):
+    def test_tmdb_anime_compression(self) -> None:
         """Test compression of TMDBAnime objects with large raw_data."""
         large_raw_data = {
             "details": "x" * 1000,
             "cast": [{"name": "Actor " + str(i)} for i in range(100)],
-            "crew": [{"name": "Crew " + str(i)} for i in range(50)]
+            "crew": [{"name": "Crew " + str(i)} for i in range(50)],
         }
 
-        anime = TMDBAnime(
-            tmdb_id=12345,
-            title="Test Anime",
-            raw_data=large_raw_data
-        )
+        anime = TMDBAnime(tmdb_id=12345, title="Test Anime", raw_data=large_raw_data)
 
         # Test that raw_data is large enough to compress
-        raw_data_size = len(str(large_raw_data).encode('utf-8'))
+        raw_data_size = len(str(large_raw_data).encode("utf-8"))
         assert raw_data_size >= self.compression_manager.min_size_threshold
 
         # Test compression
         compressed_anime = self._apply_compression_to_tmdb_anime(anime)
 
         # Verify compression occurred
-        compressed_raw_data_size = len(str(compressed_anime.raw_data).encode('utf-8'))
+        compressed_raw_data_size = len(str(compressed_anime.raw_data).encode("utf-8"))
         assert compressed_raw_data_size < raw_data_size
 
         # Test decompression
@@ -170,25 +162,23 @@ class TestCompressionIntegration:
         assert decompressed_anime.title == anime.title
         assert decompressed_anime.raw_data == anime.raw_data
 
-    def test_parsed_anime_info_compression(self):
+    def test_parsed_anime_info_compression(self) -> None:
         """Test compression of ParsedAnimeInfo objects with large raw_data."""
         large_raw_data = {
             "file_info": "x" * 1000,
-            "metadata": [{"key": "value" + str(i)} for i in range(100)]
+            "metadata": [{"key": "value" + str(i)} for i in range(100)],
         }
 
         parsed_info = ParsedAnimeInfo(
-            title="Test Anime",
-            episode_title="Episode 1",
-            raw_data=large_raw_data
+            title="Test Anime", episode_title="Episode 1", raw_data=large_raw_data
         )
 
         # Test compression
         compressed_info = self._apply_compression_to_parsed_info(parsed_info)
 
         # Verify compression occurred
-        original_size = len(str(large_raw_data).encode('utf-8'))
-        compressed_size = len(str(compressed_info.raw_data).encode('utf-8'))
+        original_size = len(str(large_raw_data).encode("utf-8"))
+        compressed_size = len(str(compressed_info.raw_data).encode("utf-8"))
         assert compressed_size < original_size
 
         # Test decompression
@@ -199,7 +189,7 @@ class TestCompressionIntegration:
         assert decompressed_info.episode_title == parsed_info.episode_title
         assert decompressed_info.raw_data == parsed_info.raw_data
 
-    def test_database_serialization_compression(self):
+    def test_database_serialization_compression(self) -> None:
         """Test compression in database serialization."""
         large_raw_data = {"test": "x" * 2000}  # Larger data to ensure compression
 
@@ -214,7 +204,7 @@ class TestCompressionIntegration:
         deserialized_data = AnimeMetadata._parse_json_field(serialized_data, {})
         assert deserialized_data == large_raw_data
 
-    def test_database_serialization_no_compression(self):
+    def test_database_serialization_no_compression(self) -> None:
         """Test that small data is not compressed in database serialization."""
         small_raw_data = {"test": "small"}
 
@@ -228,20 +218,14 @@ class TestCompressionIntegration:
         deserialized_data = AnimeMetadata._parse_json_field(serialized_data, {})
         assert deserialized_data == small_raw_data
 
-    def test_cache_compression_integration(self):
+    def test_cache_compression_integration(self) -> None:
         """Test compression integration with cache."""
         cache = MetadataCache(
-            max_size=100,
-            max_memory_mb=10,
-            enable_db=False  # Disable DB for this test
+            max_size=100, max_memory_mb=10, enable_db=False  # Disable DB for this test
         )
 
         large_raw_data = {"test": "x" * 1000}
-        anime = TMDBAnime(
-            tmdb_id=12345,
-            title="Test Anime",
-            raw_data=large_raw_data
-        )
+        anime = TMDBAnime(tmdb_id=12345, title="Test Anime", raw_data=large_raw_data)
 
         # Store in cache
         cache.put("test_key", anime)
@@ -288,7 +272,7 @@ class TestCompressionIntegration:
                 quality_score=anime.quality_score,
                 search_strategy=anime.search_strategy,
                 fallback_round=anime.fallback_round,
-                raw_data=compressed_raw_data
+                raw_data=compressed_raw_data,
             )
         return anime
 
@@ -296,7 +280,7 @@ class TestCompressionIntegration:
         """Decompress TMDBAnime raw_data."""
         if anime.raw_data:
             decompressed_raw_data = self.compression_manager.decompress_from_storage(
-                anime.raw_data, expected_type='dict'
+                anime.raw_data, expected_type="dict"
             )
             return TMDBAnime(
                 tmdb_id=anime.tmdb_id,
@@ -327,7 +311,7 @@ class TestCompressionIntegration:
                 quality_score=anime.quality_score,
                 search_strategy=anime.search_strategy,
                 fallback_round=anime.fallback_round,
-                raw_data=decompressed_raw_data
+                raw_data=decompressed_raw_data,
             )
         return anime
 
@@ -349,7 +333,7 @@ class TestCompressionIntegration:
                 file_extension=info.file_extension,
                 year=info.year,
                 source=info.source,
-                raw_data=compressed_raw_data
+                raw_data=compressed_raw_data,
             )
         return info
 
@@ -357,7 +341,7 @@ class TestCompressionIntegration:
         """Decompress ParsedAnimeInfo raw_data."""
         if info.raw_data:
             decompressed_raw_data = self.compression_manager.decompress_from_storage(
-                info.raw_data, expected_type='dict'
+                info.raw_data, expected_type="dict"
             )
             return ParsedAnimeInfo(
                 title=info.title,
@@ -373,7 +357,7 @@ class TestCompressionIntegration:
                 file_extension=info.file_extension,
                 year=info.year,
                 source=info.source,
-                raw_data=decompressed_raw_data
+                raw_data=decompressed_raw_data,
             )
         return info
 
@@ -381,19 +365,18 @@ class TestCompressionIntegration:
 class TestCompressionPerformance:
     """Test performance impact of compression."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.compression_manager = CompressionManager(
-            min_size_threshold=50,
-            max_compression_ratio=0.8
+            min_size_threshold=50, max_compression_ratio=0.8
         )
 
-    def test_compression_performance(self):
+    def test_compression_performance(self) -> None:
         """Test that compression improves performance for large data."""
         large_data = {
             "title": "Test Anime",
             "description": "x" * 10000,  # 10KB of data
-            "metadata": [{"key": "value" + str(i)} for i in range(1000)]
+            "metadata": [{"key": "value" + str(i)} for i in range(1000)],
         }
 
         # Measure compression time
@@ -404,7 +387,7 @@ class TestCompressionPerformance:
         # Measure decompression time
         start_time = time.time()
         decompressed_data = self.compression_manager.decompress_from_storage(
-            compressed_data, expected_type='dict'
+            compressed_data, expected_type="dict"
         )
         decompression_time = time.time() - start_time
 
@@ -420,7 +403,7 @@ class TestCompressionPerformance:
         assert compression_time < 1.0  # Should be fast
         assert decompression_time < 1.0  # Should be fast
 
-    def test_compression_memory_savings(self):
+    def test_compression_memory_savings(self) -> None:
         """Test memory savings from compression."""
         large_data = {"test": "x" * 5000}  # 5KB of data
 
@@ -442,14 +425,13 @@ class TestCompressionPerformance:
 class TestCompressionEdgeCases:
     """Test edge cases for compression functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.compression_manager = CompressionManager(
-            min_size_threshold=50,
-            max_compression_ratio=0.8
+            min_size_threshold=50, max_compression_ratio=0.8
         )
 
-    def test_compress_empty_data(self):
+    def test_compress_empty_data(self) -> None:
         """Test compression of empty data."""
         empty_data = {}
 
@@ -458,14 +440,14 @@ class TestCompressionEdgeCases:
         # Should handle empty data gracefully
         assert result is not None
 
-    def test_compress_none_data(self):
+    def test_compress_none_data(self) -> None:
         """Test compression of None data."""
         result = self.compression_manager.compress_for_storage(None)
 
         # Should handle None gracefully
         assert result is None
 
-    def test_compress_non_compressible_data(self):
+    def test_compress_non_compressible_data(self) -> None:
         """Test compression of data that doesn't compress well."""
         # Random binary-like data that doesn't compress well
         non_compressible = "".join([chr(i % 256) for i in range(1000)])
@@ -475,29 +457,27 @@ class TestCompressionEdgeCases:
         # Should handle non-compressible data gracefully
         assert result is not None
 
-    def test_decompress_invalid_data(self):
+    def test_decompress_invalid_data(self) -> None:
         """Test decompression of invalid data."""
         invalid_data = "invalid_base64_data"
 
         # Should handle invalid data gracefully
-        result = self.compression_manager.decompress_from_storage(
-            invalid_data, expected_type='str'
-        )
+        result = self.compression_manager.decompress_from_storage(invalid_data, expected_type="str")
 
         assert result == invalid_data  # Should return original data
 
-    def test_compression_with_special_characters(self):
+    def test_compression_with_special_characters(self) -> None:
         """Test compression with special characters and Unicode."""
         special_data = {
             "unicode": "测试数据 🎌",
             "special_chars": "!@#$%^&*()_+-=[]{}|;':\",./<>?",
             "newlines": "line1\nline2\r\nline3",
-            "tabs": "col1\tcol2\tcol3"
+            "tabs": "col1\tcol2\tcol3",
         }
 
         compressed = self.compression_manager.compress_for_storage(special_data)
         decompressed = self.compression_manager.decompress_from_storage(
-            compressed, expected_type='dict'
+            compressed, expected_type="dict"
         )
 
         assert decompressed == special_data

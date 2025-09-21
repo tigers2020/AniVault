@@ -5,15 +5,15 @@ while maintaining search accuracy.
 """
 
 import unittest
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, patch
 
-from src.core.tmdb_client import TMDBClient, TMDBConfig, SearchStrategyType, SearchStrategy
+from src.core.tmdb_client import SearchStrategyType, TMDBClient, TMDBConfig
 
 
 class TestFallbackStrategyLimitation(unittest.TestCase):
     """Test cases for fallback strategy limitation."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.config = TMDBConfig(
             api_key="test_api_key",
@@ -23,14 +23,16 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
         )
         self.client = TMDBClient(self.config)
 
-    def test_three_strategies_used(self):
+    def test_three_strategies_used(self) -> None:
         """Test that exactly 3 strategies are used in the new approach."""
         query = "Attack on Titan Season 1 [1080p]"
 
         # Mock the strategy methods to track calls
-        with patch.object(self.client, '_strategy_exact_title_with_year') as mock_strategy1, \
-             patch.object(self.client, '_strategy_exact_title_only') as mock_strategy2, \
-             patch.object(self.client, '_strategy_cleaned_title') as mock_strategy3:
+        with (
+            patch.object(self.client, "_strategy_exact_title_with_year") as mock_strategy1,
+            patch.object(self.client, "_strategy_exact_title_only") as mock_strategy2,
+            patch.object(self.client, "_strategy_cleaned_title") as mock_strategy3,
+        ):
 
             # Mock all strategies to return no results
             mock_strategy1.return_value = []
@@ -45,7 +47,7 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
             mock_strategy2.assert_called_once()
             mock_strategy3.assert_called_once()
 
-    def test_strategy_effectiveness_maintained(self):
+    def test_strategy_effectiveness_maintained(self) -> None:
         """Test that search accuracy is maintained with the 3 strategies."""
         test_queries = [
             "Attack on Titan [1080p]",
@@ -73,17 +75,18 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
                     modifications.append("YEAR_EXTRACTED")
 
                 # Should have at least one meaningful modification
-                self.assertGreater(len(modifications), 0,
-                                 f"No meaningful modifications for query: {query}")
+                assert len(modifications) > 0, f"No meaningful modifications for query: {query}"
 
-    def test_api_call_reduction_measurement(self):
+    def test_api_call_reduction_measurement(self) -> None:
         """Test that API calls are reduced to exactly 3 strategies."""
         query = "Attack on Titan Season 1 [1080p]"
 
         # Mock the individual strategy methods to track calls
-        with patch.object(self.client, '_strategy_exact_title_with_year') as mock_strategy1, \
-             patch.object(self.client, '_strategy_exact_title_only') as mock_strategy2, \
-             patch.object(self.client, '_strategy_cleaned_title') as mock_strategy3:
+        with (
+            patch.object(self.client, "_strategy_exact_title_with_year") as mock_strategy1,
+            patch.object(self.client, "_strategy_exact_title_only") as mock_strategy2,
+            patch.object(self.client, "_strategy_cleaned_title") as mock_strategy3,
+        ):
 
             # Mock all strategies to return no results
             mock_strategy1.return_value = []
@@ -94,15 +97,15 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
             self.client.search_with_three_strategies(query)
 
             # Should have exactly 3 strategy calls (one for each strategy)
-            self.assertEqual(mock_strategy1.call_count, 1)
-            self.assertEqual(mock_strategy2.call_count, 1)
-            self.assertEqual(mock_strategy3.call_count, 1)
+            assert mock_strategy1.call_count == 1
+            assert mock_strategy2.call_count == 1
+            assert mock_strategy3.call_count == 1
 
             # This represents a 25% reduction from the previous 4 strategies
             expected_reduction = (4 - 3) / 4 * 100
-            self.assertEqual(expected_reduction, 25.0)
+            assert expected_reduction == 25.0
 
-    def test_strategy_order_preserved(self):
+    def test_strategy_order_preserved(self) -> None:
         """Test that strategies are tried in the correct order."""
         query = "Attack on Titan (2023) [1080p]"
 
@@ -121,34 +124,34 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
             call_order.append("CLEANED_TITLE")
             return []
 
-        with patch.object(self.client, '_strategy_exact_title_with_year', side_effect=track_strategy1), \
-             patch.object(self.client, '_strategy_exact_title_only', side_effect=track_strategy2), \
-             patch.object(self.client, '_strategy_cleaned_title', side_effect=track_strategy3):
+        with (
+            patch.object(
+                self.client, "_strategy_exact_title_with_year", side_effect=track_strategy1
+            ),
+            patch.object(self.client, "_strategy_exact_title_only", side_effect=track_strategy2),
+            patch.object(self.client, "_strategy_cleaned_title", side_effect=track_strategy3),
+        ):
 
             self.client.search_with_three_strategies(query)
 
             # Verify the correct order
             expected_order = ["EXACT_TITLE_WITH_YEAR", "EXACT_TITLE_ONLY", "CLEANED_TITLE"]
-            self.assertEqual(call_order, expected_order)
+            assert call_order == expected_order
 
-    def test_strategy_types_defined(self):
+    def test_strategy_types_defined(self) -> None:
         """Test that the new strategy types are properly defined."""
         # Verify that SearchStrategyType enum has the correct values
         strategy_values = [strategy.value for strategy in SearchStrategyType]
 
-        expected_strategies = [
-            "exact_title_with_year",
-            "exact_title_only",
-            "cleaned_title"
-        ]
+        expected_strategies = ["exact_title_with_year", "exact_title_only", "cleaned_title"]
 
         for strategy in expected_strategies:
-            self.assertIn(strategy, strategy_values)
+            assert strategy in strategy_values
 
         # Should have exactly 3 strategies
-        self.assertEqual(len(strategy_values), 3)
+        assert len(strategy_values) == 3
 
-    def test_strategy_effectiveness_comparison(self):
+    def test_strategy_effectiveness_comparison(self) -> None:
         """Compare effectiveness of the 3 selected strategies."""
         test_query = "Attack on Titan Season 1 [1080p] (2023)"
 
@@ -159,30 +162,32 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
         cleaned = self.client._clean_title_for_search(test_query)
 
         # Strategy 1: Exact title with year (most precise)
-        self.assertEqual(year_hint, 2023)
-        self.assertIn("Attack on Titan Season 1 [1080p]", title_without_year)
+        assert year_hint == 2023
+        assert "Attack on Titan Season 1 [1080p]" in title_without_year
 
         # Strategy 2: Exact title only (medium precision)
-        self.assertNotEqual(normalized, test_query)
-        self.assertIn("Attack on Titan Season 1", normalized)
+        assert normalized != test_query
+        assert "Attack on Titan Season 1" in normalized
 
         # Strategy 3: Cleaned title (broadest search)
-        self.assertNotEqual(cleaned, test_query)
-        self.assertIn("Attack on Titan", cleaned)
+        assert cleaned != test_query
+        assert "Attack on Titan" in cleaned
 
         # All strategies should produce meaningful modifications
-        self.assertTrue(year_hint is not None)
-        self.assertTrue(normalized)
-        self.assertTrue(cleaned)
+        assert year_hint is not None
+        assert normalized
+        assert cleaned
 
-    def test_performance_improvement_estimation(self):
+    def test_performance_improvement_estimation(self) -> None:
         """Estimate performance improvement from strategy reduction."""
         # Calculate theoretical improvement
         original_strategies = 4  # Previous: 1 initial + 3 fallback
-        limited_strategies = 3   # New: 3 integrated strategies
-        reduction_percentage = (original_strategies - limited_strategies) / original_strategies * 100
+        limited_strategies = 3  # New: 3 integrated strategies
+        reduction_percentage = (
+            (original_strategies - limited_strategies) / original_strategies * 100
+        )
 
-        self.assertEqual(reduction_percentage, 25.0)
+        assert reduction_percentage == 25.0
 
         # In a real scenario with 100 files, this would mean:
         # - Original: 100 files × 4 strategies = 400 API calls
@@ -194,12 +199,12 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
         limited_calls = files_count * limited_strategies
         saved_calls = original_calls - limited_calls
 
-        self.assertEqual(original_calls, 400)
-        self.assertEqual(limited_calls, 300)
-        self.assertEqual(saved_calls, 100)
-        self.assertEqual(saved_calls / original_calls * 100, 25.0)
+        assert original_calls == 400
+        assert limited_calls == 300
+        assert saved_calls == 100
+        assert saved_calls / original_calls * 100 == 25.0
 
-    def test_early_exit_on_high_confidence(self):
+    def test_early_exit_on_high_confidence(self) -> None:
         """Test that search stops early when high confidence result is found."""
         query = "Attack on Titan (2023)"
 
@@ -207,9 +212,11 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
         high_confidence_result = Mock()
         high_confidence_result.quality_score = 0.9  # Above early exit threshold (0.85)
 
-        with patch.object(self.client, '_strategy_exact_title_with_year') as mock_strategy1, \
-             patch.object(self.client, '_strategy_exact_title_only') as mock_strategy2, \
-             patch.object(self.client, '_strategy_cleaned_title') as mock_strategy3:
+        with (
+            patch.object(self.client, "_strategy_exact_title_with_year") as mock_strategy1,
+            patch.object(self.client, "_strategy_exact_title_only") as mock_strategy2,
+            patch.object(self.client, "_strategy_cleaned_title") as mock_strategy3,
+        ):
 
             mock_strategy1.return_value = [high_confidence_result]
             mock_strategy2.return_value = []
@@ -218,8 +225,8 @@ class TestFallbackStrategyLimitation(unittest.TestCase):
             results, needs_selection = self.client.search_with_three_strategies(query)
 
             # Should return early with high confidence result
-            self.assertEqual(len(results), 1)
-            self.assertFalse(needs_selection)
+            assert len(results) == 1
+            assert not needs_selection
 
             # Only first strategy should be called
             mock_strategy1.assert_called_once()

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class SecureKeyManager:
     """Manages encryption keys and provides secure key operations."""
 
-    def __init__(self, key_file_path: Path | None = None):
+    def __init__(self, key_file_path: Path | None = None) -> None:
         """Initialize the secure key manager.
 
         Args:
@@ -137,7 +137,7 @@ class SecureStorage:
     data with automatic encryption/decryption and key management.
     """
 
-    def __init__(self, key_manager: SecureKeyManager | None = None):
+    def __init__(self, key_manager: SecureKeyManager | None = None) -> None:
         """Initialize the secure storage.
 
         Args:

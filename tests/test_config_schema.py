@@ -346,7 +346,7 @@ class TestConfigSchemaValidator:
             "metadata": {},
         }
 
-        is_valid, errors = self.validator.validate_config(config_with_missing_nested)
+        is_valid, _errors = self.validator.validate_config(config_with_missing_nested)
         # Should be valid since nested properties are not required by default
         assert is_valid is True
 

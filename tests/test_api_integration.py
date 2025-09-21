@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.core.tmdb_client import TMDBClient, TMDBAnime
+from src.core.tmdb_client import TMDBAnime, TMDBClient
 
 
 class TestTMDBAPIIntegration:
@@ -29,6 +29,7 @@ class TestTMDBAPIIntegration:
     def tmdb_client(self, api_key: str) -> TMDBClient:
         """Create TMDBClient instance for testing."""
         from src.core.tmdb_client import TMDBConfig
+
         config = TMDBConfig(api_key=api_key)
         return TMDBClient(config=config)
 
@@ -69,7 +70,7 @@ class TestTMDBAPIIntegration:
 
         for i in range(5):  # Make 5 requests
             try:
-                results, success = tmdb_client.search_comprehensive(f"Test Anime {i}")
+                _results, _success = tmdb_client.search_comprehensive(f"Test Anime {i}")
                 # Small delay to avoid hitting rate limits
                 time.sleep(0.1)
             except requests.exceptions.HTTPError as e:
@@ -86,7 +87,7 @@ class TestTMDBAPIIntegration:
     def test_api_network_error_handling(self, tmdb_client: TMDBClient) -> None:
         """Test API error handling for network issues."""
         # Mock requests to simulate network error
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_get.side_effect = requests.exceptions.ConnectionError("Network error")
 
             # Should handle network error gracefully
@@ -97,6 +98,7 @@ class TestTMDBAPIIntegration:
     def test_api_invalid_key_handling(self) -> None:
         """Test API behavior with invalid API key."""
         from src.core.tmdb_client import TMDBConfig
+
         config = TMDBConfig(api_key="invalid_key")
         invalid_client = TMDBClient(config=config)
 
@@ -108,7 +110,7 @@ class TestTMDBAPIIntegration:
     def test_api_timeout_handling(self, tmdb_client: TMDBClient) -> None:
         """Test API timeout handling."""
         # Mock requests to simulate timeout
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_get.side_effect = requests.exceptions.Timeout("Request timeout")
 
             # Should handle timeout gracefully
@@ -119,10 +121,12 @@ class TestTMDBAPIIntegration:
     def test_api_http_error_handling(self, tmdb_client: TMDBClient) -> None:
         """Test API HTTP error handling."""
         # Mock requests to simulate HTTP error
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 500
-            mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("Server error")
+            mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+                "Server error"
+            )
             mock_get.return_value = mock_response
 
             # Should handle HTTP error gracefully
@@ -160,8 +164,8 @@ class TestTMDBAPIIntegration:
 
     def test_api_concurrent_requests(self, tmdb_client: TMDBClient) -> None:
         """Test API with concurrent requests."""
-        import threading
         import queue
+        import threading
 
         results_queue = queue.Queue()
 
@@ -208,12 +212,12 @@ class TestTMDBAPIIntegration:
         if results:  # If we got results
             for anime in results:
                 # Validate required fields
-                assert hasattr(anime, 'id')
-                assert hasattr(anime, 'title')
-                assert hasattr(anime, 'overview')
-                assert hasattr(anime, 'release_date')
-                assert hasattr(anime, 'vote_average')
-                assert hasattr(anime, 'vote_count')
+                assert hasattr(anime, "id")
+                assert hasattr(anime, "title")
+                assert hasattr(anime, "overview")
+                assert hasattr(anime, "release_date")
+                assert hasattr(anime, "vote_average")
+                assert hasattr(anime, "vote_count")
 
                 # Validate data types
                 assert isinstance(anime.id, int)
@@ -249,14 +253,14 @@ class TestTMDBAPIIntegration:
                             "overview": "Test overview",
                             "release_date": "2020-01-01",
                             "vote_average": 8.5,
-                            "vote_count": 100
+                            "vote_count": 100,
                         }
                     ]
                 }
                 mock_response.raise_for_status.return_value = None
                 return mock_response
 
-        with patch('requests.get', side_effect=mock_get):
+        with patch("requests.get", side_effect=mock_get):
             results = tmdb_client.search_comprehensive("Test")
             # Should retry and eventually succeed
             assert len(results) > 0
@@ -278,6 +282,7 @@ class TestTMDBAPIPerformance:
     def tmdb_client(self, api_key: str) -> TMDBClient:
         """Create TMDBClient instance for testing."""
         from src.core.tmdb_client import TMDBConfig
+
         config = TMDBConfig(api_key=api_key)
         return TMDBClient(config=config)
 
@@ -293,15 +298,16 @@ class TestTMDBAPIPerformance:
 
     def test_api_memory_usage(self, tmdb_client: TMDBClient) -> None:
         """Test API memory usage with multiple requests."""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss
 
         # Make multiple requests
         for i in range(10):
-            results = tmdb_client.search_anime(f"Test Anime {i}")
+            tmdb_client.search_anime(f"Test Anime {i}")
             time.sleep(0.1)  # Small delay to avoid rate limiting
 
         final_memory = process.memory_info().rss
@@ -312,8 +318,8 @@ class TestTMDBAPIPerformance:
 
     def test_api_concurrent_performance(self, tmdb_client: TMDBClient) -> None:
         """Test API performance with concurrent requests."""
-        import threading
         import queue
+        import threading
         import time
 
         results_queue = queue.Queue()

@@ -58,7 +58,8 @@ class SyncJobConfig:
     retry_delay_seconds: int = 30
     timeout_seconds: int = 300
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Initialize default values after dataclass creation."""
         if self.trigger_types is None:
             self.trigger_types = [SyncTrigger.SCHEDULED]
         if self.entity_types is None:
@@ -84,7 +85,8 @@ class SyncJobResult:
     error_message: str | None = None
     details: dict[str, Any] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Initialize default values after dataclass creation."""
         if self.details is None:
             self.details = {}
 
@@ -98,7 +100,15 @@ class SyncJob:
         metadata_cache: MetadataCache,
         incremental_sync_manager: IncrementalSyncManager | None = None,
         consistency_job: ConsistencyJob | None = None,
-    ):
+    ) -> None:
+        """Initialize the synchronization job.
+
+        Args:
+            config (SyncJobConfig): Configuration for the sync job.
+            metadata_cache (MetadataCache): Cache instance for metadata operations.
+            incremental_sync_manager (IncrementalSyncManager | None, optional): Manager for incremental sync. Defaults to None.
+            consistency_job (ConsistencyJob | None, optional): Job for consistency validation. Defaults to None.
+        """
         self.config = config
         self.metadata_cache = metadata_cache
         self.incremental_sync_manager = incremental_sync_manager
@@ -512,7 +522,7 @@ class SyncScheduler:
         metadata_cache: MetadataCache | None = None,
         incremental_sync_manager: IncrementalSyncManager | None = None,
         consistency_scheduler: ConsistencyScheduler | None = None,
-    ):
+    ) -> None:
         """Initialize the synchronization scheduler.
 
         Args:

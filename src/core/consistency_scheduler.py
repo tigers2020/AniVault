@@ -37,7 +37,17 @@ class ConsistencyJob:
         reporter: ConsistencyReporter,
         strategy: ReconciliationStrategy = ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH,
         enabled: bool = True,
-    ):
+    ) -> None:
+        """Initialize the consistency validation and reconciliation job.
+
+        Args:
+            job_id (str): Unique identifier for the job.
+            validator (ConsistencyValidator): Validator instance for checking consistency.
+            reconciliation_engine (ReconciliationEngine): Engine for performing reconciliation.
+            reporter (ConsistencyReporter): Reporter for logging and metrics.
+            strategy (ReconciliationStrategy, optional): Reconciliation strategy to use. Defaults to DATABASE_IS_SOURCE_OF_TRUTH.
+            enabled (bool, optional): Whether the job is enabled. Defaults to True.
+        """
         self.job_id = job_id
         self.validator = validator
         self.reconciliation_engine = reconciliation_engine
@@ -196,7 +206,7 @@ class ConsistencyJob:
 class ConsistencyScheduler:
     """Scheduler for consistency validation and reconciliation jobs."""
 
-    def __init__(self, metadata_cache: MetadataCache | None = None, db_manager=None):
+    def __init__(self, metadata_cache: MetadataCache | None = None, db_manager: Any = None) -> None:
         """Initialize the consistency scheduler.
 
         Args:
@@ -218,7 +228,7 @@ class ConsistencyScheduler:
         interval_seconds: int,
         strategy: ReconciliationStrategy = ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH,
         enabled: bool = True,
-        db_manager=None,
+        db_manager: Any = None,
     ) -> ConsistencyJob:
         """Add a new consistency job.
 
@@ -405,6 +415,9 @@ class ConsistencyScheduler:
             check_interval: How often to check for jobs to run (seconds)
         """
         logger.info("Consistency scheduler loop started")
+        
+        consecutive_errors = 0
+        max_consecutive_errors = 5
 
         while self.running and not self.stop_event.is_set():
             try:
@@ -430,13 +443,25 @@ class ConsistencyScheduler:
                         result = job.execute()
                         self._notify_callbacks(result)
 
+                # Reset error counter on successful iteration
+                consecutive_errors = 0
+
                 # Sleep for a short time before next check
                 self.stop_event.wait(timeout=min(check_interval, 60))
 
             except Exception as e:
-                logger.error(f"Error in scheduler loop: {e}", exc_info=True)
-                # Sleep for a bit before retrying
-                self.stop_event.wait(timeout=30)
+                consecutive_errors += 1
+                logger.error(f"Error in scheduler loop (attempt {consecutive_errors}/{max_consecutive_errors}): {e}", exc_info=True)
+                
+                # If too many consecutive errors, stop the scheduler
+                if consecutive_errors >= max_consecutive_errors:
+                    logger.error(f"Scheduler stopping due to {max_consecutive_errors} consecutive errors")
+                    self.running = False
+                    break
+                
+                # Sleep for a bit before retrying (exponential backoff)
+                sleep_time = min(30 * (2 ** (consecutive_errors - 1)), 300)  # Max 5 minutes
+                self.stop_event.wait(timeout=sleep_time)
 
         logger.info("Consistency scheduler loop stopped")
 
@@ -491,7 +516,7 @@ def add_global_job(
     interval_seconds: int,
     strategy: ReconciliationStrategy = ReconciliationStrategy.DATABASE_IS_SOURCE_OF_TRUTH,
     enabled: bool = True,
-    db_manager=None,
+    db_manager: Any = None,
 ) -> ConsistencyJob:
     """Add a job to the global scheduler.
 

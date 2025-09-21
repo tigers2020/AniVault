@@ -6,6 +6,7 @@ achieved through TMDB client optimization in parallel processing scenarios.
 
 import logging
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -49,11 +50,11 @@ class PerformanceMetrics:
     # Additional metadata
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def record_thread_usage(self, thread_count: int):
+    def record_thread_usage(self, thread_count: int) -> None:
         """Record thread usage."""
         self.threads_used = max(self.threads_used, thread_count)
 
-    def record_concurrent_operations(self, count: int):
+    def record_concurrent_operations(self, count: int) -> None:
         """Record concurrent operations."""
         self.concurrent_operations = max(self.concurrent_operations, count)
 
@@ -61,7 +62,7 @@ class PerformanceMetrics:
 class TMDBPerformanceMonitor:
     """Monitor for tracking TMDB client performance metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the performance monitor."""
         self._metrics_history: list[PerformanceMetrics] = []
         self._current_metrics: PerformanceMetrics | None = None
@@ -69,7 +70,9 @@ class TMDBPerformanceMonitor:
         self._start_memory: int | None = None
 
     @contextmanager
-    def monitor_operation(self, operation_name: str = "tmdb_operation"):
+    def monitor_operation(
+        self, operation_name: str = "tmdb_operation"
+    ) -> Generator[Any, None, None]:
         """Context manager for monitoring TMDB operations.
 
         Args:
@@ -98,7 +101,7 @@ class TMDBPerformanceMonitor:
                     f"Operation '{operation_name}' completed in {self._current_metrics.total_time:.3f}s"
                 )
 
-    def record_client_creation(self, creation_time: float):
+    def record_client_creation(self, creation_time: float) -> None:
         """Record client creation time.
 
         Args:
@@ -108,12 +111,12 @@ class TMDBPerformanceMonitor:
             self._current_metrics.client_creation_time += creation_time
             self._current_metrics.clients_created += 1
 
-    def record_client_reuse(self):
+    def record_client_reuse(self) -> None:
         """Record client reuse."""
         if self._current_metrics:
             self._current_metrics.clients_reused += 1
 
-    def record_api_call(self, call_time: float):
+    def record_api_call(self, call_time: float) -> None:
         """Record API call time.
 
         Args:
@@ -123,7 +126,7 @@ class TMDBPerformanceMonitor:
             self._current_metrics.api_call_time += call_time
             self._current_metrics.api_calls_made += 1
 
-    def record_thread_usage(self, thread_count: int):
+    def record_thread_usage(self, thread_count: int) -> None:
         """Record thread usage.
 
         Args:
@@ -134,7 +137,7 @@ class TMDBPerformanceMonitor:
                 self._current_metrics.threads_used, thread_count
             )
 
-    def record_concurrent_operations(self, count: int):
+    def record_concurrent_operations(self, count: int) -> None:
         """Record concurrent operations.
 
         Args:
@@ -145,12 +148,12 @@ class TMDBPerformanceMonitor:
                 self._current_metrics.concurrent_operations, count
             )
 
-    def record_error(self):
+    def record_error(self) -> None:
         """Record an error occurrence."""
         if self._current_metrics:
             self._current_metrics.errors_occurred += 1
 
-    def record_retry(self):
+    def record_retry(self) -> None:
         """Record a retry attempt."""
         if self._current_metrics:
             self._current_metrics.retry_attempts += 1
@@ -199,7 +202,7 @@ class TMDBPerformanceMonitor:
             "operations_per_second": total_operations / total_time if total_time > 0 else 0.0,
         }
 
-    def clear_metrics(self):
+    def clear_metrics(self) -> None:
         """Clear all stored metrics."""
         self._metrics_history.clear()
         self._current_metrics = None
@@ -208,7 +211,7 @@ class TMDBPerformanceMonitor:
 class TMDBClientPoolMonitor:
     """Monitor for TMDB client pool performance."""
 
-    def __init__(self, pool: TMDBClientPool):
+    def __init__(self, pool: TMDBClientPool) -> None:
         """Initialize the pool monitor.
 
         Args:
@@ -218,12 +221,12 @@ class TMDBClientPoolMonitor:
         self._initial_stats = pool.get_pool_stats()
         self._monitoring_active = False
 
-    def start_monitoring(self):
+    def start_monitoring(self) -> None:
         """Start monitoring the pool."""
         self._monitoring_active = True
         logger.info("Started monitoring TMDB client pool")
 
-    def stop_monitoring(self):
+    def stop_monitoring(self) -> None:
         """Stop monitoring the pool."""
         self._monitoring_active = False
         logger.info("Stopped monitoring TMDB client pool")
@@ -300,7 +303,7 @@ class TMDBClientPoolMonitor:
 
 
 def benchmark_tmdb_approaches(
-    config, num_operations: int = 100, num_threads: int = 4, mock_api_calls: bool = True
+    config: Any, num_operations: int = 100, num_threads: int = 4, mock_api_calls: bool = True
 ) -> dict[str, Any]:
     """Benchmark different TMDB client approaches.
 
@@ -317,23 +320,23 @@ def benchmark_tmdb_approaches(
 
     results = {}
 
-    def traditional_approach():
+    def traditional_approach() -> dict[str, Any]:
         """Traditional approach: create new client for each operation."""
         start_time = time.time()
         start_memory = psutil.Process().memory_info().rss
 
         clients_created = 0
 
-        def worker():
+        def worker() -> None:
             nonlocal clients_created
             for _ in range(num_operations // num_threads):
                 if mock_api_calls:
                     with patch.object(TMDBClient, "__init__", return_value=None):
-                        client = TMDBClient(config)
+                        TMDBClient(config)
                         clients_created += 1
                         time.sleep(0.001)  # Simulate API call
                 else:
-                    client = TMDBClient(config)
+                    TMDBClient(config)
                     clients_created += 1
                     time.sleep(0.001)
 
@@ -352,21 +355,21 @@ def benchmark_tmdb_approaches(
             "approach": "traditional",
         }
 
-    def optimized_approach():
+    def optimized_approach() -> dict[str, Any]:
         """Optimized approach: use thread-local client."""
         start_time = time.time()
         start_memory = psutil.Process().memory_info().rss
 
         thread_local_manager = ThreadLocalTMDBClient(config)
 
-        def worker():
+        def worker() -> None:
             for _ in range(num_operations // num_threads):
                 if mock_api_calls:
                     with patch.object(TMDBClient, "__init__", return_value=None):
-                        client = thread_local_manager.get_client()
+                        thread_local_manager.get_client()
                         time.sleep(0.001)  # Simulate API call
                 else:
-                    client = thread_local_manager.get_client()
+                    thread_local_manager.get_client()
                     time.sleep(0.001)
 
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
@@ -425,7 +428,7 @@ def get_performance_monitor() -> TMDBPerformanceMonitor:
     return _performance_monitor
 
 
-def reset_performance_monitor():
+def reset_performance_monitor() -> None:
     """Reset the global performance monitor."""
     global _performance_monitor
     if _performance_monitor is not None:
@@ -435,7 +438,7 @@ def reset_performance_monitor():
 
 # Context manager for easy monitoring
 @contextmanager
-def monitor_tmdb_operation(operation_name: str = "tmdb_operation"):
+def monitor_tmdb_operation(operation_name: str = "tmdb_operation") -> Generator[Any, None, None]:
     """Context manager for monitoring TMDB operations.
 
     Args:

@@ -5,15 +5,14 @@ to select the top 3 most effective ones for reducing API calls.
 """
 
 import unittest
-from unittest.mock import Mock, patch
 
-from src.core.tmdb_client import TMDBClient, TMDBConfig, FallbackStrategy
+from src.core.tmdb_client import FallbackStrategy, TMDBClient, TMDBConfig
 
 
 class TestFallbackStrategyAnalysis(unittest.TestCase):
     """Test cases for analyzing fallback strategy effectiveness."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.config = TMDBConfig(
             api_key="test_api_key",
@@ -23,7 +22,7 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
         )
         self.client = TMDBClient(self.config)
 
-    def test_normalize_query_effectiveness(self):
+    def test_normalize_query_effectiveness(self) -> None:
         """Test NORMALIZED strategy effectiveness."""
         test_cases = [
             # (input, expected_output, should_be_different)
@@ -31,7 +30,11 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
             ("One Piece (2023)", "One Piece", True),
             ("Naruto 720p", "Naruto", True),
             ("Dragon Ball 60fps", "Dragon Ball", True),
-            ("Attack on Titan - Season 1", "Attack on Titan - Season 1", False),  # Regex doesn't match this pattern
+            (
+                "Attack on Titan - Season 1",
+                "Attack on Titan - Season 1",
+                False,
+            ),  # Regex doesn't match this pattern
             ("나루토 편", "나루토", True),
             ("원피스 시즌 1", "원피스", True),
             ("Attack on Titan", "Attack on Titan", False),  # No change needed
@@ -40,14 +43,14 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
         for input_query, expected, should_change in test_cases:
             with self.subTest(query=input_query):
                 result = self.client._normalize_query(input_query)
-                self.assertEqual(result, expected)
+                assert result == expected
 
                 if should_change:
-                    self.assertNotEqual(result, input_query)
+                    assert result != input_query
                 else:
-                    self.assertEqual(result, input_query)
+                    assert result == input_query
 
-    def test_word_reduction_effectiveness(self):
+    def test_word_reduction_effectiveness(self) -> None:
         """Test WORD_REDUCTION strategy effectiveness."""
         test_cases = [
             # (input, expected_output, should_be_different)
@@ -62,12 +65,12 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
         for input_query, expected, should_change in test_cases:
             with self.subTest(query=input_query):
                 result = self.client._reduce_query_words(input_query)
-                self.assertEqual(result, expected)
+                assert result == expected
 
                 if should_change and input_query:
-                    self.assertNotEqual(result, input_query)
+                    assert result != input_query
 
-    def test_partial_match_effectiveness(self):
+    def test_partial_match_effectiveness(self) -> None:
         """Test PARTIAL_MATCH strategy effectiveness."""
         test_cases = [
             # (input, expected_output, should_be_different)
@@ -82,12 +85,12 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
         for input_query, expected, should_change in test_cases:
             with self.subTest(query=input_query):
                 result = self.client._create_partial_query(input_query)
-                self.assertEqual(result, expected)
+                assert result == expected
 
                 if should_change and input_query:
-                    self.assertNotEqual(result, input_query)
+                    assert result != input_query
 
-    def test_word_reorder_effectiveness(self):
+    def test_word_reorder_effectiveness(self) -> None:
         """Test WORD_REORDER strategy effectiveness."""
         test_cases = [
             # (input, expected_output, should_be_different)
@@ -100,12 +103,12 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
         for input_query, expected, should_change in test_cases:
             with self.subTest(query=input_query):
                 result = self.client._reorder_query_words(input_query)
-                self.assertEqual(result, expected)
+                assert result == expected
 
                 if should_change and input_query:
-                    self.assertNotEqual(result, input_query)
+                    assert result != input_query
 
-    def test_language_fallback_effectiveness(self):
+    def test_language_fallback_effectiveness(self) -> None:
         """Test LANGUAGE_FALLBACK strategy effectiveness."""
         # This strategy doesn't modify the query, just changes language
         test_cases = [
@@ -119,9 +122,9 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
             with self.subTest(query=query):
                 # Language fallback doesn't modify query
                 result = query
-                self.assertEqual(result, query)
+                assert result == query
 
-    def test_strategy_distinctiveness(self):
+    def test_strategy_distinctiveness(self) -> None:
         """Test that strategies produce different results for the same input."""
         test_query = "Attack on Titan Season 1 [1080p]"
 
@@ -135,9 +138,9 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
         unique_results = set(results)
 
         # Should have at least 3 unique results (some might be empty)
-        self.assertGreaterEqual(len(unique_results), 3)
+        assert len(unique_results) >= 3
 
-    def test_strategy_priority_analysis(self):
+    def test_strategy_priority_analysis(self) -> None:
         """Analyze which strategies are most likely to be effective."""
         # Test with realistic anime file names
         test_queries = [
@@ -178,16 +181,18 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
 
         # Print effectiveness scores for analysis
         print("\nStrategy Effectiveness Analysis:")
-        for strategy, score in sorted(strategy_effectiveness.items(), key=lambda x: x[1], reverse=True):
+        for strategy, score in sorted(
+            strategy_effectiveness.items(), key=lambda x: x[1], reverse=True
+        ):
             print(f"{strategy.value}: {score}/{len(test_queries)} queries modified")
 
         # NORMALIZED should be most effective for file names
-        self.assertGreaterEqual(
-            strategy_effectiveness[FallbackStrategy.NORMALIZED],
-            strategy_effectiveness[FallbackStrategy.WORD_REDUCTION]
+        assert (
+            strategy_effectiveness[FallbackStrategy.NORMALIZED]
+            >= strategy_effectiveness[FallbackStrategy.WORD_REDUCTION]
         )
 
-    def test_strategy_redundancy_analysis(self):
+    def test_strategy_redundancy_analysis(self) -> None:
         """Analyze potential redundancy between strategies."""
         test_query = "Attack on Titan Season 1 [1080p]"
 
@@ -229,7 +234,7 @@ class TestFallbackStrategyAnalysis(unittest.TestCase):
             print(f"Result '{result}' produced by: {', '.join(strategies)}")
 
         # Should have minimal redundancy
-        self.assertLessEqual(len(redundant_pairs), 1)
+        assert len(redundant_pairs) <= 1
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""AniVault ViewModels Package
+"""AniVault ViewModels Package.
 
 This package contains all ViewModel classes that manage the state and business logic
 for the MVVM architecture pattern.

@@ -51,6 +51,7 @@ class PerformanceProfiler:
     """Profiler for measuring and optimizing performance."""
 
     def __init__(self) -> None:
+        """Initialize the performance profiler."""
         self.metrics_history: list[PerformanceMetrics] = []
         self._monitoring = False
         self._monitor_thread: threading.Thread | None = None

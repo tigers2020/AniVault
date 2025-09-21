@@ -41,7 +41,7 @@ class ReportSummary:
 class ConsistencyReporter:
     """Handles generation and storage of consistency validation reports."""
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: DatabaseManager) -> None:
         """Initialize the consistency reporter.
 
         Args:

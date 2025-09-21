@@ -1,4 +1,4 @@
-"""Dialog Orchestration System for TMDB Search
+"""Dialog Orchestration System for TMDB Search.
 
 This module provides a queue-based dialog orchestration system to handle
 concurrent dialog requests from multiple threads in a thread-safe manner.
@@ -14,11 +14,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, Union
 
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
 logger = logging.getLogger(__name__)
+
+# Type alias for dialog result values
+DialogResultValue = Union[str, int, float, bool, list, dict, None]
 
 
 class DialogTaskType(Enum):
@@ -48,7 +51,8 @@ class DialogTask:
     created_at: float = 0.0
     cancelled: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Initialize default values after dataclass creation."""
         if self.created_at == 0.0:
             self.created_at = time.time()
 
@@ -73,7 +77,8 @@ class DialogTaskQueue:
     - Task cancellation
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the dialog task queue."""
         self._queue: Queue[DialogTask] = Queue()
         self._lock = threading.RLock()
         self._coalesce_map: dict[str, DialogTask] = {}
@@ -215,7 +220,12 @@ class DialogOrchestrator(QObject):
     dialog_completed = pyqtSignal(DialogResult)
     dialog_error = pyqtSignal(str)
 
-    def __init__(self, parent: QObject | None = None):
+    def __init__(self, parent: QObject | None = None) -> None:
+        """Initialize the dialog orchestrator.
+
+        Args:
+            parent (QObject | None, optional): Parent QObject. Defaults to None.
+        """
         super().__init__(parent)
 
         self._state = DialogOrchestratorState.IDLE
@@ -353,7 +363,9 @@ class DialogOrchestrator(QObject):
             # Dialog creation failed
             self._handle_dialog_error(task, "Failed to create dialog")
 
-    def _handle_dialog_result(self, task: DialogTask, success: bool, result: Any) -> None:
+    def _handle_dialog_result(
+        self, task: DialogTask, success: bool, result: DialogResultValue
+    ) -> None:
         """Handle dialog completion result."""
         logger.info("Dialog task %s completed (success: %s)", task.task_id, success)
 

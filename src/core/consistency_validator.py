@@ -52,7 +52,19 @@ class DataConflict:
         severity: ConflictSeverity = ConflictSeverity.MEDIUM,
         details: str | None = None,
         detected_at: datetime | None = None,
-    ):
+    ) -> None:
+        """Initialize the data conflict.
+
+        Args:
+            conflict_type (ConflictType): Type of conflict detected.
+            entity_type (str): Type of entity with the conflict.
+            entity_id (int | str): ID of the entity with the conflict.
+            cache_data (dict[str, Any] | None, optional): Data from cache. Defaults to None.
+            db_data (dict[str, Any] | None, optional): Data from database. Defaults to None.
+            severity (ConflictSeverity, optional): Severity level of the conflict. Defaults to MEDIUM.
+            details (str | None, optional): Additional details about the conflict. Defaults to None.
+            detected_at (datetime | None, optional): When the conflict was detected. Defaults to None.
+        """
         self.conflict_type = conflict_type
         self.entity_type = entity_type
         self.entity_id = entity_id
@@ -63,6 +75,11 @@ class DataConflict:
         self.detected_at = detected_at or datetime.now(timezone.utc)
 
     def __repr__(self) -> str:
+        """Return a string representation of the data conflict.
+
+        Returns:
+            str: String representation of the conflict.
+        """
         return (
             f"DataConflict(type={self.conflict_type.value}, "
             f"entity={self.entity_type}:{self.entity_id}, "
@@ -73,7 +90,7 @@ class DataConflict:
 class ConsistencyValidator:
     """Validates data consistency between cache and database."""
 
-    def __init__(self, metadata_cache: MetadataCache | None = None):
+    def __init__(self, metadata_cache: MetadataCache | None = None) -> None:
         """Initialize the consistency validator.
 
         Args:

@@ -1,4 +1,4 @@
-"""Initial migration with existing tables
+"""Initial migration with existing tables.
 
 Revision ID: 3ff80129897d
 Revises:

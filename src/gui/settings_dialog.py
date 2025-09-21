@@ -32,7 +32,9 @@ class SettingsDialog(QDialog):
     # Signal emitted when settings are saved
     settings_saved = pyqtSignal()
 
-    def __init__(self, parent: QWidget | None = None, config_manager: ConfigManager | None = None):
+    def __init__(
+        self, parent: QWidget | None = None, config_manager: ConfigManager | None = None
+    ) -> None:
         """Initialize the settings dialog.
 
         Args:

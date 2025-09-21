@@ -1,26 +1,24 @@
-"""
-Tests for incremental synchronization functionality.
-"""
+"""Tests for incremental synchronization functionality."""
+
+from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 
 import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, MagicMock, patch
 
+from src.core.database import AnimeMetadata
 from src.core.incremental_sync import (
     IncrementalSyncManager,
-    SyncStateManager,
+    IncrementalSyncResult,
     SyncEntityType,
-    SyncState,
-    IncrementalSyncResult
+    SyncStateManager,
 )
 from src.core.sync_monitoring import SyncOperationStatus
-from src.core.database import AnimeMetadata, ParsedFile
 
 
 class TestSyncStateManager:
     """Test cases for SyncStateManager."""
 
-    def test_initial_state(self):
+    def test_initial_state(self) -> None:
         """Test initial state of sync state manager."""
         manager = SyncStateManager()
 
@@ -28,7 +26,7 @@ class TestSyncStateManager:
         assert manager.get_last_sync_version(SyncEntityType.TMDB_METADATA) == 0
         assert not manager.is_entity_locked(SyncEntityType.TMDB_METADATA)
 
-    def test_update_sync_state(self):
+    def test_update_sync_state(self) -> None:
         """Test updating sync state."""
         manager = SyncStateManager()
         timestamp = datetime.now(timezone.utc)
@@ -39,7 +37,7 @@ class TestSyncStateManager:
             version=5,
             records_synced=100,
             duration_ms=1500.0,
-            status=SyncOperationStatus.SUCCESS
+            status=SyncOperationStatus.SUCCESS,
         )
 
         state = manager.get_sync_state(SyncEntityType.TMDB_METADATA)
@@ -51,7 +49,7 @@ class TestSyncStateManager:
         assert state.sync_duration_ms == 1500.0
         assert state.status == SyncOperationStatus.SUCCESS
 
-    def test_entity_locking(self):
+    def test_entity_locking(self) -> None:
         """Test entity locking mechanism."""
         manager = SyncStateManager()
         entity_type = SyncEntityType.TMDB_METADATA
@@ -91,7 +89,7 @@ class TestIncrementalSyncManager:
         """Create IncrementalSyncManager instance."""
         return IncrementalSyncManager(mock_db_manager, mock_cache_manager)
 
-    def test_initialization(self, mock_db_manager, mock_cache_manager):
+    def test_initialization(self, mock_db_manager, mock_cache_manager) -> None:
         """Test IncrementalSyncManager initialization."""
         manager = IncrementalSyncManager(mock_db_manager, mock_cache_manager)
 
@@ -99,7 +97,7 @@ class TestIncrementalSyncManager:
         assert manager.cache_manager == mock_cache_manager
         assert isinstance(manager.state_manager, SyncStateManager)
 
-    def test_get_sync_status(self, sync_manager):
+    def test_get_sync_status(self, sync_manager) -> None:
         """Test getting sync status."""
         status = sync_manager.get_sync_status()
 
@@ -136,8 +134,10 @@ class TestIncrementalSyncIntegration:
         """Create IncrementalSyncManager instance."""
         return IncrementalSyncManager(mock_db_manager, mock_cache_manager)
 
-    @patch('src.core.incremental_sync.sync_monitor')
-    def test_sync_tmdb_metadata_incremental_no_records(self, mock_sync_monitor, sync_manager, mock_session):
+    @patch("src.core.incremental_sync.sync_monitor")
+    def test_sync_tmdb_metadata_incremental_no_records(
+        self, mock_sync_monitor, sync_manager, mock_session
+    ) -> None:
         """Test incremental TMDB sync with no records."""
         # Mock empty query result
         mock_query = Mock()
@@ -156,8 +156,10 @@ class TestIncrementalSyncIntegration:
         assert result.records_processed == 0
         assert result.status == SyncOperationStatus.SUCCESS
 
-    @patch('src.core.incremental_sync.sync_monitor')
-    def test_sync_tmdb_metadata_incremental_with_records(self, mock_sync_monitor, sync_manager, mock_session):
+    @patch("src.core.incremental_sync.sync_monitor")
+    def test_sync_tmdb_metadata_incremental_with_records(
+        self, mock_sync_monitor, sync_manager, mock_session
+    ) -> None:
         """Test incremental TMDB sync with records."""
         # Create mock metadata records
         mock_metadata = Mock(spec=AnimeMetadata)
@@ -185,7 +187,7 @@ class TestIncrementalSyncIntegration:
         # Verify cache manager was called
         sync_manager.cache_manager.put.assert_called_once()
 
-    def test_entity_locking_prevents_concurrent_sync(self, sync_manager, mock_session):
+    def test_entity_locking_prevents_concurrent_sync(self, sync_manager, mock_session) -> None:
         """Test that entity locking prevents concurrent sync operations."""
         # Lock the entity first
         assert sync_manager.state_manager.lock_entity(SyncEntityType.TMDB_METADATA)
@@ -200,8 +202,8 @@ class TestIncrementalSyncIntegration:
         # Unlock and try again
         sync_manager.state_manager.unlock_entity(SyncEntityType.TMDB_METADATA)
 
-    @patch('src.core.incremental_sync.sync_monitor')
-    def test_sync_all_entities(self, mock_sync_monitor, sync_manager, mock_session):
+    @patch("src.core.incremental_sync.sync_monitor")
+    def test_sync_all_entities(self, mock_sync_monitor, sync_manager, mock_session) -> None:
         """Test syncing all entities."""
         # Mock empty query results for both entity types
         mock_query = Mock()

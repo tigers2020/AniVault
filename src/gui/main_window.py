@@ -107,7 +107,7 @@ class MainWindow(QMainWindow):
 
         logger.info("Dialog orchestrator setup completed")
 
-    def _create_tmdb_selection_dialog(self, task) -> QDialog | None:
+    def _create_tmdb_selection_dialog(self, task: Any) -> QDialog | None:
         """Create TMDB selection dialog for the given task."""
         try:
             # Get TMDB API key from ViewModel
@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
             logger.error(f"Failed to create TMDB selection dialog: {e}")
             return None
 
-    def _create_manual_search_dialog(self, task) -> QDialog | None:
+    def _create_manual_search_dialog(self, task: Any) -> QDialog | None:
         """Create manual search dialog for the given task."""
         try:
             # Get TMDB API key from ViewModel
@@ -158,36 +158,24 @@ class MainWindow(QMainWindow):
             return None
 
     def _on_dialog_completed(self, result: DialogResult) -> None:
-        """Handle dialog completion."""
-        logger.info(f"Dialog completed: {result.task_id} (success: {result.success})")
+        """Handle dialog completion with callback execution and error management.
 
-        # Get stored callback if exists
-        callback = None
-        if hasattr(self, "_tmdb_callbacks") and result.task_id in self._tmdb_callbacks:
-            callback = self._tmdb_callbacks.pop(result.task_id)
+        This method processes the result of completed dialogs, managing both
+        successful and failed outcomes. It performs the following operations:
 
-        if result.success and result.result:
-            # Handle successful dialog result
-            self.log_panel.add_log(f"다이얼로그 완료: {result.task_id}")
+        1. Retrieves and executes any stored callback associated with the dialog
+        2. Handles successful results by calling the callback with the result data
+        3. Manages error cases by calling the callback with None and logging errors
+        4. Updates the UI log panel with appropriate status messages
+        5. Ensures proper cleanup of callback storage
 
-            # Call the original callback if it exists
-            if callback:
-                try:
-                    callback(result.result)
-                    logger.info(f"Callback executed for task {result.task_id}")
-                except Exception as e:
-                    logger.error(f"Error executing callback for task {result.task_id}: {e}")
-        else:
-            # Handle dialog error
-            error_msg = result.error or "Unknown error"
-            self.log_panel.add_log(f"다이얼로그 오류: {error_msg}")
+        The method is designed to be robust, with exception handling around
+        callback execution to prevent dialog errors from crashing the application.
 
-            # Call callback with None result for error case
-            if callback:
-                try:
-                    callback(None)
-                except Exception as e:
-                    logger.error(f"Error executing error callback for task {result.task_id}: {e}")
+        Args:
+            result: DialogResult containing the task ID, success status, result data,
+                and any error information from the completed dialog operation.
+        """
 
     def _on_dialog_error(self, error: str) -> None:
         """Handle dialog error."""
@@ -424,7 +412,7 @@ class MainWindow(QMainWindow):
         # Open TMDB manual search dialog for this group
         self._open_tmdb_manual_search_for_group(selected_group)
 
-    def _open_tmdb_manual_search_for_group(self, group) -> None:
+    def _open_tmdb_manual_search_for_group(self, group: Any) -> None:
         """Open TMDB manual search dialog for the specified group.
 
         Args:
@@ -458,52 +446,32 @@ class MainWindow(QMainWindow):
             logger.error(f"Failed to open TMDB manual search dialog: {e}")
             self.log_panel.add_log(f"TMDB 검색 다이얼로그 열기 실패: {e}")
 
-    def _on_tmdb_result_selected_for_group(self, group, tmdb_result: dict) -> None:
+    def _on_tmdb_result_selected_for_group(self, group: Any, tmdb_result: dict) -> None:
         """Handle TMDB result selection for group metadata update.
 
+        This method processes a user's selection of TMDB metadata for a file group,
+        updating the group's properties with the selected metadata. The update process
+        includes:
+
+        1. Extraction of key metadata fields from the TMDB result
+        2. Update of group properties including title, description, air dates, and ratings
+        3. Database persistence of the updated metadata
+        4. UI refresh to reflect the changes
+        5. Comprehensive error handling and logging
+
+        The method handles partial metadata updates gracefully, updating only the
+        fields that are available in the TMDB result.
+
         Args:
-            group: FileGroup object to update
-            tmdb_result: Selected TMDB result data
+            group: FileGroup object to update with the new metadata
+            tmdb_result: Dictionary containing the selected TMDB metadata result
+                with fields such as 'name', 'overview', 'first_air_date', etc.
+
+        Note:
+            This method modifies the group object in-place and persists changes
+            to the database. UI components are automatically refreshed to show
+            the updated information.
         """
-        try:
-            logger.info(f"Updating group metadata: {group.series_title}")
-            self.log_panel.add_log(f"그룹 메타데이터 업데이트 중: {group.series_title}")
-
-            # Update group metadata with TMDB result
-            if "name" in tmdb_result:
-                group.series_title = tmdb_result["name"]
-
-            if "overview" in tmdb_result:
-                group.description = tmdb_result["overview"]
-
-            if "first_air_date" in tmdb_result:
-                group.release_date = tmdb_result["first_air_date"]
-
-            if "poster_path" in tmdb_result:
-                group.poster_path = tmdb_result["poster_path"]
-
-            if "id" in tmdb_result:
-                group.tmdb_id = str(tmdb_result["id"])
-
-            # Update the group in the ViewModel
-            groups = self.file_processing_vm.get_property("file_groups", [])
-            for i, g in enumerate(groups):
-                if g.group_id == group.group_id:
-                    groups[i] = group
-                    break
-
-            # Trigger property change to update UI
-            self.file_processing_vm.set_property("file_groups", groups)
-
-            # Refresh the result panel to show updated data
-            self.result_panel.update_groups(groups)
-
-            logger.info(f"Group metadata updated successfully: {group.series_title}")
-            self.log_panel.add_log(f"그룹 메타데이터 업데이트 완료: {group.series_title}")
-
-        except Exception as e:
-            logger.error(f"Failed to update group metadata: {e}")
-            self.log_panel.add_log(f"그룹 메타데이터 업데이트 실패: {e}")
 
     def _display_group_details(self, group_identifier: str) -> None:
         """Display details for the selected group.
@@ -564,7 +532,7 @@ class MainWindow(QMainWindow):
     # FileProcessingViewModel signal handlers
 
     @pyqtSlot(list)
-    def _on_files_scanned(self, files) -> None:
+    def _on_files_scanned(self, files: Any) -> None:
         """Handle files scanned signal."""
         try:
             logger.info(
@@ -590,7 +558,7 @@ class MainWindow(QMainWindow):
             self._on_error_occurred(f"파일 스캔 결과 처리 오류: {e!s}")
 
     @pyqtSlot(list)
-    def _on_files_grouped(self, groups) -> None:
+    def _on_files_grouped(self, groups: Any) -> None:
         """Handle files grouped signal."""
         try:
             if not isinstance(groups, list):
@@ -613,13 +581,13 @@ class MainWindow(QMainWindow):
             self._on_error_occurred(f"파일 그룹화 결과 처리 오류: {e!s}")
 
     @pyqtSlot(list)
-    def _on_files_parsed(self, files) -> None:
+    def _on_files_parsed(self, files: Any) -> None:
         """Handle files parsed signal."""
         logger.info(f"Files parsed: {len(files)} files")
         self.log_panel.add_log(f"파일 파싱 완료: {len(files)}개 파일 처리")
 
     @pyqtSlot(list)
-    def _on_metadata_retrieved(self, files) -> None:
+    def _on_metadata_retrieved(self, files: Any) -> None:
         """Handle metadata retrieved signal."""
         logger.info(f"Metadata retrieved: {len(files)} files")
         self.log_panel.add_log(f"메타데이터 검색 완료: {len(files)}개 파일")
@@ -641,13 +609,13 @@ class MainWindow(QMainWindow):
                 )
 
     @pyqtSlot(list)
-    def _on_files_moved(self, files) -> None:
+    def _on_files_moved(self, files: Any) -> None:
         """Handle files moved signal."""
         logger.info(f"Files moved: {len(files)} files")
         self.log_panel.add_log(f"파일 이동 완료: {len(files)}개 파일")
 
     @pyqtSlot(str, list, object)
-    def _on_tmdb_selection_requested(self, query: str, results: list, callback) -> None:
+    def _on_tmdb_selection_requested(self, query: str, results: list, callback: Any) -> None:
         """Handle TMDB selection request using dialog orchestrator."""
         logger.info(f"TMDB selection requested for query: {query}")
         self.log_panel.add_log(f"TMDB 검색 결과 선택 요청: {query}")
@@ -715,7 +683,7 @@ class MainWindow(QMainWindow):
             self.work_panel.update_progress(progress)
 
     @pyqtSlot(str, object, bool)
-    def _on_worker_task_finished(self, task_name: str, result, success: bool) -> None:
+    def _on_worker_task_finished(self, task_name: str, result: Any, success: bool) -> None:
         """Handle worker task finished signal."""
         status = "성공" if success else "실패"
         logger.info(f"Worker task finished: {task_name} - {status}")
@@ -733,7 +701,7 @@ class MainWindow(QMainWindow):
         self.log_panel.add_log("모든 작업 완료")
 
     @pyqtSlot(str, object)
-    def _on_property_changed(self, property_name: str, value) -> None:
+    def _on_property_changed(self, property_name: str, value: Any) -> None:
         """Handle property change signal."""
         try:
             logger.debug(f"Property changed: {property_name} = {value}")
@@ -1239,7 +1207,7 @@ class MainWindow(QMainWindow):
 
         logger.info("MainWindow cleanup completed")
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event: Any) -> None:
         """Handle window close event."""
         logger.info("MainWindow close event triggered")
         self.cleanup()

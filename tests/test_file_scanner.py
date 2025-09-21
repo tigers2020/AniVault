@@ -132,7 +132,7 @@ class TestFileScanner:
         """Test progress callback functionality."""
         progress_calls = []
 
-        def progress_callback(progress, message):
+        def progress_callback(progress, message) -> None:
             progress_calls.append((progress, message))
 
         scanner = FileScanner(progress_callback=progress_callback)
@@ -246,7 +246,7 @@ class TestScanDirectoryFunction:
         """Test scan_directory with progress callback."""
         progress_calls = []
 
-        def progress_callback(progress, message):
+        def progress_callback(progress, message) -> None:
             progress_calls.append((progress, message))
 
         result = scan_directory(

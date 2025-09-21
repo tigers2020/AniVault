@@ -21,7 +21,7 @@ class ThreadExecutorManager:
     - General file processing (mixed I/O and CPU operations)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the ThreadExecutorManager with default configurations."""
         self._tmdb_executor: ThreadPoolExecutor | None = None
         self._file_scan_executor: ThreadPoolExecutor | None = None

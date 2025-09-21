@@ -79,7 +79,7 @@ class TestConfigurationIntegration:
         # Test observer pattern
         events = []
 
-        def observer_callback(event):
+        def observer_callback(event) -> None:
             events.append(event)
 
         _observer_id = self.thread_safe_manager.add_observer(observer_callback)
@@ -216,7 +216,7 @@ class TestConfigurationIntegration:
         # 2. Set up thread-safe manager with observer
         events = []
 
-        def config_observer(event):
+        def config_observer(event) -> None:
             events.append(event)
 
         _observer_id = self.thread_safe_manager.add_observer(config_observer)
@@ -280,7 +280,7 @@ class TestConfigurationIntegration:
         results = []
         errors = []
 
-        def worker(worker_id):
+        def worker(worker_id) -> None:
             try:
                 for i in range(10):
                     # Test secure manager operations

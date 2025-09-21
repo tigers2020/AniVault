@@ -1,32 +1,29 @@
-"""
-End-to-end integration tests for the AniVault monitoring system.
+"""End-to-end integration tests for the AniVault monitoring system.
 
 This module tests the complete monitoring pipeline from metrics collection
 through dashboard display and alerting.
 """
 
-import pytest
-import time
-import threading
-import requests
-from unittest.mock import Mock, patch
-from http.server import HTTPServer
-from threading import Thread
-
-from src.core.sync_monitoring import sync_monitor, SyncOperationType, SyncOperationStatus
-from src.core.metrics_exporter import metrics_exporter
-from src.core.metrics_server import MetricsServer, MetricsHTTPRequestHandler
-from src.gui.monitoring_dashboard import MonitoringDashboard
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTimer
 import sys
+import threading
+import time
+from unittest.mock import patch
+
+import pytest
+import requests
+from PyQt5.QtWidgets import QApplication
+
+from src.core.metrics_exporter import metrics_exporter
+from src.core.metrics_server import MetricsServer
+from src.core.sync_monitoring import SyncOperationStatus, SyncOperationType, sync_monitor
+from src.gui.monitoring_dashboard import MonitoringDashboard
 
 
 class TestMonitoringIntegration:
     """End-to-end integration tests for the monitoring system."""
 
     @pytest.fixture(autouse=True)
-    def setup_test_environment(self):
+    def setup_test_environment(self) -> None:
         """Setup test environment for each test."""
         # Reset monitoring state
         sync_monitor.reset_stats()
@@ -37,13 +34,11 @@ class TestMonitoringIntegration:
         else:
             self.app = QApplication.instance()
 
-    def test_metrics_collection_pipeline(self):
+    def test_metrics_collection_pipeline(self) -> None:
         """Test the complete metrics collection pipeline."""
         # Perform various operations to generate metrics
         with sync_monitor.monitor_operation(
-            SyncOperationType.READ_THROUGH,
-            cache_hit=False,
-            key="test_key"
+            SyncOperationType.READ_THROUGH, cache_hit=False, key="test_key"
         ) as metrics:
             time.sleep(0.01)
             metrics.complete(SyncOperationStatus.SUCCESS, affected_records=1)
@@ -54,16 +49,14 @@ class TestMonitoringIntegration:
 
         # Test bulk operations
         sync_monitor.log_bulk_operation_start(
-            SyncOperationType.BULK_INSERT,
-            record_count=100,
-            operation_subtype="test"
+            SyncOperationType.BULK_INSERT, record_count=100, operation_subtype="test"
         )
         sync_monitor.log_bulk_operation_complete(
             SyncOperationType.BULK_INSERT,
             record_count=100,
             duration_ms=50.0,
             success_count=95,
-            operation_subtype="test"
+            operation_subtype="test",
         )
 
         # Verify metrics were collected
@@ -77,9 +70,9 @@ class TestMonitoringIntegration:
         assert "anivault_sync_operations_total" in metrics_output
         assert "anivault_cache_events_total" in metrics_output
 
-    def test_metrics_server_endpoints(self):
+    def test_metrics_server_endpoints(self) -> None:
         """Test the metrics server HTTP endpoints."""
-        server = MetricsServer(host='localhost', port=8084)
+        server = MetricsServer(host="localhost", port=8084)
 
         try:
             # Start server
@@ -87,26 +80,26 @@ class TestMonitoringIntegration:
             time.sleep(0.5)  # Give server time to start
 
             # Test /metrics endpoint
-            response = requests.get('http://localhost:8084/metrics', timeout=5)
+            response = requests.get("http://localhost:8084/metrics", timeout=5)
             assert response.status_code == 200
-            assert 'anivault_sync_operations_total' in response.text
-            assert 'anivault_application_info' in response.text
+            assert "anivault_sync_operations_total" in response.text
+            assert "anivault_application_info" in response.text
 
             # Test /health endpoint
-            response = requests.get('http://localhost:8084/health', timeout=5)
+            response = requests.get("http://localhost:8084/health", timeout=5)
             assert response.status_code == 200
-            assert 'healthy' in response.text
+            assert "healthy" in response.text
 
             # Test 404 endpoint
-            response = requests.get('http://localhost:8084/nonexistent', timeout=5)
+            response = requests.get("http://localhost:8084/nonexistent", timeout=5)
             assert response.status_code == 404
 
         finally:
             server.stop()
 
-    def test_metrics_server_with_operations(self):
+    def test_metrics_server_with_operations(self) -> None:
         """Test metrics server with actual operations."""
-        server = MetricsServer(host='localhost', port=8085)
+        server = MetricsServer(host="localhost", port=8085)
 
         try:
             # Start server
@@ -115,25 +108,23 @@ class TestMonitoringIntegration:
 
             # Perform operations to generate metrics
             with sync_monitor.monitor_operation(
-                SyncOperationType.WRITE_THROUGH,
-                cache_hit=True,
-                key="integration_test"
+                SyncOperationType.WRITE_THROUGH, cache_hit=True, key="integration_test"
             ) as metrics:
                 time.sleep(0.01)
                 metrics.complete(SyncOperationStatus.SUCCESS, affected_records=2)
 
             # Get metrics from server
-            response = requests.get('http://localhost:8085/metrics', timeout=5)
+            response = requests.get("http://localhost:8085/metrics", timeout=5)
             assert response.status_code == 200
 
             metrics_text = response.text
-            assert 'write_through' in metrics_text
-            assert 'success' in metrics_text
+            assert "write_through" in metrics_text
+            assert "success" in metrics_text
 
         finally:
             server.stop()
 
-    def test_dashboard_widget_creation(self):
+    def test_dashboard_widget_creation(self) -> None:
         """Test creation and basic functionality of dashboard widgets."""
         dashboard = MonitoringDashboard()
 
@@ -155,16 +146,14 @@ class TestMonitoringIntegration:
         # Clean up
         dashboard.stop_monitoring()
 
-    def test_dashboard_metrics_update(self):
+    def test_dashboard_metrics_update(self) -> None:
         """Test dashboard metrics update functionality."""
         dashboard = MonitoringDashboard()
 
         try:
             # Generate some test metrics
             with sync_monitor.monitor_operation(
-                SyncOperationType.READ_THROUGH,
-                cache_hit=False,
-                key="dashboard_test"
+                SyncOperationType.READ_THROUGH, cache_hit=False, key="dashboard_test"
             ) as metrics:
                 time.sleep(0.01)
                 metrics.complete(SyncOperationStatus.SUCCESS, affected_records=1)
@@ -179,13 +168,15 @@ class TestMonitoringIntegration:
         finally:
             dashboard.stop_monitoring()
 
-    def test_dashboard_error_handling(self):
+    def test_dashboard_error_handling(self) -> None:
         """Test dashboard error handling."""
         dashboard = MonitoringDashboard()
 
         try:
             # Mock an error in metrics collection
-            with patch.object(sync_monitor, 'get_performance_stats', side_effect=Exception("Test error")):
+            with patch.object(
+                sync_monitor, "get_performance_stats", side_effect=Exception("Test error")
+            ):
                 dashboard.update_all_metrics()
 
                 # Verify error is handled gracefully
@@ -195,16 +186,14 @@ class TestMonitoringIntegration:
         finally:
             dashboard.stop_monitoring()
 
-    def test_metrics_exporter_integration(self):
+    def test_metrics_exporter_integration(self) -> None:
         """Test integration between sync monitor and metrics exporter."""
         # Reset stats
         sync_monitor.reset_stats()
 
         # Perform operations
         with sync_monitor.monitor_operation(
-            SyncOperationType.BULK_UPDATE,
-            cache_hit=False,
-            record_count=50
+            SyncOperationType.BULK_UPDATE, cache_hit=False, record_count=50
         ) as metrics:
             time.sleep(0.01)
             metrics.complete(SyncOperationStatus.SUCCESS, affected_records=50)
@@ -219,14 +208,10 @@ class TestMonitoringIntegration:
         assert "bulk_update" in metrics_output
         assert "success" in metrics_output
 
-    def test_cache_metrics_integration(self):
+    def test_cache_metrics_integration(self) -> None:
         """Test cache metrics integration."""
         # Update cache metrics
-        sync_monitor.update_cache_metrics(
-            hit_rate=85.0,
-            size=1000,
-            memory_bytes=512 * 1024
-        )
+        sync_monitor.update_cache_metrics(hit_rate=85.0, size=1000, memory_bytes=512 * 1024)
 
         # Verify metrics are available in Prometheus format
         metrics_output = metrics_exporter.generate_metrics()
@@ -234,14 +219,14 @@ class TestMonitoringIntegration:
         assert "anivault_cache_size" in metrics_output
         assert "anivault_cache_memory_usage_bytes" in metrics_output
 
-    def test_consistency_check_metrics(self):
+    def test_consistency_check_metrics(self) -> None:
         """Test consistency check metrics recording."""
         # Record consistency check
         sync_monitor.record_consistency_check(
             check_type="data_integrity",
             duration_seconds=1.5,
             inconsistencies_found=3,
-            severity="medium"
+            severity="medium",
         )
 
         # Verify metrics are recorded
@@ -249,14 +234,11 @@ class TestMonitoringIntegration:
         assert "anivault_consistency_check_duration_seconds" in metrics_output
         assert "anivault_consistency_inconsistencies_total" in metrics_output
 
-    def test_reconciliation_metrics(self):
+    def test_reconciliation_metrics(self) -> None:
         """Test reconciliation metrics recording."""
         # Record reconciliation
         sync_monitor.record_reconciliation(
-            strategy="database_wins",
-            status="success",
-            duration_seconds=2.0,
-            records_affected=25
+            strategy="database_wins", status="success", duration_seconds=2.0, records_affected=25
         )
 
         # Verify metrics are recorded
@@ -264,7 +246,7 @@ class TestMonitoringIntegration:
         assert "anivault_reconciliation_operations_total" in metrics_output
         assert "anivault_reconciliation_duration_seconds" in metrics_output
 
-    def test_database_health_metrics(self):
+    def test_database_health_metrics(self) -> None:
         """Test database health metrics."""
         # Update database health
         sync_monitor.update_database_health(True)
@@ -275,7 +257,7 @@ class TestMonitoringIntegration:
         assert "anivault_database_health_status" in metrics_output
         assert "anivault_database_connection_errors_total" in metrics_output
 
-    def test_circuit_breaker_metrics(self):
+    def test_circuit_breaker_metrics(self) -> None:
         """Test circuit breaker metrics."""
         # Update circuit breaker state
         sync_monitor.update_circuit_breaker_state("database", "open")
@@ -286,16 +268,14 @@ class TestMonitoringIntegration:
         assert "anivault_circuit_breaker_state" in metrics_output
         assert "anivault_circuit_breaker_failures_total" in metrics_output
 
-    def test_performance_under_load(self):
+    def test_performance_under_load(self) -> None:
         """Test monitoring performance under load."""
         # Perform many operations quickly
         start_time = time.time()
 
         for i in range(100):
             with sync_monitor.monitor_operation(
-                SyncOperationType.READ_THROUGH,
-                cache_hit=(i % 2 == 0),
-                key=f"load_test_{i}"
+                SyncOperationType.READ_THROUGH, cache_hit=(i % 2 == 0), key=f"load_test_{i}"
             ) as metrics:
                 time.sleep(0.001)  # Very short delay
                 metrics.complete(SyncOperationStatus.SUCCESS, affected_records=1)
@@ -316,15 +296,16 @@ class TestMonitoringIntegration:
         metrics_output = metrics_exporter.generate_metrics()
         assert "anivault_sync_operations_total" in metrics_output
 
-    def test_concurrent_operations(self):
+    def test_concurrent_operations(self) -> None:
         """Test monitoring with concurrent operations."""
-        def perform_operations(thread_id: int, count: int):
+
+        def perform_operations(thread_id: int, count: int) -> None:
             """Perform operations in a separate thread."""
             for i in range(count):
                 with sync_monitor.monitor_operation(
                     SyncOperationType.WRITE_THROUGH,
                     cache_hit=False,
-                    key=f"thread_{thread_id}_op_{i}"
+                    key=f"thread_{thread_id}_op_{i}",
                 ) as metrics:
                     time.sleep(0.001)
                     metrics.complete(SyncOperationStatus.SUCCESS, affected_records=1)
@@ -349,9 +330,9 @@ class TestMonitoringIntegration:
         assert "write_through" in metrics_output
         assert "success" in metrics_output
 
-    def test_metrics_server_restart(self):
+    def test_metrics_server_restart(self) -> None:
         """Test metrics server restart functionality."""
-        server = MetricsServer(host='localhost', port=8086)
+        server = MetricsServer(host="localhost", port=8086)
 
         try:
             # Start server
@@ -370,13 +351,13 @@ class TestMonitoringIntegration:
             time.sleep(0.5)
 
             # Verify server is still functional
-            response = requests.get('http://localhost:8086/health', timeout=5)
+            response = requests.get("http://localhost:8086/health", timeout=5)
             assert response.status_code == 200
 
         finally:
             server.stop()
 
-    def test_application_info_metrics(self):
+    def test_application_info_metrics(self) -> None:
         """Test application info metrics."""
         metrics_output = metrics_exporter.generate_metrics()
 
@@ -391,73 +372,73 @@ class TestMonitoringIntegration:
 class TestMonitoringDocumentation:
     """Test documentation and configuration files."""
 
-    def test_prometheus_config_validity(self):
+    def test_prometheus_config_validity(self) -> None:
         """Test that Prometheus configuration is valid."""
         import yaml
 
-        with open('monitoring/prometheus.yml', 'r') as f:
+        with open("monitoring/prometheus.yml") as f:
             config = yaml.safe_load(f)
 
         # Check required sections
-        assert 'global' in config
-        assert 'scrape_configs' in config
+        assert "global" in config
+        assert "scrape_configs" in config
 
         # Check AniVault job configuration
         anivault_job = None
-        for job in config['scrape_configs']:
-            if job['job_name'] == 'anivault':
+        for job in config["scrape_configs"]:
+            if job["job_name"] == "anivault":
                 anivault_job = job
                 break
 
         assert anivault_job is not None
-        assert 'localhost:8080' in anivault_job['static_configs'][0]['targets']
-        assert anivault_job['metrics_path'] == '/metrics'
+        assert "localhost:8080" in anivault_job["static_configs"][0]["targets"]
+        assert anivault_job["metrics_path"] == "/metrics"
 
-    def test_alerting_rules_validity(self):
+    def test_alerting_rules_validity(self) -> None:
         """Test that alerting rules are valid."""
         import yaml
 
-        with open('monitoring/anivault_rules.yml', 'r') as f:
+        with open("monitoring/anivault_rules.yml") as f:
             rules = yaml.safe_load(f)
 
         # Check structure
-        assert 'groups' in rules
-        assert len(rules['groups']) > 0
+        assert "groups" in rules
+        assert len(rules["groups"]) > 0
 
         # Check that we have the expected alert groups
-        group_names = [group['name'] for group in rules['groups']]
+        group_names = [group["name"] for group in rules["groups"]]
         expected_groups = [
-            'anivault_sync_alerts',
-            'anivault_health_alerts',
-            'anivault_consistency_alerts',
-            'anivault_resource_alerts'
+            "anivault_sync_alerts",
+            "anivault_health_alerts",
+            "anivault_consistency_alerts",
+            "anivault_resource_alerts",
         ]
 
         for expected_group in expected_groups:
             assert expected_group in group_names
 
-    def test_grafana_dashboard_validity(self):
+    def test_grafana_dashboard_validity(self) -> None:
         """Test that Grafana dashboard configuration is valid."""
         import json
 
-        with open('monitoring/grafana/dashboards/anivault-dashboard.json', 'r') as f:
+        with open("monitoring/grafana/dashboards/anivault-dashboard.json") as f:
             dashboard = json.load(f)
 
         # Check structure
-        assert 'dashboard' in dashboard
-        dashboard_config = dashboard['dashboard']
+        assert "dashboard" in dashboard
+        dashboard_config = dashboard["dashboard"]
 
-        assert 'title' in dashboard_config
-        assert 'panels' in dashboard_config
-        assert len(dashboard_config['panels']) > 0
+        assert "title" in dashboard_config
+        assert "panels" in dashboard_config
+        assert len(dashboard_config["panels"]) > 0
 
         # Check that we have expected panels
-        panel_titles = [panel['title'] for panel in dashboard_config['panels']]
+        panel_titles = [panel["title"] for panel in dashboard_config["panels"]]
         expected_panels = [
-            'Sync Operations Overview',
-            'Success Rate',
-            'Cache Hit Rate',
-            'Average Operation Duration'
+            "Sync Operations Overview",
+            "Success Rate",
+            "Cache Hit Rate",
+            "Average Operation Duration",
         ]
 
         for expected_panel in expected_panels:

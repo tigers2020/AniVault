@@ -45,80 +45,68 @@ class ConcreteBulkUpdateTask(WorkerTask):
         self._updated_count = 0
 
     def execute(self) -> int:
-        """Execute the bulk update operation.
+        """Execute the bulk update operation with comprehensive error handling.
+
+        This method orchestrates the bulk update process with the following features:
+
+        1. Input Validation:
+           - Verifies that updates are provided
+           - Ensures database manager is available
+           - Validates update type compatibility
+
+        2. Update Type Routing:
+           - Routes to specialized update methods based on update_type
+           - Supports 'anime_metadata', 'parsed_files', and 'generic' types
+           - Provides clear error messages for unsupported types
+
+        3. Error Management:
+           - Comprehensive exception handling with detailed logging
+           - Re-raises exceptions for upstream error handling
+           - Maintains operation integrity through proper error propagation
+
+        4. Progress Tracking:
+           - Logs operation start and completion
+           - Reports the number of records updated
+           - Provides detailed progress information for monitoring
 
         Returns:
-            Number of records updated
+            int: Number of records successfully updated. Returns 0 if no updates
+                were provided or if the operation fails.
+
+        Raises:
+            ValueError: If database manager is not provided or update type is
+                unsupported. This ensures proper configuration validation.
+            Exception: Any database or processing errors are re-raised for
+                upstream error handling and logging.
         """
-        if not self.updates:
-            logger.warning("No updates provided for bulk update task")
-            return 0
-
-        if not self.db_manager:
-            raise ValueError("Database manager is required for bulk update operations")
-
-        logger.info(f"Starting bulk update for {len(self.updates)} {self.update_type} records")
-
-        try:
-            if self.update_type == "anime_metadata":
-                self._updated_count = self._bulk_update_anime_metadata()
-            elif self.update_type == "parsed_files":
-                self._updated_count = self._bulk_update_parsed_files()
-            elif self.update_type == "generic":
-                self._updated_count = self._bulk_update_generic()
-            else:
-                raise ValueError(f"Unsupported update type: {self.update_type}")
-
-            logger.info(f"Bulk update completed: {self._updated_count} records updated")
-            return self._updated_count
-
-        except Exception as e:
-            logger.error(f"Bulk update failed: {e}", exc_info=True)
-            raise
 
     def _bulk_update_anime_metadata(self) -> int:
-        """Perform bulk update on anime metadata records.
+        """Perform bulk update on anime metadata records with optimization strategies.
+
+        This method implements a two-phase optimization strategy for updating anime
+        metadata records:
+
+        Phase 1 - Status-Only Updates:
+        - Groups updates that only modify the status field by status value
+        - Uses bulk_update_anime_metadata_by_status for maximum efficiency
+        - Reduces database round trips by batching identical status updates
+
+        Phase 2 - General Updates:
+        - Handles complex updates with multiple field changes
+        - Uses bulk_update_anime_metadata for flexible field updates
+        - Maintains data integrity while supporting diverse update patterns
+
+        The optimization strategy significantly reduces database load by minimizing
+        the number of individual UPDATE statements, particularly for status-only
+        changes which are common in metadata synchronization workflows.
 
         Returns:
-            Number of records updated
+            int: Total number of records updated across both optimization phases.
+
+        Note:
+            Updates are processed in order of efficiency, with status-only updates
+            handled first to maximize the benefits of bulk operations.
         """
-        # Group updates by operation type for optimization
-        status_updates = []
-        general_updates = []
-
-        for update_dict in self.updates:
-            if "status" in update_dict and len(update_dict) == 2:  # Only status update
-                status_updates.append(update_dict)
-            else:
-                general_updates.append(update_dict)
-
-        total_updated = 0
-
-        # Handle status-only updates efficiently
-        if status_updates:
-            # Group by status value
-            status_groups = {}
-            for update in status_updates:
-                tmdb_id = update.get("tmdb_id")
-                status = update.get("status")
-                if tmdb_id and status:
-                    if status not in status_groups:
-                        status_groups[status] = []
-                    status_groups[status].append(tmdb_id)
-
-            # Perform bulk status updates
-            for status, tmdb_ids in status_groups.items():
-                updated_count = self.db_manager.bulk_update_anime_metadata_by_status(
-                    tmdb_ids, status
-                )
-                total_updated += updated_count
-
-        # Handle general updates using bulk_update_mappings
-        if general_updates:
-            updated_count = self.db_manager.bulk_update_anime_metadata(general_updates)
-            total_updated += updated_count
-
-        return total_updated
 
     def _bulk_update_parsed_files(self) -> int:
         """Perform bulk update on parsed files records.

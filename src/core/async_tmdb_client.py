@@ -426,12 +426,15 @@ class AsyncTMDBClient:
         """Create a SearchResult from API response item.
 
         Args:
-            item: API response item
-            strategy: Search strategy used
-            strategy_type: Specific strategy type
+            item (dict[str, Any]): API response item.
+            strategy (SearchStrategy): Search strategy used.
+            strategy_type (SearchStrategyType): Specific strategy type.
+            query (str): Original search query.
+            language (str): Language code for the search.
+            year_hint (int | None, optional): Year hint for the search. Defaults to None.
 
         Returns:
-            SearchResult object
+            SearchResult: SearchResult object.
         """
         # Calculate quality score
         quality_score = self._quality_calculator.calculate_quality_score(
@@ -463,7 +466,12 @@ class AsyncTMDBClient:
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
         """Async context manager exit."""
         await self.close()
 

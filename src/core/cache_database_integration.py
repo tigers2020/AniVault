@@ -10,7 +10,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    pass
 
 from .cache_core import CacheCore
 from .database import DatabaseManager
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class CacheDatabaseIntegration:
     """Database integration layer for cache operations."""
 
-    def __init__(self, cache_core: CacheCore, db_manager: DatabaseManager | None = None):
+    def __init__(self, cache_core: CacheCore, db_manager: DatabaseManager | None = None) -> None:
         """Initialize database integration.
 
         Args:
@@ -84,10 +84,12 @@ class CacheDatabaseIntegration:
             with self.db_manager.get_session() as session:
                 if isinstance(value, ParsedAnimeInfo):
                     # Store ParsedAnimeInfo
-                    existing = session.query(ParsedAnimeInfo).filter_by(file_path=value.file_path).first()
+                    existing = (
+                        session.query(ParsedAnimeInfo).filter_by(file_path=value.file_path).first()
+                    )
                     if existing:
                         # Update existing record
-                        for attr in ['title', 'season', 'episode', 'year', 'quality', 'group']:
+                        for attr in ["title", "season", "episode", "year", "quality", "group"]:
                             setattr(existing, attr, getattr(value, attr))
                     else:
                         # Create new record
@@ -97,7 +99,14 @@ class CacheDatabaseIntegration:
                     existing = session.query(TMDBAnime).filter_by(tmdb_id=value.tmdb_id).first()
                     if existing:
                         # Update existing record
-                        for attr in ['title', 'original_title', 'overview', 'poster_path', 'backdrop_path', 'release_date']:
+                        for attr in [
+                            "title",
+                            "original_title",
+                            "overview",
+                            "poster_path",
+                            "backdrop_path",
+                            "release_date",
+                        ]:
                             setattr(existing, attr, getattr(value, attr))
                     else:
                         # Create new record
@@ -113,7 +122,7 @@ class CacheDatabaseIntegration:
                 error=e,
                 operation="store_database",
                 cache_name=self.cache_core.cache_name,
-                key=key
+                key=key,
             )
 
     def _load_from_database(self, key: str) -> ParsedAnimeInfo | TMDBAnime | None:
@@ -132,15 +141,15 @@ class CacheDatabaseIntegration:
             with self.db_manager.get_session() as session:
                 # Try to determine type from key or search both tables
                 # This is a simplified approach - in practice, you might want to store type info
-                
+
                 # Try ParsedAnimeInfo first (assuming key contains file path)
-                if 'file_path' in key or 'parsed' in key.lower():
+                if "file_path" in key or "parsed" in key.lower():
                     parsed_info = session.query(ParsedAnimeInfo).filter_by(file_path=key).first()
                     if parsed_info:
                         return parsed_info
 
                 # Try TMDBAnime (assuming key contains tmdb_id)
-                if 'tmdb' in key.lower() or key.isdigit():
+                if "tmdb" in key.lower() or key.isdigit():
                     try:
                         tmdb_id = int(key)
                         tmdb_anime = session.query(TMDBAnime).filter_by(tmdb_id=tmdb_id).first()
@@ -150,20 +159,24 @@ class CacheDatabaseIntegration:
                         pass
 
                 # Fallback: search by title in both tables
-                search_terms = key.split('_')
+                search_terms = key.split("_")
                 for term in search_terms:
                     if len(term) > 2:  # Skip very short terms
                         # Search in ParsedAnimeInfo
-                        parsed_info = session.query(ParsedAnimeInfo).filter(
-                            ParsedAnimeInfo.title.ilike(f'%{term}%')
-                        ).first()
+                        parsed_info = (
+                            session.query(ParsedAnimeInfo)
+                            .filter(ParsedAnimeInfo.title.ilike(f"%{term}%"))
+                            .first()
+                        )
                         if parsed_info:
                             return parsed_info
 
                         # Search in TMDBAnime
-                        tmdb_anime = session.query(TMDBAnime).filter(
-                            TMDBAnime.title.ilike(f'%{term}%')
-                        ).first()
+                        tmdb_anime = (
+                            session.query(TMDBAnime)
+                            .filter(TMDBAnime.title.ilike(f"%{term}%"))
+                            .first()
+                        )
                         if tmdb_anime:
                             return tmdb_anime
 
@@ -176,7 +189,7 @@ class CacheDatabaseIntegration:
                 error=e,
                 operation="load_database",
                 cache_name=self.cache_core.cache_name,
-                key=key
+                key=key,
             )
             return None
 
@@ -192,7 +205,7 @@ class CacheDatabaseIntegration:
         try:
             with self.db_manager.get_session() as session:
                 # Try to determine type and delete accordingly
-                if 'file_path' in key or 'parsed' in key.lower():
+                if "file_path" in key or "parsed" in key.lower():
                     parsed_info = session.query(ParsedAnimeInfo).filter_by(file_path=key).first()
                     if parsed_info:
                         session.delete(parsed_info)
@@ -200,7 +213,7 @@ class CacheDatabaseIntegration:
                         logger.debug(f"Deleted ParsedAnimeInfo from database for key: {key}")
                         return
 
-                if 'tmdb' in key.lower() or key.isdigit():
+                if "tmdb" in key.lower() or key.isdigit():
                     try:
                         tmdb_id = int(key)
                         tmdb_anime = session.query(TMDBAnime).filter_by(tmdb_id=tmdb_id).first()
@@ -219,10 +232,12 @@ class CacheDatabaseIntegration:
                 error=e,
                 operation="delete_database",
                 cache_name=self.cache_core.cache_name,
-                key=key
+                key=key,
             )
 
-    def store_with_database(self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None) -> None:
+    def store_with_database(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None
+    ) -> None:
         """Store value in both cache and database.
 
         Args:
@@ -291,7 +306,7 @@ class CacheDatabaseIntegration:
                 "cache_entries": len(self.cache_core._cache),
                 "database_entries": 0,
                 "synced_entries": 0,
-                "errors": 0
+                "errors": 0,
             }
 
             with self.db_manager.get_session() as session:
@@ -320,7 +335,7 @@ class CacheDatabaseIntegration:
                 "Failed to sync with database",
                 error=e,
                 operation="sync_database",
-                cache_name=self.cache_core.cache_name
+                cache_name=self.cache_core.cache_name,
             )
             return {
                 "status": "error",
@@ -328,5 +343,5 @@ class CacheDatabaseIntegration:
                 "cache_entries": len(self.cache_core._cache),
                 "database_entries": 0,
                 "synced_entries": 0,
-                "errors": 1
+                "errors": 1,
             }

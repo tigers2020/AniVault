@@ -1,4 +1,4 @@
-"""TMDB 검색 결과 선택 다이얼로그
+"""TMDB 검색 결과 선택 다이얼로그.
 
 TMDB 검색 결과가 없거나 여러 개일 때 사용자가 수동으로 선택할 수 있는 다이얼로그입니다.
 """
@@ -31,17 +31,24 @@ logger = logging.getLogger(__name__)
 
 
 class TMDBSelectionDialog(QDialog):
-    """TMDB 검색 결과 선택 다이얼로그"""
+    """TMDB 검색 결과 선택 다이얼로그."""
 
     # 선택된 결과를 반환하는 시그널
     result_selected = pyqtSignal(dict)  # 선택된 TMDB 결과
 
     def __init__(
         self,
-        parent=None,
+        parent: Any = None,
         theme_manager: ThemeManager | None = None,
         api_key: str | None = None,
-    ):
+    ) -> None:
+        """Initialize the TMDB selection dialog.
+
+        Args:
+            parent (QWidget, optional): Parent widget. Defaults to None.
+            theme_manager (ThemeManager | None, optional): Theme manager instance. Defaults to None.
+            api_key (str | None, optional): TMDB API key. Defaults to None.
+        """
         super().__init__(parent)
         self.theme_manager = theme_manager or ThemeManager()
         self.api_key = api_key
@@ -56,8 +63,8 @@ class TMDBSelectionDialog(QDialog):
         self._setup_ui()
         self._apply_theme()
 
-    def _setup_ui(self):
-        """UI 설정"""
+    def _setup_ui(self) -> None:
+        """UI 설정."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
@@ -75,7 +82,7 @@ class TMDBSelectionDialog(QDialog):
         layout.addLayout(buttons_layout)
 
     def _create_search_section(self) -> QGroupBox:
-        """검색 섹션 생성"""
+        """검색 섹션 생성."""
         group = QGroupBox("검색")
 
         layout = QVBoxLayout(group)
@@ -108,7 +115,7 @@ class TMDBSelectionDialog(QDialog):
         return group
 
     def _create_results_section(self) -> QGroupBox:
-        """결과 섹션 생성"""
+        """결과 섹션 생성."""
         group = QGroupBox("검색 결과")
 
         layout = QVBoxLayout(group)
@@ -149,7 +156,7 @@ class TMDBSelectionDialog(QDialog):
         return group
 
     def _create_buttons_section(self) -> QHBoxLayout:
-        """버튼 섹션 생성"""
+        """버튼 섹션 생성."""
         layout = QHBoxLayout()
         layout.addStretch()
 
@@ -170,13 +177,13 @@ class TMDBSelectionDialog(QDialog):
 
         return layout
 
-    def _apply_theme(self):
-        """테마 적용"""
+    def _apply_theme(self) -> None:
+        """테마 적용."""
         # ThemeManager를 통해 테마 적용
         self.theme_manager.apply_theme(self)
 
-    def set_initial_search(self, query: str, results: list[dict[str, Any]] | None = None):
-        """초기 검색어와 결과 설정"""
+    def set_initial_search(self, query: str, results: list[dict[str, Any]] | None = None) -> None:
+        """초기 검색어와 결과 설정."""
         logger.info(
             f"Setting initial search: query='{query}', results_count={len(results) if results else 0}"
         )
@@ -189,8 +196,8 @@ class TMDBSelectionDialog(QDialog):
             logger.info("No pre-loaded results, performing new search")
             self._perform_search()
 
-    def _perform_search(self):
-        """TMDB 검색 수행 (비동기)"""
+    def _perform_search(self) -> None:
+        """TMDB 검색 수행 (비동기)."""
         query = self.search_input.text().strip()
         if not query:
             self.status_label.setText("검색어를 입력해주세요.")
@@ -221,7 +228,7 @@ class TMDBSelectionDialog(QDialog):
             self.search_btn.setEnabled(True)
 
     async def _perform_search_async(self, query: str) -> list[dict[str, Any]]:
-        """비동기 TMDB 검색 수행"""
+        """비동기 TMDB 검색 수행."""
         # TMDB 클라이언트 초기화 (지연 초기화)
         if not self.api_key:
             raise TMDBError("TMDB API 키가 설정되지 않았습니다.")
@@ -265,8 +272,8 @@ class TMDBSelectionDialog(QDialog):
         finally:
             await async_client.close()
 
-    def _display_results(self, results: list[dict[str, Any]]):
-        """검색 결과를 테이블에 표시"""
+    def _display_results(self, results: list[dict[str, Any]]) -> None:
+        """검색 결과를 테이블에 표시."""
         # 결과를 인스턴스 변수에 저장
         self.search_results = results
         self.results_table.setRowCount(len(results))
@@ -302,13 +309,13 @@ class TMDBSelectionDialog(QDialog):
             # 선택 상태 업데이트
             self._on_selection_changed()
 
-    def _on_result_double_clicked(self, item: QTableWidgetItem):
-        """결과 더블클릭 시 선택"""
+    def _on_result_double_clicked(self, item: QTableWidgetItem) -> None:
+        """결과 더블클릭 시 선택."""
         logger.debug(f"Double-clicked on item at row {item.row()}")
         self._on_select_clicked()
 
-    def _on_selection_changed(self):
-        """선택 변경 시"""
+    def _on_selection_changed(self) -> None:
+        """선택 변경 시."""
         current_row = self.results_table.currentRow()
         has_selection = current_row >= 0 and current_row < len(self.search_results)
         self.select_btn.setEnabled(has_selection)
@@ -318,14 +325,14 @@ class TMDBSelectionDialog(QDialog):
             f"Selection changed: row={current_row}, has_selection={has_selection}, total_results={len(self.search_results)}"
         )
 
-    def _select_result(self, result: dict):
-        """결과를 자동으로 선택"""
+    def _select_result(self, result: dict) -> None:
+        """결과를 자동으로 선택."""
         self.selected_result = result
         self.result_selected.emit(self.selected_result)
         self.accept()
 
-    def _on_select_clicked(self):
-        """선택 버튼 클릭 시"""
+    def _on_select_clicked(self) -> None:
+        """선택 버튼 클릭 시."""
         current_row = self.results_table.currentRow()
         logger.debug(
             f"Select button clicked: current_row={current_row}, total_results={len(self.search_results)}"
@@ -343,5 +350,5 @@ class TMDBSelectionDialog(QDialog):
             QMessageBox.warning(self, "선택 오류", "유효한 항목을 선택해주세요.")
 
     def get_selected_result(self) -> dict[str, Any] | None:
-        """선택된 결과 반환"""
+        """선택된 결과 반환."""
         return self.selected_result

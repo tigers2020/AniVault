@@ -51,6 +51,7 @@ class TestFileProcessingViewModel:
         try:
             import os
             import stat
+
             # Force remove all files and directories
             for root, dirs, files in os.walk(temp_dir, topdown=False):
                 for file in files:
@@ -315,10 +316,14 @@ class TestFileProcessingViewModel:
         # Check that the command executed successfully
         # The command should have created a worker and added a task (only if TMDB client is available)
         if viewmodel._tmdb_client:
-            assert viewmodel.has_worker(), "Worker should be created after retrieve_metadata command"
+            assert (
+                viewmodel.has_worker()
+            ), "Worker should be created after retrieve_metadata command"
         else:
             # If TMDB client is not available, the command should complete without creating a worker
-            assert not viewmodel.has_worker(), "No worker should be created when TMDB client is not available"
+            assert (
+                not viewmodel.has_worker()
+            ), "No worker should be created when TMDB client is not available"
 
     def test_move_files_command(self, viewmodel, sample_groups, temp_dir) -> None:
         """Test move files command."""
@@ -336,7 +341,7 @@ class TestFileProcessingViewModel:
         # Clean up any created directories to prevent teardown issues
         try:
             import shutil
-            import os
+
             # Force remove all subdirectories in temp_dir
             for item in temp_dir.iterdir():
                 if item.is_dir():
@@ -406,7 +411,9 @@ class TestFileProcessingViewModel:
             assert viewmodel.get_property("total_groups_created") == len(sample_groups)
             mock_signal.emit.assert_called_once_with(sample_groups)
 
-    def test_handle_parsing_result(self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]) -> None:
+    def test_handle_parsing_result(
+        self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]
+    ) -> None:
         """Test handling parsing result."""
         with patch.object(viewmodel, "files_parsed") as mock_signal:
             viewmodel._handle_parsing_result(sample_files)
@@ -416,7 +423,9 @@ class TestFileProcessingViewModel:
             assert viewmodel.get_property("total_files_processed") == len(sample_files)
             mock_signal.emit.assert_called_once_with(sample_files)
 
-    def test_handle_metadata_result(self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]) -> None:
+    def test_handle_metadata_result(
+        self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]
+    ) -> None:
         """Test handling metadata result."""
         with patch.object(viewmodel, "metadata_retrieved") as mock_signal:
             viewmodel._handle_metadata_result(sample_files)
@@ -425,7 +434,9 @@ class TestFileProcessingViewModel:
             assert viewmodel.get_property("processed_files") == sample_files
             mock_signal.emit.assert_called_once_with(sample_files)
 
-    def test_handle_moving_result(self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]) -> None:
+    def test_handle_moving_result(
+        self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]
+    ) -> None:
         """Test handling moving result."""
         with patch.object(viewmodel, "files_moved") as mock_signal:
             viewmodel._handle_moving_result(sample_files)
@@ -456,7 +467,12 @@ class TestFileProcessingViewModel:
 
         assert extensions == expected_extensions
 
-    def test_getter_methods(self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile], sample_groups: list[FileGroup]) -> None:
+    def test_getter_methods(
+        self,
+        viewmodel: FileProcessingViewModel,
+        sample_files: list[AnimeFile],
+        sample_groups: list[FileGroup],
+    ) -> None:
         """Test getter methods."""
         # Set some data
         viewmodel._scanned_files = sample_files
@@ -503,7 +519,9 @@ class TestFileProcessingViewModel:
         assert viewmodel._file_grouper is not None, "FileGrouper should be initialized"
         assert viewmodel._file_mover is not None, "FileMover should be initialized"
 
-    def test_cleanup(self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]) -> None:
+    def test_cleanup(
+        self, viewmodel: FileProcessingViewModel, sample_files: list[AnimeFile]
+    ) -> None:
         """Test cleanup method."""
         # Set some data
         viewmodel.set_property("scanned_files", sample_files)

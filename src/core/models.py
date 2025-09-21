@@ -587,6 +587,7 @@ class ProcessingState(QObject):
     processing_finished = pyqtSignal()  # when processing is complete
 
     def __init__(self) -> None:
+        """Initialize the file processing worker."""
         super().__init__()
         self._progress: int = 0
         self._status_message: str = "Ready"
@@ -676,3 +677,35 @@ class ProcessingState(QObject):
         self._errors.clear()
         self.progress_updated.emit(0)
         self.status_message_updated.emit("Ready")
+
+
+@dataclass
+class ProcessingResult:
+    """Result of file processing operation.
+    
+    This class represents the result of processing a single file,
+    including success status, processed data, and error information.
+    
+    Attributes:
+        success: Whether the processing was successful
+        anime_file: Processed AnimeFile object (if successful)
+        parsed_info: Parsed anime information (if available)
+        processing_time: Time taken to process the file
+        error: Error message (if processing failed)
+    """
+    
+    success: bool
+    anime_file: AnimeFile | None = None
+    parsed_info: ParsedAnimeInfo | None = None
+    processing_time: float = 0.0
+    error: str | None = None
+    
+    @property
+    def has_parsed_info(self) -> bool:
+        """Whether parsed information is available."""
+        return self.parsed_info is not None
+    
+    @property
+    def has_anime_file(self) -> bool:
+        """Whether anime file information is available."""
+        return self.anime_file is not None

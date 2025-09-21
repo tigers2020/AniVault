@@ -12,9 +12,12 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 from .config import SecureConfigManager
+
+# Type alias for configuration values (same as in config.py)
+ConfigValue = Union[str, int, float, bool, list, dict, None]
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +25,9 @@ logger = logging.getLogger(__name__)
 class ConfigurationChangeEvent:
     """Represents a configuration change event."""
 
-    def __init__(self, key_path: str, old_value: Any, new_value: Any, timestamp: float):
+    def __init__(
+        self, key_path: str, old_value: ConfigValue, new_value: ConfigValue, timestamp: float
+    ) -> None:
         """Initialize configuration change event.
 
         Args:
@@ -48,7 +53,7 @@ class ConfigurationObserver:
         self,
         callback: Callable[[ConfigurationChangeEvent], None],
         key_patterns: list[str] | None = None,
-    ):
+    ) -> None:
         """Initialize configuration observer.
 
         Args:
@@ -97,7 +102,7 @@ class ThreadSafeConfigManager:
     - Deadlock prevention
     """
 
-    def __init__(self, config_path: Path | None = None):
+    def __init__(self, config_path: Path | None = None) -> None:
         """Initialize the thread-safe configuration manager.
 
         Args:
@@ -167,7 +172,7 @@ class ThreadSafeConfigManager:
                             "Error notifying observer %s: %s", observer.observer_id, str(e)
                         )
 
-    def _record_change(self, key_path: str, old_value: Any, new_value: Any) -> None:
+    def _record_change(self, key_path: str, old_value: ConfigValue, new_value: ConfigValue) -> None:
         """Record a configuration change in history."""
         event = ConfigurationChangeEvent(key_path, old_value, new_value, time.time())
 
@@ -181,7 +186,7 @@ class ThreadSafeConfigManager:
         # Notify observers
         self._notify_observers(event)
 
-    def get(self, key_path: str, default: Any = None) -> Any:
+    def get(self, key_path: str, default: ConfigValue | None = None) -> ConfigValue:
         """Get a configuration value with thread safety.
 
         Args:
@@ -196,7 +201,7 @@ class ThreadSafeConfigManager:
             self._last_access_time = time.time()
             return self._base_manager.get(key_path, default)
 
-    def set(self, key_path: str, value: Any, encrypt: bool | None = None) -> None:
+    def set(self, key_path: str, value: ConfigValue, encrypt: bool | None = None) -> None:
         """Set a configuration value with thread safety and change notification.
 
         Args:
@@ -254,7 +259,9 @@ class ThreadSafeConfigManager:
             finally:
                 self._batch_mode = False
 
-    def atomic_update(self, key_path: str, update_func: Callable[[Any], Any]) -> Any:
+    def atomic_update(
+        self, key_path: str, update_func: Callable[[ConfigValue], ConfigValue]
+    ) -> ConfigValue:
         """Perform atomic update using a function.
 
         Args:

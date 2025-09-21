@@ -1,9 +1,9 @@
 """Tests for database health monitoring system."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
 
 from src.core.database import DatabaseManager
 from src.core.database_health import (
@@ -11,16 +11,16 @@ from src.core.database_health import (
     HealthStatus,
     create_database_health_checker,
     get_database_health_checker,
-    set_global_health_checker,
     get_database_health_status,
     is_database_healthy,
+    set_global_health_checker,
 )
 
 
 class TestHealthStatus:
     """Test HealthStatus enum."""
 
-    def test_health_status_values(self):
+    def test_health_status_values(self) -> None:
         """Test HealthStatus enum values."""
         assert HealthStatus.HEALTHY.value == "healthy"
         assert HealthStatus.UNHEALTHY.value == "unhealthy"
@@ -48,7 +48,7 @@ class TestDatabaseHealthChecker:
             recovery_threshold=1,
         )
 
-    def test_initialization(self, health_checker):
+    def test_initialization(self, health_checker) -> None:
         """Test health checker initialization."""
         assert health_checker.check_interval == 1.0
         assert health_checker.timeout == 0.5
@@ -56,7 +56,7 @@ class TestDatabaseHealthChecker:
         assert health_checker.recovery_threshold == 1
         assert health_checker.get_current_status() == HealthStatus.UNKNOWN
 
-    def test_successful_health_check(self, health_checker, mock_db_manager):
+    def test_successful_health_check(self, health_checker, mock_db_manager) -> None:
         """Test successful health check."""
         # Mock successful database query
         mock_session = Mock()
@@ -76,7 +76,7 @@ class TestDatabaseHealthChecker:
         assert health_checker.get_current_status() == HealthStatus.HEALTHY
         assert health_checker.get_last_success_time() is not None
 
-    def test_failed_health_check(self, health_checker, mock_db_manager):
+    def test_failed_health_check(self, health_checker, mock_db_manager) -> None:
         """Test failed health check."""
         # Mock database failure
         mock_db_manager.get_session.side_effect = Exception("Database connection failed")
@@ -87,7 +87,7 @@ class TestDatabaseHealthChecker:
         assert health_checker.get_current_status() == HealthStatus.UNHEALTHY
         assert health_checker.get_last_failure_time() is not None
 
-    def test_failure_threshold(self, health_checker, mock_db_manager):
+    def test_failure_threshold(self, health_checker, mock_db_manager) -> None:
         """Test failure threshold behavior."""
         # Mock consecutive failures
         mock_db_manager.get_session.side_effect = Exception("Database connection failed")
@@ -100,7 +100,7 @@ class TestDatabaseHealthChecker:
         health_checker.check_health()
         assert health_checker.get_current_status() == HealthStatus.UNHEALTHY
 
-    def test_recovery_threshold(self, health_checker, mock_db_manager):
+    def test_recovery_threshold(self, health_checker, mock_db_manager) -> None:
         """Test recovery threshold behavior."""
         # First, make system unhealthy
         mock_db_manager.get_session.side_effect = Exception("Database connection failed")
@@ -125,7 +125,7 @@ class TestDatabaseHealthChecker:
         health_checker.check_health()
         assert health_checker.get_current_status() == HealthStatus.HEALTHY
 
-    def test_monitoring_lifecycle(self, health_checker):
+    def test_monitoring_lifecycle(self, health_checker) -> None:
         """Test monitoring start/stop lifecycle."""
         # Start monitoring
         health_checker.start_monitoring()
@@ -139,11 +139,11 @@ class TestDatabaseHealthChecker:
         health_checker.stop_monitoring()
         assert health_checker._monitoring is False
 
-    def test_status_change_callbacks(self, health_checker, mock_db_manager):
+    def test_status_change_callbacks(self, health_checker, mock_db_manager) -> None:
         """Test status change callbacks."""
         callback_calls = []
 
-        def callback(old_status, new_status):
+        def callback(old_status, new_status) -> None:
             callback_calls.append((old_status, new_status))
 
         health_checker.add_status_change_callback(callback)
@@ -165,7 +165,7 @@ class TestDatabaseHealthChecker:
         assert len(callback_calls) == 1
         assert callback_calls[0] == (HealthStatus.UNKNOWN, HealthStatus.HEALTHY)
 
-    def test_statistics(self, health_checker, mock_db_manager):
+    def test_statistics(self, health_checker, mock_db_manager) -> None:
         """Test health check statistics."""
         # Mock alternating success/failure
         call_count = [0]  # Use list to make it mutable in nested function
@@ -196,16 +196,15 @@ class TestDatabaseHealthChecker:
 
         stats = health_checker.get_statistics()
 
-        assert stats['total_checks'] == 4
-        assert stats['successful_checks'] == 2
-        assert stats['failed_checks'] == 2
-        assert stats['success_rate'] == 0.5
+        assert stats["total_checks"] == 4
+        assert stats["successful_checks"] == 2
+        assert stats["failed_checks"] == 2
+        assert stats["success_rate"] == 0.5
 
-    def test_custom_health_check_query(self, mock_db_manager):
+    def test_custom_health_check_query(self, mock_db_manager) -> None:
         """Test custom health check query."""
         health_checker = DatabaseHealthChecker(
-            db_manager=mock_db_manager,
-            health_check_query="SELECT COUNT(*) FROM test_table"
+            db_manager=mock_db_manager, health_check_query="SELECT COUNT(*) FROM test_table"
         )
 
         mock_session = Mock()
@@ -237,14 +236,14 @@ class TestGlobalFunctions:
         mock_manager._initialized = True
         return mock_manager
 
-    def test_create_database_health_checker(self, mock_db_manager):
+    def test_create_database_health_checker(self, mock_db_manager) -> None:
         """Test create_database_health_checker function."""
         checker = create_database_health_checker(
             db_manager=mock_db_manager,
             check_interval=30.0,
             timeout=5.0,
             failure_threshold=3,
-            recovery_threshold=2
+            recovery_threshold=2,
         )
 
         assert isinstance(checker, DatabaseHealthChecker)
@@ -253,7 +252,7 @@ class TestGlobalFunctions:
         assert checker.failure_threshold == 3
         assert checker.recovery_threshold == 2
 
-    def test_global_health_checker_management(self, mock_db_manager):
+    def test_global_health_checker_management(self, mock_db_manager) -> None:
         """Test global health checker management."""
         # Initially no global checker
         assert get_database_health_checker() is None
@@ -266,15 +265,15 @@ class TestGlobalFunctions:
         assert get_database_health_checker() is checker
 
         # Test global status functions
-        with patch.object(checker, 'get_current_status', return_value=HealthStatus.HEALTHY):
+        with patch.object(checker, "get_current_status", return_value=HealthStatus.HEALTHY):
             assert get_database_health_status() == HealthStatus.HEALTHY
             assert is_database_healthy() is True
 
-        with patch.object(checker, 'get_current_status', return_value=HealthStatus.UNHEALTHY):
+        with patch.object(checker, "get_current_status", return_value=HealthStatus.UNHEALTHY):
             assert get_database_health_status() == HealthStatus.UNHEALTHY
             assert is_database_healthy() is False
 
-    def test_global_functions_without_checker(self):
+    def test_global_functions_without_checker(self) -> None:
         """Test global functions when no checker is set."""
         # Ensure no global checker
         set_global_health_checker(None)
@@ -290,18 +289,19 @@ class TestHealthCheckerIntegration:
     def real_db_manager(self):
         """Create a real database manager for integration tests."""
         from src.core.database import DatabaseManager
+
         db_manager = DatabaseManager("sqlite:///:memory:")
         db_manager.initialize()
         return db_manager
 
-    def test_real_database_health_check(self, real_db_manager):
+    def test_real_database_health_check(self, real_db_manager) -> None:
         """Test health check with real database."""
         checker = DatabaseHealthChecker(
             db_manager=real_db_manager,
             check_interval=1.0,
             timeout=5.0,
             failure_threshold=1,
-            recovery_threshold=1
+            recovery_threshold=1,
         )
 
         # Should succeed with real database
@@ -310,19 +310,19 @@ class TestHealthCheckerIntegration:
 
         # Statistics should be updated
         stats = checker.get_statistics()
-        assert stats['total_checks'] == 1
-        assert stats['successful_checks'] == 1
-        assert stats['failed_checks'] == 0
-        assert stats['success_rate'] == 1.0
+        assert stats["total_checks"] == 1
+        assert stats["successful_checks"] == 1
+        assert stats["failed_checks"] == 0
+        assert stats["success_rate"] == 1.0
 
-    def test_monitoring_with_real_database(self, real_db_manager):
+    def test_monitoring_with_real_database(self, real_db_manager) -> None:
         """Test monitoring with real database."""
         checker = DatabaseHealthChecker(
             db_manager=real_db_manager,
             check_interval=0.5,  # Very fast for testing
             timeout=2.0,
             failure_threshold=1,
-            recovery_threshold=1
+            recovery_threshold=1,
         )
 
         # Start monitoring
@@ -336,8 +336,8 @@ class TestHealthCheckerIntegration:
 
         # Verify checks were performed
         stats = checker.get_statistics()
-        assert stats['total_checks'] >= 1
-        assert stats['is_monitoring'] is False
+        assert stats["total_checks"] >= 1
+        assert stats["is_monitoring"] is False
 
 
 class TestHealthCheckerThreadSafety:
@@ -350,14 +350,14 @@ class TestHealthCheckerThreadSafety:
         mock_manager._initialized = True
         return mock_manager
 
-    def test_concurrent_health_checks(self, mock_db_manager):
+    def test_concurrent_health_checks(self, mock_db_manager) -> None:
         """Test concurrent health check calls."""
         checker = DatabaseHealthChecker(
             db_manager=mock_db_manager,
             check_interval=1.0,
             timeout=0.5,
             failure_threshold=1,
-            recovery_threshold=1
+            recovery_threshold=1,
         )
 
         # Mock successful responses
@@ -373,11 +373,10 @@ class TestHealthCheckerThreadSafety:
         mock_db_manager.get_session.return_value = mock_context
 
         import threading
-        import time
 
         results = []
 
-        def perform_check():
+        def perform_check() -> None:
             status = checker.check_health()
             results.append(status)
 
@@ -398,8 +397,8 @@ class TestHealthCheckerThreadSafety:
 
         # Statistics should be consistent
         stats = checker.get_statistics()
-        assert stats['total_checks'] == 5
-        assert stats['successful_checks'] == 5
+        assert stats["total_checks"] == 5
+        assert stats["successful_checks"] == 5
 
 
 if __name__ == "__main__":

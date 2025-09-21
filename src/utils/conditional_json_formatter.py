@@ -7,13 +7,15 @@ reducing CPU overhead for DEBUG and INFO messages.
 
 import json
 import logging
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Literal
 
 try:
-    import orjson
+    import orjson  # type: ignore[import-untyped]
 
     ORJSON_AVAILABLE = True
 except ImportError:
+    orjson = None  # type: ignore[assignment]
     ORJSON_AVAILABLE = False
 
 
@@ -30,11 +32,13 @@ class ConditionalJsonFormatter(logging.Formatter):
         include_extra: Whether to include extra attributes in JSON output
     """
 
+    json_serializer: Callable[[Any], str]
+
     def __init__(
         self,
         fmt: str | None = None,
         datefmt: str | None = None,
-        style: str = "%",
+        style: Literal["%", "{", "$"] = "%",
         json_levels: list[int] | None = None,
         include_extra: bool = True,
         use_orjson: bool = True,
@@ -61,12 +65,29 @@ class ConditionalJsonFormatter(logging.Formatter):
         self.include_extra = include_extra
 
         # Choose JSON serializer
-        if use_orjson and ORJSON_AVAILABLE:
-            self.json_serializer = orjson.dumps
+        if use_orjson and ORJSON_AVAILABLE and orjson is not None:
+            self.json_serializer = self._orjson_dumps_wrapper
             self._is_orjson = True
         else:
             self.json_serializer = json.dumps
             self._is_orjson = False
+
+    def _orjson_dumps_wrapper(self, obj: Any) -> str:
+        """Wrapper for orjson.dumps that returns str instead of bytes.
+
+        Args:
+            obj: Object to serialize
+
+        Returns:
+            JSON string
+        """
+        if orjson is not None:
+            result = orjson.dumps(obj)
+            if isinstance(result, bytes):
+                return result.decode("utf-8")
+            return str(result)
+        else:
+            return json.dumps(obj)
 
     def format(self, record: logging.LogRecord) -> str:
         """Format a log record.
@@ -128,24 +149,11 @@ class ConditionalJsonFormatter(logging.Formatter):
 
         # Serialize to JSON
         try:
-            if self._is_orjson:
-                # orjson returns bytes, decode to string
-                return self.json_serializer(log_entry).decode("utf-8")
-            else:
-                # json.dumps returns string directly
-                return self.json_serializer(
-                    log_entry,
-                    ensure_ascii=False,
-                    indent=None,
-                    separators=(",", ":"),
-                )
+            return self.json_serializer(log_entry)
         except (TypeError, ValueError) as e:
             # Fallback to string representation for non-serializable objects
             log_entry["serialization_error"] = f"Failed to serialize: {e}"
-            if self._is_orjson:
-                return orjson.dumps(log_entry, default=str).decode("utf-8")
-            else:
-                return json.dumps(log_entry, default=str, ensure_ascii=False)
+            return self.json_serializer(log_entry)
 
     def _add_extra_attributes(self, log_entry: dict[str, Any], record: logging.LogRecord) -> None:
         """Add extra attributes from the log record.
@@ -186,7 +194,7 @@ class ConditionalJsonFormatter(logging.Formatter):
             if key not in excluded_attrs:
                 try:
                     # Test if the value is JSON serializable
-                    if self._is_orjson:
+                    if self._is_orjson and orjson is not None:
                         orjson.dumps(value)
                     else:
                         json.dumps(value)

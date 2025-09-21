@@ -234,7 +234,9 @@ class TestFileMover:
         target_file = temp_dir / "transaction_target.txt"
 
         with file_mover.transaction() as transaction:
-            result = file_mover.move_file(source_file, target_file, transaction_id=transaction.transaction_id)
+            result = file_mover.move_file(
+                source_file, target_file, transaction_id=transaction.transaction_id
+            )
             assert result.success
             assert transaction.transaction_id in file_mover._transactions
 

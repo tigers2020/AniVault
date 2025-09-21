@@ -306,26 +306,26 @@ class AnimeDataValidator:
         normalized_data: dict[str, Any] = {}
 
         # Validate title
-        title_valid, title_errors, normalized_title = self.validate_title(parsed_info.title)
+        _title_valid, title_errors, normalized_title = self.validate_title(parsed_info.title)
         errors.extend(title_errors)
         normalized_data["title"] = normalized_title
 
         # Validate episode number
-        episode_valid, episode_errors, normalized_episode = self.validate_episode_number(
+        _episode_valid, episode_errors, normalized_episode = self.validate_episode_number(
             parsed_info.episode
         )
         errors.extend(episode_errors)
         normalized_data["episode"] = normalized_episode
 
         # Validate season number
-        season_valid, season_errors, normalized_season = self.validate_season_number(
+        _season_valid, season_errors, normalized_season = self.validate_season_number(
             parsed_info.season
         )
         errors.extend(season_errors)
         normalized_data["season"] = normalized_season
 
         # Validate resolution
-        res_valid, res_errors, (norm_res, norm_width, norm_height) = self.validate_resolution(
+        _res_valid, res_errors, (norm_res, norm_width, norm_height) = self.validate_resolution(
             parsed_info.resolution, parsed_info.resolution_width, parsed_info.resolution_height
         )
         errors.extend(res_errors)
@@ -334,26 +334,26 @@ class AnimeDataValidator:
         normalized_data["resolution_height"] = norm_height
 
         # Validate video codec
-        vcodec_valid, vcodec_errors, normalized_vcodec = self.validate_codec(
+        _vcodec_valid, vcodec_errors, normalized_vcodec = self.validate_codec(
             parsed_info.video_codec, "video"
         )
         errors.extend(vcodec_errors)
         normalized_data["video_codec"] = normalized_vcodec
 
         # Validate audio codec
-        acodec_valid, acodec_errors, normalized_acodec = self.validate_codec(
+        _acodec_valid, acodec_errors, normalized_acodec = self.validate_codec(
             parsed_info.audio_codec, "audio"
         )
         errors.extend(acodec_errors)
         normalized_data["audio_codec"] = normalized_acodec
 
         # Validate year
-        year_valid, year_errors, normalized_year = self.validate_year(parsed_info.year)
+        _year_valid, year_errors, normalized_year = self.validate_year(parsed_info.year)
         errors.extend(year_errors)
         normalized_data["year"] = normalized_year
 
         # Validate source
-        source_valid, source_errors, normalized_source = self.validate_source(parsed_info.source)
+        _source_valid, source_errors, normalized_source = self.validate_source(parsed_info.source)
         errors.extend(source_errors)
         normalized_data["source"] = normalized_source
 

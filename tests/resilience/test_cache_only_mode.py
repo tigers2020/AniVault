@@ -1,30 +1,25 @@
 """Tests for cache-only mode behavior in the MetadataCache class."""
 
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
-
-from src.core.metadata_cache import MetadataCache, CacheEntry
+from src.core.cache_core import CacheEntry
+from src.core.metadata_cache import MetadataCache
 from src.core.models import ParsedAnimeInfo, TMDBAnime
 
 
 class TestCacheOnlyModeBehavior:
     """Test cache-only mode behavior for MetadataCache."""
 
-    def _create_cache_entry(self, key: str, value: ParsedAnimeInfo | TMDBAnime, created_at: float = None) -> CacheEntry:
+    def _create_cache_entry(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, created_at: float | None = None
+    ) -> CacheEntry:
         """Helper method to create a CacheEntry."""
         if created_at is None:
             created_at = time.time()
-        return CacheEntry(
-            key=key,
-            value=value,
-            created_at=created_at,
-            last_accessed=created_at,
-            size_bytes=100
-        )
+        return CacheEntry(value=value, ttl_seconds=None)
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         # Create a mock database with proper session support
         self.mock_db = Mock()
@@ -33,27 +28,23 @@ class TestCacheOnlyModeBehavior:
 
         # Create MetadataCache instance with mock database and proper max_size
         self.cache = MetadataCache(
-            max_size=100,  # Set max_size as constructor parameter
-            db_manager=self.mock_db
+            max_size=100, db_manager=self.mock_db  # Set max_size as constructor parameter
         )
 
         # Create sample ParsedAnimeInfo (only title is required)
-        self.sample_parsed_info = ParsedAnimeInfo(
-            title="Attack on Titan"
-        )
+        self.sample_parsed_info = ParsedAnimeInfo(title="Attack on Titan")
 
         # Create sample TMDBAnime
-        self.sample_tmdb_anime = TMDBAnime(
-            tmdb_id=12345,
-            title="Attack on Titan"
-        )
+        self.sample_tmdb_anime = TMDBAnime(tmdb_id=12345, title="Attack on Titan")
 
-    def test_cache_only_mode_read_cache_hit(self):
+    def test_cache_only_mode_read_cache_hit(self) -> None:
         """Test that cache hits work normally in cache-only mode."""
         # Setup cache-only mode
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Manually add data to cache to simulate cache hit
-            self.cache._cache["test_key"] = self._create_cache_entry("test_key", self.sample_parsed_info)
+            self.cache.cache_core._cache["test_key"] = self._create_cache_entry(
+                "test_key", self.sample_parsed_info
+            )
 
             # Clear the mock to ensure no database calls
             self.mock_db.reset_mock()
@@ -69,12 +60,12 @@ class TestCacheOnlyModeBehavior:
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_read_cache_miss(self):
+    def test_cache_only_mode_read_cache_miss(self) -> None:
         """Test that cache misses return None without database calls in cache-only mode."""
         # Setup cache-only mode
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Ensure cache is empty
-            self.cache._cache.clear()
+            self.cache.cache_core._cache.clear()
 
             # Try to get non-existent key
             result = self.cache.get("non_existent_key")
@@ -85,17 +76,15 @@ class TestCacheOnlyModeBehavior:
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_read_with_default_value(self):
+    def test_cache_only_mode_read_with_default_value(self) -> None:
         """Test that cache misses return default value without database calls in cache-only mode."""
         # Setup cache-only mode
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Ensure cache is empty
-            self.cache._cache.clear()
+            self.cache.cache_core._cache.clear()
 
             # Try to get non-existent key with default
-            default_value = ParsedAnimeInfo(
-                title="Default Anime"
-            )
+            default_value = ParsedAnimeInfo(title="Default Anime")
             result = self.cache.get("non_existent_key", default_value)
 
             # Verify default value is returned
@@ -104,7 +93,7 @@ class TestCacheOnlyModeBehavior:
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_enable_disable(self):
+    def test_cache_only_mode_enable_disable(self) -> None:
         """Test enabling and disabling cache-only mode."""
         # Initially not in cache-only mode
         assert not self.cache.is_cache_only_mode()
@@ -117,7 +106,7 @@ class TestCacheOnlyModeBehavior:
         self.cache.disable_cache_only_mode()
         assert not self.cache.is_cache_only_mode()
 
-    def test_cache_only_mode_with_database_disabled(self):
+    def test_cache_only_mode_with_database_disabled(self) -> None:
         """Test cache-only mode when database is disabled."""
         # Mock database as disabled by setting enable_db to False
         original_enable_db = self.cache.enable_db
@@ -131,7 +120,9 @@ class TestCacheOnlyModeBehavior:
             assert self.cache.is_cache_only_mode()
 
             # Manually add data to cache
-            self.cache._cache["test_key"] = self._create_cache_entry("test_key", self.sample_parsed_info)
+            self.cache.cache_core._cache["test_key"] = self._create_cache_entry(
+                "test_key", self.sample_parsed_info
+            )
 
             # Get data from cache
             result = self.cache.get("test_key")
@@ -142,41 +133,47 @@ class TestCacheOnlyModeBehavior:
             # Restore original enable_db
             self.cache.enable_db = original_enable_db
 
-    def test_cache_only_mode_statistics_tracking(self):
+    def test_cache_only_mode_statistics_tracking(self) -> None:
         """Test that statistics tracking works in cache-only mode."""
         self.cache.reset_stats()
 
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Manually add data to cache
-            self.cache._cache["key1"] = self._create_cache_entry("key1", self.sample_parsed_info)
+            self.cache.cache_core._cache["key1"] = self._create_cache_entry(
+                "key1", self.sample_parsed_info
+            )
 
             # Clear the mock to ensure no database calls
             self.mock_db.reset_mock()
 
             # Get data (hit)
-            result1 = self.cache.get("key1")
+            self.cache.get("key1")
 
             # Get non-existent data (miss)
-            result2 = self.cache.get("key2")
+            self.cache.get("key2")
 
             # Get statistics
             stats = self.cache.get_stats()
 
             # Verify statistics are tracked
             assert stats is not None
-            assert hasattr(stats, 'hits')
-            assert hasattr(stats, 'misses')
-            assert hasattr(stats, 'cache_size')
+            assert hasattr(stats, "hits")
+            assert hasattr(stats, "misses")
+            assert hasattr(stats, "cache_size")
 
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_clear_operation(self):
+    def test_cache_only_mode_clear_operation(self) -> None:
         """Test that clear operations work in cache-only mode."""
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Manually add some data to cache
-            self.cache._cache["key1"] = self._create_cache_entry("key1", self.sample_parsed_info)
-            self.cache._cache["key2"] = self._create_cache_entry("key2", self.sample_tmdb_anime)
+            self.cache.cache_core._cache["key1"] = self._create_cache_entry(
+                "key1", self.sample_parsed_info
+            )
+            self.cache.cache_core._cache["key2"] = self._create_cache_entry(
+                "key2", self.sample_tmdb_anime
+            )
 
             # Clear the mock to ensure no database calls
             self.mock_db.reset_mock()
@@ -191,13 +188,19 @@ class TestCacheOnlyModeBehavior:
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_invalidate_pattern(self):
+    def test_cache_only_mode_invalidate_pattern(self) -> None:
         """Test that pattern invalidation works in cache-only mode."""
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Manually add some data with similar keys
-            self.cache._cache["anime_001"] = self._create_cache_entry("anime_001", self.sample_parsed_info)
-            self.cache._cache["anime_002"] = self._create_cache_entry("anime_002", self.sample_parsed_info)
-            self.cache._cache["other_key"] = self._create_cache_entry("other_key", self.sample_parsed_info)
+            self.cache.cache_core._cache["anime_001"] = self._create_cache_entry(
+                "anime_001", self.sample_parsed_info
+            )
+            self.cache.cache_core._cache["anime_002"] = self._create_cache_entry(
+                "anime_002", self.sample_parsed_info
+            )
+            self.cache.cache_core._cache["other_key"] = self._create_cache_entry(
+                "other_key", self.sample_parsed_info
+            )
 
             # Clear the mock to ensure no database calls
             self.mock_db.reset_mock()
@@ -213,17 +216,19 @@ class TestCacheOnlyModeBehavior:
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_with_expired_entries(self):
+    def test_cache_only_mode_with_expired_entries(self) -> None:
         """Test cache-only mode behavior with expired entries."""
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Store data with short TTL by setting ttl_seconds
             original_ttl = self.cache.ttl_seconds
-            self.cache.ttl_seconds = 0.1  # 100ms TTL
+            self.cache.cache_core.default_ttl_seconds = 0.1  # 100ms TTL
 
             try:
                 # Manually add expired data to cache
                 expired_time = time.time() - 1.0  # Expired 1 second ago
-                self.cache._cache["test_key"] = self._create_cache_entry("test_key", self.sample_parsed_info, expired_time)
+                self.cache.cache_core._cache["test_key"] = self._create_cache_entry(
+                    "test_key", self.sample_parsed_info, expired_time
+                )
 
                 # Try to get expired data
                 result = self.cache.get("test_key")
@@ -232,25 +237,21 @@ class TestCacheOnlyModeBehavior:
                 assert result is None
             finally:
                 # Restore original TTL
-                self.cache.ttl_seconds = original_ttl
+                self.cache.cache_core.default_ttl_seconds = original_ttl
 
 
 class TestCacheOnlyModeIntegration:
     """Integration tests for cache-only mode with realistic scenarios."""
 
-    def _create_cache_entry(self, key: str, value: ParsedAnimeInfo | TMDBAnime, created_at: float = None) -> CacheEntry:
+    def _create_cache_entry(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, created_at: float | None = None
+    ) -> CacheEntry:
         """Helper method to create a CacheEntry."""
         if created_at is None:
             created_at = time.time()
-        return CacheEntry(
-            key=key,
-            value=value,
-            created_at=created_at,
-            last_accessed=created_at,
-            size_bytes=100
-        )
+        return CacheEntry(value=value, ttl_seconds=None)
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         # Create a mock database with proper session support
         self.mock_db = Mock()
@@ -259,46 +260,40 @@ class TestCacheOnlyModeIntegration:
 
         # Create MetadataCache instance with mock database and proper max_size
         self.cache = MetadataCache(
-            max_size=100,  # Set max_size as constructor parameter
-            db_manager=self.mock_db
+            max_size=100, db_manager=self.mock_db  # Set max_size as constructor parameter
         )
 
         # Create sample ParsedAnimeInfo (only title is required)
-        self.sample_parsed_info = ParsedAnimeInfo(
-            title="Attack on Titan"
-        )
+        self.sample_parsed_info = ParsedAnimeInfo(title="Attack on Titan")
 
         # Create sample TMDBAnime
-        self.sample_tmdb_anime = TMDBAnime(
-            tmdb_id=12345,
-            title="Attack on Titan"
-        )
+        self.sample_tmdb_anime = TMDBAnime(tmdb_id=12345, title="Attack on Titan")
 
-    def test_cache_only_mode_realistic_workflow(self):
+    def test_cache_only_mode_realistic_workflow(self) -> None:
         """Test a realistic workflow in cache-only mode."""
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Clear the mock to ensure no database calls
             self.mock_db.reset_mock()
 
             # Simulate processing anime files - manually add to cache
-            anime_info = ParsedAnimeInfo(
-                title="Attack on Titan",
-                season=1,
-                episode=1
-            )
+            anime_info = ParsedAnimeInfo(title="Attack on Titan", season=1, episode=1)
 
             tmdb_info = TMDBAnime(
                 tmdb_id=1429,
                 title="Attack on Titan",
                 original_title="Shingeki no Kyojin",
-                overview="Humanity fights for survival against the Titans."
+                overview="Humanity fights for survival against the Titans.",
             )
 
             # Manually store parsed info in cache
-            self.cache._cache["parsed_attack_on_titan_s01e01"] = self._create_cache_entry("parsed_attack_on_titan_s01e01", anime_info)
+            self.cache.cache_core._cache["parsed_attack_on_titan_s01e01"] = (
+                self._create_cache_entry("parsed_attack_on_titan_s01e01", anime_info)
+            )
 
             # Manually store TMDB info in cache
-            self.cache._cache["tmdb_attack_on_titan"] = self._create_cache_entry("tmdb_attack_on_titan", tmdb_info)
+            self.cache.cache_core._cache["tmdb_attack_on_titan"] = self._create_cache_entry(
+                "tmdb_attack_on_titan", tmdb_info
+            )
 
             # Retrieve and verify
             retrieved_parsed = self.cache.get("parsed_attack_on_titan_s01e01")
@@ -312,15 +307,19 @@ class TestCacheOnlyModeIntegration:
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_with_mixed_operations(self):
+    def test_cache_only_mode_with_mixed_operations(self) -> None:
         """Test mixed operations (read/clear/invalidate) in cache-only mode."""
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Clear the mock to ensure no database calls
             self.mock_db.reset_mock()
 
             # Manually add data to cache
-            self.cache._cache["key1"] = self._create_cache_entry("key1", self.sample_parsed_info)
-            self.cache._cache["key2"] = self._create_cache_entry("key2", self.sample_tmdb_anime)
+            self.cache.cache_core._cache["key1"] = self._create_cache_entry(
+                "key1", self.sample_parsed_info
+            )
+            self.cache.cache_core._cache["key2"] = self._create_cache_entry(
+                "key2", self.sample_tmdb_anime
+            )
 
             # Read operations
             result1 = self.cache.get("key1")
@@ -341,16 +340,18 @@ class TestCacheOnlyModeIntegration:
             # Verify no database calls were made
             self.mock_db.assert_not_called()
 
-    def test_cache_only_mode_performance_characteristics(self):
+    def test_cache_only_mode_performance_characteristics(self) -> None:
         """Test performance characteristics of cache-only mode operations."""
-        with patch.object(self.cache, 'is_cache_only_mode', return_value=True):
+        with patch.object(self.cache, "is_cache_only_mode", return_value=True):
             # Measure bulk read performance
             start_time = time.time()
 
             # Manually add multiple entries to cache
             for i in range(50):
                 anime_info = ParsedAnimeInfo(title=f"Test Anime {i}")
-                self.cache._cache[f"anime_{i}"] = self._create_cache_entry(f"anime_{i}", anime_info)
+                self.cache.cache_core._cache[f"anime_{i}"] = self._create_cache_entry(
+                    f"anime_{i}", anime_info
+                )
 
             # Read all entries
             results = []
@@ -365,7 +366,7 @@ class TestCacheOnlyModeIntegration:
             assert all(result is not None for result in results)
 
             # Performance should be reasonable (adjust thresholds as needed)
-            assert read_time < 1.0   # Should complete in under 1 second
+            assert read_time < 1.0  # Should complete in under 1 second
 
             # Verify no database calls were made
             self.mock_db.assert_not_called()

@@ -42,99 +42,51 @@ class AsyncConcreteMetadataRetrievalTask(WorkerTask):
     async def execute_async(self) -> list[AnimeFile]:
         """Execute the async metadata retrieval using concurrent processing.
 
+        This method orchestrates the concurrent retrieval of TMDB metadata for multiple
+        files using asyncio.gather() for optimal performance. The process includes:
+
+        1. Concurrent execution of metadata retrieval tasks for all files
+        2. Exception handling for individual file failures without stopping the process
+        3. Progress tracking through callback notifications
+        4. Comprehensive logging of the operation results
+
+        Files that fail metadata retrieval are still included in the results with
+        error information stored in their processing_errors attribute.
+
         Returns:
-            List of files with metadata
+            List of files with metadata applied. All input files are included,
+            regardless of whether metadata retrieval succeeded or failed.
+
+        Raises:
+            Exception: Re-raises any unexpected errors that occur during the
+                overall operation setup or execution.
         """
-        logger.debug(f"Starting async metadata retrieval for {len(self.files)} files")
-
-        try:
-            # Get metadata for each file using concurrent processing
-            self._files_with_metadata = []
-
-            # Create tasks for concurrent execution
-            tasks = [self._retrieve_metadata_for_file_async(file) for file in self.files]
-
-            # Execute all tasks concurrently
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            # Process results
-            for i, result in enumerate(results):
-                file = self.files[i]
-
-                if isinstance(result, Exception):
-                    logger.warning(f"Failed to get metadata for file {file.filename}: {result}")
-                    file.processing_errors.append(f"Metadata retrieval failed: {result!s}")
-                    self._files_with_metadata.append(file)
-                else:
-                    self._files_with_metadata.append(result)
-
-                # Update progress if callback provided
-                if self.progress_callback:
-                    progress = int((len(self._files_with_metadata) / len(self.files)) * 100)
-                    self.progress_callback(progress, len(self.files))
-
-            logger.info(
-                f"Async metadata retrieval completed: {len(self._files_with_metadata)} files processed"
-            )
-            return self._files_with_metadata
-
-        except Exception as e:
-            log_operation_error("async metadata retrieval", e, exc_info=True)
-            raise
 
     async def _retrieve_metadata_for_file_async(self, file: AnimeFile) -> AnimeFile:
         """Retrieve metadata for a single file using async TMDB client.
 
+        This method performs the following operations:
+        1. Validates that the file has parsed information and a title
+        2. Searches TMDB for TV series matching the parsed title
+        3. Extracts metadata from the first (best) search result
+        4. Creates a TMDBAnime object with comprehensive metadata fields
+        5. Handles errors gracefully by logging warnings and adding to processing errors
+
+        The method uses the first search result as the best match, which is typically
+        the most relevant result returned by TMDB's search algorithm.
+
         Args:
-            file: AnimeFile to retrieve metadata for
+            file: AnimeFile to retrieve metadata for. Must have parsed_info.title
+                for the search to be performed.
 
         Returns:
-            AnimeFile with metadata applied
+            AnimeFile with metadata applied. The original file is modified in-place
+            with the tmdb_info attribute populated if metadata is found.
+
+        Note:
+            If no parsed title is available or TMDB search fails, the file is
+            returned unchanged with error information added to processing_errors.
         """
-        try:
-            async with async_tmdb_client_context() as tmdb_client:
-                if file.parsed_info and file.parsed_info.title:
-                    # Search for anime metadata
-                    search_results = await tmdb_client.search_tv_series(file.parsed_info.title)
-
-                    if search_results and search_results.get("results"):
-                        # Use the first (best) result and convert to TMDBAnime
-                        tmdb_data = search_results["results"][0]
-                        file.tmdb_info = TMDBAnime(
-                            id=tmdb_data.get("id"),
-                            title=tmdb_data.get("name"),
-                            original_title=tmdb_data.get("original_name"),
-                            overview=tmdb_data.get("overview"),
-                            poster_path=tmdb_data.get("poster_path"),
-                            backdrop_path=tmdb_data.get("backdrop_path"),
-                            first_air_date=tmdb_data.get("first_air_date"),
-                            last_air_date=tmdb_data.get("last_air_date"),
-                            number_of_episodes=tmdb_data.get("number_of_episodes"),
-                            number_of_seasons=tmdb_data.get("number_of_seasons"),
-                            status=tmdb_data.get("status"),
-                            vote_average=tmdb_data.get("vote_average"),
-                            vote_count=tmdb_data.get("vote_count"),
-                            popularity=tmdb_data.get("popularity"),
-                            genres=tmdb_data.get("genre_ids", []),
-                            production_companies=tmdb_data.get("production_company_ids", []),
-                            networks=tmdb_data.get("network_ids", []),
-                            created_by=tmdb_data.get("created_by", []),
-                            languages=tmdb_data.get("languages", []),
-                            origin_country=tmdb_data.get("origin_country", []),
-                        )
-                        logger.debug(
-                            f"Retrieved metadata for {file.filename}: {file.tmdb_info.title}"
-                        )
-                    else:
-                        logger.debug(f"No TMDB results found for {file.filename}")
-                else:
-                    logger.debug(f"No parsed title available for {file.filename}")
-
-        except Exception as e:
-            logger.warning(f"Error retrieving metadata for {file.filename}: {e}")
-            file.processing_errors.append(f"TMDB metadata retrieval failed: {e!s}")
-
-        return file
 
     def execute(self) -> list[AnimeFile]:
         """Execute the task synchronously by running the async method.

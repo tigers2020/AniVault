@@ -7,6 +7,7 @@ for monitoring cache-DB synchronization operations.
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
 from urllib.parse import urlparse
 
 from .metrics_exporter import metrics_exporter
@@ -70,7 +71,7 @@ class MetricsHTTPRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"Not Found")
 
-    def log_message(self, format: str, *args) -> None:
+    def log_message(self, format: str, *args: Any) -> None:
         """Override to reduce log noise."""
         # Only log errors, not normal requests
         if "error" in format.lower():
@@ -83,7 +84,7 @@ class MetricsServer:
     Runs in a separate thread to avoid blocking the main application.
     """
 
-    def __init__(self, host: str = "localhost", port: int = 8080):
+    def __init__(self, host: str = "localhost", port: int = 8080) -> None:
         """Initialize the metrics server.
 
         Args:

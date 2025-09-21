@@ -3,14 +3,11 @@
 import os
 import tempfile
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
-from src.core.database import DatabaseManager, AnimeMetadata, ParsedFile
+from src.core.database import AnimeMetadata, DatabaseManager
 from src.core.models import ParsedAnimeInfo, TMDBAnime
 
 
@@ -47,11 +44,15 @@ class TestDatabaseIntegrationSimple:
         # Verify tables exist by querying them
         with db_manager.get_session() as session:
             # Check if anime_metadata table exists
-            result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='anime_metadata'"))
+            result = session.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='anime_metadata'")
+            )
             assert result.fetchone() is not None
 
             # Check if parsed_files table exists
-            result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='parsed_files'"))
+            result = session.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='parsed_files'")
+            )
             assert result.fetchone() is not None
 
     def test_anime_metadata_crud_operations(self, db_manager: DatabaseManager) -> None:
@@ -70,7 +71,7 @@ class TestDatabaseIntegrationSimple:
             poster_path="/poster.jpg",
             backdrop_path="/backdrop.jpg",
             genres=["Animation", "Action"],
-            original_title="テストアニメ"
+            original_title="テストアニメ",
         )
 
         # Test Create
@@ -108,7 +109,7 @@ class TestDatabaseIntegrationSimple:
             episode_title="Test Episode",
             resolution="1080p",
             release_group="TestGroup",
-            file_extension="mkv"
+            file_extension="mkv",
         )
 
         # Test Create
@@ -119,7 +120,7 @@ class TestDatabaseIntegrationSimple:
             created_at=datetime.now(),
             modified_at=datetime.now(),
             parsed_info=test_parsed_info,
-            file_hash="test_hash_123"
+            file_hash="test_hash_123",
         )
         assert created_file.id is not None
         assert created_file.file_path == "/test/path/anime.mkv"
@@ -153,7 +154,7 @@ class TestDatabaseIntegrationSimple:
                 poster_path="/poster.jpg",
                 backdrop_path="/backdrop.jpg",
                 genres='["Animation", "Action"]',
-                original_title="テストアニメ"
+                original_title="テストアニメ",
             )
             session.add(metadata)
             session.flush()
@@ -183,14 +184,18 @@ class TestDatabaseIntegrationSimple:
                 backdrop_path="",
                 genre_ids=[],
                 original_language="",
-                original_title=""
+                original_title="",
             )
             with db_manager.transaction() as session:
                 session.add(invalid_metadata)
                 session.flush()
         except Exception as e:
             # Expected to fail with invalid data
-            assert "invalid" in str(e).lower() or "constraint" in str(e).lower() or "not null" in str(e).lower()
+            assert (
+                "invalid" in str(e).lower()
+                or "constraint" in str(e).lower()
+                or "not null" in str(e).lower()
+            )
 
     def test_database_stats(self, db_manager: DatabaseManager) -> None:
         """Test database statistics."""

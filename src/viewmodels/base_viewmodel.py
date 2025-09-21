@@ -193,7 +193,7 @@ class BaseViewModel(QObject):
         with QMutexLocker(self._property_mutex):
             return self._properties.copy()
 
-    def execute_command(self, command_name: str, *args, **kwargs) -> Any:
+    def execute_command(self, command_name: str, *args: Any, **kwargs: Any) -> Any:
         """Execute a command by name.
 
         Args:
@@ -743,7 +743,9 @@ class ViewModelFactory:
         logger.info(f"Registered ViewModel '{name}' as {viewmodel_class.__name__}")
 
     @classmethod
-    def create_viewmodel(cls, name: str, parent: QObject | None = None, **kwargs) -> BaseViewModel:
+    def create_viewmodel(
+        cls, name: str, parent: QObject | None = None, **kwargs: Any
+    ) -> BaseViewModel:
         """Create a ViewModel instance by name.
 
         Args:

@@ -1,10 +1,15 @@
 """Logging utilities for consistent logging across all levels (debug, info, warning, error)."""
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, TypeVar, Union
 
 logger = logging.getLogger(__name__)
+
+# Type aliases
+ErrorDetails = Union[str, int, float, bool, list, dict, None]
+T = TypeVar("T")
 
 
 def log_operation_error(
@@ -50,7 +55,7 @@ def log_bulk_operation_error(
     logger.error(f"Failed to {operation_name} {record_type}{count_msg}: {error}")
 
 
-def log_schema_error(error_type: str, error_details: Any) -> None:
+def log_schema_error(error_type: str, error_details: ErrorDetails) -> None:
     """Log schema-related errors with consistent formatting.
 
     Args:
@@ -63,9 +68,9 @@ def log_schema_error(error_type: str, error_details: Any) -> None:
 def handle_database_operation_error(
     operation_name: str,
     error: Exception,
-    return_value: Any = None,
+    return_value: T | None = None,
     table_name: str | None = None,
-) -> Any:
+) -> T | None:
     """Handle database operation errors with consistent logging and return value.
 
     Args:
@@ -81,7 +86,7 @@ def handle_database_operation_error(
     return return_value
 
 
-def error_handler_decorator(operation_name: str, return_value: Any = None):
+def error_handler_decorator(operation_name: str, return_value: T | None = None) -> Callable:
     """Decorator for consistent error handling in database operations.
 
     Args:
@@ -92,9 +97,9 @@ def error_handler_decorator(operation_name: str, return_value: Any = None):
         Decorator function
     """
 
-    def decorator(func):
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
@@ -144,7 +149,7 @@ def handle_table_validation_error(table_name: str, error: Exception) -> None:
 
 
 # Generic logging utilities for all levels
-def log_operation(level: int, operation_name: str, message: str, *args, **kwargs) -> None:
+def log_operation(level: int, operation_name: str, message: str, *args: Any, **kwargs: Any) -> None:
     """Generic operation logging with consistent formatting.
 
     Args:
@@ -160,17 +165,17 @@ def log_operation(level: int, operation_name: str, message: str, *args, **kwargs
     logger.log(level, formatted_msg, **kwargs)
 
 
-def log_operation_debug(operation_name: str, message: str, *args, **kwargs) -> None:
+def log_operation_debug(operation_name: str, message: str, *args: Any, **kwargs: Any) -> None:
     """Log debug messages with consistent formatting."""
     log_operation(logging.DEBUG, operation_name, message, *args, **kwargs)
 
 
-def log_operation_info(operation_name: str, message: str, *args, **kwargs) -> None:
+def log_operation_info(operation_name: str, message: str, *args: Any, **kwargs: Any) -> None:
     """Log info messages with consistent formatting."""
     log_operation(logging.INFO, operation_name, message, *args, **kwargs)
 
 
-def log_operation_warning(operation_name: str, message: str, *args, **kwargs) -> None:
+def log_operation_warning(operation_name: str, message: str, *args: Any, **kwargs: Any) -> None:
     """Log warning messages with consistent formatting."""
     log_operation(logging.WARNING, operation_name, message, *args, **kwargs)
 
@@ -183,7 +188,7 @@ def log_operation_error(
 
 
 # Specific logging patterns for common use cases
-def log_cache_operation(level: int, operation: str, key: str, *args, **kwargs) -> None:
+def log_cache_operation(level: int, operation: str, key: str, *args: Any, **kwargs: Any) -> None:
     """Log cache operations with consistent formatting."""
     message = f"{operation} for key: {key}"
     if args:
@@ -191,7 +196,9 @@ def log_cache_operation(level: int, operation: str, key: str, *args, **kwargs) -
     logger.log(level, message, **kwargs)
 
 
-def log_database_operation(level: int, operation: str, entity: str, *args, **kwargs) -> None:
+def log_database_operation(
+    level: int, operation: str, entity: str, *args: Any, **kwargs: Any
+) -> None:
     """Log database operations with consistent formatting."""
     message = f"{operation} {entity}"
     if args:
@@ -200,7 +207,7 @@ def log_database_operation(level: int, operation: str, entity: str, *args, **kwa
 
 
 def log_circuit_breaker_operation(
-    level: int, operation: str, op_name: str, *args, **kwargs
+    level: int, operation: str, op_name: str, *args: Any, **kwargs: Any
 ) -> None:
     """Log circuit breaker operations with consistent formatting."""
     message = f"{operation} for operation: {op_name}"
@@ -209,7 +216,9 @@ def log_circuit_breaker_operation(
     logger.log(level, message, **kwargs)
 
 
-def log_validation_operation(level: int, operation: str, entity_id: str, *args, **kwargs) -> None:
+def log_validation_operation(
+    level: int, operation: str, entity_id: str, *args: Any, **kwargs: Any
+) -> None:
     """Log validation operations with consistent formatting."""
     message = f"{operation} for {entity_id}"
     if args:
@@ -218,56 +227,56 @@ def log_validation_operation(level: int, operation: str, entity_id: str, *args, 
 
 
 # Convenience functions for common logging patterns
-def log_cache_debug(operation: str, key: str, *args, **kwargs) -> None:
+def log_cache_debug(operation: str, key: str, *args: Any, **kwargs: Any) -> None:
     """Log cache debug operations."""
     log_cache_operation(logging.DEBUG, operation, key, *args, **kwargs)
 
 
-def log_cache_info(operation: str, key: str, *args, **kwargs) -> None:
+def log_cache_info(operation: str, key: str, *args: Any, **kwargs: Any) -> None:
     """Log cache info operations."""
     log_cache_operation(logging.INFO, operation, key, *args, **kwargs)
 
 
-def log_cache_warning(operation: str, key: str, *args, **kwargs) -> None:
+def log_cache_warning(operation: str, key: str, *args: Any, **kwargs: Any) -> None:
     """Log cache warning operations."""
     log_cache_operation(logging.WARNING, operation, key, *args, **kwargs)
 
 
-def log_database_debug(operation: str, entity: str, *args, **kwargs) -> None:
+def log_database_debug(operation: str, entity: str, *args: Any, **kwargs: Any) -> None:
     """Log database debug operations."""
     log_database_operation(logging.DEBUG, operation, entity, *args, **kwargs)
 
 
-def log_database_info(operation: str, entity: str, *args, **kwargs) -> None:
+def log_database_info(operation: str, entity: str, *args: Any, **kwargs: Any) -> None:
     """Log database info operations."""
     log_database_operation(logging.INFO, operation, entity, *args, **kwargs)
 
 
-def log_circuit_breaker_debug(operation: str, op_name: str, *args, **kwargs) -> None:
+def log_circuit_breaker_debug(operation: str, op_name: str, *args: Any, **kwargs: Any) -> None:
     """Log circuit breaker debug operations."""
     log_circuit_breaker_operation(logging.DEBUG, operation, op_name, *args, **kwargs)
 
 
-def log_circuit_breaker_info(operation: str, op_name: str, *args, **kwargs) -> None:
+def log_circuit_breaker_info(operation: str, op_name: str, *args: Any, **kwargs: Any) -> None:
     """Log circuit breaker info operations."""
     log_circuit_breaker_operation(logging.INFO, operation, op_name, *args, **kwargs)
 
 
-def log_circuit_breaker_warning(operation: str, op_name: str, *args, **kwargs) -> None:
+def log_circuit_breaker_warning(operation: str, op_name: str, *args: Any, **kwargs: Any) -> None:
     """Log circuit breaker warning operations."""
     log_circuit_breaker_operation(logging.WARNING, operation, op_name, *args, **kwargs)
 
 
-def log_validation_debug(operation: str, entity_id: str, *args, **kwargs) -> None:
+def log_validation_debug(operation: str, entity_id: str, *args: Any, **kwargs: Any) -> None:
     """Log validation debug operations."""
     log_validation_operation(logging.DEBUG, operation, entity_id, *args, **kwargs)
 
 
-def log_validation_info(operation: str, entity_id: str, *args, **kwargs) -> None:
+def log_validation_info(operation: str, entity_id: str, *args: Any, **kwargs: Any) -> None:
     """Log validation info operations."""
     log_validation_operation(logging.INFO, operation, entity_id, *args, **kwargs)
 
 
-def log_validation_warning(operation: str, entity_id: str, *args, **kwargs) -> None:
+def log_validation_warning(operation: str, entity_id: str, *args: Any, **kwargs: Any) -> None:
     """Log validation warning operations."""
     log_validation_operation(logging.WARNING, operation, entity_id, *args, **kwargs)

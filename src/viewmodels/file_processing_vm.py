@@ -16,6 +16,7 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from ..core.anime_parser import AnimeParser
 from ..core.file_grouper import FileGrouper
 from ..core.file_mover import FileMover
+from ..core.services.file_pipeline_worker import FilePipelineWorker
 from ..core.file_scanner import FileScanner
 from ..core.metadata_cache import MetadataCache
 from ..core.models import AnimeFile, FileGroup
@@ -63,7 +64,7 @@ class FileProcessingViewModel(BaseViewModel):
     tmdb_selection_requested = pyqtSignal(str, list, object)  # query, results, callback
     tmdb_selection_completed = pyqtSignal(dict)  # selected result
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: Any = None) -> None:
         """Initialize the FileProcessingViewModel.
 
         Args:
@@ -217,7 +218,7 @@ class FileProcessingViewModel(BaseViewModel):
             self.error_occurred.emit(error_msg)
             raise
 
-    def create_worker(self):
+    def create_worker(self) -> FilePipelineWorker:
         """Create and configure a new FilePipelineWorker with additional signal connections.
 
         Returns:

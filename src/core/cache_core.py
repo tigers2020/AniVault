@@ -6,7 +6,6 @@ statistics tracking, and thread-safe operations.
 
 from __future__ import annotations
 
-import heapq
 import logging
 import threading
 import time
@@ -19,13 +18,20 @@ if TYPE_CHECKING:
 
 from .cache_key_generator import get_cache_key_generator
 from .cache_metrics_exporter import update_cache_metrics, update_cache_size, update_memory_usage
-from .cache_tracker import CacheMetrics, get_cache_tracker
+from .cache_tracker import get_cache_tracker
 from .compression import compression_manager
-from .smart_cache_matcher import smart_cache_matcher
 from .models import ParsedAnimeInfo, TMDBAnime
+from .smart_cache_matcher import smart_cache_matcher
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Export public classes and functions
+__all__ = [
+    "CacheEntry",
+    "CacheStats",
+    "LRUCache",
+]
 
 
 @dataclass
@@ -95,18 +101,32 @@ class CacheStats:
 class CacheEntry:
     """Represents a single cache entry with metadata."""
 
-    def __init__(self, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None):
+    def __init__(
+        self,
+        value: ParsedAnimeInfo | TMDBAnime,
+        ttl_seconds: int | None = None,
+        key: str | None = None,
+        created_at: float | None = None,
+        last_accessed: float | None = None,
+        access_count: int = 0,
+    ) -> None:
         """Initialize cache entry.
 
         Args:
             value: The cached data
             ttl_seconds: Time to live in seconds (None for no expiration)
+            key: Cache key (optional, for compatibility with tests)
+            created_at: Creation timestamp (optional, defaults to current time)
+            last_accessed: Last access timestamp (optional, defaults to current time)
+            access_count: Number of times accessed (optional, defaults to 0)
         """
         self.value = value
-        self.created_at = time.time()
-        self.last_accessed = time.time()
-        self.access_count = 0
+        self.key = key
+        self.created_at = created_at if created_at is not None else time.time()
+        self.last_accessed = last_accessed if last_accessed is not None else time.time()
+        self.access_count = access_count
         self.ttl_seconds = ttl_seconds
+        self.expires_at = None  # Will be calculated when needed
 
     def update_access(self) -> None:
         """Update access time and count."""
@@ -126,6 +146,17 @@ class CacheEntry:
         elapsed = time.time() - self.created_at
         return max(0, int(self.ttl_seconds - elapsed))
 
+    def get_expires_at(self) -> float | None:
+        """Get expiration timestamp."""
+        if self.ttl_seconds is None:
+            return None
+        return self.created_at + self.ttl_seconds
+
+    @property
+    def expires_at(self) -> float | None:
+        """Get expiration timestamp as a property."""
+        return self.get_expires_at()
+
 
 class CacheCore:
     """Core cache functionality with LRU eviction and statistics tracking."""
@@ -137,7 +168,7 @@ class CacheCore:
         default_ttl_seconds: int | None = None,
         enable_compression: bool = True,
         cache_name: str = "default",
-    ):
+    ) -> None:
         """Initialize the cache.
 
         Args:
@@ -173,7 +204,9 @@ class CacheCore:
         self._cache_only_mode = False
         self._cache_only_reason = ""
 
-        logger.info(f"Initialized cache '{cache_name}' with max_size={max_size}, max_memory={max_memory_mb}MB")
+        logger.info(
+            f"Initialized cache '{cache_name}' with max_size={max_size}, max_memory={max_memory_mb}MB"
+        )
 
     def get(self, key: str, session: Session | None = None) -> ParsedAnimeInfo | TMDBAnime | None:
         """Get value from cache.
@@ -241,7 +274,7 @@ class CacheCore:
 
         with self._lock:
             results = []
-            current_time = time.time()
+            time.time()
 
             for key, entry in self._cache.items():
                 if entry.is_expired():
@@ -280,7 +313,7 @@ class CacheCore:
             effective_ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl_seconds
 
             # Create new entry
-            entry = CacheEntry(value, effective_ttl)
+            CacheEntry(value, effective_ttl)
 
             # Calculate entry size
             entry_size = self._calculate_entry_size(key, value)
@@ -468,7 +501,7 @@ class CacheCore:
         """
         with self._lock:
             entries_info = []
-            current_time = time.time()
+            time.time()
 
             for key, entry in self._cache.items():
                 info = {
@@ -492,7 +525,7 @@ class CacheCore:
             Dictionary with TTL statistics
         """
         with self._lock:
-            current_time = time.time()
+            time.time()
             total_entries = len(self._cache)
             expired_entries = 0
             ttl_entries = 0
@@ -588,7 +621,7 @@ class CacheCore:
             Estimated size in bytes
         """
         # Base size for key and entry metadata
-        base_size = len(key.encode('utf-8')) + 100  # Rough estimate for entry metadata
+        base_size = len(key.encode("utf-8")) + 100  # Rough estimate for entry metadata
 
         if isinstance(value, ParsedAnimeInfo):
             return base_size + self._calculate_parsed_info_size(value)
@@ -607,10 +640,10 @@ class CacheCore:
             Estimated size in bytes
         """
         size = 0
-        for field_name in ['title', 'season', 'episode', 'year', 'quality', 'group', 'file_path']:
+        for field_name in ["title", "season", "episode", "year", "quality", "group", "file_path"]:
             value = getattr(info, field_name, None)
             if value is not None:
-                size += len(str(value).encode('utf-8'))
+                size += len(str(value).encode("utf-8"))
         return size
 
     def _calculate_tmdb_anime_size(self, anime: TMDBAnime) -> int:
@@ -623,10 +656,10 @@ class CacheCore:
             Estimated size in bytes
         """
         size = 0
-        for field_name in ['title', 'original_title', 'overview', 'poster_path', 'backdrop_path']:
+        for field_name in ["title", "original_title", "overview", "poster_path", "backdrop_path"]:
             value = getattr(anime, field_name, None)
             if value is not None:
-                size += len(str(value).encode('utf-8'))
+                size += len(str(value).encode("utf-8"))
         return size
 
     def _calculate_total_memory_usage(self) -> int:
@@ -686,7 +719,7 @@ class CacheCore:
         if not self._should_cleanup():
             return 0
 
-        current_time = time.time()
+        time.time()
         expired_keys = []
 
         # Find expired entries
@@ -707,7 +740,9 @@ class CacheCore:
 
         return len(expired_keys)
 
-    def _store_in_cache(self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None) -> None:
+    def _store_in_cache(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None
+    ) -> None:
         """Store value in cache with compression if enabled.
 
         Args:
@@ -728,7 +763,9 @@ class CacheCore:
         # Update access info
         entry.update_access()
 
-    def _apply_compression_if_needed(self, value: ParsedAnimeInfo | TMDBAnime) -> ParsedAnimeInfo | TMDBAnime | None:
+    def _apply_compression_if_needed(
+        self, value: ParsedAnimeInfo | TMDBAnime
+    ) -> ParsedAnimeInfo | TMDBAnime | None:
         """Apply compression to value if beneficial.
 
         Args:
@@ -758,7 +795,7 @@ class CacheCore:
 
             # Create a wrapper object to hold compressed data
             class CompressedValue:
-                def __init__(self, data: bytes, original_type: type):
+                def __init__(self, data: bytes, original_type: type) -> None:
                     self.compressed_data = data
                     self.original_type = original_type
 
@@ -768,7 +805,9 @@ class CacheCore:
             logger.warning(f"Compression failed for value: {e}")
             return None
 
-    def _decompress_if_needed(self, value: Any) -> ParsedAnimeInfo | TMDBAnime:
+    def _decompress_if_needed(
+        self, value: ParsedAnimeInfo | TMDBAnime
+    ) -> ParsedAnimeInfo | TMDBAnime:
         """Decompress value if it's compressed.
 
         Args:
@@ -782,9 +821,11 @@ class CacheCore:
 
         try:
             # Check if value is compressed
-            if hasattr(value, 'compressed_data') and hasattr(value, 'original_type'):
+            if hasattr(value, "compressed_data") and hasattr(value, "original_type"):
                 # Decompress
-                decompressed = compression_manager.decompress(value.compressed_data, value.original_type)
+                decompressed = compression_manager.decompress(
+                    value.compressed_data, value.original_type
+                )
                 if decompressed is not None:
                     return decompressed
 
@@ -802,7 +843,7 @@ class CacheCore:
         self._cleanup_thread = threading.Thread(
             target=self._background_cleanup_worker,
             name=f"CacheCleanup-{self.cache_name}",
-            daemon=True
+            daemon=True,
         )
         self._cleanup_thread.start()
         logger.info(f"Started background cleanup for cache '{self.cache_name}'")
@@ -825,7 +866,9 @@ class CacheCore:
                 # Perform cleanup
                 cleaned = self._cleanup_expired_entries()
                 if cleaned > 0:
-                    logger.debug(f"Cleaned up {cleaned} expired entries from cache '{self.cache_name}'")
+                    logger.debug(
+                        f"Cleaned up {cleaned} expired entries from cache '{self.cache_name}'"
+                    )
 
                 # Wait for next cleanup cycle
                 self._cleanup_stop_event.wait(self._cleanup_interval)
@@ -837,7 +880,7 @@ class CacheCore:
     def __del__(self) -> None:
         """Cleanup when cache is destroyed."""
         try:
-            if hasattr(self, '_cleanup_thread'):
+            if hasattr(self, "_cleanup_thread"):
                 self.stop_background_cleanup()
         except Exception:
             # Ignore errors during cleanup

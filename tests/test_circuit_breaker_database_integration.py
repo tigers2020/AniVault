@@ -1,12 +1,14 @@
 """Tests for circuit breaker database integration."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from sqlalchemy.exc import OperationalError, DisconnectionError
+from typing import NoReturn
+from unittest.mock import Mock
 
-from src.core.database import DatabaseManager
+import pytest
+from sqlalchemy.exc import DisconnectionError, OperationalError
+
 from src.core.circuit_breaker import circuit_breaker_protect, get_database_circuit_breaker
+from src.core.database import DatabaseManager
 
 
 class TestCircuitBreakerDatabaseIntegration:
@@ -19,7 +21,7 @@ class TestCircuitBreakerDatabaseIntegration:
         mock_manager._initialized = True
         return mock_manager
 
-    def test_circuit_breaker_protection_on_successful_operation(self, mock_db_manager):
+    def test_circuit_breaker_protection_on_successful_operation(self, mock_db_manager) -> None:
         """Test circuit breaker protection on successful database operation."""
         # Mock successful database operation
         mock_db_manager.create_anime_metadata.return_value = Mock()
@@ -31,7 +33,7 @@ class TestCircuitBreakerDatabaseIntegration:
         assert result is not None
         mock_db_manager.create_anime_metadata.assert_called_once()
 
-    def test_circuit_breaker_protection_on_failed_operation(self, mock_db_manager):
+    def test_circuit_breaker_protection_on_failed_operation(self, mock_db_manager) -> None:
         """Test circuit breaker protection on failed database operation."""
         # Mock database failure
         mock_db_manager.create_anime_metadata.side_effect = OperationalError(
@@ -42,7 +44,7 @@ class TestCircuitBreakerDatabaseIntegration:
         with pytest.raises(OperationalError):
             mock_db_manager.create_anime_metadata(Mock())
 
-    def test_circuit_breaker_state_transition_after_failures(self, mock_db_manager):
+    def test_circuit_breaker_state_transition_after_failures(self, mock_db_manager) -> None:
         """Test circuit breaker state transition after multiple failures."""
         # Get the circuit breaker
         circuit_breaker = get_database_circuit_breaker()
@@ -52,7 +54,7 @@ class TestCircuitBreakerDatabaseIntegration:
 
         # Create a protected function that will fail
         @circuit_breaker_protect(operation_name="test_failure")
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise DisconnectionError("Database disconnected", None, None)
 
         # Trigger multiple failures
@@ -65,7 +67,7 @@ class TestCircuitBreakerDatabaseIntegration:
         # Circuit breaker should be open
         assert circuit_breaker.current_state == "open"
 
-    def test_circuit_breaker_recovery_after_success(self, mock_db_manager):
+    def test_circuit_breaker_recovery_after_success(self, mock_db_manager) -> None:
         """Test circuit breaker recovery after successful operation."""
         # Get the circuit breaker
         circuit_breaker = get_database_circuit_breaker()
@@ -75,7 +77,7 @@ class TestCircuitBreakerDatabaseIntegration:
 
         # Create a protected function that will fail initially
         @circuit_breaker_protect(operation_name="test_recovery")
-        def failing_operation():
+        def failing_operation() -> NoReturn:
             raise OperationalError("Database error", None, None)
 
         # First, open the circuit breaker with failures
@@ -106,7 +108,7 @@ class TestCircuitBreakerDatabaseIntegration:
             # If still failing, circuit might still be transitioning
             pass
 
-    def test_circuit_breaker_with_fallback_function(self, mock_db_manager):
+    def test_circuit_breaker_with_fallback_function(self, mock_db_manager) -> None:
         """Test circuit breaker with fallback function."""
         # Mock database failure
         mock_db_manager.create_anime_metadata.side_effect = OperationalError(
@@ -135,7 +137,7 @@ class TestCircuitBreakerDatabaseIntegration:
         result = protected_operation()
         assert result == fallback_result
 
-    def test_circuit_breaker_statistics_tracking(self, mock_db_manager):
+    def test_circuit_breaker_statistics_tracking(self, mock_db_manager) -> None:
         """Test circuit breaker statistics tracking."""
         # Get the circuit breaker
         circuit_breaker = get_database_circuit_breaker()
@@ -153,7 +155,7 @@ class TestCircuitBreakerDatabaseIntegration:
         # Check circuit breaker state (successful operations should keep it closed)
         assert circuit_breaker.current_state == "closed"
 
-    def test_multiple_database_operations_protection(self, mock_db_manager):
+    def test_multiple_database_operations_protection(self, mock_db_manager) -> None:
         """Test protection of multiple database operations."""
         # Mock successful operations
         mock_db_manager.create_anime_metadata.return_value = Mock()
@@ -165,8 +167,7 @@ class TestCircuitBreakerDatabaseIntegration:
             lambda: mock_db_manager.create_anime_metadata(Mock()),
             lambda: mock_db_manager.get_anime_metadata(1),
             lambda: mock_db_manager.create_parsed_file(
-                "test.txt", "test.txt", 1000,
-                Mock(), Mock(), Mock(), None, None
+                "test.txt", "test.txt", 1000, Mock(), Mock(), Mock(), None, None
             ),
         ]
 
@@ -174,7 +175,7 @@ class TestCircuitBreakerDatabaseIntegration:
             result = operation()
             assert result is not None
 
-    def test_circuit_breaker_with_bulk_operations(self, mock_db_manager):
+    def test_circuit_breaker_with_bulk_operations(self, mock_db_manager) -> None:
         """Test circuit breaker with bulk database operations."""
         # Mock bulk operation
         mock_db_manager.bulk_insert_anime_metadata.return_value = 5
@@ -185,7 +186,7 @@ class TestCircuitBreakerDatabaseIntegration:
         assert result == 5
         mock_db_manager.bulk_insert_anime_metadata.assert_called_once()
 
-    def test_circuit_breaker_error_handling(self, mock_db_manager):
+    def test_circuit_breaker_error_handling(self, mock_db_manager) -> None:
         """Test circuit breaker error handling with different exception types."""
         # Test with different database exceptions
         exceptions = [
@@ -206,7 +207,7 @@ class TestCircuitBreakerDatabaseIntegration:
             with pytest.raises(type(exc)):
                 mock_db_manager.create_anime_metadata(Mock())
 
-    def test_circuit_breaker_timeout_behavior(self, mock_db_manager):
+    def test_circuit_breaker_timeout_behavior(self, mock_db_manager) -> None:
         """Test circuit breaker timeout behavior."""
         # Get the circuit breaker
         circuit_breaker = get_database_circuit_breaker()
@@ -216,7 +217,7 @@ class TestCircuitBreakerDatabaseIntegration:
 
         # Create a protected function that will timeout
         @circuit_breaker_protect(operation_name="test_timeout")
-        def timeout_operation():
+        def timeout_operation() -> NoReturn:
             raise OperationalError("Query timeout", None, None)
 
         # Trigger circuit breaker
@@ -240,7 +241,7 @@ class TestCircuitBreakerPerformance:
         mock_manager._initialized = True
         return mock_manager
 
-    def test_circuit_breaker_overhead(self, mock_db_manager):
+    def test_circuit_breaker_overhead(self, mock_db_manager) -> None:
         """Test circuit breaker performance overhead."""
         # Mock fast operation
         mock_db_manager.get_anime_metadata.return_value = Mock()
@@ -256,7 +257,7 @@ class TestCircuitBreakerPerformance:
         # Circuit breaker overhead should be minimal
         assert circuit_breaker_time < 1.0  # Should complete in less than 1 second
 
-    def test_circuit_breaker_memory_usage(self, mock_db_manager):
+    def test_circuit_breaker_memory_usage(self, mock_db_manager) -> None:
         """Test circuit breaker memory usage."""
         import sys
 
@@ -286,7 +287,7 @@ class TestCircuitBreakerConcurrency:
         mock_manager._initialized = True
         return mock_manager
 
-    def test_concurrent_circuit_breaker_operations(self, mock_db_manager):
+    def test_concurrent_circuit_breaker_operations(self, mock_db_manager) -> None:
         """Test circuit breaker with concurrent operations."""
         import threading
 
@@ -295,7 +296,7 @@ class TestCircuitBreakerConcurrency:
 
         results = []
 
-        def perform_operation():
+        def perform_operation() -> None:
             result = mock_db_manager.get_anime_metadata(1)
             results.append(result)
 
@@ -314,7 +315,7 @@ class TestCircuitBreakerConcurrency:
         assert len(results) == 10
         assert all(result is not None for result in results)
 
-    def test_concurrent_circuit_breaker_failures(self, mock_db_manager):
+    def test_concurrent_circuit_breaker_failures(self, mock_db_manager) -> None:
         """Test circuit breaker with concurrent failures."""
         import threading
 
@@ -325,7 +326,7 @@ class TestCircuitBreakerConcurrency:
 
         exceptions = []
 
-        def perform_failing_operation():
+        def perform_failing_operation() -> None:
             try:
                 mock_db_manager.create_anime_metadata(Mock())
             except OperationalError as e:

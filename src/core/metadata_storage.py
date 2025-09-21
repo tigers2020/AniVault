@@ -88,7 +88,7 @@ class MetadataStorage:
         }
 
     @transactional
-    def store_tmdb_metadata(self, session, anime: TMDBAnime) -> bool:
+    def store_tmdb_metadata(self, session: Any, anime: TMDBAnime) -> bool:
         """Store TMDB metadata in both cache and database with atomicity.
 
         Args:
@@ -123,7 +123,7 @@ class MetadataStorage:
                 return False
 
     @transactional
-    def bulk_store_tmdb_metadata(self, session, anime_list: list[TMDBAnime]) -> int:
+    def bulk_store_tmdb_metadata(self, session: Any, anime_list: list[TMDBAnime]) -> int:
         """Bulk store TMDB metadata in both cache and database with atomicity.
 
         This method eliminates N+1 query patterns by processing multiple
@@ -256,7 +256,7 @@ class MetadataStorage:
     @transactional
     def store_parsed_file(
         self,
-        session,
+        session: Any,
         file_path: str | Path,
         filename: str,
         file_size: int,
@@ -427,7 +427,7 @@ class MetadataStorage:
                 return []
 
     @transactional
-    def delete_parsed_file(self, session, file_path: str | Path) -> bool:
+    def delete_parsed_file(self, session: Any, file_path: str | Path) -> bool:
         """Delete parsed file information from both cache and database with atomicity.
 
         Args:

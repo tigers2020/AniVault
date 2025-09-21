@@ -177,7 +177,7 @@ class TestFileGrouper:
         """Test progress callback functionality."""
         progress_calls = []
 
-        def progress_callback(progress, message):
+        def progress_callback(progress, message) -> None:
             progress_calls.append((progress, message))
 
         grouper = FileGrouper(progress_callback=progress_callback)
@@ -281,7 +281,7 @@ class TestGroupFilesFunction:
         """Test group_files with progress callback."""
         progress_calls = []
 
-        def progress_callback(progress, message):
+        def progress_callback(progress, message) -> None:
             progress_calls.append((progress, message))
 
         result = group_files(

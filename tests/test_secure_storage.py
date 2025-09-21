@@ -80,7 +80,7 @@ class TestSecureKeyManager:
         results = []
         errors = []
 
-        def worker():
+        def worker() -> None:
             try:
                 for _ in range(10):
                     key = self.key_manager.get_key()
@@ -278,7 +278,7 @@ class TestSecureStorage:
         results = []
         errors = []
 
-        def worker(worker_id):
+        def worker(worker_id) -> None:
             try:
                 for i in range(10):
                     # Test encryption/decryption

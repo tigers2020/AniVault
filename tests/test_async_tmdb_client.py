@@ -5,20 +5,18 @@ rate limiting, connection pooling, retry logic, and error handling.
 """
 
 import asyncio
-import json
 from unittest.mock import AsyncMock, Mock, patch
-from unittest.mock import MagicMock
 
-import pytest
 import aiohttp
+import pytest
 from aiolimiter import AsyncLimiter
 
 from src.core.async_tmdb_client import (
     AsyncTMDBClient,
-    TMDBConfig,
     SearchResult,
     SearchStrategy,
     SearchStrategyType,
+    TMDBConfig,
     create_async_tmdb_client,
 )
 
@@ -35,7 +33,7 @@ class TestAsyncTMDBClient:
             timeout=30,
             max_retries=3,
             burst_limit=40,
-            rate_limit_window=10
+            rate_limit_window=10,
         )
 
     @pytest.fixture
@@ -67,7 +65,9 @@ class TestAsyncTMDBClient:
         assert config.requests_per_second == 4.0
 
     @pytest.mark.asyncio
-    async def test_make_request_success(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_make_request_success(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test successful request."""
         # Initialize session
         await client._initialize_session()
@@ -81,14 +81,16 @@ class TestAsyncTMDBClient:
         # Mock session context manager
         mock_session.request.return_value.__aenter__.return_value = mock_response
 
-        with patch.object(client, '_session', mock_session):
-            result = await client._make_request('GET', '/search/tv', {'query': 'test'})
+        with patch.object(client, "_session", mock_session):
+            result = await client._make_request("GET", "/search/tv", {"query": "test"})
 
             assert result == {"results": []}
             assert client._request_count == 1
 
     @pytest.mark.asyncio
-    async def test_make_request_429_retry_success(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_make_request_429_retry_success(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test 429 error with successful retry."""
         # Initialize session
         await client._initialize_session()
@@ -107,18 +109,20 @@ class TestAsyncTMDBClient:
         # Mock session to return 429 first, then success
         mock_session.request.return_value.__aenter__.side_effect = [
             mock_response_429,
-            mock_response_success
+            mock_response_success,
         ]
 
-        with patch.object(client, '_session', mock_session):
-            with patch('asyncio.sleep', return_value=None):  # Mock sleep
-                result = await client._make_request('GET', '/search/tv', {'query': 'test'})
+        with patch.object(client, "_session", mock_session):
+            with patch("asyncio.sleep", return_value=None):  # Mock sleep
+                result = await client._make_request("GET", "/search/tv", {"query": "test"})
 
                 assert result == {"results": []}
                 assert client._request_count == 1
 
     @pytest.mark.asyncio
-    async def test_make_request_429_max_retries_exceeded(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_make_request_429_max_retries_exceeded(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test 429 error with max retries exceeded."""
         # Initialize session
         await client._initialize_session()
@@ -132,16 +136,18 @@ class TestAsyncTMDBClient:
 
         mock_session.request.return_value.__aenter__.return_value = mock_response
 
-        with patch.object(client, '_session', mock_session):
-            with patch('asyncio.sleep', return_value=None):  # Mock sleep
+        with patch.object(client, "_session", mock_session):
+            with patch("asyncio.sleep", return_value=None):  # Mock sleep
                 with pytest.raises(aiohttp.ClientResponseError) as exc_info:
-                    await client._make_request('GET', '/search/tv', {'query': 'test'})
+                    await client._make_request("GET", "/search/tv", {"query": "test"})
 
                 assert exc_info.value.status == 429
                 assert "Rate limit exceeded after 3 retries" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_make_request_exponential_backoff(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_make_request_exponential_backoff(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test exponential backoff with jitter."""
         # Initialize session
         await client._initialize_session()
@@ -149,10 +155,10 @@ class TestAsyncTMDBClient:
         # Mock ClientError
         mock_session.request.side_effect = aiohttp.ClientError("Connection error")
 
-        with patch.object(client, '_session', mock_session):
-            with patch('asyncio.sleep') as mock_sleep:
+        with patch.object(client, "_session", mock_session):
+            with patch("asyncio.sleep") as mock_sleep:
                 with pytest.raises(aiohttp.ClientError):
-                    await client._make_request('GET', '/search/tv', {'query': 'test'})
+                    await client._make_request("GET", "/search/tv", {"query": "test"})
 
                 # Verify exponential backoff was called
                 assert mock_sleep.call_count == 3  # 3 retries
@@ -169,7 +175,9 @@ class TestAsyncTMDBClient:
                 assert 4.0 <= delays[2] <= 4.5
 
     @pytest.mark.asyncio
-    async def test_make_request_timeout_retry(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_make_request_timeout_retry(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test timeout error with retry."""
         # Initialize session
         await client._initialize_session()
@@ -177,10 +185,10 @@ class TestAsyncTMDBClient:
         # Mock TimeoutError
         mock_session.request.side_effect = asyncio.TimeoutError("Request timeout")
 
-        with patch.object(client, '_session', mock_session):
-            with patch('asyncio.sleep') as mock_sleep:
+        with patch.object(client, "_session", mock_session):
+            with patch("asyncio.sleep") as mock_sleep:
                 with pytest.raises(asyncio.TimeoutError):
-                    await client._make_request('GET', '/search/tv', {'query': 'test'})
+                    await client._make_request("GET", "/search/tv", {"query": "test"})
 
                 # Verify retry was attempted
                 assert mock_sleep.call_count == 3
@@ -205,7 +213,7 @@ class TestAsyncTMDBClient:
                     "poster_path": "/test.jpg",
                     "popularity": 10.0,
                     "vote_average": 8.5,
-                    "vote_count": 100
+                    "vote_count": 100,
                 }
             ]
         }
@@ -213,7 +221,7 @@ class TestAsyncTMDBClient:
 
         mock_session.request.return_value.__aenter__.return_value = mock_response
 
-        with patch.object(client, '_session', mock_session):
+        with patch.object(client, "_session", mock_session):
             result = await client.search_tv_series("Test Anime", year=2020)
 
             assert "results" in result
@@ -234,13 +242,15 @@ class TestAsyncTMDBClient:
 
         mock_session.request.return_value.__aenter__.return_value = mock_response
 
-        with patch.object(client, '_session', mock_session):
+        with patch.object(client, "_session", mock_session):
             result = await client.search_multi("Test Query")
 
             assert "results" in result
 
     @pytest.mark.asyncio
-    async def test_get_tv_series_details(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_get_tv_series_details(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test TV series details retrieval."""
         # Initialize session
         await client._initialize_session()
@@ -251,20 +261,22 @@ class TestAsyncTMDBClient:
         mock_response.json.return_value = {
             "id": 1,
             "name": "Test Anime",
-            "overview": "Test overview"
+            "overview": "Test overview",
         }
         mock_response.headers = {}
 
         mock_session.request.return_value.__aenter__.return_value = mock_response
 
-        with patch.object(client, '_session', mock_session):
+        with patch.object(client, "_session", mock_session):
             result = await client.get_tv_series_details(1, include_credits=True)
 
             assert result["id"] == 1
             assert result["name"] == "Test Anime"
 
     @pytest.mark.asyncio
-    async def test_get_movie_details(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_get_movie_details(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test movie details retrieval."""
         # Initialize session
         await client._initialize_session()
@@ -275,25 +287,27 @@ class TestAsyncTMDBClient:
         mock_response.json.return_value = {
             "id": 1,
             "title": "Test Movie",
-            "overview": "Test overview"
+            "overview": "Test overview",
         }
         mock_response.headers = {}
 
         mock_session.request.return_value.__aenter__.return_value = mock_response
 
-        with patch.object(client, '_session', mock_session):
+        with patch.object(client, "_session", mock_session):
             result = await client.get_movie_details(1, include_credits=True)
 
             assert result["id"] == 1
             assert result["title"] == "Test Movie"
 
     @pytest.mark.asyncio
-    async def test_get_media_details_tv(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_get_media_details_tv(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test media details for TV series."""
         # Initialize session
         await client._initialize_session()
 
-        with patch.object(client, 'get_tv_series_details') as mock_tv:
+        with patch.object(client, "get_tv_series_details") as mock_tv:
             mock_tv.return_value = {"id": 1, "name": "Test TV"}
 
             result = await client.get_media_details(1, "tv")
@@ -302,12 +316,14 @@ class TestAsyncTMDBClient:
             assert result == {"id": 1, "name": "Test TV"}
 
     @pytest.mark.asyncio
-    async def test_get_media_details_movie(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_get_media_details_movie(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test media details for movie."""
         # Initialize session
         await client._initialize_session()
 
-        with patch.object(client, 'get_movie_details') as mock_movie:
+        with patch.object(client, "get_movie_details") as mock_movie:
             mock_movie.return_value = {"id": 1, "title": "Test Movie"}
 
             result = await client.get_media_details(1, "movie")
@@ -327,7 +343,9 @@ class TestAsyncTMDBClient:
         assert "Unsupported media type: invalid" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_search_comprehensive(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_search_comprehensive(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test comprehensive search with multiple strategies."""
         # Initialize session
         await client._initialize_session()
@@ -347,7 +365,7 @@ class TestAsyncTMDBClient:
                     "poster_path": "/test.jpg",
                     "popularity": 10.0,
                     "vote_average": 8.5,
-                    "vote_count": 100
+                    "vote_count": 100,
                 }
             ]
         }
@@ -355,7 +373,7 @@ class TestAsyncTMDBClient:
 
         mock_session.request.return_value.__aenter__.return_value = mock_response
 
-        with patch.object(client, '_session', mock_session):
+        with patch.object(client, "_session", mock_session):
             results = await client.search_comprehensive("Test Anime", year=2020)
 
             assert len(results) == 3  # 3 strategies
@@ -391,10 +409,17 @@ class TestAsyncTMDBClient:
             "poster_path": "/test.jpg",
             "popularity": 10.0,
             "vote_average": 8.5,
-            "vote_count": 100
+            "vote_count": 100,
         }
 
-        result = client._create_search_result(item, SearchStrategy.TV_ONLY, SearchStrategyType.EXACT_TITLE_WITH_YEAR, "Test Anime", "en", 2020)
+        result = client._create_search_result(
+            item,
+            SearchStrategy.TV_ONLY,
+            SearchStrategyType.EXACT_TITLE_WITH_YEAR,
+            "Test Anime",
+            "en",
+            2020,
+        )
 
         assert isinstance(result, SearchResult)
         assert result.id == 1
@@ -418,7 +443,7 @@ class TestAsyncTMDBClient:
 
         mock_session.closed = False
 
-        with patch.object(client, '_session', mock_session):
+        with patch.object(client, "_session", mock_session):
             await client.close()
 
             mock_session.close.assert_called_once()
@@ -426,7 +451,7 @@ class TestAsyncTMDBClient:
     @pytest.mark.asyncio
     async def test_context_manager(self, config: TMDBConfig) -> None:
         """Test async context manager."""
-        with patch('src.core.async_tmdb_client.get_http_session') as mock_get_session:
+        with patch("src.core.async_tmdb_client.get_http_session") as mock_get_session:
             mock_session = AsyncMock()
             mock_session.closed = False
             mock_get_session.return_value = mock_session
@@ -441,13 +466,16 @@ class TestAsyncTMDBClient:
     @pytest.mark.asyncio
     async def test_concurrent_requests_limiting(self, client: AsyncTMDBClient) -> None:
         """Test that concurrent requests are properly limited."""
+
         # Mock the entire _make_request method to avoid actual API calls
         async def mock_make_request(method, endpoint, params=None, retry_count=0):
             return {"results": []}
 
-        with patch.object(client, '_make_request', side_effect=mock_make_request):
+        with patch.object(client, "_make_request", side_effect=mock_make_request):
             # Create many concurrent requests
-            tasks = [client._make_request('GET', '/search/tv', {'query': f'test{i}'}) for i in range(20)]
+            tasks = [
+                client._make_request("GET", "/search/tv", {"query": f"test{i}"}) for i in range(20)
+            ]
 
             # All requests should complete successfully
             results = await asyncio.gather(*tasks)
@@ -466,10 +494,12 @@ class TestAsyncTMDBClient:
         async def mock_make_request(method, endpoint, params=None, retry_count=0):
             return {"results": []}
 
-        with patch.object(client, '_make_request', side_effect=mock_make_request):
+        with patch.object(client, "_make_request", side_effect=mock_make_request):
             # Test that rate limiting works (without actual time delays)
             # Make 5 requests - should complete without actual rate limiting delays
-            tasks = [client._make_request('GET', '/search/tv', {'query': f'test{i}'}) for i in range(5)]
+            tasks = [
+                client._make_request("GET", "/search/tv", {"query": f"test{i}"}) for i in range(5)
+            ]
             results = await asyncio.gather(*tasks)
 
             # Verify that all requests completed successfully
@@ -490,12 +520,14 @@ class TestAsyncTMDBClient:
             await asyncio.sleep(0.1)
             return {"results": []}
 
-        with patch.object(client, '_make_request', side_effect=mock_make_request):
+        with patch.object(client, "_make_request", side_effect=mock_make_request):
             # Test that rate limiting is applied by measuring execution time
             start_time = asyncio.get_event_loop().time()
 
             # Make 3 requests (exceeding burst limit of 2) - reduced for faster testing
-            tasks = [client._make_request('GET', '/search/tv', {'query': f'test{i}'}) for i in range(3)]
+            tasks = [
+                client._make_request("GET", "/search/tv", {"query": f"test{i}"}) for i in range(3)
+            ]
             results = await asyncio.gather(*tasks)
 
             end_time = asyncio.get_event_loop().time()
@@ -510,7 +542,9 @@ class TestAsyncTMDBClient:
         assert execution_time >= 0.1
 
     @pytest.mark.asyncio
-    async def test_retry_after_header_handling(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_retry_after_header_handling(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test handling of Retry-After header in 429 responses."""
         await client._initialize_session()
 
@@ -530,29 +564,31 @@ class TestAsyncTMDBClient:
         # Mock session to return 429 first, then success
         mock_session.request.return_value.__aenter__.side_effect = [
             mock_response_429,
-            mock_response_success
+            mock_response_success,
         ]
 
-        with patch.object(client, '_session', mock_session):
-            with patch('asyncio.sleep') as mock_sleep:
-                result = await client._make_request('GET', '/search/tv', {'query': 'test'})
+        with patch.object(client, "_session", mock_session):
+            with patch("asyncio.sleep") as mock_sleep:
+                result = await client._make_request("GET", "/search/tv", {"query": "test"})
 
                 # Verify Retry-After header was respected
                 mock_sleep.assert_called_once_with(2)
                 assert result == {"results": []}
 
     @pytest.mark.asyncio
-    async def test_exponential_backoff_with_jitter(self, client: AsyncTMDBClient, mock_session: AsyncMock) -> None:
+    async def test_exponential_backoff_with_jitter(
+        self, client: AsyncTMDBClient, mock_session: AsyncMock
+    ) -> None:
         """Test exponential backoff with jitter for non-429 errors."""
         await client._initialize_session()
 
         # Mock ClientError (not 429)
         mock_session.request.side_effect = aiohttp.ClientError("Connection error")
 
-        with patch.object(client, '_session', mock_session):
-            with patch('asyncio.sleep') as mock_sleep:
+        with patch.object(client, "_session", mock_session):
+            with patch("asyncio.sleep") as mock_sleep:
                 with pytest.raises(aiohttp.ClientError):
-                    await client._make_request('GET', '/search/tv', {'query': 'test'})
+                    await client._make_request("GET", "/search/tv", {"query": "test"})
 
                 # Verify exponential backoff was called 3 times (max_retries)
                 assert mock_sleep.call_count == 3
@@ -597,9 +633,11 @@ class TestAsyncTMDBClient:
 
             return {"results": []}
 
-        with patch.object(client, '_make_request', side_effect=mock_make_request_with_tracking):
+        with patch.object(client, "_make_request", side_effect=mock_make_request_with_tracking):
             # Launch 5 concurrent requests (exceeding semaphore limit of 2)
-            tasks = [client._make_request('GET', '/search/tv', {'query': f'test{i}'}) for i in range(5)]
+            tasks = [
+                client._make_request("GET", "/search/tv", {"query": f"test{i}"}) for i in range(5)
+            ]
             results = await asyncio.gather(*tasks)
 
             # Verify all requests completed
@@ -612,7 +650,9 @@ class TestAsyncTMDBClient:
             assert max_concurrent <= 5  # Allow some tolerance for async execution
 
     @pytest.mark.asyncio
-    async def test_rate_limiter_and_concurrency_limiter_interaction(self, config: TMDBConfig) -> None:
+    async def test_rate_limiter_and_concurrency_limiter_interaction(
+        self, config: TMDBConfig
+    ) -> None:
         """Test that both rate limiter and concurrency limiter work together."""
         # Create client with restrictive settings
         config.burst_limit = 2
@@ -626,7 +666,7 @@ class TestAsyncTMDBClient:
             await asyncio.sleep(0.1)
             return {"results": []}
 
-        with patch.object(client, '_make_request', side_effect=mock_make_request):
+        with patch.object(client, "_make_request", side_effect=mock_make_request):
             # Track execution order and timing
             execution_times = []
 
@@ -638,7 +678,7 @@ class TestAsyncTMDBClient:
                 return result
 
             # Launch 3 requests
-            tasks = [tracked_request('GET', '/search/tv', {'query': f'test{i}'}) for i in range(3)]
+            tasks = [tracked_request("GET", "/search/tv", {"query": f"test{i}"}) for i in range(3)]
             results = await asyncio.gather(*tasks)
 
             # Verify all completed
@@ -665,15 +705,15 @@ class TestAsyncTMDBClientFactory:
 
     def test_create_async_tmdb_client_without_config(self) -> None:
         """Test creating client without config (uses config manager)."""
-        with patch('src.core.async_tmdb_client.get_config_manager') as mock_get_config:
+        with patch("src.core.async_tmdb_client.get_config_manager") as mock_get_config:
             mock_config_manager = Mock()
             mock_config_manager.get.side_effect = lambda key, default=None: {
-                'tmdb_api_key': 'test_key',
-                'tmdb_language': 'ko-KR',
-                'tmdb_fallback_language': 'en-US',
-                'tmdb_timeout': 30,
-                'tmdb_max_retries': 3,
-                'tmdb_cache_only_mode': False
+                "tmdb_api_key": "test_key",
+                "tmdb_language": "ko-KR",
+                "tmdb_fallback_language": "en-US",
+                "tmdb_timeout": 30,
+                "tmdb_max_retries": 3,
+                "tmdb_cache_only_mode": False,
             }.get(key, default)
 
             mock_get_config.return_value = mock_config_manager
@@ -681,4 +721,4 @@ class TestAsyncTMDBClientFactory:
             client = create_async_tmdb_client()
 
             assert isinstance(client, AsyncTMDBClient)
-            assert client.config.api_key == 'test_key'
+            assert client.config.api_key == "test_key"

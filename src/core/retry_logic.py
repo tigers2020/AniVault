@@ -11,7 +11,10 @@ Created: 2025-01-19
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, TypeVar
+
+# Type variable for generic function return types
+T = TypeVar("T")
 
 from sqlalchemy.exc import (
     DataError,
@@ -70,7 +73,7 @@ class RetryConfiguration:
         multiplier: float = DEFAULT_MULTIPLIER,
         jitter: bool = DEFAULT_JITTER,
         retriable_exceptions: set[type[Exception]] | None = None,
-    ):
+    ) -> None:
         """Initialize retry configuration.
 
         Args:
@@ -187,7 +190,7 @@ db_retry = create_retry_decorator()
 def retry_database_operation(
     config: RetryConfiguration | None = None,
     operation_name: str | None = None,
-):
+) -> Callable:
     """Decorator for database operations with retry logic.
 
     This decorator should be used to wrap database operations that might
@@ -209,7 +212,7 @@ def retry_database_operation(
         retry_decorator = create_retry_decorator(config)
 
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             op_name = operation_name or func.__name__
             logger.debug(f"Starting database operation: {op_name}")
 
@@ -238,7 +241,7 @@ def retry_with_fresh_session(
     session_factory: Callable[[], Session],
     config: RetryConfiguration | None = None,
     operation_name: str | None = None,
-):
+) -> Callable:
     """Decorator that ensures each retry attempt uses a fresh database session.
 
     This is particularly important for SQLAlchemy operations where a failed
@@ -264,11 +267,11 @@ def retry_with_fresh_session(
         retry_decorator = create_retry_decorator(config)
 
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             op_name = operation_name or func.__name__
             logger.debug(f"Starting database operation with fresh sessions: {op_name}")
 
-            def operation_with_fresh_session():
+            def operation_with_fresh_session() -> T:
                 """Execute the operation with a fresh session."""
                 with session_factory() as session:
                     # Pass the session as the first argument if the function expects it
@@ -301,25 +304,26 @@ def retry_with_fresh_session(
 class RetryStatistics:
     """Statistics tracking for retry operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the retry statistics tracker."""
         self.total_attempts = 0
         self.successful_retries = 0
         self.failed_after_retries = 0
         self.non_retriable_failures = 0
 
-    def record_attempt(self):
+    def record_attempt(self) -> None:
         """Record a retry attempt."""
         self.total_attempts += 1
 
-    def record_successful_retry(self):
+    def record_successful_retry(self) -> None:
         """Record a successful retry."""
         self.successful_retries += 1
 
-    def record_failed_after_retries(self):
+    def record_failed_after_retries(self) -> None:
         """Record a failure after all retries were exhausted."""
         self.failed_after_retries += 1
 
-    def record_non_retriable_failure(self):
+    def record_non_retriable_failure(self) -> None:
         """Record a non-retriable failure."""
         self.non_retriable_failures += 1
 
@@ -351,7 +355,7 @@ def get_retry_statistics() -> dict:
     return retry_stats.get_stats()
 
 
-def reset_retry_statistics():
+def reset_retry_statistics() -> None:
     """Reset retry statistics."""
     global retry_stats
     retry_stats = RetryStatistics()

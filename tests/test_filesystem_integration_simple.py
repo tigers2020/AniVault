@@ -1,17 +1,15 @@
 """Simplified filesystem integration tests."""
 
-import os
 import tempfile
 import threading
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 
-from src.core.file_scanner import FileScanner
 from src.core.file_grouper import FileGrouper
 from src.core.file_mover import FileMover
+from src.core.file_scanner import FileScanner
 
 
 class TestFileSystemIntegrationSimple:
@@ -31,9 +29,10 @@ class TestFileSystemIntegrationSimple:
 
         # Clean up
         import shutil
+
         shutil.rmtree(base_dir, ignore_errors=True)
 
-    def test_file_scanner_basic_scanning(self, temp_dirs):
+    def test_file_scanner_basic_scanning(self, temp_dirs) -> None:
         """Test basic file scanning functionality."""
         source_dir, _ = temp_dirs
 
@@ -63,7 +62,7 @@ class TestFileSystemIntegrationSimple:
             assert file.file_size > 0
             assert file.filename in test_files
 
-    def test_file_grouper_basic_grouping(self, temp_dirs):
+    def test_file_grouper_basic_grouping(self, temp_dirs) -> None:
         """Test basic file grouping functionality."""
         source_dir, _ = temp_dirs
 
@@ -103,7 +102,7 @@ class TestFileSystemIntegrationSimple:
                 common_words = set(first_name.lower().split()) & set(file.filename.lower().split())
                 assert len(common_words) > 0
 
-    def test_file_mover_basic_moving(self, temp_dirs):
+    def test_file_mover_basic_moving(self, temp_dirs) -> None:
         """Test basic file moving functionality."""
         source_dir, target_dir = temp_dirs
 
@@ -134,7 +133,7 @@ class TestFileSystemIntegrationSimple:
             assert not source_path.exists()
             assert result.file_size > 0
 
-    def test_file_mover_with_directories(self, temp_dirs):
+    def test_file_mover_with_directories(self, temp_dirs) -> None:
         """Test file mover with directory creation."""
         source_dir, target_dir = temp_dirs
 
@@ -155,7 +154,7 @@ class TestFileSystemIntegrationSimple:
         assert not test_file.exists()
         assert target_subdir.exists()
 
-    def test_file_mover_error_handling(self, temp_dirs):
+    def test_file_mover_error_handling(self, temp_dirs) -> None:
         """Test file mover error handling."""
         source_dir, target_dir = temp_dirs
 
@@ -168,9 +167,12 @@ class TestFileSystemIntegrationSimple:
 
         # Should fail gracefully
         assert not result.success
-        assert "not found" in result.error_message.lower() or "does not exist" in result.error_message.lower()
+        assert (
+            "not found" in result.error_message.lower()
+            or "does not exist" in result.error_message.lower()
+        )
 
-    def test_file_mover_concurrent_operations(self, temp_dirs):
+    def test_file_mover_concurrent_operations(self, temp_dirs) -> None:
         """Test file mover with concurrent operations."""
         source_dir, target_dir = temp_dirs
 
@@ -214,7 +216,7 @@ class TestFileSystemIntegrationSimple:
         success_count = sum(1 for _, success in results if success is True)
         assert success_count >= len(test_files) * 0.8  # At least 80% success rate
 
-    def test_file_scanner_with_different_extensions(self, temp_dirs):
+    def test_file_scanner_with_different_extensions(self, temp_dirs) -> None:
         """Test file scanner with different file extensions."""
         source_dir, _ = temp_dirs
 
@@ -226,7 +228,7 @@ class TestFileSystemIntegrationSimple:
             "anime4.mov",
             "anime5.wmv",
             "document.txt",  # Should be ignored
-            "image.jpg",     # Should be ignored
+            "image.jpg",  # Should be ignored
         ]
 
         for filename in test_files:
@@ -242,10 +244,10 @@ class TestFileSystemIntegrationSimple:
 
         # Check that video files are found
         found_filenames = [file.filename for file in scan_result.files]
-        for ext in ['.mkv', '.mp4', '.avi', '.mov', '.wmv']:
+        for ext in [".mkv", ".mp4", ".avi", ".mov", ".wmv"]:
             assert any(filename.endswith(ext) for filename in found_filenames)
 
-    def test_file_scanner_recursive_scanning(self, temp_dirs):
+    def test_file_scanner_recursive_scanning(self, temp_dirs) -> None:
         """Test file scanner with recursive directory scanning."""
         source_dir, _ = temp_dirs
 

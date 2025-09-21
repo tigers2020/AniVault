@@ -5,6 +5,7 @@ cache-DB synchronization metrics and system health in real-time.
 """
 
 import time
+from typing import Any
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
@@ -31,12 +32,18 @@ from ..core.sync_monitoring import sync_monitor
 class MetricsWidget(QWidget):
     """Base widget for displaying metrics."""
 
-    def __init__(self, title: str, parent=None):
+    def __init__(self, title: str, parent: Any = None) -> None:
+        """Initialize the metrics widget.
+
+        Args:
+            title (str): Title to display for the widget.
+            parent (QWidget, optional): Parent widget. Defaults to None.
+        """
         super().__init__(parent)
         self.title = title
         self.init_ui()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         """Initialize the UI."""
         layout = QVBoxLayout()
 
@@ -54,7 +61,7 @@ class MetricsWidget(QWidget):
 
         self.setLayout(layout)
 
-    def update_metrics(self):
+    def update_metrics(self) -> None:
         """Update the displayed metrics. Override in subclasses."""
         pass
 
@@ -62,11 +69,16 @@ class MetricsWidget(QWidget):
 class SyncOperationsWidget(MetricsWidget):
     """Widget for displaying synchronization operation metrics."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Any = None) -> None:
+        """Initialize the sync operations widget.
+
+        Args:
+            parent (QWidget, optional): Parent widget. Defaults to None.
+        """
         super().__init__("Synchronization Operations", parent)
         self.setup_operation_metrics()
 
-    def setup_operation_metrics(self):
+    def setup_operation_metrics(self) -> None:
         """Setup the operation metrics display."""
         # Overall stats
         stats_group = QGroupBox("Overall Statistics")
@@ -103,7 +115,7 @@ class SyncOperationsWidget(MetricsWidget):
         breakdown_group.setLayout(breakdown_layout)
         self.content_layout.addWidget(breakdown_group)
 
-    def update_metrics(self):
+    def update_metrics(self) -> None:
         """Update the synchronization operation metrics."""
         stats = sync_monitor.get_performance_stats()
 
@@ -138,11 +150,16 @@ class SyncOperationsWidget(MetricsWidget):
 class CacheMetricsWidget(MetricsWidget):
     """Widget for displaying cache performance metrics."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Any = None) -> None:
+        """Initialize the cache metrics widget.
+
+        Args:
+            parent (QWidget, optional): Parent widget. Defaults to None.
+        """
         super().__init__("Cache Performance", parent)
         self.setup_cache_metrics()
 
-    def setup_cache_metrics(self):
+    def setup_cache_metrics(self) -> None:
         """Setup the cache metrics display."""
         # Cache performance
         perf_group = QGroupBox("Cache Performance")
@@ -178,7 +195,7 @@ class CacheMetricsWidget(MetricsWidget):
         events_group.setLayout(events_layout)
         self.content_layout.addWidget(events_group)
 
-    def update_metrics(self):
+    def update_metrics(self) -> None:
         """Update the cache metrics."""
         stats = sync_monitor.get_performance_stats()
 
@@ -204,11 +221,16 @@ class CacheMetricsWidget(MetricsWidget):
 class SystemHealthWidget(MetricsWidget):
     """Widget for displaying system health metrics."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Any = None) -> None:
+        """Initialize the system health widget.
+
+        Args:
+            parent (QWidget, optional): Parent widget. Defaults to None.
+        """
         super().__init__("System Health", parent)
         self.setup_health_metrics()
 
-    def setup_health_metrics(self):
+    def setup_health_metrics(self) -> None:
         """Setup the health metrics display."""
         # Database health
         db_group = QGroupBox("Database Health")
@@ -261,7 +283,7 @@ class SystemHealthWidget(MetricsWidget):
         server_group.setLayout(server_layout)
         self.content_layout.addWidget(server_group)
 
-    def update_metrics(self):
+    def update_metrics(self) -> None:
         """Update the system health metrics."""
         # Update database health (placeholder - would need actual health check)
         self.db_status_label.setText("Healthy")
@@ -283,11 +305,16 @@ class SystemHealthWidget(MetricsWidget):
 class MetricsLogWidget(MetricsWidget):
     """Widget for displaying metrics log output."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Any = None) -> None:
+        """Initialize the metrics log widget.
+
+        Args:
+            parent (QWidget, optional): Parent widget. Defaults to None.
+        """
         super().__init__("Metrics Log", parent)
         self.setup_log_display()
 
-    def setup_log_display(self):
+    def setup_log_display(self) -> None:
         """Setup the log display."""
         # Log output
         self.log_text = QTextEdit()
@@ -310,7 +337,7 @@ class MetricsLogWidget(MetricsWidget):
         self.content_layout.addLayout(button_layout)
         self.content_layout.addWidget(self.log_text)
 
-    def refresh_metrics(self):
+    def refresh_metrics(self) -> None:
         """Refresh and display current metrics."""
         try:
             # Get current metrics
@@ -342,11 +369,11 @@ Total Affected Records: {stats.total_affected_records}
         except Exception as e:
             self.log_text.setPlainText(f"Error refreshing metrics: {e}")
 
-    def clear_log(self):
+    def clear_log(self) -> None:
         """Clear the log display."""
         self.log_text.clear()
 
-    def update_metrics(self):
+    def update_metrics(self) -> None:
         """Update the metrics log."""
         # Auto-refresh every update cycle
         self.refresh_metrics()
@@ -355,12 +382,17 @@ Total Affected Records: {stats.total_affected_records}
 class MonitoringDashboard(QWidget):
     """Main monitoring dashboard widget."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Any = None) -> None:
+        """Initialize the monitoring dashboard.
+
+        Args:
+            parent (QWidget, optional): Parent widget. Defaults to None.
+        """
         super().__init__(parent)
         self.init_ui()
         self.setup_timer()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         """Initialize the dashboard UI."""
         layout = QVBoxLayout()
 
@@ -396,13 +428,13 @@ class MonitoringDashboard(QWidget):
 
         self.setLayout(layout)
 
-    def setup_timer(self):
+    def setup_timer(self) -> None:
         """Setup the update timer."""
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_all_metrics)
         self.update_timer.start(5000)  # Update every 5 seconds
 
-    def update_all_metrics(self):
+    def update_all_metrics(self) -> None:
         """Update all metric widgets."""
         try:
             self.sync_ops_widget.update_metrics()
@@ -419,19 +451,19 @@ class MonitoringDashboard(QWidget):
             self.status_label.setText(f"Monitoring Error: {e}")
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
 
-    def start_monitoring(self):
+    def start_monitoring(self) -> None:
         """Start the monitoring timer."""
         self.update_timer.start()
         self.status_label.setText("Monitoring Started")
         self.status_label.setStyleSheet("color: green; font-weight: bold;")
 
-    def stop_monitoring(self):
+    def stop_monitoring(self) -> None:
         """Stop the monitoring timer."""
         self.update_timer.stop()
         self.status_label.setText("Monitoring Stopped")
         self.status_label.setStyleSheet("color: orange; font-weight: bold;")
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: Any) -> None:
         """Handle widget close event."""
         self.stop_monitoring()
         event.accept()

@@ -36,5 +36,5 @@ class SyncOperationStatus(Enum):
 class SyncEntityType(Enum):
     """Types of entities that can be synchronized."""
 
-    TMDB_ANIME = "tmdb_anime"
+    TMDB_METADATA = "tmdb_metadata"
     PARSED_FILES = "parsed_files"

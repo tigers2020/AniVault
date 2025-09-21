@@ -29,7 +29,7 @@ class BatchResult:
 class ConcurrentTMDBOperations:
     """High-level concurrent operations for TMDB API calls."""
 
-    def __init__(self, max_concurrent: int = 10):
+    def __init__(self, max_concurrent: int = 10) -> None:
         """Initialize concurrent operations manager.
 
         Args:
@@ -293,7 +293,7 @@ class ConcurrentTMDBOperations:
 class StreamingTMDBOperations:
     """Streaming operations for processing results as they become available."""
 
-    def __init__(self, max_concurrent: int = 10):
+    def __init__(self, max_concurrent: int = 10) -> None:
         """Initialize streaming operations manager.
 
         Args:

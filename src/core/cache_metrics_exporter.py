@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 # Prometheus metrics - use try/except to handle duplicate registration
-def _safe_create_counter(name, description, labelnames):
+def _safe_create_counter(name: str, description: str, labelnames: list[str]) -> object:
     """Safely create counter, handling duplicate registration."""
     try:
         return Counter(name, description, labelnames)
@@ -25,15 +25,15 @@ def _safe_create_counter(name, description, labelnames):
             # Return a dummy counter if already registered
 
             class DummyCounter:
-                def __init__(self, name, description, labelnames):
+                def __init__(self, name: str, description: str, labelnames: list[str]) -> None:
                     self._name = name
                     self._description = description
                     self._labelnames = labelnames
 
-                def labels(self, **kwargs):
+                def labels(self, **kwargs: Any) -> "DummyCounter":
                     return self
 
-                def inc(self, amount=1):
+                def inc(self, amount: int = 1) -> None:
                     pass
 
             return DummyCounter(name, description, labelnames)
@@ -58,7 +58,7 @@ CACHE_EVICTIONS_TOTAL = _safe_create_counter(
 )
 
 
-def _safe_create_gauge(name, description, labelnames):
+def _safe_create_gauge(name: str, description: str, labelnames: list[str]) -> object:
     """Safely create gauge, handling duplicate registration."""
     try:
         return Gauge(name, description, labelnames)
@@ -66,21 +66,21 @@ def _safe_create_gauge(name, description, labelnames):
         if "Duplicated timeseries" in str(e):
             # Return a dummy gauge if already registered
             class DummyGauge:
-                def __init__(self, name, description, labelnames):
+                def __init__(self, name: str, description: str, labelnames: list[str]) -> None:
                     self._name = name
                     self._description = description
                     self._labelnames = labelnames
 
-                def labels(self, **kwargs):
+                def labels(self, **kwargs: Any) -> "DummyGauge":
                     return self
 
-                def set(self, value):
+                def set(self, value: float) -> None:
                     pass
 
-                def inc(self, amount=1):
+                def inc(self, amount: float = 1) -> None:
                     pass
 
-                def dec(self, amount=1):
+                def dec(self, amount: float = 1) -> None:
                     pass
 
             return DummyGauge(name, description, labelnames)
@@ -106,7 +106,7 @@ CACHE_MISS_RATE = _safe_create_gauge(
 class CacheMetricsCollector:
     """Custom Prometheus collector for cache metrics from Redis."""
 
-    def __init__(self, cache_trackers: dict[str, Any] = None):
+    def __init__(self, cache_trackers: dict[str, Any] | None = None) -> None:
         """Initialize the cache metrics collector.
 
         Args:
@@ -114,7 +114,7 @@ class CacheMetricsCollector:
         """
         self.cache_trackers = cache_trackers or {}
 
-    def collect(self):
+    def collect(self) -> None:
         """Collect metrics from all cache trackers."""
         try:
             # Get metrics from all caches
@@ -171,7 +171,7 @@ class CacheMetricsCollector:
 class CacheMetricsExporter:
     """High-performance cache metrics exporter for Prometheus."""
 
-    def __init__(self, registry: CollectorRegistry = None):
+    def __init__(self, registry: CollectorRegistry = None) -> None:
         """Initialize the cache metrics exporter.
 
         Args:

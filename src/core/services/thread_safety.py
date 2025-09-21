@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 # Type variable for function return types
 T = TypeVar("T")
+# Type variable for generic container items
+ItemT = TypeVar("ItemT")
+# Type variables for dictionary key-value pairs
+KeyT = TypeVar("KeyT")
+ValueT = TypeVar("ValueT")
 
 
 class ThreadSafeProperty(Generic[T]):
@@ -42,7 +47,7 @@ class ThreadSafeProperty(Generic[T]):
         self._mutex = QMutex()
         self._name = getter.__name__
 
-    def __get__(self, instance: Any, owner: Any) -> T:
+    def __get__(self, instance: object, owner: type) -> T:
         """Get the property value in a thread-safe manner."""
         if instance is None:
             return self  # type: ignore[return-value]
@@ -50,7 +55,7 @@ class ThreadSafeProperty(Generic[T]):
         with QMutexLocker(self._mutex):
             return self._getter(instance)
 
-    def __set__(self, instance: Any, value: T) -> None:
+    def __set__(self, instance: object, value: T) -> None:
         """Set the property value in a thread-safe manner."""
         if self._setter is None:
             raise AttributeError(f"Property '{self._name}' is read-only")
@@ -59,7 +64,7 @@ class ThreadSafeProperty(Generic[T]):
             self._setter(instance, value)
 
 
-def thread_safe_method(mutex_attr: str = "_mutex"):
+def thread_safe_method(mutex_attr: str = "_mutex") -> Callable:
     """Decorator to make a method thread-safe using a QMutex.
 
     Args:
@@ -71,7 +76,7 @@ def thread_safe_method(mutex_attr: str = "_mutex"):
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs) -> T:
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             mutex = getattr(self, mutex_attr, None)
             if mutex is None:
                 logger.warning(f"No mutex found at '{mutex_attr}' for method '{func.__name__}'")
@@ -85,7 +90,7 @@ def thread_safe_method(mutex_attr: str = "_mutex"):
     return decorator
 
 
-def python_thread_safe_method(lock_attr: str = "_python_lock"):
+def python_thread_safe_method(lock_attr: str = "_python_lock") -> Callable:
     """Decorator to make a method thread-safe using a Python threading.Lock.
 
     Args:
@@ -97,7 +102,7 @@ def python_thread_safe_method(lock_attr: str = "_python_lock"):
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs) -> T:
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             lock = getattr(self, lock_attr, None)
             if lock is None:
                 logger.warning(f"No lock found at '{lock_attr}' for method '{func.__name__}'")
@@ -173,7 +178,7 @@ class ThreadSafeCounter:
             self._value = 0
 
 
-class ThreadSafeList:
+class ThreadSafeList(Generic[ItemT]):
     """Thread-safe list using QMutex."""
 
     def __init__(self, initial_items: list | None = None) -> None:
@@ -185,7 +190,7 @@ class ThreadSafeList:
         self._items = list(initial_items) if initial_items else []
         self._mutex = QMutex()
 
-    def append(self, item: Any) -> None:
+    def append(self, item: ItemT) -> None:
         """Append an item to the list."""
         with QMutexLocker(self._mutex):
             self._items.append(item)
@@ -195,12 +200,12 @@ class ThreadSafeList:
         with QMutexLocker(self._mutex):
             self._items.extend(items)
 
-    def insert(self, index: int, item: Any) -> None:
+    def insert(self, index: int, item: ItemT) -> None:
         """Insert an item at the specified index."""
         with QMutexLocker(self._mutex):
             self._items.insert(index, item)
 
-    def remove(self, item: Any) -> bool:
+    def remove(self, item: ItemT) -> bool:
         """Remove the first occurrence of an item.
 
         Returns:
@@ -213,7 +218,7 @@ class ThreadSafeList:
             except ValueError:
                 return False
 
-    def pop(self, index: int = -1) -> Any:
+    def pop(self, index: int = -1) -> ItemT:
         """Remove and return an item at the specified index."""
         with QMutexLocker(self._mutex):
             return self._items.pop(index)
@@ -223,7 +228,7 @@ class ThreadSafeList:
         with QMutexLocker(self._mutex):
             self._items.clear()
 
-    def get_item(self, index: int) -> Any:
+    def get_item(self, index: int) -> ItemT:
         """Get an item at the specified index."""
         with QMutexLocker(self._mutex):
             return self._items[index]
@@ -238,13 +243,13 @@ class ThreadSafeList:
         with QMutexLocker(self._mutex):
             return len(self._items)
 
-    def __contains__(self, item: Any) -> bool:
+    def __contains__(self, item: ItemT) -> bool:
         """Check if an item is in the list."""
         with QMutexLocker(self._mutex):
             return item in self._items
 
 
-class ThreadSafeDict:
+class ThreadSafeDict(Generic[KeyT, ValueT]):
     """Thread-safe dictionary using QMutex."""
 
     def __init__(self, initial_items: dict | None = None) -> None:
@@ -256,17 +261,17 @@ class ThreadSafeDict:
         self._items = dict(initial_items) if initial_items else {}
         self._mutex = QMutex()
 
-    def get(self, key: Any, default: Any = None) -> Any:
+    def get(self, key: KeyT, default: ValueT | None = None) -> ValueT | None:
         """Get a value by key."""
         with QMutexLocker(self._mutex):
             return self._items.get(key, default)
 
-    def set(self, key: Any, value: Any) -> None:
+    def set(self, key: KeyT, value: ValueT) -> None:
         """Set a value for a key."""
         with QMutexLocker(self._mutex):
             self._items[key] = value
 
-    def delete(self, key: Any) -> bool:
+    def delete(self, key: KeyT) -> bool:
         """Delete a key-value pair.
 
         Returns:
@@ -293,7 +298,7 @@ class ThreadSafeDict:
         with QMutexLocker(self._mutex):
             return len(self._items)
 
-    def __contains__(self, key: Any) -> bool:
+    def __contains__(self, key: KeyT) -> bool:
         """Check if a key exists."""
         with QMutexLocker(self._mutex):
             return key in self._items
@@ -312,7 +317,7 @@ def ensure_main_thread(func: Callable[..., T]) -> Callable[..., T]:
     """
 
     @functools.wraps(func)
-    def wrapper(self, *args, **kwargs) -> T:
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
         from PyQt5.QtCore import QThread
 
         # Check if we're on the main thread by checking if current thread is the application thread
@@ -329,7 +334,7 @@ def ensure_main_thread(func: Callable[..., T]) -> Callable[..., T]:
     return wrapper
 
 
-def prevent_deadlock(timeout_ms: int = 5000):
+def prevent_deadlock(timeout_ms: int = 5000) -> Callable:
     """Decorator to prevent deadlocks by adding timeout to mutex operations.
 
     Args:
@@ -341,7 +346,7 @@ def prevent_deadlock(timeout_ms: int = 5000):
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs) -> T:
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             # This is a placeholder for deadlock prevention
             # In a real implementation, you would use QMutex.tryLock with timeout
             logger.debug(f"Executing '{func.__name__}' with deadlock prevention")
@@ -356,7 +361,7 @@ class ThreadSafetyValidator:
     """Utility class for validating thread safety in the application."""
 
     @staticmethod
-    def validate_mutex_usage(obj: Any, mutex_attr: str = "_mutex") -> bool:
+    def validate_mutex_usage(obj: object, mutex_attr: str = "_mutex") -> bool:
         """Validate that mutex is being used correctly in an object.
 
         Args:
@@ -378,7 +383,7 @@ class ThreadSafetyValidator:
         return True
 
     @staticmethod
-    def validate_lock_usage(obj: Any, lock_attr: str = "_python_lock") -> bool:
+    def validate_lock_usage(obj: object, lock_attr: str = "_python_lock") -> bool:
         """Validate that Python lock is being used correctly in an object.
 
         Args:

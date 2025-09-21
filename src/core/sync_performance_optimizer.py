@@ -30,7 +30,7 @@ class OptimizationResult:
 class ConnectionPoolOptimizer:
     """Optimizes database connection pooling for better performance."""
 
-    def __init__(self, db_manager):
+    def __init__(self, db_manager: Any) -> None:
         """Initialize the connection pool optimizer.
 
         Args:
@@ -113,7 +113,7 @@ class ConnectionPoolOptimizer:
             elapsed = time.time() - start_time
             logger.debug(f"Connection pool optimization completed in {elapsed:.3f}s")
 
-    def _store_original_settings(self):
+    def _store_original_settings(self) -> None:
         """Store original pool settings for comparison."""
         if hasattr(self.db_manager, "engine") and self.db_manager.engine:
             engine = self.db_manager.engine
@@ -153,7 +153,7 @@ class ConnectionPoolOptimizer:
 class BatchOptimizer:
     """Optimizes batch operations for better throughput."""
 
-    def __init__(self, batch_size: int = 1000):
+    def __init__(self, batch_size: int = 1000) -> None:
         """Initialize the batch optimizer.
 
         Args:
@@ -276,7 +276,7 @@ class BatchOptimizer:
 class SyncPerformanceOptimizer:
     """Main synchronization performance optimizer."""
 
-    def __init__(self, db_manager=None, cache_instance=None):
+    def __init__(self, db_manager: Any = None, cache_instance: Any = None) -> None:
         """Initialize the sync performance optimizer.
 
         Args:
@@ -337,7 +337,7 @@ class SyncPerformanceOptimizer:
 
         return results
 
-    def _should_optimize_connections(self, bottlenecks) -> bool:
+    def _should_optimize_connections(self, bottlenecks: Any) -> bool:
         """Check if connection optimization is needed.
 
         Args:
@@ -354,7 +354,7 @@ class SyncPerformanceOptimizer:
                 return True
         return False
 
-    def _should_optimize_batch_sizes(self, bottlenecks) -> bool:
+    def _should_optimize_batch_sizes(self, bottlenecks: Any) -> bool:
         """Check if batch size optimization is needed.
 
         Args:
@@ -501,7 +501,9 @@ class SyncPerformanceOptimizer:
 _global_sync_optimizer: SyncPerformanceOptimizer | None = None
 
 
-def get_sync_optimizer(db_manager=None, cache_instance=None) -> SyncPerformanceOptimizer:
+def get_sync_optimizer(
+    db_manager: Any = None, cache_instance: Any = None
+) -> SyncPerformanceOptimizer:
     """Get or create the global sync performance optimizer.
 
     Args:
@@ -519,7 +521,7 @@ def get_sync_optimizer(db_manager=None, cache_instance=None) -> SyncPerformanceO
     return _global_sync_optimizer
 
 
-def optimize_sync_performance(db_manager=None, cache_instance=None) -> dict[str, Any]:
+def optimize_sync_performance(db_manager: Any = None, cache_instance: Any = None) -> dict[str, Any]:
     """Optimize synchronization performance and return results.
 
     Args:
@@ -532,7 +534,7 @@ def optimize_sync_performance(db_manager=None, cache_instance=None) -> dict[str,
     optimizer = get_sync_optimizer(db_manager, cache_instance)
 
     # Run analysis and optimization
-    results = optimizer.analyze_and_optimize()
+    optimizer.analyze_and_optimize()
 
     # Return summary
     return optimizer.get_optimization_summary()

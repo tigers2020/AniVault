@@ -157,11 +157,21 @@ class FilePipelineWorker(QThread):
 
         # Try graceful shutdown first
         if self.isRunning():
-            self.quit()
-            if not self.wait(2000):  # Wait up to 2 seconds
-                # If graceful shutdown fails, terminate
-                self.terminate()
-                self.wait(1000)  # Wait for termination
+            try:
+                self.quit()
+                if not self.wait(2000):  # Wait up to 2 seconds
+                    # If graceful shutdown fails, terminate
+                    logger.warning("Graceful shutdown failed, terminating worker")
+                    self.terminate()
+                    self.wait(1000)  # Wait for termination
+            except Exception as e:
+                logger.error(f"Error during force stop: {e}")
+                # Try to terminate anyway
+                try:
+                    self.terminate()
+                    self.wait(1000)
+                except Exception as terminate_error:
+                    logger.error(f"Error during terminate: {terminate_error}")
 
         logger.warning("Worker force stopped")
 
@@ -195,9 +205,19 @@ class FilePipelineWorker(QThread):
                         self._is_running = False
                     break
 
+                # Check if we should stop before executing task
+                if self._should_stop:
+                    logger.debug("Stop requested, skipping task execution")
+                    break
+
                 # Execute the task
                 logger.debug(f"Executing task: {task.get_name()}")
                 self._execute_task(task)
+                
+                # Check if we should stop after executing task
+                if self._should_stop:
+                    logger.debug("Stop requested, exiting worker loop")
+                    break
 
         except Exception as e:
             logger.error(f"Worker thread error: {e}", exc_info=True)
@@ -250,8 +270,18 @@ class FilePipelineWorker(QThread):
             self._processing_state.status_message = task.get_progress_message()
 
         try:
+            # Check if we should stop before executing
+            if self._should_stop:
+                logger.debug(f"Stop requested, skipping task '{task_name}' execution")
+                return
+
             # Execute the task
             result = task.execute()
+
+            # Check if we should stop after executing
+            if self._should_stop:
+                logger.debug(f"Stop requested after task '{task_name}' execution")
+                return
 
             # Emit success signal
             self.task_finished.emit(task_name, result, True)

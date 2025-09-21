@@ -10,13 +10,16 @@ import base64
 import logging
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 from .config_manager import ConfigManager
 from .config_schema import get_schema_validator
 from .secure_storage import get_secure_storage
 
 logger = logging.getLogger(__name__)
+
+# Type alias for configuration values
+ConfigValue = Union[str, int, float, bool, list, dict, None]
 
 
 class ConfigValidator:
@@ -67,7 +70,7 @@ class SecureConfigManager:
     - Automatic encryption/decryption
     """
 
-    def __init__(self, config_path: Path | None = None):
+    def __init__(self, config_path: Path | None = None) -> None:
         """Initialize the secure configuration manager.
 
         Args:
@@ -134,7 +137,7 @@ class SecureConfigManager:
         """Check if a key path contains sensitive data."""
         return any(encrypted_key in key_path for encrypted_key in self._encrypted_keys)
 
-    def get(self, key_path: str, default: Any = None) -> Any:
+    def get(self, key_path: str, default: ConfigValue | None = None) -> ConfigValue:
         """Get a configuration value with automatic decryption.
 
         Args:
@@ -157,7 +160,7 @@ class SecureConfigManager:
 
             return value
 
-    def set(self, key_path: str, value: Any, encrypt: bool | None = None) -> None:
+    def set(self, key_path: str, value: ConfigValue, encrypt: bool | None = None) -> None:
         """Set a configuration value with optional encryption.
 
         Args:
@@ -339,13 +342,13 @@ class SecureConfigManager:
                 logger.error("Failed to get validation errors: %s", str(e))
                 return [f"Error retrieving validation errors: {e!s}"]
 
-    def get_all_config(self) -> dict[str, Any]:
+    def get_all_config(self) -> dict[str, ConfigValue]:
         """Get the entire configuration dictionary (sensitive data will be decrypted)."""
         with self._lock:
             config = self._base_manager.get_all_config()
 
             # Decrypt sensitive values in the returned config
-            def decrypt_sensitive_values(obj: Any, path: str = "") -> None:
+            def decrypt_sensitive_values(obj: ConfigValue, path: str = "") -> None:
                 if isinstance(obj, dict):
                     # Create a list of keys to avoid modification during iteration
                     keys_to_process = list(obj.keys())

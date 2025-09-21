@@ -22,7 +22,7 @@ class TMDBClientAdapter:
     while providing async capabilities for new implementations.
     """
 
-    def __init__(self, config: TMDBConfig, use_async: bool = False):
+    def __init__(self, config: TMDBConfig, use_async: bool = False) -> None:
         """Initialize the adapter.
 
         Args:

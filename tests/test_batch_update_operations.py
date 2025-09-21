@@ -4,12 +4,12 @@ This module tests the bulk update operations for both
 anime metadata and parsed files to ensure performance and data integrity.
 """
 
-import pytest
 from datetime import datetime, timezone
-from pathlib import Path
 
-from src.core.database import DatabaseManager, AnimeMetadata, ParsedFile
-from src.core.models import TMDBAnime, ParsedAnimeInfo
+import pytest
+
+from src.core.database import AnimeMetadata, DatabaseManager, ParsedFile
+from src.core.models import ParsedAnimeInfo, TMDBAnime
 
 
 class TestBatchUpdateOperations:
@@ -36,7 +36,7 @@ class TestBatchUpdateOperations:
                 popularity=95.5,
                 genres=["Action", "Drama", "Fantasy"],
                 number_of_seasons=4,
-                number_of_episodes=75
+                number_of_episodes=75,
             ),
             TMDBAnime(
                 tmdb_id=2,
@@ -48,7 +48,7 @@ class TestBatchUpdateOperations:
                 popularity=98.2,
                 genres=["Action", "Supernatural"],
                 number_of_seasons=3,
-                number_of_episodes=44
+                number_of_episodes=44,
             ),
             TMDBAnime(
                 tmdb_id=3,
@@ -60,8 +60,8 @@ class TestBatchUpdateOperations:
                 popularity=99.8,
                 genres=["Action", "Adventure"],
                 number_of_seasons=20,
-                number_of_episodes=1000
-            )
+                number_of_episodes=1000,
+            ),
         ]
 
         # Insert the data
@@ -84,7 +84,7 @@ class TestBatchUpdateOperations:
             release_group="Erai-raws",
             file_extension=".mkv",
             year=2013,
-            source="Blu-ray"
+            source="Blu-ray",
         )
 
         parsed_info2 = ParsedAnimeInfo(
@@ -100,33 +100,49 @@ class TestBatchUpdateOperations:
             release_group="SubsPlease",
             file_extension=".mp4",
             year=2019,
-            source="Web"
+            source="Web",
         )
 
         now = datetime.now(timezone.utc)
         file_data = [
-            ("/path/to/attack_on_titan_s01e01.mkv", "attack_on_titan_s01e01.mkv",
-             1024000000, now, now, parsed_info1, "hash1", 1),
-            ("/path/to/demon_slayer_s01e01.mp4", "demon_slayer_s01e01.mp4",
-             512000000, now, now, parsed_info2, "hash2", 2)
+            (
+                "/path/to/attack_on_titan_s01e01.mkv",
+                "attack_on_titan_s01e01.mkv",
+                1024000000,
+                now,
+                now,
+                parsed_info1,
+                "hash1",
+                1,
+            ),
+            (
+                "/path/to/demon_slayer_s01e01.mp4",
+                "demon_slayer_s01e01.mp4",
+                512000000,
+                now,
+                now,
+                parsed_info2,
+                "hash2",
+                2,
+            ),
         ]
 
         # Insert the data
         db_manager.bulk_insert_parsed_files(file_data)
         return file_data
 
-    def test_bulk_update_anime_metadata_empty_list(self, db_manager):
+    def test_bulk_update_anime_metadata_empty_list(self, db_manager) -> None:
         """Test bulk update with empty list."""
         result = db_manager.bulk_update_anime_metadata([])
         assert result == 0
 
-    def test_bulk_update_anime_metadata_success(self, db_manager, sample_anime_data):
+    def test_bulk_update_anime_metadata_success(self, db_manager, sample_anime_data) -> None:
         """Test successful bulk update of anime metadata."""
         # Prepare updates
         updates = [
-            {'tmdb_id': 1, 'title': 'Attack on Titan - Updated', 'vote_average': 9.0},
-            {'tmdb_id': 2, 'title': 'Demon Slayer - Updated', 'vote_average': 9.2},
-            {'tmdb_id': 3, 'title': 'One Piece - Updated', 'vote_average': 9.5}
+            {"tmdb_id": 1, "title": "Attack on Titan - Updated", "vote_average": 9.0},
+            {"tmdb_id": 2, "title": "Demon Slayer - Updated", "vote_average": 9.2},
+            {"tmdb_id": 3, "title": "One Piece - Updated", "vote_average": 9.5},
         ]
 
         # Perform bulk update
@@ -147,22 +163,19 @@ class TestBatchUpdateOperations:
             assert op.title == "One Piece - Updated"
             assert op.vote_average == 9.5
 
-    def test_bulk_update_anime_metadata_missing_primary_key(self, db_manager):
+    def test_bulk_update_anime_metadata_missing_primary_key(self, db_manager) -> None:
         """Test bulk update with missing primary key raises error."""
-        updates = [
-            {'title': 'Invalid Update', 'vote_average': 9.0}  # Missing tmdb_id
-        ]
+        updates = [{"title": "Invalid Update", "vote_average": 9.0}]  # Missing tmdb_id
 
-        with pytest.raises(ValueError, match="All update dictionaries must contain 'tmdb_id' field"):
+        with pytest.raises(
+            ValueError, match="All update dictionaries must contain 'tmdb_id' field"
+        ):
             db_manager.bulk_update_anime_metadata(updates)
 
-    def test_bulk_update_anime_metadata_by_tmdb_ids(self, db_manager, sample_anime_data):
+    def test_bulk_update_anime_metadata_by_tmdb_ids(self, db_manager, sample_anime_data) -> None:
         """Test bulk update by TMDB IDs with same update data."""
         tmdb_ids = [1, 2]
-        update_data = {
-            'status': 'Completed',
-            'vote_average': 9.5
-        }
+        update_data = {"status": "Completed", "vote_average": 9.5}
 
         # Perform bulk update
         result = db_manager.bulk_update_anime_metadata_by_tmdb_ids(tmdb_ids, update_data)
@@ -183,20 +196,20 @@ class TestBatchUpdateOperations:
             assert op.status != "Completed"
             assert op.vote_average == 9.0  # Original value
 
-    def test_bulk_update_anime_metadata_by_tmdb_ids_empty_lists(self, db_manager):
+    def test_bulk_update_anime_metadata_by_tmdb_ids_empty_lists(self, db_manager) -> None:
         """Test bulk update by TMDB IDs with empty lists."""
-        result1 = db_manager.bulk_update_anime_metadata_by_tmdb_ids([], {'status': 'Test'})
+        result1 = db_manager.bulk_update_anime_metadata_by_tmdb_ids([], {"status": "Test"})
         assert result1 == 0
 
         result2 = db_manager.bulk_update_anime_metadata_by_tmdb_ids([1, 2], {})
         assert result2 == 0
 
-    def test_bulk_update_parsed_files_empty_list(self, db_manager):
+    def test_bulk_update_parsed_files_empty_list(self, db_manager) -> None:
         """Test bulk update with empty file list."""
         result = db_manager.bulk_update_parsed_files([])
         assert result == 0
 
-    def test_bulk_update_parsed_files_success(self, db_manager, sample_file_data):
+    def test_bulk_update_parsed_files_success(self, db_manager, sample_file_data) -> None:
         """Test successful bulk update of parsed files."""
         # First get the file IDs
         with db_manager.get_session() as session:
@@ -205,8 +218,8 @@ class TestBatchUpdateOperations:
 
         # Prepare updates
         updates = [
-            {'id': file_ids[0], 'is_processed': True, 'processing_errors': '{}'},
-            {'id': file_ids[1], 'is_processed': True, 'processing_errors': '{}'}
+            {"id": file_ids[0], "is_processed": True, "processing_errors": "{}"},
+            {"id": file_ids[1], "is_processed": True, "processing_errors": "{}"},
         ]
 
         # Perform bulk update
@@ -218,24 +231,19 @@ class TestBatchUpdateOperations:
             for file_id in file_ids:
                 file_record = session.query(ParsedFile).filter_by(id=file_id).first()
                 assert file_record.is_processed is True
-                assert file_record.processing_errors == '{}'
+                assert file_record.processing_errors == "{}"
 
-    def test_bulk_update_parsed_files_missing_primary_key(self, db_manager):
+    def test_bulk_update_parsed_files_missing_primary_key(self, db_manager) -> None:
         """Test bulk update with missing primary key raises error."""
-        updates = [
-            {'is_processed': True}  # Missing id
-        ]
+        updates = [{"is_processed": True}]  # Missing id
 
         with pytest.raises(ValueError, match="All update dictionaries must contain 'id' field"):
             db_manager.bulk_update_parsed_files(updates)
 
-    def test_bulk_update_parsed_files_by_paths(self, db_manager, sample_file_data):
+    def test_bulk_update_parsed_files_by_paths(self, db_manager, sample_file_data) -> None:
         """Test bulk update by file paths with same update data."""
         file_paths = ["/path/to/attack_on_titan_s01e01.mkv", "/path/to/demon_slayer_s01e01.mp4"]
-        update_data = {
-            'is_processed': True,
-            'processing_errors': '{"status": "completed"}'
-        }
+        update_data = {"is_processed": True, "processing_errors": '{"status": "completed"}'}
 
         # Perform bulk update
         result = db_manager.bulk_update_parsed_files_by_paths(file_paths, update_data)
@@ -248,27 +256,29 @@ class TestBatchUpdateOperations:
                 assert file_record.is_processed is True
                 assert file_record.processing_errors == '{"status": "completed"}'
 
-    def test_bulk_update_parsed_files_by_paths_nonexistent(self, db_manager):
+    def test_bulk_update_parsed_files_by_paths_nonexistent(self, db_manager) -> None:
         """Test bulk update by file paths with nonexistent paths."""
         file_paths = ["/nonexistent/path1.mkv", "/nonexistent/path2.mp4"]
-        update_data = {'is_processed': True}
+        update_data = {"is_processed": True}
 
         # Perform bulk update
         result = db_manager.bulk_update_parsed_files_by_paths(file_paths, update_data)
         assert result == 0
 
-    def test_bulk_update_performance(self, db_manager, sample_anime_data):
+    def test_bulk_update_performance(self, db_manager, sample_anime_data) -> None:
         """Test performance of bulk update operations."""
         import time
 
         # Create large update dataset
         updates = []
         for i in range(1000):
-            updates.append({
-                'tmdb_id': (i % 3) + 1,  # Cycle through existing IDs
-                'vote_average': 8.0 + (i % 10) * 0.1,
-                'vote_count': 1000 + i
-            })
+            updates.append(
+                {
+                    "tmdb_id": (i % 3) + 1,  # Cycle through existing IDs
+                    "vote_average": 8.0 + (i % 10) * 0.1,
+                    "vote_count": 1000 + i,
+                }
+            )
 
         # Measure bulk update time
         start_time = time.time()
@@ -281,12 +291,16 @@ class TestBatchUpdateOperations:
         # Should complete within reasonable time
         assert execution_time < 3.0  # 3 seconds for 1000 updates
 
-    def test_bulk_update_data_integrity(self, db_manager, sample_anime_data):
+    def test_bulk_update_data_integrity(self, db_manager, sample_anime_data) -> None:
         """Test that bulk update maintains data integrity."""
         # Update only specific fields
         updates = [
-            {'tmdb_id': 1, 'title': 'Attack on Titan - Final Season', 'vote_average': 9.5},
-            {'tmdb_id': 2, 'title': 'Demon Slayer - Entertainment District Arc', 'vote_average': 9.3}
+            {"tmdb_id": 1, "title": "Attack on Titan - Final Season", "vote_average": 9.5},
+            {
+                "tmdb_id": 2,
+                "title": "Demon Slayer - Entertainment District Arc",
+                "vote_average": 9.3,
+            },
         ]
 
         # Perform update
@@ -310,12 +324,12 @@ class TestBatchUpdateOperations:
             assert ds.overview == "A young boy becomes a demon slayer."
             assert ds.vote_count == 20000  # Original value
 
-    def test_bulk_update_transaction_rollback(self, db_manager, sample_anime_data):
+    def test_bulk_update_transaction_rollback(self, db_manager, sample_anime_data) -> None:
         """Test that bulk update properly handles transaction rollback on error."""
         # Create invalid update data
         updates = [
-            {'tmdb_id': 1, 'title': 'Valid Update'},
-            {'tmdb_id': 'invalid_id', 'title': 'Invalid Update'}  # Invalid tmdb_id type
+            {"tmdb_id": 1, "title": "Valid Update"},
+            {"tmdb_id": "invalid_id", "title": "Invalid Update"},  # Invalid tmdb_id type
         ]
 
         with pytest.raises(Exception):
@@ -327,7 +341,7 @@ class TestBatchUpdateOperations:
             assert aot.title == "Attack on Titan"  # Original value
             assert aot.vote_average == 8.5  # Original value
 
-    def test_bulk_update_with_metadata_cache(self):
+    def test_bulk_update_with_metadata_cache(self) -> None:
         """Test bulk update functionality through MetadataCache."""
         from src.core.metadata_cache import MetadataCache
 
@@ -345,7 +359,7 @@ class TestBatchUpdateOperations:
                 vote_average=8.0,
                 genres=["Action"],
                 number_of_seasons=1,
-                number_of_episodes=12
+                number_of_episodes=12,
             ),
             TMDBAnime(
                 tmdb_id=2,
@@ -354,8 +368,8 @@ class TestBatchUpdateOperations:
                 vote_average=8.5,
                 genres=["Drama"],
                 number_of_seasons=2,
-                number_of_episodes=24
-            )
+                number_of_episodes=24,
+            ),
         ]
 
         # Store data
@@ -363,8 +377,8 @@ class TestBatchUpdateOperations:
 
         # Prepare updates
         updates = [
-            {'tmdb_id': 1, 'title': 'Updated Anime 1', 'vote_average': 9.0},
-            {'tmdb_id': 2, 'title': 'Updated Anime 2', 'vote_average': 9.5}
+            {"tmdb_id": 1, "title": "Updated Anime 1", "vote_average": 9.0},
+            {"tmdb_id": 2, "title": "Updated Anime 2", "vote_average": 9.5},
         ]
 
         # Test bulk update
@@ -386,7 +400,7 @@ class TestBatchUpdateOperations:
             assert aot_db.title == "Updated Anime 1"
             assert aot_db.vote_average == 9.0
 
-    def test_bulk_update_by_ids_with_cache(self):
+    def test_bulk_update_by_ids_with_cache(self) -> None:
         """Test bulk update by IDs functionality through MetadataCache."""
         from src.core.metadata_cache import MetadataCache
 
@@ -399,14 +413,14 @@ class TestBatchUpdateOperations:
         anime_list = [
             TMDBAnime(tmdb_id=1, title="Anime 1", vote_average=8.0),
             TMDBAnime(tmdb_id=2, title="Anime 2", vote_average=8.5),
-            TMDBAnime(tmdb_id=3, title="Anime 3", vote_average=9.0)
+            TMDBAnime(tmdb_id=3, title="Anime 3", vote_average=9.0),
         ]
 
         cache.bulk_store_tmdb_metadata(anime_list)
 
         # Update by IDs
         tmdb_ids = [1, 2]
-        update_data = {'status': 'Completed', 'vote_average': 9.5}
+        update_data = {"status": "Completed", "vote_average": 9.5}
 
         result = cache.bulk_update_tmdb_metadata_by_ids(tmdb_ids, update_data)
         assert result == 2

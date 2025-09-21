@@ -83,7 +83,7 @@ class TransactionManager:
     - Performance metrics collection
     """
 
-    def __init__(self, timeout_seconds: int | None = None):
+    def __init__(self, timeout_seconds: int | None = None) -> None:
         """Initialize the transaction manager.
 
         Args:
@@ -336,7 +336,7 @@ class TransactionManager:
                         f"Transaction {ctx.id} exceeded timeout of {effective_timeout}s"
                     )
 
-        context = self.begin(session, nested=nested)
+        self.begin(session, nested=nested)
 
         try:
             yield session
@@ -379,7 +379,7 @@ def transactional(
     """
 
     def decorator(f: F) -> F:
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Capture the decorator parameters
             current_nested = nested
             current_timeout = timeout
@@ -444,9 +444,7 @@ def transactional(
                             actual_session_index = session_index
 
                         # Insert session at the correct position
-                        args = (
-                            args[:actual_session_index] + (session,) + args[actual_session_index:]
-                        )
+                        args = (*args[:actual_session_index], session, *args[actual_session_index:])
                     else:
                         # Function doesn't expect session, add to kwargs
                         kwargs["session"] = session
@@ -458,17 +456,17 @@ def transactional(
                     original_merge = session.merge
                     original_delete = session.delete
 
-                    def tracked_add(instance):
+                    def tracked_add(instance: Any) -> Any:
                         result = original_add(instance)
                         tx_manager.increment_affected_rows()
                         return result
 
-                    def tracked_merge(instance, load=True):
+                    def tracked_merge(instance: Any, load: bool = True) -> Any:
                         result = original_merge(instance, load)
                         tx_manager.increment_affected_rows()
                         return result
 
-                    def tracked_delete(instance):
+                    def tracked_delete(instance: Any) -> Any:
                         result = original_delete(instance)
                         tx_manager.increment_affected_rows()
                         return result

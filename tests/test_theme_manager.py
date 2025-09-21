@@ -1,6 +1,5 @@
 """Tests for theme manager functionality."""
 
-
 import pytest
 from PyQt5.QtWidgets import QApplication
 

@@ -27,7 +27,7 @@ class TaskResult:
     error_message: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Post-initialization to ensure consistency."""
         if self.error and not self.error_message:
             self.error_message = str(self.error)
@@ -66,7 +66,7 @@ class ResultCollector:
     handle errors gracefully, and aggregate results for pipeline stages.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the result collector."""
         self.stage_results: dict[PipelineStage, StageResult] = {}
         self.completed_futures: set[Future] = set()

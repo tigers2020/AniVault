@@ -8,18 +8,24 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from redis import Redis
 
 logger = logging.getLogger(__name__)
 
 try:
     import redis
+    from redis.typing import KeyT
 
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
     redis = None  # Set to None to avoid NameError
+    KeyT = str  # Fallback type
     logger.warning("Redis not available. Cache tracking will use in-memory fallback.")
 
 
@@ -59,7 +65,7 @@ class CacheMetrics:
 class InMemoryCacheTracker:
     """Thread-safe in-memory cache tracker using thread-local storage."""
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True) -> None:
         """Initialize in-memory tracker.
 
         Args:
@@ -156,10 +162,10 @@ class RedisCacheTracker:
 
     def __init__(
         self,
-        redis_client: Any | None = None,
+        redis_client: Union["Redis", None] = None,
         enabled: bool = True,
         key_prefix: str = "cache_metrics",
-    ):
+    ) -> None:
         """Initialize Redis cache tracker.
 
         Args:
@@ -312,10 +318,10 @@ class OptimizedCacheTracker:
     def __init__(
         self,
         cache_name: str,
-        redis_client: Any | None = None,
+        redis_client: Union["Redis", None] = None,
         enabled: bool = True,
         use_redis: bool = True,
-    ):
+    ) -> None:
         """Initialize optimized cache tracker.
 
         Args:
@@ -371,7 +377,7 @@ class OptimizedCacheTracker:
 _trackers: dict[str, OptimizedCacheTracker] = {}
 
 
-def get_cache_tracker(cache_name: str, **kwargs) -> OptimizedCacheTracker:
+def get_cache_tracker(cache_name: str, **kwargs: Any) -> OptimizedCacheTracker:
     """Get or create a cache tracker for the specified cache.
 
     Args:
@@ -407,7 +413,7 @@ def reset_all_cache_metrics() -> None:
 
 
 # Decorator for easy cache tracking
-def track_cache_performance(cache_name: str):
+def track_cache_performance(cache_name: str) -> Callable:
     """Decorator to automatically track cache performance.
 
     Args:
@@ -417,8 +423,8 @@ def track_cache_performance(cache_name: str):
         Decorator function
     """
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+    def decorator(func: Callable) -> Callable:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             tracker = get_cache_tracker(cache_name)
 
             # Execute the function

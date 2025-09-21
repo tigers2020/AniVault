@@ -4,13 +4,12 @@ This module tests the bulk insert and upsert operations for both
 anime metadata and parsed files to ensure performance and data integrity.
 """
 
-import pytest
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import Mock, patch
 
-from src.core.database import DatabaseManager, AnimeMetadata, ParsedFile
-from src.core.models import TMDBAnime, ParsedAnimeInfo
+import pytest
+
+from src.core.database import AnimeMetadata, DatabaseManager, ParsedFile
+from src.core.models import ParsedAnimeInfo, TMDBAnime
 
 
 class TestBatchDBOperations:
@@ -45,7 +44,7 @@ class TestBatchDBOperations:
                 networks=["NHK"],
                 number_of_seasons=4,
                 number_of_episodes=75,
-                raw_data={"test": "data1"}
+                raw_data={"test": "data1"},
             ),
             TMDBAnime(
                 tmdb_id=2,
@@ -65,7 +64,7 @@ class TestBatchDBOperations:
                 networks=["Fuji TV"],
                 number_of_seasons=3,
                 number_of_episodes=44,
-                raw_data={"test": "data2"}
+                raw_data={"test": "data2"},
             ),
             TMDBAnime(
                 tmdb_id=3,
@@ -85,8 +84,8 @@ class TestBatchDBOperations:
                 networks=["Fuji TV"],
                 number_of_seasons=20,
                 number_of_episodes=1000,
-                raw_data={"test": "data3"}
-            )
+                raw_data={"test": "data3"},
+            ),
         ]
 
     @pytest.fixture
@@ -106,7 +105,7 @@ class TestBatchDBOperations:
             file_extension=".mkv",
             year=2013,
             source="Blu-ray",
-            raw_data={"quality": "high"}
+            raw_data={"quality": "high"},
         )
 
         parsed_info2 = ParsedAnimeInfo(
@@ -123,23 +122,39 @@ class TestBatchDBOperations:
             file_extension=".mp4",
             year=2019,
             source="Web",
-            raw_data={"quality": "medium"}
+            raw_data={"quality": "medium"},
         )
 
         now = datetime.now(timezone.utc)
         return [
-            ("/path/to/attack_on_titan_s01e01.mkv", "attack_on_titan_s01e01.mkv",
-             1024000000, now, now, parsed_info1, "hash1", 1),
-            ("/path/to/demon_slayer_s01e01.mp4", "demon_slayer_s01e01.mp4",
-             512000000, now, now, parsed_info2, "hash2", 2)
+            (
+                "/path/to/attack_on_titan_s01e01.mkv",
+                "attack_on_titan_s01e01.mkv",
+                1024000000,
+                now,
+                now,
+                parsed_info1,
+                "hash1",
+                1,
+            ),
+            (
+                "/path/to/demon_slayer_s01e01.mp4",
+                "demon_slayer_s01e01.mp4",
+                512000000,
+                now,
+                now,
+                parsed_info2,
+                "hash2",
+                2,
+            ),
         ]
 
-    def test_bulk_insert_anime_metadata_empty_list(self, db_manager):
+    def test_bulk_insert_anime_metadata_empty_list(self, db_manager) -> None:
         """Test bulk insert with empty list."""
         result = db_manager.bulk_insert_anime_metadata([])
         assert result == 0
 
-    def test_bulk_insert_anime_metadata_success(self, db_manager, sample_tmdb_anime_list):
+    def test_bulk_insert_anime_metadata_success(self, db_manager, sample_tmdb_anime_list) -> None:
         """Test successful bulk insert of anime metadata."""
         # Insert the data
         result = db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
@@ -158,7 +173,9 @@ class TestBatchDBOperations:
             assert aot.vote_average == 8.5
             assert aot.number_of_episodes == 75
 
-    def test_bulk_insert_anime_metadata_duplicate_handling(self, db_manager, sample_tmdb_anime_list):
+    def test_bulk_insert_anime_metadata_duplicate_handling(
+        self, db_manager, sample_tmdb_anime_list
+    ) -> None:
         """Test bulk insert with duplicate TMDB IDs."""
         # Insert first time
         result1 = db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
@@ -168,12 +185,12 @@ class TestBatchDBOperations:
         with pytest.raises(Exception):
             db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
 
-    def test_bulk_insert_parsed_files_empty_list(self, db_manager):
+    def test_bulk_insert_parsed_files_empty_list(self, db_manager) -> None:
         """Test bulk insert with empty file list."""
         result = db_manager.bulk_insert_parsed_files([])
         assert result == 0
 
-    def test_bulk_insert_parsed_files_success(self, db_manager, sample_parsed_file_data):
+    def test_bulk_insert_parsed_files_success(self, db_manager, sample_parsed_file_data) -> None:
         """Test successful bulk insert of parsed files."""
         # Insert the data
         result = db_manager.bulk_insert_parsed_files(sample_parsed_file_data)
@@ -185,7 +202,11 @@ class TestBatchDBOperations:
             assert count == 2
 
             # Check specific records
-            aot_file = session.query(ParsedFile).filter_by(file_path="/path/to/attack_on_titan_s01e01.mkv").first()
+            aot_file = (
+                session.query(ParsedFile)
+                .filter_by(file_path="/path/to/attack_on_titan_s01e01.mkv")
+                .first()
+            )
             assert aot_file is not None
             assert aot_file.parsed_title == "Attack on Titan"
             assert aot_file.season == 1
@@ -193,7 +214,9 @@ class TestBatchDBOperations:
             assert aot_file.resolution == "1080p"
             assert aot_file.video_codec == "H264"
 
-    def test_bulk_upsert_anime_metadata_new_records(self, db_manager, sample_tmdb_anime_list):
+    def test_bulk_upsert_anime_metadata_new_records(
+        self, db_manager, sample_tmdb_anime_list
+    ) -> None:
         """Test bulk upsert with all new records."""
         inserted, updated = db_manager.bulk_upsert_anime_metadata(sample_tmdb_anime_list)
         assert inserted == 3
@@ -204,7 +227,9 @@ class TestBatchDBOperations:
             count = session.query(AnimeMetadata).count()
             assert count == 3
 
-    def test_bulk_upsert_anime_metadata_mixed_records(self, db_manager, sample_tmdb_anime_list):
+    def test_bulk_upsert_anime_metadata_mixed_records(
+        self, db_manager, sample_tmdb_anime_list
+    ) -> None:
         """Test bulk upsert with mix of new and existing records."""
         # Insert first two records
         db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list[:2])
@@ -219,7 +244,7 @@ class TestBatchDBOperations:
         # Upsert mixed list
         inserted, updated = db_manager.bulk_upsert_anime_metadata(mixed_list)
         assert inserted == 1  # Third record is new
-        assert updated == 1   # First record is updated
+        assert updated == 1  # First record is updated
 
         # Verify updates
         with db_manager.get_session() as session:
@@ -227,13 +252,13 @@ class TestBatchDBOperations:
             assert aot.title == "Attack on Titan - Updated"
             assert aot.vote_average == 9.0
 
-    def test_bulk_upsert_anime_metadata_empty_list(self, db_manager):
+    def test_bulk_upsert_anime_metadata_empty_list(self, db_manager) -> None:
         """Test bulk upsert with empty list."""
         inserted, updated = db_manager.bulk_upsert_anime_metadata([])
         assert inserted == 0
         assert updated == 0
 
-    def test_bulk_insert_performance(self, db_manager):
+    def test_bulk_insert_performance(self, db_manager) -> None:
         """Test performance of bulk insert operations."""
         import time
 
@@ -251,7 +276,7 @@ class TestBatchDBOperations:
                 genres=["Action", "Drama"],
                 number_of_seasons=1,
                 number_of_episodes=12,
-                raw_data={"test_id": i}
+                raw_data={"test_id": i},
             )
             large_anime_list.append(anime)
 
@@ -271,7 +296,7 @@ class TestBatchDBOperations:
             count = session.query(AnimeMetadata).count()
             assert count == 1000
 
-    def test_bulk_insert_data_integrity(self, db_manager, sample_tmdb_anime_list):
+    def test_bulk_insert_data_integrity(self, db_manager, sample_tmdb_anime_list) -> None:
         """Test that bulk insert maintains data integrity."""
         # Insert data
         db_manager.bulk_insert_anime_metadata(sample_tmdb_anime_list)
@@ -299,14 +324,14 @@ class TestBatchDBOperations:
             assert aot.networks == '["NHK"]'
             assert aot.raw_data == '{"test": "data1"}'
 
-    def test_bulk_insert_transaction_rollback(self, db_manager, sample_tmdb_anime_list):
+    def test_bulk_insert_transaction_rollback(self, db_manager, sample_tmdb_anime_list) -> None:
         """Test that bulk insert properly handles transaction rollback on error."""
         # Create invalid data that will cause an error
         # Use a string for tmdb_id which should cause a type error
         invalid_anime = TMDBAnime(
             tmdb_id="invalid_id",  # This should cause a type error
             title="Invalid Anime",
-            overview="This should fail"
+            overview="This should fail",
         )
 
         with pytest.raises(Exception):
@@ -317,7 +342,7 @@ class TestBatchDBOperations:
             count = session.query(AnimeMetadata).count()
             assert count == 0
 
-    def test_bulk_insert_with_metadata_cache(self):
+    def test_bulk_insert_with_metadata_cache(self) -> None:
         """Test bulk insert functionality through MetadataCache."""
         from src.core.metadata_cache import MetadataCache
 
@@ -335,7 +360,7 @@ class TestBatchDBOperations:
                 vote_average=8.0,
                 genres=["Action"],
                 number_of_seasons=1,
-                number_of_episodes=12
+                number_of_episodes=12,
             ),
             TMDBAnime(
                 tmdb_id=2,
@@ -344,8 +369,8 @@ class TestBatchDBOperations:
                 vote_average=8.5,
                 genres=["Drama"],
                 number_of_seasons=2,
-                number_of_episodes=24
-            )
+                number_of_episodes=24,
+            ),
         ]
 
         # Test bulk store

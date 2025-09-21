@@ -1,19 +1,18 @@
 """Simplified end-to-end workflow tests."""
 
-import os
 import tempfile
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
-from src.core.file_scanner import FileScanner
 from src.core.file_grouper import FileGrouper
 from src.core.file_mover import FileMover
+from src.core.file_scanner import FileScanner
 from src.core.metadata_cache import MetadataCache
-from src.core.tmdb_client import TMDBClient, TMDBConfig
 from src.core.models import TMDBAnime
+from src.core.tmdb_client import TMDBClient, TMDBConfig
 
 
 class TestE2EWorkflowSimple:
@@ -33,6 +32,7 @@ class TestE2EWorkflowSimple:
 
         # Clean up
         import shutil
+
         shutil.rmtree(base_dir, ignore_errors=True)
 
     def _create_test_files(self, source_dir: Path) -> None:
@@ -50,33 +50,36 @@ class TestE2EWorkflowSimple:
             file_path = source_dir / filename
             file_path.write_text(f"Content for {filename}")
 
-    def test_complete_workflow_with_mock_api(self, temp_dirs):
+    def test_complete_workflow_with_mock_api(self, temp_dirs) -> None:
         """Test complete workflow with mocked TMDB API."""
-        source_dir, target_dir = temp_dirs
+        source_dir, _target_dir = temp_dirs
         self._create_test_files(source_dir)
 
         # Mock TMDB API
-        with patch('src.core.tmdb_client.TMDBClient') as mock_tmdb_class:
+        with patch("src.core.tmdb_client.TMDBClient") as mock_tmdb_class:
             mock_tmdb = Mock()
             mock_tmdb_class.return_value = mock_tmdb
 
             # Mock API responses
-            mock_tmdb.search_comprehensive.return_value = ([
-                Mock(
-                    id=1,
-                    title="Attack on Titan",
-                    overview="A story about humanity's fight against titans",
-                    release_date="2013-04-07",
-                    vote_average=8.5,
-                    vote_count=1000,
-                    popularity=50.0,
-                    poster_path="/poster.jpg",
-                    backdrop_path="/backdrop.jpg",
-                    genre_ids=[16, 28],
-                    original_language="ja",
-                    original_title="進撃の巨人"
-                )
-            ], True)
+            mock_tmdb.search_comprehensive.return_value = (
+                [
+                    Mock(
+                        id=1,
+                        title="Attack on Titan",
+                        overview="A story about humanity's fight against titans",
+                        release_date="2013-04-07",
+                        vote_average=8.5,
+                        vote_count=1000,
+                        popularity=50.0,
+                        poster_path="/poster.jpg",
+                        backdrop_path="/backdrop.jpg",
+                        genre_ids=[16, 28],
+                        original_language="ja",
+                        original_title="進撃の巨人",
+                    )
+                ],
+                True,
+            )
 
             # Test individual components
             scanner = FileScanner(max_workers=2)
@@ -99,7 +102,7 @@ class TestE2EWorkflowSimple:
             assert success is True
             assert len(results) > 0
 
-    def test_complete_workflow_with_real_components(self, temp_dirs):
+    def test_complete_workflow_with_real_components(self, temp_dirs) -> None:
         """Test complete workflow with real components (no API calls)."""
         source_dir, target_dir = temp_dirs
         self._create_test_files(source_dir)
@@ -134,9 +137,9 @@ class TestE2EWorkflowSimple:
         success_count = sum(1 for result in move_results if result.success)
         assert success_count >= len(move_results) * 0.8  # At least 80% success rate
 
-    def test_workflow_with_metadata_caching(self, temp_dirs):
+    def test_workflow_with_metadata_caching(self, temp_dirs) -> None:
         """Test workflow with metadata caching."""
-        source_dir, target_dir = temp_dirs
+        source_dir, _target_dir = temp_dirs
         self._create_test_files(source_dir)
 
         # Initialize metadata cache
@@ -155,7 +158,7 @@ class TestE2EWorkflowSimple:
             poster_path="/poster.jpg",
             backdrop_path="/backdrop.jpg",
             genres=["Animation", "Action"],
-            original_title="テストアニメ"
+            original_title="テストアニメ",
         )
 
         # Test cache put
@@ -171,9 +174,9 @@ class TestE2EWorkflowSimple:
         deleted_data = cache.get(test_key)
         assert deleted_data is None
 
-    def test_workflow_data_integrity(self, temp_dirs):
+    def test_workflow_data_integrity(self, temp_dirs) -> None:
         """Test workflow data integrity throughout the process."""
-        source_dir, target_dir = temp_dirs
+        source_dir, _target_dir = temp_dirs
         self._create_test_files(source_dir)
 
         # Test data integrity
@@ -199,7 +202,10 @@ class TestE2EWorkflowSimple:
 
         # Verify grouping data integrity
         assert grouping_result.total_files == len(scan_result.files)
-        assert grouping_result.grouped_files + len(grouping_result.ungrouped_files) == grouping_result.total_files
+        assert (
+            grouping_result.grouped_files + len(grouping_result.ungrouped_files)
+            == grouping_result.total_files
+        )
 
         # Verify each group has valid files
         for group in grouping_result.groups:
@@ -208,9 +214,9 @@ class TestE2EWorkflowSimple:
                 assert file.file_path.exists()
                 assert file.file_size > 0
 
-    def test_workflow_with_empty_directories(self, temp_dirs):
+    def test_workflow_with_empty_directories(self, temp_dirs) -> None:
         """Test workflow with empty directories."""
-        source_dir, target_dir = temp_dirs
+        source_dir, _target_dir = temp_dirs
 
         # Create empty directory
         empty_dir = source_dir / "empty"
@@ -226,13 +232,13 @@ class TestE2EWorkflowSimple:
         assert len(scan_result.files) == 0
         assert len(scan_result.errors) == 0
 
-    def test_workflow_with_network_failures(self, temp_dirs):
+    def test_workflow_with_network_failures(self, temp_dirs) -> None:
         """Test workflow with network failures (simulated)."""
-        source_dir, target_dir = temp_dirs
+        source_dir, _target_dir = temp_dirs
         self._create_test_files(source_dir)
 
         # Mock network failure
-        with patch('src.core.tmdb_client.TMDBClient') as mock_tmdb_class:
+        with patch("src.core.tmdb_client.TMDBClient") as mock_tmdb_class:
             mock_tmdb = Mock()
             mock_tmdb_class.return_value = mock_tmdb
             mock_tmdb.search_comprehensive.side_effect = Exception("Network error")
@@ -252,13 +258,13 @@ class TestE2EWorkflowSimple:
             assert success is False
             assert results is None
 
-    def test_workflow_with_disk_space_errors(self, temp_dirs):
+    def test_workflow_with_disk_space_errors(self, temp_dirs) -> None:
         """Test workflow with disk space errors."""
-        source_dir, target_dir = temp_dirs
+        source_dir, _target_dir = temp_dirs
         self._create_test_files(source_dir)
 
         # Mock disk space check
-        with patch('shutil.disk_usage') as mock_disk_usage:
+        with patch("shutil.disk_usage") as mock_disk_usage:
             mock_disk_usage.return_value = (1000000, 500000, 100000)  # Very low free space
 
             # Test workflow
@@ -269,9 +275,9 @@ class TestE2EWorkflowSimple:
             assert scan_result.supported_files > 0
             assert len(scan_result.files) > 0
 
-    def test_workflow_with_corrupted_files(self, temp_dirs):
+    def test_workflow_with_corrupted_files(self, temp_dirs) -> None:
         """Test workflow with corrupted files."""
-        source_dir, target_dir = temp_dirs
+        source_dir, _target_dir = temp_dirs
         self._create_test_files(source_dir)
 
         # Create a corrupted file

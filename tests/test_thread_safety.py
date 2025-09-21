@@ -29,13 +29,13 @@ class TestThreadSafeProperty:
         """Test basic property get/set operations."""
 
         class TestClass:
-            def __init__(self):
+            def __init__(self) -> None:
                 self._value = 0
 
             def _get_value(self):
                 return self._value
 
-            def _set_value(self, value):
+            def _set_value(self, value) -> None:
                 self._value = value
 
             value = ThreadSafeProperty(_get_value, _set_value)
@@ -50,7 +50,7 @@ class TestThreadSafeProperty:
         """Test read-only property behavior."""
 
         class TestClass:
-            def __init__(self):
+            def __init__(self) -> None:
                 self._value = 42
 
             def _get_value(self):
@@ -185,7 +185,7 @@ class TestThreadSafeDecorators:
         """Test thread_safe_method decorator."""
 
         class TestClass:
-            def __init__(self):
+            def __init__(self) -> None:
                 self._value = 0
                 self._mutex = QMutex()
 
@@ -202,7 +202,7 @@ class TestThreadSafeDecorators:
         """Test python_thread_safe_method decorator."""
 
         class TestClass:
-            def __init__(self):
+            def __init__(self) -> None:
                 self._value = 0
                 self._python_lock = threading.Lock()
 
@@ -223,7 +223,7 @@ class TestThreadSafetyValidator:
         """Test mutex usage validation."""
 
         class TestClass:
-            def __init__(self):
+            def __init__(self) -> None:
                 self._mutex = QMutex()
 
         obj = TestClass()
@@ -236,7 +236,7 @@ class TestThreadSafetyValidator:
         """Test lock usage validation."""
 
         class TestClass:
-            def __init__(self):
+            def __init__(self) -> None:
                 self._python_lock = threading.Lock()
 
         obj = TestClass()
@@ -254,7 +254,7 @@ class TestConcurrentAccess:
         counter = ThreadSafeCounter(0)
         results = []
 
-        def increment_worker():
+        def increment_worker() -> None:
             for _ in range(100):
                 counter.increment()
                 results.append(counter.get_value())
@@ -279,7 +279,7 @@ class TestConcurrentAccess:
         safe_list = ThreadSafeList()
         results = []
 
-        def list_worker(worker_id):
+        def list_worker(worker_id) -> None:
             for i in range(10):
                 safe_list.append(f"worker_{worker_id}_item_{i}")
                 results.append(len(safe_list))
@@ -307,10 +307,10 @@ class TestBaseViewModelThreadSafety:
         """Test that ViewModel properties are thread-safe."""
 
         class TestViewModel(BaseViewModel):
-            def _setup_commands(self):
+            def _setup_commands(self) -> None:
                 pass
 
-            def _setup_properties(self):
+            def _setup_properties(self) -> None:
                 self.set_property("test_value", 0)
 
         viewmodel = TestViewModel()
@@ -319,7 +319,7 @@ class TestBaseViewModelThreadSafety:
         # Test property access from multiple threads
         results = []
 
-        def property_worker():
+        def property_worker() -> None:
             for i in range(10):
                 viewmodel.set_property("test_value", i)
                 results.append(viewmodel.get_property("test_value"))
@@ -340,10 +340,10 @@ class TestBaseViewModelThreadSafety:
         """Test that ViewModel commands are thread-safe."""
 
         class TestViewModel(BaseViewModel):
-            def _setup_commands(self):
+            def _setup_commands(self) -> None:
                 self.add_command("test_command", self._test_command)
 
-            def _setup_properties(self):
+            def _setup_properties(self) -> None:
                 self.set_property("command_count", 0)
 
             def _test_command(self):
@@ -357,7 +357,7 @@ class TestBaseViewModelThreadSafety:
         # Test command execution from multiple threads
         results = []
 
-        def command_worker():
+        def command_worker() -> None:
             for _ in range(5):
                 try:
                     result = viewmodel.execute_command("test_command")
@@ -395,19 +395,19 @@ class TestFilePipelineWorkerThreadSafety:
         worker = FilePipelineWorker()
 
         class TestTask(WorkerTask):
-            def __init__(self, task_id):
+            def __init__(self, task_id) -> None:
                 self.task_id = task_id
 
-            def execute(self):
+            def execute(self) -> str:
                 return f"Task {self.task_id}"
 
-            def get_name(self):
+            def get_name(self) -> str:
                 return f"TestTask_{self.task_id}"
 
         # Add tasks from multiple threads
         results = []
 
-        def add_tasks_worker(worker_id):
+        def add_tasks_worker(worker_id) -> None:
             for i in range(5):
                 task = TestTask(f"{worker_id}_{i}")
                 worker.add_task(task)

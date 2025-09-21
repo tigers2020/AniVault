@@ -27,11 +27,16 @@ class ImageLoaderThread(QThread):
     image_loaded = pyqtSignal(QPixmap)
     load_failed = pyqtSignal(str)
 
-    def __init__(self, image_url: str):
+    def __init__(self, image_url: str) -> None:
+        """Initialize the image loader thread.
+
+        Args:
+            image_url (str): URL of the image to load.
+        """
         super().__init__()
         self.image_url = image_url
 
-    def run(self):
+    def run(self) -> None:
         """Load image from URL in background thread."""
         try:
             logger.info(f"Loading image from: {self.image_url}")
@@ -193,7 +198,7 @@ class AnimeDetailsPanel(QGroupBox):
         # This would be implemented to update the info fields dynamically
         pass
 
-    def display_group_details(self, group) -> None:
+    def display_group_details(self, group: Any) -> None:
         """Display anime details for a selected group.
 
         Args:
@@ -221,7 +226,7 @@ class AnimeDetailsPanel(QGroupBox):
         # TODO: Load actual poster image from TMDB if available
         # This would require implementing image loading from URLs
 
-    def _update_tmdb_fields(self, tmdb_info) -> None:
+    def _update_tmdb_fields(self, tmdb_info: Any) -> None:
         """Update TMDB information fields.
 
         Args:

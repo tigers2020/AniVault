@@ -18,7 +18,7 @@ class QualityScoreConfig:
 class OptimizedQualityCalculator:
     """Optimized quality score calculator with performance improvements."""
 
-    def __init__(self, config: QualityScoreConfig):
+    def __init__(self, config: QualityScoreConfig) -> None:
         """Initialize the calculator with configuration."""
         self.config = config
 
@@ -231,7 +231,7 @@ class LegacyQualityCalculator:
 
     def __init__(
         self, similarity_weight: float = 0.6, year_weight: float = 0.2, language_weight: float = 0.2
-    ):
+    ) -> None:
         """Initialize the legacy calculator."""
         self.similarity_weight = similarity_weight
         self.year_weight = year_weight

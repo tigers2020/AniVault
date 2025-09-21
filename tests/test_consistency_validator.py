@@ -1,14 +1,15 @@
 """Unit tests for consistency validator and conflict detection logic."""
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
+import pytest
+
 from src.core.consistency_validator import (
+    ConflictSeverity,
+    ConflictType,
     ConsistencyValidator,
     DataConflict,
-    ConflictType,
-    ConflictSeverity
 )
 from src.core.database import AnimeMetadata, ParsedFile
 from src.core.metadata_cache import MetadataCache
@@ -29,7 +30,7 @@ class TestConsistencyValidator:
         """Create a consistency validator with mock cache."""
         return ConsistencyValidator(metadata_cache=mock_metadata_cache)
 
-    def test_data_conflict_creation(self):
+    def test_data_conflict_creation(self) -> None:
         """Test DataConflict object creation."""
         conflict = DataConflict(
             conflict_type=ConflictType.VERSION_MISMATCH,
@@ -38,7 +39,7 @@ class TestConsistencyValidator:
             cache_data={"version": 1},
             db_data={"version": 2},
             severity=ConflictSeverity.HIGH,
-            details="Version mismatch detected"
+            details="Version mismatch detected",
         )
 
         assert conflict.conflict_type == ConflictType.VERSION_MISMATCH
@@ -50,7 +51,7 @@ class TestConsistencyValidator:
         assert conflict.details == "Version mismatch detected"
         assert isinstance(conflict.detected_at, datetime)
 
-    def test_anime_metadata_missing_in_cache(self, validator, mock_metadata_cache):
+    def test_anime_metadata_missing_in_cache(self, validator, mock_metadata_cache) -> None:
         """Test detection of anime metadata missing in cache."""
         # Mock database session and query
         mock_session = Mock()
@@ -68,7 +69,7 @@ class TestConsistencyValidator:
         # Mock cache to return None (missing data)
         mock_metadata_cache.get.return_value = None
 
-        with patch.object(validator.db_manager, 'transaction') as mock_transaction:
+        with patch.object(validator.db_manager, "transaction") as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
 
@@ -81,7 +82,7 @@ class TestConsistencyValidator:
         assert conflict.entity_id == 12345
         assert conflict.severity == ConflictSeverity.MEDIUM
 
-    def test_anime_metadata_version_mismatch(self, validator, mock_metadata_cache):
+    def test_anime_metadata_version_mismatch(self, validator, mock_metadata_cache) -> None:
         """Test detection of version mismatch in anime metadata."""
         # Mock database session and query
         mock_session = Mock()
@@ -104,25 +105,27 @@ class TestConsistencyValidator:
             "overview": "Test overview",
             "status": "Released",
             "vote_average": 8.5,
-            "updated_at": same_time.isoformat()
+            "updated_at": same_time.isoformat(),
         }
         mock_metadata_cache.get.return_value = cache_data
 
-        with patch.object(validator.db_manager, 'transaction') as mock_transaction:
+        with patch.object(validator.db_manager, "transaction") as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
 
             conflicts = validator.validate_anime_metadata_consistency()
 
         # Should have version mismatch conflict
-        version_conflicts = [c for c in conflicts if c.conflict_type == ConflictType.VERSION_MISMATCH]
+        version_conflicts = [
+            c for c in conflicts if c.conflict_type == ConflictType.VERSION_MISMATCH
+        ]
         assert len(version_conflicts) == 1
         conflict = version_conflicts[0]
         assert conflict.entity_type == "anime_metadata"
         assert conflict.entity_id == 12345
         assert conflict.severity == ConflictSeverity.HIGH  # Version difference > 1
 
-    def test_anime_metadata_data_mismatch(self, validator, mock_metadata_cache):
+    def test_anime_metadata_data_mismatch(self, validator, mock_metadata_cache) -> None:
         """Test detection of data mismatch in anime metadata."""
         # Mock database session and query
         mock_session = Mock()
@@ -145,11 +148,11 @@ class TestConsistencyValidator:
             "overview": "Test overview",
             "status": "Released",
             "vote_average": 8.5,
-            "updated_at": same_time.isoformat()
+            "updated_at": same_time.isoformat(),
         }
         mock_metadata_cache.get.return_value = cache_data
 
-        with patch.object(validator.db_manager, 'transaction') as mock_transaction:
+        with patch.object(validator.db_manager, "transaction") as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
 
@@ -163,7 +166,7 @@ class TestConsistencyValidator:
         assert conflict.entity_id == 12345
         assert conflict.severity == ConflictSeverity.MEDIUM
 
-    def test_parsed_file_missing_in_cache(self, validator, mock_metadata_cache):
+    def test_parsed_file_missing_in_cache(self, validator, mock_metadata_cache) -> None:
         """Test detection of parsed file missing in cache."""
         # Mock database session and query
         mock_session = Mock()
@@ -181,7 +184,7 @@ class TestConsistencyValidator:
         # Mock cache to return None (missing data)
         mock_metadata_cache.get.return_value = None
 
-        with patch.object(validator.db_manager, 'transaction') as mock_transaction:
+        with patch.object(validator.db_manager, "transaction") as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
 
@@ -194,7 +197,7 @@ class TestConsistencyValidator:
         assert conflict.entity_id == 1
         assert conflict.severity == ConflictSeverity.MEDIUM
 
-    def test_parsed_file_version_mismatch(self, validator, mock_metadata_cache):
+    def test_parsed_file_version_mismatch(self, validator, mock_metadata_cache) -> None:
         """Test detection of version mismatch in parsed file."""
         # Mock database session and query
         mock_session = Mock()
@@ -217,28 +220,30 @@ class TestConsistencyValidator:
             "season": 1,
             "episode": 1,
             "file_path": "/test/path/test.mkv",
-            "db_updated_at": same_time.isoformat()
+            "db_updated_at": same_time.isoformat(),
         }
         mock_metadata_cache.get.return_value = cache_data
 
-        with patch.object(validator.db_manager, 'transaction') as mock_transaction:
+        with patch.object(validator.db_manager, "transaction") as mock_transaction:
             mock_transaction.return_value.__enter__.return_value = mock_session
             mock_transaction.return_value.__exit__.return_value = None
 
             conflicts = validator.validate_parsed_files_consistency()
 
         # Should have version mismatch conflict
-        version_conflicts = [c for c in conflicts if c.conflict_type == ConflictType.VERSION_MISMATCH]
+        version_conflicts = [
+            c for c in conflicts if c.conflict_type == ConflictType.VERSION_MISMATCH
+        ]
         assert len(version_conflicts) == 1
         conflict = version_conflicts[0]
         assert conflict.entity_type == "parsed_file"
         assert conflict.entity_id == 1
         assert conflict.severity == ConflictSeverity.MEDIUM  # Version difference = 1
 
-    def test_validation_error_handling(self, validator, mock_metadata_cache):
+    def test_validation_error_handling(self, validator, mock_metadata_cache) -> None:
         """Test handling of validation errors."""
         # Mock database session to raise an exception
-        with patch.object(validator.db_manager, 'transaction') as mock_transaction:
+        with patch.object(validator.db_manager, "transaction") as mock_transaction:
             mock_transaction.side_effect = Exception("Database connection failed")
 
             conflicts = validator.validate_anime_metadata_consistency()
@@ -250,7 +255,7 @@ class TestConsistencyValidator:
         assert conflict.severity == ConflictSeverity.CRITICAL
         assert "Database connection failed" in conflict.details
 
-    def test_anime_metadata_to_dict(self, validator):
+    def test_anime_metadata_to_dict(self, validator) -> None:
         """Test conversion of AnimeMetadata to dictionary."""
         # Create a mock AnimeMetadata object
         mock_anime = Mock(spec=AnimeMetadata)
@@ -298,7 +303,7 @@ class TestConsistencyValidator:
         assert result["updated_at"] == "2023-06-01T00:00:00+00:00"
         assert result["version"] == 2
 
-    def test_parsed_file_to_dict(self, validator):
+    def test_parsed_file_to_dict(self, validator) -> None:
         """Test conversion of ParsedFile to dictionary."""
         # Create a mock ParsedFile object
         mock_file = Mock(spec=ParsedFile)
@@ -358,7 +363,7 @@ class TestConsistencyValidator:
         assert result["db_updated_at"] == "2023-06-01T00:00:00+00:00"
         assert result["version"] == 2
 
-    def test_extract_tmdb_id_from_cache_key(self, validator):
+    def test_extract_tmdb_id_from_cache_key(self, validator) -> None:
         """Test extraction of TMDB ID from cache key."""
         assert validator._extract_tmdb_id_from_cache_key("anime_metadata:12345") == 12345
         assert validator._extract_tmdb_id_from_cache_key("anime_metadata:999") == 999
@@ -366,7 +371,7 @@ class TestConsistencyValidator:
         assert validator._extract_tmdb_id_from_cache_key("invalid_key") is None
         assert validator._extract_tmdb_id_from_cache_key("anime_metadata:invalid") is None
 
-    def test_extract_file_id_from_cache_key(self, validator):
+    def test_extract_file_id_from_cache_key(self, validator) -> None:
         """Test extraction of file ID from cache key."""
         assert validator._extract_file_id_from_cache_key("parsed_file:123") == 123
         assert validator._extract_file_id_from_cache_key("parsed_file:999") == 999

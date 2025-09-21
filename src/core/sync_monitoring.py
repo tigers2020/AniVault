@@ -6,6 +6,7 @@ capabilities for all cache-DB synchronization operations in the AniVault system.
 
 import threading
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,8 +36,8 @@ class SyncOperationMetrics:
         status: SyncOperationStatus,
         affected_records: int = 0,
         error_message: str | None = None,
-        **context,
-    ):
+        **context: Any,
+    ) -> None:
         """Mark the operation as complete with results."""
         self.status = status
         self.end_time = datetime.now()
@@ -83,7 +84,7 @@ class SyncMonitor:
     visibility for all synchronization activities.
     """
 
-    def __init__(self, enable_detailed_logging: bool = True):
+    def __init__(self, enable_detailed_logging: bool = True) -> None:
         """Initialize the synchronization monitor.
 
         Args:
@@ -106,8 +107,8 @@ class SyncMonitor:
 
     @contextmanager
     def monitor_operation(
-        self, operation_type: SyncOperationType, cache_hit: bool = False, **context
-    ):
+        self, operation_type: SyncOperationType, cache_hit: bool = False, **context: Any
+    ) -> Generator[SyncOperationMetrics, None, None]:
         """Context manager for monitoring synchronization operations.
 
         Args:
@@ -277,7 +278,7 @@ class SyncMonitor:
             pass  # Metrics exporter not available
 
     def log_bulk_operation_start(
-        self, operation_type: SyncOperationType, record_count: int, **context
+        self, operation_type: SyncOperationType, record_count: int, **context: Any
     ) -> None:
         """Log the start of a bulk operation."""
         self.logger.info(
@@ -291,7 +292,7 @@ class SyncMonitor:
         record_count: int,
         duration_ms: float,
         success_count: int,
-        **context,
+        **context: Any,
     ) -> None:
         """Log completion of a bulk operation."""
         self.logger.info(

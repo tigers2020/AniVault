@@ -1,18 +1,17 @@
 """End-to-end tests for the complete resilience system."""
 
-import pytest
-import time
 import threading
-from unittest.mock import Mock, patch
+import time
+
+import pytest
 
 from src.core.database import DatabaseManager
 from src.core.metadata_cache import MetadataCache
-from src.core.database_health import HealthStatus
 from src.core.resilience_integration import (
+    force_recovery_check,
+    get_resilience_status,
     setup_resilience_system,
     shutdown_resilience_system,
-    get_resilience_status,
-    force_recovery_check,
 )
 
 
@@ -30,14 +29,11 @@ class TestResilienceSystemE2E:
     def real_metadata_cache(self, real_db_manager):
         """Create a real metadata cache."""
         cache = MetadataCache(
-            max_size=100,
-            max_memory_mb=10,
-            db_manager=real_db_manager,
-            enable_db=True
+            max_size=100, max_memory_mb=10, db_manager=real_db_manager, enable_db=True
         )
         return cache
 
-    def test_complete_resilience_workflow(self, real_db_manager, real_metadata_cache):
+    def test_complete_resilience_workflow(self, real_db_manager, real_metadata_cache) -> None:
         """Test complete resilience workflow from setup to shutdown."""
         # Setup resilience system
         setup_resilience_system(
@@ -48,18 +44,18 @@ class TestResilienceSystemE2E:
             health_failure_threshold=2,
             health_recovery_threshold=1,
             auto_recovery_enabled=True,
-            recovery_check_interval=1.0
+            recovery_check_interval=1.0,
         )
 
         try:
             # Initial system should be healthy
             status = get_resilience_status()
             assert "error" not in status
-            assert status['is_operational'] is True
-            assert status['cache_only_mode'] is False
+            assert status["is_operational"] is True
+            assert status["cache_only_mode"] is False
 
             # Test normal operations
-            from src.core.models import TMDBAnime, ParsedAnimeInfo
+            from src.core.models import ParsedAnimeInfo, TMDBAnime
 
             # Create test data
             test_anime = TMDBAnime(
@@ -79,17 +75,17 @@ class TestResilienceSystemE2E:
                 number_of_episodes=12,
                 genres=[],
                 networks=[],
-                raw_data={}
+                raw_data={},
             )
 
-            test_parsed_info = ParsedAnimeInfo(
+            ParsedAnimeInfo(
                 title="Test Anime",
                 season=1,
                 episode=1,
                 quality="1080p",
                 format="mkv",
                 group="TestGroup",
-                year=2023
+                year=2023,
             )
 
             # Test database operations with circuit breaker protection
@@ -117,7 +113,7 @@ class TestResilienceSystemE2E:
             # Shutdown system
             shutdown_resilience_system()
 
-    def test_database_failure_recovery_scenario(self, real_db_manager, real_metadata_cache):
+    def test_database_failure_recovery_scenario(self, real_db_manager, real_metadata_cache) -> None:
         """Test database failure and recovery scenario."""
         # Setup resilience system
         setup_resilience_system(
@@ -128,13 +124,13 @@ class TestResilienceSystemE2E:
             health_failure_threshold=1,  # Very sensitive
             health_recovery_threshold=1,
             auto_recovery_enabled=True,
-            recovery_check_interval=0.5
+            recovery_check_interval=0.5,
         )
 
         try:
             # Initially system should be healthy
             status = get_resilience_status()
-            assert status['is_operational'] is True
+            assert status["is_operational"] is True
 
             # Simulate database failure by closing the connection
             real_db_manager.engine.dispose()
@@ -159,13 +155,13 @@ class TestResilienceSystemE2E:
         finally:
             shutdown_resilience_system()
 
-    def test_cache_only_mode_operations(self, real_db_manager, real_metadata_cache):
+    def test_cache_only_mode_operations(self, real_db_manager, real_metadata_cache) -> None:
         """Test operations in cache-only mode."""
         # Setup resilience system
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            auto_recovery_enabled=False  # Disable for testing
+            auto_recovery_enabled=False,  # Disable for testing
         )
 
         try:
@@ -189,7 +185,7 @@ class TestResilienceSystemE2E:
                 number_of_episodes=24,
                 genres=[],
                 networks=[],
-                raw_data={}
+                raw_data={},
             )
 
             # Enable cache-only mode manually
@@ -197,8 +193,8 @@ class TestResilienceSystemE2E:
 
             # Verify cache-only mode is active
             status = get_resilience_status()
-            assert status['cache_only_mode'] is True
-            assert status['cache_only_reason'] == "E2E test"
+            assert status["cache_only_mode"] is True
+            assert status["cache_only_reason"] == "E2E test"
 
             # Test cache operations in cache-only mode
             cache_key = "cache_test:67890"
@@ -213,18 +209,18 @@ class TestResilienceSystemE2E:
 
             # Verify cache-only mode is disabled
             status = get_resilience_status()
-            assert status['cache_only_mode'] is False
+            assert status["cache_only_mode"] is False
 
         finally:
             shutdown_resilience_system()
 
-    def test_circuit_breaker_integration(self, real_db_manager, real_metadata_cache):
+    def test_circuit_breaker_integration(self, real_db_manager, real_metadata_cache) -> None:
         """Test circuit breaker integration with database operations."""
         # Setup resilience system
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            auto_recovery_enabled=False
+            auto_recovery_enabled=False,
         )
 
         try:
@@ -248,7 +244,7 @@ class TestResilienceSystemE2E:
                 number_of_episodes=36,
                 genres=[],
                 networks=[],
-                raw_data={}
+                raw_data={},
             )
 
             # Normal operation should work
@@ -267,13 +263,13 @@ class TestResilienceSystemE2E:
         finally:
             shutdown_resilience_system()
 
-    def test_concurrent_resilience_operations(self, real_db_manager, real_metadata_cache):
+    def test_concurrent_resilience_operations(self, real_db_manager, real_metadata_cache) -> None:
         """Test concurrent operations with resilience system."""
         # Setup resilience system
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            auto_recovery_enabled=False
+            auto_recovery_enabled=False,
         )
 
         try:
@@ -282,7 +278,7 @@ class TestResilienceSystemE2E:
             results = []
             exceptions = []
 
-            def worker_function(worker_id):
+            def worker_function(worker_id) -> None:
                 """Worker function for concurrent testing."""
                 try:
                     # Create test anime for this worker
@@ -303,7 +299,7 @@ class TestResilienceSystemE2E:
                         number_of_episodes=12,
                         genres=[],
                         networks=[],
-                        raw_data={}
+                        raw_data={},
                     )
 
                     # Perform operations
@@ -345,7 +341,7 @@ class TestResilienceSystemE2E:
         finally:
             shutdown_resilience_system()
 
-    def test_resilience_system_monitoring(self, real_db_manager, real_metadata_cache):
+    def test_resilience_system_monitoring(self, real_db_manager, real_metadata_cache) -> None:
         """Test resilience system monitoring capabilities."""
         # Setup resilience system
         setup_resilience_system(
@@ -353,7 +349,7 @@ class TestResilienceSystemE2E:
             metadata_cache=real_metadata_cache,
             health_check_interval=1.0,
             auto_recovery_enabled=True,
-            recovery_check_interval=2.0
+            recovery_check_interval=2.0,
         )
 
         try:
@@ -365,42 +361,36 @@ class TestResilienceSystemE2E:
 
             # Verify status contains all expected fields
             expected_fields = [
-                'is_operational',
-                'cache_only_mode',
-                'cache_only_reason',
-                'health_status',
-                'health_statistics',
-                'cache_statistics',
-                'total_failures',
-                'total_recoveries',
-                'auto_recovery_enabled'
+                "is_operational",
+                "cache_only_mode",
+                "cache_only_reason",
+                "health_status",
+                "health_statistics",
+                "cache_statistics",
+                "total_failures",
+                "total_recoveries",
+                "auto_recovery_enabled",
             ]
 
             for field in expected_fields:
                 assert field in status
 
             # Verify system is operational
-            assert status['is_operational'] is True
-            assert status['cache_only_mode'] is False
-            assert status['auto_recovery_enabled'] is True
+            assert status["is_operational"] is True
+            assert status["cache_only_mode"] is False
+            assert status["auto_recovery_enabled"] is True
 
         finally:
             shutdown_resilience_system()
 
-    def test_resilience_system_error_handling(self, real_db_manager, real_metadata_cache):
+    def test_resilience_system_error_handling(self, real_db_manager, real_metadata_cache) -> None:
         """Test resilience system error handling."""
         # Test with invalid parameters
         with pytest.raises(Exception):
-            setup_resilience_system(
-                db_manager=None,
-                metadata_cache=real_metadata_cache
-            )
+            setup_resilience_system(db_manager=None, metadata_cache=real_metadata_cache)
 
         with pytest.raises(Exception):
-            setup_resilience_system(
-                db_manager=real_db_manager,
-                metadata_cache=None
-            )
+            setup_resilience_system(db_manager=real_db_manager, metadata_cache=None)
 
         # Test shutdown without setup
         shutdown_resilience_system()  # Should not raise exception
@@ -428,21 +418,15 @@ class TestResilienceSystemPerformance:
     def real_metadata_cache(self, real_db_manager):
         """Create a real metadata cache."""
         cache = MetadataCache(
-            max_size=100,
-            max_memory_mb=10,
-            db_manager=real_db_manager,
-            enable_db=True
+            max_size=100, max_memory_mb=10, db_manager=real_db_manager, enable_db=True
         )
         return cache
 
-    def test_resilience_system_startup_time(self, real_db_manager, real_metadata_cache):
+    def test_resilience_system_startup_time(self, real_db_manager, real_metadata_cache) -> None:
         """Test resilience system startup time."""
         start_time = time.time()
 
-        setup_resilience_system(
-            db_manager=real_db_manager,
-            metadata_cache=real_metadata_cache
-        )
+        setup_resilience_system(db_manager=real_db_manager, metadata_cache=real_metadata_cache)
 
         end_time = time.time()
         startup_time = end_time - start_time
@@ -455,7 +439,7 @@ class TestResilienceSystemPerformance:
         except:
             pass
 
-    def test_resilience_system_memory_usage(self, real_db_manager, real_metadata_cache):
+    def test_resilience_system_memory_usage(self, real_db_manager, real_metadata_cache) -> None:
         """Test resilience system memory usage."""
         import sys
 
@@ -463,10 +447,7 @@ class TestResilienceSystemPerformance:
         initial_size = sys.getsizeof(real_db_manager) + sys.getsizeof(real_metadata_cache)
 
         # Setup resilience system
-        setup_resilience_system(
-            db_manager=real_db_manager,
-            metadata_cache=real_metadata_cache
-        )
+        setup_resilience_system(db_manager=real_db_manager, metadata_cache=real_metadata_cache)
 
         try:
             # Get memory usage after setup
@@ -479,7 +460,7 @@ class TestResilienceSystemPerformance:
         finally:
             shutdown_resilience_system()
 
-    def test_resilience_system_overhead(self, real_db_manager, real_metadata_cache):
+    def test_resilience_system_overhead(self, real_db_manager, real_metadata_cache) -> None:
         """Test resilience system operational overhead."""
         from src.core.models import TMDBAnime
 
@@ -501,26 +482,23 @@ class TestResilienceSystemPerformance:
             number_of_episodes=12,
             genres=[],
             networks=[],
-            raw_data={}
+            raw_data={},
         )
 
         # Setup resilience system
-        setup_resilience_system(
-            db_manager=real_db_manager,
-            metadata_cache=real_metadata_cache
-        )
+        setup_resilience_system(db_manager=real_db_manager, metadata_cache=real_metadata_cache)
 
         try:
             # Measure operation time with resilience system
             start_time = time.time()
 
             for _ in range(100):
-                metadata = real_db_manager.create_anime_metadata(test_anime)
-                retrieved = real_db_manager.get_anime_metadata(99999)
+                real_db_manager.create_anime_metadata(test_anime)
+                real_db_manager.get_anime_metadata(99999)
 
                 cache_key = f"perf_test:{_}"
                 real_metadata_cache.get_cache().put(cache_key, test_anime)
-                cached = real_metadata_cache.get_cache().get(cache_key)
+                real_metadata_cache.get_cache().get(cache_key)
 
             end_time = time.time()
             operation_time = end_time - start_time

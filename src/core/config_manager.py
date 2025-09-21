@@ -9,9 +9,12 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 logger = logging.getLogger(__name__)
+
+# Type alias for configuration values
+ConfigValue = Union[str, int, float, bool, list, dict, None]
 
 
 class ConfigManager:
@@ -21,7 +24,7 @@ class ConfigManager:
     settings throughout the application.
     """
 
-    def __init__(self, config_path: Path | None = None):
+    def __init__(self, config_path: Path | None = None) -> None:
         """Initialize the configuration manager.
 
         Args:
@@ -90,7 +93,7 @@ class ConfigManager:
             "metadata": {"migrated_at": "", "migration_version": "1.0.0", "source_files": []},
         }
 
-    def get(self, key_path: str, default: Any = None) -> Any:
+    def get(self, key_path: str, default: ConfigValue | None = None) -> ConfigValue:
         """Get a configuration value using dot notation.
 
         Args:
@@ -110,7 +113,7 @@ class ConfigManager:
         except (KeyError, TypeError):
             return default
 
-    def set(self, key_path: str, value: Any) -> None:
+    def set(self, key_path: str, value: ConfigValue) -> None:
         """Set a configuration value using dot notation.
 
         Args:

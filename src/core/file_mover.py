@@ -53,6 +53,7 @@ class MoveTransaction:
     rollback_operations: list[dict[str, Any]] | None = None
 
     def __post_init__(self) -> None:
+        """Initialize default values after dataclass creation."""
         if self.rollback_operations is None:
             self.rollback_operations = []
 

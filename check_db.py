@@ -4,7 +4,7 @@
 import sqlite3
 
 
-def check_tables():
+def check_tables() -> None:
     """Check existing tables in the database."""
     try:
         conn = sqlite3.connect("anivault.db")

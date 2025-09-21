@@ -1,31 +1,36 @@
-"""
-Tests for the synchronization scheduler.
+"""Tests for the synchronization scheduler.
 
 This module contains comprehensive tests for the sync scheduler functionality,
 including job execution, scheduling, and integration features.
 """
 
-import pytest
 import time
-import threading
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
+from unittest.mock import Mock
 
-from src.core.sync_scheduler import (
-    SyncScheduler, SyncJob, SyncJobConfig, SyncJobType, SyncTrigger, SyncEntityType,
-    SyncJobResult, get_global_sync_scheduler
-)
-from src.core.sync_config import SyncConfigManager, create_quick_sync_setup
-from src.core.sync_integration import SyncIntegrationManager, initialize_sync_system
-from src.core.metadata_cache import MetadataCache
+import pytest
+
 from src.core.incremental_sync import IncrementalSyncManager, IncrementalSyncResult
+from src.core.metadata_cache import MetadataCache
+from src.core.sync_config import SyncConfigManager, SyncSchedulerConfig, create_quick_sync_setup
+from src.core.sync_integration import SyncIntegrationManager, initialize_sync_system
 from src.core.sync_monitoring import SyncOperationStatus
+from src.core.sync_scheduler import (
+    SyncEntityType,
+    SyncJob,
+    SyncJobConfig,
+    SyncJobResult,
+    SyncJobType,
+    SyncScheduler,
+    SyncTrigger,
+    get_global_sync_scheduler,
+)
 
 
 class TestSyncJobConfig:
     """Test SyncJobConfig functionality."""
 
-    def test_config_creation(self):
+    def test_config_creation(self) -> None:
         """Test creating a sync job configuration."""
         config = SyncJobConfig(
             job_id="test_job",
@@ -34,7 +39,7 @@ class TestSyncJobConfig:
             enabled=True,
             trigger_types=[SyncTrigger.SCHEDULED],
             entity_types=[SyncEntityType.TMDB_METADATA],
-            priority=1
+            priority=1,
         )
 
         assert config.job_id == "test_job"
@@ -45,12 +50,10 @@ class TestSyncJobConfig:
         assert SyncEntityType.TMDB_METADATA in config.entity_types
         assert config.priority == 1
 
-    def test_config_defaults(self):
+    def test_config_defaults(self) -> None:
         """Test configuration defaults."""
         config = SyncJobConfig(
-            job_id="test_job",
-            job_type=SyncJobType.CONSISTENCY_VALIDATION,
-            interval_seconds=300
+            job_id="test_job", job_type=SyncJobType.CONSISTENCY_VALIDATION, interval_seconds=300
         )
 
         assert config.enabled is True
@@ -79,7 +82,7 @@ class TestSyncJob:
             records_updated=5,
             records_inserted=2,
             sync_duration_ms=100.0,
-            status=SyncOperationStatus.SUCCESS
+            status=SyncOperationStatus.SUCCESS,
         )
         return manager
 
@@ -91,7 +94,7 @@ class TestSyncJob:
             "status": "success",
             "conflicts_found": 0,
             "conflicts_resolved": 0,
-            "duration_seconds": 1.0
+            "duration_seconds": 1.0,
         }
         return job
 
@@ -102,20 +105,17 @@ class TestSyncJob:
             job_id="test_job",
             job_type=SyncJobType.INCREMENTAL_SYNC,
             interval_seconds=60,
-            entity_types=[SyncEntityType.TMDB_METADATA]
+            entity_types=[SyncEntityType.TMDB_METADATA],
         )
 
     def test_job_creation(
-        self,
-        sync_job_config,
-        mock_metadata_cache,
-        mock_incremental_sync_manager
-    ):
+        self, sync_job_config, mock_metadata_cache, mock_incremental_sync_manager
+    ) -> None:
         """Test creating a sync job."""
         job = SyncJob(
             config=sync_job_config,
             metadata_cache=mock_metadata_cache,
-            incremental_sync_manager=mock_incremental_sync_manager
+            incremental_sync_manager=mock_incremental_sync_manager,
         )
 
         assert job.config == sync_job_config
@@ -126,16 +126,13 @@ class TestSyncJob:
         assert job.is_running is False
 
     def test_job_execution_incremental_sync(
-        self,
-        sync_job_config,
-        mock_metadata_cache,
-        mock_incremental_sync_manager
-    ):
+        self, sync_job_config, mock_metadata_cache, mock_incremental_sync_manager
+    ) -> None:
         """Test executing an incremental sync job."""
         job = SyncJob(
             config=sync_job_config,
             metadata_cache=mock_metadata_cache,
-            incremental_sync_manager=mock_incremental_sync_manager
+            incremental_sync_manager=mock_incremental_sync_manager,
         )
 
         result = job.execute(SyncTrigger.MANUAL)
@@ -152,21 +149,17 @@ class TestSyncJob:
         assert job.error_count == 0
 
     def test_job_execution_consistency_validation(
-        self,
-        mock_metadata_cache,
-        mock_consistency_job
-    ):
+        self, mock_metadata_cache, mock_consistency_job
+    ) -> None:
         """Test executing a consistency validation job."""
         config = SyncJobConfig(
             job_id="consistency_job",
             job_type=SyncJobType.CONSISTENCY_VALIDATION,
-            interval_seconds=300
+            interval_seconds=300,
         )
 
         job = SyncJob(
-            config=config,
-            metadata_cache=mock_metadata_cache,
-            consistency_job=mock_consistency_job
+            config=config, metadata_cache=mock_metadata_cache, consistency_job=mock_consistency_job
         )
 
         result = job.execute(SyncTrigger.MANUAL)
@@ -179,14 +172,11 @@ class TestSyncJob:
         assert result.conflicts_resolved == 0
         assert job.run_count == 1
 
-    def test_job_execution_disabled(self, sync_job_config, mock_metadata_cache):
+    def test_job_execution_disabled(self, sync_job_config, mock_metadata_cache) -> None:
         """Test executing a disabled job."""
         sync_job_config.enabled = False
 
-        job = SyncJob(
-            config=sync_job_config,
-            metadata_cache=mock_metadata_cache
-        )
+        job = SyncJob(config=sync_job_config, metadata_cache=mock_metadata_cache)
 
         result = job.execute(SyncTrigger.MANUAL)
 
@@ -195,16 +185,13 @@ class TestSyncJob:
         assert job.run_count == 1
 
     def test_job_execution_already_running(
-        self,
-        sync_job_config,
-        mock_metadata_cache,
-        mock_incremental_sync_manager
-    ):
+        self, sync_job_config, mock_metadata_cache, mock_incremental_sync_manager
+    ) -> None:
         """Test executing a job that's already running."""
         job = SyncJob(
             config=sync_job_config,
             metadata_cache=mock_metadata_cache,
-            incremental_sync_manager=mock_incremental_sync_manager
+            incremental_sync_manager=mock_incremental_sync_manager,
         )
 
         # Simulate job already running
@@ -215,12 +202,9 @@ class TestSyncJob:
         assert result.status == SyncOperationStatus.FAILED
         assert "already running" in result.error_message
 
-    def test_job_should_run(self, sync_job_config, mock_metadata_cache):
+    def test_job_should_run(self, sync_job_config, mock_metadata_cache) -> None:
         """Test job should_run logic."""
-        job = SyncJob(
-            config=sync_job_config,
-            metadata_cache=mock_metadata_cache
-        )
+        job = SyncJob(config=sync_job_config, metadata_cache=mock_metadata_cache)
 
         current_time = time.time()
 
@@ -235,12 +219,9 @@ class TestSyncJob:
         job.last_run = datetime.fromtimestamp(current_time - 70, tz=timezone.utc)
         assert job.should_run(current_time) is True
 
-    def test_job_status(self, sync_job_config, mock_metadata_cache):
+    def test_job_status(self, sync_job_config, mock_metadata_cache) -> None:
         """Test getting job status."""
-        job = SyncJob(
-            config=sync_job_config,
-            metadata_cache=mock_metadata_cache
-        )
+        job = SyncJob(config=sync_job_config, metadata_cache=mock_metadata_cache)
 
         status = job.get_status()
 
@@ -272,7 +253,7 @@ class TestSyncScheduler:
             records_updated=2,
             records_inserted=1,
             sync_duration_ms=50.0,
-            status=SyncOperationStatus.SUCCESS
+            status=SyncOperationStatus.SUCCESS,
         )
         return manager
 
@@ -281,11 +262,11 @@ class TestSyncScheduler:
         """Create a sync scheduler for testing."""
         scheduler = SyncScheduler(
             metadata_cache=mock_metadata_cache,
-            incremental_sync_manager=mock_incremental_sync_manager
+            incremental_sync_manager=mock_incremental_sync_manager,
         )
         return scheduler
 
-    def test_scheduler_creation(self, mock_metadata_cache):
+    def test_scheduler_creation(self, mock_metadata_cache) -> None:
         """Test creating a sync scheduler."""
         scheduler = SyncScheduler(metadata_cache=mock_metadata_cache)
 
@@ -294,12 +275,10 @@ class TestSyncScheduler:
         assert scheduler.running is False
         assert len(scheduler.callbacks) == 0
 
-    def test_add_job(self, sync_scheduler):
+    def test_add_job(self, sync_scheduler) -> None:
         """Test adding a job to the scheduler."""
         config = SyncJobConfig(
-            job_id="test_job",
-            job_type=SyncJobType.INCREMENTAL_SYNC,
-            interval_seconds=60
+            job_id="test_job", job_type=SyncJobType.INCREMENTAL_SYNC, interval_seconds=60
         )
 
         job = sync_scheduler.add_job(config)
@@ -308,12 +287,10 @@ class TestSyncScheduler:
         assert "test_job" in sync_scheduler.jobs
         assert sync_scheduler.jobs["test_job"] == job
 
-    def test_remove_job(self, sync_scheduler):
+    def test_remove_job(self, sync_scheduler) -> None:
         """Test removing a job from the scheduler."""
         config = SyncJobConfig(
-            job_id="test_job",
-            job_type=SyncJobType.INCREMENTAL_SYNC,
-            interval_seconds=60
+            job_id="test_job", job_type=SyncJobType.INCREMENTAL_SYNC, interval_seconds=60
         )
 
         sync_scheduler.add_job(config)
@@ -327,13 +304,13 @@ class TestSyncScheduler:
         result = sync_scheduler.remove_job("nonexistent")
         assert result is False
 
-    def test_run_job_now(self, sync_scheduler, mock_incremental_sync_manager):
+    def test_run_job_now(self, sync_scheduler, mock_incremental_sync_manager) -> None:
         """Test running a job immediately."""
         config = SyncJobConfig(
             job_id="test_job",
             job_type=SyncJobType.INCREMENTAL_SYNC,
             interval_seconds=60,
-            entity_types=[SyncEntityType.TMDB_METADATA]
+            entity_types=[SyncEntityType.TMDB_METADATA],
         )
 
         sync_scheduler.add_job(config)
@@ -350,31 +327,31 @@ class TestSyncScheduler:
             SyncEntityType.TMDB_METADATA
         )
 
-    def test_run_job_now_not_found(self, sync_scheduler):
+    def test_run_job_now_not_found(self, sync_scheduler) -> None:
         """Test running a non-existent job."""
         result = sync_scheduler.run_job_now("nonexistent", SyncTrigger.MANUAL)
         assert result is None
 
-    def test_run_all_jobs_now(self, sync_scheduler, mock_incremental_sync_manager):
+    def test_run_all_jobs_now(self, sync_scheduler, mock_incremental_sync_manager) -> None:
         """Test running all enabled jobs immediately."""
         # Add multiple jobs
         config1 = SyncJobConfig(
             job_id="job1",
             job_type=SyncJobType.INCREMENTAL_SYNC,
             interval_seconds=60,
-            entity_types=[SyncEntityType.TMDB_METADATA]
+            entity_types=[SyncEntityType.TMDB_METADATA],
         )
         config2 = SyncJobConfig(
             job_id="job2",
             job_type=SyncJobType.INCREMENTAL_SYNC,
             interval_seconds=120,
-            entity_types=[SyncEntityType.PARSED_FILES]
+            entity_types=[SyncEntityType.PARSED_FILES],
         )
         config3 = SyncJobConfig(
             job_id="job3",
             job_type=SyncJobType.INCREMENTAL_SYNC,
             interval_seconds=180,
-            enabled=False  # Disabled job
+            enabled=False,  # Disabled job
         )
 
         sync_scheduler.add_job(config1)
@@ -393,12 +370,10 @@ class TestSyncScheduler:
         assert results["job1"].status == SyncOperationStatus.SUCCESS
         assert results["job2"].status == SyncOperationStatus.SUCCESS
 
-    def test_get_job_status(self, sync_scheduler):
+    def test_get_job_status(self, sync_scheduler) -> None:
         """Test getting job status."""
         config = SyncJobConfig(
-            job_id="test_job",
-            job_type=SyncJobType.INCREMENTAL_SYNC,
-            interval_seconds=60
+            job_id="test_job", job_type=SyncJobType.INCREMENTAL_SYNC, interval_seconds=60
         )
 
         sync_scheduler.add_job(config)
@@ -412,17 +387,13 @@ class TestSyncScheduler:
         status = sync_scheduler.get_job_status("nonexistent")
         assert status is None
 
-    def test_get_all_job_status(self, sync_scheduler):
+    def test_get_all_job_status(self, sync_scheduler) -> None:
         """Test getting all job statuses."""
         config1 = SyncJobConfig(
-            job_id="job1",
-            job_type=SyncJobType.INCREMENTAL_SYNC,
-            interval_seconds=60
+            job_id="job1", job_type=SyncJobType.INCREMENTAL_SYNC, interval_seconds=60
         )
         config2 = SyncJobConfig(
-            job_id="job2",
-            job_type=SyncJobType.CONSISTENCY_VALIDATION,
-            interval_seconds=300
+            job_id="job2", job_type=SyncJobType.CONSISTENCY_VALIDATION, interval_seconds=300
         )
 
         sync_scheduler.add_job(config1)
@@ -434,9 +405,10 @@ class TestSyncScheduler:
         assert "job1" in all_status
         assert "job2" in all_status
 
-    def test_callback_management(self, sync_scheduler):
+    def test_callback_management(self, sync_scheduler) -> None:
         """Test adding and removing callbacks."""
-        def test_callback(result):
+
+        def test_callback(result) -> None:
             pass
 
         # Add callback
@@ -458,14 +430,14 @@ class TestSyncScheduler:
 class TestSyncConfigManager:
     """Test SyncConfigManager functionality."""
 
-    def test_config_manager_creation(self):
+    def test_config_manager_creation(self) -> None:
         """Test creating a config manager."""
         manager = SyncConfigManager()
 
         assert len(manager.configs) == 0
         assert isinstance(manager.scheduler_config, SyncSchedulerConfig)
 
-    def test_add_predefined_configs(self):
+    def test_add_predefined_configs(self) -> None:
         """Test adding predefined configurations."""
         manager = SyncConfigManager()
         manager.add_predefined_configs()
@@ -475,7 +447,7 @@ class TestSyncConfigManager:
         assert "incremental_sync" in manager.configs
         assert "full_sync" in manager.configs
 
-    def test_get_config(self):
+    def test_get_config(self) -> None:
         """Test getting a configuration."""
         manager = SyncConfigManager()
         manager.add_predefined_configs()
@@ -488,7 +460,7 @@ class TestSyncConfigManager:
         config = manager.get_config("nonexistent")
         assert config is None
 
-    def test_create_custom_config(self):
+    def test_create_custom_config(self) -> None:
         """Test creating a custom configuration."""
         manager = SyncConfigManager()
 
@@ -497,7 +469,7 @@ class TestSyncConfigManager:
             job_type=SyncJobType.INCREMENTAL_SYNC,
             interval_seconds=45,
             enabled=False,
-            priority=2
+            priority=2,
         )
 
         assert config.job_id == "custom_job"
@@ -507,16 +479,14 @@ class TestSyncConfigManager:
         assert config.priority == 2
         assert "custom_job" in manager.configs
 
-    def test_update_config(self):
+    def test_update_config(self) -> None:
         """Test updating a configuration."""
         manager = SyncConfigManager()
         manager.add_predefined_configs()
 
         # Update existing config
         result = manager.update_config(
-            "consistency_validation",
-            enabled=False,
-            interval_seconds=600
+            "consistency_validation", enabled=False, interval_seconds=600
         )
         assert result is True
 
@@ -528,7 +498,7 @@ class TestSyncConfigManager:
         result = manager.update_config("nonexistent", enabled=False)
         assert result is False
 
-    def test_get_enabled_configs(self):
+    def test_get_enabled_configs(self) -> None:
         """Test getting enabled configurations."""
         manager = SyncConfigManager()
         manager.add_predefined_configs()
@@ -552,7 +522,7 @@ class TestSyncIntegrationManager:
         """Create a mock metadata cache."""
         return Mock(spec=MetadataCache)
 
-    def test_integration_manager_creation(self, mock_metadata_cache):
+    def test_integration_manager_creation(self, mock_metadata_cache) -> None:
         """Test creating an integration manager."""
         manager = SyncIntegrationManager(metadata_cache=mock_metadata_cache)
 
@@ -560,21 +530,17 @@ class TestSyncIntegrationManager:
         assert manager.sync_scheduler is None
         assert manager.is_initialized is False
 
-    def test_initialize(self, mock_metadata_cache):
+    def test_initialize(self, mock_metadata_cache) -> None:
         """Test initializing the integration manager."""
         manager = SyncIntegrationManager(metadata_cache=mock_metadata_cache)
 
-        manager.initialize(
-            enable_consistency=True,
-            enable_incremental=True,
-            enable_full_sync=False
-        )
+        manager.initialize(enable_consistency=True, enable_incremental=True, enable_full_sync=False)
 
         assert manager.is_initialized is True
         assert manager.sync_scheduler is not None
         assert len(manager.sync_scheduler.jobs) >= 2  # At least consistency and incremental
 
-    def test_initialize_already_initialized(self, mock_metadata_cache):
+    def test_initialize_already_initialized(self, mock_metadata_cache) -> None:
         """Test initializing an already initialized manager."""
         manager = SyncIntegrationManager(metadata_cache=mock_metadata_cache)
         manager.initialize()
@@ -583,7 +549,7 @@ class TestSyncIntegrationManager:
         manager.initialize()
         assert manager.is_initialized is True
 
-    def test_add_custom_job(self, mock_metadata_cache):
+    def test_add_custom_job(self, mock_metadata_cache) -> None:
         """Test adding a custom job."""
         manager = SyncIntegrationManager(metadata_cache=mock_metadata_cache)
         manager.initialize()
@@ -593,13 +559,13 @@ class TestSyncIntegrationManager:
             job_type="incremental_sync",
             interval_seconds=45,
             enabled=True,
-            priority=2
+            priority=2,
         )
 
         assert result is True
         assert "custom_job" in manager.sync_scheduler.jobs
 
-    def test_job_management(self, mock_metadata_cache):
+    def test_job_management(self, mock_metadata_cache) -> None:
         """Test job management operations."""
         manager = SyncIntegrationManager(metadata_cache=mock_metadata_cache)
         manager.initialize()
@@ -620,7 +586,7 @@ class TestSyncIntegrationManager:
         assert result is True
         assert "test_job" not in manager.sync_scheduler.jobs
 
-    def test_get_scheduler_info(self, mock_metadata_cache):
+    def test_get_scheduler_info(self, mock_metadata_cache) -> None:
         """Test getting scheduler information."""
         manager = SyncIntegrationManager(metadata_cache=mock_metadata_cache)
 
@@ -639,7 +605,7 @@ class TestSyncIntegrationManager:
 class TestQuickSyncSetup:
     """Test quick sync setup functionality."""
 
-    def test_create_quick_sync_setup_default(self):
+    def test_create_quick_sync_setup_default(self) -> None:
         """Test creating quick sync setup with defaults."""
         configs = create_quick_sync_setup()
 
@@ -647,19 +613,21 @@ class TestQuickSyncSetup:
         assert any(c.job_type == SyncJobType.CONSISTENCY_VALIDATION for c in configs)
         assert any(c.job_type == SyncJobType.INCREMENTAL_SYNC for c in configs)
 
-    def test_create_quick_sync_setup_custom(self):
+    def test_create_quick_sync_setup_custom(self) -> None:
         """Test creating quick sync setup with custom settings."""
         configs = create_quick_sync_setup(
             enable_consistency=True,
             enable_incremental=True,
             enable_full_sync=True,
-            custom_intervals={"consistency": 600, "incremental": 30}
+            custom_intervals={"consistency": 600, "incremental": 30},
         )
 
         assert len(configs) == 3  # all three types
 
         # Check custom intervals
-        consistency_config = next(c for c in configs if c.job_type == SyncJobType.CONSISTENCY_VALIDATION)
+        consistency_config = next(
+            c for c in configs if c.job_type == SyncJobType.CONSISTENCY_VALIDATION
+        )
         incremental_config = next(c for c in configs if c.job_type == SyncJobType.INCREMENTAL_SYNC)
 
         assert consistency_config.interval_seconds == 600
@@ -669,7 +637,7 @@ class TestQuickSyncSetup:
 class TestGlobalFunctions:
     """Test global functions."""
 
-    def test_get_global_sync_scheduler(self):
+    def test_get_global_sync_scheduler(self) -> None:
         """Test getting global sync scheduler."""
         scheduler1 = get_global_sync_scheduler()
         scheduler2 = get_global_sync_scheduler()
@@ -677,12 +645,12 @@ class TestGlobalFunctions:
         # Should return the same instance
         assert scheduler1 is scheduler2
 
-    def test_initialize_sync_system(self):
+    def test_initialize_sync_system(self) -> None:
         """Test initializing sync system."""
         manager = initialize_sync_system(
             enable_consistency=True,
             enable_incremental=True,
-            start_scheduler=False  # Don't start for testing
+            start_scheduler=False,  # Don't start for testing
         )
 
         assert isinstance(manager, SyncIntegrationManager)

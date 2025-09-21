@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MVVM Integration Test for AniVault Application
+"""MVVM Integration Test for AniVault Application.
 
 This script tests the MVVM pattern implementation by verifying:
 1. ViewModel initialization and property management
@@ -28,12 +28,16 @@ logger = logging.getLogger(__name__)
 class MVVMIntegrationTest:
     """Test class for MVVM pattern integration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the MVVM integration test.
+
+        Sets up the QApplication and test infrastructure.
+        """
         self.app = QApplication(sys.argv)
         self.main_window = None
         self.test_results = []
 
-    def run_all_tests(self):
+    def run_all_tests(self) -> None:
         """Run all MVVM integration tests."""
         logger.info("Starting MVVM Integration Tests")
 
@@ -264,7 +268,7 @@ class MVVMIntegrationTest:
             self.test_results.append(("Error Handling", False, str(e)))
             logger.error(f"✗ Error handling test failed: {e}")
 
-    def print_test_results(self):
+    def print_test_results(self) -> None:
         """Print test results summary."""
         print("\n" + "=" * 60)
         print("MVVM INTEGRATION TEST RESULTS")
@@ -290,7 +294,7 @@ class MVVMIntegrationTest:
         print("=" * 60)
 
 
-def main():
+def main() -> None:
     """Main test execution function."""
     test = MVVMIntegrationTest()
     test.run_all_tests()

@@ -11,11 +11,14 @@ import logging
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 
 from .pipeline_stages import PipelineStage
 from .result_collector import ResultCollector, StageResult
 from .thread_executor_manager import get_thread_executor_manager
+
+# Type variable for generic return types
+T = TypeVar("T")
 
 # Logger for this module
 logger = logging.getLogger(__name__)
@@ -39,7 +42,7 @@ class ParallelPipelineManager:
     dependencies are respected while maximizing parallelization opportunities.
     """
 
-    def __init__(self, max_workers: int = 4):
+    def __init__(self, max_workers: int = 4) -> None:
         """Initialize the parallel pipeline manager.
 
         Args:
@@ -168,7 +171,7 @@ class ParallelPipelineManager:
 
         logger.debug(f"Submitted stage {stage} to executor")
 
-    def _execute_stage_task(self, stage: PipelineStage, task: Any) -> Any:
+    def _execute_stage_task(self, stage: PipelineStage, task: T) -> T:
         """Execute a stage task and return the result.
 
         Args:
@@ -343,13 +346,20 @@ class ParallelPipelineManager:
 
         # Use as_completed to wait for at least one task
         futures = list(self.running_futures.values())
-        for future in as_completed(futures, timeout=1.0):
-            # Find which stage completed
-            for stage, stage_future in self.running_futures.items():
-                if stage_future == future:
-                    self._handle_completed_stage(stage, future)
-                    break
-            break  # Only process one completion per call
+        try:
+            for future in as_completed(futures, timeout=1.0):
+                # Find which stage completed
+                for stage, stage_future in self.running_futures.items():
+                    if stage_future == future:
+                        self._handle_completed_stage(stage, future)
+                        break
+                break  # Only process one completion per call
+        except TimeoutError:
+            # Timeout is expected when no tasks complete within 1 second
+            # This is normal behavior - we'll check again in the next iteration
+            logger.debug("Timeout waiting for task completion - continuing pipeline execution")
+        except Exception as e:
+            logger.error(f"Error waiting for task completion: {e}", exc_info=True)
 
     def cancel_pipeline(self) -> None:
         """Cancel the pipeline execution."""

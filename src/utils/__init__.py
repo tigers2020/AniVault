@@ -1,4 +1,4 @@
-"""AniVault Utilities Package
+"""AniVault Utilities Package.
 
 This package contains utility functions and helper classes used throughout the application.
 """

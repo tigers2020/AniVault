@@ -17,11 +17,11 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+from .cache_bulk_operations import CacheBulkOperations
+from .cache_compression import CacheCompression
 from .cache_core import CacheCore, CacheStats
 from .cache_database_integration import CacheDatabaseIntegration
-from .cache_bulk_operations import CacheBulkOperations
 from .cache_incremental_sync import CacheIncrementalSync
-from .cache_compression import CacheCompression
 from .cache_similarity_keys import CacheSimilarityKeys
 from .database import DatabaseManager
 from .incremental_sync import IncrementalSyncManager
@@ -29,6 +29,70 @@ from .models import ParsedAnimeInfo, TMDBAnime
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class CacheError(Exception):
+    """Base exception for cache-related errors."""
+
+    def __init__(
+        self, message: str, key: str | None = None, original_error: Exception | None = None
+    ) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Error message
+            key: Cache key that caused the error
+            original_error: Original exception that caused this error
+        """
+        super().__init__(message)
+        self.message = message
+        self.key = key
+        self.original_error = original_error
+
+
+class CacheValidationError(CacheError):
+    """Exception raised when cache validation fails."""
+
+    def __init__(self, message: str, key: str | None = None, field: str | None = None) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Error message
+            key: Cache key that caused the error
+            field: Field that failed validation
+        """
+        super().__init__(message, key)
+        self.field = field
+
+
+class CacheSerializationError(CacheError):
+    """Exception raised when cache serialization/deserialization fails."""
+
+    def __init__(self, message: str, key: str | None = None, data_type: str | None = None) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Error message
+            key: Cache key that caused the error
+            data_type: Type of data that failed serialization
+        """
+        super().__init__(message, key)
+        self.data_type = data_type
+
+
+class CacheStorageError(CacheError):
+    """Exception raised when cache storage operations fail."""
+
+    def __init__(self, message: str, key: str | None = None, operation: str | None = None) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Error message
+            key: Cache key that caused the error
+            operation: Storage operation that failed
+        """
+        super().__init__(message, key)
+        self.operation = operation
 
 
 class MetadataCache:
@@ -44,7 +108,7 @@ class MetadataCache:
         db_manager: DatabaseManager | None = None,
         enable_db: bool = True,
         incremental_sync_manager: IncrementalSyncManager | None = None,
-    ):
+    ) -> None:
         """Initialize the refactored metadata cache.
 
         Args:
@@ -63,32 +127,29 @@ class MetadataCache:
             max_memory_mb=max_memory_mb,
             default_ttl_seconds=default_ttl_seconds,
             enable_compression=enable_compression,
-            cache_name=cache_name
+            cache_name=cache_name,
         )
 
         # Initialize database integration
         self.db_integration = CacheDatabaseIntegration(
-            cache_core=self.cache_core,
-            db_manager=db_manager if enable_db else None
+            cache_core=self.cache_core, db_manager=db_manager if enable_db else None
         )
 
         # Initialize bulk operations
         self.bulk_operations = CacheBulkOperations(
-            cache_core=self.cache_core,
-            db_integration=self.db_integration
+            cache_core=self.cache_core, db_integration=self.db_integration
         )
 
         # Initialize incremental sync
         self.incremental_sync = CacheIncrementalSync(
             cache_core=self.cache_core,
             db_integration=self.db_integration,
-            incremental_sync_manager=incremental_sync_manager
+            incremental_sync_manager=incremental_sync_manager,
         )
 
         # Initialize compression
         self.compression = CacheCompression(
-            enable_compression=enable_compression,
-            compression_threshold=1024
+            enable_compression=enable_compression, compression_threshold=1024
         )
 
         # Initialize similarity keys
@@ -97,6 +158,9 @@ class MetadataCache:
         # Store configuration
         self.cache_name = cache_name
         self.enable_db = enable_db
+
+        # Add _cache attribute for backward compatibility with tests
+        self._cache = self.cache_core._cache
 
         logger.info(f"Initialized refactored metadata cache '{cache_name}'")
 
@@ -118,13 +182,13 @@ class MetadataCache:
     ) -> list[tuple[ParsedAnimeInfo | TMDBAnime, float]]:
         """Get values using smart matching."""
         results = self.cache_core.get_smart(query, session, similarity_threshold, max_results)
-        
+
         # Decompress results
         decompressed_results = []
         for value, similarity in results:
             decompressed_value = self.compression.decompress_if_needed(value)
             decompressed_results.append((decompressed_value, similarity))
-        
+
         return decompressed_results
 
     def put(
@@ -173,14 +237,14 @@ class MetadataCache:
         """Invalidate entries matching a pattern."""
         # Find matching keys using similarity keys
         matching_keys = self.similarity_keys.get_keys_by_similarity_pattern(pattern)
-        
+
         # Also use core cache pattern matching
         core_invalidated = self.cache_core.invalidate_pattern(pattern)
-        
+
         # Remove similarity keys for invalidated entries
         for key in matching_keys:
             self.similarity_keys.remove_similarity_keys(key)
-        
+
         return core_invalidated + len(matching_keys)
 
     # Statistics and monitoring (delegated to CacheCore)
@@ -216,26 +280,31 @@ class MetadataCache:
     def set_max_memory_mb(self, max_memory_mb: int) -> None:
         """Set maximum memory usage in MB."""
         self.cache_core.set_max_memory_mb(max_memory_mb)
-    
+
     @property
     def max_size(self) -> int:
         """Get maximum cache size."""
         return self.cache_core.max_size
-    
+
     @property
     def max_memory_mb(self) -> int:
         """Get maximum memory usage in MB."""
         return self.cache_core.max_memory_mb
-    
+
     @property
     def max_memory_bytes(self) -> int:
         """Get maximum memory usage in bytes."""
         return self.cache_core.max_memory_mb * 1024 * 1024
-    
+
     @property
     def ttl_seconds(self) -> int | None:
         """Get default TTL in seconds."""
         return self.cache_core.default_ttl_seconds
+
+    @ttl_seconds.setter
+    def ttl_seconds(self, value: int | None) -> None:
+        """Set default TTL in seconds."""
+        self.cache_core.default_ttl_seconds = value
 
     def enable_cache_only_mode(self, reason: str = "Database unavailable") -> None:
         """Enable cache-only mode."""
@@ -297,10 +366,7 @@ class MetadataCache:
         return self.bulk_operations.bulk_store_tmdb_metadata(session, anime_list)
 
     def bulk_store_parsed_files(
-        self,
-        session: Session,
-        parsed_files: list[ParsedAnimeInfo],
-        batch_size: int = 100
+        self, session: Session, parsed_files: list[ParsedAnimeInfo], batch_size: int = 100
     ) -> int:
         """Bulk store parsed files."""
         return self.bulk_operations.bulk_store_parsed_files(session, parsed_files, batch_size)
@@ -314,22 +380,20 @@ class MetadataCache:
         return self.bulk_operations.bulk_update_parsed_files(session, updates)
 
     def bulk_update_tmdb_metadata_by_ids(
-        self,
-        session: Session,
-        tmdb_ids: list[int],
-        update_fields: dict[str, Any]
+        self, session: Session, tmdb_ids: list[int], update_fields: dict[str, Any]
     ) -> int:
         """Bulk update TMDB metadata by IDs."""
-        return self.bulk_operations.bulk_update_tmdb_metadata_by_ids(session, tmdb_ids, update_fields)
+        return self.bulk_operations.bulk_update_tmdb_metadata_by_ids(
+            session, tmdb_ids, update_fields
+        )
 
     def bulk_update_parsed_files_by_paths(
-        self,
-        session: Session,
-        file_paths: list[str],
-        update_fields: dict[str, Any]
+        self, session: Session, file_paths: list[str], update_fields: dict[str, Any]
     ) -> int:
         """Bulk update parsed files by file paths."""
-        return self.bulk_operations.bulk_update_parsed_files_by_paths(session, file_paths, update_fields)
+        return self.bulk_operations.bulk_update_parsed_files_by_paths(
+            session, file_paths, update_fields
+        )
 
     # Incremental sync (delegated to CacheIncrementalSync)
     def enable_incremental_sync(self) -> None:
@@ -349,31 +413,28 @@ class MetadataCache:
         return self.incremental_sync.get_incremental_sync_manager()
 
     def sync_tmdb_metadata_incremental(
-        self,
-        session: Session,
-        last_sync_timestamp: float | None = None,
-        batch_size: int = 100
+        self, session: Session, last_sync_timestamp: float | None = None, batch_size: int = 100
     ) -> dict[str, Any]:
         """Incremental sync for TMDB metadata."""
-        return self.incremental_sync.sync_tmdb_metadata_incremental(session, last_sync_timestamp, batch_size)
+        return self.incremental_sync.sync_tmdb_metadata_incremental(
+            session, last_sync_timestamp, batch_size
+        )
 
     def sync_parsed_files_incremental(
-        self,
-        session: Session,
-        last_sync_timestamp: float | None = None,
-        batch_size: int = 100
+        self, session: Session, last_sync_timestamp: float | None = None, batch_size: int = 100
     ) -> dict[str, Any]:
         """Incremental sync for parsed files."""
-        return self.incremental_sync.sync_parsed_files_incremental(session, last_sync_timestamp, batch_size)
+        return self.incremental_sync.sync_parsed_files_incremental(
+            session, last_sync_timestamp, batch_size
+        )
 
     def sync_all_entities_incremental(
-        self,
-        session: Session,
-        last_sync_timestamp: float | None = None,
-        batch_size: int = 100
+        self, session: Session, last_sync_timestamp: float | None = None, batch_size: int = 100
     ) -> dict[str, Any]:
         """Incremental sync for all entities."""
-        return self.incremental_sync.sync_all_entities_incremental(session, last_sync_timestamp, batch_size)
+        return self.incremental_sync.sync_all_entities_incremental(
+            session, last_sync_timestamp, batch_size
+        )
 
     def get_sync_status(self) -> dict:
         """Get current sync status."""
@@ -398,7 +459,9 @@ class MetadataCache:
         return self.compression.get_compression_stats()
 
     # Database integration (delegated to CacheDatabaseIntegration)
-    def store_with_database(self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None) -> None:
+    def store_with_database(
+        self, key: str, value: ParsedAnimeInfo | TMDBAnime, ttl_seconds: int | None = None
+    ) -> None:
         """Store value in both cache and database."""
         self.db_integration.store_with_database(key, value, ttl_seconds)
 

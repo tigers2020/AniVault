@@ -1,4 +1,4 @@
-"""add_version_column_to_parsed_files
+"""Add version column to parsed files.
 
 Revision ID: 595e783b8c37
 Revises: 63b04737b492

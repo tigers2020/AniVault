@@ -9,7 +9,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    pass
 
 from .cache_core import CacheStats
 from .database import DatabaseManager
@@ -33,7 +33,9 @@ class MetadataCacheManager:
         self.db_manager = db_manager
         self.enable_db = enable_db
         self._caches: dict[str, MetadataCache] = {}
-        self._incremental_sync_manager = IncrementalSyncManager(db_manager, self) if enable_db else None
+        self._incremental_sync_manager = (
+            IncrementalSyncManager(db_manager, self) if enable_db else None
+        )
 
         # Create default caches
         self._create_default_caches()
@@ -51,7 +53,7 @@ class MetadataCacheManager:
             cache_name="parsed_info",
             db_manager=self.db_manager,
             enable_db=self.enable_db,
-            incremental_sync_manager=self._incremental_sync_manager
+            incremental_sync_manager=self._incremental_sync_manager,
         )
 
         # TMDB cache
@@ -63,7 +65,7 @@ class MetadataCacheManager:
             cache_name="tmdb",
             db_manager=self.db_manager,
             enable_db=self.enable_db,
-            incremental_sync_manager=self._incremental_sync_manager
+            incremental_sync_manager=self._incremental_sync_manager,
         )
 
         # Combined cache (for backward compatibility)
@@ -75,7 +77,7 @@ class MetadataCacheManager:
             cache_name="combined",
             db_manager=self.db_manager,
             enable_db=self.enable_db,
-            incremental_sync_manager=self._incremental_sync_manager
+            incremental_sync_manager=self._incremental_sync_manager,
         )
 
     def get_cache(self, name: str) -> MetadataCache:
@@ -91,8 +93,10 @@ class MetadataCacheManager:
             KeyError: If cache name not found
         """
         if name not in self._caches:
-            raise KeyError(f"Cache '{name}' not found. Available caches: {list(self._caches.keys())}")
-        
+            raise KeyError(
+                f"Cache '{name}' not found. Available caches: {list(self._caches.keys())}"
+            )
+
         return self._caches[name]
 
     def create_cache(
@@ -129,7 +133,7 @@ class MetadataCacheManager:
             cache_name=name,
             db_manager=self.db_manager,
             enable_db=self.enable_db,
-            incremental_sync_manager=self._incremental_sync_manager
+            incremental_sync_manager=self._incremental_sync_manager,
         )
 
         self._caches[name] = cache
@@ -150,7 +154,7 @@ class MetadataCacheManager:
 
         # Stop background cleanup
         self._caches[name].stop_background_cleanup()
-        
+
         # Remove from manager
         del self._caches[name]
         logger.info(f"Removed cache instance: {name}")
@@ -243,7 +247,7 @@ class MetadataCacheManager:
             Combined statistics
         """
         all_stats = self.get_all_stats()
-        
+
         total_hits = sum(stats.hits for stats in all_stats.values())
         total_misses = sum(stats.misses for stats in all_stats.values())
         total_evictions = sum(stats.evictions for stats in all_stats.values())
@@ -261,7 +265,9 @@ class MetadataCacheManager:
             "total_memory_usage_bytes": total_memory_usage,
             "total_memory_usage_mb": total_memory_usage / (1024 * 1024),
             "overall_hit_rate": (total_hits / total_requests * 100) if total_requests > 0 else 0.0,
-            "overall_miss_rate": (total_misses / total_requests * 100) if total_requests > 0 else 0.0,
+            "overall_miss_rate": (
+                (total_misses / total_requests * 100) if total_requests > 0 else 0.0
+            ),
             "cache_details": {
                 name: {
                     "hits": stats.hits,
@@ -270,10 +276,10 @@ class MetadataCacheManager:
                     "cache_size": stats.cache_size,
                     "memory_usage_mb": stats.memory_usage_bytes / (1024 * 1024),
                     "hit_rate": stats.hit_rate,
-                    "miss_rate": stats.miss_rate
+                    "miss_rate": stats.miss_rate,
                 }
                 for name, stats in all_stats.items()
-            }
+            },
         }
 
     def get_health_status(self) -> dict[str, Any]:
@@ -286,7 +292,7 @@ class MetadataCacheManager:
             "overall_status": "healthy",
             "cache_count": len(self._caches),
             "total_memory_usage_mb": self.get_total_memory_usage_mb(),
-            "caches": {}
+            "caches": {},
         }
 
         for name, cache in self._caches.items():
@@ -295,9 +301,9 @@ class MetadataCacheManager:
                 "cache_only_mode": cache.is_cache_only_mode(),
                 "cache_only_reason": cache.get_cache_only_reason(),
                 "memory_usage_mb": cache.get_memory_usage_mb(),
-                "stats": cache.get_stats()
+                "stats": cache.get_stats(),
             }
-            
+
             # Determine cache health
             if not cache.is_enabled():
                 cache_health["status"] = "disabled"

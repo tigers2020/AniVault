@@ -1,33 +1,35 @@
-"""
-Tests for the synchronization performance profiling system.
+"""Tests for the synchronization performance profiling system.
 
 This module tests the SyncProfiler, PerformanceAnalyzer, and PerformanceBenchmark
 components to ensure they correctly identify and analyze performance bottlenecks.
 """
 
-import pytest
-import time
 import threading
-from unittest.mock import Mock, patch, MagicMock
-from typing import Dict, Any
+import time
+from typing import NoReturn
+from unittest.mock import patch
 
-from src.core.sync_profiler import (
-    SyncProfiler, ProfilerEvent, PerformanceMetrics,
-    get_sync_profiler, profile_operation
-)
+import pytest
+
 from src.core.performance_analyzer import (
-    PerformanceAnalyzer, OptimizationPriority, OptimizationCategory,
-    OptimizationRecommendation, BottleneckAnalysis
+    OptimizationCategory,
+    OptimizationPriority,
+    PerformanceAnalyzer,
 )
-from src.core.performance_benchmark import (
-    PerformanceBenchmark, BenchmarkResult, BenchmarkConfig
+from src.core.performance_benchmark import BenchmarkConfig, BenchmarkResult, PerformanceBenchmark
+from src.core.sync_profiler import (
+    PerformanceMetrics,
+    ProfilerEvent,
+    SyncProfiler,
+    get_sync_profiler,
+    profile_sync_operation,
 )
 
 
 class TestSyncProfiler:
     """Test the SyncProfiler class."""
 
-    def test_profiler_initialization(self):
+    def test_profiler_initialization(self) -> None:
         """Test profiler initialization."""
         profiler = SyncProfiler()
         assert profiler.max_history == 10000
@@ -35,15 +37,13 @@ class TestSyncProfiler:
         assert len(profiler.stats_by_event) == 0
         assert len(profiler.stats_by_operation) == 0
 
-    def test_profile_operation_context_manager(self):
+    def test_profile_operation_context_manager(self) -> None:
         """Test profiling operations with context manager."""
         profiler = SyncProfiler()
 
         # Test successful operation
         with profiler.profile_operation(
-            ProfilerEvent.CACHE_GET,
-            "test_operation",
-            operation_size=100
+            ProfilerEvent.CACHE_GET, "test_operation", operation_size=100
         ):
             time.sleep(0.01)  # Simulate work
 
@@ -56,16 +56,13 @@ class TestSyncProfiler:
         assert metrics.success is True
         assert metrics.duration_ms > 0
 
-    def test_profile_operation_with_exception(self):
+    def test_profile_operation_with_exception(self) -> NoReturn:
         """Test profiling operations that raise exceptions."""
         profiler = SyncProfiler()
 
         # Test operation that raises exception
         with pytest.raises(ValueError):
-            with profiler.profile_operation(
-                ProfilerEvent.CACHE_SET,
-                "failing_operation"
-            ):
+            with profiler.profile_operation(ProfilerEvent.CACHE_SET, "failing_operation"):
                 raise ValueError("Test exception")
 
         assert len(profiler.metrics_history) == 1
@@ -74,7 +71,7 @@ class TestSyncProfiler:
         assert metrics.success is False
         assert metrics.error_message == "Test exception"
 
-    def test_record_metrics(self):
+    def test_record_metrics(self) -> None:
         """Test recording metrics manually."""
         profiler = SyncProfiler()
 
@@ -88,7 +85,7 @@ class TestSyncProfiler:
             memory_mb=100.0,
             memory_peak_mb=120.0,
             thread_id=threading.get_ident(),
-            operation_size=1000
+            operation_size=1000,
         )
 
         profiler.record_metrics(metrics)
@@ -97,7 +94,7 @@ class TestSyncProfiler:
         assert ProfilerEvent.DB_BULK_INSERT in profiler.stats_by_event
         assert "test_bulk_insert" in profiler.stats_by_operation
 
-    def test_get_stats_by_event(self):
+    def test_get_stats_by_event(self) -> None:
         """Test getting statistics by event type."""
         profiler = SyncProfiler()
 
@@ -113,7 +110,7 @@ class TestSyncProfiler:
                 memory_mb=50.0,
                 memory_peak_mb=60.0,
                 thread_id=threading.get_ident(),
-                success=True
+                success=True,
             )
             profiler.record_metrics(metrics)
 
@@ -122,12 +119,12 @@ class TestSyncProfiler:
         assert stats.avg_duration_ms == 10.0
         assert stats.success_rate == 100.0
 
-    def test_get_stats_by_operation(self):
+    def test_get_stats_by_operation(self) -> None:
         """Test getting statistics by operation name."""
         profiler = SyncProfiler()
 
         # Add test metrics
-        for i in range(5):
+        for _i in range(5):
             metrics = PerformanceMetrics(
                 event_type=ProfilerEvent.DB_BULK_INSERT,
                 operation_name="bulk_insert_test",
@@ -138,7 +135,7 @@ class TestSyncProfiler:
                 memory_mb=80.0,
                 memory_peak_mb=90.0,
                 thread_id=threading.get_ident(),
-                operation_size=1000
+                operation_size=1000,
             )
             profiler.record_metrics(metrics)
 
@@ -147,7 +144,7 @@ class TestSyncProfiler:
         assert stats.avg_duration_ms == 100.0
         assert stats.avg_throughput_per_sec == 10000.0  # 1000 records / 0.1 seconds
 
-    def test_get_top_bottlenecks(self):
+    def test_get_top_bottlenecks(self) -> None:
         """Test getting top bottlenecks."""
         profiler = SyncProfiler()
 
@@ -163,7 +160,7 @@ class TestSyncProfiler:
                 cpu_percent=10.0,
                 memory_mb=50.0,
                 memory_peak_mb=60.0,
-                thread_id=threading.get_ident()
+                thread_id=threading.get_ident(),
             )
             profiler.record_metrics(metrics)
 
@@ -175,12 +172,12 @@ class TestSyncProfiler:
         assert bottlenecks[1]["avg_duration_ms"] == 200
         assert bottlenecks[2]["avg_duration_ms"] == 150
 
-    def test_get_performance_summary(self):
+    def test_get_performance_summary(self) -> None:
         """Test getting performance summary."""
         profiler = SyncProfiler()
 
         # Add some test metrics
-        for i in range(3):
+        for _i in range(3):
             metrics = PerformanceMetrics(
                 event_type=ProfilerEvent.CACHE_SET,
                 operation_name="test_set",
@@ -191,7 +188,7 @@ class TestSyncProfiler:
                 memory_mb=40.0,
                 memory_peak_mb=50.0,
                 thread_id=threading.get_ident(),
-                success=True
+                success=True,
             )
             profiler.record_metrics(metrics)
 
@@ -201,7 +198,7 @@ class TestSyncProfiler:
         assert summary["overall_stats"]["success_rate"] == 100.0
         assert ProfilerEvent.CACHE_SET.value in summary["event_type_stats"]
 
-    def test_memory_tracking(self):
+    def test_memory_tracking(self) -> None:
         """Test memory tracking functionality."""
         profiler = SyncProfiler()
 
@@ -217,7 +214,7 @@ class TestSyncProfiler:
         # Stop memory tracking
         profiler.stop_memory_tracking()
 
-    def test_cpu_stats(self):
+    def test_cpu_stats(self) -> None:
         """Test CPU statistics functionality."""
         profiler = SyncProfiler()
 
@@ -226,7 +223,7 @@ class TestSyncProfiler:
         assert "cpu_count" in cpu_stats
         assert cpu_stats["cpu_count"] > 0
 
-    def test_clear_metrics(self):
+    def test_clear_metrics(self) -> None:
         """Test clearing metrics."""
         profiler = SyncProfiler()
 
@@ -240,7 +237,7 @@ class TestSyncProfiler:
             cpu_percent=30.0,
             memory_mb=70.0,
             memory_peak_mb=80.0,
-            thread_id=threading.get_ident()
+            thread_id=threading.get_ident(),
         )
         profiler.record_metrics(metrics)
 
@@ -253,7 +250,7 @@ class TestSyncProfiler:
         assert len(profiler.stats_by_event) == 0
         assert len(profiler.stats_by_operation) == 0
 
-    def test_global_profiler_instance(self):
+    def test_global_profiler_instance(self) -> None:
         """Test global profiler instance."""
         profiler1 = get_sync_profiler()
         profiler2 = get_sync_profiler()
@@ -264,7 +261,7 @@ class TestSyncProfiler:
 class TestPerformanceAnalyzer:
     """Test the PerformanceAnalyzer class."""
 
-    def test_analyzer_initialization(self):
+    def test_analyzer_initialization(self) -> None:
         """Test analyzer initialization."""
         profiler = SyncProfiler()
         analyzer = PerformanceAnalyzer(profiler)
@@ -272,7 +269,7 @@ class TestPerformanceAnalyzer:
         assert analyzer.profiler is profiler
         assert len(analyzer.performance_thresholds) > 0
 
-    def test_analyze_bottlenecks_empty(self):
+    def test_analyze_bottlenecks_empty(self) -> None:
         """Test analyzing bottlenecks with no data."""
         profiler = SyncProfiler()
         analyzer = PerformanceAnalyzer(profiler)
@@ -280,12 +277,12 @@ class TestPerformanceAnalyzer:
         bottlenecks = analyzer.analyze_bottlenecks()
         assert len(bottlenecks) == 0
 
-    def test_analyze_bottlenecks_with_data(self):
+    def test_analyze_bottlenecks_with_data(self) -> None:
         """Test analyzing bottlenecks with test data."""
         profiler = SyncProfiler()
 
         # Add slow operations to create bottlenecks
-        for i in range(10):
+        for _i in range(10):
             metrics = PerformanceMetrics(
                 event_type=ProfilerEvent.DB_BULK_INSERT,
                 operation_name="slow_bulk_insert",
@@ -297,7 +294,7 @@ class TestPerformanceAnalyzer:
                 memory_peak_mb=250.0,
                 thread_id=threading.get_ident(),
                 operation_size=1000,
-                success=True
+                success=True,
             )
             profiler.record_metrics(metrics)
 
@@ -308,14 +305,13 @@ class TestPerformanceAnalyzer:
 
         # Check that we found the slow operation
         slow_bottleneck = next(
-            (b for b in bottlenecks if b.operation_name == "slow_bulk_insert"),
-            None
+            (b for b in bottlenecks if b.operation_name == "slow_bulk_insert"), None
         )
         assert slow_bottleneck is not None
         assert slow_bottleneck.severity_score > 50  # Should be high severity
         assert len(slow_bottleneck.recommendations) > 0
 
-    def test_calculate_severity_score(self):
+    def test_calculate_severity_score(self) -> None:
         """Test severity score calculation."""
         profiler = SyncProfiler()
         analyzer = PerformanceAnalyzer(profiler)
@@ -328,13 +324,10 @@ class TestPerformanceAnalyzer:
             "max_duration_ms": 3000,
             "avg_throughput_per_sec": 100,  # Very low throughput
             "total_operations": 1000,  # High frequency
-            "success_rate": 90.0  # Some failures
+            "success_rate": 90.0,  # Some failures
         }
 
-        severity = analyzer._calculate_severity_score(
-            bottleneck_data,
-            ProfilerEvent.DB_BULK_INSERT
-        )
+        severity = analyzer._calculate_severity_score(bottleneck_data, ProfilerEvent.DB_BULK_INSERT)
 
         assert severity > 70  # Should be high severity
 
@@ -346,17 +339,16 @@ class TestPerformanceAnalyzer:
             "max_duration_ms": 10,
             "avg_throughput_per_sec": 2000,  # High throughput
             "total_operations": 10,  # Low frequency
-            "success_rate": 100.0  # No failures
+            "success_rate": 100.0,  # No failures
         }
 
         severity_low = analyzer._calculate_severity_score(
-            bottleneck_data_low,
-            ProfilerEvent.CACHE_GET
+            bottleneck_data_low, ProfilerEvent.CACHE_GET
         )
 
         assert severity_low < 30  # Should be low severity
 
-    def test_identify_root_causes(self):
+    def test_identify_root_causes(self) -> None:
         """Test root cause identification."""
         profiler = SyncProfiler()
         analyzer = PerformanceAnalyzer(profiler)
@@ -367,19 +359,16 @@ class TestPerformanceAnalyzer:
             "avg_duration_ms": 100,
             "max_duration_ms": 500,  # High variance
             "avg_throughput_per_sec": 50,
-            "success_rate": 85.0  # Some failures
+            "success_rate": 85.0,  # Some failures
         }
 
-        root_causes = analyzer._identify_root_causes(
-            bottleneck_data,
-            ProfilerEvent.DB_BULK_INSERT
-        )
+        root_causes = analyzer._identify_root_causes(bottleneck_data, ProfilerEvent.DB_BULK_INSERT)
 
         assert "High performance variance" in root_causes
         assert "High failure rate" in root_causes
         assert "Low bulk operation throughput" in root_causes
 
-    def test_generate_recommendations(self):
+    def test_generate_recommendations(self) -> None:
         """Test recommendation generation."""
         profiler = SyncProfiler()
         analyzer = PerformanceAnalyzer(profiler)
@@ -388,22 +377,21 @@ class TestPerformanceAnalyzer:
             "operation_name": "slow_bulk_insert",
             "avg_duration_ms": 1500,  # Slow
             "avg_throughput_per_sec": 400,  # Low throughput
-            "success_rate": 95.0
+            "success_rate": 95.0,
         }
 
         recommendations = analyzer._generate_recommendations(
             "slow_bulk_insert",
             ProfilerEvent.DB_BULK_INSERT,
             bottleneck_data,
-            ["Low bulk operation throughput"]
+            ["Low bulk operation throughput"],
         )
 
         assert len(recommendations) > 0
 
         # Should have database optimization recommendations
         db_recommendations = [
-            r for r in recommendations
-            if r.category == OptimizationCategory.DATABASE
+            r for r in recommendations if r.category == OptimizationCategory.DATABASE
         ]
         assert len(db_recommendations) > 0
 
@@ -413,12 +401,12 @@ class TestPerformanceAnalyzer:
         assert "bulk" in rec.title.lower()
         assert len(rec.specific_actions) > 0
 
-    def test_generate_performance_report(self):
+    def test_generate_performance_report(self) -> None:
         """Test performance report generation."""
         profiler = SyncProfiler()
 
         # Add some test data
-        for i in range(5):
+        for _i in range(5):
             metrics = PerformanceMetrics(
                 event_type=ProfilerEvent.CACHE_GET,
                 operation_name="test_cache_get",
@@ -429,7 +417,7 @@ class TestPerformanceAnalyzer:
                 memory_mb=40.0,
                 memory_peak_mb=50.0,
                 thread_id=threading.get_ident(),
-                success=True
+                success=True,
             )
             profiler.record_metrics(metrics)
 
@@ -453,7 +441,7 @@ class TestPerformanceAnalyzer:
 class TestPerformanceBenchmark:
     """Test the PerformanceBenchmark class."""
 
-    def test_benchmark_initialization(self):
+    def test_benchmark_initialization(self) -> None:
         """Test benchmark initialization."""
         benchmark = PerformanceBenchmark()
 
@@ -463,13 +451,10 @@ class TestPerformanceBenchmark:
         assert benchmark.consistency_scheduler is not None
         assert len(benchmark.benchmark_results) == 0
 
-    def test_benchmark_config(self):
+    def test_benchmark_config(self) -> None:
         """Test benchmark configuration."""
         config = BenchmarkConfig(
-            name="test_benchmark",
-            operation_count=100,
-            batch_size=10,
-            concurrent_threads=2
+            name="test_benchmark", operation_count=100, batch_size=10, concurrent_threads=2
         )
 
         assert config.name == "test_benchmark"
@@ -477,7 +462,7 @@ class TestPerformanceBenchmark:
         assert config.batch_size == 10
         assert config.concurrent_threads == 2
 
-    def test_run_operations_batch(self):
+    def test_run_operations_batch(self) -> None:
         """Test running a batch of operations."""
         benchmark = PerformanceBenchmark()
 
@@ -495,7 +480,7 @@ class TestPerformanceBenchmark:
         assert len(errors) == 0
         assert "test_metric" in metrics
 
-    def test_get_test_data(self):
+    def test_get_test_data(self) -> None:
         """Test test data generation."""
         benchmark = PerformanceBenchmark()
 
@@ -512,9 +497,9 @@ class TestPerformanceBenchmark:
         # Test TMDB anime generation
         tmdb_data = benchmark._get_test_data("tmdb_anime", 3)
         assert len(tmdb_data) == 3
-        assert all(hasattr(item, 'tmdb_id') for item in tmdb_data)
+        assert all(hasattr(item, "tmdb_id") for item in tmdb_data)
 
-    def test_execute_cache_operations(self):
+    def test_execute_cache_operations(self) -> None:
         """Test cache operations benchmark."""
         benchmark = PerformanceBenchmark()
 
@@ -525,7 +510,7 @@ class TestPerformanceBenchmark:
         assert "operations" in metrics
         assert metrics["operations"] == 10
 
-    def test_execute_database_operations(self):
+    def test_execute_database_operations(self) -> None:
         """Test database operations benchmark."""
         benchmark = PerformanceBenchmark()
 
@@ -547,7 +532,7 @@ class TestPerformanceBenchmark:
         assert success is True
         assert "records_upserted" in metrics
 
-    def test_execute_concurrent_operations(self):
+    def test_execute_concurrent_operations(self) -> None:
         """Test concurrent operations benchmark."""
         benchmark = PerformanceBenchmark()
 
@@ -557,7 +542,7 @@ class TestPerformanceBenchmark:
         assert success is True
         assert "concurrent_operations" in metrics
 
-    def test_execute_memory_intensive_operations(self):
+    def test_execute_memory_intensive_operations(self) -> None:
         """Test memory-intensive operations benchmark."""
         benchmark = PerformanceBenchmark()
 
@@ -567,12 +552,12 @@ class TestPerformanceBenchmark:
         assert success is True
         assert "large_objects" in metrics
 
-    def test_run_all_benchmarks(self):
+    def test_run_all_benchmarks(self) -> None:
         """Test running all benchmarks."""
         benchmark = PerformanceBenchmark()
 
         # Mock the database operations to avoid actual database calls
-        with patch.object(benchmark.metadata_cache, 'bulk_store_tmdb_metadata'):
+        with patch.object(benchmark.metadata_cache, "bulk_store_tmdb_metadata"):
             results = benchmark.run_all_benchmarks()
 
         assert len(results) > 0
@@ -584,7 +569,7 @@ class TestPerformanceBenchmark:
             "database_bulk_update",
             "database_bulk_upsert",
             "concurrent_operations",
-            "memory_intensive_operations"
+            "memory_intensive_operations",
         ]
 
         for expected in expected_benchmarks:
@@ -596,7 +581,7 @@ class TestPerformanceBenchmark:
             assert result.operation_count > 0
             assert result.avg_duration_ms >= 0
 
-    def test_generate_benchmark_report(self):
+    def test_generate_benchmark_report(self) -> None:
         """Test benchmark report generation."""
         benchmark = PerformanceBenchmark()
 
@@ -613,7 +598,7 @@ class TestPerformanceBenchmark:
             memory_peak_mb=50,
             cpu_avg_percent=10,
             errors=[],
-            additional_metrics={}
+            additional_metrics={},
         )
 
         benchmark.benchmark_results["test_benchmark"] = mock_result
@@ -634,7 +619,7 @@ class TestPerformanceBenchmark:
 class TestIntegration:
     """Integration tests for the profiling system."""
 
-    def test_full_profiling_workflow(self):
+    def test_full_profiling_workflow(self) -> None:
         """Test the complete profiling workflow."""
         # Initialize profiler
         profiler = get_sync_profiler()
@@ -642,19 +627,17 @@ class TestIntegration:
 
         # Run some operations
         with profiler.profile_operation(
-            ProfilerEvent.CACHE_GET,
-            "integration_test",
-            operation_size=100
+            ProfilerEvent.CACHE_GET, "integration_test", operation_size=100
         ):
             time.sleep(0.01)
 
         # Analyze performance
         analyzer = PerformanceAnalyzer(profiler)
-        bottlenecks = analyzer.analyze_bottlenecks()
+        analyzer.analyze_bottlenecks()
 
         # Run benchmarks
         benchmark = PerformanceBenchmark()
-        with patch.object(benchmark.metadata_cache, 'bulk_store_tmdb_metadata'):
+        with patch.object(benchmark.metadata_cache, "bulk_store_tmdb_metadata"):
             benchmark_results = benchmark.run_all_benchmarks()
 
         # Generate reports
@@ -667,17 +650,13 @@ class TestIntegration:
         assert "overall_performance" in performance_report
         assert "benchmark_results" in benchmark_report
 
-    def test_decorator_functionality(self):
+    def test_decorator_functionality(self) -> None:
         """Test the profiling decorator."""
         profiler = get_sync_profiler()
         profiler.clear_metrics()
 
-        @profile_sync_operation(
-            ProfilerEvent.SYNC_OPERATION,
-            "decorator_test",
-            operation_size=50
-        )
-        def test_function():
+        @profile_sync_operation(ProfilerEvent.SYNC_OPERATION, "decorator_test", operation_size=50)
+        def test_function() -> str:
             time.sleep(0.01)
             return "test_result"
 

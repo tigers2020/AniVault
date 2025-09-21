@@ -33,6 +33,7 @@ class TestPanelRefactoring:
 
         # Reset ThemeManager singleton state
         from src.themes.theme_manager import ThemeManager
+
         ThemeManager._instance = None
         ThemeManager._initialized = False
 

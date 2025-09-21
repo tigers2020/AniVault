@@ -397,7 +397,7 @@ class TestSecureConfigManager:
         results = []
         errors = []
 
-        def worker(worker_id):
+        def worker(worker_id) -> None:
             try:
                 for i in range(10):
                     # Set and get configuration

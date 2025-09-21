@@ -1,4 +1,4 @@
-"""create_initial_schema
+"""Create initial schema.
 
 Revision ID: 63b04737b492
 Revises: 3ff80129897d

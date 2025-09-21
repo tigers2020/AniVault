@@ -1,3 +1,5 @@
+"""Alembic environment configuration for AniVault database migrations."""
+
 import os
 import sys
 from logging.config import fileConfig

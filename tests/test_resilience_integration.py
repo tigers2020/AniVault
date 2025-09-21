@@ -1,16 +1,16 @@
 """Tests for resilience integration system."""
 
+from unittest.mock import Mock, patch
+
 import pytest
-import time
-from unittest.mock import Mock, patch, MagicMock
 
 from src.core.database import DatabaseManager
 from src.core.metadata_cache import MetadataCache
 from src.core.resilience_integration import (
+    force_recovery_check,
+    get_resilience_status,
     setup_resilience_system,
     shutdown_resilience_system,
-    get_resilience_status,
-    force_recovery_check,
 )
 
 
@@ -33,11 +33,19 @@ class TestResilienceIntegration:
         cache.get_stats.return_value = Mock(hits=10, misses=5)
         return cache
 
-    def test_setup_resilience_system_success(self, mock_db_manager, mock_metadata_cache):
+    def test_setup_resilience_system_success(self, mock_db_manager, mock_metadata_cache) -> None:
         """Test successful resilience system setup."""
-        with patch('src.core.resilience_integration.create_database_health_checker') as mock_create_checker, \
-             patch('src.core.resilience_integration.create_resilience_manager') as mock_create_manager, \
-             patch('src.core.resilience_integration.set_global_resilience_manager') as mock_set_global:
+        with (
+            patch(
+                "src.core.resilience_integration.create_database_health_checker"
+            ) as mock_create_checker,
+            patch(
+                "src.core.resilience_integration.create_resilience_manager"
+            ) as mock_create_manager,
+            patch(
+                "src.core.resilience_integration.set_global_resilience_manager"
+            ) as mock_set_global,
+        ):
 
             # Mock the created objects
             mock_health_checker = Mock()
@@ -55,7 +63,7 @@ class TestResilienceIntegration:
                 health_failure_threshold=3,
                 health_recovery_threshold=2,
                 auto_recovery_enabled=True,
-                recovery_check_interval=60.0
+                recovery_check_interval=60.0,
             )
 
             # Verify health checker was created with correct parameters
@@ -64,7 +72,7 @@ class TestResilienceIntegration:
                 check_interval=30.0,
                 timeout=5.0,
                 failure_threshold=3,
-                recovery_threshold=2
+                recovery_threshold=2,
             )
 
             # Verify resilience manager was created
@@ -72,7 +80,7 @@ class TestResilienceIntegration:
                 metadata_cache=mock_metadata_cache,
                 health_checker=mock_health_checker,
                 auto_recovery_enabled=True,
-                recovery_check_interval=60.0
+                recovery_check_interval=60.0,
             )
 
             # Verify global manager was set
@@ -81,22 +89,23 @@ class TestResilienceIntegration:
             # Verify initialization was called
             mock_resilience_manager.initialize.assert_called_once()
 
-    def test_setup_resilience_system_failure(self, mock_db_manager, mock_metadata_cache):
+    def test_setup_resilience_system_failure(self, mock_db_manager, mock_metadata_cache) -> None:
         """Test resilience system setup failure."""
-        with patch('src.core.resilience_integration.create_database_health_checker') as mock_create_checker:
+        with patch(
+            "src.core.resilience_integration.create_database_health_checker"
+        ) as mock_create_checker:
             # Mock creation failure
             mock_create_checker.side_effect = Exception("Health checker creation failed")
 
             # Should raise exception
             with pytest.raises(Exception, match="Health checker creation failed"):
                 setup_resilience_system(
-                    db_manager=mock_db_manager,
-                    metadata_cache=mock_metadata_cache
+                    db_manager=mock_db_manager, metadata_cache=mock_metadata_cache
                 )
 
-    def test_shutdown_resilience_system_with_manager(self, mock_metadata_cache):
+    def test_shutdown_resilience_system_with_manager(self, mock_metadata_cache) -> None:
         """Test shutdown with existing manager."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock existing manager
             mock_manager = Mock()
             mock_get_manager.return_value = mock_manager
@@ -107,18 +116,18 @@ class TestResilienceIntegration:
             # Verify shutdown was called
             mock_manager.shutdown.assert_called_once()
 
-    def test_shutdown_resilience_system_without_manager(self):
+    def test_shutdown_resilience_system_without_manager(self) -> None:
         """Test shutdown without existing manager."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock no manager
             mock_get_manager.return_value = None
 
             # Should not raise exception
             shutdown_resilience_system()
 
-    def test_shutdown_resilience_system_error(self):
+    def test_shutdown_resilience_system_error(self) -> None:
         """Test shutdown with error."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock manager that raises exception on shutdown
             mock_manager = Mock()
             mock_manager.shutdown.side_effect = Exception("Shutdown failed")
@@ -127,15 +136,15 @@ class TestResilienceIntegration:
             # Should not raise exception (error is logged)
             shutdown_resilience_system()
 
-    def test_get_resilience_status_with_manager(self, mock_metadata_cache):
+    def test_get_resilience_status_with_manager(self, mock_metadata_cache) -> None:
         """Test getting resilience status with existing manager."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock manager with status
             mock_manager = Mock()
             expected_status = {
-                'is_operational': True,
-                'cache_only_mode': False,
-                'health_status': 'healthy'
+                "is_operational": True,
+                "cache_only_mode": False,
+                "health_status": "healthy",
             }
             mock_manager.get_system_status.return_value = expected_status
             mock_get_manager.return_value = mock_manager
@@ -147,9 +156,9 @@ class TestResilienceIntegration:
             assert status == expected_status
             mock_manager.get_system_status.assert_called_once()
 
-    def test_get_resilience_status_without_manager(self):
+    def test_get_resilience_status_without_manager(self) -> None:
         """Test getting resilience status without manager."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock no manager
             mock_get_manager.return_value = None
 
@@ -159,9 +168,9 @@ class TestResilienceIntegration:
             # Should return error status
             assert status == {"error": "No resilience manager available"}
 
-    def test_get_resilience_status_error(self):
+    def test_get_resilience_status_error(self) -> None:
         """Test getting resilience status with error."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock manager that raises exception
             mock_manager = Mock()
             mock_manager.get_system_status.side_effect = Exception("Status check failed")
@@ -174,9 +183,9 @@ class TestResilienceIntegration:
             assert "error" in status
             assert "Status check failed" in status["error"]
 
-    def test_force_recovery_check_with_manager(self, mock_metadata_cache):
+    def test_force_recovery_check_with_manager(self, mock_metadata_cache) -> None:
         """Test forced recovery check with existing manager."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock manager
             mock_manager = Mock()
             mock_manager.force_recovery_check.return_value = True
@@ -189,9 +198,9 @@ class TestResilienceIntegration:
             assert result is True
             mock_manager.force_recovery_check.assert_called_once()
 
-    def test_force_recovery_check_without_manager(self):
+    def test_force_recovery_check_without_manager(self) -> None:
         """Test forced recovery check without manager."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock no manager
             mock_get_manager.return_value = None
 
@@ -201,9 +210,9 @@ class TestResilienceIntegration:
             # Should return False
             assert result is False
 
-    def test_force_recovery_check_error(self):
+    def test_force_recovery_check_error(self) -> None:
         """Test forced recovery check with error."""
-        with patch('src.core.resilience_integration.get_resilience_manager') as mock_get_manager:
+        with patch("src.core.resilience_integration.get_resilience_manager") as mock_get_manager:
             # Mock manager that raises exception
             mock_manager = Mock()
             mock_manager.force_recovery_check.side_effect = Exception("Recovery check failed")
@@ -230,14 +239,13 @@ class TestResilienceIntegrationWithRealComponents:
     def real_metadata_cache(self, real_db_manager):
         """Create a real metadata cache."""
         cache = MetadataCache(
-            max_size=100,
-            max_memory_mb=10,
-            db_manager=real_db_manager,
-            enable_db=True
+            max_size=100, max_memory_mb=10, db_manager=real_db_manager, enable_db=True
         )
         return cache
 
-    def test_full_integration_setup_and_shutdown(self, real_db_manager, real_metadata_cache):
+    def test_full_integration_setup_and_shutdown(
+        self, real_db_manager, real_metadata_cache
+    ) -> None:
         """Test full integration setup and shutdown."""
         # Setup resilience system
         setup_resilience_system(
@@ -248,7 +256,7 @@ class TestResilienceIntegrationWithRealComponents:
             health_failure_threshold=1,
             health_recovery_threshold=1,
             auto_recovery_enabled=True,
-            recovery_check_interval=1.0
+            recovery_check_interval=1.0,
         )
 
         try:
@@ -265,7 +273,7 @@ class TestResilienceIntegrationWithRealComponents:
             # Shutdown system
             shutdown_resilience_system()
 
-    def test_integration_with_cache_only_mode(self, real_db_manager, real_metadata_cache):
+    def test_integration_with_cache_only_mode(self, real_db_manager, real_metadata_cache) -> None:
         """Test integration with cache-only mode."""
         # Setup resilience system
         setup_resilience_system(
@@ -275,7 +283,7 @@ class TestResilienceIntegrationWithRealComponents:
             health_check_timeout=2.0,
             health_failure_threshold=1,
             health_recovery_threshold=1,
-            auto_recovery_enabled=False  # Disable auto recovery for testing
+            auto_recovery_enabled=False,  # Disable auto recovery for testing
         )
 
         try:
@@ -284,33 +292,27 @@ class TestResilienceIntegrationWithRealComponents:
 
             # Check status
             status = get_resilience_status()
-            assert status['cache_only_mode'] is True
-            assert status['cache_only_reason'] == "Integration test"
+            assert status["cache_only_mode"] is True
+            assert status["cache_only_reason"] == "Integration test"
 
             # Disable cache-only mode
             real_metadata_cache.disable_cache_only_mode()
 
             # Check status again
             status = get_resilience_status()
-            assert status['cache_only_mode'] is False
+            assert status["cache_only_mode"] is False
 
         finally:
             shutdown_resilience_system()
 
-    def test_integration_error_handling(self, real_db_manager, real_metadata_cache):
+    def test_integration_error_handling(self, real_db_manager, real_metadata_cache) -> None:
         """Test integration error handling."""
         # Test with invalid parameters
         with pytest.raises(Exception):
-            setup_resilience_system(
-                db_manager=None,  # Invalid
-                metadata_cache=real_metadata_cache
-            )
+            setup_resilience_system(db_manager=None, metadata_cache=real_metadata_cache)  # Invalid
 
         with pytest.raises(Exception):
-            setup_resilience_system(
-                db_manager=real_db_manager,
-                metadata_cache=None  # Invalid
-            )
+            setup_resilience_system(db_manager=real_db_manager, metadata_cache=None)  # Invalid
 
 
 class TestResilienceIntegrationConcurrency:
@@ -327,14 +329,11 @@ class TestResilienceIntegrationConcurrency:
     def real_metadata_cache(self, real_db_manager):
         """Create a real metadata cache."""
         cache = MetadataCache(
-            max_size=100,
-            max_memory_mb=10,
-            db_manager=real_db_manager,
-            enable_db=True
+            max_size=100, max_memory_mb=10, db_manager=real_db_manager, enable_db=True
         )
         return cache
 
-    def test_concurrent_status_checks(self, real_db_manager, real_metadata_cache):
+    def test_concurrent_status_checks(self, real_db_manager, real_metadata_cache) -> None:
         """Test concurrent status check calls."""
         import threading
 
@@ -342,13 +341,13 @@ class TestResilienceIntegrationConcurrency:
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            auto_recovery_enabled=False  # Disable to avoid conflicts
+            auto_recovery_enabled=False,  # Disable to avoid conflicts
         )
 
         try:
             results = []
 
-            def check_status():
+            def check_status() -> None:
                 status = get_resilience_status()
                 results.append(status)
 
@@ -370,7 +369,7 @@ class TestResilienceIntegrationConcurrency:
         finally:
             shutdown_resilience_system()
 
-    def test_concurrent_recovery_checks(self, real_db_manager, real_metadata_cache):
+    def test_concurrent_recovery_checks(self, real_db_manager, real_metadata_cache) -> None:
         """Test concurrent recovery check calls."""
         import threading
 
@@ -378,13 +377,13 @@ class TestResilienceIntegrationConcurrency:
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            auto_recovery_enabled=False
+            auto_recovery_enabled=False,
         )
 
         try:
             results = []
 
-            def force_recovery():
+            def force_recovery() -> None:
                 result = force_recovery_check()
                 results.append(result)
 
@@ -421,23 +420,20 @@ class TestResilienceIntegrationConfiguration:
     def real_metadata_cache(self, real_db_manager):
         """Create a real metadata cache."""
         cache = MetadataCache(
-            max_size=100,
-            max_memory_mb=10,
-            db_manager=real_db_manager,
-            enable_db=True
+            max_size=100, max_memory_mb=10, db_manager=real_db_manager, enable_db=True
         )
         return cache
 
-    def test_sensitive_monitoring_configuration(self, real_db_manager, real_metadata_cache):
+    def test_sensitive_monitoring_configuration(self, real_db_manager, real_metadata_cache) -> None:
         """Test sensitive monitoring configuration."""
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            health_check_interval=5.0,     # Very frequent
-            health_failure_threshold=1,    # Very sensitive
-            health_recovery_threshold=1,   # Very fast recovery
+            health_check_interval=5.0,  # Very frequent
+            health_failure_threshold=1,  # Very sensitive
+            health_recovery_threshold=1,  # Very fast recovery
             auto_recovery_enabled=True,
-            recovery_check_interval=10.0
+            recovery_check_interval=10.0,
         )
 
         try:
@@ -447,16 +443,16 @@ class TestResilienceIntegrationConfiguration:
         finally:
             shutdown_resilience_system()
 
-    def test_stable_monitoring_configuration(self, real_db_manager, real_metadata_cache):
+    def test_stable_monitoring_configuration(self, real_db_manager, real_metadata_cache) -> None:
         """Test stable monitoring configuration."""
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            health_check_interval=120.0,   # Less frequent
-            health_failure_threshold=5,    # Less sensitive
-            health_recovery_threshold=3,   # More conservative recovery
+            health_check_interval=120.0,  # Less frequent
+            health_failure_threshold=5,  # Less sensitive
+            health_recovery_threshold=3,  # More conservative recovery
             auto_recovery_enabled=True,
-            recovery_check_interval=300.0
+            recovery_check_interval=300.0,
         )
 
         try:
@@ -466,18 +462,20 @@ class TestResilienceIntegrationConfiguration:
         finally:
             shutdown_resilience_system()
 
-    def test_disabled_auto_recovery_configuration(self, real_db_manager, real_metadata_cache):
+    def test_disabled_auto_recovery_configuration(
+        self, real_db_manager, real_metadata_cache
+    ) -> None:
         """Test disabled auto recovery configuration."""
         setup_resilience_system(
             db_manager=real_db_manager,
             metadata_cache=real_metadata_cache,
-            auto_recovery_enabled=False  # Disabled
+            auto_recovery_enabled=False,  # Disabled
         )
 
         try:
             status = get_resilience_status()
             assert "error" not in status
-            assert status['auto_recovery_enabled'] is False
+            assert status["auto_recovery_enabled"] is False
 
         finally:
             shutdown_resilience_system()

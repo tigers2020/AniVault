@@ -383,6 +383,7 @@ class ResultPanel(QGroupBox):
         error_item.setTextAlignment(Qt.AlignCenter)
         if error:
             from PyQt5.QtGui import QColor
+
             error_item.setForeground(QColor(self.theme_manager.get_color("error")))
         self.files_table.setItem(row, 4, error_item)
 
@@ -599,7 +600,7 @@ class ResultPanel(QGroupBox):
 
         # Disable UI updates for batch operation
         self.files_table.setUpdatesEnabled(False)
-        
+
         try:
             # Clear existing data
             self.files_table.setRowCount(0)
@@ -622,7 +623,7 @@ class ResultPanel(QGroupBox):
 
             # Batch add all rows to table
             self.files_table.setRowCount(len(file_data))
-            
+
             for i, result in enumerate(file_data):
                 self._add_file_row(
                     i,
@@ -633,7 +634,7 @@ class ResultPanel(QGroupBox):
                     result["error"],
                     result["action"],
                 )
-                
+
                 # Log first 5 files for debugging
                 if i < 5:
                     logger.debug(f"Added file {i+1}: {result['file_name']}")
@@ -641,7 +642,7 @@ class ResultPanel(QGroupBox):
             # Update progress
             self.set_total_files(len(files))
             logger.info(f"Updated files table with {len(files)} files")
-            
+
         finally:
             # Re-enable UI updates
             self.files_table.setUpdatesEnabled(True)
@@ -785,7 +786,7 @@ class ResultPanel(QGroupBox):
 
         return f"{size_float:.1f} {size_names[i]}"
 
-    def _on_property_changed(self, property_name: str, value) -> None:
+    def _on_property_changed(self, property_name: str, value: Any) -> None:
         """Handle property changes from ViewModel."""
         if property_name == "is_pipeline_running":
             self._is_processing = bool(value)

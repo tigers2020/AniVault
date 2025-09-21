@@ -25,7 +25,7 @@ class SyncMetricsExporter:
     cache behavior, and system health indicators.
     """
 
-    def __init__(self, registry: CollectorRegistry = None):
+    def __init__(self, registry: CollectorRegistry = None) -> None:
         """Initialize the metrics exporter.
 
         Args:

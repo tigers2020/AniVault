@@ -10,7 +10,7 @@ import statistics
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pytest
 
@@ -26,12 +26,17 @@ class PerformanceAnalyzer:
     """Analyzer for performance test results and optimization validation."""
 
     def __init__(self, db_manager: DatabaseManager) -> None:
+        """Initialize the performance analyzer.
+
+        Args:
+            db_manager: Database manager instance for database operations.
+        """
         self.db_manager = db_manager
         self.db_manager.initialize()  # Ensure database is initialized
-        self.baseline_results: Dict[str, Any] = {}
-        self.optimized_results: Dict[str, Any] = {}
+        self.baseline_results: dict[str, Any] = {}
+        self.optimized_results: dict[str, Any] = {}
 
-    def generate_baseline_performance_data(self) -> Dict[str, Any]:
+    def generate_baseline_performance_data(self) -> dict[str, Any]:
         """Generate baseline performance data (simulating old N+1 approach).
 
         Returns:
@@ -45,14 +50,14 @@ class PerformanceAnalyzer:
                 "dataset_sizes": [100, 500, 1000, 2000],
                 "execution_times": [],
                 "query_counts": [],
-                "memory_usage": []
+                "memory_usage": [],
             },
             "parsed_files_individual_updates": {
                 "dataset_sizes": [100, 500, 1000, 2000],
                 "execution_times": [],
                 "query_counts": [],
-                "memory_usage": []
-            }
+                "memory_usage": [],
+            },
         }
 
         # Simulate N+1 performance characteristics
@@ -62,18 +67,30 @@ class PerformanceAnalyzer:
             simulated_query_count = size * 2  # 2 queries per record (SELECT + UPDATE)
             simulated_memory = size * 0.0001  # 0.1KB per record
 
-            baseline_data["anime_metadata_individual_updates"]["execution_times"].append(simulated_execution_time)
-            baseline_data["anime_metadata_individual_updates"]["query_counts"].append(simulated_query_count)
-            baseline_data["anime_metadata_individual_updates"]["memory_usage"].append(simulated_memory)
+            baseline_data["anime_metadata_individual_updates"]["execution_times"].append(
+                simulated_execution_time
+            )
+            baseline_data["anime_metadata_individual_updates"]["query_counts"].append(
+                simulated_query_count
+            )
+            baseline_data["anime_metadata_individual_updates"]["memory_usage"].append(
+                simulated_memory
+            )
 
-            baseline_data["parsed_files_individual_updates"]["execution_times"].append(simulated_execution_time * 1.2)
-            baseline_data["parsed_files_individual_updates"]["query_counts"].append(simulated_query_count)
-            baseline_data["parsed_files_individual_updates"]["memory_usage"].append(simulated_memory * 1.1)
+            baseline_data["parsed_files_individual_updates"]["execution_times"].append(
+                simulated_execution_time * 1.2
+            )
+            baseline_data["parsed_files_individual_updates"]["query_counts"].append(
+                simulated_query_count
+            )
+            baseline_data["parsed_files_individual_updates"]["memory_usage"].append(
+                simulated_memory * 1.1
+            )
 
         self.baseline_results = baseline_data
         return baseline_data
 
-    def generate_optimized_performance_data(self) -> Dict[str, Any]:
+    def generate_optimized_performance_data(self) -> dict[str, Any]:
         """Generate optimized performance data (current batch approach).
 
         Returns:
@@ -86,14 +103,14 @@ class PerformanceAnalyzer:
                 "dataset_sizes": [100, 500, 1000, 2000],
                 "execution_times": [],
                 "query_counts": [],
-                "memory_usage": []
+                "memory_usage": [],
             },
             "parsed_files_batch_updates": {
                 "dataset_sizes": [100, 500, 1000, 2000],
                 "execution_times": [],
                 "query_counts": [],
-                "memory_usage": []
-            }
+                "memory_usage": [],
+            },
         }
 
         # Test actual batch performance
@@ -101,20 +118,20 @@ class PerformanceAnalyzer:
             # Generate test data
             test_updates = []
             for i in range(size):
-                test_updates.append({
-                    "tmdb_id": 5000 + i,
-                    "status": "processed",
-                    "title": f"Performance Test Anime {i}"
-                })
+                test_updates.append(
+                    {
+                        "tmdb_id": 5000 + i,
+                        "status": "processed",
+                        "title": f"Performance Test Anime {i}",
+                    }
+                )
 
             # Measure actual batch performance
             start_time = time.time()
             start_memory = self._get_memory_usage()
 
             bulk_task = ConcreteBulkUpdateTask(
-                update_type="anime_metadata",
-                updates=test_updates,
-                db_manager=self.db_manager
+                update_type="anime_metadata", updates=test_updates, db_manager=self.db_manager
             )
             bulk_task.execute()
 
@@ -132,19 +149,19 @@ class PerformanceAnalyzer:
             # Test parsed files batch performance
             file_updates = []
             for i in range(size):
-                file_updates.append({
-                    "file_path": f"/test/performance/anime_{i}.mkv",
-                    "is_processed": True,
-                    "processing_status": "completed"
-                })
+                file_updates.append(
+                    {
+                        "file_path": f"/test/performance/anime_{i}.mkv",
+                        "is_processed": True,
+                        "processing_status": "completed",
+                    }
+                )
 
             start_time = time.time()
             start_memory = self._get_memory_usage()
 
             file_task = ConcreteBulkUpdateTask(
-                update_type="parsed_files",
-                updates=file_updates,
-                db_manager=self.db_manager
+                update_type="parsed_files", updates=file_updates, db_manager=self.db_manager
             )
             file_task.execute()
 
@@ -162,7 +179,7 @@ class PerformanceAnalyzer:
         self.optimized_results = optimized_data
         return optimized_data
 
-    def calculate_performance_improvements(self) -> Dict[str, Any]:
+    def calculate_performance_improvements(self) -> dict[str, Any]:
         """Calculate performance improvements between baseline and optimized approaches.
 
         Returns:
@@ -176,7 +193,7 @@ class PerformanceAnalyzer:
         improvements = {
             "anime_metadata_improvements": {},
             "parsed_files_improvements": {},
-            "overall_improvements": {}
+            "overall_improvements": {},
         }
 
         # Calculate anime metadata improvements
@@ -187,7 +204,7 @@ class PerformanceAnalyzer:
         anime_query_improvements = []
         anime_memory_improvements = []
 
-        for i, size in enumerate(baseline_anime["dataset_sizes"]):
+        for i, _size in enumerate(baseline_anime["dataset_sizes"]):
             baseline_time = baseline_anime["execution_times"][i]
             optimized_time = optimized_anime["execution_times"][i]
             time_improvement = ((baseline_time - optimized_time) / baseline_time) * 100
@@ -198,7 +215,11 @@ class PerformanceAnalyzer:
 
             baseline_memory = baseline_anime["memory_usage"][i]
             optimized_memory = optimized_anime["memory_usage"][i]
-            memory_improvement = ((baseline_memory - optimized_memory) / baseline_memory) * 100 if baseline_memory > 0 else 0
+            memory_improvement = (
+                ((baseline_memory - optimized_memory) / baseline_memory) * 100
+                if baseline_memory > 0
+                else 0
+            )
 
             anime_time_improvements.append(time_improvement)
             anime_query_improvements.append(query_improvement)
@@ -209,7 +230,7 @@ class PerformanceAnalyzer:
             "avg_query_improvement_percent": statistics.mean(anime_query_improvements),
             "avg_memory_improvement_percent": statistics.mean(anime_memory_improvements),
             "min_time_improvement_percent": min(anime_time_improvements),
-            "max_time_improvement_percent": max(anime_time_improvements)
+            "max_time_improvement_percent": max(anime_time_improvements),
         }
 
         # Calculate parsed files improvements
@@ -220,7 +241,7 @@ class PerformanceAnalyzer:
         file_query_improvements = []
         file_memory_improvements = []
 
-        for i, size in enumerate(baseline_files["dataset_sizes"]):
+        for i, _size in enumerate(baseline_files["dataset_sizes"]):
             baseline_time = baseline_files["execution_times"][i]
             optimized_time = optimized_files["execution_times"][i]
             time_improvement = ((baseline_time - optimized_time) / baseline_time) * 100
@@ -231,7 +252,11 @@ class PerformanceAnalyzer:
 
             baseline_memory = baseline_files["memory_usage"][i]
             optimized_memory = optimized_files["memory_usage"][i]
-            memory_improvement = ((baseline_memory - optimized_memory) / baseline_memory) * 100 if baseline_memory > 0 else 0
+            memory_improvement = (
+                ((baseline_memory - optimized_memory) / baseline_memory) * 100
+                if baseline_memory > 0
+                else 0
+            )
 
             file_time_improvements.append(time_improvement)
             file_query_improvements.append(query_improvement)
@@ -242,7 +267,7 @@ class PerformanceAnalyzer:
             "avg_query_improvement_percent": statistics.mean(file_query_improvements),
             "avg_memory_improvement_percent": statistics.mean(file_memory_improvements),
             "min_time_improvement_percent": min(file_time_improvements),
-            "max_time_improvement_percent": max(file_time_improvements)
+            "max_time_improvement_percent": max(file_time_improvements),
         }
 
         # Calculate overall improvements
@@ -256,12 +281,12 @@ class PerformanceAnalyzer:
             "avg_memory_improvement_percent": statistics.mean(all_memory_improvements),
             "min_time_improvement_percent": min(all_time_improvements),
             "max_time_improvement_percent": max(all_time_improvements),
-            "total_tests_analyzed": len(all_time_improvements)
+            "total_tests_analyzed": len(all_time_improvements),
         }
 
         return improvements
 
-    def generate_performance_report(self, improvements: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_performance_report(self, improvements: dict[str, Any]) -> dict[str, Any]:
         """Generate comprehensive performance analysis report.
 
         Args:
@@ -277,13 +302,13 @@ class PerformanceAnalyzer:
                 "generated_at": datetime.now().isoformat(),
                 "test_environment": "in-memory database",
                 "optimization_type": "N+1 query elimination with batch updates",
-                "report_version": "1.0"
+                "report_version": "1.0",
             },
             "executive_summary": {},
             "detailed_analysis": {},
             "performance_metrics": {},
             "recommendations": {},
-            "validation_results": {}
+            "validation_results": {},
         }
 
         # Executive Summary
@@ -294,7 +319,7 @@ class PerformanceAnalyzer:
             "memory_efficiency_gain": f"{overall['avg_memory_improvement_percent']:.1f}%",
             "n1_query_elimination": "✅ Successfully eliminated",
             "batch_processing_implementation": "✅ Successfully implemented",
-            "scalability_improvement": "✅ Significant improvement achieved"
+            "scalability_improvement": "✅ Significant improvement achieved",
         }
 
         # Detailed Analysis
@@ -302,18 +327,18 @@ class PerformanceAnalyzer:
             "anime_metadata_optimization": {
                 "description": "Batch updates for anime metadata status changes",
                 "improvements": improvements["anime_metadata_improvements"],
-                "implementation": "ConcreteBulkUpdateTask with bulk_update_anime_metadata_by_status"
+                "implementation": "ConcreteBulkUpdateTask with bulk_update_anime_metadata_by_status",
             },
             "parsed_files_optimization": {
                 "description": "Batch updates for parsed file processing status",
                 "improvements": improvements["parsed_files_improvements"],
-                "implementation": "ConcreteBulkUpdateTask with bulk_update_parsed_files_by_status"
+                "implementation": "ConcreteBulkUpdateTask with bulk_update_parsed_files_by_status",
             },
             "n1_query_elimination": {
                 "description": "Replaced individual updates with batch operations",
                 "query_pattern_change": "O(n) queries → O(1) queries",
-                "performance_impact": "Dramatic reduction in database load"
-            }
+                "performance_impact": "Dramatic reduction in database load",
+            },
         }
 
         # Performance Metrics
@@ -321,7 +346,7 @@ class PerformanceAnalyzer:
             "baseline_performance": self.baseline_results,
             "optimized_performance": self.optimized_results,
             "improvement_calculations": improvements,
-            "scalability_analysis": self._analyze_scalability()
+            "scalability_analysis": self._analyze_scalability(),
         }
 
         # Recommendations
@@ -329,18 +354,18 @@ class PerformanceAnalyzer:
             "immediate_actions": [
                 "Deploy batch update optimizations to production",
                 "Monitor performance metrics in production environment",
-                "Update documentation to reflect new batch processing capabilities"
+                "Update documentation to reflect new batch processing capabilities",
             ],
             "future_optimizations": [
                 "Implement connection pooling for high-concurrency scenarios",
                 "Consider read replicas for read-heavy workloads",
-                "Implement caching layer for frequently accessed metadata"
+                "Implement caching layer for frequently accessed metadata",
             ],
             "monitoring_recommendations": [
                 "Set up alerts for query count anomalies",
                 "Monitor batch processing queue depths",
-                "Track memory usage patterns during batch operations"
-            ]
+                "Track memory usage patterns during batch operations",
+            ],
         }
 
         # Validation Results
@@ -348,7 +373,7 @@ class PerformanceAnalyzer:
 
         return report
 
-    def _analyze_scalability(self) -> Dict[str, Any]:
+    def _analyze_scalability(self) -> dict[str, Any]:
         """Analyze scalability characteristics of the optimizations.
 
         Returns:
@@ -358,18 +383,25 @@ class PerformanceAnalyzer:
         optimized_anime = self.optimized_results["anime_metadata_batch_updates"]
 
         # Calculate scaling ratios
-        baseline_scaling = baseline_anime["execution_times"][-1] / baseline_anime["execution_times"][0]
-        optimized_scaling = optimized_anime["execution_times"][-1] / optimized_anime["execution_times"][0]
+        baseline_scaling = (
+            baseline_anime["execution_times"][-1] / baseline_anime["execution_times"][0]
+        )
+        optimized_scaling = (
+            optimized_anime["execution_times"][-1] / optimized_anime["execution_times"][0]
+        )
 
         return {
             "baseline_scaling_ratio": baseline_scaling,
             "optimized_scaling_ratio": optimized_scaling,
             "scaling_improvement": baseline_scaling / optimized_scaling,
-            "is_linear_scaling_achieved": optimized_scaling < 2.0,  # Less than 2x for 20x data increase
-            "scalability_grade": "A" if optimized_scaling < 1.5 else "B" if optimized_scaling < 2.0 else "C"
+            "is_linear_scaling_achieved": optimized_scaling
+            < 2.0,  # Less than 2x for 20x data increase
+            "scalability_grade": (
+                "A" if optimized_scaling < 1.5 else "B" if optimized_scaling < 2.0 else "C"
+            ),
         }
 
-    def _validate_performance_improvements(self, improvements: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_performance_improvements(self, improvements: dict[str, Any]) -> dict[str, Any]:
         """Validate that performance improvements meet expectations.
 
         Args:
@@ -381,14 +413,14 @@ class PerformanceAnalyzer:
         validation_results = {
             "all_tests_passed": True,
             "performance_thresholds": {},
-            "failed_validations": []
+            "failed_validations": [],
         }
 
         # Define performance thresholds
         thresholds = {
             "min_time_improvement_percent": 50,
             "min_query_improvement_percent": 80,
-            "min_memory_improvement_percent": 20
+            "min_memory_improvement_percent": 20,
         }
 
         overall = improvements["overall_improvements"]
@@ -418,12 +450,12 @@ class PerformanceAnalyzer:
         validation_results["actual_improvements"] = {
             "time_improvement": overall["avg_time_improvement_percent"],
             "query_improvement": overall["avg_query_improvement_percent"],
-            "memory_improvement": overall["avg_memory_improvement_percent"]
+            "memory_improvement": overall["avg_memory_improvement_percent"],
         }
 
         return validation_results
 
-    def save_report_to_file(self, report: Dict[str, Any], filename: str) -> None:
+    def save_report_to_file(self, report: dict[str, Any], filename: str) -> None:
         """Save performance report to JSON file.
 
         Args:
@@ -433,7 +465,7 @@ class PerformanceAnalyzer:
         output_path = Path("reports") / "performance" / filename
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
 
         logger.info(f"Performance report saved to: {output_path}")
@@ -442,6 +474,7 @@ class PerformanceAnalyzer:
         """Get current memory usage in MB."""
         try:
             import psutil
+
             process = psutil.Process()
             return process.memory_info().rss / 1024 / 1024  # Convert to MB
         except ImportError:
@@ -460,8 +493,8 @@ async def test_performance_analysis_report():
 
         # Generate baseline and optimized performance data
         logger.info("Generating performance data...")
-        baseline_data = analyzer.generate_baseline_performance_data()
-        optimized_data = analyzer.generate_optimized_performance_data()
+        analyzer.generate_baseline_performance_data()
+        analyzer.generate_optimized_performance_data()
 
         # Calculate performance improvements
         improvements = analyzer.calculate_performance_improvements()
@@ -474,51 +507,69 @@ async def test_performance_analysis_report():
         analyzer.save_report_to_file(report, f"performance_optimization_report_{timestamp}.json")
 
         # Log executive summary
-        logger.info("\n" + "="*60)
+        logger.info("\n" + "=" * 60)
         logger.info("PERFORMANCE OPTIMIZATION ANALYSIS REPORT")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         exec_summary = report["executive_summary"]
-        logger.info(f"Executive Summary:")
-        logger.info(f"  Total Performance Improvement: {exec_summary['total_performance_improvement']}")
+        logger.info("Executive Summary:")
+        logger.info(
+            f"  Total Performance Improvement: {exec_summary['total_performance_improvement']}"
+        )
         logger.info(f"  Query Reduction: {exec_summary['query_reduction']}")
         logger.info(f"  Memory Efficiency Gain: {exec_summary['memory_efficiency_gain']}")
         logger.info(f"  N+1 Query Elimination: {exec_summary['n1_query_elimination']}")
-        logger.info(f"  Batch Processing Implementation: {exec_summary['batch_processing_implementation']}")
+        logger.info(
+            f"  Batch Processing Implementation: {exec_summary['batch_processing_implementation']}"
+        )
         logger.info(f"  Scalability Improvement: {exec_summary['scalability_improvement']}")
 
         # Log detailed improvements
-        logger.info(f"\nDetailed Improvements:")
+        logger.info("\nDetailed Improvements:")
 
         anime_improvements = improvements["anime_metadata_improvements"]
-        logger.info(f"  Anime Metadata Updates:")
-        logger.info(f"    Time improvement: {anime_improvements['avg_time_improvement_percent']:.1f}%")
-        logger.info(f"    Query reduction: {anime_improvements['avg_query_improvement_percent']:.1f}%")
-        logger.info(f"    Memory efficiency: {anime_improvements['avg_memory_improvement_percent']:.1f}%")
+        logger.info("  Anime Metadata Updates:")
+        logger.info(
+            f"    Time improvement: {anime_improvements['avg_time_improvement_percent']:.1f}%"
+        )
+        logger.info(
+            f"    Query reduction: {anime_improvements['avg_query_improvement_percent']:.1f}%"
+        )
+        logger.info(
+            f"    Memory efficiency: {anime_improvements['avg_memory_improvement_percent']:.1f}%"
+        )
 
         file_improvements = improvements["parsed_files_improvements"]
-        logger.info(f"  Parsed Files Updates:")
-        logger.info(f"    Time improvement: {file_improvements['avg_time_improvement_percent']:.1f}%")
-        logger.info(f"    Query reduction: {file_improvements['avg_query_improvement_percent']:.1f}%")
-        logger.info(f"    Memory efficiency: {file_improvements['avg_memory_improvement_percent']:.1f}%")
+        logger.info("  Parsed Files Updates:")
+        logger.info(
+            f"    Time improvement: {file_improvements['avg_time_improvement_percent']:.1f}%"
+        )
+        logger.info(
+            f"    Query reduction: {file_improvements['avg_query_improvement_percent']:.1f}%"
+        )
+        logger.info(
+            f"    Memory efficiency: {file_improvements['avg_memory_improvement_percent']:.1f}%"
+        )
 
         # Log validation results
         validation = report["validation_results"]
-        logger.info(f"\nValidation Results:")
+        logger.info("\nValidation Results:")
         logger.info(f"  All tests passed: {'✅' if validation['all_tests_passed'] else '❌'}")
 
         if validation["failed_validations"]:
-            logger.info(f"  Failed validations:")
+            logger.info("  Failed validations:")
             for failure in validation["failed_validations"]:
                 logger.info(f"    - {failure}")
 
         # Log scalability analysis
         scalability = report["performance_metrics"]["scalability_analysis"]
-        logger.info(f"\nScalability Analysis:")
+        logger.info("\nScalability Analysis:")
         logger.info(f"  Baseline scaling ratio: {scalability['baseline_scaling_ratio']:.2f}")
         logger.info(f"  Optimized scaling ratio: {scalability['optimized_scaling_ratio']:.2f}")
         logger.info(f"  Scaling improvement: {scalability['scalability_grade']}")
-        logger.info(f"  Linear scaling achieved: {'✅' if scalability['is_linear_scaling_achieved'] else '❌'}")
+        logger.info(
+            f"  Linear scaling achieved: {'✅' if scalability['is_linear_scaling_achieved'] else '❌'}"
+        )
 
         # Assert performance improvements
         assert validation["all_tests_passed"], "Performance improvements did not meet thresholds"
@@ -533,11 +584,12 @@ async def test_performance_analysis_report():
 
     finally:
         # Cleanup
-        if hasattr(db_manager, 'close'):
+        if hasattr(db_manager, "close"):
             db_manager.close()
 
 
 if __name__ == "__main__":
     # Run performance analysis directly
     import asyncio
+
     asyncio.run(test_performance_analysis_report())

@@ -10,7 +10,7 @@ import threading
 import time
 import tracemalloc
 from collections import defaultdict, deque
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -125,7 +125,7 @@ class ProfilerStats:
 class SyncProfiler:
     """Comprehensive profiler for synchronization operations."""
 
-    def __init__(self, max_history: int = 10000):
+    def __init__(self, max_history: int = 10000) -> None:
         """Initialize the sync profiler.
 
         Args:
@@ -203,7 +203,7 @@ class SyncProfiler:
         operation_name: str,
         operation_size: int | None = None,
         additional_context: dict[str, Any] | None = None,
-    ):
+    ) -> Generator[Any, None, None]:
         """Context manager for profiling operations.
 
         Args:
@@ -552,7 +552,7 @@ def profile_sync_operation(
     operation_name: str,
     operation_size: int | None = None,
     additional_context: dict[str, Any] | None = None,
-):
+) -> Callable:
     """Decorator for profiling synchronization operations.
 
     Args:
@@ -563,7 +563,7 @@ def profile_sync_operation(
     """
 
     def decorator(func: Callable) -> Callable:
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             profiler = get_sync_profiler()
             with profiler.profile_operation(
                 event_type=event_type,
@@ -583,7 +583,7 @@ def profile_operation(
     operation_name: str,
     operation_size: int | None = None,
     additional_context: dict[str, Any] | None = None,
-):
+) -> Generator[Any, None, None]:
     """Context manager for profiling operations.
 
     Args:

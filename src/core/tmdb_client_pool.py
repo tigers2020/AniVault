@@ -37,7 +37,7 @@ class TMDBClientPool:
         initial_size: int = 2,
         max_size: int = 8,
         pool_name: str = "TMDBPool",
-    ):
+    ) -> None:
         """Initialize the TMDB client pool.
 
         Args:
@@ -294,7 +294,7 @@ class ThreadLocalTMDBClient:
         _config: TMDB configuration for creating clients
     """
 
-    def __init__(self, config: TMDBConfig):
+    def __init__(self, config: TMDBConfig) -> None:
         """Initialize the thread-local TMDB client manager.
 
         Args:

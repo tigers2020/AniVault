@@ -11,6 +11,7 @@ import asyncio
 import logging
 import random
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from difflib import SequenceMatcher
@@ -120,7 +121,14 @@ class TMDBAPIError(TMDBError):
         message: str,
         status_code: int | None = None,
         response: dict[str, Any] | None = None,
-    ):
+    ) -> None:
+        """Initialize the TMDB API error.
+
+        Args:
+            message (str): Error message describing the API error.
+            status_code (int | None, optional): HTTP status code from the API response. Defaults to None.
+            response (dict[str, Any] | None, optional): Full API response data. Defaults to None.
+        """
         super().__init__(message)
         self.status_code = status_code
         self.response = response
@@ -139,7 +147,7 @@ class TMDBClient:
     and handle various error conditions including rate limiting and network issues.
     """
 
-    def __init__(self, config: TMDBConfig):
+    def __init__(self, config: TMDBConfig) -> None:
         """Initialize the TMDB client.
 
         Args:
@@ -402,7 +410,7 @@ class TMDBClient:
         else:
             raise TMDBAPIError(f"Network error after {self.config.max_retries} retries: {error!s}")
 
-    def _make_request(self, func, *args, **kwargs) -> Any:
+    def _make_request(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
         """Make a request with retry logic and error handling.
 
         Args:
