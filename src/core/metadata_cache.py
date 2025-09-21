@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 from .cache_key_generator import get_cache_key_generator
+from .cache_metrics_exporter import update_cache_metrics, update_cache_size, update_memory_usage
+from .cache_tracker import CacheMetrics, get_cache_tracker
 from .compression import compression_manager
 from .database import DatabaseManager
 from .database_health import HealthStatus, get_database_health_status
@@ -117,11 +119,14 @@ class MetadataCache:
         # Thread-safe cache storage using OrderedDict for LRU behavior
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self._lock = threading.RLock()
-        
+
         # Initialize cache key generator
         self._key_generator = get_cache_key_generator()
 
-        # Statistics tracking
+        # Initialize optimized cache tracker
+        self._cache_tracker = get_cache_tracker("metadata_cache")
+
+        # Legacy statistics tracking (for backward compatibility)
         self._stats = CacheStats()
 
         # Memory usage tracking
@@ -164,6 +169,7 @@ class MetadataCache:
             # Check if key exists in cache
             if key not in self._cache:
                 self._stats.misses += 1
+                self._cache_tracker.track_miss()  # Optimized tracking
                 logger.debug(f"Cache miss for key: {key}")
 
                 # Log cache miss
@@ -176,6 +182,7 @@ class MetadataCache:
                         # Store in cache for future use
                         self._store_in_cache(key, db_value)
                         self._stats.hits += 1
+                        self._cache_tracker.track_hit()  # Optimized tracking
                         logger.debug(f"Read-through successful for key: {key}")
                         return db_value
                     else:
@@ -192,6 +199,7 @@ class MetadataCache:
                 logger.debug(f"Cache entry expired for key: {key}")
                 self._remove_entry(key)
                 self._stats.misses += 1
+                self._cache_tracker.track_miss()  # Optimized tracking
 
                 # Log cache miss due to expiration
                 sync_monitor.log_cache_miss(key, SyncOperationType.READ_THROUGH)
@@ -202,6 +210,7 @@ class MetadataCache:
                     if db_value is not None:
                         self._store_in_cache(key, db_value)
                         self._stats.hits += 1
+                        self._cache_tracker.track_hit()  # Optimized tracking
                         logger.debug(f"Read-through after expiration successful for key: {key}")
                         return db_value
                     else:
@@ -218,6 +227,7 @@ class MetadataCache:
             entry.update_access()
 
             self._stats.hits += 1
+            self._cache_tracker.track_hit()  # Optimized tracking
             self._stats.cache_size = len(self._cache)
             logger.debug(f"Cache hit for key: {key}")
 
@@ -349,23 +359,54 @@ class MetadataCache:
     def get_stats(self) -> CacheStats:
         """Get current cache statistics."""
         with self._lock:
-            # Update current stats
+            # Get optimized metrics from tracker
+            optimized_metrics = self._cache_tracker.get_metrics()
+
+            # Update current stats with optimized data
             self._stats.cache_size = len(self._cache)
             self._stats.memory_usage_bytes = self._current_memory_bytes
 
+            # Use optimized metrics if available, fall back to legacy stats
+            hits = optimized_metrics.hits if optimized_metrics.hits > 0 else self._stats.hits
+            misses = (
+                optimized_metrics.misses if optimized_metrics.misses > 0 else self._stats.misses
+            )
+            total_requests = (
+                optimized_metrics.total_requests
+                if optimized_metrics.total_requests > 0
+                else self._stats.total_requests
+            )
+            evictions = (
+                optimized_metrics.evictions
+                if optimized_metrics.evictions > 0
+                else self._stats.evictions
+            )
+
             # Update Prometheus metrics
-            hit_rate = (self._stats.hits / max(self._stats.total_requests, 1)) * 100
+            hit_rate = (hits / max(total_requests, 1)) * 100
             sync_monitor.update_cache_metrics(
                 hit_rate=hit_rate,
                 size=self._stats.cache_size,
                 memory_bytes=self._stats.memory_usage_bytes,
             )
 
+            # Update optimized Prometheus metrics
+            optimized_metrics = CacheMetrics(
+                hits=hits,
+                misses=misses,
+                evictions=evictions,
+                total_requests=total_requests,
+                last_updated=time.time(),
+            )
+            update_cache_metrics("metadata_cache", optimized_metrics)
+            update_cache_size("metadata_cache", self._stats.cache_size)
+            update_memory_usage("metadata_cache", self._stats.memory_usage_bytes)
+
             return CacheStats(
-                hits=self._stats.hits,
-                misses=self._stats.misses,
-                evictions=self._stats.evictions,
-                total_requests=self._stats.total_requests,
+                hits=hits,
+                misses=misses,
+                evictions=evictions,
+                total_requests=total_requests,
                 cache_size=self._stats.cache_size,
                 memory_usage_bytes=self._stats.memory_usage_bytes,
             )
@@ -374,6 +415,7 @@ class MetadataCache:
         """Reset cache statistics."""
         with self._lock:
             self._stats.reset()
+            self._cache_tracker.reset_metrics()  # Reset optimized tracking
 
     def get_memory_usage_mb(self) -> float:
         """Get current memory usage in megabytes."""
@@ -555,6 +597,7 @@ class MetadataCache:
             _key, entry = self._cache.popitem(last=False)
             self._current_memory_bytes -= entry.size_bytes
             self._stats.evictions += 1
+            self._cache_tracker.track_eviction()  # Optimized tracking
 
     def _should_cleanup(self) -> bool:
         """Check if cleanup should be performed."""
@@ -832,7 +875,7 @@ class MetadataCache:
             # Update cache entries
             for update in updates:
                 if "tmdb_id" in update:
-                    cache_key = self._key_generator.generate_tmdb_anime_key(update['tmdb_id'])
+                    cache_key = self._key_generator.generate_tmdb_anime_key(update["tmdb_id"])
                     # Remove from cache to force reload from database
                     if cache_key in self._cache:
                         self._remove_entry(cache_key)

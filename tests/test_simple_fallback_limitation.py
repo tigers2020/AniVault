@@ -27,29 +27,29 @@ class TestSimpleFallbackLimitation(unittest.TestCase):
         """Test that exactly 3 fallback strategies are called."""
         with patch.object(self.client, '_try_multi_search_with_scoring') as mock_search:
             mock_search.return_value = []
-            
+
             with patch.object(self.client, 'search_tv_series', return_value=[]):
                 # Use a query that will trigger all 3 fallback strategies
                 query = "Attack on Titan Season 1 Episode 1 [1080p]"
                 self.client.search_comprehensive(query)
-            
+
             # Should be called 1 initial + 3 fallback = 4 times total
             self.assertEqual(mock_search.call_count, 4)
 
     def test_fallback_strategies_effectiveness(self):
         """Test that the selected strategies are effective."""
         test_query = "Attack on Titan Season 1 Episode 1 [1080p]"
-        
+
         # Test NORMALIZED strategy
         normalized = self.client._normalize_query(test_query)
         self.assertNotEqual(normalized, test_query)
         self.assertEqual(normalized, "Attack on Titan Season 1 Episode 1")
-        
+
         # Test WORD_REDUCTION strategy
         word_reduced = self.client._reduce_query_words(test_query)
         self.assertNotEqual(word_reduced, test_query)
         self.assertEqual(word_reduced, "Attack on Titan Season 1 Episode 1")
-        
+
         # Test LANGUAGE_FALLBACK strategy (doesn't modify query)
         # This strategy uses fallback language instead of modifying query
         self.assertEqual(test_query, test_query)  # Query remains unchanged
@@ -66,15 +66,15 @@ class TestSimpleFallbackLimitation(unittest.TestCase):
         original_strategies = 5
         limited_strategies = 3
         reduction_percentage = (original_strategies - limited_strategies) / original_strategies * 100
-        
+
         self.assertEqual(reduction_percentage, 40.0)
-        
+
         # In practice: 100 files × 3 strategies = 300 API calls instead of 500
         files_count = 100
         original_calls = files_count * original_strategies
         limited_calls = files_count * limited_strategies
         saved_calls = original_calls - limited_calls
-        
+
         self.assertEqual(original_calls, 500)
         self.assertEqual(limited_calls, 300)
         self.assertEqual(saved_calls, 200)

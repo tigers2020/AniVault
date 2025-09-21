@@ -327,3 +327,72 @@ README_Setup_Guide.md
 # Task files
 # tasks.json
 # tasks/
+
+# Serena AI memory files
+.serena/
+
+# Examples and scripts (development only)
+examples/
+scripts/
+
+# Performance test files
+*_performance_test.py
+test_*_performance.py
+
+# Cache and temporary files
+.cache/
+*.cache
+*.tmp
+*.temp
+
+# IDE and editor specific
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Log files
+*.log
+logs/
+
+# Database files (development)
+*.db
+*.sqlite
+*.sqlite3
+anivault.db
+
+# Coverage and test reports
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+cover/
+
+# Backup files
+*.backup
+*.bak
+config_backup_*.json
+unified_config_backup_*.json
+
+# Documentation files that are generated
+MVVM_IMPLEMENTATION_REPORT.md
+README_Setup_Guide.md
+
+# Virtual environment activation scripts
+activate-venv.bat
+activate-venv.ps1
+activate.bat
+
+# Large files
+coverage.json
+*.coverage.json
+
+# Temporary script files
+fix_test_annotations.py

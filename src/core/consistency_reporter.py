@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 try:
     import orjson
+
     ORJSON_AVAILABLE = True
 except ImportError:
     ORJSON_AVAILABLE = False
@@ -375,19 +376,19 @@ class ConsistencyReporter:
         # Optimized JSON serialization for conflict data
         db_data_str = None
         cache_data_str = None
-        
+
         if conflict.db_data:
             if ORJSON_AVAILABLE:
                 db_data_str = orjson.dumps(conflict.db_data).decode("utf-8")
             else:
                 db_data_str = json.dumps(conflict.db_data)
-        
+
         if conflict.cache_data:
             if ORJSON_AVAILABLE:
                 cache_data_str = orjson.dumps(conflict.cache_data).decode("utf-8")
             else:
                 cache_data_str = json.dumps(conflict.cache_data)
-        
+
         conflict_record = ConsistencyConflict(
             report_id=report_id,
             conflict_type=conflict.conflict_type.value,

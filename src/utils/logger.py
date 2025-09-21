@@ -15,7 +15,6 @@ from typing import Any, TypeVar
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from .conditional_json_formatter import (
-    ConditionalJsonFormatter,
     create_optimized_formatter,
     create_simple_formatter,
 )
@@ -179,10 +178,10 @@ class LogManager(QObject):
             use_orjson=True,
             include_extra=True,
         )
-        
+
         # Use simple formatter for console and debug levels
         simple_formatter = create_simple_formatter()
-        
+
         # Detailed formatter for backward compatibility
         detailed_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"

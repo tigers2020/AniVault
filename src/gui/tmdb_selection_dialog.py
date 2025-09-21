@@ -22,6 +22,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..core.async_session_manager import run_async
+from ..core.async_tmdb_client import create_async_tmdb_client
 from ..core.tmdb_client import TMDBClient, TMDBConfig, TMDBError
 from ..themes.theme_manager import ThemeManager
 
@@ -188,7 +190,7 @@ class TMDBSelectionDialog(QDialog):
             self._perform_search()
 
     def _perform_search(self):
-        """TMDB 검색 수행"""
+        """TMDB 검색 수행 (비동기)"""
         query = self.search_input.text().strip()
         if not query:
             self.status_label.setText("검색어를 입력해주세요.")
@@ -198,20 +200,38 @@ class TMDBSelectionDialog(QDialog):
         self.search_btn.setEnabled(False)
 
         try:
-            # TMDB 클라이언트 초기화 (지연 초기화)
-            if not self.tmdb_client:
-                if not self.api_key:
-                    self.status_label.setText("TMDB API 키가 설정되지 않았습니다.")
-                    return
-                config = TMDBConfig(api_key=self.api_key)
-                self.tmdb_client = TMDBClient(config)
+            # 비동기 검색 실행
+            results = run_async(self._perform_search_async(query))
 
-            # TMDB Multi Search 수행
-            # At this point, tmdb_client is guaranteed to be initialized
+            if not results:
+                self.status_label.setText(f"'{query}'에 대한 검색 결과가 없습니다.")
+            else:
+                self.status_label.setText(f"'{query}' 검색 결과: {len(results)}개")
+                self._display_results(results)
 
-            search_results, needs_selection = self.tmdb_client.search_comprehensive(
-                query, language="ko-KR"
-            )
+        except TMDBError as e:
+            logger.error(f"TMDB search failed: {e}")
+            self.status_label.setText(f"검색 실패: {e!s}")
+            QMessageBox.warning(self, "검색 오류", f"TMDB 검색 중 오류가 발생했습니다:\n{e!s}")
+        except Exception as e:
+            logger.error(f"Unexpected error during TMDB search: {e}")
+            self.status_label.setText("검색 중 오류가 발생했습니다.")
+            QMessageBox.critical(self, "오류", f"예상치 못한 오류가 발생했습니다:\n{e!s}")
+        finally:
+            self.search_btn.setEnabled(True)
+
+    async def _perform_search_async(self, query: str) -> list[dict[str, Any]]:
+        """비동기 TMDB 검색 수행"""
+        # TMDB 클라이언트 초기화 (지연 초기화)
+        if not self.api_key:
+            raise TMDBError("TMDB API 키가 설정되지 않았습니다.")
+
+        config = TMDBConfig(api_key=self.api_key)
+        async_client = await create_async_tmdb_client(config)
+
+        try:
+            # TMDB Comprehensive Search 수행
+            search_results = await async_client.search_comprehensive(query)
 
             # Initialize results list
             results = []
@@ -234,29 +254,16 @@ class TMDBSelectionDialog(QDialog):
                     }
                     results.append(result_dict)
 
-            # 단일 결과이고 선택이 필요하지 않은 경우 자동 선택
-            if not needs_selection and len(results) == 1:
+            # 단일 결과인 경우 자동 선택
+            if len(results) == 1:
                 logger.info(f"Single result found, auto-selecting: {results[0]['name']}")
                 self._select_result(results[0])
-                return
+                return []
 
-            self._display_results(results)
+            return results
 
-            if not results:
-                self.status_label.setText(f"'{query}'에 대한 검색 결과가 없습니다.")
-            else:
-                self.status_label.setText(f"'{query}' 검색 결과: {len(results)}개")
-
-        except TMDBError as e:
-            logger.error(f"TMDB search failed: {e}")
-            self.status_label.setText(f"검색 실패: {e!s}")
-            QMessageBox.warning(self, "검색 오류", f"TMDB 검색 중 오류가 발생했습니다:\n{e!s}")
-        except Exception as e:
-            logger.error(f"Unexpected error during TMDB search: {e}")
-            self.status_label.setText("검색 중 오류가 발생했습니다.")
-            QMessageBox.critical(self, "오류", f"예상치 못한 오류가 발생했습니다:\n{e!s}")
         finally:
-            self.search_btn.setEnabled(True)
+            await async_client.close()
 
     def _display_results(self, results: list[dict[str, Any]]):
         """검색 결과를 테이블에 표시"""

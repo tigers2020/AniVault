@@ -7,6 +7,7 @@ posters, and other relevant information.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 import time
@@ -20,14 +21,17 @@ import tmdbsimple as tmdb
 
 try:
     import orjson
+
     ORJSON_AVAILABLE = True
 except ImportError:
     import json
+
     ORJSON_AVAILABLE = False
 
 from .cache_key_generator import get_cache_key_generator
 from .config_manager import get_config_manager
 from .models import TMDBAnime
+from .optimized_quality_calculator import OptimizedQualityCalculator, QualityScoreConfig
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +44,16 @@ class SearchStrategy(Enum):
     MOVIE_ONLY = "movie_only"
 
 
+class SearchStrategyType(Enum):
+    """Search strategy type enumeration for 3-strategy approach."""
+
+    EXACT_TITLE_WITH_YEAR = "exact_title_with_year"
+    EXACT_TITLE_ONLY = "exact_title_only"
+    CLEANED_TITLE = "cleaned_title"
+
+
 class FallbackStrategy(Enum):
-    """Fallback strategy enumeration."""
+    """Fallback strategy enumeration (deprecated - use SearchStrategyType)."""
 
     NORMALIZED = "normalized"
     WORD_REDUCTION = "word_reduction"
@@ -90,6 +102,9 @@ class TMDBConfig:
     language_weight: float = 0.2
     include_person_results: bool = False
 
+    # Quality score optimization
+    use_optimized_quality_calculator: bool = True
+
 
 class TMDBError(Exception):
     """Base exception for TMDB API errors."""
@@ -134,7 +149,7 @@ class TMDBClient:
         self._setup_tmdb()
         self._cache: dict[str, Any] = {}
         self._rate_limited_until: float | None = None
-        
+
         # Initialize cache key generator
         self._key_generator = get_cache_key_generator()
 
@@ -156,6 +171,17 @@ class TMDBClient:
         # Cache statistics
         self._cache_hits = 0
         self._cache_misses = 0
+
+        # Initialize quality score calculator
+        if config.use_optimized_quality_calculator:
+            quality_config = QualityScoreConfig(
+                similarity_weight=config.similarity_weight,
+                year_weight=config.year_weight,
+                language_weight=config.language_weight,
+            )
+            self._quality_calculator = OptimizedQualityCalculator(quality_config)
+        else:
+            self._quality_calculator = None
 
         logger.info("TMDB client initialized with API key: %s", self._mask_api_key(config.api_key))
 
@@ -596,13 +622,15 @@ class TMDBClient:
                 if logger.isEnabledFor(logging.WARNING):
                     try:
                         if ORJSON_AVAILABLE:
-                            json_str = orjson.dumps(result, option=orjson.OPT_INDENT_2).decode("utf-8")
+                            json_str = orjson.dumps(result, option=orjson.OPT_INDENT_2).decode(
+                                "utf-8"
+                            )
                         else:
                             json_str = json.dumps(result, ensure_ascii=False, indent=2)
                         logger.warning("Result %d JSON: %s", i, json_str)
                     except (TypeError, ValueError) as e:
                         logger.warning("Result %d JSON serialization failed: %s", i, e)
-                
+
                 # Always log key fields for debugging (no JSON serialization overhead)
                 logger.debug(
                     "Result %d - title: '%s', original_title: '%s', name: '%s', original_name: '%s'",
@@ -673,6 +701,29 @@ class TMDBClient:
         self, result: dict[str, Any], query: str, language: str, year_hint: int | None = None
     ) -> float:
         """Calculate quality score for a search result.
+
+        Args:
+            result: TMDB search result
+            query: Original search query
+            language: Language code
+            year_hint: Year hint from filename parsing
+
+        Returns:
+            Quality score between 0.0 and 1.0
+        """
+        # Use optimized calculator if available
+        if self._quality_calculator is not None:
+            return self._quality_calculator.calculate_quality_score(
+                result, query, language, year_hint
+            )
+
+        # Fallback to legacy calculation
+        return self._calculate_quality_score_legacy(result, query, language, year_hint)
+
+    def _calculate_quality_score_legacy(
+        self, result: dict[str, Any], query: str, language: str, year_hint: int | None = None
+    ) -> float:
+        """Calculate quality score using legacy method.
 
         Args:
             result: TMDB search result
@@ -793,7 +844,7 @@ class TMDBClient:
     def search_comprehensive(
         self, query: str, language: str | None = None, min_quality: float | None = None
     ) -> tuple[list[SearchResult] | None, bool]:
-        """Comprehensive search using Multi Search with fallback strategies.
+        """Comprehensive search using exactly 3 strategies to limit API calls.
 
         Args:
             query: Search query
@@ -803,120 +854,8 @@ class TMDBClient:
         Returns:
             Tuple of (search_results, needs_manual_selection)
         """
-        try:
-            if not query or not query.strip():
-                logger.warning("Empty search query provided")
-                return None, False
-
-            search_language = language or self.config.language
-            quality_threshold = min_quality or self.config.medium_confidence_threshold
-
-            logger.info(
-                "Starting comprehensive search for: '%s' (threshold: %.2f)",
-                query,
-                quality_threshold,
-            )
-
-            # Extract year hint from query if possible
-            year_hint = self._extract_year_from_query(query)
-
-            # Try Multi Search with original query
-            results = self._try_multi_search_with_scoring(
-                query, search_language, year_hint, SearchStrategy.MULTI, 0
-            )
-
-            if results:
-                logger.info("Initial raw results: %d items", len(results))
-                high_confidence_results = [
-                    r for r in results if r.quality_score >= self.config.high_confidence_threshold
-                ]
-                medium_confidence_results = [
-                    r for r in results if r.quality_score >= quality_threshold
-                ]
-                logger.info(
-                    "High confidence (>= %.2f): %d items, Medium confidence (>= %.2f): %d items",
-                    self.config.high_confidence_threshold,
-                    len(high_confidence_results),
-                    quality_threshold,
-                    len(medium_confidence_results),
-                )
-
-                if len(high_confidence_results) == 1:
-                    # Single high confidence result - use directly
-                    logger.info("Found single high confidence result for '%s'", query)
-                    return [high_confidence_results[0]], False
-                elif len(medium_confidence_results) >= 2:
-                    # Multiple medium+ confidence results - need selection
-                    logger.info(
-                        "Found %d medium+ confidence results for '%s', needs selection",
-                        len(medium_confidence_results),
-                        query,
-                    )
-                    return medium_confidence_results, True
-                elif len(medium_confidence_results) == 1:
-                    # Single medium confidence result - use directly
-                    logger.info("Found single medium confidence result for '%s'", query)
-                    return [medium_confidence_results[0]], False
-
-            # Try fallback strategies (limited to top 3 most effective)
-            fallback_strategies = [
-                (FallbackStrategy.NORMALIZED, self._normalize_query),
-                (FallbackStrategy.WORD_REDUCTION, self._reduce_query_words),
-                (FallbackStrategy.LANGUAGE_FALLBACK, lambda q: q),  # Will use fallback language
-            ]
-
-            for round_num, (strategy, query_modifier) in enumerate(fallback_strategies, 1):
-                if strategy == FallbackStrategy.LANGUAGE_FALLBACK:
-                    # Use fallback language
-                    modified_query = query
-                    fallback_language = self.config.fallback_language
-                else:
-                    modified_query = query_modifier(query)
-                    fallback_language = search_language
-
-                if not modified_query or (modified_query == query and strategy != FallbackStrategy.LANGUAGE_FALLBACK):
-                    continue
-
-                logger.info(
-                    "Trying fallback strategy %s (round %d): '%s'",
-                    strategy.value,
-                    round_num,
-                    modified_query,
-                )
-
-                results = self._try_multi_search_with_scoring(
-                    modified_query, fallback_language, year_hint, SearchStrategy.MULTI, round_num
-                )
-
-                if results:
-                    logger.info("Raw results from %s: %d items", strategy.value, len(results))
-                    medium_confidence_results = [
-                        r for r in results if r.quality_score >= quality_threshold
-                    ]
-                    logger.info(
-                        "Filtered results (quality >= %.2f): %d items",
-                        quality_threshold,
-                        len(medium_confidence_results),
-                    )
-
-                    if len(medium_confidence_results) >= 2:
-                        logger.info(
-                            "Found %d results with %s strategy, needs selection",
-                            len(medium_confidence_results),
-                            strategy.value,
-                        )
-                        return medium_confidence_results, True
-                    elif len(medium_confidence_results) == 1:
-                        logger.info("Found single result with %s strategy", strategy.value)
-                        return [medium_confidence_results[0]], False
-
-            # No results found
-            logger.info("No results found for '%s' after all strategies", query)
-            return None, False
-
-        except Exception as e:
-            logger.error("Unexpected error during comprehensive search for '%s': %s", query, str(e))
-            return None, False
+        # Use the new 3-strategy approach
+        return self.search_with_three_strategies(query, language, min_quality)
 
     def _try_multi_search_with_scoring(
         self,
@@ -1008,6 +947,297 @@ class TMDBClient:
             return ""
         return " ".join(words[:-1])
 
+    def _clean_title_for_search(self, query: str) -> str:
+        """Clean title for broader search by removing common noise."""
+        import re
+
+        # Start with normalized query
+        cleaned = self._normalize_query(query)
+
+        # Remove additional common file naming patterns
+        cleaned = re.sub(r"\s*-\s*Season\s*\d+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*-\s*Episode\s*\d+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*S\d+E\d+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*Episode\s*\d+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*Season\s*\d+", "", cleaned, flags=re.IGNORECASE)
+
+        # Remove quality indicators
+        cleaned = re.sub(r"\s*\[.*?\]", "", cleaned)  # Remove [1080p], [BluRay], etc.
+        cleaned = re.sub(r"\s*\(.*?\)", "", cleaned)  # Remove (Director's Cut), etc.
+
+        # Remove common group tags
+        cleaned = re.sub(r"\s*-\s*[A-Za-z0-9]+$", "", cleaned)
+
+        # Clean up extra spaces
+        cleaned = " ".join(cleaned.split())
+
+        return cleaned.strip()
+
+    def search_with_three_strategies(
+        self, query: str, language: str | None = None, min_quality: float | None = None
+    ) -> tuple[list[SearchResult] | None, bool]:
+        """Search using exactly 3 strategies to limit API calls with enhanced early exit logic.
+
+        Args:
+            query: Search query
+            language: Language code for search
+            min_quality: Minimum quality threshold
+
+        Returns:
+            Tuple of (search_results, needs_manual_selection)
+        """
+        try:
+            if not query or not query.strip():
+                logger.warning("Empty search query provided")
+                return None, False
+
+            search_language = language or self.config.language
+            quality_threshold = min_quality or self.config.medium_confidence_threshold
+
+            logger.info(
+                "Starting 3-strategy search for: '%s' (threshold: %.2f)",
+                query,
+                quality_threshold,
+            )
+
+            # Extract year hint from query
+            year_hint = self._extract_year_from_query(query)
+
+            # Define the 3 strategies in order of effectiveness with early exit thresholds
+            strategies = [
+                (
+                    SearchStrategyType.EXACT_TITLE_WITH_YEAR,
+                    self._strategy_exact_title_with_year,
+                    0.85,
+                ),  # Highest threshold for most precise strategy
+                (
+                    SearchStrategyType.EXACT_TITLE_ONLY,
+                    self._strategy_exact_title_only,
+                    0.75,
+                ),  # Medium threshold
+                (
+                    SearchStrategyType.CLEANED_TITLE,
+                    self._strategy_cleaned_title,
+                    0.65,
+                ),  # Lower threshold for broadest strategy
+            ]
+
+            all_results = []
+
+            for strategy_index, (strategy_type, strategy_func, early_exit_threshold) in enumerate(
+                strategies
+            ):
+                logger.info(
+                    "Trying strategy: %s (early exit threshold: %.2f)",
+                    strategy_type.value,
+                    early_exit_threshold,
+                )
+
+                results = strategy_func(query, search_language, year_hint, quality_threshold)
+
+                if results:
+                    logger.info("Strategy %s found %d results", strategy_type.value, len(results))
+                    all_results.extend(results)
+
+                    # Enhanced early exit logic with progressive thresholds
+                    for result in results:
+                        if result.quality_score >= early_exit_threshold:
+                            # Check if this is a single high-quality result
+                            high_quality_matches = [
+                                r for r in results if r.quality_score >= early_exit_threshold
+                            ]
+
+                            if len(high_quality_matches) == 1:
+                                logger.info(
+                                    "Early exit: Found single high-quality result (%.2f) with %s",
+                                    result.quality_score,
+                                    strategy_type.value,
+                                )
+                                return [result], False
+                            elif len(high_quality_matches) >= 2:
+                                logger.info(
+                                    "Early exit: Found %d high-quality results with %s, needs selection",
+                                    len(high_quality_matches),
+                                    strategy_type.value,
+                                )
+                                return high_quality_matches, True
+
+                    # If we have results but none meet the early exit threshold, continue to next strategy
+                    # but store the best results so far
+                    if strategy_index == 0:  # First strategy
+                        # For first strategy, if we have good results but not great, continue
+                        best_results = sorted(results, key=lambda x: x.quality_score, reverse=True)
+                        if best_results[0].quality_score >= 0.6:  # Good but not great
+                            logger.info(
+                                "Strategy %s found good results (%.2f), continuing to next strategy",
+                                strategy_type.value,
+                                best_results[0].quality_score,
+                            )
+                            continue
+
+                    # For subsequent strategies, if we have any reasonable results, consider early exit
+                    best_result = max(results, key=lambda x: x.quality_score)
+                    if best_result.quality_score >= early_exit_threshold * 0.9:  # 90% of threshold
+                        logger.info(
+                            "Early exit: Found reasonable result (%.2f) with %s",
+                            best_result.quality_score,
+                            strategy_type.value,
+                        )
+                        return results, len(results) > 1
+
+            # No results found with any strategy
+            if all_results:
+                # Return the best results found across all strategies
+                best_results = sorted(all_results, key=lambda x: x.quality_score, reverse=True)
+                logger.info(
+                    "Returning best results from all strategies (best: %.2f)",
+                    best_results[0].quality_score,
+                )
+                return best_results, len(best_results) > 1
+            else:
+                logger.info("No results found for '%s' after all 3 strategies", query)
+                return None, False
+
+        except Exception as e:
+            logger.error("Unexpected error during 3-strategy search for '%s': %s", query, str(e))
+            return None, False
+
+    def _strategy_exact_title_with_year(
+        self, query: str, language: str, year_hint: int | None, quality_threshold: float
+    ) -> list[SearchResult]:
+        """Strategy 1: Exact title with year match (highest precision)."""
+        if not year_hint:
+            return []
+
+        # Extract clean title without year
+        import re
+
+        title_without_year = re.sub(r"\b(19|20)\d{2}\b", "", query).strip()
+        if not title_without_year:
+            return []
+
+        logger.info("Strategy 1: Searching '%s' with year %d", title_without_year, year_hint)
+
+        # Use multi search with year parameter
+        raw_results = self.search_multi(title_without_year, language)
+        if not raw_results:
+            return []
+
+        # Filter by year and score results
+        search_results = []
+        for result in raw_results:
+            result_year = self._extract_year_from_date(
+                result.get("release_date") or result.get("first_air_date", "")
+            )
+
+            # Only include results that match the year hint
+            if result_year and abs(result_year - year_hint) <= 1:  # Allow 1 year tolerance
+                quality_score = self._calculate_quality_score(
+                    result, title_without_year, language, year_hint
+                )
+
+                search_result = SearchResult(
+                    id=result.get("id", 0),
+                    media_type=result.get("media_type", "unknown"),
+                    title=result.get("title") or result.get("name", ""),
+                    original_title=result.get("original_title") or result.get("original_name", ""),
+                    year=result_year,
+                    overview=result.get("overview", ""),
+                    poster_path=result.get("poster_path"),
+                    popularity=result.get("popularity", 0.0),
+                    vote_average=result.get("vote_average", 0.0),
+                    vote_count=result.get("vote_count", 0),
+                    quality_score=quality_score,
+                    fallback_round=1,
+                )
+                search_results.append(search_result)
+
+        # Filter by quality threshold
+        return [r for r in search_results if r.quality_score >= quality_threshold]
+
+    def _strategy_exact_title_only(
+        self, query: str, language: str, year_hint: int | None, quality_threshold: float
+    ) -> list[SearchResult]:
+        """Strategy 2: Exact title only (medium precision)."""
+        # Clean the query but keep it close to original
+        clean_query = self._normalize_query(query)
+        if not clean_query:
+            return []
+
+        logger.info("Strategy 2: Searching '%s' without year", clean_query)
+
+        raw_results = self.search_multi(clean_query, language)
+        if not raw_results:
+            return []
+
+        # Convert to SearchResult objects with scoring
+        search_results = []
+        for result in raw_results:
+            quality_score = self._calculate_quality_score(result, clean_query, language, year_hint)
+
+            search_result = SearchResult(
+                id=result.get("id", 0),
+                media_type=result.get("media_type", "unknown"),
+                title=result.get("title") or result.get("name", ""),
+                original_title=result.get("original_title") or result.get("original_name", ""),
+                year=self._extract_year_from_date(
+                    result.get("release_date") or result.get("first_air_date", "")
+                ),
+                overview=result.get("overview", ""),
+                poster_path=result.get("poster_path"),
+                popularity=result.get("popularity", 0.0),
+                vote_average=result.get("vote_average", 0.0),
+                vote_count=result.get("vote_count", 0),
+                quality_score=quality_score,
+                fallback_round=2,
+            )
+            search_results.append(search_result)
+
+        # Filter by quality threshold
+        return [r for r in search_results if r.quality_score >= quality_threshold]
+
+    def _strategy_cleaned_title(
+        self, query: str, language: str, year_hint: int | None, quality_threshold: float
+    ) -> list[SearchResult]:
+        """Strategy 3: Cleaned title (broadest search)."""
+        # Apply aggressive cleaning for broader search
+        cleaned_query = self._clean_title_for_search(query)
+        if not cleaned_query:
+            return []
+
+        logger.info("Strategy 3: Searching cleaned '%s'", cleaned_query)
+
+        raw_results = self.search_multi(cleaned_query, language)
+        if not raw_results:
+            return []
+
+        # Convert to SearchResult objects with scoring
+        search_results = []
+        for result in raw_results:
+            quality_score = self._calculate_quality_score(
+                result, cleaned_query, language, year_hint
+            )
+
+            search_result = SearchResult(
+                id=result.get("id", 0),
+                media_type=result.get("media_type", "unknown"),
+                title=result.get("title") or result.get("name", ""),
+                original_title=result.get("original_title") or result.get("original_name", ""),
+                year=self._extract_year_from_date(
+                    result.get("release_date") or result.get("first_air_date", "")
+                ),
+                overview=result.get("overview", ""),
+                poster_path=result.get("poster_path"),
+                popularity=result.get("popularity", 0.0),
+                vote_average=result.get("vote_average", 0.0),
+                vote_count=result.get("vote_count", 0),
+                quality_score=quality_score,
+                fallback_round=3,
+            )
+            search_results.append(search_result)
+
+        # Filter by quality threshold
+        return [r for r in search_results if r.quality_score >= quality_threshold]
 
     def get_media_details(
         self, media_id: int, media_type: str, language: str | None = None
@@ -1856,6 +2086,256 @@ class TMDBClient:
             "client_errors": 0,
         }
         logger.info("Retry statistics reset")
+
+    # Async methods for backward compatibility and performance
+    async def search_tv_series_async(
+        self,
+        query: str,
+        year: int | None = None,
+        page: int = 1,
+    ) -> dict[str, Any]:
+        """Async version of search_tv_series for better performance.
+
+        Args:
+            query: Search query string
+            year: Optional year filter for first air date
+            page: Page number for pagination (default: 1)
+
+        Returns:
+            Dictionary containing search results
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            return await async_client.search_tv_series(query, year, page)
+        finally:
+            await async_client.close()
+
+    async def search_multi_async(
+        self,
+        query: str,
+        page: int = 1,
+    ) -> dict[str, Any]:
+        """Async version of search_multi for better performance.
+
+        Args:
+            query: Search query string
+            page: Page number for pagination (default: 1)
+
+        Returns:
+            Dictionary containing multi search results
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            return await async_client.search_multi(query, page)
+        finally:
+            await async_client.close()
+
+    async def get_tv_series_details_async(
+        self,
+        series_id: int,
+        include_credits: bool = True,
+    ) -> dict[str, Any]:
+        """Async version of get_tv_series_details for better performance.
+
+        Args:
+            series_id: TMDB TV series ID
+            include_credits: Whether to include credits information
+
+        Returns:
+            Dictionary containing TV series details
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            return await async_client.get_tv_series_details(series_id, include_credits)
+        finally:
+            await async_client.close()
+
+    async def get_movie_details_async(
+        self,
+        movie_id: int,
+        include_credits: bool = True,
+    ) -> dict[str, Any]:
+        """Async version of get_movie_details for better performance.
+
+        Args:
+            movie_id: TMDB movie ID
+            include_credits: Whether to include credits information
+
+        Returns:
+            Dictionary containing movie details
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            return await async_client.get_movie_details(movie_id, include_credits)
+        finally:
+            await async_client.close()
+
+    async def get_media_details_async(
+        self,
+        media_id: int,
+        media_type: str,
+        include_credits: bool = True,
+    ) -> dict[str, Any]:
+        """Async version of get_media_details for better performance.
+
+        Args:
+            media_id: TMDB media ID
+            media_type: Media type ('tv' or 'movie')
+            include_credits: Whether to include credits information
+
+        Returns:
+            Dictionary containing media details
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            return await async_client.get_media_details(media_id, media_type, include_credits)
+        finally:
+            await async_client.close()
+
+    async def search_comprehensive_async(
+        self,
+        query: str,
+        year: int | None = None,
+        strategies: list[SearchStrategyType] | None = None,
+    ) -> list[SearchResult]:
+        """Async version of search_comprehensive for better performance.
+
+        Args:
+            query: Search query string
+            year: Optional year filter
+            strategies: List of search strategies to use
+
+        Returns:
+            List of SearchResult objects with quality scores
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            return await async_client.search_comprehensive(query, year, strategies)
+        finally:
+            await async_client.close()
+
+    # Concurrent operations
+    async def search_multiple_queries_async(
+        self,
+        queries: list[str],
+        year: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search multiple queries concurrently for better performance.
+
+        Args:
+            queries: List of search queries
+            year: Optional year filter for all queries
+
+        Returns:
+            List of search results for each query
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            tasks = [async_client.search_tv_series(query, year) for query in queries]
+            return await asyncio.gather(*tasks, return_exceptions=True)
+        finally:
+            await async_client.close()
+
+    async def get_multiple_series_details_async(
+        self,
+        series_ids: list[int],
+        include_credits: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Get details for multiple TV series concurrently.
+
+        Args:
+            series_ids: List of TV series IDs
+            include_credits: Whether to include credits information
+
+        Returns:
+            List of series details for each ID
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            tasks = [
+                async_client.get_tv_series_details(series_id, include_credits)
+                for series_id in series_ids
+            ]
+            return await asyncio.gather(*tasks, return_exceptions=True)
+        finally:
+            await async_client.close()
+
+    async def get_multiple_movie_details_async(
+        self,
+        movie_ids: list[int],
+        include_credits: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Get details for multiple movies concurrently.
+
+        Args:
+            movie_ids: List of movie IDs
+            include_credits: Whether to include credits information
+
+        Returns:
+            List of movie details for each ID
+
+        Raises:
+            TMDBAPIError: If API request fails
+            TMDBRateLimitError: If rate limited
+        """
+        from .async_tmdb_client import create_async_tmdb_client
+
+        async_client = await create_async_tmdb_client(self.config)
+        try:
+            tasks = [
+                async_client.get_movie_details(movie_id, include_credits) for movie_id in movie_ids
+            ]
+            return await asyncio.gather(*tasks, return_exceptions=True)
+        finally:
+            await async_client.close()
 
 
 def create_tmdb_client() -> TMDBClient:

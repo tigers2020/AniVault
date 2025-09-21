@@ -290,7 +290,9 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
             with executor_manager.get_tmdb_executor() as executor:
                 # Submit all metadata retrieval tasks with thread-local manager
                 future_to_file = {
-                    executor.submit(self._retrieve_metadata_for_file_with_manager, file, thread_local_manager): file
+                    executor.submit(
+                        self._retrieve_metadata_for_file_with_manager, file, thread_local_manager
+                    ): file
                     for file in self.files
                 }
 
@@ -321,7 +323,9 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
             log_operation_error("metadata retrieval", e, exc_info=True)
             raise
 
-    def _retrieve_metadata_for_file_with_manager(self, file: AnimeFile, thread_local_manager) -> AnimeFile:
+    def _retrieve_metadata_for_file_with_manager(
+        self, file: AnimeFile, thread_local_manager
+    ) -> AnimeFile:
         """Retrieve metadata for a single file using thread-local TMDB client manager.
 
         Args:
@@ -334,7 +338,7 @@ class ConcreteMetadataRetrievalTask(WorkerTask):
         try:
             # Get thread-local TMDB client
             tmdb_client = thread_local_manager.get_client()
-            
+
             if file.parsed_info and file.parsed_info.title:
                 # Search for anime metadata
                 search_results = tmdb_client.search_tv_series(file.parsed_info.title)
