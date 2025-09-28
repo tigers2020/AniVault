@@ -1,4 +1,35 @@
 repos:
+  # Black - Code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: [--line-length=88]
+
+  # Ruff - Fast Python linter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.8
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  # MyPy - Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-all]
+        args: [--ignore-missing-imports]
+
+  # Pyright - Type checking
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.356
+    hooks:
+      - id: pyright
+        args: [--pythonversion=3.9]
+
+  # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -6,26 +37,44 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+        args: [--maxkb=1000]
       - id: check-merge-conflict
+      - id: check-json
+      - id: check-toml
       - id: debug-statements
+      - id: check-docstring-first
+      - id: requirements-txt-fixer
 
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
+  # Security
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
     hooks:
-      - id: black
-        language_version: python3
-        exclude: ^tests/|^test_.*\.py$
+      - id: bandit
+        args: [-r, src/, -f, json, -o, bandit-report.json]
+        exclude: ^tests/
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.4
+  # Import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
     hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-        exclude: ^tests/|^test_.*\.py$
+      - id: isort
+        args: [--profile=black]
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+  # Docstring formatting
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
     hooks:
-      - id: mypy
-        args: [--ignore-missing-imports]
-        exclude: ^tests/|^test_.*\.py$
+      - id: pydocstyle
+        args: [--convention=google]
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [mypy, pyright, bandit]  # Skip slow checks in CI
+  submodules: false

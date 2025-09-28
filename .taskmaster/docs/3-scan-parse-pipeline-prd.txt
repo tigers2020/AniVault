@@ -1,0 +1,102 @@
+# AniVault v3 CLI - Scan Parse Pipeline PRD
+
+## Overview
+Implement the core file processing pipeline with threading, memory optimization, and parsing capabilities. This includes file scanning, parsing with anitopy and fallback parsers, and memory profiling for large directories.
+
+## Goals
+- Implement file scanning pipeline with threading (ScanParsePool)
+- Create bounded queues with backpressure handling
+- Implement progress indicators and real-time statistics
+- Add extension whitelist filtering
+- Implement JSON cache schema v1
+- Optimize memory usage for large directories (100k+ files, 500MB limit)
+
+## Success Criteria
+- Scan P95 metrics achieved
+- Cache hit/miss counters implemented
+- Memory usage verification completed (≤500MB for 100k+ files)
+- Parsing failure rate ≤3%
+- Matching accuracy evaluation sample dataset completed
+
+## Technical Requirements
+
+### Core Pipeline Components
+- **ScanParsePool**: ThreadPoolExecutor for file scanning and parsing
+- **Bounded queues**: Backpressure handling with wait/drop policies
+- **Progress indicators**: Real-time statistics and progress bars
+- **Extension filtering**: Whitelist-based file type filtering
+- **Memory optimization**: Generator/streaming patterns for large directories
+
+### Parsing System
+- **anitopy 2.1.1**: Primary animation filename parser
+- **parse 1.20.0**: Fallback parser for complex cases
+- **Hypothesis 6.88.0**: 1k case fuzzing without crashes
+- **Labeled sample dataset**: Matching accuracy evaluation preparation
+
+### Memory Management
+- **Target**: ≤500MB for 100k+ files (minimum: ≤600MB)
+- **Generator/streaming patterns**: Memory-efficient file processing
+- **Large directory profiling**: Memory usage optimization
+- **Memory leak detection**: Continuous monitoring
+
+### Cache System v1
+- **Schema**: `cache/search/*.json` structure
+- **Key normalization**: Query normalization algorithm
+- **TTL management**: Time-to-live cache expiration
+- **Hit/miss tracking**: Cache performance metrics
+
+## Deliverables
+- [ ] File scanning pipeline with threading (ScanParsePool)
+- [ ] Bounded queues with backpressure handling
+- [ ] Progress indicators and real-time statistics
+- [ ] Extension whitelist filtering
+- [ ] `cache/search/*.json` schema v1 implementation
+- [ ] Memory profiling and optimization (100k+ files, 500MB limit)
+- [ ] anitopy + fallback parser implementation
+- [ ] Hypothesis 1k case fuzzing without crashes
+- [ ] Labeled sample dataset preparation for matching accuracy
+
+## Definition of Done
+- [ ] Scan P95 metrics achieved
+- [ ] Cache hit/miss counters implemented
+- [ ] Memory usage verification completed
+- [ ] Parsing failure rate ≤3%
+- [ ] Matching accuracy evaluation sample dataset completed
+- [ ] Memory profiling baseline established
+- [ ] Performance benchmarks documented
+
+## Performance Targets
+- **Scan throughput**: P95 ≥ 120k paths/min (minimum: 60k paths/min)
+- **Memory usage**: ≤500MB for 100k+ files (minimum: ≤600MB)
+- **Parsing failure rate**: ≤3%
+- **Cache hit rate**: Target ≥90% on second run
+
+## Memory Optimization Strategies
+1. **Generator-based streaming**: Process files in chunks
+2. **Bounded queues**: Prevent memory overflow
+3. **Lazy loading**: Load data only when needed
+4. **Memory profiling**: Continuous monitoring and optimization
+5. **Garbage collection**: Explicit cleanup of large objects
+
+## Testing Requirements
+- **Memory profiling**: 100k+ files with 500MB limit validation
+- **Generator/streaming pattern verification**
+- **Memory usage profiling for large directories**
+- **Hypothesis fuzzing**: 1k cases without crashes
+- **Performance benchmarking**: Scan throughput measurement
+
+## Risk Mitigation
+- **Memory overflow**: Bounded queues and streaming patterns
+- **Parsing failures**: Fallback parser implementation
+- **Performance degradation**: Continuous profiling and optimization
+- **Large directory handling**: Memory-efficient algorithms
+- **Cache corruption**: Schema validation and recovery
+
+## Timeline
+**Weeks 5-8**: Scan/parse pipeline implementation and optimization
+**Priority**: HIGH - Core file processing pipeline
+
+## Dependencies
+- Requires completion of `1-foundation-setup` and `2-single-exe-poc` tags
+- Critical library compatibility validation
+- Single executable packaging validation

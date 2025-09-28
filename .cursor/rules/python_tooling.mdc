@@ -1,0 +1,153 @@
+---
+description: Python tooling standards guide - Black, Ruff, PEP 8 role distribution and configuration
+globs: pyproject.toml, .pre-commit-config.yaml, setup.py, requirements*.txt
+alwaysApply: false
+---
+
+# Python 도구링 표준 가이드
+
+## 핵심 원칙
+
+**포매터는 하나만 쓴다** - Black이나 Ruff format 중 택1. 둘 다 쓰면 충돌 발생.
+
+## 도구 역할 분담
+
+| 도구 | 역할 | 특징 |
+|------|------|------|
+| **PEP 8** | 스타일 가이드(문서) | 기준 제시, 도구 아님 |
+| **Black** | 포매터 | 코드 모양 고정, 커스터마이즈 거의 없음 |
+| **Ruff** | 린터 + 포매터(선택) | 매우 빠른 정적 분석, 규칙 세밀 조정 가능 |
+
+## 권장 설정 옵션
+
+### 옵션 A: 업계 표준형 (Black + Ruff 린트)
+
+**역할 분리**: Black이 포매팅, Ruff가 린팅/자동수정
+
+```toml
+# pyproject.toml
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+skip-string-normalization = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+fix = true
+lint.select = [
+    "E", "W",        # pycodestyle (PEP8 위반)
+    "F",             # Pyflakes
+    "I",             # isort 대체(임포트 정렬)
+    "N",             # pep8-naming
+    "UP",            # pyupgrade
+    "B",             # bugbear
+    "ANN",           # 타입 힌트/어노테이션 규칙
+    "D",             # PEP257 docstring
+    "PT",            # pytest 규칙
+    "RUF"            # ruff 전용
+]
+lint.ignore = [
+    "D203", "D213"   # D200계열 취향 충돌 피하기
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+```
+
+**실행 명령어**:
+```bash
+black .                    # 포맷팅
+ruff check . --fix        # 린팅 + 자동수정
+```
+
+**pre-commit 설정**:
+```yaml
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      # ruff-format 훅은 사용하지 않음
+```
+
+### 옵션 B: 단일툴 초고속형 (Ruff만 사용)
+
+**올인원**: Ruff가 포매팅 + 린팅 + 자동수정 모두 담당
+
+```toml
+# pyproject.toml
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+fix = true
+lint.select = ["E", "W", "F", "I", "N", "UP", "B", "ANN", "D", "PT", "RUF"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+# Ruff 포맷터 활성화
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+```
+
+**실행 명령어**:
+```bash
+ruff format .             # 포맷팅
+ruff check . --fix       # 린팅 + 자동수정
+```
+
+**pre-commit 설정**:
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.4
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: [--fix]
+```
+
+## 선택 기준
+
+### 옵션 A (Black + Ruff) 선택 시기:
+- 팀 내 스타일 논쟁을 영구봉인하고 싶을 때
+- 업계 표준에 가장 가깝게 하고 싶을 때
+- 기존 대형 코드베이스에 서서히 도입할 때
+
+### 옵션 B (Ruff 단일툴) 선택 시기:
+- 도구를 줄이고 CI를 빠르게 하고 싶을 때
+- 설정을 한 군데서 끝내고 싶을 때
+- 리포지토리가 많고 CI 비용을 줄이고 싶을 때
+- 규칙 세밀 튜닝이 필수일 때
+
+## 금지사항
+
+❌ **절대 하지 말 것**:
+- Black과 Ruff format을 동시에 사용
+- 포매터 두 개로 인한 무한 루프 발생
+- 도구 충돌로 인한 CI 실패
+
+## 실전 팁
+
+1. **기존 프로젝트**: 먼저 Ruff로 안전한 자동수정을 돌리고, 포매터는 마지막에 스위치
+2. **새 프로젝트**: Ruff 단일툴이 설정 단순화에 유리
+3. **팀 합의**: 도구보다 사람이 느리므로 팀 합의가 먼저 필요
+4. **포매터 하나 원칙**: 역할 분담은 가능하지만 포매터는 반드시 하나만
+
+## 현재 프로젝트 상태
+
+이 AniVault 프로젝트는 **옵션 A (Black + Ruff 린트)** 방식으로 설정되어 있음:
+- Black이 포매팅 담당
+- Ruff가 린팅 + 자동수정 담당
+- ruff-format은 비활성화하여 충돌 방지
+
+모든 pre-commit hooks가 정상 작동하며, 코드 품질을 일관되게 유지하고 있음.

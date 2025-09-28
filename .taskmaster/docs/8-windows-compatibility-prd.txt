@@ -1,0 +1,229 @@
+# AniVault v3 CLI - Windows Compatibility PRD
+
+## Overview
+Implement comprehensive Windows-specific features and edge case handling, including long path support, reserved name handling, network drive compatibility, and Windows Defender interaction. This ensures robust operation across all Windows environments.
+
+## Goals
+- Implement long path handling with automatic `\\?\` prefix
+- Handle reserved names and forbidden characters
+- Ensure network drive compatibility
+- Test Windows Defender interaction
+- Support UAC and permission handling
+
+## Success Criteria
+- Three modes (Online/Throttle/CacheOnly) E2E working
+- Real usage environment testing passed
+- Long path handling verified
+- Network drive compatibility confirmed
+- Windows Defender interaction tested
+
+## Technical Requirements
+
+### Long Path Handling
+- **Automatic prefix**: `\\?\` for paths >260 characters
+- **UNC detection**: Network drive detection and warnings
+- **Performance impact**: Measurement and reporting
+- **Compatibility**: Windows 10/11 long path support
+- **Fallback**: Graceful degradation for unsupported systems
+
+### Reserved Names and Forbidden Characters
+- **Reserved names**: CON, PRN, AUX, NUL handling
+- **Forbidden characters**: `< > : " | ? *` replacement
+- **Substitution rules**: `_` replacement with hash suffixes
+- **Collision avoidance**: Unique naming generation
+- **Validation**: Pre-operation name validation
+
+### Network and Connectivity Issues
+- **Unstable Wi-Fi**: Retry logic for network issues
+- **Windows Defender**: Real-time protection interaction
+- **Long filenames**: 260-character limit handling
+- **Network drives**: DFS and UNC path support
+- **Performance**: Network drive performance optimization
+
+### UAC and Permissions
+- **No admin required**: User-level operation
+- **Permission handling**: Graceful error handling
+- **Skip options**: Inaccessible file handling
+- **Error reporting**: Clear permission error messages
+- **Recovery**: Automatic retry with different permissions
+
+## Deliverables
+- [ ] **Long Path handling:**
+  - [ ] Automatic `\\?\` prefix for paths >260 characters
+  - [ ] UNC/network drive detection and warnings
+  - [ ] Performance impact measurement and reporting
+- [ ] **Reserved names and forbidden characters:**
+  - [ ] CON/PRN/AUX/NUL handling with substitution
+  - [ ] `< > : " | ? *` character replacement rules
+  - [ ] Hash suffix for collision avoidance
+- [ ] **Network and connectivity issues:**
+  - [ ] Unstable Wi-Fi environment retry logic
+  - [ ] Windows Defender real-time protection interaction
+  - [ ] Very long filename (260 char limit) handling
+- [ ] **UAC and permissions:**
+  - [ ] No administrator privileges required
+  - [ ] Permission error handling and reporting
+  - [ ] Skip options for inaccessible files
+
+## Definition of Done
+- [ ] Three modes (Online/Throttle/CacheOnly) E2E working
+- [ ] Real usage environment testing passed
+- [ ] Long path handling verified
+- [ ] Network drive compatibility confirmed
+- [ ] Windows Defender interaction tested
+- [ ] UAC and permission handling working
+- [ ] Reserved name handling tested
+
+## Long Path Implementation
+
+### Automatic Prefix Detection
+```python
+def handle_long_path(path: str) -> str:
+    """Handle Windows long path limitations."""
+    if len(path) > 260:
+        if not path.startswith('\\\\?\\'):
+            return f'\\\\?\\{path}'
+    return path
+```
+
+### UNC Path Handling
+```python
+def is_unc_path(path: str) -> bool:
+    """Detect UNC network paths."""
+    return path.startswith('\\\\') and not path.startswith('\\\\?\\')
+```
+
+### Performance Impact Measurement
+- **Local drives**: Baseline performance measurement
+- **Network drives**: Performance degradation detection
+- **Long paths**: Path length impact analysis
+- **Reporting**: Performance impact warnings
+
+## Reserved Name Handling
+
+### Reserved Name Detection
+```python
+RESERVED_NAMES = {
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+}
+
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename for Windows compatibility."""
+    # Handle reserved names
+    if filename.upper() in RESERVED_NAMES:
+        filename = f'_{filename}'
+    
+    # Handle forbidden characters
+    forbidden_chars = '<>:"|?*'
+    for char in forbidden_chars:
+        filename = filename.replace(char, '_')
+    
+    return filename
+```
+
+### Collision Avoidance
+- **Hash suffixes**: Generate unique names for collisions
+- **Incremental naming**: Add numbers for duplicates
+- **Validation**: Pre-operation name checking
+- **User notification**: Clear collision reporting
+
+## Network Drive Compatibility
+
+### DFS Detection
+```python
+def is_dfs_path(path: str) -> bool:
+    """Detect DFS (Distributed File System) paths."""
+    return '\\dfs\\' in path.lower() or path.startswith('\\\\dfs\\')
+```
+
+### Performance Optimization
+- **Caching**: Network path metadata caching
+- **Batch operations**: Reduce network round trips
+- **Timeout handling**: Network operation timeouts
+- **Retry logic**: Automatic retry for network failures
+
+## Windows Defender Interaction
+
+### Real-Time Protection
+- **File scanning**: Defender scan impact measurement
+- **Performance**: Scan time impact analysis
+- **Exclusion**: Optional exclusion recommendations
+- **Monitoring**: Defender activity detection
+
+### AV Compatibility
+- **False positive prevention**: UPX compression disabled
+- **Code signing**: Optional Authenticode signing
+- **SmartScreen**: Windows SmartScreen compatibility
+- **Reputation**: Clean reputation building
+
+## UAC and Permission Handling
+
+### User-Level Operation
+- **No admin required**: Standard user operation
+- **Permission checking**: Pre-operation permission validation
+- **Error handling**: Graceful permission error handling
+- **Recovery**: Automatic retry with different approaches
+
+### Permission Error Handling
+```python
+def handle_permission_error(path: str, operation: str) -> bool:
+    """Handle Windows permission errors."""
+    try:
+        # Attempt operation
+        return True
+    except PermissionError:
+        # Log error and skip
+        logger.warning(f"Permission denied: {operation} on {path}")
+        return False
+    except AccessDeniedError:
+        # Try alternative approach
+        return try_alternative_operation(path, operation)
+```
+
+## Testing Scenarios
+
+### Long Path Testing
+- **Path length**: 260+ character paths
+- **UNC paths**: Network share paths
+- **Performance**: Long path performance impact
+- **Compatibility**: Windows version compatibility
+
+### Reserved Name Testing
+- **All reserved names**: CON, PRN, AUX, NUL, COM1-9, LPT1-9
+- **Forbidden characters**: All forbidden character combinations
+- **Collision handling**: Duplicate name resolution
+- **Edge cases**: Special character combinations
+
+### Network Drive Testing
+- **UNC paths**: Network share access
+- **DFS paths**: Distributed file system
+- **Performance**: Network drive performance
+- **Reliability**: Network failure handling
+
+### Windows Defender Testing
+- **Real-time protection**: Defender interaction
+- **Performance**: Scan time impact
+- **False positives**: AV false positive prevention
+- **Compatibility**: Different Defender versions
+
+## Risk Mitigation
+- **Path length limits**: Automatic prefix handling
+- **Reserved names**: Comprehensive name sanitization
+- **Network issues**: Robust retry logic
+- **Permission errors**: Graceful error handling
+- **AV interference**: False positive prevention
+
+## Timeline
+**Weeks 19-20**: Windows compatibility implementation
+**Priority**: MEDIUM - Windows-specific features and edge cases
+
+## Dependencies
+- Requires completion of Phase 1 tags (1-5) and Phase 2 tags (6-7)
+- File processing pipeline established
+- TMDB API integration completed
+- Cache system operational
+- Rate limiting implemented
+- CLI commands implemented
+- Organize safety features completed

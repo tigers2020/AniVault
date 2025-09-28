@@ -20,6 +20,7 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -49,7 +50,6 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
-cover/
 
 # Translations
 *.mo
@@ -72,7 +72,6 @@ instance/
 docs/_build/
 
 # PyBuilder
-.pybuilder/
 target/
 
 # Jupyter Notebook
@@ -83,9 +82,7 @@ profile_default/
 ipython_config.py
 
 # pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
+.python-version
 
 # pipenv
 #   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
@@ -94,22 +91,7 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/#use-with-ide
-.pdm.toml
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 
 # Celery stuff
@@ -146,253 +128,48 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# pytype static type analyzer
-.pytype/
+# AniVault specific
+logs/
+cache/
+*.exe
+*.log
+*.tmp
+*.temp
 
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be added to the global gitignore or merged into this project gitignore.  For a PyCharm
-#  project, it is recommended to include the following files:
-.idea/
-*.iws
-*.iml
-*.ipr
-
-# Visual Studio Code
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# PyQt5 specific
-*.ui.bak
-*.qrc.bak
-*.qm
-
-# Task Master AI
-.taskmaster/
-
-# OS specific
+# OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Logs
-logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-# Dependency directories
-node_modules/
-# Environment variables
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Task Master
+.taskmaster/state.json
+.taskmaster/reports/
+.taskmaster/docs/research/
 
-# Debug and testing files
-debug*.py
-test_debug*.py
-*_debug.py
-debug_*.py
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
-# Temporary test files
-temp_test_*.py
-test_temp_*.py
-
-# Database files (development)
-*.db
-*.sqlite
-*.sqlite3
-anivault.db
-
-# Test coverage reports
-htmlcov/
-.coverage
-.coverage.*
+# Test artifacts
 .pytest_cache/
-cover/
+.coverage
+htmlcov/
 
 # Temporary files
 *.tmp
 *.temp
 *.bak
-*.swp
-*.swo
-*~
-
-# IDE and editor files
-*.sublime-*
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Python specific
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.venv/
-.cursor/
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Configuration backups
 *.backup
-*.bak
-config_backup_*.json
 
-# Large files
-coverage.json
-*.coverage.json
-
-# Temporary script files
-fix_test_annotations.py
-
-# Data directory (contains user data and configs)
-data/
-
-# Reports directory (contains generated reports)
-reports/
-
-# Database files
-anivault.db
-
-# Log files
-logs/
-
-# Coverage reports
-htmlcov/
-
-# Backup files
-*.backup
-*.bak
-config_backup_*.json
-unified_config_backup_*.json
-
-# IDE specific files
-.cursor/settings.json
-
-# Virtual environment activation scripts
-activate-venv.bat
-activate-venv.ps1
-activate.bat
-
-# Documentation files that are generated
-MVVM_IMPLEMENTATION_REPORT.md
-README_Setup_Guide.md
-
-# Task files
-# tasks.json
-# tasks/
-
-# Serena AI memory files
-.serena/
-
-# Examples and scripts (development only)
-examples/
-scripts/
-
-# Performance test files
-*_performance_test.py
-test_*_performance.py
-
-# Cache and temporary files
-.cache/
-*.cache
-*.tmp
-*.temp
-
-# IDE and editor specific
-.cursor/
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS specific
-.DS_Store
-Thumbs.db
-ehthumbs.db
-
-# Log files
-*.log
-logs/
-
-# Database files (development)
-*.db
-*.sqlite
-*.sqlite3
-anivault.db
-
-# Coverage and test reports
-htmlcov/
-.coverage
-.coverage.*
-.pytest_cache/
-cover/
-
-# Backup files
-*.backup
-*.bak
-config_backup_*.json
-unified_config_backup_*.json
-
-# Documentation files that are generated
-MVVM_IMPLEMENTATION_REPORT.md
-README_Setup_Guide.md
-
-# Virtual environment activation scripts
-activate-venv.bat
-activate-venv.ps1
-activate.bat
-
-# Large files
-coverage.json
-*.coverage.json
-
-# Temporary script files
-fix_test_annotations.py
+# API keys and secrets
+.env
+secrets.json
+config.json

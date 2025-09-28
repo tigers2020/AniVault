@@ -1,0 +1,406 @@
+# AniVault v3 CLI - Testing Quality PRD
+
+## Overview
+Implement comprehensive testing and quality assurance system including unit testing, integration testing, E2E testing, stress testing, and performance testing. This ensures robust code quality and system reliability.
+
+## Goals
+- Achieve 100% coverage for core business logic
+- Implement comprehensive integration testing
+- Create E2E testing suite
+- Implement stress testing with file name fuzzing
+- Establish performance testing benchmarks
+
+## Success Criteria
+- All tests pass with ≥70% coverage
+- E2E test suite completed
+- Performance benchmarks met
+- Stress testing without crashes
+- Memory leak detection working
+
+## Technical Requirements
+
+### Unit Testing
+- **Coverage target**: 100% for core business logic
+- **pytest framework**: With mocking for external dependencies
+- **Boundary value testing**: Edge cases and exception handling
+- **Mocking strategy**: External API and file system mocking
+- **Test isolation**: Independent test execution
+
+### Integration Testing
+- **Component interaction**: Service integration testing
+- **TMDB API integration**: 429 scenarios and rate limiting
+- **Cache system integration**: Cache hit/miss scenarios
+- **File system integration**: Cross-platform file operations
+- **Database integration**: Cache persistence testing
+
+### E2E Testing
+- **Complete workflow**: Scan→parse→match→organize validation
+- **Click command testing**: All CLI commands
+- **JSON output validation**: Schema compliance testing
+- **Error code testing**: Standardized error responses
+- **User interaction**: Interactive command testing
+
+### Stress Testing
+- **File name fuzzing**: Emojis, Unicode, RTL, NFC/NFD
+- **FS error injection**: Permission denied, locks, disk full
+- **Cache corruption testing**: Schema migration and recovery
+- **Long-running tests**: >3h with memory leak detection
+- **Resource exhaustion**: Memory and CPU limits
+
+### Performance Testing
+- **Benchmark execution**: Automated performance testing
+- **Throughput validation**: 120k paths/min P95
+- **Memory usage testing**: 500MB limit for 100k+ files
+- **Token bucket accuracy**: Rate limiting verification
+- **TMDB API testing**: Rate limit and timeout scenarios
+
+## Deliverables
+- [ ] **Unit testing:**
+  - [ ] 100% coverage for core business logic
+  - [ ] pytest with mocking for external dependencies
+  - [ ] Boundary value and exception case testing
+- [ ] **Integration testing:**
+  - [ ] Component interaction testing
+  - [ ] TMDB API integration with 429 scenarios
+  - [ ] Cache system integration testing
+- [ ] **E2E testing:**
+  - [ ] Complete workflow validation
+  - [ ] Click command testing
+  - [ ] JSON output format validation
+  - [ ] Error code response testing
+- [ ] **Stress testing:**
+  - [ ] File name fuzzing (emojis, Unicode, RTL, NFC/NFD)
+  - [ ] FS error injection (permission denied, locks, disk full)
+  - [ ] Cache corruption/migration testing
+  - [ ] Long-running stress tests (>3h) with memory leak detection
+- [ ] **Performance testing:**
+  - [ ] Benchmark scripts execution
+  - [ ] Throughput and memory usage validation
+  - [ ] Token bucket accuracy verification
+  - [ ] TMDB API test scenarios
+
+## Definition of Done
+- [ ] All tests pass with ≥70% coverage
+- [ ] E2E test suite completed
+- [ ] Performance benchmarks met
+- [ ] Stress testing without crashes
+- [ ] Memory leak detection working
+- [ ] Integration testing completed
+- [ ] Performance testing validated
+
+## Unit Testing Implementation
+
+### Core Business Logic Testing
+```python
+import pytest
+from unittest.mock import Mock, patch
+from anivault.core.file_processor import FileProcessor
+
+class TestFileProcessor:
+    def test_process_file_success(self):
+        """Test successful file processing."""
+        processor = FileProcessor()
+        result = processor.process_file("test.mkv")
+        assert result.success is True
+        assert result.title == "Test Title"
+    
+    def test_process_file_invalid_extension(self):
+        """Test invalid file extension handling."""
+        processor = FileProcessor()
+        result = processor.process_file("test.txt")
+        assert result.success is False
+        assert "Invalid extension" in result.error
+    
+    @patch('anitopy.parse')
+    def test_anitopy_parsing(self, mock_parse):
+        """Test anitopy parsing with mocked results."""
+        mock_parse.return_value = {
+            'title': 'Attack on Titan',
+            'season': 1,
+            'episode': 1
+        }
+        
+        processor = FileProcessor()
+        result = processor.parse_filename("Attack on Titan S01E01.mkv")
+        assert result.title == "Attack on Titan"
+        assert result.season == 1
+        assert result.episode == 1
+```
+
+### Boundary Value Testing
+```python
+class TestBoundaryValues:
+    def test_empty_filename(self):
+        """Test empty filename handling."""
+        processor = FileProcessor()
+        result = processor.process_file("")
+        assert result.success is False
+    
+    def test_very_long_filename(self):
+        """Test very long filename handling."""
+        long_filename = "A" * 300  # 300 character filename
+        processor = FileProcessor()
+        result = processor.process_file(long_filename)
+        # Should handle gracefully or truncate
+        assert result.success is True or result.error is not None
+    
+    def test_special_characters(self):
+        """Test special character handling."""
+        special_filename = "Attack on Titan: The Final Season (2023) S04E01-12.mkv"
+        processor = FileProcessor()
+        result = processor.process_file(special_filename)
+        assert result.success is True
+```
+
+## Integration Testing Implementation
+
+### TMDB API Integration
+```python
+import pytest
+from unittest.mock import Mock, patch
+from anivault.services.tmdb_client import TMDBClient
+
+class TestTMDBIntegration:
+    @pytest.fixture
+    def tmdb_client(self):
+        return TMDBClient(api_key="test_key")
+    
+    def test_search_tv_show(self, tmdb_client):
+        """Test TV show search integration."""
+        with patch('requests.get') as mock_get:
+            mock_response = Mock()
+            mock_response.json.return_value = {
+                'results': [{'id': 123, 'name': 'Attack on Titan'}]
+            }
+            mock_get.return_value = mock_response
+            
+            result = tmdb_client.search_tv("Attack on Titan")
+            assert len(result) > 0
+            assert result[0]['name'] == 'Attack on Titan'
+    
+    def test_rate_limiting_429(self, tmdb_client):
+        """Test 429 rate limiting handling."""
+        with patch('requests.get') as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 429
+            mock_response.headers = {'Retry-After': '2'}
+            mock_get.return_value = mock_response
+            
+            result = tmdb_client.search_tv("Test")
+            assert result is None  # Should return None for 429
+```
+
+### Cache System Integration
+```python
+class TestCacheIntegration:
+    def test_cache_hit_miss(self):
+        """Test cache hit/miss scenarios."""
+        cache = CacheManager()
+        
+        # First request should be cache miss
+        result1 = cache.get_or_set("test_query", lambda: "test_result")
+        assert result1 == "test_result"
+        
+        # Second request should be cache hit
+        result2 = cache.get_or_set("test_query", lambda: "test_result")
+        assert result2 == "test_result"
+    
+    def test_cache_expiration(self):
+        """Test cache TTL expiration."""
+        cache = CacheManager(ttl_seconds=1)
+        
+        # Set cache entry
+        cache.set("test_key", "test_value")
+        assert cache.get("test_key") == "test_value"
+        
+        # Wait for expiration
+        time.sleep(2)
+        assert cache.get("test_key") is None
+```
+
+## E2E Testing Implementation
+
+### Complete Workflow Testing
+```python
+import pytest
+from click.testing import CliRunner
+from anivault.cli.main import cli
+
+class TestE2E:
+    def test_complete_workflow(self):
+        """Test complete scan→parse→match→organize workflow."""
+        runner = CliRunner()
+        
+        # Test dry-run mode
+        result = runner.invoke(cli, [
+            'run',
+            '--src', 'test_data/',
+            '--dst', 'output/',
+            '--dry-run'
+        ])
+        
+        assert result.exit_code == 0
+        assert "Files processed" in result.output
+        assert "Dry run completed" in result.output
+    
+    def test_json_output_format(self):
+        """Test JSON output format compliance."""
+        runner = CliRunner()
+        
+        result = runner.invoke(cli, [
+            'run',
+            '--src', 'test_data/',
+            '--json'
+        ])
+        
+        assert result.exit_code == 0
+        
+        # Parse JSON output
+        import json
+        lines = result.output.strip().split('\n')
+        for line in lines:
+            if line.strip():
+                json_data = json.loads(line)
+                assert 'phase' in json_data
+                assert 'event' in json_data
+                assert 'ts' in json_data
+```
+
+## Stress Testing Implementation
+
+### File Name Fuzzing
+```python
+import hypothesis
+from hypothesis import strategies as st
+
+class TestStressFuzzing:
+    @hypothesis.given(st.text(min_size=1, max_size=100))
+    def test_filename_fuzzing(self, filename):
+        """Test filename processing with fuzzed inputs."""
+        processor = FileProcessor()
+        
+        try:
+            result = processor.process_file(filename)
+            # Should not crash, even with invalid input
+            assert result is not None
+        except Exception as e:
+            # Should handle gracefully
+            assert "Invalid" in str(e) or "Error" in str(e)
+    
+    @hypothesis.given(st.text(min_size=1, max_size=50))
+    def test_unicode_filename_handling(self, filename):
+        """Test Unicode filename handling."""
+        processor = FileProcessor()
+        
+        # Add Unicode characters
+        unicode_filename = f"测试_{filename}_测试.mkv"
+        
+        try:
+            result = processor.process_file(unicode_filename)
+            assert result is not None
+        except UnicodeError:
+            # Should handle Unicode errors gracefully
+            pass
+```
+
+### FS Error Injection
+```python
+class TestFSErrorInjection:
+    def test_permission_denied(self):
+        """Test permission denied error handling."""
+        with patch('pathlib.Path.exists') as mock_exists:
+            mock_exists.return_value = True
+            
+            with patch('pathlib.Path.is_file') as mock_is_file:
+                mock_is_file.return_value = True
+                
+                with patch('pathlib.Path.stat') as mock_stat:
+                    mock_stat.side_effect = PermissionError("Permission denied")
+                    
+                    processor = FileProcessor()
+                    result = processor.process_file("test.mkv")
+                    assert result.success is False
+                    assert "Permission denied" in result.error
+    
+    def test_disk_full_simulation(self):
+        """Test disk full error handling."""
+        with patch('shutil.move') as mock_move:
+            mock_move.side_effect = OSError("No space left on device")
+            
+            organizer = FileOrganizer()
+            result = organizer.move_file("src.mkv", "dst.mkv")
+            assert result.success is False
+            assert "No space left" in result.error
+```
+
+## Performance Testing Implementation
+
+### Benchmark Testing
+```python
+class TestPerformanceBenchmarks:
+    def test_scan_throughput_benchmark(self):
+        """Test scan throughput meets requirements."""
+        processor = FileProcessor()
+        
+        # Create test directory with many files
+        test_dir = create_test_directory(file_count=10000)
+        
+        start_time = time.time()
+        files = list(processor.scan_directory(test_dir))
+        end_time = time.time()
+        
+        duration_minutes = (end_time - start_time) / 60
+        throughput = len(files) / duration_minutes
+        
+        # Should meet minimum requirement of 60k paths/min
+        assert throughput >= 60000
+    
+    def test_memory_usage_benchmark(self):
+        """Test memory usage stays within limits."""
+        import psutil
+        import tracemalloc
+        
+        tracemalloc.start()
+        
+        processor = FileProcessor()
+        test_dir = create_test_directory(file_count=100000)
+        
+        # Process files
+        for file_path in processor.scan_directory(test_dir):
+            processor.process_file(file_path)
+        
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        
+        # Should stay within 500MB limit
+        assert peak < 500 * 1024 * 1024  # 500MB in bytes
+```
+
+## Testing Requirements
+- **Unit testing**: 100% coverage for core business logic
+- **Integration testing**: Component interaction testing
+- **E2E testing**: Complete workflow validation
+- **Stress testing**: File name fuzzing and FS error injection
+- **Performance testing**: Benchmark validation
+
+## Risk Mitigation
+- **Test coverage**: Comprehensive test suite
+- **Performance regression**: Continuous benchmarking
+- **Memory leaks**: Long-running stress tests
+- **Error handling**: Exception scenario testing
+- **Resource limits**: Resource exhaustion testing
+
+## Timeline
+**Weeks 23-24**: Testing quality implementation
+**Priority**: HIGH - Comprehensive testing and quality assurance
+
+## Dependencies
+- Requires completion of Phase 1 tags (1-5) and Phase 2 tags (6-9)
+- File processing pipeline established
+- TMDB API integration completed
+- Cache system operational
+- Rate limiting implemented
+- CLI commands implemented
+- Organize safety features completed
+- Windows compatibility implemented
+- Performance optimization completed

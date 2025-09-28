@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anivault.dev/schemas/cache_object.schema.json",
+  "title": "AniVault Cache Object Schema",
+  "description": "Standardized cache object format with TTL and versioning",
+  "type": "object",
+  "required": ["schema_version", "created_at", "ttl_sec", "key", "data", "source"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Cache schema version for migration compatibility"
+    },
+    "created_at": {
+      "type": "integer",
+      "description": "Unix timestamp when cache entry was created"
+    },
+    "ttl_sec": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Time-to-live in seconds"
+    },
+    "key": {
+      "type": "object",
+      "required": ["q_norm", "lang"],
+      "properties": {
+        "q_norm": {
+          "type": "string",
+          "description": "Normalized query string (lowercase, cleaned, year hint added)"
+        },
+        "lang": {
+          "type": "string",
+          "pattern": "^[a-z]{2}-[A-Z]{2}$",
+          "description": "Language code (e.g., ko-KR, ja-JP, en-US)"
+        },
+        "year_hint": {
+          "type": "integer",
+          "minimum": 1900,
+          "maximum": 2100,
+          "description": "Year hint extracted from filename"
+        },
+        "media_type": {
+          "type": "string",
+          "enum": ["tv", "movie"],
+          "description": "Media type for TMDB API calls"
+        }
+      },
+      "additionalProperties": false
+    },
+    "data": {
+      "type": "object",
+      "description": "Cached data payload (TMDB API response or processed results)"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^tmdb:(search|details)/(tv|movie)$",
+      "description": "Data source identifier"
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "hits": {"type": "integer", "minimum": 0},
+        "last_access": {"type": "integer", "description": "Unix timestamp of last access"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

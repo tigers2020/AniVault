@@ -1,0 +1,331 @@
+# AniVault v3 CLI - Performance Optimization PRD
+
+## Overview
+Implement comprehensive performance tuning and memory management optimization for large-scale file processing. This includes throughput optimization, memory management, cache optimization, and performance monitoring.
+
+## Goals
+- Achieve target throughput of 120k paths/min P95 (minimum: 60k paths/min P95)
+- Optimize memory usage to ≤500MB for 300k files (minimum: ≤600MB)
+- Achieve cache hit rate ≥90%
+- Implement performance monitoring and regression detection
+- Optimize I/O operations and worker tuning
+
+## Success Criteria
+- Cache hit rate ≥90% achieved
+- Throughput targets met
+- Memory usage within limits for 100k+ files
+- Performance benchmarks documented
+- Performance regression detection working
+
+## Technical Requirements
+
+### Throughput Optimization
+- **Target**: 120k paths/min P95 (minimum: 60k paths/min P95)
+- **Worker tuning**: Optimal thread pool sizing
+- **Queue optimization**: Bounded queue performance tuning
+- **I/O streaming**: Efficient file processing
+- **Cache warmup**: Pre-loading strategies
+
+### Memory Management
+- **Target**: ≤500MB for 300k files (minimum: ≤600MB)
+- **Large directory profiling**: Memory usage optimization
+- **Generator patterns**: Memory-efficient processing
+- **Memory leak detection**: Continuous monitoring
+- **Garbage collection**: Explicit cleanup strategies
+
+### Cache Optimization
+- **Hit rate target**: ≥90% cache hit rate
+- **LRU + TTL**: Simultaneous eviction policies
+- **Disk space management**: Size limits with priority deletion
+- **Index optimization**: Fast query lookup
+- **Warmup strategies**: Cache pre-loading
+
+### Performance Monitoring
+- **Real-time metrics**: Live performance tracking
+- **Regression detection**: Performance degradation alerts
+- **Bottleneck identification**: Performance bottleneck analysis
+- **Resource monitoring**: CPU, memory, I/O tracking
+- **Benchmarking**: Automated performance testing
+
+## Deliverables
+- [ ] **Throughput optimization:**
+  - [ ] Target: 120k paths/min P95 (minimum: 60k paths/min P95)
+  - [ ] Worker and queue tuning
+  - [ ] I/O streaming optimization
+  - [ ] Cache warmup strategies
+- [ ] **Memory management:**
+  - [ ] Target: ≤500MB for 300k files (minimum: ≤600MB)
+  - [ ] Large directory memory profiling
+  - [ ] Generator/streaming pattern optimization
+  - [ ] Memory leak detection and prevention
+- [ ] **Cache optimization:**
+  - [ ] Cache hit rate ≥90% optimization
+  - [ ] LRU + TTL simultaneous application
+  - [ ] Disk space management with size limits
+- [ ] **Performance monitoring:**
+  - [ ] Real-time metrics collection
+  - [ ] Performance regression detection
+  - [ ] Bottleneck identification and resolution
+
+## Definition of Done
+- [ ] Cache hit rate ≥90% achieved
+- [ ] Throughput targets met
+- [ ] Memory usage within limits for 100k+ files
+- [ ] Performance benchmarks documented
+- [ ] Performance regression detection working
+- [ ] Memory leak detection operational
+- [ ] Bottleneck identification working
+
+## Throughput Optimization Strategies
+
+### Worker Pool Tuning
+```python
+# Optimal worker pool sizing
+CPU_COUNT = os.cpu_count()
+IO_WORKERS = min(CPU_COUNT * 2, 16)  # I/O bound operations
+CPU_WORKERS = CPU_COUNT  # CPU bound operations
+
+# Queue sizing
+QUEUE_SIZE = IO_WORKERS * 4  # 4x worker count for buffering
+```
+
+### I/O Streaming Optimization
+```python
+def process_files_streaming(file_paths: Iterator[Path]) -> Iterator[ProcessedFile]:
+    """Process files in streaming fashion to minimize memory usage."""
+    for file_path in file_paths:
+        try:
+            # Process file without loading entire content
+            result = process_file_streaming(file_path)
+            yield result
+        except Exception as e:
+            logger.error(f"Error processing {file_path}: {e}")
+            continue
+```
+
+### Cache Warmup Strategies
+```python
+def warmup_cache(common_queries: List[str]) -> None:
+    """Pre-load cache with common queries."""
+    for query in common_queries:
+        try:
+            # Pre-load cache entries
+            cache.get_or_set(query, fetch_from_api)
+        except Exception as e:
+            logger.warning(f"Cache warmup failed for {query}: {e}")
+```
+
+## Memory Management Implementation
+
+### Generator-Based Processing
+```python
+def scan_directory_generator(root_path: Path) -> Iterator[Path]:
+    """Memory-efficient directory scanning."""
+    for item in root_path.rglob('*'):
+        if item.is_file():
+            yield item
+        # Process one item at a time to minimize memory usage
+```
+
+### Memory Profiling
+```python
+import tracemalloc
+
+def profile_memory_usage(func):
+    """Decorator for memory usage profiling."""
+    def wrapper(*args, **kwargs):
+        tracemalloc.start()
+        result = func(*args, **kwargs)
+        current, peak = tracemalloc.get_traced_memory()
+        logger.info(f"Memory usage - Current: {current/1024/1024:.1f}MB, Peak: {peak/1024/1024:.1f}MB")
+        tracemalloc.stop()
+        return result
+    return wrapper
+```
+
+### Memory Leak Detection
+```python
+def detect_memory_leaks():
+    """Detect potential memory leaks."""
+    import gc
+    import psutil
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Check memory usage
+    process = psutil.Process()
+    memory_info = process.memory_info()
+    
+    if memory_info.rss > 500 * 1024 * 1024:  # 500MB threshold
+        logger.warning(f"High memory usage: {memory_info.rss/1024/1024:.1f}MB")
+        return True
+    return False
+```
+
+## Cache Optimization Implementation
+
+### LRU + TTL Implementation
+```python
+class OptimizedCache:
+    def __init__(self, max_size: int = 1000, ttl_seconds: int = 3600):
+        self.max_size = max_size
+        self.ttl_seconds = ttl_seconds
+        self.cache = {}
+        self.access_times = {}
+        self.creation_times = {}
+    
+    def get(self, key: str):
+        """Get item from cache with LRU and TTL checks."""
+        now = time.time()
+        
+        # Check TTL
+        if key in self.creation_times:
+            if now - self.creation_times[key] > self.ttl_seconds:
+                self._remove(key)
+                return None
+        
+        # Update access time for LRU
+        if key in self.cache:
+            self.access_times[key] = now
+            return self.cache[key]
+        
+        return None
+    
+    def _remove(self, key: str):
+        """Remove item from cache."""
+        self.cache.pop(key, None)
+        self.access_times.pop(key, None)
+        self.creation_times.pop(key, None)
+```
+
+### Cache Hit Rate Optimization
+```python
+def optimize_cache_hit_rate():
+    """Optimize cache hit rate through intelligent prefetching."""
+    # Analyze query patterns
+    common_patterns = analyze_query_patterns()
+    
+    # Prefetch common queries
+    for pattern in common_patterns:
+        prefetch_cache_entries(pattern)
+    
+    # Optimize cache size based on usage patterns
+    adjust_cache_size()
+```
+
+## Performance Monitoring Implementation
+
+### Real-Time Metrics
+```python
+class PerformanceMonitor:
+    def __init__(self):
+        self.metrics = {
+            'files_processed': 0,
+            'cache_hits': 0,
+            'cache_misses': 0,
+            'processing_time': 0,
+            'memory_usage': 0
+        }
+    
+    def update_metrics(self, **kwargs):
+        """Update performance metrics."""
+        for key, value in kwargs.items():
+            if key in self.metrics:
+                self.metrics[key] = value
+    
+    def get_performance_report(self) -> dict:
+        """Generate performance report."""
+        hit_rate = self.metrics['cache_hits'] / (self.metrics['cache_hits'] + self.metrics['cache_misses'])
+        throughput = self.metrics['files_processed'] / (self.metrics['processing_time'] / 60)
+        
+        return {
+            'hit_rate': hit_rate,
+            'throughput': throughput,
+            'memory_usage': self.metrics['memory_usage']
+        }
+```
+
+### Regression Detection
+```python
+def detect_performance_regression(current_metrics: dict, baseline_metrics: dict) -> bool:
+    """Detect performance regression."""
+    regression_threshold = 0.1  # 10% degradation
+    
+    # Check throughput regression
+    if current_metrics['throughput'] < baseline_metrics['throughput'] * (1 - regression_threshold):
+        logger.warning("Throughput regression detected")
+        return True
+    
+    # Check memory usage regression
+    if current_metrics['memory_usage'] > baseline_metrics['memory_usage'] * (1 + regression_threshold):
+        logger.warning("Memory usage regression detected")
+        return True
+    
+    return False
+```
+
+## Benchmarking Implementation
+
+### Automated Benchmarking
+```python
+def run_performance_benchmarks():
+    """Run comprehensive performance benchmarks."""
+    benchmarks = {
+        'scan_throughput': benchmark_scan_throughput,
+        'memory_usage': benchmark_memory_usage,
+        'cache_performance': benchmark_cache_performance,
+        'end_to_end': benchmark_end_to_end
+    }
+    
+    results = {}
+    for name, benchmark_func in benchmarks.items():
+        results[name] = benchmark_func()
+    
+    return results
+```
+
+### Performance Testing
+```python
+def benchmark_scan_throughput(test_directory: Path) -> float:
+    """Benchmark file scanning throughput."""
+    start_time = time.time()
+    file_count = 0
+    
+    for file_path in scan_directory_generator(test_directory):
+        file_count += 1
+    
+    end_time = time.time()
+    duration_minutes = (end_time - start_time) / 60
+    throughput = file_count / duration_minutes
+    
+    return throughput
+```
+
+## Testing Requirements
+- **Throughput testing**: 120k paths/min P95 validation
+- **Memory testing**: 300k files with 500MB limit
+- **Cache testing**: 90% hit rate validation
+- **Regression testing**: Performance regression detection
+- **Benchmarking**: Automated performance testing
+
+## Risk Mitigation
+- **Memory overflow**: Streaming patterns and bounded queues
+- **Performance degradation**: Continuous monitoring and optimization
+- **Cache inefficiency**: LRU+TTL optimization
+- **Resource exhaustion**: Resource monitoring and limits
+- **Bottlenecks**: Performance bottleneck identification
+
+## Timeline
+**Weeks 21-22**: Performance optimization implementation
+**Priority**: MEDIUM - Performance tuning and memory management
+
+## Dependencies
+- Requires completion of Phase 1 tags (1-5) and Phase 2 tags (6-8)
+- File processing pipeline established
+- TMDB API integration completed
+- Cache system operational
+- Rate limiting implemented
+- CLI commands implemented
+- Organize safety features completed
+- Windows compatibility implemented

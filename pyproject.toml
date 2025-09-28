@@ -1,118 +1,69 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "anivault"
 version = "0.1.0"
-description = "AniVault - Anime Management Application"
+description = "AniVault CLI - Anime file organization tool with TMDB integration"
+requires-python = ">=3.9"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "AniVault Team", email = "team@anivault.dev"}
 ]
 readme = "README.md"
-requires-python = ">=3.10"
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-]
+license = {text = "MIT"}
+
 dependencies = [
-    "PyQt5>=5.15.0",
-    "PyQt5-Qt5>=5.15.0",
-    "PyQt5-sip>=12.9.0",
-    "anitopy>=2.0.0",
-    "tmdbsimple>=2.9.0",
-    "SQLAlchemy>=2.0.0",
+    "click>=8.1.7",
+    "tmdbv3api==1.9.0",
+    "anitopy>=2.1.1",
+    "rich>=14.1.0",
+    "cryptography>=41.0.0",
+    "parse>=1.20.0",
+    "requests>=2.32.0",
+    "tomli>=2.0.0; python_version < '3.11'",
+    "tomli-w>=1.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-qt>=4.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "pyright>=1.1.0",
-    "mypy>=1.0.0",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "pytest-httpx>=0.30.0",
+    "hypothesis>=6.88.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+    "pre-commit>=3.7.0",
+    "pyinstaller==6.16.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.scripts]
+anivault = "anivault.cli.main:cli"
 
-[tool.setuptools.package-dir]
-"" = "src"
-
-[tool.black]
-line-length = 100
-target-version = ['py310']
-skip-string-normalization = false
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.ruff]
-target-version = "py310"
-line-length = 100
+target-version = "py39"
+line-length = 88
+select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
+ignore = ["S101", "T201", "PLR0913", "PLR0912", "PLR0915"]
 
-[tool.ruff.lint]
-select = [
-    "E", "W",        # pycodestyle (PEP8 위반)
-    "F",             # Pyflakes
-    "I",             # isort 대체(임포트 정렬)
-    "N",             # pep8-naming
-    "UP",            # pyupgrade
-    "B",             # bugbear
-    "ANN",           # 타입 힌트/어노테이션 규칙
-    "D",             # PEP257 docstring
-    "PT",            # pytest 규칙
-    "RUF"            # ruff 전용
-]
-ignore = [
-    "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex
-    "D203", "D213",   # D200계열 취향 충돌 피하기
-    "UP035",  # deprecated-import (can be addressed later)
-    "RUF003",  # ambiguous-unicode-character-comment (Korean comments)
-    "N806",  # non-lowercase-variable-in-function (test fixtures)
-    "B017",  # assert-raises-exception (pytest patterns)
-    "PT017",  # pytest-assert-in-except (pytest patterns)
-    "PT012",  # pytest-raises-with-multiple-statements (pytest patterns)
-    "B019",  # cached-instance-method (SQLAlchemy patterns)
-    "B904",  # raise-without-from-inside-except (legacy code)
-    "N802",  # invalid-function-name (test methods)
-    "RUF034",  # useless-if-else (legacy code)
-    "E722",  # bare-except (legacy code)
-    "F811",  # redefined-while-unused (test patterns)
-    "F822",  # undefined-export (legacy code)
-    "N818",  # error-suffix-on-exception-name (legacy code)
-    "RUF006",  # asyncio-dangling-task (test patterns)
-]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.ruff.lint.per-file-ignores]
+[tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -126,53 +77,11 @@ addopts = [
     "--tb=short",
     "--cov=src",
     "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-fail-under=10"
+    "--cov-report=html",
+    "--cov-report=xml",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
-    "e2e: marks tests as end-to-end tests",
-    "asyncio: marks tests as asyncio tests"
 ]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning"
-]
-
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false  # Relaxed for now
-disallow_incomplete_defs = false  # Relaxed for now
-check_untyped_defs = true
-disallow_untyped_decorators = false  # Relaxed for now
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
-
-[[tool.mypy.overrides]]
-module = [
-    "PyQt5.*",
-    "PyQt5.QtCore.*",
-    "PyQt5.QtGui.*",
-    "PyQt5.QtWidgets.*",
-    "anitopy.*",
-    "tmdbsimple.*",
-    "psutil.*",
-]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = [
-    "src.gui.*",
-    "src.themes.*",
-]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_decorators = false

@@ -1,0 +1,505 @@
+# AniVault v3 CLI - Logging Monitoring PRD
+
+## Overview
+Implement comprehensive UTF-8 logging and monitoring system with structured logging, real-time metrics, and observability features. This includes log rotation, performance monitoring, and security-aware logging.
+
+## Goals
+- Implement UTF-8 logging system with global enforcement
+- Create structured logging with NDJSON format
+- Implement real-time performance monitoring
+- Add log security with sensitive information masking
+- Establish comprehensive observability
+
+## Success Criteria
+- UTF-8 logging working across all components
+- Log rotation and cleanup working correctly
+- NDJSON output format validated
+- Sensitive information properly masked
+- Monitoring metrics collection working
+
+## Technical Requirements
+
+### UTF-8 Logging System
+- **Global UTF-8 enforcement**: All I/O operations use UTF-8
+- **File rotation**: TimedRotatingFileHandler with daily rotation
+- **Log level separation**: app.log, network.log, pipeline.log
+- **Size limits**: Automatic cleanup with size limits
+- **Encoding validation**: UTF-8 encoding verification
+
+### Structured Logging
+- **NDJSON format**: Newline-delimited JSON for machine readability
+- **Standardized keys**: Consistent log key structure
+- **UTC timestamps**: ISO8601 timestamp format
+- **Component logging**: Rate limiter, cache, pipeline components
+- **Event correlation**: Request ID tracking
+
+### Monitoring and Metrics
+- **Real-time metrics**: Live performance tracking
+- **Cache statistics**: Hit/miss rates and performance
+- **Error rate monitoring**: Error frequency and patterns
+- **Memory usage tracking**: Memory consumption monitoring
+- **Throughput monitoring**: Processing speed tracking
+
+### Log Security
+- **Sensitive information masking**: API keys, paths, user data
+- **Secure permissions**: Log file permission management
+- **Audit logging**: Security event logging
+- **Data retention**: Log retention policies
+- **Compliance**: Logging compliance requirements
+
+## Deliverables
+- [ ] **UTF-8 logging system:**
+  - [ ] Global UTF-8 encoding enforcement
+  - [ ] File rotation with TimedRotatingFileHandler
+  - [ ] Log level separation (app.log, network.log, pipeline.log)
+  - [ ] Size limits with automatic cleanup
+- [ ] **Structured logging:**
+  - [ ] NDJSON format for machine-readable output
+  - [ ] Standardized log keys and values
+  - [ ] UTC ISO8601 timestamp format
+  - [ ] Component-based logging (ratelimiter, cache, pipeline)
+- [ ] **Monitoring and metrics:**
+  - [ ] Real-time performance metrics
+  - [ ] Cache hit/miss statistics
+  - [ ] Error rate monitoring
+  - [ ] Memory usage tracking
+- [ ] **Log security:**
+  - [ ] Sensitive information masking
+  - [ ] API key and path sanitization
+  - [ ] Secure log file permissions
+
+## Definition of Done
+- [ ] UTF-8 logging working across all components
+- [ ] Log rotation and cleanup working correctly
+- [ ] NDJSON output format validated
+- [ ] Sensitive information properly masked
+- [ ] Monitoring metrics collection working
+- [ ] Log security implemented
+- [ ] Performance monitoring operational
+
+## UTF-8 Logging Implementation
+
+### Global UTF-8 Enforcement
+```python
+import logging
+import sys
+from pathlib import Path
+
+class UTF8LoggingConfig:
+    def __init__(self):
+        self.setup_utf8_logging()
+    
+    def setup_utf8_logging(self):
+        """Setup global UTF-8 logging configuration."""
+        # Force UTF-8 encoding for all I/O
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+        
+        # Configure logging with UTF-8
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(sys.stdout)
+            ]
+        )
+    
+    def create_rotating_handler(self, log_file: Path, max_bytes: int = 20*1024*1024, backup_count: int = 5):
+        """Create rotating file handler with UTF-8 encoding."""
+        from logging.handlers import TimedRotatingFileHandler
+        
+        handler = TimedRotatingFileHandler(
+            filename=log_file,
+            when='midnight',
+            interval=1,
+            backupCount=backup_count,
+            encoding='utf-8'
+        )
+        
+        # Add size limit
+        from logging.handlers import RotatingFileHandler
+        size_handler = RotatingFileHandler(
+            filename=log_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding='utf-8'
+        )
+        
+        return size_handler
+```
+
+### Log Level Separation
+```python
+class LoggingManager:
+    def __init__(self, log_dir: Path):
+        self.log_dir = log_dir
+        self.setup_loggers()
+    
+    def setup_loggers(self):
+        """Setup separate loggers for different components."""
+        # App logger
+        self.app_logger = self._create_logger('app', 'app.log')
+        
+        # Network logger
+        self.network_logger = self._create_logger('network', 'network.log')
+        
+        # Pipeline logger
+        self.pipeline_logger = self._create_logger('pipeline', 'pipeline.log')
+        
+        # Error logger
+        self.error_logger = self._create_logger('error', 'error.log')
+    
+    def _create_logger(self, name: str, filename: str) -> logging.Logger:
+        """Create logger with specific configuration."""
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.INFO)
+        
+        # Create file handler
+        log_file = self.log_dir / filename
+        handler = self.create_rotating_handler(log_file)
+        
+        # Create formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        
+        logger.addHandler(handler)
+        return logger
+```
+
+## Structured Logging Implementation
+
+### NDJSON Format
+```python
+import json
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional
+
+class StructuredLogger:
+    def __init__(self, component: str):
+        self.component = component
+        self.request_id = None
+    
+    def set_request_id(self, request_id: str):
+        """Set request ID for correlation."""
+        self.request_id = request_id
+    
+    def log_event(self, event: str, level: str, fields: Dict[str, Any] = None):
+        """Log structured event in NDJSON format."""
+        log_entry = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'component': self.component,
+            'level': level,
+            'event': event,
+            'fields': fields or {}
+        }
+        
+        if self.request_id:
+            log_entry['request_id'] = self.request_id
+        
+        # Output as NDJSON
+        print(json.dumps(log_entry, ensure_ascii=False))
+    
+    def log_performance(self, operation: str, duration_ms: float, **metrics):
+        """Log performance metrics."""
+        self.log_event(
+            'performance',
+            'INFO',
+            {
+                'operation': operation,
+                'duration_ms': duration_ms,
+                **metrics
+            }
+        )
+    
+    def log_cache_event(self, event_type: str, cache_key: str, hit: bool = None):
+        """Log cache events."""
+        fields = {
+            'cache_key': cache_key,
+            'event_type': event_type
+        }
+        
+        if hit is not None:
+            fields['hit'] = hit
+        
+        self.log_event('cache', 'INFO', fields)
+    
+    def log_error(self, error: Exception, context: Dict[str, Any] = None):
+        """Log error with context."""
+        self.log_event(
+            'error',
+            'ERROR',
+            {
+                'error_type': type(error).__name__,
+                'error_message': str(error),
+                'context': context or {}
+            }
+        )
+```
+
+### Component-Based Logging
+```python
+class ComponentLoggers:
+    def __init__(self):
+        self.rate_limiter = StructuredLogger('ratelimiter')
+        self.cache = StructuredLogger('cache')
+        self.pipeline = StructuredLogger('pipeline')
+        self.tmdb = StructuredLogger('tmdb')
+    
+    def log_rate_limit_event(self, event: str, **fields):
+        """Log rate limiting events."""
+        self.rate_limiter.log_event('rate_limit', 'INFO', fields)
+    
+    def log_cache_hit(self, key: str, hit: bool):
+        """Log cache hit/miss events."""
+        self.cache.log_cache_event('hit' if hit else 'miss', key, hit)
+    
+    def log_pipeline_progress(self, phase: str, progress: float, **metrics):
+        """Log pipeline progress."""
+        self.pipeline.log_event(
+            'progress',
+            'INFO',
+            {
+                'phase': phase,
+                'progress': progress,
+                **metrics
+            }
+        )
+    
+    def log_tmdb_request(self, endpoint: str, status_code: int, duration_ms: float):
+        """Log TMDB API requests."""
+        self.tmdb.log_event(
+            'api_request',
+            'INFO',
+            {
+                'endpoint': endpoint,
+                'status_code': status_code,
+                'duration_ms': duration_ms
+            }
+        )
+```
+
+## Monitoring and Metrics Implementation
+
+### Real-Time Metrics
+```python
+import time
+from collections import defaultdict, deque
+from typing import Dict, Any
+
+class MetricsCollector:
+    def __init__(self):
+        self.metrics = defaultdict(list)
+        self.counters = defaultdict(int)
+        self.gauges = defaultdict(float)
+        self.histograms = defaultdict(deque)
+    
+    def increment_counter(self, name: str, value: int = 1):
+        """Increment counter metric."""
+        self.counters[name] += value
+    
+    def set_gauge(self, name: str, value: float):
+        """Set gauge metric."""
+        self.gauges[name] = value
+    
+    def record_histogram(self, name: str, value: float, max_size: int = 1000):
+        """Record histogram metric."""
+        self.histograms[name].append(value)
+        if len(self.histograms[name]) > max_size:
+            self.histograms[name].popleft()
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get current metrics snapshot."""
+        return {
+            'counters': dict(self.counters),
+            'gauges': dict(self.gauges),
+            'histograms': {
+                name: {
+                    'count': len(values),
+                    'min': min(values) if values else 0,
+                    'max': max(values) if values else 0,
+                    'avg': sum(values) / len(values) if values else 0,
+                    'p95': self._calculate_percentile(values, 95) if values else 0
+                }
+                for name, values in self.histograms.items()
+            }
+        }
+    
+    def _calculate_percentile(self, values: deque, percentile: int) -> float:
+        """Calculate percentile from histogram values."""
+        sorted_values = sorted(values)
+        index = int(len(sorted_values) * percentile / 100)
+        return sorted_values[min(index, len(sorted_values) - 1)]
+```
+
+### Performance Monitoring
+```python
+class PerformanceMonitor:
+    def __init__(self):
+        self.metrics = MetricsCollector()
+        self.start_times = {}
+    
+    def start_timer(self, operation: str):
+        """Start timing an operation."""
+        self.start_times[operation] = time.time()
+    
+    def end_timer(self, operation: str):
+        """End timing an operation and record metric."""
+        if operation in self.start_times:
+            duration_ms = (time.time() - self.start_times[operation]) * 1000
+            self.metrics.record_histogram(f'{operation}_duration_ms', duration_ms)
+            del self.start_times[operation]
+    
+    def record_cache_event(self, hit: bool):
+        """Record cache hit/miss event."""
+        self.metrics.increment_counter('cache_hits' if hit else 'cache_misses')
+        self.metrics.increment_counter('cache_requests')
+    
+    def record_file_processed(self, file_size: int):
+        """Record file processing event."""
+        self.metrics.increment_counter('files_processed')
+        self.metrics.record_histogram('file_size_bytes', file_size)
+    
+    def record_memory_usage(self, memory_mb: float):
+        """Record memory usage."""
+        self.metrics.set_gauge('memory_usage_mb', memory_mb)
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get performance summary."""
+        metrics = self.metrics.get_metrics()
+        
+        # Calculate cache hit rate
+        hits = metrics['counters'].get('cache_hits', 0)
+        requests = metrics['counters'].get('cache_requests', 0)
+        hit_rate = hits / requests if requests > 0 else 0
+        
+        # Calculate throughput
+        files_processed = metrics['counters'].get('files_processed', 0)
+        total_time = time.time() - getattr(self, 'start_time', time.time())
+        throughput = files_processed / (total_time / 60) if total_time > 0 else 0
+        
+        return {
+            'cache_hit_rate': hit_rate,
+            'throughput_files_per_min': throughput,
+            'memory_usage_mb': metrics['gauges'].get('memory_usage_mb', 0),
+            'files_processed': files_processed,
+            'metrics': metrics
+        }
+```
+
+## Log Security Implementation
+
+### Sensitive Information Masking
+```python
+import re
+from typing import Any, Dict
+
+class LogSecurityManager:
+    def __init__(self):
+        self.masking_patterns = [
+            (r'api[_-]?key["\s]*[:=]["\s]*([^"\s]+)', r'api_key="***MASKED***"'),
+            (r'tmdb[_-]?key["\s]*[:=]["\s]*([^"\s]+)', r'tmdb_key="***MASKED***"'),
+            (r'password["\s]*[:=]["\s]*([^"\s]+)', r'password="***MASKED***"'),
+            (r'token["\s]*[:=]["\s]*([^"\s]+)', r'token="***MASKED***"'),
+            (r'secret["\s]*[:=]["\s]*([^"\s]+)', r'secret="***MASKED***"'),
+        ]
+    
+    def mask_sensitive_data(self, message: str) -> str:
+        """Mask sensitive data in log messages."""
+        masked_message = message
+        
+        for pattern, replacement in self.masking_patterns:
+            masked_message = re.sub(pattern, replacement, masked_message, flags=re.IGNORECASE)
+        
+        return masked_message
+    
+    def mask_paths(self, message: str) -> str:
+        """Mask user home directory paths."""
+        import os
+        home_dir = os.path.expanduser('~')
+        if home_dir in message:
+            message = message.replace(home_dir, '~')
+        
+        return message
+    
+    def sanitize_log_entry(self, log_entry: Dict[str, Any]) -> Dict[str, Any]:
+        """Sanitize log entry for sensitive data."""
+        sanitized = log_entry.copy()
+        
+        # Mask sensitive fields
+        if 'fields' in sanitized:
+            fields = sanitized['fields']
+            for key in ['api_key', 'password', 'token', 'secret']:
+                if key in fields:
+                    fields[key] = '***MASKED***'
+        
+        # Mask message content
+        if 'message' in sanitized:
+            sanitized['message'] = self.mask_sensitive_data(sanitized['message'])
+        
+        return sanitized
+```
+
+### Secure Log File Permissions
+```python
+import os
+import stat
+from pathlib import Path
+
+class SecureLogManager:
+    def __init__(self, log_dir: Path):
+        self.log_dir = log_dir
+        self.ensure_secure_permissions()
+    
+    def ensure_secure_permissions(self):
+        """Ensure log directory has secure permissions."""
+        # Create log directory with secure permissions
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Set secure permissions (owner only)
+        os.chmod(self.log_dir, stat.S_IRWXU)
+        
+        # Set secure permissions for existing log files
+        for log_file in self.log_dir.glob('*.log'):
+            os.chmod(log_file, stat.S_IRUSR | stat.S_IWUSR)
+    
+    def create_secure_log_file(self, filename: str) -> Path:
+        """Create log file with secure permissions."""
+        log_file = self.log_dir / filename
+        log_file.touch()
+        os.chmod(log_file, stat.S_IRUSR | stat.S_IWUSR)
+        return log_file
+```
+
+## Testing Requirements
+- **UTF-8 testing**: Encoding validation across components
+- **Log rotation testing**: File rotation and cleanup
+- **NDJSON testing**: Structured output validation
+- **Masking testing**: Sensitive data masking
+- **Performance testing**: Metrics collection and monitoring
+
+## Risk Mitigation
+- **Log file size**: Rotation and size limits
+- **Sensitive data**: Comprehensive masking
+- **Performance impact**: Asynchronous logging
+- **Security**: Secure file permissions
+- **Compliance**: Log retention policies
+
+## Timeline
+**Weeks 25-28**: Logging monitoring implementation
+**Priority**: MEDIUM - UTF-8 logging and monitoring system
+
+## Dependencies
+- Requires completion of Phase 1 tags (1-5) and Phase 2 tags (6-11)
+- File processing pipeline established
+- TMDB API integration completed
+- Cache system operational
+- Rate limiting implemented
+- CLI commands implemented
+- Organize safety features completed
+- Windows compatibility implemented
+- Performance optimization completed
+- Testing quality implemented
+- Security configuration completed

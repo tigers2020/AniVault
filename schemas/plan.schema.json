@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anivault.dev/schemas/plan.schema.json",
+  "title": "AniVault Organization Plan Schema",
+  "description": "File organization plan for review and execution",
+  "type": "object",
+  "required": ["schema_version", "created_at", "source_dir", "target_dir", "operations"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Plan schema version"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when plan was created"
+    },
+    "source_dir": {
+      "type": "string",
+      "description": "Source directory path"
+    },
+    "target_dir": {
+      "type": "string",
+      "description": "Target directory path"
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2}-[A-Z]{2}$",
+      "default": "ko-KR",
+      "description": "Language preference for titles"
+    },
+    "naming_schema": {
+      "type": "string",
+      "default": "{title_ascii_or_native} ({year}) S{season:02d}{episode_token}.{ext}",
+      "description": "File naming template"
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source_path", "target_path", "action", "metadata"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Deterministic operation ID (file path hash + metadata hash)"
+          },
+          "source_path": {
+            "type": "string",
+            "description": "Source file path"
+          },
+          "target_path": {
+            "type": "string",
+            "description": "Target file path"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["move", "copy"],
+            "description": "File operation type"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "title": {"type": "string"},
+              "year": {"type": "integer"},
+              "season": {"type": "integer"},
+              "episode": {"type": "integer"},
+              "episode_multi": {"type": "string", "description": "Multi-episode token (e.g., E01-E02)"},
+              "tmdb_id": {"type": "integer"},
+              "media_type": {"type": "string", "enum": ["tv", "movie"]},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            },
+            "additionalProperties": false
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "target_path": {"type": "string"},
+                "existing_file": {"type": "string"},
+                "resolution": {"type": "string", "enum": ["skip", "overwrite", "rename"]}
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "statistics": {
+      "type": "object",
+      "properties": {
+        "total_files": {"type": "integer"},
+        "matched_files": {"type": "integer"},
+        "unmatched_files": {"type": "integer"},
+        "conflict_files": {"type": "integer"},
+        "match_accuracy": {"type": "number"}
+      }
+    }
+  },
+  "additionalProperties": false
+}

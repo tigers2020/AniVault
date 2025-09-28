@@ -1,0 +1,485 @@
+---
+description: pytest-based testing patterns and best practices guide
+globs: tests/**/*.py, **/*test*.py, **/*spec*.py
+alwaysApply: false
+---
+
+# 테스팅 패턴 가이드
+
+## 핵심 원칙
+
+- **테스트 우선**: TDD 방식으로 테스트 작성
+- **격리된 테스트**: 각 테스트는 독립적으로 실행
+- **명확한 네이밍**: 테스트 이름으로 의도가 명확히 드러나도록
+- **모킹 활용**: 외부 의존성은 모킹으로 격리
+
+## 테스트 구조
+
+### **기본 테스트 클래스 구조**
+```python
+# ✅ DO: 표준 테스트 클래스 구조
+import pytest
+from unittest.mock import Mock, patch, MagicMock
+from pathlib import Path
+
+class TestAnimeFileProcessor:
+    """AnimeFileProcessor 테스트 클래스."""
+    
+    def setup_method(self) -> None:
+        """각 테스트 메서드 실행 전 설정."""
+        self.processor = AnimeFileProcessor()
+        self.sample_file = Path("test_anime_01_720p.mp4")
+        self.sample_metadata = {
+            "title": "Test Anime",
+            "season": 1,
+            "episode": 1,
+            "quality": "720p"
+        }
+    
+    def teardown_method(self) -> None:
+        """각 테스트 메서드 실행 후 정리."""
+        # 테스트 데이터 정리
+        if self.sample_file.exists():
+            self.sample_file.unlink()
+    
+    def test_process_file_success(self) -> None:
+        """파일 처리 성공 테스트."""
+        # Given
+        expected_result = ProcessedFile(
+            path=self.sample_file,
+            metadata=self.sample_metadata
+        )
+        
+        # When
+        result = self.processor.process_file(self.sample_file)
+        
+        # Then
+        assert result is not None
+        assert result.path == self.sample_file
+        assert result.metadata["title"] == "Test Anime"
+    
+    def test_process_file_not_found(self) -> None:
+        """파일이 존재하지 않는 경우 테스트."""
+        # Given
+        non_existent_file = Path("non_existent.mp4")
+        
+        # When & Then
+        with pytest.raises(FileNotFoundError):
+            self.processor.process_file(non_existent_file)
+```
+
+### **픽스처 사용**
+```python
+# ✅ DO: 픽스처 활용
+@pytest.fixture
+def sample_anime_file() -> Path:
+    """샘플 애니메이션 파일 픽스처."""
+    file_path = Path("test_anime_01_720p.mp4")
+    file_path.touch()  # 빈 파일 생성
+    yield file_path
+    file_path.unlink()  # 정리
+
+@pytest.fixture
+def mock_tmdb_client() -> Mock:
+    """모킹된 TMDB 클라이언트 픽스처."""
+    client = Mock()
+    client.search_anime.return_value = {
+        "title": "Test Anime",
+        "tmdb_id": 12345
+    }
+    return client
+
+@pytest.fixture
+def sample_metadata() -> dict[str, Any]:
+    """샘플 메타데이터 픽스처."""
+    return {
+        "title": "Attack on Titan",
+        "original_title": "Shingeki no Kyojin",
+        "season": 1,
+        "episode": 1,
+        "quality": "1080p"
+    }
+
+def test_process_with_fixtures(
+    sample_anime_file: Path,
+    mock_tmdb_client: Mock,
+    sample_metadata: dict[str, Any]
+) -> None:
+    """픽스처를 사용한 테스트."""
+    processor = AnimeFileProcessor(tmdb_client=mock_tmdb_client)
+    result = processor.process_file(sample_anime_file)
+    
+    assert result.metadata["title"] == sample_metadata["title"]
+    mock_tmdb_client.search_anime.assert_called_once()
+```
+
+## 모킹 패턴
+
+### **외부 API 모킹**
+```python
+# ✅ DO: 외부 API 모킹
+@patch('src.core.tmdb_client.requests.get')
+def test_tmdb_search_success(mock_get: Mock) -> None:
+    """TMDB 검색 성공 테스트."""
+    # Given
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "results": [{
+            "id": 12345,
+            "name": "Attack on Titan",
+            "first_air_date": "2013-04-07"
+        }]
+    }
+    mock_response.status_code = 200
+    mock_get.return_value = mock_response
+    
+    # When
+    client = TMDBClient("test_api_key")
+    result = client.search_anime("Attack on Titan")
+    
+    # Then
+    assert len(result) == 1
+    assert result[0]["name"] == "Attack on Titan"
+    mock_get.assert_called_once()
+
+@patch('src.core.tmdb_client.requests.get')
+def test_tmdb_search_api_error(mock_get: Mock) -> None:
+    """TMDB API 에러 테스트."""
+    # Given
+    mock_response = Mock()
+    mock_response.status_code = 429  # Rate limit
+    mock_get.return_value = mock_response
+    
+    # When & Then
+    client = TMDBClient("test_api_key")
+    with pytest.raises(APIError, match="Rate limit exceeded"):
+        client.search_anime("Attack on Titan")
+```
+
+### **데이터베이스 모킹**
+```python
+# ✅ DO: 데이터베이스 모킹
+@pytest.fixture
+def mock_db_session() -> Mock:
+    """모킹된 데이터베이스 세션."""
+    session = Mock()
+    session.query.return_value.filter.return_value.first.return_value = None
+    session.add.return_value = None
+    session.commit.return_value = None
+    return session
+
+def test_save_metadata(mock_db_session: Mock) -> None:
+    """메타데이터 저장 테스트."""
+    # Given
+    metadata = AnimeMetadata(
+        tmdb_id=12345,
+        title="Test Anime"
+    )
+    
+    # When
+    repository = AnimeMetadataRepository(mock_db_session)
+    result = repository.create(metadata)
+    
+    # Then
+    assert result == metadata
+    mock_db_session.add.assert_called_once_with(metadata)
+    mock_db_session.commit.assert_called_once()
+```
+
+## 비동기 테스트
+
+### **비동기 함수 테스트**
+```python
+# ✅ DO: 비동기 함수 테스트
+@pytest.mark.asyncio
+async def test_async_file_processing() -> None:
+    """비동기 파일 처리 테스트."""
+    # Given
+    files = [Path(f"test_{i}.mp4") for i in range(3)]
+    for file in files:
+        file.touch()
+    
+    try:
+        # When
+        processor = AsyncFileProcessor()
+        results = await processor.process_files_async(files)
+        
+        # Then
+        assert len(results) == 3
+        assert all(isinstance(r, ProcessedFile) for r in results)
+    finally:
+        # 정리
+        for file in files:
+            if file.exists():
+                file.unlink()
+
+@pytest.mark.asyncio
+async def test_async_with_mock() -> None:
+    """모킹을 사용한 비동기 테스트."""
+    with patch('src.core.async_tmdb_client.AsyncTMDBClient') as mock_client_class:
+        # Given
+        mock_client = AsyncMock()
+        mock_client.search_anime.return_value = {"title": "Test Anime"}
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+        
+        # When
+        client = AsyncTMDBClient("test_key")
+        async with client as c:
+            result = await c.search_anime("Test")
+        
+        # Then
+        assert result["title"] == "Test Anime"
+```
+
+## 파라미터화된 테스트
+
+### **다양한 입력값 테스트**
+```python
+# ✅ DO: 파라미터화된 테스트
+@pytest.mark.parametrize("file_name,expected_title,expected_season,expected_episode", [
+    ("Attack_on_Titan_S01E01_1080p.mp4", "Attack on Titan", 1, 1),
+    ("One_Piece_S1000E1000_720p.mkv", "One Piece", 1000, 1000),
+    ("Naruto_Shippuden_500_1080p.avi", "Naruto Shippuden", None, 500),
+])
+def test_parse_anime_filename(file_name: str, expected_title: str, expected_season: int | None, expected_episode: int) -> None:
+    """다양한 파일명 파싱 테스트."""
+    # Given
+    parser = AnimeFilenameParser()
+    
+    # When
+    result = parser.parse(file_name)
+    
+    # Then
+    assert result.title == expected_title
+    assert result.season == expected_season
+    assert result.episode == expected_episode
+
+@pytest.mark.parametrize("invalid_filename", [
+    "not_an_anime_file.txt",
+    "random_file.mp4",
+    "123456789.mp4",
+])
+def test_parse_invalid_filename(invalid_filename: str) -> None:
+    """잘못된 파일명 파싱 테스트."""
+    parser = AnimeFilenameParser()
+    
+    with pytest.raises(ParseError):
+        parser.parse(invalid_filename)
+```
+
+## 통합 테스트
+
+### **전체 워크플로우 테스트**
+```python
+# ✅ DO: 통합 테스트
+class TestFileProcessingWorkflow:
+    """파일 처리 워크플로우 통합 테스트."""
+    
+    @pytest.fixture
+    def temp_directory(self, tmp_path: Path) -> Path:
+        """임시 디렉토리 픽스처."""
+        return tmp_path
+    
+    @pytest.fixture
+    def sample_files(self, temp_directory: Path) -> list[Path]:
+        """샘플 파일들 픽스처."""
+        files = [
+            temp_directory / "Attack_on_Titan_S01E01_1080p.mp4",
+            temp_directory / "Attack_on_Titan_S01E02_1080p.mp4",
+        ]
+        for file in files:
+            file.touch()
+        return files
+    
+    @patch('src.core.tmdb_client.TMDBClient')
+    def test_complete_workflow(self, mock_tmdb_class: Mock, sample_files: list[Path]) -> None:
+        """완전한 파일 처리 워크플로우 테스트."""
+        # Given
+        mock_tmdb = Mock()
+        mock_tmdb.search_anime.return_value = {
+            "tmdb_id": 12345,
+            "title": "Attack on Titan"
+        }
+        mock_tmdb_class.return_value = mock_tmdb
+        
+        # When
+        workflow = FileProcessingWorkflow()
+        results = workflow.process_directory(sample_files[0].parent)
+        
+        # Then
+        assert len(results.processed_files) == 2
+        assert all(f.metadata is not None for f in results.processed_files)
+        assert mock_tmdb.search_anime.call_count == 2
+```
+
+## 성능 테스트
+
+### **성능 벤치마크 테스트**
+```python
+# ✅ DO: 성능 테스트
+def test_file_processing_performance() -> None:
+    """파일 처리 성능 테스트."""
+    # Given
+    large_file_list = [Path(f"test_{i}.mp4") for i in range(1000)]
+    for file in large_file_list:
+        file.touch()
+    
+    try:
+        processor = FileProcessor()
+        
+        # When
+        start_time = time.time()
+        results = processor.process_files(large_file_list)
+        end_time = time.time()
+        
+        # Then
+        processing_time = end_time - start_time
+        assert processing_time < 10.0  # 10초 이내 완료
+        assert len(results) == 1000
+        assert processing_time / len(large_file_list) < 0.01  # 파일당 10ms 이내
+    finally:
+        # 정리
+        for file in large_file_list:
+            if file.exists():
+                file.unlink()
+
+@pytest.mark.benchmark
+def test_database_query_performance(benchmark, db_session) -> None:
+    """데이터베이스 쿼리 성능 테스트."""
+    # Given
+    # 테스트 데이터 생성
+    metadata_list = [
+        AnimeMetadata(tmdb_id=i, title=f"Anime {i}")
+        for i in range(1000)
+    ]
+    db_session.add_all(metadata_list)
+    db_session.commit()
+    
+    # When
+    result = benchmark(
+        lambda: db_session.query(AnimeMetadata)
+        .filter(AnimeMetadata.tmdb_id.in_(range(100)))
+        .all()
+    )
+    
+    # Then
+    assert len(result) == 100
+```
+
+## 테스트 데이터 관리
+
+### **테스트 데이터 생성**
+```python
+# ✅ DO: 테스트 데이터 팩토리
+class TestDataFactory:
+    """테스트 데이터 팩토리."""
+    
+    @staticmethod
+    def create_anime_metadata(**kwargs) -> AnimeMetadata:
+        """애니메이션 메타데이터 생성."""
+        defaults = {
+            "tmdb_id": 12345,
+            "title": "Test Anime",
+            "original_title": "テストアニメ",
+            "overview": "Test overview",
+            "first_air_date": datetime(2023, 1, 1),
+            "vote_average": 8.5,
+            "vote_count": 1000
+        }
+        defaults.update(kwargs)
+        return AnimeMetadata(**defaults)
+    
+    @staticmethod
+    def create_parsed_file(**kwargs) -> ParsedFile:
+        """파싱된 파일 생성."""
+        defaults = {
+            "file_path": "/path/to/test.mp4",
+            "title": "Test Anime",
+            "season": 1,
+            "episode": 1,
+            "quality": "1080p"
+        }
+        defaults.update(kwargs)
+        return ParsedFile(**defaults)
+
+def test_with_factory_data() -> None:
+    """팩토리를 사용한 테스트."""
+    metadata = TestDataFactory.create_anime_metadata(
+        title="Custom Title",
+        tmdb_id=99999
+    )
+    
+    assert metadata.title == "Custom Title"
+    assert metadata.tmdb_id == 99999
+```
+
+## 안티패턴 및 금지사항
+
+### **❌ DON'T: 잘못된 테스트 패턴**
+```python
+# ❌ DON'T: 테스트 간 의존성
+def test_first():
+    global test_data
+    test_data = "some data"  # ❌ 전역 상태 사용
+
+def test_second():
+    assert test_data == "some data"  # ❌ 다른 테스트에 의존
+
+# ❌ DON'T: 실제 외부 API 호출
+def test_tmdb_search():
+    client = TMDBClient("real_api_key")  # ❌ 실제 API 호출
+    result = client.search_anime("Attack on Titan")
+    assert result is not None
+
+# ❌ DON'T: 불명확한 테스트 이름
+def test_1():
+    assert True  # ❌ 무엇을 테스트하는지 불명확
+
+# ❌ DON'T: 테스트 데이터 정리 안함
+def test_file_processing():
+    test_file = Path("test.mp4")
+    test_file.touch()
+    # ❌ 파일 정리 안함
+    processor.process_file(test_file)
+```
+
+### **✅ DO: 올바른 테스트 패턴**
+```python
+# ✅ DO: 독립적인 테스트
+def test_first():
+    test_data = "some data"  # ✅ 로컬 변수 사용
+    assert test_data == "some data"
+
+def test_second():
+    test_data = "other data"  # ✅ 독립적인 데이터
+    assert test_data == "other data"
+
+# ✅ DO: 모킹 사용
+@patch('src.core.tmdb_client.requests.get')
+def test_tmdb_search(mock_get):
+    mock_get.return_value.json.return_value = {"results": []}  # ✅ 모킹
+    client = TMDBClient("test_key")
+    result = client.search_anime("Test")
+    assert result == []
+
+# ✅ DO: 명확한 테스트 이름
+def test_parse_anime_filename_returns_correct_metadata():
+    """애니메이션 파일명 파싱이 올바른 메타데이터를 반환하는지 테스트."""
+    assert True  # ✅ 의도가 명확함
+
+# ✅ DO: 적절한 정리
+def test_file_processing():
+    test_file = Path("test.mp4")
+    try:
+        test_file.touch()
+        processor.process_file(test_file)
+    finally:
+        if test_file.exists():  # ✅ 정리
+            test_file.unlink()
+```
+
+## 관련 룰 참조
+
+- **에러 처리**: [error_handling.mdc](mdc:.cursor/rules/error_handling.mdc)
+- **로깅**: [logging.mdc](mdc:.cursor/rules/logging.mdc)
+- **성능**: [performance.mdc](mdc:.cursor/rules/performance.mdc)

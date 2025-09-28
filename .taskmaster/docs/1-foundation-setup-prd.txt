@@ -1,0 +1,94 @@
+# AniVault v3 CLI - Foundation Setup PRD
+
+## Overview
+Establish the foundational infrastructure for AniVault v3 CLI development, including project structure, quality gates, and critical library compatibility validation.
+
+## Goals
+- Set up robust development environment with quality gates
+- Validate critical library compatibility (anitopy, cryptography, tmdbv3api)
+- Establish performance baselines and memory profiling
+- Create UTF-8 enforcement across all I/O operations
+- Implement logger rotation template
+
+## Success Criteria
+- All critical library compatibility verified
+- Performance baseline established (100k+ files, 500MB limit)
+- Memory profiling baseline established
+- UTF-8 enforcement working across all components
+- Quality gates (Ruff, mypy, pytest) operational
+
+## Technical Requirements
+
+### Core Dependencies
+- Click 8.1.0 (CLI framework)
+- tmdbv3api 1.9.0 (TMDB API client)
+- anitopy 2.1.1 (animation filename parsing)
+- rich 14.1.0 (CLI UI)
+- cryptography 41.0.0 (API key encryption)
+- parse 1.20.0 (fallback parser)
+- tomli 2.0.0 / tomli-w 1.0.0 (configuration)
+
+### Development Tools
+- pytest 7.4.0 + pytest-cov 4.1.0
+- pytest-mock 3.11.0
+- pytest-httpx 0.21.0
+- hypothesis 6.88.0
+- ruff 0.1.0 (linting + formatting)
+- mypy 1.6.0 (type checking)
+- pre-commit 3.5.0
+
+### Critical Compatibility Validation
+1. **anitopy C extension + PyInstaller compatibility** (HIGHEST PRIORITY)
+2. **cryptography native libraries + PyInstaller compatibility**
+3. **tmdbv3api detailed verification:**
+   - Actual rate limiting handling verification
+   - 429 error Retry-After header processing tests
+   - Long-running memory usage pattern verification
+   - Network timeout handling verification
+4. **Windows 7/8/10/11 exe execution testing**
+5. **SSD vs HDD performance difference measurement**
+6. **TMDB API key issuance process verification**
+
+### Project Structure
+```
+src/
+├── core/           # Scan, parse, match, organize pipeline
+├── services/      # TMDB client, cache/keyring, settings
+├── cli/            # Click-based command set
+└── utils/          # Logging, rate-limit, state machine, common DTOs
+```
+
+### Quality Gates
+- Ruff/Black/Pyright pre-commit hooks
+- pytest with ≥70% coverage requirement
+- UTF-8 enforcement across all I/O operations
+- Logger rotation template implementation
+- Memory profiling baseline (100k+ files, 500MB limit)
+
+## Deliverables
+- [ ] `pyproject.toml` with core dependencies
+- [ ] `src/` directory skeleton with proper module structure
+- [ ] Pre-commit hooks configuration
+- [ ] Logger rotation template
+- [ ] Critical library compatibility validation
+- [ ] Performance baseline establishment
+- [ ] Memory profiling baseline
+
+## Definition of Done
+- [ ] `pytest` passes, log file creation/rotation demonstrated
+- [ ] All library compatibility verification completed
+- [ ] Memory profiling baseline established (100k+ files, 500MB limit)
+- [ ] Performance baseline established (SSD vs HDD differences)
+- [ ] UTF-8 enforcement working across all components
+- [ ] Quality gates operational and enforced
+
+## Risk Mitigation
+- Early validation of critical components (anitopy, cryptography)
+- Fallback options for high-risk areas
+- Continuous performance monitoring
+- Memory usage profiling for large directories
+- Windows version compatibility testing
+
+## Timeline
+**Weeks 1-2**: Foundation setup and critical validation
+**Priority**: CRITICAL - Project foundation and quality gates

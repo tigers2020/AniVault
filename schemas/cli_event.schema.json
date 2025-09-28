@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://anivault.dev/schemas/cli_event.schema.json",
+  "title": "AniVault CLI Event Schema",
+  "description": "Standardized CLI event output format for machine-readable processing",
+  "type": "object",
+  "required": ["phase", "event", "ts", "fields"],
+  "properties": {
+    "phase": {
+      "type": "string",
+      "enum": ["scan", "parse", "match", "organize", "cache", "system"],
+      "description": "Processing phase identifier"
+    },
+    "event": {
+      "type": "string",
+      "enum": ["start", "progress", "complete", "error", "warning", "info"],
+      "description": "Event type"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp in ISO 8601 format"
+    },
+    "fields": {
+      "type": "object",
+      "description": "Event-specific data fields",
+      "properties": {
+        "file_count": {"type": "integer"},
+        "processed": {"type": "integer"},
+        "total": {"type": "integer"},
+        "percentage": {"type": "number"},
+        "rate_per_sec": {"type": "number"},
+        "cache_hits": {"type": "integer"},
+        "cache_misses": {"type": "integer"},
+        "parse_failures": {"type": "integer"},
+        "match_accuracy": {"type": "number"},
+        "error_code": {"type": "string"},
+        "error_message": {"type": "string"},
+        "tmdb_state": {"type": "string", "enum": ["Normal", "Throttle", "CacheOnly"]},
+        "retry_after": {"type": "number"},
+        "file_path": {"type": "string"},
+        "tmdb_id": {"type": "integer"},
+        "title": {"type": "string"},
+        "season": {"type": "integer"},
+        "episode": {"type": "integer"},
+        "year": {"type": "integer"},
+        "msg_kor": {"type": "string", "description": "Korean message for human readability"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

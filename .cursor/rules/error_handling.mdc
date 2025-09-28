@@ -1,0 +1,277 @@
+---
+description: Consistent error handling and logging patterns guide
+globs: src/core/*.py, src/utils/*.py, **/*error*.py, **/*exception*.py
+alwaysApply: false
+---
+
+# 에러 처리 및 로깅 패턴 가이드
+
+## 핵심 원칙
+
+- **구체적인 예외 타입**: 일반적인 `Exception` 대신 구체적인 예외 사용
+- **구조화된 로깅**: 일관된 로그 포맷과 레벨 사용
+- **에러 복구**: 가능한 경우 자동 복구 메커니즘 제공
+- **사용자 피드백**: 사용자에게 명확한 에러 메시지 제공
+
+## 에러 처리 패턴
+
+### **기본 에러 처리 구조**
+```python
+# ✅ DO: 구체적인 예외 처리
+def process_file(file_path: Path) -> ProcessedFile:
+    """파일 처리 함수."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        return ProcessedFile(path=file_path, content=content)
+    
+    except FileNotFoundError as e:
+        log_operation_error("process file", e, f"File not found: {file_path}")
+        raise ProcessingError(f"File not found: {file_path}") from e
+    
+    except UnicodeDecodeError as e:
+        log_operation_error("process file", e, f"Encoding error: {file_path}")
+        raise ProcessingError(f"Invalid file encoding: {file_path}") from e
+    
+    except Exception as e:
+        log_operation_error("process file", e, f"Unexpected error: {file_path}")
+        raise ProcessingError(f"Failed to process file: {file_path}") from e
+```
+
+### **데이터베이스 에러 처리**
+```python
+# ✅ DO: 데이터베이스 특화 에러 처리
+@retry_on_database_error
+def get_anime_metadata(tmdb_id: int) -> AnimeMetadata | None:
+    """TMDB ID로 애니메이션 메타데이터 조회."""
+    try:
+        with get_db_session() as session:
+            metadata = session.query(AnimeMetadata).filter(
+                AnimeMetadata.tmdb_id == tmdb_id
+            ).first()
+            return metadata
+    
+    except IntegrityError as e:
+        log_database_error("get anime metadata", e, "anime_metadata")
+        logger.warning(f"Integrity error for TMDB ID {tmdb_id}: {e}")
+        return None
+    
+    except OperationalError as e:
+        log_database_error("get anime metadata", e, "anime_metadata")
+        logger.error(f"Database connection error for TMDB ID {tmdb_id}: {e}")
+        raise DatabaseConnectionError(f"Database unavailable") from e
+    
+    except Exception as e:
+        log_operation_error("get anime metadata", e, f"TMDB ID: {tmdb_id}")
+        raise
+```
+
+## 로깅 패턴
+
+### **구조화된 로깅**
+```python
+# ✅ DO: 일관된 로깅 포맷
+def log_operation_error(
+    operation_name: str,
+    error: Exception,
+    additional_context: str | None = None,
+    *,
+    level: int = logging.ERROR,
+    exc_info: bool = False,
+) -> None:
+    """일관된 에러 로깅 포맷."""
+    context_msg = f" - {additional_context}" if additional_context else ""
+    logger.log(
+        level, 
+        f"Failed to {operation_name}: {error}{context_msg}", 
+        exc_info=exc_info
+    )
+
+def log_database_error(
+    operation_name: str, 
+    error: Exception, 
+    table_name: str | None = None
+) -> None:
+    """데이터베이스 에러 전용 로깅."""
+    table_info = f" (table: {table_name})" if table_name else ""
+    logger.error(f"Database error in {operation_name}{table_info}: {error}")
+```
+
+### **로깅 레벨 가이드라인**
+```python
+# ✅ DO: 적절한 로깅 레벨 사용
+logger.debug("Detailed debugging information")  # 개발 중 디버깅
+logger.info("General information about program execution")  # 일반 정보
+logger.warning("Something unexpected happened, but program continues")  # 경고
+logger.error("A serious error occurred, but program can continue")  # 에러
+logger.critical("A very serious error occurred, program may stop")  # 치명적 에러
+```
+
+## 재시도 로직
+
+### **지수 백오프 재시도**
+```python
+# ✅ DO: 지수 백오프를 사용한 재시도
+@retry(
+    retry=retry_if_exception_type(RETRIABLE_DB_EXCEPTIONS),
+    stop=stop_after_attempt(7),
+    wait=wait_exponential(multiplier=1, min=0.5, max=30),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    after=after_log(logger, logging.ERROR),
+)
+def robust_database_operation(operation: Callable[[], T]) -> T:
+    """견고한 데이터베이스 작업."""
+    return operation()
+```
+
+### **Circuit Breaker 패턴**
+```python
+# ✅ DO: Circuit Breaker를 통한 에러 격리
+@circuit_breaker_protect(
+    failure_threshold=5,
+    recovery_timeout=60,
+    expected_exception=APIError
+)
+async def call_external_api(endpoint: str) -> dict[str, Any]:
+    """외부 API 호출 with Circuit Breaker."""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(endpoint) as response:
+            if response.status >= 400:
+                raise APIError(f"API returned {response.status}")
+            return await response.json()
+```
+
+## 사용자 피드백
+
+### **GUI 에러 표시**
+```python
+# ✅ DO: 사용자 친화적인 에러 메시지
+def show_error_to_user(parent: QWidget, error: Exception, context: str) -> None:
+    """사용자에게 에러를 표시."""
+    if isinstance(error, FileNotFoundError):
+        message = f"파일을 찾을 수 없습니다: {context}"
+    elif isinstance(error, PermissionError):
+        message = f"파일 접근 권한이 없습니다: {context}"
+    elif isinstance(error, DatabaseConnectionError):
+        message = "데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요."
+    else:
+        message = f"예상치 못한 오류가 발생했습니다: {context}"
+    
+    QMessageBox.critical(parent, "오류", message)
+    logger.error(f"User error: {error} - Context: {context}")
+```
+
+## 에러 복구 전략
+
+### **자동 복구**
+```python
+# ✅ DO: 자동 복구 메커니즘
+async def process_with_auto_recovery(items: list[Any]) -> list[Any]:
+    """자동 복구가 포함된 처리."""
+    results = []
+    
+    for item in items:
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                result = await process_item(item)
+                results.append(result)
+                break
+            except TemporaryError as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # 지수 백오프
+                    logger.warning(f"Temporary error, retrying in {wait_time}s: {e}")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"Failed after {max_retries} attempts: {e}")
+                    results.append(ProcessedItem(item=item, error=str(e)))
+            except PermanentError as e:
+                logger.error(f"Permanent error, skipping: {e}")
+                results.append(ProcessedItem(item=item, error=str(e)))
+                break
+    
+    return results
+```
+
+## 안티패턴 및 금지사항
+
+### **❌ DON'T: 잘못된 에러 처리**
+```python
+# ❌ DON'T: 일반적인 Exception만 사용
+def bad_error_handling():
+    try:
+        risky_operation()
+    except Exception as e:  # 너무 일반적
+        print(f"Error: {e}")  # 로깅 없음
+        return None  # 에러 정보 손실
+
+# ❌ DON'T: 에러 무시
+def bad_ignore_error():
+    try:
+        risky_operation()
+    except Exception:
+        pass  # 에러를 완전히 무시
+
+# ❌ DON'T: 사용자에게 기술적 에러 메시지
+def bad_user_message():
+    try:
+        risky_operation()
+    except Exception as e:
+        QMessageBox.critical(None, "Error", f"SQLAlchemyError: {e}")  # ❌
+```
+
+### **✅ DO: 올바른 에러 처리**
+```python
+# ✅ DO: 구체적인 예외 처리
+def good_error_handling():
+    try:
+        risky_operation()
+    except FileNotFoundError as e:
+        logger.error(f"File not found: {e}")
+        raise ProcessingError(f"Required file missing") from e
+    except PermissionError as e:
+        logger.error(f"Permission denied: {e}")
+        raise ProcessingError(f"Insufficient permissions") from e
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        raise ProcessingError(f"Operation failed") from e
+
+# ✅ DO: 적절한 로깅과 사용자 피드백
+def good_user_feedback():
+    try:
+        risky_operation()
+    except Exception as e:
+        logger.error(f"Operation failed: {e}")
+        show_user_friendly_error(e)
+```
+
+## 테스트 패턴
+
+### **에러 상황 테스트**
+```python
+# ✅ DO: 에러 상황 테스트
+def test_error_handling():
+    """에러 처리 테스트."""
+    with pytest.raises(ProcessingError, match="File not found"):
+        process_file(Path("nonexistent.txt"))
+    
+    with pytest.raises(DatabaseConnectionError):
+        get_anime_metadata(12345)  # DB 연결 실패 시뮬레이션
+
+def test_logging_on_error():
+    """에러 시 로깅 테스트."""
+    with caplog.at_level(logging.ERROR):
+        try:
+            risky_operation()
+        except Exception:
+            pass
+    
+    assert "Operation failed" in caplog.text
+```
+
+## 관련 룰 참조
+
+- **비동기 처리**: [async_patterns.mdc](mdc:.cursor/rules/async_patterns.mdc)
+- **로깅**: [logging.mdc](mdc:.cursor/rules/logging.mdc)
+- **테스트**: [testing.mdc](mdc:.cursor/rules/testing.mdc)
+- **데이터베이스**: [database_patterns.mdc](mdc:.cursor/rules/database_patterns.mdc)

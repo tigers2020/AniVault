@@ -1,0 +1,538 @@
+---
+description: PyQt5 GUI development patterns and MVVM architecture guide
+globs: src/gui/**/*.py, src/viewmodels/**/*.py, **/*gui*.py, **/*widget*.py
+alwaysApply: false
+---
+
+# PyQt5 GUI 패턴 가이드
+
+## 핵심 원칙
+
+- **MVVM 패턴**: View, ViewModel, Model 분리
+- **시그널/슬롯**: 이벤트 기반 통신
+- **비동기 처리**: GUI 블로킹 방지
+- **사용자 경험**: 직관적이고 반응적인 인터페이스
+
+## MVVM 아키텍처
+
+### **View (GUI 컴포넌트)**
+```python
+# ✅ DO: View 클래스 구조
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel
+from PyQt5.QtCore import pyqtSignal, QThread
+from PyQt5.QtGui import QFont
+
+class WorkPanel(QWidget):
+    """작업 패널 View."""
+    
+    # 시그널 정의
+    start_processing = pyqtSignal()
+    stop_processing = pyqtSignal()
+    file_selected = pyqtSignal(str)
+    
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.viewmodel = FileProcessingViewModel()
+        self._setup_ui()
+        self._connect_signals()
+    
+    def _setup_ui(self) -> None:
+        """UI 구성 요소 설정."""
+        layout = QVBoxLayout(self)
+        
+        # 제목
+        title_label = QLabel("파일 처리")
+        title_label.setFont(QFont("Arial", 16, QFont.Bold))
+        layout.addWidget(title_label)
+        
+        # 버튼들
+        button_layout = QHBoxLayout()
+        self.start_button = QPushButton("시작")
+        self.stop_button = QPushButton("중지")
+        self.stop_button.setEnabled(False)
+        
+        button_layout.addWidget(self.start_button)
+        button_layout.addWidget(self.stop_button)
+        layout.addLayout(button_layout)
+        
+        # 진행률 표시
+        self.progress_label = QLabel("준비됨")
+        layout.addWidget(self.progress_label)
+    
+    def _connect_signals(self) -> None:
+        """시그널 연결."""
+        self.start_button.clicked.connect(self.start_processing.emit)
+        self.stop_button.clicked.connect(self.stop_processing.emit)
+        
+        # ViewModel 시그널 연결
+        self.viewmodel.progress_updated.connect(self._update_progress)
+        self.viewmodel.status_changed.connect(self._update_status)
+        self.viewmodel.processing_completed.connect(self._on_processing_completed)
+    
+    def _update_progress(self, current: int, total: int) -> None:
+        """진행률 업데이트."""
+        self.progress_label.setText(f"진행 중: {current}/{total}")
+    
+    def _update_status(self, status: str) -> None:
+        """상태 업데이트."""
+        if status == "processing":
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(True)
+        else:
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
+    
+    def _on_processing_completed(self, results: list[ProcessedFile]) -> None:
+        """처리 완료 처리."""
+        self.progress_label.setText(f"완료: {len(results)}개 파일 처리됨")
+```
+
+### **ViewModel (비즈니스 로직)**
+```python
+# ✅ DO: ViewModel 클래스 구조
+from PyQt5.QtCore import QObject, pyqtSignal, QThread
+from typing import List, Optional
+import asyncio
+
+class FileProcessingViewModel(QObject):
+    """파일 처리 ViewModel."""
+    
+    # 시그널 정의
+    progress_updated = pyqtSignal(int, int)  # current, total
+    status_changed = pyqtSignal(str)  # status
+    processing_completed = pyqtSignal(list)  # results
+    error_occurred = pyqtSignal(str)  # error message
+    
+    def __init__(self, parent: QObject | None = None):
+        super().__init__(parent)
+        self._processing_thread: Optional[QThread] = None
+        self._is_processing = False
+    
+    def start_processing(self, file_paths: List[str]) -> None:
+        """파일 처리 시작."""
+        if self._is_processing:
+            return
+        
+        self._is_processing = True
+        self.status_changed.emit("processing")
+        
+        # 백그라운드 스레드에서 처리
+        self._processing_thread = ProcessingThread(file_paths)
+        self._processing_thread.progress_updated.connect(self.progress_updated.emit)
+        self._processing_thread.processing_completed.connect(self._on_processing_completed)
+        self._processing_thread.error_occurred.connect(self._on_error_occurred)
+        self._processing_thread.start()
+    
+    def stop_processing(self) -> None:
+        """파일 처리 중지."""
+        if self._processing_thread and self._processing_thread.isRunning():
+            self._processing_thread.stop()
+            self._processing_thread.wait()
+        
+        self._is_processing = False
+        self.status_changed.emit("idle")
+    
+    def _on_processing_completed(self, results: List[ProcessedFile]) -> None:
+        """처리 완료 처리."""
+        self._is_processing = False
+        self.status_changed.emit("completed")
+        self.processing_completed.emit(results)
+    
+    def _on_error_occurred(self, error_message: str) -> None:
+        """에러 발생 처리."""
+        self._is_processing = False
+        self.status_changed.emit("error")
+        self.error_occurred.emit(error_message)
+```
+
+### **Model (데이터 모델)**
+```python
+# ✅ DO: Model 클래스 구조
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional, List
+from datetime import datetime
+
+@dataclass
+class ProcessedFile:
+    """처리된 파일 모델."""
+    path: Path
+    title: str
+    season: Optional[int] = None
+    episode: Optional[int] = None
+    quality: Optional[str] = None
+    processed_at: datetime = datetime.now()
+    error: Optional[str] = None
+
+@dataclass
+class FileGroup:
+    """파일 그룹 모델."""
+    title: str
+    files: List[ProcessedFile]
+    metadata: Optional[dict] = None
+    
+    def add_file(self, file: ProcessedFile) -> None:
+        """파일 추가."""
+        self.files.append(file)
+    
+    def get_total_files(self) -> int:
+        """총 파일 수 반환."""
+        return len(self.files)
+```
+
+## 시그널/슬롯 패턴
+
+### **커스텀 시그널 정의**
+```python
+# ✅ DO: 커스텀 시그널 정의
+from PyQt5.QtCore import pyqtSignal, QObject
+
+class CustomSignals(QObject):
+    """커스텀 시그널 클래스."""
+    
+    # 기본 시그널
+    data_updated = pyqtSignal()
+    progress_changed = pyqtSignal(int)  # 0-100
+    
+    # 복합 데이터 시그널
+    file_processed = pyqtSignal(str, dict)  # file_path, metadata
+    batch_completed = pyqtSignal(list)  # results list
+    
+    # 에러 시그널
+    error_occurred = pyqtSignal(str, str)  # error_type, message
+    warning_occurred = pyqtSignal(str)  # warning_message
+```
+
+### **시그널 연결 패턴**
+```python
+# ✅ DO: 시그널 연결 패턴
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.signals = CustomSignals()
+        self._connect_signals()
+    
+    def _connect_signals(self) -> None:
+        """시그널 연결."""
+        # 직접 연결
+        self.signals.data_updated.connect(self.refresh_ui)
+        self.signals.progress_changed.connect(self.update_progress_bar)
+        
+        # 람다를 사용한 간단한 연결
+        self.signals.file_processed.connect(
+            lambda path, meta: self.log_message(f"Processed: {path}")
+        )
+        
+        # 슬롯 함수를 사용한 복잡한 연결
+        self.signals.batch_completed.connect(self._on_batch_completed)
+        self.signals.error_occurred.connect(self._on_error_occurred)
+    
+    def _on_batch_completed(self, results: List[ProcessedFile]) -> None:
+        """배치 완료 처리."""
+        success_count = len([r for r in results if r.error is None])
+        self.statusBar().showMessage(f"완료: {success_count}개 파일 처리됨")
+    
+    def _on_error_occurred(self, error_type: str, message: str) -> None:
+        """에러 발생 처리."""
+        QMessageBox.critical(self, f"에러: {error_type}", message)
+```
+
+## 비동기 처리
+
+### **QThread를 사용한 백그라운드 작업**
+```python
+# ✅ DO: QThread를 사용한 비동기 처리
+from PyQt5.QtCore import QThread, pyqtSignal
+import time
+
+class ProcessingThread(QThread):
+    """파일 처리 백그라운드 스레드."""
+    
+    progress_updated = pyqtSignal(int, int)  # current, total
+    processing_completed = pyqtSignal(list)  # results
+    error_occurred = pyqtSignal(str)  # error message
+    
+    def __init__(self, file_paths: List[str]):
+        super().__init__()
+        self.file_paths = file_paths
+        self._should_stop = False
+    
+    def run(self) -> None:
+        """스레드 실행."""
+        try:
+            results = []
+            total_files = len(self.file_paths)
+            
+            for i, file_path in enumerate(self.file_paths):
+                if self._should_stop:
+                    break
+                
+                try:
+                    # 파일 처리 시뮬레이션
+                    result = self._process_file(file_path)
+                    results.append(result)
+                    
+                    # 진행률 업데이트
+                    self.progress_updated.emit(i + 1, total_files)
+                    
+                except Exception as e:
+                    logger.error(f"Failed to process {file_path}: {e}")
+                    continue
+            
+            self.processing_completed.emit(results)
+            
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+    
+    def stop(self) -> None:
+        """스레드 중지 요청."""
+        self._should_stop = True
+    
+    def _process_file(self, file_path: str) -> ProcessedFile:
+        """개별 파일 처리."""
+        # 실제 파일 처리 로직
+        time.sleep(0.1)  # 시뮬레이션
+        return ProcessedFile(path=Path(file_path), title="Processed")
+```
+
+### **asyncio와 PyQt5 통합**
+```python
+# ✅ DO: asyncio와 PyQt5 통합
+import asyncio
+from PyQt5.QtCore import QTimer
+
+class AsyncProcessingManager(QObject):
+    """비동기 처리 관리자."""
+    
+    progress_updated = pyqtSignal(int, int)
+    processing_completed = pyqtSignal(list)
+    
+    def __init__(self):
+        super().__init__()
+        self.loop = None
+        self._setup_asyncio()
+    
+    def _setup_asyncio(self) -> None:
+        """asyncio 이벤트 루프 설정."""
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        
+        # QTimer를 사용하여 asyncio 이벤트 루프 실행
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._run_asyncio_loop)
+        self.timer.start(10)  # 10ms마다 실행
+    
+    def _run_asyncio_loop(self) -> None:
+        """asyncio 이벤트 루프 실행."""
+        self.loop.run_until_complete(asyncio.sleep(0))
+    
+    async def process_files_async(self, file_paths: List[str]) -> List[ProcessedFile]:
+        """비동기 파일 처리."""
+        results = []
+        total_files = len(file_paths)
+        
+        for i, file_path in enumerate(file_paths):
+            try:
+                result = await self._process_file_async(file_path)
+                results.append(result)
+                self.progress_updated.emit(i + 1, total_files)
+            except Exception as e:
+                logger.error(f"Failed to process {file_path}: {e}")
+        
+        self.processing_completed.emit(results)
+        return results
+    
+    async def _process_file_async(self, file_path: str) -> ProcessedFile:
+        """비동기 파일 처리."""
+        await asyncio.sleep(0.1)  # 비동기 작업 시뮬레이션
+        return ProcessedFile(path=Path(file_path), title="Async Processed")
+```
+
+## 사용자 인터페이스 패턴
+
+### **진행률 표시**
+```python
+# ✅ DO: 진행률 표시 패턴
+from PyQt5.QtWidgets import QProgressBar, QLabel
+
+class ProgressWidget(QWidget):
+    """진행률 표시 위젯."""
+    
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._setup_ui()
+    
+    def _setup_ui(self) -> None:
+        """UI 설정."""
+        layout = QVBoxLayout(self)
+        
+        # 진행률 바
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        layout.addWidget(self.progress_bar)
+        
+        # 상태 라벨
+        self.status_label = QLabel("준비됨")
+        layout.addWidget(self.status_label)
+    
+    def update_progress(self, current: int, total: int) -> None:
+        """진행률 업데이트."""
+        if total > 0:
+            percentage = int((current / total) * 100)
+            self.progress_bar.setValue(percentage)
+            self.status_label.setText(f"진행 중: {current}/{total} ({percentage}%)")
+    
+    def set_status(self, status: str) -> None:
+        """상태 설정."""
+        self.status_label.setText(status)
+        if status == "완료":
+            self.progress_bar.setValue(100)
+```
+
+### **에러 다이얼로그**
+```python
+# ✅ DO: 에러 다이얼로그 패턴
+from PyQt5.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QTextEdit, QPushButton
+
+class ErrorDialog(QDialog):
+    """에러 다이얼로그."""
+    
+    def __init__(self, error_message: str, details: str = "", parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setWindowTitle("오류")
+        self.setModal(True)
+        self._setup_ui(error_message, details)
+    
+    def _setup_ui(self, error_message: str, details: str) -> None:
+        """UI 설정."""
+        layout = QVBoxLayout(self)
+        
+        # 에러 메시지
+        message_label = QLabel(error_message)
+        message_label.setWordWrap(True)
+        layout.addWidget(message_label)
+        
+        # 상세 정보 (있는 경우)
+        if details:
+            details_text = QTextEdit()
+            details_text.setPlainText(details)
+            details_text.setReadOnly(True)
+            details_text.setMaximumHeight(200)
+            layout.addWidget(details_text)
+        
+        # 버튼
+        button = QPushButton("확인")
+        button.clicked.connect(self.accept)
+        layout.addWidget(button)
+
+def show_error_dialog(parent: QWidget, error: Exception) -> None:
+    """에러 다이얼로그 표시."""
+    error_message = str(error)
+    details = ""
+    
+    if hasattr(error, '__traceback__'):
+        import traceback
+        details = traceback.format_exc()
+    
+    dialog = ErrorDialog(error_message, details, parent)
+    dialog.exec_()
+```
+
+## 안티패턴 및 금지사항
+
+### **❌ DON'T: 잘못된 GUI 패턴**
+```python
+# ❌ DON'T: UI 스레드에서 블로킹 작업
+def bad_blocking_operation():
+    # ❌ UI 스레드에서 긴 작업
+    time.sleep(5)  # UI가 5초간 멈춤
+    process_large_files()  # ❌ UI 블로킹
+
+# ❌ DON'T: 직접적인 View-Model 연결
+class BadView(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.model = DataModel()  # ❌ View가 Model에 직접 접근
+        self.model.data_changed.connect(self.update_ui)
+
+# ❌ DON'T: 시그널 연결 누락
+class BadWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.button = QPushButton("Click")
+        # ❌ 시그널 연결 안함
+```
+
+### **✅ DO: 올바른 GUI 패턴**
+```python
+# ✅ DO: 백그라운드 스레드에서 작업
+def good_async_operation():
+    thread = ProcessingThread()
+    thread.processing_completed.connect(update_ui)
+    thread.start()
+
+# ✅ DO: ViewModel을 통한 간접 접근
+class GoodView(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.viewmodel = DataViewModel()
+        self.viewmodel.data_changed.connect(self.update_ui)
+
+# ✅ DO: 적절한 시그널 연결
+class GoodWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.button = QPushButton("Click")
+        self.button.clicked.connect(self._on_button_clicked)
+    
+    def _on_button_clicked(self):
+        # 버튼 클릭 처리
+        pass
+```
+
+## 테스트 패턴
+
+### **GUI 테스트**
+```python
+# ✅ DO: GUI 테스트
+import pytest
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtTest import QTest
+from PyQt5.QtCore import Qt
+
+@pytest.fixture
+def app():
+    """QApplication 픽스처."""
+    app = QApplication([])
+    yield app
+    app.quit()
+
+def test_button_click(app):
+    """버튼 클릭 테스트."""
+    widget = WorkPanel()
+    widget.show()
+    
+    # 버튼 클릭 시뮬레이션
+    QTest.mouseClick(widget.start_button, Qt.LeftButton)
+    
+    # 결과 확인
+    assert not widget.start_button.isEnabled()
+    assert widget.stop_button.isEnabled()
+
+def test_progress_update(app):
+    """진행률 업데이트 테스트."""
+    widget = WorkPanel()
+    widget.show()
+    
+    # 진행률 업데이트
+    widget._update_progress(5, 10)
+    
+    # 결과 확인
+    assert "5/10" in widget.progress_label.text()
+```
+
+## 관련 룰 참조
+
+- **비동기 처리**: [async_patterns.mdc](mdc:.cursor/rules/async_patterns.mdc)
+- **에러 처리**: [error_handling.mdc](mdc:.cursor/rules/error_handling.mdc)
+- **테스트**: [testing.mdc](mdc:.cursor/rules/testing.mdc)

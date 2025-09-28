@@ -1,0 +1,162 @@
+# AniVault v3 CLI - JSON Cache System PRD
+
+## Overview
+Implement a comprehensive JSON cache system with versioning, query normalization, corruption recovery, and performance optimization. This includes schema v2, TTL management, and cache hit rate optimization.
+
+## Goals
+- Implement JSON cache schema v2 with versioning
+- Create query normalization algorithm
+- Implement cache corruption recovery
+- Optimize cache hit rate to ≥90%
+- Establish schema migration support
+
+## Success Criteria
+- @1 ≥90% / @3 ≥96% matching accuracy achieved
+- MVP demo (scan → match → organize basic flow) completed
+- Cache hit rate ≥90% on second run
+- Schema migration working correctly
+- Corruption recovery tested and verified
+
+## Technical Requirements
+
+### JSON Cache Schema v2
+- **Object cache**: `cache/objects/{tmdb_id}.json` structure
+- **Search cache**: `cache/search/{qhash}.json` structure
+- **Schema versioning**: Migration support for schema changes
+- **TTL management**: Time-to-live cache expiration
+- **LRU implementation**: Least Recently Used eviction policy
+
+### Query Normalization
+- **q_norm algorithm**: Lowercase + basic cleanup + year hint
+- **Language processing**: Multi-language query support
+- **Year hint extraction**: File name year detection
+- **Cache key generation**: Deterministic hash-based keys
+
+### Cache Corruption Recovery
+- **Automatic quarantine**: Corrupted files moved to quarantine folder
+- **Schema migration**: Version-based migration with backup
+- **Disk space management**: LRU+TTL priority deletion
+- **Recovery procedures**: Automatic cache regeneration
+
+### Index File Implementation
+- **Query tracking**: `cache/index.jsonl` for query hash tracking
+- **Hit/miss counters**: Performance metrics collection
+- **Last access tracking**: LRU eviction support
+- **Atomic operations**: `*.json.tmp` write and rename commit
+
+## Deliverables
+- [ ] **JSON cache schema v2:**
+  - [ ] `cache/objects/{tmdb_id}.json` structure
+  - [ ] `cache/search/{qhash}.json` structure
+  - [ ] Schema versioning with migration support
+  - [ ] TTL and LRU simultaneous application
+- [ ] **Query normalization:**
+  - [ ] `q_norm` algorithm (lowercase + basic cleanup + year hint)
+  - [ ] Language and year hint processing
+  - [ ] Cache TTL and version management
+- [ ] **Cache corruption recovery:**
+  - [ ] Automatic quarantine for corrupted files
+  - [ ] Schema migration with backup
+  - [ ] Disk space limits with LRU+TTL priority deletion
+- [ ] **Index file implementation:**
+  - [ ] `cache/index.jsonl` for query tracking
+  - [ ] Hit/miss counters and last access tracking
+
+## Definition of Done
+- [ ] @1 ≥90% / @3 ≥96% matching accuracy achieved
+- [ ] MVP demo (scan → match → organize basic flow) completed
+- [ ] Cache hit rate ≥90% on second run
+- [ ] Schema migration working correctly
+- [ ] Corruption recovery tested and verified
+- [ ] Performance benchmarks documented
+
+## Cache Schema Design
+
+### Object Cache Structure
+```json
+{
+  "schema_version": 2,
+  "created_at": "2025-01-27T16:00:00Z",
+  "ttl_sec": 2592000,
+  "tmdb_id": 12345,
+  "data": {
+    "title": "Attack on Titan",
+    "year": 2013,
+    "seasons": [...],
+    "episodes": [...]
+  },
+  "source": "tmdb:tv/details"
+}
+```
+
+### Search Cache Structure
+```json
+{
+  "schema_version": 2,
+  "created_at": "2025-01-27T16:00:00Z",
+  "ttl_sec": 2592000,
+  "key": {
+    "q_norm": "attack on titan 2013",
+    "lang": "ko-KR",
+    "year_hint": 2013
+  },
+  "data": {
+    "results": [...],
+    "total_results": 1,
+    "page": 1
+  },
+  "source": "tmdb:search/tv"
+}
+```
+
+## Query Normalization Algorithm
+1. **Lowercase conversion**: "Attack on Titan" → "attack on titan"
+2. **Basic cleanup**: Remove special characters, normalize spaces
+3. **Year hint extraction**: Extract year from filename
+4. **Language processing**: Handle multi-language queries
+5. **Hash generation**: Create deterministic cache keys
+
+## Cache Performance Optimization
+- **Target hit rate**: ≥90% on second run
+- **LRU + TTL**: Simultaneous eviction policies
+- **Disk space limits**: Configurable cache size limits
+- **Atomic operations**: Prevent corruption during writes
+- **Index optimization**: Fast query lookup
+
+## Corruption Recovery Strategy
+1. **Detection**: JSON parsing failures
+2. **Quarantine**: Move corrupted files to `cache/quarantine/`
+3. **Recovery**: Attempt to regenerate from source
+4. **Fallback**: Delete and recreate if recovery fails
+5. **Monitoring**: Track corruption rates and patterns
+
+## Schema Migration Support
+- **Version checking**: Compare schema versions
+- **Backup creation**: Save existing cache before migration
+- **Migration scripts**: Version-specific migration logic
+- **Rollback support**: Restore from backup if migration fails
+- **Validation**: Verify migrated data integrity
+
+## Testing Requirements
+- **Cache hit rate testing**: ≥90% on second run
+- **Schema migration testing**: Version compatibility
+- **Corruption recovery testing**: Various corruption scenarios
+- **Performance testing**: Large cache handling
+- **Atomic operations testing**: Write/read consistency
+
+## Risk Mitigation
+- **Cache corruption**: Automatic quarantine and recovery
+- **Schema changes**: Version-based migration
+- **Disk space**: LRU+TTL eviction policies
+- **Performance**: Index optimization and caching
+- **Data loss**: Backup and recovery procedures
+
+## Timeline
+**Weeks 11-12**: JSON cache system implementation
+**Priority**: HIGH - JSON cache system with versioning
+
+## Dependencies
+- Requires completion of `1-foundation-setup`, `2-single-exe-poc`, `3-scan-parse-pipeline`, and `4-tmdb-rate-limiting` tags
+- File processing pipeline established
+- TMDB API integration completed
+- Rate limiting state machine operational
