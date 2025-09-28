@@ -120,7 +120,7 @@ class ScanParsePool:
                 self._parser_pool.start()
 
             logger.info(
-                f"Started ThreadPoolExecutor with {self.max_workers} workers and queue size {self.queue_size}"
+                f"Started ThreadPoolExecutor with {self.max_workers} workers and queue size {self.queue_size}",
             )
         else:
             logger.warning("ThreadPoolExecutor already started")
@@ -303,7 +303,7 @@ class ScanParsePool:
                     "_work_queue_size": self._executor._work_queue.qsize()
                     if hasattr(self._executor, "_work_queue")
                     else None,
-                }
+                },
             )
 
         if self._file_queue is not None:
@@ -311,7 +311,7 @@ class ScanParsePool:
                 {
                     "queue_current_size": self._file_queue.qsize(),
                     "queue_maxsize": self._file_queue.maxsize,
-                }
+                },
             )
 
         # Add scanner stats if available
@@ -319,7 +319,7 @@ class ScanParsePool:
             stats.update(
                 {
                     "scanner_stats": self._scanner.get_stats(),
-                }
+                },
             )
 
         # Add parser pool stats if available
@@ -327,7 +327,7 @@ class ScanParsePool:
             stats.update(
                 {
                     "parser_pool_stats": self._parser_pool.get_stats(),
-                }
+                },
             )
 
         return stats

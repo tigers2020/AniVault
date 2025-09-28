@@ -124,7 +124,8 @@ def scan_directory_with_stats(
                     if entry.is_dir(follow_symlinks=False):
                         yield from _scan_with_stats(entry.path)
                     elif entry.is_file() and _is_media_file(
-                        entry.name, media_extensions
+                        entry.name,
+                        media_extensions,
                     ):
                         stats["files_found"] += 1
                         yield entry

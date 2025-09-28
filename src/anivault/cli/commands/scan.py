@@ -215,7 +215,8 @@ def _output_json_error(error_code: str, message: str) -> None:
 
 
 def _parse_files_with_anitopy(
-    files: List[Dict[str, Any]], json_output: bool
+    files: List[Dict[str, Any]],
+    json_output: bool,
 ) -> List[Dict[str, Any]]:
     """Parse files using anitopy to extract metadata."""
     parsed_files = []
@@ -261,7 +262,9 @@ def _parse_files_with_anitopy(
 
 
 def _save_scan_results(
-    results: Dict[str, Any], output_path: Path, stats_only: bool
+    results: Dict[str, Any],
+    output_path: Path,
+    stats_only: bool,
 ) -> None:
     """Save scan results to file."""
     output_data = {

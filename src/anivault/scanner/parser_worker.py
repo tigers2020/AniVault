@@ -46,7 +46,7 @@ class ParserWorker:
         }
 
         logger.info(
-            f"Initialized ParserWorker with parse_function={getattr(parse_function, '__name__', 'unknown')}"
+            f"Initialized ParserWorker with parse_function={getattr(parse_function, '__name__', 'unknown')}",
         )
 
     def consume_queue(
@@ -112,7 +112,7 @@ class ParserWorker:
                 break
 
         logger.info(
-            f"ParserWorker finished: {self.stats['files_processed']} files processed"
+            f"ParserWorker finished: {self.stats['files_processed']} files processed",
         )
         return results
 
@@ -248,7 +248,7 @@ class ParserWorkerPool:
                     "_work_queue_size": self._executor._work_queue.qsize()
                     if hasattr(self._executor, "_work_queue")
                     else None,
-                }
+                },
             )
 
         # Aggregate worker stats
@@ -272,7 +272,7 @@ class ParserWorkerPool:
                         ws["queue_get_errors"] for ws in worker_stats
                     ),
                     "worker_stats": worker_stats,
-                }
+                },
             )
 
         return stats

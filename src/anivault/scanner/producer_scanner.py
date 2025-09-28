@@ -50,7 +50,7 @@ class Scanner:
         }
 
         logger.info(
-            f"Initialized Scanner with extension_filter={extension_filter is not None}"
+            f"Initialized Scanner with extension_filter={extension_filter is not None}",
         )
 
     def scan(

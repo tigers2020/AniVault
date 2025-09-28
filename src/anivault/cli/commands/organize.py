@@ -167,10 +167,10 @@ def organize(
                 _output_json_event("organize", "conflicts_detected", conflicts)
             else:
                 console.print(
-                    f"[yellow]Warning: {len(conflicts['file_conflicts'])} file conflicts detected[/yellow]"
+                    f"[yellow]Warning: {len(conflicts['file_conflicts'])} file conflicts detected[/yellow]",
                 )
                 console.print(
-                    f"[yellow]Warning: {len(conflicts['directory_conflicts'])} directory conflicts detected[/yellow]"
+                    f"[yellow]Warning: {len(conflicts['directory_conflicts'])} directory conflicts detected[/yellow]",
                 )
 
         # Output plan if requested
@@ -196,35 +196,35 @@ def organize(
                 # Show rollback information
                 if results.get("rollback_script"):
                     console.print(
-                        f"[yellow]Rollback script generated: {results['rollback_script']}[/yellow]"
+                        f"[yellow]Rollback script generated: {results['rollback_script']}[/yellow]",
                     )
                     console.print(
-                        f"[dim]To undo changes, run: python {results['rollback_script']}[/dim]"
+                        f"[dim]To undo changes, run: python {results['rollback_script']}[/dim]",
                     )
 
                 # Show log files
                 if results.get("operation_log"):
                     console.print(
-                        f"[blue]Operation log: {results['operation_log']}[/blue]"
+                        f"[blue]Operation log: {results['operation_log']}[/blue]",
                     )
                 if results.get("rollback_log_file"):
                     console.print(
-                        f"[blue]Rollback log: {results['rollback_log_file']}[/blue]"
+                        f"[blue]Rollback log: {results['rollback_log_file']}[/blue]",
                     )
 
                     # Verify rollback log integrity
                     rollback_log_path = Path(results["rollback_log_file"])
                     if rollback_log_path.exists():
                         verification_results = _verify_rollback_log_integrity(
-                            rollback_log_path
+                            rollback_log_path,
                         )
                         if verification_results["integrity_score"] < 1.0:
                             console.print(
-                                f"[yellow]⚠ Rollback log integrity: {verification_results['integrity_score']:.1%}[/yellow]"
+                                f"[yellow]⚠ Rollback log integrity: {verification_results['integrity_score']:.1%}[/yellow]",
                             )
                         else:
                             console.print(
-                                f"[green]✓ Rollback log integrity: {verification_results['integrity_score']:.1%}[/green]"
+                                f"[green]✓ Rollback log integrity: {verification_results['integrity_score']:.1%}[/green]",
                             )
         else:
             # Dry run - just show what would be done
@@ -317,7 +317,7 @@ def _scan_and_match(src: Path) -> Dict[str, Any]:
                 "size": entry.stat().st_size if entry.is_file() else 0,
                 "is_file": entry.is_file(),
                 "is_dir": entry.is_dir(),
-            }
+            },
         )
 
     # For now, return scan results without actual matching
@@ -571,7 +571,8 @@ def _save_plan_file(plan: Dict[str, Any], plan_path: Path) -> None:
 
 
 def _execute_organization_plan(
-    plan: Dict[str, Any], json_output: bool
+    plan: Dict[str, Any],
+    json_output: bool,
 ) -> Dict[str, Any]:
     """Execute organization plan with comprehensive rollback logging."""
     results = {
@@ -819,7 +820,7 @@ def _detect_conflicts(plan: Dict[str, Any]) -> Dict[str, Any]:
                 {
                     "destination": dest_path,
                     "sources": [destination_paths[dest_path], operation["source"]],
-                }
+                },
             )
         else:
             destination_paths[dest_path] = operation["source"]
@@ -861,7 +862,7 @@ def _show_dry_run_results(plan: Dict[str, Any], json_output: bool) -> None:
         )
     else:
         console.print(
-            f"[yellow]Dry run - {len(plan['operations'])} operations would be performed[/yellow]"
+            f"[yellow]Dry run - {len(plan['operations'])} operations would be performed[/yellow]",
         )
         for operation in plan["operations"][:5]:  # Show first 5
             console.print(f"  {operation['source']} -> {operation['destination']}")
@@ -896,7 +897,8 @@ def _output_json_error(error_code: str, message: str) -> None:
 
 
 def _generate_rollback_script(
-    rollback_log: List[Dict[str, Any]], output_path: Path
+    rollback_log: List[Dict[str, Any]],
+    output_path: Path,
 ) -> None:
     """Generate comprehensive rollback script from rollback log."""
     script_content = f"""#!/usr/bin/env python3
@@ -1120,7 +1122,7 @@ def _verify_rollback_log_integrity(rollback_log_path: Path) -> Dict[str, Any]:
                     if missing_fields:
                         verification_results["invalid_entries"] += 1
                         verification_results["errors"].append(
-                            f"Line {line_num}: Missing fields {missing_fields}"
+                            f"Line {line_num}: Missing fields {missing_fields}",
                         )
                         continue
 
@@ -1130,7 +1132,7 @@ def _verify_rollback_log_integrity(rollback_log_path: Path) -> Dict[str, Any]:
 
                     if not source_path.exists():
                         verification_results["errors"].append(
-                            f"Line {line_num}: Source file not found: {source_path}"
+                            f"Line {line_num}: Source file not found: {source_path}",
                         )
 
                     if (
@@ -1145,13 +1147,13 @@ def _verify_rollback_log_integrity(rollback_log_path: Path) -> Dict[str, Any]:
                 except json.JSONDecodeError as e:
                     verification_results["invalid_entries"] += 1
                     verification_results["errors"].append(
-                        f"Line {line_num}: Invalid JSON - {e}"
+                        f"Line {line_num}: Invalid JSON - {e}",
                     )
                     continue
                 except Exception as e:
                     verification_results["invalid_entries"] += 1
                     verification_results["errors"].append(
-                        f"Line {line_num}: Validation error - {e}"
+                        f"Line {line_num}: Validation error - {e}",
                     )
                     continue
 

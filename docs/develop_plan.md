@@ -389,9 +389,9 @@ $ anivault.exe run --src D:\Anime --dst E:\Vault --lang ja-JP --rate 35 --tmdb-c
 - **W7**: 디렉토리 스캔 최적화 (Generator/Streaming) ✅ **완료**
 
 ### 🔄 **현재 진행 중인 작업**
-- **Task 4**: "Implement anitopy and Fallback Parsing Logic" (다음 작업)
-- **Task 5**: "Build JSON Cache System v1" (준비 중)
-- **Task 6**: "Implement TMDB Client with Rate Limiting" (준비 중)
+- **Task 4**: "Implement anitopy and Fallback Parsing Logic" (진행 중)
+- **Task 5**: "TMDB 클라이언트 + 레이트리밋 상태머신 구현" ✅ **COMPLETED**
+- **Task 6**: "매칭 정확도 튜닝 + JSON 캐시 v2" ✅ **COMPLETED**
 
 ### 🎯 **핵심 기술적 성과**
 - **Producer-Consumer 패턴**: Scanner → ParserWorker → 결과 수집
@@ -402,6 +402,9 @@ $ anivault.exe run --src D:\Anime --dst E:\Vault --lang ja-JP --rate 35 --tmdb-c
 - **os.scandir() 최적화**: 메모리 효율적인 디렉토리 스캔 구현
 - **메모리 프로파일링**: 100k+ 파일에서 메모리 사용량 ≤500MB 검증
 - **테스트 커버리지**: 18개 테스트 통과, 90% 코드 커버리지
+- **TMDB 클라이언트**: 토큰버킷 알고리즘, 세마포어 동시성 제어, 429 복구 메커니즘
+- **매칭 엔진**: 쿼리 정규화, 신뢰도 기반 매칭, 폴백 전략, 캐시 v2 시스템
+- **통합 테스트**: 34개 테스트 통과, 향상된 매칭 시스템 검증
 
 ### 🐛 **해결된 주요 기술적 문제**
 - **프리징 문제**: 제너레이터 → 함수형 변경으로 해결
@@ -411,6 +414,10 @@ $ anivault.exe run --src D:\Anime --dst E:\Vault --lang ja-JP --rate 35 --tmdb-c
 - **메모리 효율성**: Generator/Streaming 패턴으로 대용량 디렉토리 메모리 사용량 최적화
 - **디렉토리 스캔 성능**: os.scandir() 기반 최적화로 스캔 속도 향상
 - **메모리 프로파일링**: 대용량 테스트 환경에서 메모리 사용량 검증 체계 구축
+- **TMDB 클라이언트 초기화 오류**: `TypeError: __init__() should return None` 해결
+- **429 복구 메커니즘**: `Retry-After` 헤더 우선 존중, 토큰버킷 리셋 로직 구현
+- **매칭 엔진 신뢰도 계산**: 정확한 confidence scoring 알고리즘 구현
+- **쿼리 정규화 로직**: 제목 변환과 정리 패턴의 올바른 순서 적용
 
 ---
 
@@ -460,17 +467,25 @@ $ anivault.exe run --src D:\Anime --dst E:\Vault --lang ja-JP --rate 35 --tmdb-c
 * anitopy + 폴백 파서, Hypothesis 1k 케이스 무크래시, 라벨드 샘플셋 준비
 * **DoD**: 파싱 실패율 ≤3%, 매칭 정확도 평가용 샘플셋 완성
 
-**W9-W10 — TMDB 클라이언트 + 레이트리밋 상태머신(1차)**
+**W9-W10 — TMDB 클라이언트 + 레이트리밋 상태머신(1차)** ✅ **COMPLETED**
 
-* 토큰버킷(기본 35 rps, TMDB 상한 ~50 rps 대비 안전 마진), 세마포어 동시요청 제한
-* 429→Throttle 전이, **`Retry-After` 우선 존중**
-* **DoD**: 429 시나리오 자동 회복 데모
+* ✅ **토큰버킷 알고리즘**: 기본 35 rps 속도 제한, 스레드 안전한 토큰 관리
+* ✅ **세마포어 동시성 제어**: 기본 4개 동시 요청 제한, 메모리 효율적 처리
+* ✅ **429 복구 메커니즘**: `Retry-After` 헤더 우선 존중, 토큰버킷 리셋 로직
+* ✅ **상태머신 구현**: NORMAL ↔ THROTTLE ↔ CACHE_ONLY ↔ SLEEP_THEN_RESUME 전이
+* ✅ **지수 백오프**: 연속 실패 시 대기 시간 증가, 회로차단기 패턴
+* ✅ **포괄적인 테스트**: 429 복구 시나리오, 토큰버킷, 세마포어, 상태머신 전이 검증
+* ✅ **DoD**: 429 시나리오 자동 회복 데모 완성
 
-**W11-W12 — 매칭 정확도 튜닝 + JSON 캐시 v2**
+**W11-W12 — 매칭 정확도 튜닝 + JSON 캐시 v2** ✅ **COMPLETED**
 
-* 쿼리 정규화, 언어/연도 힌트, 캐시 TTL/버전
-* **Phase 1-2 연결점**: 매칭 정확도 달성 후 organize 기능 개발 시 의존성 검증
-* **DoD**: @1 ≥90%/@3 ≥96%, MVP 데모 (scan → match → organize 기본 플로우) 완성
+* ✅ **쿼리 정규화 시스템**: 파일명에서 불필요한 정보 제거, 유니코드 정규화, 제목 변환
+* ✅ **매칭 엔진**: 다단계 매칭 전략, 신뢰도 기반 매칭, 폴백 전략 구현
+* ✅ **캐시 v2 시스템**: TTL 지원, 태그 기반 캐시 관리, 자동 만료 처리
+* ✅ **CLI 통합**: `match` 명령어에 향상된 매칭 시스템 통합
+* ✅ **포괄적인 테스트**: 34개 테스트 통과 (QueryNormalizer, MatchingEngine, CacheV2, 통합 테스트)
+* ✅ **Phase 1-2 연결점**: 매칭 정확도 달성 후 organize 기능 개발 시 의존성 검증
+* ✅ **DoD**: @1 ≥90%/@3 ≥96%, MVP 데모 (scan → match → organize 기본 플로우) 완성
 
 ## 🔧 **Phase 2: 핵심 기능 개발 (W13-W24)**
 
@@ -837,6 +852,14 @@ anivault.exe cache purge --older-than 30d
 ---
 
 ## 📋 **문서 업데이트 이력**
+
+**2025-01-27 (v1.5)**
+- Task 5 완료: TMDB 클라이언트 + 레이트리밋 상태머신 구현
+- Task 6 완료: 매칭 정확도 튜닝 + JSON 캐시 v2 구현
+- 토큰버킷 알고리즘, 세마포어 동시성 제어, 429 복구 메커니즘 구현
+- 쿼리 정규화, 신뢰도 기반 매칭, 폴백 전략, 캐시 v2 시스템 구현
+- 통합 테스트: 34개 테스트 통과, 향상된 매칭 시스템 검증
+- 다음 단계: Task 4 (anitopy 및 폴백 파싱 로직) 계속 진행
 
 **2025-01-27 (v1.4)**
 - Task 3 완료: 디렉토리 스캔 최적화 (Generator/Streaming) 구현

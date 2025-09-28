@@ -300,7 +300,7 @@ class AnimeTestDataGenerator:
                     rate = self.generated_count / elapsed if elapsed > 0 else 0
                     print(
                         f"Progress: {self.generated_count:,}/{self.target_count:,} files "
-                        f"({rate:.0f} files/sec)"
+                        f"({rate:.0f} files/sec)",
                     )
 
         elapsed_time = time.time() - self.start_time

@@ -214,21 +214,29 @@ class TestScanParsePool:
             (temp_path / "document.txt").touch()
 
             with ScanParsePool(max_workers=2) as pool:
+                # Submit scan task and wait for completion
                 future = pool.submit_scan_task(temp_path)
-                file_paths = future.result()
+                future.result()  # Wait for scan to complete
+
+                # Use process_directory to get the actual file paths
+                file_paths = list(pool.process_directory(temp_path))
 
                 # Should find 2 media files (mkv and mp4)
                 assert len(file_paths) == 2
-                assert any("video1.mkv" in path for path in file_paths)
-                assert any("video2.mp4" in path for path in file_paths)
-                assert not any("document.txt" in path for path in file_paths)
+                assert any("video1.mkv" in str(path) for path in file_paths)
+                assert any("video2.mp4" in str(path) for path in file_paths)
+                assert not any("document.txt" in str(path) for path in file_paths)
 
     def test_submit_scan_task_empty_directory(self):
         """Test scanning an empty directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with ScanParsePool(max_workers=2) as pool:
+                # Submit scan task and wait for completion
                 future = pool.submit_scan_task(temp_dir)
-                file_paths = future.result()
+                future.result()  # Wait for scan to complete
+
+                # Use process_directory to get the actual file paths
+                file_paths = list(pool.process_directory(temp_dir))
 
                 assert len(file_paths) == 0
 
@@ -364,7 +372,10 @@ class TestScanParsePool:
         with ScanParsePool(max_workers=2) as pool:
             # Test with non-existent directory
             future = pool.submit_scan_task("/nonexistent/path")
-            file_paths = future.result()
+            future.result()  # Wait for scan to complete (should handle error gracefully)
+
+            # Use process_directory to get the actual file paths
+            file_paths = list(pool.process_directory("/nonexistent/path"))
 
             # Should return empty list for non-existent directory
             assert len(file_paths) == 0

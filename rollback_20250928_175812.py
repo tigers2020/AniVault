@@ -42,7 +42,7 @@ def create_backup(file_path: Path) -> Path:
     counter = 1
     while backup_path.exists():
         backup_path = file_path.with_suffix(
-            f"{file_path.suffix}.rollback_backup_{counter}"
+            f"{file_path.suffix}.rollback_backup_{counter}",
         )
         counter += 1
 
@@ -142,7 +142,7 @@ def main():
                 existing_backup = create_backup(destination)
                 rollback_entry["destination_backup"] = str(existing_backup)
                 print(
-                    f"ℹ [{i + 1:3d}] Destination exists, backed up: {existing_backup}"
+                    f"ℹ [{i + 1:3d}] Destination exists, backed up: {existing_backup}",
                 )
 
             # Move file back to original location
@@ -150,7 +150,8 @@ def main():
 
             # Verify the move was successful
             if destination.exists() and verify_file_integrity(
-                destination, expected_hash
+                destination,
+                expected_hash,
             ):
                 print(f"✓ [{i + 1:3d}] Rolled back: {source.name} -> {destination}")
                 rollback_entry["status"] = "completed"

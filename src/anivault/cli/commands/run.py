@@ -147,7 +147,7 @@ def run(
         else:
             mode = "APPLY" if apply else "DRY-RUN"
             console.print(
-                f"[blue]Running AniVault pipeline ({mode}): {src} -> {dst}[/blue]"
+                f"[blue]Running AniVault pipeline ({mode}): {src} -> {dst}[/blue]",
             )
 
         # Create checkpoint directory
@@ -159,7 +159,7 @@ def run(
             checkpoint = _load_checkpoint(checkpoint_dir)
             if checkpoint:
                 console.print(
-                    f"[yellow]Resuming from checkpoint: {checkpoint['timestamp']}[/yellow]"
+                    f"[yellow]Resuming from checkpoint: {checkpoint['timestamp']}[/yellow]",
                 )
 
         # Execute pipeline phases
@@ -273,13 +273,13 @@ def _execute_pipeline(
             json_output,
         )
         results["files_matched"] = len(
-            [m for m in match_results.get("results", []) if m.get("match")]
+            [m for m in match_results.get("results", []) if m.get("match")],
         )
         _save_checkpoint(checkpoint_dir, "match", match_results)
     else:
         match_results = checkpoint["data"]
         results["files_matched"] = len(
-            [m for m in match_results.get("results", []) if m.get("match")]
+            [m for m in match_results.get("results", []) if m.get("match")],
         )
 
     # Phase 3: Organize

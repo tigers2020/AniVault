@@ -30,7 +30,10 @@ class PerformanceProfiler:
     """Performance profiler for the file scanner."""
 
     def __init__(
-        self, target_dir: str | Path, iterations: int = 3, warmup: bool = True
+        self,
+        target_dir: str | Path,
+        iterations: int = 3,
+        warmup: bool = True,
     ):
         """Initialize the profiler.
 
@@ -322,7 +325,7 @@ class PerformanceProfiler:
         target_rate_per_sec = target_rate / 60  # Convert to per second
 
         print(
-            f"  Target Rate: {target_rate:,} paths/minute ({target_rate_per_sec:.0f} files/sec)"
+            f"  Target Rate: {target_rate:,} paths/minute ({target_rate_per_sec:.0f} files/sec)",
         )
 
         for func_name, avg_rate in avg_rates.items():
@@ -335,7 +338,7 @@ class PerformanceProfiler:
                 else "❌ POOR"
             )
             print(
-                f"  {func_name}: {avg_rate:.0f} files/sec ({percentage:.1f}% of target) {status}"
+                f"  {func_name}: {avg_rate:.0f} files/sec ({percentage:.1f}% of target) {status}",
             )
 
         print()

@@ -4,6 +4,9 @@ aiolimiter>=1.1.0
 # File parsing and metadata
 anitopy>=2.0.0
 
+# SSL certificates for HTTPS requests
+certifi>=2023.0.0
+
 # Security
 cryptography>=41.0.0
 jellyfish>=0.9.0
@@ -24,9 +27,6 @@ tmdbsimple>=2.9.0
 
 # TMDB API
 tmdbv3api>=1.9.0
-
-# SSL certificates for HTTPS requests
-certifi>=2023.0.0
 
 
 # Development dependencies (install with: pip install -r requirements-dev.txt)

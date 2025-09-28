@@ -28,7 +28,8 @@ class Config:
         self.log_max_bytes = config_dict.get("log_max_bytes", 10485760)  # 10MB
         self.log_backup_count = config_dict.get("log_backup_count", 5)
         self.media_extensions = config_dict.get(
-            "media_extensions", [".mkv", ".mp4", ".avi"]
+            "media_extensions",
+            [".mkv", ".mp4", ".avi"],
         )
 
     def get_log_file_path(self) -> Path:

@@ -170,7 +170,8 @@ def get_default_media_filter() -> Callable[[str], bool]:
 
 
 def validate_extension_filter(
-    filter_func: Callable[[str], bool], test_files: list[str]
+    filter_func: Callable[[str], bool],
+    test_files: list[str],
 ) -> dict[str, bool]:
     """Validate an extension filter function with test files.
 

@@ -193,11 +193,11 @@
 - [ ] **테스트 재현성**: 퍼저/샘플링/백오프 Jitter에 **RNG seed 고정** 옵션(`ANIVAULT_TEST_SEED`) 제공, CI는 항상 고정 seed로 실행(재현 가능한 실패 보장)
 
 ### 메타데이터 매칭 기능
-- [ ] anitopy 파싱 + 폴백 파서
-- [ ] TMDB API 연동 (레이트리밋 준수)
-- [ ] 쿼리 정규화 알고리즘
-- [ ] 매칭 결과 검증
-- [ ] 멀티에피소드/스페셜 처리
+- [x] anitopy 파싱 + 폴백 파서 ✅ **COMPLETED**
+- [x] TMDB API 연동 (레이트리밋 준수) ✅ **COMPLETED**
+- [x] 쿼리 정규화 알고리즘 ✅ **COMPLETED**
+- [x] 매칭 결과 검증 ✅ **COMPLETED**
+- [x] 멀티에피소드/스페셜 처리 ✅ **COMPLETED**
 
 ### TUI (Text User Interface) 기능
 - [ ] **TUI 프레임워크**: prompt_toolkit 3.0.48 기반 Windows 콘솔 호환성
@@ -214,11 +214,11 @@
 - [ ] **PyInstaller 호환성**: TUI 라이브러리 번들링 검증
 
 ### 캐싱 시스템
-- [ ] **JSON 캐시** 기반 영구 캐시 (TTL, 스키마 버전)
-- [ ] 인덱스 파일 (`cache/index.jsonl`)
-- [ ] LRU + TTL 동시 적용
-- [ ] **캐시 부패/마이그레이션**: 손상 JSON → `cache/quarantine/` 격리 후 자동 복구, `schema_version` 상향 마이그레이터 테스트
-- [ ] 스키마 마이그레이션
+- [x] **JSON 캐시** 기반 영구 캐시 (TTL, 스키마 버전) ✅ **COMPLETED**
+- [x] 인덱스 파일 (`cache/index.jsonl`) ✅ **COMPLETED**
+- [x] LRU + TTL 동시 적용 ✅ **COMPLETED**
+- [x] **캐시 부패/마이그레이션**: 손상 JSON → `cache/quarantine/` 격리 후 자동 복구, `schema_version` 상향 마이그레이터 테스트 ✅ **COMPLETED**
+- [x] 스키마 마이그레이션 ✅ **COMPLETED**
 
 ### Windows 특이점 처리
 - [x] **Long Path** 자동 처리(`\\?\`), 260자 초과 케이스 테스트 ✅ **COMPLETED**
@@ -235,10 +235,10 @@
 - [ ] **멀티프로세스 지침** 명시: 공유 토큰버킷(파일락) **또는** 프로세스별 `rate_cap=floor(rate_base/N)` 문서화
 - [ ] **로그 키 표준**(키=값): `state,event,sleep,consec429,err_rate_30s,rate,sem,retry_after` 필수
 - [ ] **메트릭 파일(NDJSON)**: `requests_total{code}`, `cache_hits/miss`, `err_rate_30s`, `latency_ms` 기록
-- [ ] **토큰버킷 구현**
-  - [ ] 기본 35 rps 속도 제한
-  - [ ] 동시성 세마포어 (기본 4)
-  - [ ] 멀티프로세스 안전성
+- [x] **토큰버킷 구현** ✅ **COMPLETED**
+  - [x] 기본 35 rps 속도 제한 ✅ **COMPLETED**
+  - [x] 동시성 세마포어 (기본 4) ✅ **COMPLETED**
+  - [x] 멀티프로세스 안전성 ✅ **COMPLETED**
 
 ## 품질 게이트
 

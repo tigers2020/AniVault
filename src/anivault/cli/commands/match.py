@@ -17,6 +17,8 @@ from rich.progress import (
 )
 
 from anivault.core.logging import get_logger
+from anivault.services.cache_v2 import CacheV2
+from anivault.services.matching_engine import MatchingConfig, MatchingEngine
 from anivault.services.tmdb_client import RateLimitConfig, TMDBClient, TMDBConfig
 
 logger = get_logger(__name__)
@@ -134,8 +136,11 @@ def match(
                 console.print("[yellow]No files to match[/yellow]")
             return
 
-        # Initialize TMDB client
+        # Initialize TMDB client and matching engine
         tmdb_client = None
+        matching_engine = None
+        cache_v2 = None
+
         if not dry_run:
             tmdb_config = TMDBConfig(
                 api_key=tmdb_key,
@@ -145,6 +150,20 @@ def match(
                 ),
             )
             tmdb_client = TMDBClient(tmdb_config)
+
+            # Initialize enhanced matching engine
+            matching_config = MatchingConfig(
+                min_confidence=0.7,
+                max_fallback_attempts=3,
+                use_language_hints=True,
+                use_year_hints=True,
+                enable_query_variants=True,
+                cache_results=True,
+            )
+            matching_engine = MatchingEngine(tmdb_client, matching_config)
+
+            # Initialize cache v2
+            cache_v2 = CacheV2(default_ttl=86400)  # 24 hours
 
         # Perform matching with progress tracking
         matched_files = []
@@ -167,14 +186,20 @@ def match(
                         # Simulate matching
                         match_result = _simulate_match(file_info)
                     else:
-                        # Perform actual matching
-                        match_result = _match_file(file_info, tmdb_client, language)
+                        # Perform enhanced matching
+                        match_result = _match_file_enhanced(
+                            file_info,
+                            matching_engine,
+                            cache_v2,
+                            language,
+                        )
 
                     matched_files.append(match_result)
 
                 except Exception as e:
                     logger.exception(
-                        "Failed to match file: %s", file_info.get("path", "unknown")
+                        "Failed to match file: %s",
+                        file_info.get("path", "unknown"),
                     )
                     errors += 1
                     matched_files.append(
@@ -182,14 +207,39 @@ def match(
                             "file": file_info,
                             "match": None,
                             "error": str(e),
-                        }
+                        },
                     )
 
                 progress.advance(task)
 
-        # Calculate statistics
+        # Calculate enhanced statistics
         successful_matches = sum(1 for f in matched_files if f.get("match") is not None)
+        high_confidence_matches = sum(
+            1
+            for result in matched_files
+            if result.get("match") and result["match"].get("confidence", 0) >= 0.9
+        )
+        medium_confidence_matches = sum(
+            1
+            for result in matched_files
+            if result.get("match") and 0.7 <= result["match"].get("confidence", 0) < 0.9
+        )
+        low_confidence_matches = sum(
+            1
+            for result in matched_files
+            if result.get("match") and result["match"].get("confidence", 0) < 0.7
+        )
+
         match_rate = successful_matches / len(files) if files else 0.0
+        high_confidence_rate = high_confidence_matches / len(files) if files else 0.0
+
+        # Get matching engine stats if available
+        engine_stats = {}
+        cache_stats = {}
+        if matching_engine:
+            engine_stats = matching_engine.get_stats()
+        if cache_v2:
+            cache_stats = cache_v2.get_stats()
 
         # Output results
         if json_output:
@@ -200,17 +250,37 @@ def match(
                     "total_files": len(files),
                     "matched_files": successful_matches,
                     "match_rate": match_rate,
+                    "high_confidence_matches": high_confidence_matches,
+                    "high_confidence_rate": high_confidence_rate,
+                    "medium_confidence_matches": medium_confidence_matches,
+                    "low_confidence_matches": low_confidence_matches,
                     "errors": errors,
+                    "engine_stats": engine_stats,
+                    "cache_stats": cache_stats,
                     "results": matched_files if not dry_run else None,
                 },
             )
         else:
-            console.print("[green]Matching completed![/green]")
+            console.print("[green]Enhanced matching completed![/green]")
             console.print(f"Files processed: {len(files)}")
             console.print(f"Successfully matched: {successful_matches}")
             console.print(f"Match rate: {match_rate:.1%}")
+            console.print(
+                f"High confidence (≥90%): {high_confidence_matches} ({high_confidence_rate:.1%})",
+            )
+            console.print(f"Medium confidence (70-89%): {medium_confidence_matches}")
+            console.print(f"Low confidence (<70%): {low_confidence_matches}")
             if errors > 0:
                 console.print(f"[yellow]Errors: {errors}[/yellow]")
+
+            # Show engine stats
+            if engine_stats:
+                console.print(
+                    f"Cache hit rate: {engine_stats.get('cache_hit_rate', 0):.1%}",
+                )
+                console.print(
+                    f"Average fallback attempts: {engine_stats.get('avg_fallback_attempts', 0):.1f}",
+                )
 
         # Save results if output specified
         if output:
@@ -234,6 +304,8 @@ def match(
     finally:
         if tmdb_client:
             tmdb_client.close()
+        if cache_v2:
+            cache_v2.save_cache()
 
 
 def _load_scan_results(input_path: Path) -> Dict[str, Any]:
@@ -279,7 +351,9 @@ def _simulate_match(file_info: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _match_file(
-    file_info: Dict[str, Any], tmdb_client: TMDBClient, language: str
+    file_info: Dict[str, Any],
+    tmdb_client: TMDBClient,
+    language: str,
 ) -> Dict[str, Any]:
     """Match a single file with TMDB."""
     # Extract title from file info
@@ -312,6 +386,71 @@ def _match_file(
     }
 
 
+def _match_file_enhanced(
+    file_info: Dict[str, Any],
+    matching_engine: MatchingEngine,
+    cache_v2: CacheV2,
+    language: str,
+) -> Dict[str, Any]:
+    """Enhanced matching with accuracy optimization."""
+    # Extract title and year from file info
+    title = file_info.get("title", "")
+    year = file_info.get("year")
+
+    if not title:
+        raise ValueError("No title found in file info")
+
+    # Check cache first
+    cache_key = f"match:{title}:{year}:{language}"
+    cached_result = cache_v2.get(cache_key)
+    if cached_result:
+        logger.debug(f"Cache hit for: {title}")
+        return cached_result
+
+    try:
+        # Use enhanced matching engine
+        match_result = matching_engine.match_anime(title, year, language)
+
+        # Convert to legacy format
+        if match_result.tmdb_id:
+            result = {
+                "file": file_info,
+                "match": {
+                    "tmdb_id": match_result.tmdb_id,
+                    "title": match_result.title,
+                    "original_title": match_result.original_title,
+                    "overview": match_result.overview,
+                    "first_air_date": match_result.first_air_date,
+                    "popularity": match_result.popularity,
+                    "vote_average": match_result.vote_average,
+                    "vote_count": match_result.vote_count,
+                    "confidence": match_result.confidence,
+                    "match_type": match_result.match_type,
+                    "query_used": match_result.query_used,
+                    "fallback_attempts": match_result.fallback_attempts,
+                },
+            }
+        else:
+            result = {
+                "file": file_info,
+                "match": None,
+                "error": f"No match found (confidence: {match_result.confidence:.2f})",
+            }
+
+        # Cache the result
+        cache_v2.set(cache_key, result, ttl=86400, tags=["tmdb_match"])
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Enhanced matching failed for {title}: {e}")
+        return {
+            "file": file_info,
+            "match": None,
+            "error": f"Enhanced matching failed: {e!s}",
+        }
+
+
 def _output_json_event(phase: str, event: str, fields: Dict[str, Any]) -> None:
     """Output event in JSON format."""
     event_data = {
@@ -339,7 +478,9 @@ def _output_json_error(error_code: str, message: str) -> None:
 
 
 def _save_match_results(
-    results: List[Dict[str, Any]], output_path: Path, dry_run: bool
+    results: List[Dict[str, Any]],
+    output_path: Path,
+    dry_run: bool,
 ) -> None:
     """Save match results to file."""
     output_data = {
