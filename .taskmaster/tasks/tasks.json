@@ -4249,7 +4249,7 @@
             "title": "Implement Primary Parsing Logic using anitopy",
             "description": "Implement the primary filename parsing logic using the anitopy library",
             "details": "Implement the main parsing logic using the anitopy library to extract anime information from filenames. Handle various filename formats and extract relevant metadata like title, season, episode, quality, etc.",
-            "status": "in-progress",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 4
           },
@@ -4258,7 +4258,7 @@
             "title": "Design and Implement Fallback Parsing Mechanism",
             "description": "Create a fallback parsing mechanism using the parse library for filenames that anitopy fails to process",
             "details": "Implement a fallback parsing mechanism using the parse library with a set of initial patterns for common filename formats. This should handle cases where anitopy fails to extract sufficient information.",
-            "status": "pending",
+            "status": "in-progress",
             "dependencies": [],
             "parentTaskId": 4
           },
@@ -4498,7 +4498,7 @@
     ],
     "metadata": {
       "created": "2025-09-28T18:41:45.993Z",
-      "updated": "2025-09-28T19:36:00.499Z",
+      "updated": "2025-09-28T19:37:09.225Z",
       "description": "Tasks for new-scan-pipeline context"
     }
   }
