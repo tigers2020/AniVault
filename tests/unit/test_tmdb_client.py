@@ -286,9 +286,9 @@ class TestTMDBClientIntegration:
             memory_increase = final_memory - initial_memory
 
             # Memory increase should be reasonable (< 10MB)
-            assert (
-                memory_increase < 10 * 1024 * 1024
-            ), f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
+            assert memory_increase < 10 * 1024 * 1024, (
+                f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
+            )
 
             client.close()
 

@@ -1,11 +1,13 @@
 """TMDB API client with rate limiting and error handling."""
 
+from __future__ import annotations
+
 import logging
 import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict
+from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -59,9 +61,11 @@ class TMDBConfig:
     def __post_init__(self):
         """Validate configuration after initialization."""
         if not self.api_key:
-            raise ValueError(
-                "TMDB_API_KEY is required. Set it in environment variables or pass it directly.",
+            error_msg = (
+                "TMDB_API_KEY is required. Set it in environment variables "
+                "or pass it directly."
             )
+            raise ValueError(error_msg)
 
 
 class TMDBClient:
@@ -103,7 +107,8 @@ class TMDBClient:
         self.session.mount("https://", adapter)
 
         logger.info(
-            f"TMDB client initialized with rate limit: {config.rate_limit.max_requests_per_second} rps",
+            "TMDB client initialized with rate limit: %d rps",
+            config.rate_limit.max_requests_per_second,
         )
 
     def _check_rate_limit(self) -> bool:
@@ -119,7 +124,7 @@ class TMDBClient:
         min_interval = 1.0 / self.config.rate_limit.max_requests_per_second
         if time_since_last < min_interval:
             wait_time = min_interval - time_since_last
-            logger.debug(f"Rate limiting: waiting {wait_time:.2f}s")
+            logger.debug("Rate limiting: waiting %.2fs", wait_time)
             time.sleep(wait_time)
 
         return True
@@ -138,16 +143,17 @@ class TMDBClient:
             try:
                 wait_time = float(retry_after)
                 logger.warning(
-                    f"Rate limited: waiting {wait_time}s (Retry-After header)",
+                    "Rate limited: waiting %ds (Retry-After header)",
+                    wait_time,
                 )
                 time.sleep(wait_time)
             except ValueError:
-                logger.warning(f"Invalid Retry-After header: {retry_after}")
+                logger.warning("Invalid Retry-After header: %s", retry_after)
                 time.sleep(1.0)
         else:
             # Exponential backoff
             wait_time = 2 ** min(self.failure_count, 5)
-            logger.warning(f"Rate limited: exponential backoff {wait_time}s")
+            logger.warning("Rate limited: exponential backoff %ds", wait_time)
             time.sleep(wait_time)
 
         self.failure_count += 1
@@ -174,7 +180,7 @@ class TMDBClient:
 
         return True
 
-    def _update_circuit_breaker(self, success: bool) -> None:
+    def _update_circuit_breaker(self, *, success: bool) -> None:
         """Update circuit breaker state based on request success.
 
         Args:
@@ -186,15 +192,18 @@ class TMDBClient:
             self.failure_count += 1
 
         # Check if we should open circuit breaker
-        if self.total_requests > 10:  # Only after some requests
-            failure_rate = self.failure_count / self.total_requests
-            if failure_rate > self.config.rate_limit.circuit_breaker_threshold:
-                if self.circuit_breaker_start is None:
-                    logger.warning(
-                        f"Circuit breaker opened: failure rate {failure_rate:.2%}",
-                    )
-                    self.circuit_breaker_start = time.time()
-                    self.rate_limit_state = RateLimitState.CACHE_ONLY
+        min_requests_for_circuit_breaker = 10
+        if (self.total_requests > min_requests_for_circuit_breaker and
+            self.failure_count / self.total_requests >
+            self.config.rate_limit.circuit_breaker_threshold):
+            if self.circuit_breaker_start is None:
+                failure_rate = self.failure_count / self.total_requests
+                logger.warning(
+                    "Circuit breaker opened: failure rate %.2f%%",
+                    failure_rate * 100,
+                )
+                self.circuit_breaker_start = time.time()
+                self.rate_limit_state = RateLimitState.CACHE_ONLY
 
     def _make_request(self, method: str, url: str, **kwargs) -> requests.Response:
         """Make a rate-limited request to TMDB API.
@@ -212,7 +221,8 @@ class TMDBClient:
         """
         # Check circuit breaker
         if self._check_circuit_breaker():
-            raise requests.RequestException("Circuit breaker is open")
+            error_msg = "Circuit breaker is open"
+            raise requests.RequestException(error_msg)
 
         # Check rate limit
         self._check_rate_limit()
@@ -227,30 +237,33 @@ class TMDBClient:
             )
 
             # Handle rate limiting
-            if response.status_code == 429:
+            http_too_many_requests = 429
+            if response.status_code == http_too_many_requests:
                 self._handle_429_error(response)
-                self._update_circuit_breaker(False)
-                raise requests.RequestException(f"Rate limited: {response.status_code}")
+                self._update_circuit_breaker(success=False)
+                error_msg = f"Rate limited: {response.status_code}"
+                raise requests.RequestException(error_msg)
 
             # Update state
             self.last_request_time = time.time()
             self.request_count += 1
 
-            if response.status_code >= 400:
-                self._update_circuit_breaker(False)
+            http_bad_request = 400
+            if response.status_code >= http_bad_request:
+                self._update_circuit_breaker(success=False)
                 response.raise_for_status()
             else:
-                self._update_circuit_breaker(True)
+                self._update_circuit_breaker(success=True)
                 self.rate_limit_state = RateLimitState.NORMAL
 
             return response
 
-        except requests.RequestException as e:
-            self._update_circuit_breaker(False)
-            logger.error(f"Request failed: {e}")
+        except requests.RequestException:
+            self._update_circuit_breaker(success=False)
+            logger.exception("Request failed")
             raise
 
-    def search_tv(self, query: str, page: int = 1) -> Dict[str, Any]:
+    def search_tv(self, query: str, page: int = 1) -> dict[str, Any]:
         """Search for TV shows.
 
         Args:
@@ -262,13 +275,17 @@ class TMDBClient:
         """
         try:
             results = self.tv.search(query, page=page)
-            logger.debug(f"TV search successful: {len(results)} results for '{query}'")
+            logger.debug(
+                "TV search successful: %d results for '%s'",
+                len(results),
+                query,
+            )
             return results
-        except Exception as e:
-            logger.error(f"TV search failed: {e}")
+        except Exception:
+            logger.exception("TV search failed")
             raise
 
-    def get_tv_details(self, tv_id: int) -> Dict[str, Any]:
+    def get_tv_details(self, tv_id: int) -> dict[str, Any]:
         """Get TV show details.
 
         Args:
@@ -279,13 +296,13 @@ class TMDBClient:
         """
         try:
             details = self.tv.details(tv_id)
-            logger.debug(f"TV details retrieved for ID {tv_id}")
+            logger.debug("TV details retrieved for ID %d", tv_id)
             return details
-        except Exception as e:
-            logger.error(f"TV details failed: {e}")
+        except Exception:
+            logger.exception("TV details failed")
             raise
 
-    def search_movie(self, query: str, page: int = 1) -> Dict[str, Any]:
+    def search_movie(self, query: str, page: int = 1) -> dict[str, Any]:
         """Search for movies.
 
         Args:
@@ -298,14 +315,16 @@ class TMDBClient:
         try:
             results = self.movie.search(query, page=page)
             logger.debug(
-                f"Movie search successful: {len(results)} results for '{query}'",
+                "Movie search successful: %d results for '%s'",
+                len(results),
+                query,
             )
             return results
-        except Exception as e:
-            logger.error(f"Movie search failed: {e}")
+        except Exception:
+            logger.exception("Movie search failed")
             raise
 
-    def get_movie_details(self, movie_id: int) -> Dict[str, Any]:
+    def get_movie_details(self, movie_id: int) -> dict[str, Any]:
         """Get movie details.
 
         Args:
@@ -316,13 +335,13 @@ class TMDBClient:
         """
         try:
             details = self.movie.details(movie_id)
-            logger.debug(f"Movie details retrieved for ID {movie_id}")
+            logger.debug("Movie details retrieved for ID %d", movie_id)
             return details
-        except Exception as e:
-            logger.error(f"Movie details failed: {e}")
+        except Exception:
+            logger.exception("Movie details failed")
             raise
 
-    def get_rate_limit_status(self) -> Dict[str, Any]:
+    def get_rate_limit_status(self) -> dict[str, Any]:
         """Get current rate limiting status.
 
         Returns:

@@ -18,9 +18,9 @@ def test_ruff_linting():
             cwd=Path(__file__).parent.parent.parent,
         )
         # Ruff should exit with 0 if no issues found
-        assert (
-            result.returncode == 0
-        ), f"Ruff found issues: {result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"Ruff found issues: {result.stdout}\n{result.stderr}"
+        )
     except FileNotFoundError:
         pytest.skip("Ruff not available")
 
@@ -36,9 +36,9 @@ def test_ruff_formatting():
             cwd=Path(__file__).parent.parent.parent,
         )
         # Ruff format should exit with 0 if formatting is correct
-        assert (
-            result.returncode == 0
-        ), f"Ruff formatting issues: {result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"Ruff formatting issues: {result.stdout}\n{result.stderr}"
+        )
     except FileNotFoundError:
         pytest.skip("Ruff not available")
 
@@ -54,9 +54,9 @@ def test_mypy_type_checking():
             cwd=Path(__file__).parent.parent.parent,
         )
         # MyPy should exit with 0 if no type issues found
-        assert (
-            result.returncode == 0
-        ), f"MyPy found type issues: {result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"MyPy found type issues: {result.stdout}\n{result.stderr}"
+        )
     except FileNotFoundError:
         pytest.skip("MyPy not available")
 
@@ -72,9 +72,9 @@ def test_pre_commit_hooks():
             cwd=Path(__file__).parent.parent.parent,
         )
         # Pre-commit should exit with 0 if all hooks pass
-        assert (
-            result.returncode == 0
-        ), f"Pre-commit hooks failed: {result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"Pre-commit hooks failed: {result.stdout}\n{result.stderr}"
+        )
     except FileNotFoundError:
         pytest.skip("Pre-commit not available")
 
@@ -90,9 +90,9 @@ def test_pytest_coverage():
             cwd=Path(__file__).parent.parent.parent,
         )
         # Pytest should exit with 0 if all tests pass
-        assert (
-            result.returncode == 0
-        ), f"Pytest failed: {result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"Pytest failed: {result.stdout}\n{result.stderr}"
+        )
     except FileNotFoundError:
         pytest.skip("Pytest not available")
 

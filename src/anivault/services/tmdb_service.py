@@ -1,9 +1,11 @@
 """Enhanced TMDB service with robust rate limiting and caching."""
 
+from __future__ import annotations
+
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -56,13 +58,17 @@ class RobustTMDb(TMDb):
                 response = self._session.get(url, params=params)
 
                 # Check for HTTP 429 Too Many Requests
-                if response.status_code == 429:
+                http_too_many_requests = 429
+                if response.status_code == http_too_many_requests:
                     retry_after = response.headers.get("Retry-After")
                     wait_time = self._parse_retry_after(retry_after)
 
                     log.warning(
-                        f"Rate limit exceeded. Waiting for {wait_time:.2f} seconds. "
-                        f"Attempt {attempt + 1}/{self._max_retries}.",
+                        "Rate limit exceeded. Waiting for %.2f seconds. "
+                        "Attempt %d/%d.",
+                        wait_time,
+                        attempt + 1,
+                        self._max_retries,
                     )
                     time.sleep(wait_time)
                     continue  # Retry the request
@@ -75,20 +81,22 @@ class RobustTMDb(TMDb):
 
             except requests.exceptions.RequestException as e:
                 # This catches connection errors, timeouts, etc.
-                log.error(
-                    f"Network error during API call: {e}. Attempt {attempt + 1}/{self._max_retries}.",
+                log.exception(
+                    "Network error during API call. Attempt %d/%d.",
+                    attempt + 1,
+                    self._max_retries,
                 )
                 if attempt + 1 == self._max_retries:
-                    raise TMDbException(
-                        f"Failed to call TMDB API after {self._max_retries} retries: {e}",
-                    ) from e
+                    error_msg = (
+                        f"Failed to call TMDB API after {self._max_retries} retries"
+                    )
+                    raise TMDbException(error_msg) from e
                 time.sleep(2**attempt)  # Exponential backoff for network errors
 
-        raise TMDbException(
-            f"Failed to call TMDB API after {self._max_retries} retries.",
-        )
+        error_msg = f"Failed to call TMDB API after {self._max_retries} retries."
+        raise TMDbException(error_msg)
 
-    def _parse_retry_after(self, retry_after: Optional[str]) -> float:
+    def _parse_retry_after(self, retry_after: str | None) -> float:
         """
         Parses the Retry-After header, which can be an integer (seconds)
         or an HTTP-date. Defaults to a safe value if header is missing.
@@ -114,7 +122,8 @@ class RobustTMDb(TMDb):
             return max(0, delta)  # Ensure we don't wait a negative duration
         except ValueError:
             log.warning(
-                f"Could not parse Retry-After date: {retry_after}. Defaulting to 5s.",
+                "Could not parse Retry-After date: %s. Defaulting to 5s.",
+                retry_after,
             )
             return 5.0
 
@@ -139,7 +148,8 @@ class TMDBService:
             cache_expire_after: Cache expiration time in seconds (default: 1 day)
         """
         if not api_key:
-            raise ValueError("TMDB API key is required.")
+            error_msg = "TMDB API key is required."
+            raise ValueError(error_msg)
 
         # Create a robust session with caching
         self.session = self._create_cached_session(cache_name, cache_expire_after)
@@ -156,7 +166,7 @@ class TMDBService:
         self.movie = Movie()
         self.tv = TV()
 
-        log.info(f"TMDB service initialized with API key ending in ...{api_key[-4:]}")
+        log.info("TMDB service initialized with API key ending in ...%s", api_key[-4:])
 
     def _create_cached_session(
         self,
@@ -198,7 +208,7 @@ class TMDBService:
 
         return session
 
-    def search_movie(self, title: str) -> Optional[Dict[str, Any]]:
+    def search_movie(self, title: str) -> dict[str, Any] | None:
         """Search for a movie and return the top result.
 
         Args:
@@ -210,13 +220,13 @@ class TMDBService:
         try:
             results = self.movie_search.movies({"query": title})
             if results:
-                log.debug(f"Found {len(results)} movie results for '{title}'")
+                log.debug("Found %d movie results for '%s'", len(results), title)
                 return results[0]  # Return the raw dict
-        except TMDbException as e:
-            log.error(f"TMDB API error while searching for movie '{title}': {e}")
+        except TMDbException:
+            log.exception("TMDB API error while searching for movie '%s'", title)
         return None
 
-    def search_tv(self, title: str) -> Optional[Dict[str, Any]]:
+    def search_tv(self, title: str) -> dict[str, Any] | None:
         """Search for a TV show and return the top result.
 
         Args:
@@ -228,13 +238,13 @@ class TMDBService:
         try:
             results = self.tv_search.tv_shows({"query": title})
             if results:
-                log.debug(f"Found {len(results)} TV results for '{title}'")
+                log.debug("Found %d TV results for '%s'", len(results), title)
                 return results[0]  # Return the raw dict
-        except TMDbException as e:
-            log.error(f"TMDB API error while searching for TV show '{title}': {e}")
+        except TMDbException:
+            log.exception("TMDB API error while searching for TV show '%s'", title)
         return None
 
-    def get_movie_details(self, movie_id: int) -> Optional[Dict[str, Any]]:
+    def get_movie_details(self, movie_id: int) -> dict[str, Any] | None:
         """Get detailed information for a movie.
 
         Args:
@@ -245,15 +255,16 @@ class TMDBService:
         """
         try:
             details = self.movie.details(movie_id)
-            log.debug(f"Retrieved movie details for ID {movie_id}")
+            log.debug("Retrieved movie details for ID %d", movie_id)
             return details
-        except TMDbException as e:
-            log.error(
-                f"TMDB API error while getting movie details for ID {movie_id}: {e}",
+        except TMDbException:
+            log.exception(
+                "TMDB API error while getting movie details for ID %d",
+                movie_id,
             )
         return None
 
-    def get_tv_details(self, tv_id: int) -> Optional[Dict[str, Any]]:
+    def get_tv_details(self, tv_id: int) -> dict[str, Any] | None:
         """Get detailed information for a TV show.
 
         Args:
@@ -264,17 +275,17 @@ class TMDBService:
         """
         try:
             details = self.tv.details(tv_id)
-            log.debug(f"Retrieved TV details for ID {tv_id}")
+            log.debug("Retrieved TV details for ID %d", tv_id)
             return details
-        except TMDbException as e:
-            log.error(f"TMDB API error while getting TV details for ID {tv_id}: {e}")
+        except TMDbException:
+            log.exception("TMDB API error while getting TV details for ID %d", tv_id)
         return None
 
     def get_tv_season_details(
         self,
         tv_id: int,
         season_number: int,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get details for a specific TV season.
 
         Args:
@@ -286,15 +297,17 @@ class TMDBService:
         """
         try:
             season_details = self.tv.season(tv_id, season_number)
-            log.debug(f"Retrieved season {season_number} details for TV ID {tv_id}")
+            log.debug("Retrieved season %d details for TV ID %d", season_number, tv_id)
             return season_details
-        except TMDbException as e:
-            log.error(
-                f"TMDB API error while getting season {season_number} for TV ID {tv_id}: {e}",
+        except TMDbException:
+            log.exception(
+                "TMDB API error while getting season %d for TV ID %d",
+                season_number,
+                tv_id,
             )
         return None
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Returns:
