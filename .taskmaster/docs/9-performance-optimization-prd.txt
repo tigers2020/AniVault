@@ -149,14 +149,14 @@ def detect_memory_leaks():
     """Detect potential memory leaks."""
     import gc
     import psutil
-    
+
     # Force garbage collection
     gc.collect()
-    
+
     # Check memory usage
     process = psutil.Process()
     memory_info = process.memory_info()
-    
+
     if memory_info.rss > 500 * 1024 * 1024:  # 500MB threshold
         logger.warning(f"High memory usage: {memory_info.rss/1024/1024:.1f}MB")
         return True
@@ -174,24 +174,24 @@ class OptimizedCache:
         self.cache = {}
         self.access_times = {}
         self.creation_times = {}
-    
+
     def get(self, key: str):
         """Get item from cache with LRU and TTL checks."""
         now = time.time()
-        
+
         # Check TTL
         if key in self.creation_times:
             if now - self.creation_times[key] > self.ttl_seconds:
                 self._remove(key)
                 return None
-        
+
         # Update access time for LRU
         if key in self.cache:
             self.access_times[key] = now
             return self.cache[key]
-        
+
         return None
-    
+
     def _remove(self, key: str):
         """Remove item from cache."""
         self.cache.pop(key, None)
@@ -205,11 +205,11 @@ def optimize_cache_hit_rate():
     """Optimize cache hit rate through intelligent prefetching."""
     # Analyze query patterns
     common_patterns = analyze_query_patterns()
-    
+
     # Prefetch common queries
     for pattern in common_patterns:
         prefetch_cache_entries(pattern)
-    
+
     # Optimize cache size based on usage patterns
     adjust_cache_size()
 ```
@@ -227,18 +227,18 @@ class PerformanceMonitor:
             'processing_time': 0,
             'memory_usage': 0
         }
-    
+
     def update_metrics(self, **kwargs):
         """Update performance metrics."""
         for key, value in kwargs.items():
             if key in self.metrics:
                 self.metrics[key] = value
-    
+
     def get_performance_report(self) -> dict:
         """Generate performance report."""
         hit_rate = self.metrics['cache_hits'] / (self.metrics['cache_hits'] + self.metrics['cache_misses'])
         throughput = self.metrics['files_processed'] / (self.metrics['processing_time'] / 60)
-        
+
         return {
             'hit_rate': hit_rate,
             'throughput': throughput,
@@ -251,17 +251,17 @@ class PerformanceMonitor:
 def detect_performance_regression(current_metrics: dict, baseline_metrics: dict) -> bool:
     """Detect performance regression."""
     regression_threshold = 0.1  # 10% degradation
-    
+
     # Check throughput regression
     if current_metrics['throughput'] < baseline_metrics['throughput'] * (1 - regression_threshold):
         logger.warning("Throughput regression detected")
         return True
-    
+
     # Check memory usage regression
     if current_metrics['memory_usage'] > baseline_metrics['memory_usage'] * (1 + regression_threshold):
         logger.warning("Memory usage regression detected")
         return True
-    
+
     return False
 ```
 
@@ -277,11 +277,11 @@ def run_performance_benchmarks():
         'cache_performance': benchmark_cache_performance,
         'end_to_end': benchmark_end_to_end
     }
-    
+
     results = {}
     for name, benchmark_func in benchmarks.items():
         results[name] = benchmark_func()
-    
+
     return results
 ```
 
@@ -291,14 +291,14 @@ def benchmark_scan_throughput(test_directory: Path) -> float:
     """Benchmark file scanning throughput."""
     start_time = time.time()
     file_count = 0
-    
+
     for file_path in scan_directory_generator(test_directory):
         file_count += 1
-    
+
     end_time = time.time()
     duration_minutes = (end_time - start_time) / 60
     throughput = file_count / duration_minutes
-    
+
     return throughput
 ```
 

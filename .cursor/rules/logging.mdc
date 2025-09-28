@@ -29,18 +29,18 @@ def setup_anivault_logging(
     environment: str = "production"
 ) -> None:
     """AniVault 로깅 시스템 초기화 - UTF-8 강제, 레벨별 파일 분리."""
-    
+
     # 로그 디렉토리 생성 (UTF-8 환경)
     log_dir.mkdir(exist_ok=True)
-    
+
     # 루트 로거 설정
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if debug_enabled else logging.INFO)
-    
+
     # 기존 핸들러 제거
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # 콘솔 핸들러 (UTF-8 강제)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
@@ -50,7 +50,7 @@ def setup_anivault_logging(
     )
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
-    
+
     # AniVault 특화 파일 핸들러들 (개발 계획서 기준)
     handlers = [
         # INFO/DEBUG 로그
@@ -64,7 +64,7 @@ def setup_anivault_logging(
         # 파이프라인 로그
         ("pipeline.log", logging.INFO, "스캔/파싱/매칭 단계별 이벤트 로그")
     ]
-    
+
     for filename, level, description in handlers:
         handler = logging.handlers.TimedRotatingFileHandler(
             log_dir / filename,
@@ -75,11 +75,11 @@ def setup_anivault_logging(
             utc=True  # UTC 기준
         )
         handler.setLevel(level)
-        
+
         # JSON 포맷터 적용
         json_formatter = AniVaultJSONFormatter()
         handler.setFormatter(json_formatter)
-        
+
         # 특정 로거에만 적용
         if "network" in filename:
             network_logger = logging.getLogger("network")
@@ -103,7 +103,7 @@ import threading
 
 class AniVaultJSONFormatter(logging.Formatter):
     """AniVault JSON 포맷 로그 포매터 - UTF-8 전제, 스레드 정보 포함."""
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """로그 레코드를 JSON으로 포맷."""
         log_entry = {
@@ -117,27 +117,27 @@ class AniVaultJSONFormatter(logging.Formatter):
             "thread": threading.current_thread().name,
             "thread_id": threading.get_ident(),
         }
-        
+
         # 예외 정보 추가
         if record.exc_info:
             log_entry["exception"] = self.formatException(record.exc_info)
-        
+
         # AniVault 특화 컨텍스트 정보
         if hasattr(record, 'context'):
             log_entry["context"] = record.context
-        
+
         # TMDB API 관련 정보
         if hasattr(record, 'tmdb_request'):
             log_entry["tmdb_request"] = record.tmdb_request
-        
+
         # 파일 처리 관련 정보
         if hasattr(record, 'file_processing'):
             log_entry["file_processing"] = record.file_processing
-        
+
         # 파이프라인 단계 정보
         if hasattr(record, 'pipeline_stage'):
             log_entry["pipeline_stage"] = record.pipeline_stage
-        
+
         return json.dumps(log_entry, ensure_ascii=False, separators=(',', ':'))
 ```
 
@@ -157,15 +157,15 @@ def log_operation_error(
     """작업 에러 로깅."""
     context_msg = f" - {additional_context}" if additional_context else ""
     logger.log(
-        level, 
-        f"Failed to {operation_name}: {error}{context_msg}", 
+        level,
+        f"Failed to {operation_name}: {error}{context_msg}",
         exc_info=exc_info,
         extra={"context": {"operation": operation_name, "error_type": type(error).__name__}}
     )
 
 def log_database_error(
-    operation_name: str, 
-    error: Exception, 
+    operation_name: str,
+    error: Exception,
     table_name: str | None = None
 ) -> None:
     """데이터베이스 에러 로깅."""
@@ -244,18 +244,18 @@ from concurrent.futures import ThreadPoolExecutor
 
 class AsyncLogHandler:
     """비동기 로깅 핸들러."""
-    
+
     def __init__(self):
         self.executor = ThreadPoolExecutor(max_workers=1)
-    
+
     async def log_async(self, level: int, message: str, **kwargs: Any) -> None:
         """비동기 로깅."""
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
-            self.executor, 
-            logger.log, 
-            level, 
-            message, 
+            self.executor,
+            logger.log,
+            level,
+            message,
             extra={"context": kwargs}
         )
 ```
@@ -269,11 +269,11 @@ def mask_sensitive_data(data: Dict[str, Any]) -> Dict[str, Any]:
     """민감한 정보를 마스킹."""
     sensitive_keys = {'password', 'api_key', 'token', 'secret'}
     masked_data = data.copy()
-    
+
     for key in sensitive_keys:
         if key in masked_data:
             masked_data[key] = "***MASKED***"
-    
+
     return masked_data
 
 def log_with_sensitive_data_protection(message: str, data: Dict[str, Any]) -> None:
@@ -289,12 +289,12 @@ def log_with_sensitive_data_protection(message: str, data: Dict[str, Any]) -> No
 # ✅ DO: 로깅 메트릭 수집
 class LoggingMetrics:
     """로깅 메트릭 수집기."""
-    
+
     def __init__(self):
         self.error_count = 0
         self.warning_count = 0
         self.info_count = 0
-    
+
     def increment_error(self) -> None:
         """에러 카운트 증가."""
         self.error_count += 1
@@ -302,7 +302,7 @@ class LoggingMetrics:
             "Error count updated",
             extra={"context": {"error_count": self.error_count}}
         )
-    
+
     def get_metrics(self) -> Dict[str, int]:
         """현재 메트릭 반환."""
         return {
@@ -352,7 +352,7 @@ def good_sensitive_logging():
 def good_conditional_logging():
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"Processing {len(items)} items")
-    
+
     for item in items:
         # 중요한 정보만 로깅
         if item.has_error:
@@ -373,7 +373,7 @@ def test_logging():
     """로깅 테스트."""
     with caplog.at_level(logging.INFO):
         logger.info("Test message")
-    
+
     assert "Test message" in caplog.text
     assert caplog.records[0].levelname == "INFO"
 
@@ -384,7 +384,7 @@ def test_error_logging():
             raise ValueError("Test error")
         except ValueError as e:
             logger.error("Test error occurred", exc_info=True)
-    
+
     assert "Test error occurred" in caplog.text
     assert "ValueError" in caplog.text
 ```

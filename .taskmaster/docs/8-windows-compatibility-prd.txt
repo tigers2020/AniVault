@@ -114,12 +114,12 @@ def sanitize_filename(filename: str) -> str:
     # Handle reserved names
     if filename.upper() in RESERVED_NAMES:
         filename = f'_{filename}'
-    
+
     # Handle forbidden characters
     forbidden_chars = '<>:"|?*'
     for char in forbidden_chars:
         filename = filename.replace(char, '_')
-    
+
     return filename
 ```
 

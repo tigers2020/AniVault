@@ -19,24 +19,24 @@ alwaysApply: false
 ```python
 # ✅ DO: 표준 비동기 함수 구조
 async def process_files_async(
-    files: list[AnimeFile], 
+    files: list[AnimeFile],
     progress_callback: Callable[[int, int], None] | None = None
 ) -> list[ProcessedFile]:
     """비동기 파일 처리 함수.
-    
+
     Args:
         files: 처리할 파일 목록
         progress_callback: 진행률 콜백 함수
-        
+
     Returns:
         처리된 파일 목록
     """
     results = []
     total_files = len(files)
-    
+
     # 동시 실행 수 제한
     semaphore = asyncio.Semaphore(10)
-    
+
     async def process_single_file(file: AnimeFile) -> ProcessedFile:
         async with semaphore:
             try:
@@ -45,15 +45,15 @@ async def process_files_async(
             except Exception as e:
                 logger.warning(f"Failed to process {file.path}: {e}")
                 return ProcessedFile(file=file, error=str(e))
-    
+
     # 모든 파일을 동시에 처리
     tasks = [process_single_file(file) for file in files]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     # 진행률 업데이트
     if progress_callback:
         progress_callback(len(results), total_files)
-    
+
     return results
 ```
 
@@ -63,12 +63,12 @@ async def process_files_async(
 class ConcurrentProcessor:
     def __init__(self, max_concurrent: int = 10):
         self._semaphore = asyncio.Semaphore(max_concurrent)
-    
+
     async def process_with_limit(self, items: list[Any]) -> list[Any]:
         async def process_item(item: Any) -> Any:
             async with self._semaphore:
                 return await self._process_single_item(item)
-        
+
         tasks = [process_item(item) for item in items]
         return await asyncio.gather(*tasks, return_exceptions=True)
 ```
@@ -95,24 +95,24 @@ async def async_tmdb_client_context(api_key: str):
 ```python
 # ✅ DO: 결과를 실시간으로 처리
 async def process_with_streaming(
-    items: list[Any], 
+    items: list[Any],
     callback: Callable[[Any], None] | None = None
 ) -> list[Any]:
     """스트리밍 방식으로 아이템 처리."""
     results = []
-    
+
     for coro in asyncio.as_completed(tasks):
         try:
             result = await coro
             results.append(result)
-            
+
             if callback:
                 callback(result)
         except Exception as e:
             logger.warning(f"Processing failed: {e}")
             if callback:
                 callback(None, e)
-    
+
     return results
 ```
 
@@ -125,17 +125,17 @@ async def robust_batch_processing(items: list[Any]) -> BatchResult:
     """견고한 배치 처리."""
     tasks = [process_item(item) for item in items]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     successful = []
     failed = []
-    
+
     for i, result in enumerate(results):
         if isinstance(result, Exception):
             failed.append((items[i], result))
             logger.warning(f"Item {i} failed: {result}")
         else:
             successful.append(result)
-    
+
     return BatchResult(
         successful=successful,
         failed=failed,
@@ -158,7 +158,7 @@ async def retry_async_operation(
         except Exception as e:
             if attempt == max_retries:
                 raise
-            
+
             wait_time = delay * (2 ** attempt)  # 지수 백오프
             logger.warning(f"Attempt {attempt + 1} failed: {e}, retrying in {wait_time}s")
             await asyncio.sleep(wait_time)
@@ -173,18 +173,18 @@ class AsyncBatchProcessor:
     def __init__(self, batch_size: int = 100, max_concurrent: int = 10):
         self.batch_size = batch_size
         self.semaphore = asyncio.Semaphore(max_concurrent)
-    
+
     async def process_large_dataset(self, items: list[Any]) -> list[Any]:
         """대용량 데이터셋 처리."""
         all_results = []
-        
+
         for i in range(0, len(items), self.batch_size):
             batch = items[i:i + self.batch_size]
-            
+
             async with self.semaphore:
                 batch_results = await self._process_batch(batch)
                 all_results.extend(batch_results)
-        
+
         return all_results
 ```
 
@@ -255,9 +255,9 @@ async def good_error_handling():
 async def test_async_processing():
     """비동기 처리 함수 테스트."""
     files = [create_test_file() for _ in range(5)]
-    
+
     results = await process_files_async(files)
-    
+
     assert len(results) == 5
     assert all(isinstance(r, ProcessedFile) for r in results)
 ```

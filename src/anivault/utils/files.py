@@ -4,23 +4,29 @@ This module provides utilities for safe file operations that enforce
 UTF-8 encoding for text files while allowing binary operations.
 """
 
-from collections.abc import Generator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, BinaryIO, Optional, TextIO, Union
+from typing import Any, BinaryIO, TextIO
 
 
 @contextmanager
 def safe_open(
-    file: Union[str, Path, int],
+    file: str | Path | int,
     mode: str = "r",
     buffering: int = -1,
     encoding: str = "utf-8",
     errors: str = "strict",
-    newline: Optional[str] = None,
-    closefd: bool = True,
-    opener: Optional[Any] = None,
-) -> Generator[Union[TextIO, BinaryIO], None, None]:
+    newline: str | None = None,
+    *,
+    closefd: bool = True,  # noqa: ARG001
+    opener: Any | None = None,  # noqa: ARG001
+) -> Generator[TextIO | BinaryIO, None, None]:
     """Context manager for safe file operations with UTF-8 encoding.
 
     This function wraps the built-in open() function and enforces UTF-8
@@ -51,27 +57,21 @@ def safe_open(
     # For text modes, enforce UTF-8 encoding
     if is_text_mode and not is_binary_mode:
         # Override encoding to UTF-8 for text modes
-        file_obj = open(
-            file,
+        file_obj = Path(file).open(  # noqa: SIM115
             mode=mode,
             buffering=buffering,
-            encoding=encoding,
+            encoding="utf-8",  # Force UTF-8
             errors=errors,
             newline=newline,
-            closefd=closefd,
-            opener=opener,
         )
     else:
         # For binary modes, use the original parameters
-        file_obj = open(
-            file,
+        file_obj = Path(file).open(  # noqa: SIM115
             mode=mode,
             buffering=buffering,
             encoding=encoding if not is_binary_mode else None,
             errors=errors if not is_binary_mode else None,
             newline=newline if not is_binary_mode else None,
-            closefd=closefd,
-            opener=opener,
         )
 
     try:
@@ -80,7 +80,7 @@ def safe_open(
         file_obj.close()
 
 
-def ensure_utf8_path(path: Union[str, Path]) -> Path:
+def ensure_utf8_path(path: str | Path) -> Path:
     """Ensure a path is properly encoded for UTF-8.
 
     Args:
@@ -99,11 +99,12 @@ def ensure_utf8_path(path: Union[str, Path]) -> Path:
     if isinstance(path, Path):
         # Path objects should already be properly encoded
         return path
-    raise TypeError(f"Expected str or Path, got {type(path)}")
+    msg = f"Expected str or Path, got {type(path)}"
+    raise TypeError(msg)
 
 
 def safe_write_text(
-    path: Union[str, Path],
+    path: str | Path,
     content: str,
     encoding: str = "utf-8",
     errors: str = "strict",
@@ -126,7 +127,7 @@ def safe_write_text(
 
 
 def safe_read_text(
-    path: Union[str, Path],
+    path: str | Path,
     encoding: str = "utf-8",
     errors: str = "strict",
 ) -> str:

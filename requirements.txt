@@ -1,26 +1,26 @@
+aiohttp>=3.8.0
+aiolimiter>=1.1.0
+
+# File parsing and metadata
+anitopy>=2.0.0
+
+# Security
+cryptography>=41.0.0
+jellyfish>=0.9.0
+
+# Basic system utilities
+psutil>=5.9.0
 # Core dependencies
 PyQt5>=5.15.0
 PyQt5-Qt5>=5.15.0
 PyQt5-sip>=12.9.0
 
-# File parsing and metadata
-anitopy>=2.0.0
-tmdbsimple>=2.9.0
-aiohttp>=3.8.0
-aiolimiter>=1.1.0
+# Smart cache matching
+rapidfuzz>=3.0.0
 
 # Database
 SQLAlchemy>=2.0.0
-
-# Security
-cryptography>=41.0.0
-
-# Basic system utilities
-psutil>=5.9.0
-
-# Smart cache matching
-rapidfuzz>=3.0.0
-jellyfish>=0.9.0
+tmdbsimple>=2.9.0
 
 
 # Development dependencies (install with: pip install -r requirements-dev.txt)

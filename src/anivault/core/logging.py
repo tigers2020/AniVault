@@ -4,28 +4,29 @@ This module sets up the application's root logger with file rotation
 and console output based on project configuration.
 """
 
+from __future__ import annotations
+
 import logging
 import logging.handlers
 import sys
 from pathlib import Path
-from typing import Optional
 
 from .config import APP_CONFIG
 
 
 def setup_logging(
-    log_file: Optional[str] = None,
-    log_level: Optional[str] = None,
-    log_max_bytes: Optional[int] = None,
-    log_backup_count: Optional[int] = None,
+    log_file: str | None = None,
+    log_level: str | None = None,
+    log_max_bytes: int | None = None,
+    log_backup_count: int | None = None,
 ) -> None:
     """Set up the application's root logger.
 
     Args:
         log_file: Path to the log file. If None, uses config default.
         log_level: Logging level. If None, uses config default.
-        log_max_bytes: Maximum size of log file before rotation. If None, uses config default.
-        log_backup_count: Number of backup files to keep. If None, uses config default.
+        log_max_bytes: Maximum size of log file before rotation.
+        log_backup_count: Number of backup files to keep.
     """
     # Use provided values or fall back to config defaults
     log_file = log_file or APP_CONFIG.log_file

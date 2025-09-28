@@ -20,7 +20,8 @@ class TestLoggingSetup:
         root_logger = logging.getLogger()
 
         # Check that handlers are added
-        assert len(root_logger.handlers) == 2  # File + Console handlers
+        expected_handlers = 2  # File + Console handlers
+        assert len(root_logger.handlers) == expected_handlers
 
         # Check that file handler exists
         file_handlers = [
@@ -57,8 +58,10 @@ class TestLoggingSetup:
             if isinstance(h, logging.handlers.RotatingFileHandler)
         ]
         assert len(file_handlers) == 1
-        assert file_handlers[0].maxBytes == 1024
-        assert file_handlers[0].backupCount == 2
+        max_bytes = 1024
+        backup_count = 2
+        assert file_handlers[0].maxBytes == max_bytes
+        assert file_handlers[0].backupCount == backup_count
 
     def test_log_rotation(self, tmp_path):
         """Test that log rotation works correctly."""
@@ -76,14 +79,13 @@ class TestLoggingSetup:
         # Write enough data to trigger rotation
         for i in range(10):
             logger.info(
-                f"This is a test log message number {i} with some extra content to make it longer"
+                "This is a test log message number %d with some extra content to make it longer",  # noqa: E501
+                i,
             )
 
         # Check that log file exists
         assert log_file.exists()
 
-        # Check that backup files are created (if rotation occurred)
-        backup_files = list(tmp_path.glob("rotation_test.log.*"))
         # Note: Rotation might not occur if the total size is still under the limit
         # This test verifies the setup works, actual rotation depends on content size
 
@@ -118,7 +120,7 @@ class TestLoggingSetup:
         assert log_file.exists()
 
         # Read the log file and verify UTF-8 content
-        with open(log_file, encoding="utf-8") as f:
+        with log_file.open(encoding="utf-8") as f:
             log_content = f.read()
 
         for message in test_messages:

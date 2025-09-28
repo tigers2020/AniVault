@@ -43,11 +43,11 @@ class PackagingConfig:
 
 class AniVaultPackager:
     """AniVault 패키저 - Nuitka 우선, PyInstaller 백업."""
-    
+
     def __init__(self, config: PackagingConfig):
         self.config = config
         self.logger = logging.getLogger("packaging")
-    
+
     def build(self) -> bool:
         """빌드 실행 - Nuitka 우선 시도."""
         try:
@@ -57,19 +57,19 @@ class AniVaultPackager:
                 return self._build_with_pyinstaller()
         except Exception as e:
             self.logger.error(f"Build failed with {self.config.tool.value}: {e}")
-            
+
             # Nuitka 실패 시 PyInstaller로 전환
             if self.config.tool == PackagingTool.NUITKA:
                 self.logger.info("Falling back to PyInstaller")
                 self.config.tool = PackagingTool.PYINSTALLER
                 return self._build_with_pyinstaller()
-            
+
             return False
-    
+
     def _build_with_nuitka(self) -> bool:
         """Nuitka로 빌드."""
         self.logger.info("Building with Nuitka...")
-        
+
         cmd = [
             "python", "-m", "nuitka",
             "--onefile",
@@ -79,39 +79,39 @@ class AniVaultPackager:
             "--windows-icon-from-ico", self.config.icon_path,
             "--assume-yes-for-downloads",
         ]
-        
+
         # 최적화 옵션
         if self.config.optimize:
             cmd.extend([
                 "--optimization-level", "2",
                 "--remove-output",
             ])
-        
+
         # 디버그 옵션
         if self.config.debug:
             cmd.extend([
                 "--debug",
                 "--verbose",
             ])
-        
+
         # 숨겨진 임포트
         if self.config.hidden_imports:
             for module in self.config.hidden_imports:
                 cmd.extend(["--include-module", module])
-        
+
         # 데이터 파일 포함
         if self.config.include_data:
             for src, dst in self.config.include_data:
                 cmd.extend(["--include-data-files", f"{src}={dst}"])
-        
+
         cmd.append(self.config.entry_point)
-        
+
         return self._run_command(cmd)
-    
+
     def _build_with_pyinstaller(self) -> bool:
         """PyInstaller로 빌드."""
         self.logger.info("Building with PyInstaller...")
-        
+
         cmd = [
             "pyinstaller",
             "--onefile",
@@ -121,38 +121,38 @@ class AniVaultPackager:
             "--specpath", ".",
             "--add-data", f"{self.config.icon_path};.",
         ]
-        
+
         # PyQt5 플러그인 포함
         cmd.extend([
             "--hidden-import", "PyQt5.QtCore",
-            "--hidden-import", "PyQt5.QtGui", 
+            "--hidden-import", "PyQt5.QtGui",
             "--hidden-import", "PyQt5.QtWidgets",
             "--collect-all", "PyQt5",
         ])
-        
+
         # 숨겨진 임포트
         if self.config.hidden_imports:
             for module in self.config.hidden_imports:
                 cmd.extend(["--hidden-import", module])
-        
+
         # 제외 모듈
         if self.config.exclude_modules:
             for module in self.config.exclude_modules:
                 cmd.extend(["--exclude-module", module])
-        
+
         # 최적화 옵션
         if self.config.optimize:
             cmd.extend([
                 "--optimize", "2",
                 "--strip",
             ])
-        
+
         # 아이콘 설정
         if self.config.icon_path:
             cmd.extend(["--icon", self.config.icon_path])
-        
+
         cmd.append(self.config.entry_point)
-        
+
         return self._run_command(cmd)
 ```
 
@@ -166,39 +166,39 @@ from typing import List, Tuple
 
 class AniVaultResourceManager:
     """AniVault 리소스 관리자."""
-    
+
     def __init__(self, project_root: Path):
         self.project_root = project_root
         self.resource_paths = []
-    
+
     def get_include_data(self) -> List[Tuple[str, str]]:
         """포함할 데이터 파일 목록."""
         include_data = []
-        
+
         # 아이콘 및 이미지
         icon_dir = self.project_root / "assets" / "icons"
         if icon_dir.exists():
             include_data.append((str(icon_dir / "*.ico"), "assets/icons"))
             include_data.append((str(icon_dir / "*.png"), "assets/icons"))
-        
+
         # 설정 파일
         config_dir = self.project_root / "data" / "config"
         if config_dir.exists():
             include_data.append((str(config_dir / "*.json"), "data/config"))
             include_data.append((str(config_dir / "*.yaml"), "data/config"))
-        
+
         # 테마 파일
         themes_dir = self.project_root / "src" / "themes"
         if themes_dir.exists():
             include_data.append((str(themes_dir / "*.qss"), "src/themes"))
-        
+
         # 로케일 파일
         locale_dir = self.project_root / "src" / "locales"
         if locale_dir.exists():
             include_data.append((str(locale_dir / "*.json"), "src/locales"))
-        
+
         return include_data
-    
+
     def get_hidden_imports(self) -> List[str]:
         """숨겨진 임포트 목록."""
         return [
@@ -207,22 +207,22 @@ class AniVaultResourceManager:
             "PyQt5.QtGui",
             "PyQt5.QtWidgets",
             "PyQt5.sip",
-            
+
             # 애니메이션 파싱
             "anitopy",
             "rapidfuzz",
-            
+
             # TMDB API
             "tmdbsimple",
             "requests",
             "requests.adapters",
             "requests.auth",
-            
+
             # 데이터베이스
             "sqlalchemy",
             "sqlalchemy.orm",
             "sqlalchemy.engine",
-            
+
             # 유틸리티
             "pathlib",
             "concurrent.futures",
@@ -230,13 +230,13 @@ class AniVaultResourceManager:
             "queue",
             "json",
             "logging.handlers",
-            
+
             # Windows 특화
             "win32api",
             "win32con",
             "win32gui",
         ]
-    
+
     def get_exclude_modules(self) -> List[str]:
         """제외할 모듈 목록."""
         return [
@@ -246,14 +246,14 @@ class AniVaultResourceManager:
             "ruff",
             "mypy",
             "pylint",
-            
+
             # 불필요한 라이브러리
             "tkinter",
             "matplotlib",
             "numpy",
             "pandas",
             "scipy",
-            
+
             # 테스트 관련
             "test",
             "tests",
@@ -272,17 +272,17 @@ from pathlib import Path
 
 def setup_utf8_environment():
     """패키징된 exe에서 UTF-8 환경 설정."""
-    
+
     # 환경변수 설정
     os.environ['PYTHONIOENCODING'] = 'utf-8'
     os.environ['LC_ALL'] = 'ko_KR.UTF-8'
     os.environ['LANG'] = 'ko_KR.UTF-8'
-    
+
     # 표준 입출력 인코딩 설정
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
         sys.stderr.reconfigure(encoding='utf-8')
-    
+
     # 로케일 설정 (Windows)
     if sys.platform == 'win32':
         try:
@@ -294,23 +294,23 @@ def setup_utf8_environment():
 
 class AniVaultMain:
     """AniVault 메인 클래스 - UTF-8 환경 설정 포함."""
-    
+
     def __init__(self):
         self.setup_environment()
-    
+
     def setup_environment(self):
         """환경 설정."""
         # UTF-8 환경 설정
         setup_utf8_environment()
-        
+
         # 로그 디렉토리 생성
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
-        
+
         # 캐시 디렉토리 생성
         cache_dir = Path("cache")
         cache_dir.mkdir(exist_ok=True)
-    
+
     def run(self):
         """메인 실행."""
         try:
@@ -342,25 +342,25 @@ from typing import List, Optional
 
 class AniVaultBuilder:
     """AniVault 빌드 관리자."""
-    
+
     def __init__(self):
         self.project_root = Path(__file__).parent
         self.dist_dir = self.project_root / "dist"
         self.build_dir = self.project_root / "build"
         self.logger = logging.getLogger("builder")
-    
+
     def clean(self) -> None:
         """빌드 디렉토리 정리."""
         if self.dist_dir.exists():
             shutil.rmtree(self.dist_dir)
-        
+
         if self.build_dir.exists():
             shutil.rmtree(self.build_dir)
-        
+
         # PyInstaller 생성 파일 정리
         for spec_file in self.project_root.glob("*.spec"):
             spec_file.unlink()
-    
+
     def install_dependencies(self) -> bool:
         """빌드 의존성 설치."""
         dependencies = [
@@ -368,13 +368,13 @@ class AniVaultBuilder:
             "pyinstaller>=6.0.0",
             "wheel",
         ]
-        
+
         for dep in dependencies:
             if not self._install_package(dep):
                 return False
-        
+
         return True
-    
+
     def _install_package(self, package: str) -> bool:
         """패키지 설치."""
         try:
@@ -385,21 +385,21 @@ class AniVaultBuilder:
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Failed to install {package}: {e}")
             return False
-    
+
     def build_release(self) -> bool:
         """릴리스 빌드."""
         self.logger.info("Starting release build...")
-        
+
         # 1. 정리
         self.clean()
-        
+
         # 2. 의존성 설치
         if not self.install_dependencies():
             return False
-        
+
         # 3. 리소스 관리자 생성
         resource_manager = AniVaultResourceManager(self.project_root)
-        
+
         # 4. Nuitka 설정
         nuitka_config = PackagingConfig(
             tool=PackagingTool.NUITKA,
@@ -412,42 +412,42 @@ class AniVaultBuilder:
             optimize=True,
             debug=False
         )
-        
+
         # 5. 빌드 실행
         packager = AniVaultPackager(nuitka_config)
         success = packager.build()
-        
+
         if success:
             self.logger.info("Build completed successfully!")
             self._verify_build()
         else:
             self.logger.error("Build failed!")
-        
+
         return success
-    
+
     def _verify_build(self) -> None:
         """빌드 결과 검증."""
         exe_path = self.dist_dir / "AniVault.exe"
-        
+
         if not exe_path.exists():
             self.logger.error("Executable not found!")
             return
-        
+
         # 파일 크기 확인
         size_mb = exe_path.stat().st_size / (1024 * 1024)
         self.logger.info(f"Executable size: {size_mb:.1f} MB")
-        
+
         if size_mb > 200:
             self.logger.warning("Executable is larger than expected (>200MB)")
 
 def main():
     """메인 함수."""
     builder = AniVaultBuilder()
-    
+
     if len(sys.argv) > 1 and sys.argv[1] == "clean":
         builder.clean()
         return
-    
+
     success = builder.build_release()
     sys.exit(0 if success else 1)
 

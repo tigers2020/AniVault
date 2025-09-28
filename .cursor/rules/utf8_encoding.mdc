@@ -27,16 +27,16 @@ from pathlib import Path
 
 def setup_utf8_environment() -> None:
     """전역 UTF-8 환경 설정."""
-    
+
     # 환경변수 설정
     os.environ['PYTHONIOENCODING'] = 'utf-8'
     os.environ['LC_ALL'] = 'ko_KR.UTF-8'
     os.environ['LANG'] = 'ko_KR.UTF-8'
-    
+
     # Windows 특화 설정
     if sys.platform == 'win32':
         os.environ['PYTHONLEGACYWINDOWSSTDIO'] = '1'
-        
+
         # Windows 콘솔 UTF-8 설정
         try:
             import codecs
@@ -44,7 +44,7 @@ def setup_utf8_environment() -> None:
             sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
         except Exception as e:
             logger.warning(f"Failed to set UTF-8 console encoding: {e}")
-    
+
     # 표준 입출력 재설정
     if hasattr(sys.stdout, 'reconfigure'):
         try:
@@ -52,7 +52,7 @@ def setup_utf8_environment() -> None:
             sys.stderr.reconfigure(encoding='utf-8')
         except Exception as e:
             logger.warning(f"Failed to reconfigure stdio: {e}")
-    
+
     # 로케일 설정
     try:
         if sys.platform == 'win32':
@@ -66,21 +66,21 @@ def setup_utf8_environment() -> None:
 
 class UTF8Environment:
     """UTF-8 환경 관리자."""
-    
+
     def __init__(self):
         self._original_stdout = None
         self._original_stderr = None
         self._setup_complete = False
-    
+
     def initialize(self) -> None:
         """UTF-8 환경 초기화."""
         if self._setup_complete:
             return
-        
+
         setup_utf8_environment()
         self._setup_complete = True
         logger.info("UTF-8 environment initialized")
-    
+
     def cleanup(self) -> None:
         """환경 정리."""
         if self._original_stdout:
@@ -100,12 +100,12 @@ import json
 
 class UTF8FileHandler:
     """UTF-8 전제 파일 핸들러."""
-    
+
     @staticmethod
     def read_text(file_path: Union[str, Path], encoding: str = 'utf-8') -> str:
         """UTF-8로 텍스트 파일 읽기."""
         file_path = Path(file_path)
-        
+
         try:
             with open(file_path, 'r', encoding=encoding, errors='replace') as f:
                 return f.read()
@@ -115,16 +115,16 @@ class UTF8FileHandler:
         except Exception as e:
             logger.error(f"File read error for {file_path}: {e}")
             raise
-    
+
     @staticmethod
     def write_text(file_path: Union[str, Path], content: str, encoding: str = 'utf-8') -> None:
         """UTF-8로 텍스트 파일 쓰기."""
         file_path = Path(file_path)
-        
+
         try:
             # 디렉토리 생성
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with open(file_path, 'w', encoding=encoding, errors='replace') as f:
                 f.write(content)
         except UnicodeEncodeError as e:
@@ -133,18 +133,18 @@ class UTF8FileHandler:
         except Exception as e:
             logger.error(f"File write error for {file_path}: {e}")
             raise
-    
+
     @staticmethod
     def read_json(file_path: Union[str, Path]) -> Any:
         """UTF-8로 JSON 파일 읽기."""
         content = UTF8FileHandler.read_text(file_path)
-        
+
         try:
             return json.loads(content)
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error for {file_path}: {e}")
             raise
-    
+
     @staticmethod
     def write_json(file_path: Union[str, Path], data: Any, indent: int = 2) -> None:
         """UTF-8로 JSON 파일 쓰기."""
@@ -166,7 +166,7 @@ from typing import Dict, Any, Optional
 
 class UTF8APIClient:
     """UTF-8 전제 API 클라이언트."""
-    
+
     def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url
         self.session = requests.Session()
@@ -175,45 +175,45 @@ class UTF8APIClient:
             'Content-Type': 'application/json;charset=utf-8',
             'Accept': 'application/json;charset=utf-8'
         })
-    
+
     def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """UTF-8 GET 요청."""
         url = f"{self.base_url}{endpoint}"
-        
+
         try:
             response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
-            
+
             # UTF-8 응답 처리
             response.encoding = 'utf-8'
             return response.json()
-            
+
         except requests.exceptions.RequestException as e:
             logger.error(f"API request error: {e}")
             raise
         except UnicodeDecodeError as e:
             logger.error(f"UTF-8 decode error in API response: {e}")
             raise
-    
+
     def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """UTF-8 POST 요청."""
         url = f"{self.base_url}{endpoint}"
-        
+
         try:
             # JSON 데이터를 UTF-8로 인코딩
             json_data = json.dumps(data, ensure_ascii=False) if data else None
-            
+
             response = self.session.post(
-                url, 
+                url,
                 data=json_data,
                 headers={'Content-Type': 'application/json;charset=utf-8'},
                 timeout=10
             )
             response.raise_for_status()
-            
+
             response.encoding = 'utf-8'
             return response.json()
-            
+
         except requests.exceptions.RequestException as e:
             logger.error(f"API request error: {e}")
             raise
@@ -233,18 +233,18 @@ from pathlib import Path
 
 def setup_utf8_logging(log_dir: Path = Path("logs")) -> None:
     """UTF-8 로깅 설정."""
-    
+
     # 로그 디렉토리 생성
     log_dir.mkdir(exist_ok=True)
-    
+
     # 루트 로거 설정
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    
+
     # 기존 핸들러 제거
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # 콘솔 핸들러 (UTF-8)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
@@ -254,14 +254,14 @@ def setup_utf8_logging(log_dir: Path = Path("logs")) -> None:
     )
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
-    
+
     # 파일 핸들러들 (UTF-8 강제)
     handlers = [
         ("app_info.log", logging.INFO),
         ("app_warn.log", logging.WARNING),
         ("app_error.log", logging.ERROR),
     ]
-    
+
     for filename, level in handlers:
         handler = logging.handlers.TimedRotatingFileHandler(
             log_dir / filename,
@@ -272,7 +272,7 @@ def setup_utf8_logging(log_dir: Path = Path("logs")) -> None:
             utc=True
         )
         handler.setLevel(level)
-        
+
         # UTF-8 포맷터
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -283,22 +283,22 @@ def setup_utf8_logging(log_dir: Path = Path("logs")) -> None:
 
 class UTF8Logger:
     """UTF-8 전제 로거."""
-    
+
     def __init__(self, name: str):
         self.logger = logging.getLogger(name)
-    
+
     def info(self, message: str, *args, **kwargs) -> None:
         """INFO 레벨 로깅."""
         self.logger.info(message, *args, **kwargs)
-    
+
     def warning(self, message: str, *args, **kwargs) -> None:
         """WARNING 레벨 로깅."""
         self.logger.warning(message, *args, **kwargs)
-    
+
     def error(self, message: str, *args, **kwargs) -> None:
         """ERROR 레벨 로깅."""
         self.logger.error(message, *args, **kwargs)
-    
+
     def debug(self, message: str, *args, **kwargs) -> None:
         """DEBUG 레벨 로깅."""
         self.logger.debug(message, *args, **kwargs)
@@ -323,11 +323,11 @@ class AniVaultConfig:
     max_workers: int = 4
     language: str = "ko-KR"
     auto_update: bool = True
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환."""
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AniVaultConfig':
         """딕셔너리에서 생성."""
@@ -335,11 +335,11 @@ class AniVaultConfig:
 
 class UTF8ConfigManager:
     """UTF-8 설정 관리자."""
-    
+
     def __init__(self, config_path: Path = Path("data/config/settings.json")):
         self.config_path = config_path
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     def load(self) -> AniVaultConfig:
         """설정 로드."""
         if not self.config_path.exists():
@@ -347,7 +347,7 @@ class UTF8ConfigManager:
             default_config = AniVaultConfig(tmdb_api_key="")
             self.save(default_config)
             return default_config
-        
+
         try:
             data = UTF8FileHandler.read_json(self.config_path)
             return AniVaultConfig.from_dict(data)
@@ -355,7 +355,7 @@ class UTF8ConfigManager:
             logger.error(f"Config load error: {e}")
             # 기본 설정 반환
             return AniVaultConfig(tmdb_api_key="")
-    
+
     def save(self, config: AniVaultConfig) -> None:
         """설정 저장."""
         try:

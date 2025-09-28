@@ -258,44 +258,44 @@ This module provides the core API for AniVault functionality.
 class FileProcessor:
     """
     Core file processing functionality.
-    
+
     This class handles file scanning, parsing, and metadata extraction.
     """
-    
+
     def __init__(self, config: Config):
         """
         Initialize file processor.
-        
+
         Args:
             config: Configuration object
         """
         self.config = config
         self.parser = FilenameParser()
         self.cache = CacheManager()
-    
+
     def process_file(self, file_path: Path) -> ProcessResult:
         """
         Process a single file.
-        
+
         Args:
             file_path: Path to file to process
-            
+
         Returns:
             ProcessResult: Processing result with metadata
-            
+
         Raises:
             FileNotFoundError: If file doesn't exist
             PermissionError: If file access is denied
         """
         pass
-    
+
     def scan_directory(self, directory: Path) -> Iterator[Path]:
         """
         Scan directory for anime files.
-        
+
         Args:
             directory: Directory to scan
-            
+
         Yields:
             Path: Path to each anime file found
         """
@@ -304,49 +304,49 @@ class FileProcessor:
 class TMDBClient:
     """
     TMDB API client with rate limiting.
-    
+
     This class handles all TMDB API interactions with built-in rate limiting.
     """
-    
+
     def __init__(self, api_key: str, rate_limit: int = 35):
         """
         Initialize TMDB client.
-        
+
         Args:
             api_key: TMDB API key
             rate_limit: Requests per second limit
         """
         self.api_key = api_key
         self.rate_limiter = RateLimiter(rate_limit)
-    
+
     def search_tv(self, query: str, language: str = 'en-US') -> List[TVShow]:
         """
         Search for TV shows.
-        
+
         Args:
             query: Search query
             language: Language code (e.g., 'en-US', 'ja-JP')
-            
+
         Returns:
             List[TVShow]: List of matching TV shows
-            
+
         Raises:
             RateLimitError: If rate limit exceeded
             APIError: If API request fails
         """
         pass
-    
+
     def get_tv_details(self, tv_id: int, language: str = 'en-US') -> TVShowDetails:
         """
         Get TV show details.
-        
+
         Args:
             tv_id: TMDB TV show ID
             language: Language code
-            
+
         Returns:
             TVShowDetails: TV show details
-            
+
         Raises:
             NotFoundError: If TV show not found
             APIError: If API request fails

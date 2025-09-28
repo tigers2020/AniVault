@@ -26,7 +26,8 @@ class TestUtf8WithRealFilenames:
         assert "Gundam" in content
 
         # Verify it's not empty
-        assert len(content) > 1000
+        min_content_length = 1000
+        assert len(content) > min_content_length
 
     def test_write_and_read_korean_filenames(self, tmp_path):
         """Test writing and reading Korean anime filenames."""
@@ -64,7 +65,7 @@ class TestUtf8WithRealFilenames:
             pytest.skip("filenames.txt not found")
 
         # Read first 100 lines
-        with open(filenames_path, encoding="utf-8") as f:
+        with filenames_path.open(encoding="utf-8") as f:
             lines = [f.readline().strip() for _ in range(100) if f.readline()]
 
         # Filter out empty lines
@@ -120,7 +121,7 @@ class TestUtf8WithRealFilenames:
         """
 
         # Test multiple write/read cycles
-        for i in range(3):
+        for _ in range(3):
             safe_write_text(test_file, content)
             read_content = safe_read_text(test_file)
             assert read_content == content
@@ -149,7 +150,8 @@ class TestUtf8WithRealFilenames:
         read_content = safe_read_text(test_file)
 
         assert read_content == content
-        assert len(read_content) > 50000  # Verify it's actually large
+        large_content_threshold = 50000
+        assert len(read_content) > large_content_threshold  # Verify it's actually large
 
         # Verify UTF-8 characters are preserved
         assert "한국어" in read_content

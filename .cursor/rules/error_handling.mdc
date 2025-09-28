@@ -24,15 +24,15 @@ def process_file(file_path: Path) -> ProcessedFile:
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
         return ProcessedFile(path=file_path, content=content)
-    
+
     except FileNotFoundError as e:
         log_operation_error("process file", e, f"File not found: {file_path}")
         raise ProcessingError(f"File not found: {file_path}") from e
-    
+
     except UnicodeDecodeError as e:
         log_operation_error("process file", e, f"Encoding error: {file_path}")
         raise ProcessingError(f"Invalid file encoding: {file_path}") from e
-    
+
     except Exception as e:
         log_operation_error("process file", e, f"Unexpected error: {file_path}")
         raise ProcessingError(f"Failed to process file: {file_path}") from e
@@ -50,17 +50,17 @@ def get_anime_metadata(tmdb_id: int) -> AnimeMetadata | None:
                 AnimeMetadata.tmdb_id == tmdb_id
             ).first()
             return metadata
-    
+
     except IntegrityError as e:
         log_database_error("get anime metadata", e, "anime_metadata")
         logger.warning(f"Integrity error for TMDB ID {tmdb_id}: {e}")
         return None
-    
+
     except OperationalError as e:
         log_database_error("get anime metadata", e, "anime_metadata")
         logger.error(f"Database connection error for TMDB ID {tmdb_id}: {e}")
         raise DatabaseConnectionError(f"Database unavailable") from e
-    
+
     except Exception as e:
         log_operation_error("get anime metadata", e, f"TMDB ID: {tmdb_id}")
         raise
@@ -82,14 +82,14 @@ def log_operation_error(
     """일관된 에러 로깅 포맷."""
     context_msg = f" - {additional_context}" if additional_context else ""
     logger.log(
-        level, 
-        f"Failed to {operation_name}: {error}{context_msg}", 
+        level,
+        f"Failed to {operation_name}: {error}{context_msg}",
         exc_info=exc_info
     )
 
 def log_database_error(
-    operation_name: str, 
-    error: Exception, 
+    operation_name: str,
+    error: Exception,
     table_name: str | None = None
 ) -> None:
     """데이터베이스 에러 전용 로깅."""
@@ -156,7 +156,7 @@ def show_error_to_user(parent: QWidget, error: Exception, context: str) -> None:
         message = "데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요."
     else:
         message = f"예상치 못한 오류가 발생했습니다: {context}"
-    
+
     QMessageBox.critical(parent, "오류", message)
     logger.error(f"User error: {error} - Context: {context}")
 ```
@@ -169,7 +169,7 @@ def show_error_to_user(parent: QWidget, error: Exception, context: str) -> None:
 async def process_with_auto_recovery(items: list[Any]) -> list[Any]:
     """자동 복구가 포함된 처리."""
     results = []
-    
+
     for item in items:
         max_retries = 3
         for attempt in range(max_retries):
@@ -189,7 +189,7 @@ async def process_with_auto_recovery(items: list[Any]) -> list[Any]:
                 logger.error(f"Permanent error, skipping: {e}")
                 results.append(ProcessedItem(item=item, error=str(e)))
                 break
-    
+
     return results
 ```
 
@@ -254,7 +254,7 @@ def test_error_handling():
     """에러 처리 테스트."""
     with pytest.raises(ProcessingError, match="File not found"):
         process_file(Path("nonexistent.txt"))
-    
+
     with pytest.raises(DatabaseConnectionError):
         get_anime_metadata(12345)  # DB 연결 실패 시뮬레이션
 
@@ -265,7 +265,7 @@ def test_logging_on_error():
             risky_operation()
         except Exception:
             pass
-    
+
     assert "Operation failed" in caplog.text
 ```
 

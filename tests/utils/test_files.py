@@ -1,8 +1,8 @@
 """Tests for file I/O utilities with UTF-8 encoding."""
 
 from pathlib import Path
-from typing import List
 
+# No longer needed with modern Python
 import pytest
 
 from anivault.utils.files import (
@@ -75,9 +75,10 @@ class TestSafeOpen:
             f.write("Valid UTF-8: こんにちは")
 
         # This should raise an error with strict encoding
-        with pytest.raises(UnicodeError):
-            with safe_open(test_file, "w", encoding="ascii", errors="strict") as f:
-                f.write("Invalid ASCII: こんにちは")
+        with pytest.raises(UnicodeError), safe_open(
+            test_file, "w", encoding="ascii", errors="strict",
+        ) as f:
+            f.write("Invalid ASCII: こんにちは")
 
     def test_safe_open_with_errors_ignore(self, tmp_path):
         """Test safe_open with errors='ignore'."""
@@ -117,7 +118,7 @@ class TestEnsureUtf8Path:
     def test_ensure_utf8_path_invalid_type(self):
         """Test ensure_utf8_path with invalid type."""
         with pytest.raises(TypeError):
-            ensure_utf8_path(123)  # type: ignore
+            ensure_utf8_path(123)  # type: ignore[arg-type]
 
     def test_ensure_utf8_path_invalid_utf8(self):
         """Test ensure_utf8_path with invalid UTF-8 string."""
@@ -137,7 +138,7 @@ class TestSafeWriteText:
         safe_write_text(test_file, content)
 
         assert test_file.exists()
-        with open(test_file, encoding="utf-8") as f:
+        with test_file.open(encoding="utf-8") as f:
             assert f.read() == content
 
     def test_safe_write_text_with_custom_encoding(self, tmp_path):
@@ -148,7 +149,7 @@ class TestSafeWriteText:
         safe_write_text(test_file, content, encoding="utf-8")
 
         assert test_file.exists()
-        with open(test_file, encoding="utf-8") as f:
+        with test_file.open(encoding="utf-8") as f:
             assert f.read() == content
 
     def test_safe_write_text_multilingual(self, tmp_path):
@@ -166,7 +167,7 @@ class TestSafeWriteText:
         safe_write_text(test_file, content)
 
         assert test_file.exists()
-        with open(test_file, encoding="utf-8") as f:
+        with test_file.open(encoding="utf-8") as f:
             assert f.read() == content
 
 
@@ -179,7 +180,7 @@ class TestSafeReadText:
         content = "Hello, 世界! 🌍"
 
         # Write content first
-        with open(test_file, "w", encoding="utf-8") as f:
+        with test_file.open("w", encoding="utf-8") as f:
             f.write(content)
 
         # Read with safe_read_text
@@ -196,7 +197,7 @@ class TestSafeReadText:
         """
 
         # Write content first
-        with open(test_file, "w", encoding="utf-8") as f:
+        with test_file.open("w", encoding="utf-8") as f:
             f.write(content)
 
         # Read with safe_read_text
@@ -216,7 +217,7 @@ class TestSafeReadText:
         content = "Hello, 世界!"
 
         # Write with UTF-8
-        with open(test_file, "w", encoding="utf-8") as f:
+        with test_file.open("w", encoding="utf-8") as f:
             f.write(content)
 
         # Read with custom encoding
@@ -259,9 +260,7 @@ class TestUtf8Integration:
         test_file = tmp_path / "large_utf8_test.txt"
 
         # Create large content with UTF-8 characters
-        lines: List[str] = []
-        for i in range(1000):
-            lines.append(f"Line {i}: こんにちは世界 {i} 🌍")
+        lines = [f"Line {i}: こんにちは世界 {i} 🌍" for i in range(1000)]
 
         content = "\n".join(lines)
 
@@ -270,4 +269,5 @@ class TestUtf8Integration:
         read_content = safe_read_text(test_file)
 
         assert read_content == content
-        assert len(read_content) > 10000  # Verify it's actually large
+        large_content_threshold = 10000
+        assert len(read_content) > large_content_threshold  # Verify it's actually large

@@ -6,7 +6,7 @@ default values for all application settings.
 
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 try:
     import tomllib
@@ -17,7 +17,7 @@ except ImportError:
 class Config:
     """Application configuration container."""
 
-    def __init__(self, config_dict: Dict[str, Any]) -> None:
+    def __init__(self, config_dict: dict[str, Any]) -> None:
         """Initialize configuration from dictionary.
 
         Args:
@@ -70,14 +70,14 @@ def load_config() -> Config:
         return Config({})
 
     try:
-        with open(pyproject_path, "rb") as f:
+        with pyproject_path.open("rb") as f:
             data = tomllib.load(f)
 
         # Extract anivault config section
         anivault_config = data.get("tool", {}).get("anivault", {}).get("config", {})
         return Config(anivault_config)
 
-    except Exception as e:
+    except (OSError, ValueError, KeyError) as e:
         # Log the error and return default config
         print(f"Warning: Failed to load configuration: {e}", file=sys.stderr)
         return Config({})

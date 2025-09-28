@@ -117,7 +117,7 @@ def build_executable():
         '--collect-all=rich',
         '--collect-all=click'
     ]
-    
+
     PyInstaller.__main__.run(args)
 
 if __name__ == '__main__':
@@ -148,7 +148,7 @@ def build_with_nuitka():
         '--assume-yes-for-downloads',
         'src/cli/main.py'
     ]
-    
+
     subprocess.run(args, check=True)
 
 if __name__ == '__main__':
@@ -165,7 +165,7 @@ from pathlib import Path
 def main():
     """Main build script with fallback options."""
     print("Building AniVault v3 CLI...")
-    
+
     # Try PyInstaller first
     try:
         print("Attempting PyInstaller build...")
@@ -174,7 +174,7 @@ def main():
         return True
     except subprocess.CalledProcessError as e:
         print(f"PyInstaller build failed: {e}")
-    
+
     # Fallback to Nuitka
     try:
         print("Attempting Nuitka build...")
@@ -183,7 +183,7 @@ def main():
         return True
     except subprocess.CalledProcessError as e:
         print(f"Nuitka build failed: {e}")
-    
+
     print("All build methods failed!")
     return False
 
@@ -207,92 +207,92 @@ class ReleaseArtifactGenerator:
         self.version = version
         self.build_dir = build_dir
         self.release_dir = Path('releases') / f'anivault-{version}'
-    
+
     def generate_release_artifacts(self):
         """Generate all release artifacts."""
         self.release_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Copy executable
         self.copy_executable()
-        
+
         # Generate license files
         self.generate_license_files()
-        
+
         # Copy schemas
         self.copy_schemas()
-        
+
         # Generate documentation
         self.generate_documentation()
-        
+
         # Generate changelog
         self.generate_changelog()
-        
+
         # Generate SBOM
         self.generate_sbom()
-        
+
         # Generate checksums
         self.generate_checksums()
-    
+
     def copy_executable(self):
         """Copy executable to release directory."""
         exe_source = self.build_dir / 'anivault.exe'
         exe_dest = self.release_dir / 'anivault.exe'
         shutil.copy2(exe_source, exe_dest)
-    
+
     def generate_license_files(self):
         """Generate third-party license files."""
         licenses_dir = self.release_dir / 'LICENSES'
         licenses_dir.mkdir(exist_ok=True)
-        
+
         # Copy license files from dependencies
         self.copy_dependency_licenses(licenses_dir)
-    
+
     def copy_schemas(self):
         """Copy JSON schema files."""
         schemas_dir = self.release_dir / 'schemas'
         schemas_dir.mkdir(exist_ok=True)
-        
+
         # Copy schema files
         for schema_file in Path('schemas').glob('*.json'):
             shutil.copy2(schema_file, schemas_dir)
-    
+
     def generate_documentation(self):
         """Generate user documentation."""
         docs_dir = self.release_dir / 'docs'
         docs_dir.mkdir(exist_ok=True)
-        
+
         # Copy documentation files
         for doc_file in Path('docs').glob('*.md'):
             shutil.copy2(doc_file, docs_dir)
-    
+
     def generate_changelog(self):
         """Generate changelog from git history."""
         changelog_file = self.release_dir / 'CHANGELOG.md'
-        
+
         # Generate changelog content
         changelog_content = self.create_changelog_content()
-        
+
         with open(changelog_file, 'w', encoding='utf-8') as f:
             f.write(changelog_content)
-    
+
     def generate_sbom(self):
         """Generate Software Bill of Materials."""
         sbom_file = self.release_dir / 'SBOM.json'
-        
+
         # Generate SBOM using CycloneDX
         self.create_sbom(sbom_file)
-    
+
     def generate_checksums(self):
         """Generate SHA256 checksums."""
         checksums_file = self.release_dir / 'SHA256SUMS'
-        
+
         with open(checksums_file, 'w', encoding='utf-8') as f:
             for file_path in self.release_dir.rglob('*'):
                 if file_path.is_file():
                     checksum = self.calculate_sha256(file_path)
                     relative_path = file_path.relative_to(self.release_dir)
                     f.write(f"{checksum}  {relative_path}\n")
-    
+
     def calculate_sha256(self, file_path: Path) -> str:
         """Calculate SHA256 checksum for file."""
         sha256_hash = hashlib.sha256()
@@ -313,7 +313,7 @@ class CodeSigner:
     def __init__(self, certificate_path: Path, password: str):
         self.certificate_path = certificate_path
         self.password = password
-    
+
     def sign_executable(self, exe_path: Path):
         """Sign executable with Authenticode certificate."""
         try:
@@ -336,34 +336,34 @@ class CodeSigner:
 class SecurityScanner:
     def __init__(self):
         self.scan_results = {}
-    
+
     def run_security_scans(self):
         """Run comprehensive security scans."""
         # Run gitleaks
         self.scan_results['gitleaks'] = self.run_gitleaks()
-        
+
         # Run trufflehog
         self.scan_results['trufflehog'] = self.run_trufflehog()
-        
+
         # Run pip-audit
         self.scan_results['pip_audit'] = self.run_pip_audit()
-        
+
         # Run bandit
         self.scan_results['bandit'] = self.run_bandit()
-        
+
         return self.scan_results
-    
+
     def generate_security_report(self) -> str:
         """Generate security scan report."""
         report = "# Security Scan Report\n\n"
-        
+
         for scanner, results in self.scan_results.items():
             report += f"## {scanner.title()}\n\n"
             if results:
                 report += f"```json\n{json.dumps(results, indent=2)}\n```\n\n"
             else:
                 report += "No issues found.\n\n"
-        
+
         return report
 ```
 
@@ -374,14 +374,14 @@ class SecurityScanner:
 class DeploymentVerifier:
     def __init__(self, exe_path: Path):
         self.exe_path = exe_path
-    
+
     def test_clean_installation(self) -> bool:
         """Test clean Windows installation."""
         try:
             # Test basic execution
-            result = subprocess.run([str(self.exe_path), '--help'], 
+            result = subprocess.run([str(self.exe_path), '--help'],
                                   capture_output=True, text=True, timeout=30)
-            
+
             if result.returncode == 0:
                 print("✓ Basic execution test passed")
                 return True
@@ -394,13 +394,13 @@ class DeploymentVerifier:
         except Exception as e:
             print(f"✗ Execution error: {e}")
             return False
-    
+
     def test_dependency_requirements(self) -> bool:
         """Test that no external dependencies are required."""
         # Check if executable runs without Python installation
         # Check if all required libraries are bundled
         return True
-    
+
     def test_performance_benchmarks(self) -> dict:
         """Test performance benchmarks on target hardware."""
         benchmarks = {
@@ -409,12 +409,12 @@ class DeploymentVerifier:
             'throughput': self.measure_throughput()
         }
         return benchmarks
-    
+
     def measure_startup_time(self) -> float:
         """Measure application startup time."""
         import time
         start_time = time.time()
-        subprocess.run([str(self.exe_path), '--help'], 
+        subprocess.run([str(self.exe_path), '--help'],
                       capture_output=True, timeout=10)
         return time.time() - start_time
 ```

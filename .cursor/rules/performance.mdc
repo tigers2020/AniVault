@@ -28,51 +28,51 @@ import threading
 
 class AniVaultPipelineManager:
     """AniVault 스레드 파이프라인 관리자."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  scan_workers: int = 4,
-                 parse_workers: int = 6, 
+                 parse_workers: int = 6,
                  match_workers: int = 3,
                  organize_workers: int = 2,
                  tmdb_semaphore_limit: int = 5):  # TMDB API 동시성 제어
         # 각 단계별 ThreadPoolExecutor
         self.scan_pool = ThreadPoolExecutor(max_workers=scan_workers, thread_name_prefix="Scan")
-        self.parse_pool = ThreadPoolExecutor(max_workers=parse_workers, thread_name_prefix="Parse") 
+        self.parse_pool = ThreadPoolExecutor(max_workers=parse_workers, thread_name_prefix="Parse")
         self.match_pool = ThreadPoolExecutor(max_workers=match_workers, thread_name_prefix="Match")
         self.organize_pool = ThreadPoolExecutor(max_workers=organize_workers, thread_name_prefix="Organize")
-        
+
         # TMDB API 동시성 제어용 세마포어
         self.tmdb_semaphore = threading.Semaphore(tmdb_semaphore_limit)
-        
+
         # 단계별 큐 (백프레셔 제어)
         self.scan_queue = Queue(maxsize=1000)
         self.parse_queue = Queue(maxsize=500)
         self.match_queue = Queue(maxsize=200)
         self.organize_queue = Queue(maxsize=100)
-    
+
     def submit_scan_task(self, func: Callable, *args, **kwargs):
         """스캔 단계 작업 제출."""
         return self.scan_pool.submit(func, *args, **kwargs)
-    
+
     def submit_parse_task(self, func: Callable, *args, **kwargs):
         """파싱 단계 작업 제출."""
         return self.parse_pool.submit(func, *args, **kwargs)
-    
+
     def submit_match_task(self, func: Callable, *args, **kwargs):
         """매칭 단계 작업 제출 (TMDB API 포함)."""
         return self.match_pool.submit(self._with_tmdb_semaphore(func), *args, **kwargs)
-    
+
     def submit_organize_task(self, func: Callable, *args, **kwargs):
         """정리 단계 작업 제출."""
         return self.organize_pool.submit(func, *args, **kwargs)
-    
+
     def _with_tmdb_semaphore(self, func: Callable) -> Callable:
         """TMDB API 호출을 세마포어로 제어하는 래퍼."""
         def wrapper(*args, **kwargs):
             with self.tmdb_semaphore:
                 return func(*args, **kwargs)
         return wrapper
-    
+
     def close(self):
         """모든 Executor 종료."""
         self.scan_pool.shutdown(wait=True)
@@ -97,33 +97,33 @@ def calculate_similarity(file1: ProcessedFile, file2: ProcessedFile) -> float:
 def process_files_parallel(file_paths: List[Path]) -> List[ProcessedFile]:
     """파일 병렬 처리."""
     manager = HybridExecutorManager()
-    
+
     try:
         # I/O 작업을 ThreadPoolExecutor로
         io_futures = [
             manager.submit_io_task(process_file_io, path)
             for path in file_paths
         ]
-        
+
         # 결과 수집
         processed_files = [future.result() for future in io_futures]
-        
+
         # CPU 작업을 ProcessPoolExecutor로
         cpu_futures = []
         for i in range(len(processed_files)):
             for j in range(i + 1, len(processed_files)):
                 future = manager.submit_cpu_task(
-                    calculate_similarity, 
-                    processed_files[i], 
+                    calculate_similarity,
+                    processed_files[i],
                     processed_files[j]
                 )
                 cpu_futures.append(future)
-        
+
         # CPU 작업 결과 수집
         similarities = [future.result() for future in cpu_futures]
-        
+
         return processed_files, similarities
-    
+
     finally:
         manager.close()
 ```
@@ -137,16 +137,16 @@ from typing import List, Dict, Any
 
 class AsyncProcessingManager:
     """비동기 처리 관리자."""
-    
+
     def __init__(self, max_concurrent: int = 10):
         self.semaphore = Semaphore(max_concurrent)
         self.session = None
-    
+
     async def process_files_async(self, file_paths: List[Path]) -> List[ProcessedFile]:
         """비동기 파일 처리."""
         tasks = [self._process_single_file(path) for path in file_paths]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # 예외 처리
         processed_files = []
         for i, result in enumerate(results):
@@ -154,31 +154,31 @@ class AsyncProcessingManager:
                 logger.error(f"Failed to process {file_paths[i]}: {result}")
             else:
                 processed_files.append(result)
-        
+
         return processed_files
-    
+
     async def _process_single_file(self, file_path: Path) -> ProcessedFile:
         """개별 파일 비동기 처리."""
         async with self.semaphore:
             try:
                 # 비동기 파일 읽기
                 content = await self._read_file_async(file_path)
-                
+
                 # 비동기 메타데이터 검색
                 metadata = await self._get_metadata_async(content)
-                
+
                 return ProcessedFile(path=file_path, content=content, metadata=metadata)
-            
+
             except Exception as e:
                 logger.error(f"Error processing {file_path}: {e}")
                 raise
-    
+
     async def _read_file_async(self, file_path: Path) -> str:
         """비동기 파일 읽기."""
         import aiofiles
         async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
             return await f.read()
-    
+
     async def _get_metadata_async(self, content: str) -> Dict[str, Any]:
         """비동기 메타데이터 검색."""
         # 비동기 API 호출 시뮬레이션
@@ -205,16 +205,16 @@ def process_files_memory_efficient(file_paths: List[Path]) -> Generator[Processe
             content_chunks = []
             for chunk in process_large_file_stream(file_path):
                 content_chunks.append(chunk)
-            
+
             # 청크들을 조합하여 처리
             full_content = b''.join(content_chunks)
             processed_file = ProcessedFile(
                 path=file_path,
                 content=full_content.decode('utf-8', errors='ignore')
             )
-            
+
             yield processed_file
-            
+
         except Exception as e:
             logger.error(f"Failed to process {file_path}: {e}")
             continue
@@ -223,12 +223,12 @@ def process_files_memory_efficient(file_paths: List[Path]) -> Generator[Processe
 def process_large_dataset(file_paths: List[Path]) -> None:
     """대용량 데이터셋 처리."""
     processed_count = 0
-    
+
     for processed_file in process_files_memory_efficient(file_paths):
         # 각 파일을 개별적으로 처리
         save_processed_file(processed_file)
         processed_count += 1
-        
+
         if processed_count % 100 == 0:
             logger.info(f"Processed {processed_count} files")
 ```
@@ -239,10 +239,10 @@ def process_large_dataset(file_paths: List[Path]) -> None:
 def bulk_insert_optimized(session: Session, items: List[Any], batch_size: int = 1000) -> int:
     """최적화된 벌크 삽입."""
     total_inserted = 0
-    
+
     for i in range(0, len(items), batch_size):
         batch = items[i:i + batch_size]
-        
+
         try:
             # 벌크 삽입
             session.bulk_insert_mappings(
@@ -251,9 +251,9 @@ def bulk_insert_optimized(session: Session, items: List[Any], batch_size: int = 
             )
             session.commit()
             total_inserted += len(batch)
-            
+
             logger.debug(f"Inserted batch {i//batch_size + 1}: {len(batch)} items")
-            
+
         except Exception as e:
             session.rollback()
             logger.error(f"Failed to insert batch {i//batch_size + 1}: {e}")
@@ -266,7 +266,7 @@ def bulk_insert_optimized(session: Session, items: List[Any], batch_size: int = 
                 except Exception as item_error:
                     logger.error(f"Failed to insert item: {item_error}")
                     session.rollback()
-    
+
     return total_inserted
 ```
 
@@ -294,11 +294,11 @@ def calculate_file_hash(file_path: str) -> str:
 # ✅ DO: 커스텀 캐시 구현
 class TTLCache:
     """Time-To-Live 캐시."""
-    
+
     def __init__(self, ttl_seconds: int = 3600):
         self.cache: Dict[str, Tuple[Any, float]] = {}
         self.ttl = ttl_seconds
-    
+
     def get(self, key: str) -> Optional[Any]:
         """캐시에서 값 조회."""
         if key in self.cache:
@@ -308,11 +308,11 @@ class TTLCache:
             else:
                 del self.cache[key]
         return None
-    
+
     def set(self, key: str, value: Any) -> None:
         """캐시에 값 저장."""
         self.cache[key] = (value, time.time())
-    
+
     def clear(self) -> None:
         """캐시 초기화."""
         self.cache.clear()
@@ -323,17 +323,17 @@ metadata_cache = TTLCache(ttl_seconds=1800)  # 30분 TTL
 def get_anime_metadata_cached(tmdb_id: int) -> Optional[AnimeMetadata]:
     """캐싱된 애니메이션 메타데이터 조회."""
     cache_key = f"anime_metadata_{tmdb_id}"
-    
+
     # 캐시에서 조회
     cached_result = metadata_cache.get(cache_key)
     if cached_result is not None:
         return cached_result
-    
+
     # 캐시에 없으면 데이터베이스에서 조회
     metadata = get_anime_metadata_from_db(tmdb_id)
     if metadata:
         metadata_cache.set(cache_key, metadata)
-    
+
     return metadata
 ```
 
@@ -345,15 +345,15 @@ from pathlib import Path
 
 class FileSystemCache:
     """파일 시스템 기반 캐시."""
-    
+
     def __init__(self, cache_dir: Path = Path("cache")):
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(exist_ok=True)
-    
+
     def get(self, key: str) -> Optional[Any]:
         """캐시 파일에서 값 조회."""
         cache_file = self.cache_dir / f"{key}.pkl"
-        
+
         if cache_file.exists():
             try:
                 with open(cache_file, 'rb') as f:
@@ -361,19 +361,19 @@ class FileSystemCache:
             except Exception as e:
                 logger.warning(f"Failed to load cache file {cache_file}: {e}")
                 cache_file.unlink()  # 손상된 캐시 파일 삭제
-        
+
         return None
-    
+
     def set(self, key: str, value: Any) -> None:
         """캐시 파일에 값 저장."""
         cache_file = self.cache_dir / f"{key}.pkl"
-        
+
         try:
             with open(cache_file, 'wb') as f:
                 pickle.dump(value, f)
         except Exception as e:
             logger.error(f"Failed to save cache file {cache_file}: {e}")
-    
+
     def clear(self) -> None:
         """캐시 디렉토리 정리."""
         for cache_file in self.cache_dir.glob("*.pkl"):
@@ -397,18 +397,18 @@ def profile_function(func: Callable) -> Callable:
     def wrapper(*args, **kwargs) -> Any:
         profiler = cProfile.Profile()
         profiler.enable()
-        
+
         try:
             result = func(*args, **kwargs)
             return result
         finally:
             profiler.disable()
-            
+
             # 프로파일 결과 저장
             stats = pstats.Stats(profiler)
             stats.sort_stats('cumulative')
             stats.print_stats(10)  # 상위 10개 함수 출력
-    
+
     return wrapper
 
 def time_function(func: Callable) -> Callable:
@@ -423,7 +423,7 @@ def time_function(func: Callable) -> Callable:
             end_time = time.time()
             execution_time = end_time - start_time
             logger.info(f"{func.__name__} executed in {execution_time:.3f} seconds")
-    
+
     return wrapper
 
 # 사용 예시
@@ -443,11 +443,11 @@ from typing import Dict, Any
 
 class MemoryMonitor:
     """메모리 사용량 모니터."""
-    
+
     def __init__(self):
         self.process = psutil.Process(os.getpid())
         self.initial_memory = self.get_memory_usage()
-    
+
     def get_memory_usage(self) -> Dict[str, float]:
         """현재 메모리 사용량 조회."""
         memory_info = self.process.memory_info()
@@ -456,12 +456,12 @@ class MemoryMonitor:
             "vms": memory_info.vms / 1024 / 1024,  # MB
             "percent": self.process.memory_percent()
         }
-    
+
     def log_memory_usage(self, operation_name: str) -> None:
         """메모리 사용량 로깅."""
         current_memory = self.get_memory_usage()
         memory_increase = current_memory["rss"] - self.initial_memory["rss"]
-        
+
         logger.info(
             f"Memory usage for {operation_name}: "
             f"RSS={current_memory['rss']:.1f}MB, "
@@ -474,15 +474,15 @@ def process_with_memory_monitoring(file_paths: List[Path]) -> List[ProcessedFile
     """메모리 모니터링과 함께 파일 처리."""
     monitor = MemoryMonitor()
     monitor.log_memory_usage("start")
-    
+
     results = []
     for i, file_path in enumerate(file_paths):
         result = process_file(file_path)
         results.append(result)
-        
+
         if i % 100 == 0:
             monitor.log_memory_usage(f"processed_{i}_files")
-    
+
     monitor.log_memory_usage("end")
     return results
 ```

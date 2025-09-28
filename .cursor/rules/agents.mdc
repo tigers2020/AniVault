@@ -32,34 +32,34 @@ class AgentState(Enum):
 
 class BaseAgent(QObject, ABC):
     """모든 에이전트의 기본 클래스."""
-    
+
     # 상태 변경 시그널
     state_changed = pyqtSignal(AgentState)
     progress_updated = pyqtSignal(int)  # 0-100
     result_ready = pyqtSignal(dict)
-    
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__()
         self.config = config
         self._state = AgentState.IDLE
         self._result: Optional[Dict[str, Any]] = None
         self._error: Optional[Exception] = None
-        
+
     @property
     def state(self) -> AgentState:
         return self._state
-        
+
     @state.setter
     def state(self, new_state: AgentState) -> None:
         if self._state != new_state:
             self._state = new_state
             self.state_changed.emit(new_state)
-            
+
     @abstractmethod
     async def execute(self) -> Dict[str, Any]:
         """에이전트의 주요 작업을 실행합니다."""
         pass
-        
+
     async def run(self) -> Dict[str, Any]:
         """에이전트 실행 래퍼 (오류 처리 포함)."""
         try:
@@ -79,43 +79,43 @@ class BaseAgent(QObject, ABC):
 # ✅ DO: 에이전트 생명주기 관리
 class AgentManager(QObject):
     """여러 에이전트를 관리하는 매니저 클래스."""
-    
+
     def __init__(self):
         super().__init__()
         self._agents: Dict[str, BaseAgent] = {}
         self._running_tasks: Dict[str, asyncio.Task] = {}
-        
+
     def register_agent(self, name: str, agent: BaseAgent) -> None:
         """에이전트를 등록합니다."""
         self._agents[name] = agent
         agent.state_changed.connect(
             lambda state: self._on_agent_state_changed(name, state)
         )
-        
+
     async def run_agent(self, name: str) -> Dict[str, Any]:
         """에이전트를 실행합니다."""
         if name not in self._agents:
             raise ValueError(f"Agent '{name}' not registered")
-            
+
         if name in self._running_tasks:
             raise RuntimeError(f"Agent '{name}' is already running")
-            
+
         agent = self._agents[name]
         task = asyncio.create_task(agent.run())
         self._running_tasks[name] = task
-        
+
         try:
             return await task
         finally:
             self._running_tasks.pop(name, None)
-            
+
     async def run_agents_parallel(self, agent_names: List[str]) -> Dict[str, Any]:
         """여러 에이전트를 병렬로 실행합니다."""
         tasks = []
         for name in agent_names:
             if name in self._agents:
                 tasks.append(self.run_agent(name))
-                
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
         return dict(zip(agent_names, results))
 ```
@@ -127,33 +127,33 @@ class AgentManager(QObject):
 # ✅ DO: TMDB API 전용 에이전트
 class TMDBSearchAgent(BaseAgent):
     """TMDB API를 통한 애니메이션 검색 에이전트."""
-    
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.tmdb_client = create_tmdb_client(TMDBConfig(api_key=config['api_key']))
         self.search_strategies = config.get('strategies', ['original', 'normalized'])
-        
+
     async def execute(self) -> Dict[str, Any]:
         """TMDB 검색을 실행합니다."""
         query = self.config['query']
         results = []
-        
+
         for strategy in self.search_strategies:
             try:
                 self.progress_updated.emit(20)
                 search_results = await self.tmdb_client.search_comprehensive(
-                    query, 
+                    query,
                     strategy=SearchStrategyType(strategy)
                 )
                 results.extend(search_results)
-                
+
                 if results:  # 결과가 있으면 조기 종료
                     break
-                    
+
             except Exception as e:
                 logger.warning(f"Search strategy {strategy} failed: {e}")
                 continue
-                
+
         self.progress_updated.emit(100)
         return {
             'query': query,
@@ -167,34 +167,34 @@ class TMDBSearchAgent(BaseAgent):
 # ✅ DO: 파일 처리 전용 에이전트
 class FileProcessingAgent(BaseAgent):
     """애니메이션 파일 처리 에이전트."""
-    
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.file_paths = config['file_paths']
         self.batch_size = config.get('batch_size', 10)
-        
+
     async def execute(self) -> Dict[str, Any]:
         """파일 처리를 실행합니다."""
         processed_files = []
         total_files = len(self.file_paths)
-        
+
         for i in range(0, total_files, self.batch_size):
             batch = self.file_paths[i:i + self.batch_size]
-            
+
             # 배치 처리
             batch_results = await self._process_batch(batch)
             processed_files.extend(batch_results)
-            
+
             # 진행률 업데이트
             progress = int((i + len(batch)) / total_files * 100)
             self.progress_updated.emit(progress)
-            
+
         return {
             'processed_files': processed_files,
             'total_processed': len(processed_files),
             'success_rate': len([f for f in processed_files if f['success']]) / len(processed_files)
         }
-        
+
     async def _process_batch(self, batch: List[str]) -> List[Dict[str, Any]]:
         """파일 배치를 처리합니다."""
         tasks = [self._process_single_file(path) for path in batch]
@@ -208,36 +208,36 @@ class FileProcessingAgent(BaseAgent):
 # ✅ DO: 복합 작업 오케스트레이션
 class WorkflowOrchestrator(QObject):
     """여러 에이전트를 조합한 워크플로우를 관리합니다."""
-    
+
     def __init__(self):
         super().__init__()
         self.agent_manager = AgentManager()
         self.workflows: Dict[str, List[str]] = {}
-        
+
     def define_workflow(self, name: str, agent_sequence: List[str]) -> None:
         """워크플로우를 정의합니다."""
         self.workflows[name] = agent_sequence
-        
+
     async def execute_workflow(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """워크플로우를 실행합니다."""
         if name not in self.workflows:
             raise ValueError(f"Workflow '{name}' not defined")
-            
+
         workflow_steps = self.workflows[name]
         results = {}
-        
+
         for step in workflow_steps:
             # 각 단계별 설정 병합
             step_config = {**config, **config.get(f'{step}_config', {})}
             self.agent_manager._agents[step].config = step_config
-            
+
             # 에이전트 실행
             step_result = await self.agent_manager.run_agent(step)
             results[step] = step_result
-            
+
             # 다음 단계로 결과 전달
             config[f'{step}_result'] = step_result
-            
+
         return results
 ```
 
@@ -248,24 +248,24 @@ class WorkflowOrchestrator(QObject):
 # ✅ DO: 에이전트 성능 모니터링
 class AgentMetrics:
     """에이전트 성능 메트릭을 수집합니다."""
-    
+
     def __init__(self):
         self.execution_times: Dict[str, List[float]] = defaultdict(list)
         self.error_counts: Dict[str, int] = defaultdict(int)
         self.success_rates: Dict[str, float] = {}
-        
+
     def record_execution(self, agent_name: str, execution_time: float, success: bool) -> None:
         """에이전트 실행 결과를 기록합니다."""
         self.execution_times[agent_name].append(execution_time)
-        
+
         if not success:
             self.error_counts[agent_name] += 1
-            
+
         # 성공률 계산
         total_executions = len(self.execution_times[agent_name])
         successful_executions = total_executions - self.error_counts[agent_name]
         self.success_rates[agent_name] = successful_executions / total_executions
-        
+
     def get_metrics(self) -> Dict[str, Any]:
         """수집된 메트릭을 반환합니다."""
         return {

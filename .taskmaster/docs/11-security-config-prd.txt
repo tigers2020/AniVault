@@ -88,44 +88,44 @@ class APIKeyManager:
         self.pin = pin
         self.key = self._derive_key(pin)
         self.fernet = Fernet(self.key)
-    
+
     def _derive_key(self, pin: str) -> bytes:
         """Derive encryption key from PIN."""
         import hashlib
         salt = b'anivault_salt'  # Should be stored securely
         key = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt, 100000)
         return base64.urlsafe_b64encode(key)
-    
+
     def encrypt_api_key(self, api_key: str) -> str:
         """Encrypt API key for storage."""
         encrypted = self.fernet.encrypt(api_key.encode())
         return base64.urlsafe_b64encode(encrypted).decode()
-    
+
     def decrypt_api_key(self, encrypted_key: str) -> str:
         """Decrypt API key for use."""
         encrypted_bytes = base64.urlsafe_b64decode(encrypted_key.encode())
         decrypted = self.fernet.decrypt(encrypted_bytes)
         return decrypted.decode()
-    
+
     def store_api_key(self, api_key: str, config_path: Path):
         """Store encrypted API key in configuration."""
         encrypted_key = self.encrypt_api_key(api_key)
-        
+
         config = {
             'tmdb': {
                 'api_key_encrypted': encrypted_key,
                 'encryption_version': '1.0'
             }
         }
-        
+
         with open(config_path, 'w') as f:
             toml.dump(config, f)
-    
+
     def load_api_key(self, config_path: Path) -> str:
         """Load and decrypt API key from configuration."""
         with open(config_path, 'r') as f:
             config = toml.load(f)
-        
+
         encrypted_key = config['tmdb']['api_key_encrypted']
         return self.decrypt_api_key(encrypted_key)
 ```
@@ -139,22 +139,22 @@ class SecureConfigManager:
     def __init__(self):
         self.config_dir = self._get_config_dir()
         self.config_file = self.config_dir / 'anivault.toml'
-    
+
     def _get_config_dir(self) -> Path:
         """Get platform-specific configuration directory."""
         system = platform.system()
-        
+
         if system == 'Windows':
             return Path.home() / 'AppData' / 'Local' / 'AniVault'
         elif system == 'Darwin':  # macOS
             return Path.home() / 'Library' / 'Application Support' / 'AniVault'
         else:  # Linux
             return Path.home() / '.config' / 'anivault'
-    
+
     def ensure_config_dir(self):
         """Ensure configuration directory exists with proper permissions."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Set secure permissions (owner only)
         if platform.system() != 'Windows':
             os.chmod(self.config_dir, 0o700)
@@ -231,7 +231,7 @@ def validate_config(config_path: Path) -> AniVaultConfig:
     """Validate configuration file against schema."""
     with open(config_path, 'r') as f:
         config_data = toml.load(f)
-    
+
     try:
         return AniVaultConfig(**config_data)
     except ValidationError as e:
@@ -249,7 +249,7 @@ from pathlib import Path
 class SecurityScanner:
     def __init__(self, project_root: Path):
         self.project_root = project_root
-    
+
     def run_gitleaks_scan(self) -> dict:
         """Run gitleaks secret detection."""
         try:
@@ -259,12 +259,12 @@ class SecurityScanner:
                 '--format', 'json',
                 '--verbose'
             ], capture_output=True, text=True, check=True)
-            
+
             return json.loads(result.stdout)
         except subprocess.CalledProcessError as e:
             logger.error(f"gitleaks scan failed: {e}")
             return {'secrets': []}
-    
+
     def run_trufflehog_scan(self) -> dict:
         """Run trufflehog advanced secret scanning."""
         try:
@@ -273,7 +273,7 @@ class SecurityScanner:
                 '--directory', str(self.project_root),
                 '--format', 'json'
             ], capture_output=True, text=True, check=True)
-            
+
             return json.loads(result.stdout)
         except subprocess.CalledProcessError as e:
             logger.error(f"trufflehog scan failed: {e}")
@@ -290,7 +290,7 @@ def run_pip_audit() -> dict:
             '--format', 'json',
             '--output', 'vulnerabilities.json'
         ], capture_output=True, text=True, check=True)
-        
+
         with open('vulnerabilities.json', 'r') as f:
             return json.load(f)
     except subprocess.CalledProcessError as e:
@@ -308,7 +308,7 @@ def generate_sbom(project_root: Path) -> dict:
             '--format', 'json',
             '--output', 'sbom.json'
         ], capture_output=True, text=True, check=True)
-        
+
         with open('sbom.json', 'r') as f:
             return json.load(f)
     except subprocess.CalledProcessError as e:
@@ -331,27 +331,27 @@ class SensitiveDataMasker:
             (r'password["\s]*[:=]["\s]*([^"\s]+)', r'password="***MASKED***"'),
             (r'token["\s]*[:=]["\s]*([^"\s]+)', r'token="***MASKED***"'),
         ]
-    
+
     def mask_sensitive_data(self, text: str) -> str:
         """Mask sensitive data in log messages."""
         masked_text = text
-        
+
         for pattern, replacement in self.patterns:
             masked_text = re.sub(pattern, replacement, masked_text, flags=re.IGNORECASE)
-        
+
         return masked_text
-    
+
     def mask_config_data(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Mask sensitive data in configuration objects."""
         masked_config = config.copy()
-        
+
         # Mask API keys
         if 'tmdb' in masked_config:
             if 'api_key' in masked_config['tmdb']:
                 masked_config['tmdb']['api_key'] = '***MASKED***'
             if 'api_key_encrypted' in masked_config['tmdb']:
                 masked_config['tmdb']['api_key_encrypted'] = '***MASKED***'
-        
+
         return masked_config
 ```
 
@@ -363,11 +363,11 @@ def sanitize_path(path: str) -> str:
     home_dir = str(Path.home())
     if path.startswith(home_dir):
         return path.replace(home_dir, '~', 1)
-    
+
     # Replace drive letters with *
     if len(path) > 2 and path[1] == ':':
         return '*' + path[1:]
-    
+
     return path
 ```
 

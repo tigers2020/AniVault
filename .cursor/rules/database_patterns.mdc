@@ -27,27 +27,27 @@ Base = declarative_base()
 
 class AnimeMetadata(Base):
     """애니메이션 메타데이터 모델."""
-    
+
     __tablename__ = "anime_metadata"
-    
+
     # Primary key
     tmdb_id = Column(Integer, primary_key=True, nullable=False)
-    
+
     # Basic information
     title = Column(String(255), nullable=False, index=True)
     original_title = Column(String(255), nullable=True, index=True)
     overview = Column(Text, nullable=True)
-    
+
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Versioning for conflict resolution
     version = Column(Integer, nullable=False, default=1, index=True)
-    
+
     # Relationships
     parsed_files = relationship("ParsedFile", back_populates="metadata")
-    
+
     # Indexes
     __table_args__ = (
         Index("idx_anime_metadata_title", "title"),
@@ -60,16 +60,16 @@ class AnimeMetadata(Base):
 # ✅ DO: 명확한 관계 설정
 class ParsedFile(Base):
     """파싱된 파일 정보 모델."""
-    
+
     __tablename__ = "parsed_files"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     file_path = Column(String(500), nullable=False, unique=True, index=True)
     metadata_id = Column(Integer, ForeignKey("anime_metadata.tmdb_id"), nullable=True)
-    
+
     # Relationships
     metadata = relationship("AnimeMetadata", back_populates="parsed_files")
-    
+
     # Indexes
     __table_args__ = (
         Index("idx_parsed_files_path", "file_path"),
@@ -87,11 +87,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 class DatabaseManager:
     """데이터베이스 관리자."""
-    
+
     def __init__(self, database_url: str):
         self.engine = create_engine(database_url)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-    
+
     @contextmanager
     def get_session(self) -> Generator[Session, None, None]:
         """데이터베이스 세션 컨텍스트 매니저."""
@@ -104,7 +104,7 @@ class DatabaseManager:
             raise
         finally:
             session.close()
-    
+
     def get_session_sync(self) -> Session:
         """동기 세션 반환."""
         return self.SessionLocal()
@@ -115,17 +115,17 @@ class DatabaseManager:
 # ✅ DO: 트랜잭션 매니저 사용
 class TransactionManager:
     """트랜잭션 관리자."""
-    
+
     def __init__(self, timeout_seconds: int = 300):
         self.timeout_seconds = timeout_seconds
         self._active_transactions: Dict[str, Session] = {}
-    
+
     @contextmanager
     def transaction(self, operation_name: str) -> Generator[Session, None, None]:
         """트랜잭션 컨텍스트 매니저."""
         session = self.SessionLocal()
         transaction_id = f"{operation_name}_{datetime.now().timestamp()}"
-        
+
         try:
             self._active_transactions[transaction_id] = session
             yield session
@@ -147,10 +147,10 @@ class TransactionManager:
 # ✅ DO: 표준 CRUD 작업
 class AnimeMetadataRepository:
     """애니메이션 메타데이터 저장소."""
-    
+
     def __init__(self, session: Session):
         self.session = session
-    
+
     def create(self, metadata: AnimeMetadata) -> AnimeMetadata:
         """메타데이터 생성."""
         try:
@@ -160,7 +160,7 @@ class AnimeMetadataRepository:
         except Exception as e:
             log_database_error("create anime metadata", e, "anime_metadata")
             raise
-    
+
     def get_by_id(self, tmdb_id: int) -> AnimeMetadata | None:
         """ID로 메타데이터 조회."""
         try:
@@ -170,7 +170,7 @@ class AnimeMetadataRepository:
         except Exception as e:
             log_database_error("get anime metadata by id", e, "anime_metadata")
             return None
-    
+
     def update(self, metadata: AnimeMetadata) -> AnimeMetadata:
         """메타데이터 업데이트."""
         try:
@@ -181,7 +181,7 @@ class AnimeMetadataRepository:
         except Exception as e:
             log_database_error("update anime metadata", e, "anime_metadata")
             raise
-    
+
     def delete(self, tmdb_id: int) -> bool:
         """메타데이터 삭제."""
         try:
@@ -199,7 +199,7 @@ class AnimeMetadataRepository:
 ```python
 # ✅ DO: 효율적인 벌크 작업
 def bulk_insert_anime_metadata(
-    session: Session, 
+    session: Session,
     metadata_list: list[AnimeMetadata]
 ) -> int:
     """벌크 메타데이터 삽입."""
@@ -224,7 +224,7 @@ def bulk_insert_anime_metadata(
         raise
 
 def bulk_upsert_anime_metadata(
-    session: Session, 
+    session: Session,
     metadata_list: list[AnimeMetadata]
 ) -> int:
     """벌크 업서트 (삽입 또는 업데이트)."""
@@ -235,19 +235,19 @@ def bulk_upsert_anime_metadata(
             AnimeMetadata.tmdb_id.in_(tmdb_ids)
         ).all()
         existing_ids = {m.tmdb_id for m in existing}
-        
+
         # 새 데이터와 업데이트 데이터 분리
         new_items = [m for m in metadata_list if m.tmdb_id not in existing_ids]
         update_items = [m for m in metadata_list if m.tmdb_id in existing_ids]
-        
+
         # 새 데이터 삽입
         if new_items:
             bulk_insert_anime_metadata(session, new_items)
-        
+
         # 기존 데이터 업데이트
         for item in update_items:
             session.merge(item)
-        
+
         session.commit()
         return len(metadata_list)
     except Exception as e:
@@ -268,8 +268,8 @@ def search_anime_by_title(session: Session, title: str) -> list[AnimeMetadata]:
     ).all()
 
 def get_anime_by_date_range(
-    session: Session, 
-    start_date: datetime, 
+    session: Session,
+    start_date: datetime,
     end_date: datetime
 ) -> list[AnimeMetadata]:
     """날짜 범위로 애니메이션 조회 (인덱스 활용)."""
@@ -317,7 +317,7 @@ def get_anime_with_retry(session: Session, tmdb_id: int) -> AnimeMetadata | None
         return session.query(AnimeMetadata).filter(
             AnimeMetadata.tmdb_id == tmdb_id
         ).first()
-    
+
     return robust_database_operation(_get_anime)
 ```
 
@@ -350,17 +350,17 @@ def validate_schema(session: Session) -> bool:
         required_tables = ["anime_metadata", "parsed_files"]
         inspector = inspect(session.bind)
         existing_tables = inspector.get_table_names()
-        
+
         missing_tables = set(required_tables) - set(existing_tables)
         if missing_tables:
             logger.error(f"Missing tables: {missing_tables}")
             return False
-        
+
         # 테이블 구조 검증
         for table_name in required_tables:
             if not validate_table_structure(session, table_name):
                 return False
-        
+
         return True
     except Exception as e:
         log_schema_error("schema validation", e)
@@ -436,14 +436,14 @@ def test_create_anime_metadata(db_session):
         title="Test Anime",
         original_title="テストアニメ"
     )
-    
+
     db_session.add(metadata)
     db_session.commit()
-    
+
     result = db_session.query(AnimeMetadata).filter(
         AnimeMetadata.tmdb_id == 12345
     ).first()
-    
+
     assert result is not None
     assert result.title == "Test Anime"
 ```

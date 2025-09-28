@@ -68,7 +68,7 @@ if retry_after:
     else:
         dt = parsedate_to_datetime(retry_after)
         sleep_sec = max(0.0, (dt - datetime.utcnow()).total_seconds())
-    
+
     # 시계 스큐 보정
     sleep_sec = max(1.0, sleep_sec)
 ```

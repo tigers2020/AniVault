@@ -45,7 +45,7 @@ class TMDBConfig:
 
 class TMDBClient:
     """TMDB API 클라이언트 - 레이트리밋 준수."""
-    
+
     def __init__(self, config: TMDBConfig):
         self.config = config
         self.session = requests.Session()
@@ -53,41 +53,41 @@ class TMDBClient:
             'Authorization': f'Bearer {config.api_key}',
             'Content-Type': 'application/json;charset=utf-8'
         })
-        
+
         # 레이트리밋 상태 관리
         self.state = RateLimitState.NORMAL
         self.last_request_time = 0.0
         self.request_count = 0
         self.throttle_until = 0.0
-        
+
         # JSON 캐시 관리
         self.cache_dir = Path("cache/tmdb")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def _enforce_rate_limit(self) -> None:
         """레이트리밋 강제 적용."""
         current_time = time.time()
-        
+
         # Throttle 상태 확인
         if self.state == RateLimitState.THROTTLE and current_time < self.throttle_until:
             sleep_time = self.throttle_until - current_time
             logger.warning(f"Rate limit throttled, sleeping for {sleep_time:.2f}s")
             time.sleep(sleep_time)
-        
+
         # 요청 간 최소 간격 보장
         time_since_last = current_time - self.last_request_time
         min_interval = 1.0 / self.config.max_requests_per_second
-        
+
         if time_since_last < min_interval:
             sleep_time = min_interval - time_since_last
             time.sleep(sleep_time)
-        
+
         self.last_request_time = time.time()
-    
+
     def _handle_429_response(self, response: requests.Response) -> None:
         """429 응답 처리."""
         self.state = RateLimitState.THROTTLE
-        
+
         # Retry-After 헤더 확인
         retry_after = response.headers.get('Retry-After')
         if retry_after:
@@ -98,12 +98,12 @@ class TMDBClient:
             backoff_time = min(60, 2 ** min(self.request_count, 6))
             self.throttle_until = time.time() + backoff_time
             logger.warning(f"Rate limited, backoff for {backoff_time}s")
-    
+
     def _get_cache_key(self, endpoint: str, params: Dict[str, Any]) -> str:
         """캐시 키 생성."""
         cache_data = f"{endpoint}:{sorted(params.items())}"
         return hashlib.md5(cache_data.encode('utf-8')).hexdigest()
-    
+
     def _get_from_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
         """캐시에서 데이터 조회."""
         if self.state == RateLimitState.CACHE_ONLY:
@@ -112,7 +112,7 @@ class TMDBClient:
                 try:
                     with open(cache_file, 'r', encoding='utf-8') as f:
                         data = json.load(f)
-                    
+
                     # TTL 확인
                     created_at = data.get('created_at')
                     if created_at:
@@ -121,9 +121,9 @@ class TMDBClient:
                             return data.get('data')
                 except Exception as e:
                     logger.warning(f"Cache read error: {e}")
-        
+
         return None
-    
+
     def _save_to_cache(self, cache_key: str, data: Dict[str, Any]) -> None:
         """캐시에 데이터 저장."""
         cache_file = self.cache_dir / f"{cache_key}.json"
@@ -135,13 +135,13 @@ class TMDBClient:
             'data': data,
             'source': 'tmdb:api'
         }
-        
+
         try:
             with open(cache_file, 'w', encoding='utf-8') as f:
                 json.dump(cache_data, f, ensure_ascii=False, separators=(',', ':'))
         except Exception as e:
             logger.warning(f"Cache write error: {e}")
-    
+
     def search_tv(self, query: str, language: str = "ko-KR") -> List[Dict[str, Any]]:
         """TV 시리즈 검색."""
         endpoint = "/search/tv"
@@ -150,41 +150,41 @@ class TMDBClient:
             'language': language,
             'include_adult': False
         }
-        
+
         cache_key = self._get_cache_key(endpoint, params)
-        
+
         # 캐시에서 조회
         cached_result = self._get_from_cache(cache_key)
         if cached_result:
             logger.debug(f"Cache hit for query: {query}")
             return cached_result.get('results', [])
-        
+
         # API 호출
         try:
             self._enforce_rate_limit()
-            
+
             response = self.session.get(
                 f"{self.config.base_url}{endpoint}",
                 params=params,
                 timeout=10
             )
-            
+
             self.request_count += 1
-            
+
             if response.status_code == 200:
                 data = response.json()
                 self._save_to_cache(cache_key, data)
                 self.state = RateLimitState.NORMAL
                 return data.get('results', [])
-            
+
             elif response.status_code == 429:
                 self._handle_429_response(response)
                 raise TMDBRateLimitError("Rate limit exceeded")
-            
+
             else:
                 logger.error(f"TMDB API error: {response.status_code}")
                 raise TMDBAPIError(f"API error: {response.status_code}")
-                
+
         except requests.exceptions.RequestException as e:
             logger.error(f"TMDB request error: {e}")
             raise TMDBConnectionError(f"Connection error: {e}")
@@ -197,12 +197,12 @@ class TMDBClient:
 # ✅ DO: 레이트리밋 상태머신 구현
 class RateLimitStateMachine:
     """TMDB API 레이트리밋 상태머신."""
-    
+
     def __init__(self, client: TMDBClient):
         self.client = client
         self.consecutive_failures = 0
         self.max_consecutive_failures = 5
-    
+
     def handle_response(self, response: requests.Response) -> None:
         """응답에 따른 상태 전이."""
         if response.status_code == 200:
@@ -211,28 +211,28 @@ class RateLimitStateMachine:
             self._handle_rate_limit()
         else:
             self._handle_error()
-    
+
     def _handle_success(self) -> None:
         """성공 응답 처리."""
         self.consecutive_failures = 0
         if self.client.state == RateLimitState.THROTTLE:
             self.client.state = RateLimitState.NORMAL
             logger.info("Rate limit recovered, returning to normal state")
-    
+
     def _handle_rate_limit(self) -> None:
         """레이트리밋 응답 처리."""
         self.consecutive_failures += 1
         self.client.state = RateLimitState.THROTTLE
-        
+
         # 연속 실패 시 CacheOnly 모드로 전이
         if self.consecutive_failures >= self.max_consecutive_failures:
             self.client.state = RateLimitState.CACHE_ONLY
             logger.warning("Too many rate limit failures, switching to cache-only mode")
-    
+
     def _handle_error(self) -> None:
         """에러 응답 처리."""
         self.consecutive_failures += 1
-        
+
         # 심각한 에러 시 CacheOnly 모드
         if self.consecutive_failures >= self.max_consecutive_failures:
             self.client.state = RateLimitState.CACHE_ONLY
@@ -256,53 +256,53 @@ class TMDBCacheEntry:
 
 class TMDBCacheManager:
     """TMDB 캐시 관리자."""
-    
+
     def __init__(self, cache_dir: Path = Path("cache/tmdb")):
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def get(self, query: str, language: str = "ko-KR") -> Optional[Dict[str, Any]]:
         """캐시에서 검색 결과 조회."""
         cache_key = self._generate_cache_key(query, language)
         cache_file = self.cache_dir / f"{cache_key}.json"
-        
+
         if not cache_file.exists():
             return None
-        
+
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 entry_data = json.load(f)
-            
+
             entry = TMDBCacheEntry(**entry_data)
-            
+
             # TTL 확인
             if time.time() - entry.created_at > entry.ttl_sec:
                 cache_file.unlink()  # 만료된 캐시 삭제
                 return None
-            
+
             return entry.data
-            
+
         except Exception as e:
             logger.warning(f"Cache read error: {e}")
             return None
-    
+
     def set(self, query: str, data: Dict[str, Any], language: str = "ko-KR") -> None:
         """캐시에 검색 결과 저장."""
         cache_key = self._generate_cache_key(query, language)
         cache_file = self.cache_dir / f"{cache_key}.json"
-        
+
         entry = TMDBCacheEntry(
             key={"q_norm": query.lower().strip(), "lang": language},
             data=data,
             source="tmdb:search/tv"
         )
-        
+
         try:
             with open(cache_file, 'w', encoding='utf-8') as f:
                 json.dump(asdict(entry), f, ensure_ascii=False, separators=(',', ':'))
         except Exception as e:
             logger.warning(f"Cache write error: {e}")
-    
+
     def _generate_cache_key(self, query: str, language: str) -> str:
         """캐시 키 생성."""
         normalized_query = query.lower().strip()
@@ -377,7 +377,7 @@ def good_with_cache(cache_manager: TMDBCacheManager, query: str) -> Optional[Dic
     cached = cache_manager.get(query)
     if cached:
         return cached
-    
+
     # API 호출 후 캐시 저장
     result = api_call(query)
     cache_manager.set(query, result)
