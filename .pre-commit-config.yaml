@@ -1,53 +1,42 @@
-repos:
-  # Black - Code formatting
-  - repo: https://github.com/psf/black
-    rev: 23.12.1
-    hooks:
-      - id: black
-        language_version: python3
-        args: [--line-length=88]
+# Pre-commit configuration for AniVault CLI
+# See https://pre-commit.com for more information
 
-  # Ruff - Fast Python linter
+repos:
+  # Ruff for linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.8
+    rev: v0.13.0
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
 
-  # MyPy - Type checking
+  # MyPy for type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.18.1
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
-        args: [--ignore-missing-imports]
-
-  # Pyright - Type checking
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.356
-    hooks:
-      - id: pyright
-        args: [--pythonversion=3.9]
+        additional_dependencies: [types-requests, types-toml]
+        args: [--strict, --ignore-missing-imports]
 
   # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-      - id: check-added-large-files
-        args: [--maxkb=1000]
-      - id: check-merge-conflict
       - id: check-json
       - id: check-toml
-      - id: debug-statements
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-case-conflict
       - id: check-docstring-first
+      - id: debug-statements
       - id: requirements-txt-fixer
 
-  # Security
+  # Security checks
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.8.0
     hooks:
       - id: bandit
         args: [-r, src/, -f, json, -o, bandit-report.json]
@@ -58,15 +47,16 @@ repos:
     rev: 5.13.2
     hooks:
       - id: isort
-        args: [--profile=black]
+        args: [--profile, black, --line-length, "88"]
 
-  # Docstring formatting
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.3.0
+  # Commit message linting
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.30.0
     hooks:
-      - id: pydocstyle
-        args: [--convention=google]
+      - id: commitizen
+        stages: [commit-msg]
 
+# Configuration
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit.com hooks
@@ -76,5 +66,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [mypy, pyright, bandit]  # Skip slow checks in CI
+  skip: []
   submodules: false
