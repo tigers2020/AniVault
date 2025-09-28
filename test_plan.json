@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-09-28T17:51:35.294259Z",
+  "source": "test_data_small",
+  "destination": "test_output",
+  "naming_schema": "{title} ({year})/Season {season:02d}",
+  "conflict_resolution": "rename",
+  "preserve_structure": false,
+  "operations": [],
+  "errors": 0,
+  "schema_version": "1.0",
+  "generated_by": "AniVault CLI",
+  "total_operations": 0
+}

@@ -1,0 +1,37 @@
+# Task ID: 6
+# Title: Add Progress Indicators and Real-time Statistics
+# Status: pending
+# Dependencies: 1, 5
+# Priority: medium
+# Description: Provide user feedback during the scan/parse process by implementing progress indicators and displaying real-time statistics like scan speed, files processed, and cache performance.
+# Details:
+Use a library like `rich` or `tqdm` to display a progress bar for the number of files being processed. Create a status panel or logging output to display live stats: paths/min, cache hit/miss ratio, current memory usage (using `psutil`), and parsing failure rate. These stats should be updated periodically.
+
+# Test Strategy:
+Manually run the CLI on a medium-sized directory (1k+ files). Visually inspect and verify that the progress bar advances correctly and the displayed statistics are plausible and update in real-time.
+
+# Subtasks:
+## 1. Integrate Basic Progress Bar for File Count [pending]
+### Dependencies: None
+### Description: Add a basic progress bar to show the number of files processed during scanning
+### Details:
+Implement a simple progress bar using the rich library to display the current progress of file scanning. The progress bar should show the number of files processed out of the total number of files.
+
+## 2. Create Thread-Safe Statistics Aggregation Class [pending]
+### Dependencies: None
+### Description: Create a thread-safe class for aggregating real-time statistics from multiple concurrent sources
+### Details:
+Implement a thread-safe statistics class that can collect and aggregate real-time metrics like scan speed, cache hits, memory usage, and other performance indicators from multiple concurrent threads.
+
+## 3. Instrument Pipeline to Update Statistics [pending]
+### Dependencies: None
+### Description: Add instrumentation to the processing pipeline to update statistics in real-time
+### Details:
+Add instrumentation points throughout the processing pipeline to collect and update statistics. This includes tracking file processing speed, cache performance, memory usage, and other relevant metrics.
+
+## 4. Design and Implement Rich Layout for Progress Display [pending]
+### Dependencies: None
+### Description: Create a rich layout to display progress bar and live statistics panel
+### Details:
+Design and implement a rich layout that displays both the progress bar and live statistics panel in an organized and visually appealing way. Use the rich library's layout capabilities to create a professional-looking interface.
+

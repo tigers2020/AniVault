@@ -1,0 +1,2 @@
+{"operation_id": "plan_20250928_175712", "timestamp": "2025-09-28T17:57:12.086159Z", "operation": "plan_execution_start", "plan_metadata": {"source": "test_data_small", "destination": "test_output", "naming_schema": "{title} ({year})/Season {season:02d}", "conflict_resolution": "rename", "total_operations": 0}, "status": "started"}
+{"operation_id": "plan_20250928_175712_complete", "timestamp": "2025-09-28T17:57:12.086982Z", "operation": "plan_execution_complete", "results": {"total_files": 0, "files_moved": 0, "files_skipped": 0, "errors": 0}, "status": "completed"}

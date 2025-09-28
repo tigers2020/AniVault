@@ -27,6 +27,7 @@ class Config:
         self.log_level = config_dict.get("log_level", "INFO")
         self.log_max_bytes = config_dict.get("log_max_bytes", 10485760)  # 10MB
         self.log_backup_count = config_dict.get("log_backup_count", 5)
+        self.media_extensions = config_dict.get("media_extensions", [".mkv", ".mp4", ".avi"])
 
     def get_log_file_path(self) -> Path:
         """Get the absolute path to the log file.
@@ -56,12 +57,26 @@ class Config:
         return Path.cwd()
 
 
-def load_config() -> Config:
-    """Load configuration from pyproject.toml.
+def load_config(config_path: Path | None = None) -> Config:
+    """Load configuration from pyproject.toml or custom config file.
+
+    Args:
+        config_path: Optional path to custom configuration file.
 
     Returns:
         Config object with loaded settings.
     """
+    if config_path and config_path.exists():
+        # Load from custom config file
+        try:
+            with config_path.open("rb") as f:
+                data = tomllib.load(f)
+            return Config(data)
+        except Exception:
+            # Fall back to default if custom config fails
+            pass
+    
+    # Load from pyproject.toml
     project_root = _find_project_root()
     pyproject_path = project_root / "pyproject.toml"
 

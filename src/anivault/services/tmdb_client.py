@@ -193,9 +193,11 @@ class TMDBClient:
 
         # Check if we should open circuit breaker
         min_requests_for_circuit_breaker = 10
-        if (self.total_requests > min_requests_for_circuit_breaker and
-            self.failure_count / self.total_requests >
-            self.config.rate_limit.circuit_breaker_threshold):
+        if (
+            self.total_requests > min_requests_for_circuit_breaker
+            and self.failure_count / self.total_requests
+            > self.config.rate_limit.circuit_breaker_threshold
+        ):
             if self.circuit_breaker_start is None:
                 failure_rate = self.failure_count / self.total_requests
                 logger.warning(

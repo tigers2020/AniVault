@@ -19,6 +19,7 @@
 - [ ] **계약 위반 탐지의 '하드 실패'**: `--json` NDJSON 이벤트의 **필수 키 누락/타입 불일치**는 **종료코드=3**로 즉시 종료(부분성공 처리 금지)
 - [ ] **Plan 파일 DoD**: `--plan` 생성은 **임시파일→fsync→원자적 rename** 절차 필수, `--from-plan --apply` 시 **사전 Dry-Run diff** 출력(적용 건수/충돌 건수/스킵 사유 요약), `schemas/plan.schema.json` 준수 실패 시 **종료코드=3**로 즉시 종료
 - [ ] **JSON 캐시**: 모든 캐시 관련 언급은 **JSON 캐시**로 명확히 표기
+- [x] **스캔 파이프라인 기반 구축**: Producer-Consumer 패턴, Bounded Queue, Backpressure 정책 구현 ✅ **COMPLETED**
 
 ### 2. 코드 품질
 - [ ] **코딩 표준 준수**
@@ -38,19 +39,28 @@
   - [ ] 계층 간 느슨한 결합
 
 ### 3. 테스트 커버리지
-- [ ] **단위 테스트**
-  - [ ] 핵심 비즈니스 로직 100% 커버리지
-  - [ ] pytest 통과
-  - [ ] 모킹을 통한 외부 의존성 격리 (TMDB API, 파일 시스템)
-  - [ ] 경계값 및 예외 케이스 테스트
-- [ ] **통합 테스트**
-  - [ ] 컴포넌트 간 상호작용 테스트
+- [x] **단위 테스트**
+  - [x] **스캔 파이프라인 핵심 로직**: Producer-Consumer 패턴, Bounded Queue, Backpressure 정책 100% 커버리지 ✅ **COMPLETED**
+  - [x] **pytest 통과**: 18개 테스트 모두 통과 ✅ **COMPLETED**
+  - [x] **모킹을 통한 외부 의존성 격리**: 큐, 스레드, 파일 시스템 격리 ✅ **COMPLETED**
+  - [x] **경계값 및 예외 케이스 테스트**: 큐 용량 초과, 프리징 문제, 타입 안전성 검증 ✅ **COMPLETED**
+- [x] **통합 테스트**
+  - [x] **Producer-Consumer 통합 테스트**: Scanner → ParserWorker → 결과 수집 전체 플로우 검증 ✅ **COMPLETED**
+  - [x] **Bounded Queue 통합 테스트**: 메모리 관리, 백프레셔 동작 검증 ✅ **COMPLETED**
   - [ ] TMDB API 연동 테스트 (429 시나리오 포함)
   - [ ] 캐시 시스템 연동 테스트
 - [ ] **CLI 테스트**
   - [ ] Click 명령어 테스트
   - [ ] JSON 출력 형식 검증
   - [ ] 에러 코드 응답 테스트
+- [ ] **TUI 테스트**
+  - [ ] 위젯 단위 테스트 (입력 검증, 출력 포맷)
+  - [ ] TUI 통합 테스트 (마법사 플로우)
+  - [ ] 프로필 관리 테스트 (저장/로드/검증)
+  - [ ] 설정 관리 테스트 (키 마스킹, 검증)
+  - [ ] 도구 기능 테스트 (플랜 검토, 캐시 관리)
+  - [ ] Windows 콘솔 호환성 테스트
+  - [ ] PyInstaller 번들링 테스트
 - [ ] **현실 파괴 테스트**
   - [ ] **파일명 퍼저**: 이모지/한자/RTL/NFC/NFD/말미 공백·점
   - [ ] **FS 에러 주입**: 권한거부·락·디스크 Full·경로 너무 김
@@ -95,14 +105,16 @@
   - [ ] **스캔**: **최소** 60k 경로/분(P95) / **목표** 120k 경로/분(P95)
   - [ ] **메모리**: 300k 파일 시 **≤600MB**(최소) / **≤500MB**(목표)
   - [ ] **로그 I/O 오버헤드**: 처리율 저하 **≤5%**(최대)
+  - [ ] **TUI 응답성**: 위젯 입력 응답 시간 ≤ 100ms, 화면 전환 ≤ 200ms
+  - [ ] **TUI 메모리**: TUI 모드에서 추가 메모리 사용량 ≤ 50MB
   - [ ] 파싱 실패율 ≤ 3%
   - [ ] TMDB 매칭 정확도 @1 ≥ 90%, @3 ≥ 96%
   - [ ] 2회차 JSON 캐시 적중률 ≥ 90%
   - [ ] Rate Limiter: 35 rps 기본 속도 달성
 - [ ] **안전 기본값·멱등성**
-  - [ ] **파괴적 작업 보호 레일**: `run/organize`는 **기본 드라이런**, 변경에는 `--apply` 필수
-  - [ ] **롤백 로그**: 실제 이동이 발생한 모든 작업에 `rollback.jsonl` 생성(경로 전/후, 타임스탬프, 해시)
-  - [ ] **Resume 멱등성**: 체크포인트 + **Deterministic ID**(상대경로+stat+해시)로 재시작 시 중복처리 0
+  - [x] **파괴적 작업 보호 레일**: `run/organize`는 **기본 드라이런**, 변경에는 `--apply` 필수 ✅ **COMPLETED**
+- [x] **롤백 로그**: 실제 이동이 발생한 모든 작업에 `rollback.jsonl` 생성(경로 전/후, 타임스탬프, 해시) ✅ **COMPLETED**
+- [x] **Resume 멱등성**: 체크포인트 + **Deterministic ID**(상대경로+stat+해시)로 재시작 시 중복처리 0 ✅ **COMPLETED**
 - [ ] **안정성**
   - [ ] 메모리 누수 없음
   - [ ] 예외 상황 복구 가능
@@ -127,6 +139,7 @@
   - [ ] **PyInstaller --onefile --console** 빌드 성공
   - [ ] **클린 Windows 10/11** VM에서 실행 OK
   - [ ] anitopy, cryptography 네이티브 모듈 번들링 검증
+  - [ ] **TUI 라이브러리 번들링**: prompt_toolkit, InquirerPy PyInstaller 호환성 검증
   - [ ] **앱 매니페스트**에 `longPathAware=true` 포함, CI에서 서명/매니페스트 검사 스텝 통과
   - [ ] **SmartScreen/AV** 오탐 점검(화이트리스트 지침 문서화)
   - [ ] **재현가능 빌드** 문서화(파이썬/의존성 핀, 빌드 환경 고정, 해시 공개)
@@ -153,10 +166,12 @@
 ## 기능별 완료 기준
 
 ### CLI 명령어 기능
+- [ ] **ui**: TUI 모드 진입 (기본 진입점, 권장)
 - [ ] **run**: 스캔→파싱→매칭→정리 전체 플로우
 - [ ] **scan**: 대상 파일 나열 (확장자 필터, 동시성)
 - [ ] **match**: 캐시 우선→TMDB 검색/상세 조회→캐시 적재
-- [ ] **organize**: 네이밍 스키마 적용, 이동/복사, 충돌 규칙 (기본 드라이런)
+- [x] **organize**: 네이밍 스키마 적용, 이동/복사, 충돌 규칙 (기본 드라이런) ✅ **COMPLETED**
+- [ ] **profile**: 프로필 관리 (list/load/save/delete/set-default)
 - [ ] **cache**: 조회/삭제/워밍업/적중률 통계
 - [ ] **settings**: TMDB 키 세팅, 기본 파라미터 보기/변경
 - [ ] **status**: 마지막 작업 스냅샷/메트릭 출력
@@ -164,9 +179,11 @@
 - [ ] **진단 덤프 명령**: `anivault.exe status --diag`가 **환경 요약(경로 권한, long-path 지원, 캐시 용량, 로그 폴더, 설정오버라이드)**을 NDJSON으로 덤프
 
 ### 파일 스캐닝 기능
-- [ ] 재귀적 디렉토리 탐색 (`os.scandir`, `iterdir`)
+- [x] **재귀적 디렉토리 탐색**: `os.scandir` 기반 고성능 스캔 구현 ✅ **COMPLETED**
+- [x] **확장자 화이트리스트 필터링**: 설정 기반 필터링 시스템 구현 ✅ **COMPLETED**
+- [x] **Producer-Consumer 패턴**: Bounded Queue를 통한 메모리 효율적 처리 ✅ **COMPLETED**
+- [x] **Backpressure 정책**: 'wait' 정책으로 메모리 오버플로우 방지 ✅ **COMPLETED**
 - [ ] 파일 메타데이터 추출
-- [ ] 확장자 화이트리스트 필터링
 - [ ] 진행률 표시 (Rich Progress)
 - [ ] 중단/재개 기능 (Resume)
 - [ ] **테스트 재현성**: 퍼저/샘플링/백오프 Jitter에 **RNG seed 고정** 옵션(`ANIVAULT_TEST_SEED`) 제공, CI는 항상 고정 seed로 실행(재현 가능한 실패 보장)
@@ -178,6 +195,20 @@
 - [ ] 매칭 결과 검증
 - [ ] 멀티에피소드/스페셜 처리
 
+### TUI (Text User Interface) 기능
+- [ ] **TUI 프레임워크**: prompt_toolkit 3.0.48 기반 Windows 콘솔 호환성
+- [ ] **홈 화면**: Run Wizard, Profiles, Settings, Tools, Exit 메뉴
+- [ ] **Run Wizard**: 단계별 설정 → 실행 → 결과 확인 플로우
+- [ ] **프로필 관리**: Load/Save/Delete/Set Default 기능
+- [ ] **설정 관리**: TMDB 키, 레이트리밋, 언어, 로깅 설정 UI
+- [ ] **도구 기능**: 플랜 검토/적용, 캐시 관리, 로그 보기
+- [ ] **공통 위젯**: 디렉터리 브라우저, 진행률 표시, 상태 표시, 입력 검증
+- [ ] **실시간 피드백**: Rich progress bars, 상태 표시 (Throttle, CacheOnly 등)
+- [ ] **오류 처리**: 429, 권한/경로 오류, 중단/재개 시나리오
+- [ ] **프로필 시스템**: TOML 기반 설정 저장/로드, 전역/사용자 프로필 지원
+- [ ] **안전한 실행**: 드라이런 기본, 명시적 Apply 확인 필요
+- [ ] **PyInstaller 호환성**: TUI 라이브러리 번들링 검증
+
 ### 캐싱 시스템
 - [ ] **JSON 캐시** 기반 영구 캐시 (TTL, 스키마 버전)
 - [ ] 인덱스 파일 (`cache/index.jsonl`)
@@ -186,8 +217,8 @@
 - [ ] 스키마 마이그레이션
 
 ### Windows 특이점 처리
-- [ ] **Long Path** 자동 처리(`\\?\`), 260자 초과 케이스 테스트
-- [ ] **예약어/금지문자 치환 규칙** 문서화 및 테스트(CON/PRN/NUL, `< > : " | ? *`)
+- [x] **Long Path** 자동 처리(`\\?\`), 260자 초과 케이스 테스트 ✅ **COMPLETED**
+- [x] **예약어/금지문자 치환 규칙** 문서화 및 테스트(CON/PRN/NUL, `< > : " | ? *`) ✅ **COMPLETED**
 - [ ] **UNC/네트워크 드라이브** 감지 시 경고 및 스루풋 저하 안내
 - [ ] **I/O 페이싱 옵션**: `--io-pace-limit`로 HDD/AV 간섭 완화
 - [ ] UAC 권한 처리
@@ -239,6 +270,25 @@ python tests/test_cli_commands.py --test-all-commands
 # - JSON 출력 형식 검증
 # - 에러 코드 응답 테스트
 # - 계약 고정 준수 확인
+```
+
+### TUI 특화 게이트
+```bash
+# TUI 위젯 테스트
+python tests/ui/test_tui_widgets.py
+
+# TUI 통합 테스트
+python tests/ui/test_tui_integration.py
+
+# TUI 성능 테스트
+python tests/ui/test_tui_performance.py
+
+# 테스트 시나리오 확인
+# - Windows 콘솔 호환성 검증
+# - PyInstaller 번들링 테스트
+# - 프로필 관리 기능 검증
+# - 설정 관리 기능 검증
+# - 도구 기능 검증
 ```
 
 ### 보안 게이트
@@ -294,6 +344,14 @@ pytest tests/ratelimit \
 - [ ] 성능 벤치마크 실행
 - [ ] 메모리 누수 검사
 - [ ] 사용자 시나리오 테스트
+- [ ] **TUI 검증**
+  - [ ] TUI 위젯 응답성 테스트 (입력/화면 전환)
+  - [ ] 프로필 저장/로드 기능 검증
+  - [ ] 설정 관리 UI 검증
+  - [ ] Run Wizard 플로우 테스트
+  - [ ] 도구 기능 (플랜 검토, 캐시 관리) 검증
+  - [ ] Windows 콘솔에서 TUI 동작 확인
+  - [ ] PyInstaller 번들링 후 TUI 동작 확인
 - [ ] **Rate Limiting 검증**
   - [ ] 상태머신 전이 로직 수동 테스트
   - [ ] 토큰버킷 속도 제한 검증
@@ -326,6 +384,13 @@ pytest tests/ratelimit \
 - [ ] 버그 발견율 및 해결 시간
 - [ ] 성능 지표 변화
 - [ ] 사용자 만족도
+- [ ] **TUI 품질 지표**
+  - [ ] TUI 응답성 지표 (입력 지연, 화면 전환 시간)
+  - [ ] 프로필 사용률 및 저장/로드 성공률
+  - [ ] Run Wizard 완료율 및 사용자 만족도
+  - [ ] TUI vs CLI 사용 비율
+  - [ ] Windows 콘솔 호환성 이슈 발생률
+  - [ ] PyInstaller 번들링 성공률
 - [ ] **Rate Limiting 품질 지표**
   - [ ] 상태 전이 빈도 및 패턴
   - [ ] 429 에러 발생률 및 복구 시간

@@ -64,8 +64,7 @@ class RobustTMDb(TMDb):
                     wait_time = self._parse_retry_after(retry_after)
 
                     log.warning(
-                        "Rate limit exceeded. Waiting for %.2f seconds. "
-                        "Attempt %d/%d.",
+                        "Rate limit exceeded. Waiting for %.2f seconds. Attempt %d/%d.",
                         wait_time,
                         attempt + 1,
                         self._max_retries,

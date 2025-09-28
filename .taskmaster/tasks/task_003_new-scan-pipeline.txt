@@ -1,0 +1,25 @@
+# Task ID: 3
+# Title: Optimize Directory Scanning with Generator/Streaming
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Refactor the file scanning logic to use generator-based, memory-efficient patterns for traversing large directories (100k+ files), ensuring memory usage stays within the 500MB limit.
+# Details:
+Replace any list-based directory walking (like `os.walk` that returns a full list) with an iterator-based approach using `os.scandir`. This ensures that file paths are processed as a stream and fed directly into the bounded queue without being collected into a large list in memory first.
+
+# Test Strategy:
+Profile the memory usage of the scanning process on a test directory with 100k+ empty files using `memory-profiler`. Verify that the peak memory usage is minimal and does not scale linearly with the number of files.
+
+# Subtasks:
+## 1. Refactor Directory Scanning with os.scandir and Generators [pending]
+### Dependencies: None
+### Description: Refactor the directory scanning logic to use os.scandir and generators for memory efficiency
+### Details:
+Refactor the directory scanning logic to use os.scandir for efficient directory traversal and implement generator-based patterns to minimize memory usage during large directory scans.
+
+## 2. Create Memory Profiling Test for Large-Scale Directory [pending]
+### Dependencies: None
+### Description: Create and run a memory profiling test on a large-scale test directory to verify constant memory usage
+### Details:
+Create a memory profiling test that uses a large-scale test directory (100k+ files) to verify that memory usage remains constant and low. Use memory profiling tools to measure and validate memory efficiency.
+

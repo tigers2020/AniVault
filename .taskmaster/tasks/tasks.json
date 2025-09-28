@@ -319,31 +319,49 @@
         "id": 6,
         "title": "Establish Performance Baselines for File Scanning",
         "description": "Profile the file system scanning and parsing performance on both SSD and HDD to establish a baseline for future optimizations.",
-        "details": "Create a script to generate a large directory structure with 100,000+ dummy files with anime-like names. Write a core scanning function that traverses this directory. Time the execution of this function on a system with an SSD and a system with an HDD. Document the results (e.g., files/sec).",
-        "testStrategy": "The test is the profiling script itself. The script must output clear timing results for each run. The results will be recorded in project documentation as the official performance baseline for SSD and HDD operations.",
-        "priority": "medium",
+        "status": "in-progress",
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "priority": "medium",
+        "details": "This task involves creating the necessary tooling to measure file scanning performance. A new core scanning function will be implemented in `src/anivault/scanner/file_scanner.py` using the efficient `os.scandir()` method. A separate script, `scripts/generate_test_files.py`, will be created to populate a directory with 100,000+ dummy files with anime-like names. A second script, `scripts/profile_scanner.py`, will use this test data to time the core scanning function's execution on both SSD and HDD. The goal is to document the baseline performance (e.g., files/sec) and compare it against the PRD target of 120,000 paths/minute.",
+        "testStrategy": "The primary test is the profiling script `scripts/profile_scanner.py` itself. The script must output clear timing results (total time, files scanned, files/sec) for each run. These results will be recorded in a new `docs/performance_baselines.md` file, establishing the official performance baseline for SSD and HDD operations. Unit tests will be added in `tests/scanner/test_file_scanner.py` to validate the core scanning logic.",
         "subtasks": [
           {
             "id": 1,
-            "title": "Develop User Authentication API Endpoints",
-            "description": "Create and implement the backend API endpoints required for user registration, login, and session management. This includes password hashing and token generation.",
+            "title": "Create Script to Generate Large-Scale Test Directory",
+            "description": "Develop a script to generate a large directory structure with 100,000+ dummy anime-style files to be used for performance testing.",
+            "status": "done",
             "dependencies": [],
-            "details": "Implement three main endpoints: POST /api/auth/register, POST /api/auth/login, and POST /api/auth/logout. Use bcrypt for password hashing. Upon successful login, generate a JSON Web Token (JWT) and return it to the client. Ensure proper input validation and error handling for all endpoints.",
-            "status": "pending",
-            "testStrategy": "Write unit tests for the password hashing and token generation logic. Use integration tests to verify the complete workflow of each endpoint, testing for successful cases (e.g., valid registration) and failure cases (e.g., incorrect password, duplicate email)."
+            "details": "Create a new script `scripts/generate_test_files.py`. This script will programmatically create a deeply nested directory structure containing at least 100,000 empty files. Filenames should mimic common anime naming conventions (e.g., `[HorribleSubs] Attack on Titan - 75 [1080p].mkv`). The script should accept command-line arguments for the root directory and the total number of files to create.\n<info added on 2025-09-28T16:59:26.199Z>\n**User Request Analysis:**\nThe user has successfully completed subtask 6.1 by creating the `scripts/generate_test_files.py` script. This script generates a large, nested directory of dummy files, which is the prerequisite for the current subtask (6.2). The user is now ready to implement the core scanning function that will operate on this test data.\n\n**Codebase Analysis:**\n1.  **Globbing & Grepping:** A search for \"scan\", \"os.scandir\", and \"file\" reveals the project's intent. The parent task (Task 6) description explicitly mentions creating `src/anivault/scanner/file_scanner.py` and using `os.scandir()`.\n2.  **Reading Relevant Files:**\n    *   `pyproject.toml`: Contains a `[tool.anivault.config]` section. This is the ideal place to define configurable parameters like which file extensions to scan for.\n    *   `src/anivault/core/config.py`: This module (created in Task 5) is designed to load configuration from `pyproject.toml`. It should be used to retrieve the list of scannable file extensions.\n    *   `src/anivault/core/logging.py`: This module (also from Task 5) provides a centralized logger. The new scanner function should use this logger to report issues, such as `PermissionError` when accessing directories.\n3.  **Architectural Alignment:** The project follows a clear structure. New functionality should be modular. The scanner belongs in `src/anivault/scanner/`. It should be configurable via the existing config system and use the established logging system. Using a generator (`yield`) is crucial for memory efficiency, a concern highlighted in Task 7 (\"Profile and Baseline Memory Usage\").\n\n**Conclusion:**\nThe next step is to create the `scan_directory` function. This implementation must be performant (`os.scandir`), memory-efficient (generator), robust (error handling), and configurable (using the existing `config.py` and `pyproject.toml`).\n\n---\n\n**New Subtask Details:**\n\nWith the test data generator from subtask 6.1 now available, the focus shifts to implementing the core directory scanning logic. This function will be the heart of the file discovery process and will be profiled in the next subtask.\n\n**Implementation Plan:**\n\n1.  **Create the Scanner Function:**\n    *   In the new file `src/anivault/scanner/file_scanner.py`, define a function `scan_directory(root_path: str) -> Iterator[os.DirEntry]`.\n\n2.  **Use `os.scandir()` for Performance:**\n    *   The function must be implemented recursively using `os.scandir()`. This is a key performance requirement, as it is much more efficient than `os.walk()` or `os.listdir()` for this use case. It avoids extra system calls by yielding `os.DirEntry` objects that cache file type and stat information.\n\n3.  **Implement Configurable File Filtering:**\n    *   The scanner should only yield files with specific media extensions.\n    *   Add a new list of extensions to `pyproject.toml` under the `[tool.anivault.config]` section, e.g., `media_extensions = [\".mkv\", \".mp4\", \".avi\"]`.\n    *   Use the existing configuration loader in `src/anivault/core/config.py` to read this list within the `scan_directory` function. The function should then filter files based on this configuration.\n\n4.  **Integrate Logging for Error Handling:**\n    *   Wrap the `os.scandir()` call in a `try...except PermissionError` block.\n    *   If a `PermissionError` occurs, use the centralized logger from `src/anivault/core/logging.py` to log a warning and continue scanning other directories. This ensures the scan doesn't halt on unreadable folders.\n\n5.  **Ensure Memory Efficiency with a Generator:**\n    *   The function **must** be a generator (using `yield` and `yield from` for recursion). It should not build and return a complete list of files, which would consume excessive memory when scanning the 100,000+ files generated in subtask 6.1.\n\n**Example Code Structure:**\n\n```python\n# In: src/anivault/scanner/file_scanner.py\n\nimport os\nfrom typing import Iterator\n\n# These imports align with existing project structure\nfrom anivault.core.config import get_config\nfrom anivault.core.logging import get_logger\n\nlogger = get_logger(__name__)\nconfig = get_config()\n# Use a tuple for faster 'endswith' checks\nMEDIA_EXTENSIONS = tuple(config.get(\"media_extensions\", [\".mkv\", \".mp4\"]))\n\ndef scan_directory(root_path: str) -> Iterator[os.DirEntry]:\n    \"\"\"\n    Recursively scans a directory for media files using a memory-efficient generator.\n    \"\"\"\n    try:\n        for entry in os.scandir(root_path):\n            if entry.is_dir(follow_symlinks=False):\n                yield from scan_directory(entry.path)\n            elif entry.is_file() and entry.name.lower().endswith(MEDIA_EXTENSIONS):\n                yield entry\n    except PermissionError:\n        logger.warning(f\"Permission denied to access: {root_path}\")\n    except Exception as e:\n        logger.error(f\"Error scanning directory {root_path}: {e}\")\n\n```\n</info added on 2025-09-28T16:59:26.199Z>",
+            "testStrategy": "Run the script targeting a temporary directory. Verify that the specified number of files and a nested directory structure are created. Check a random sample of filenames to ensure they conform to the expected pattern."
           },
           {
             "id": 2,
-            "title": "Build Frontend Login and Registration Forms",
-            "description": "Create the user interface components for the login and registration pages. These components will capture user input and communicate with the authentication API.",
+            "title": "Implement Core Directory Scanning Function",
+            "description": "Implement an efficient, core directory traversal function that will be the basis for the file scanner.",
+            "status": "done",
             "dependencies": [],
-            "details": "Develop two React components: `LoginPage` and `RegisterPage`. Each form should include fields for email and password, with client-side validation for input format (e.g., valid email). On form submission, use a service like Axios to send a request to the corresponding API endpoint. Handle API responses to either redirect the user on success or display an error message on failure.",
+            "details": "Create a new module `src/anivault/scanner/file_scanner.py`. Inside, implement a generator function, `scan_directory(root_path)`, that recursively traverses the given path. For optimal performance, this function must use `os.scandir()` instead of `os.walk()` to yield `os.DirEntry` objects for each file encountered.\n<info added on 2025-09-28T17:02:54.125Z>\n**Implementation Summary:**\n\nThe core scanning functionality was implemented in the new `src/anivault/scanner/file_scanner.py` module.\n\n- **Core Function:** The primary `scan_directory(root_path)` generator was created as specified, using `os.scandir()` for high-performance recursive directory traversal.\n- **Helper Functions:** Additional functions were implemented to support scanning operations:\n    - `scan_directory_with_stats()`: A wrapper around the core scanner that also returns statistics like file/directory counts and errors.\n    - `get_media_files_count()`: A utility for quickly counting media files.\n    - `_is_media_file()`: A private helper to filter files based on media extensions.\n- **Configuration Integration:** The scanner is integrated with the project's configuration system. It reads the `media_extensions` list from `pyproject.toml` via the central `Config` class to ensure only relevant files are processed.\n- **Logging Integration:** The module utilizes the centralized logger to handle and report exceptions, such as `PermissionError` and other `OSError`s, encountered during the scan.\n- **Testing:** A comprehensive suite of 12 unit tests was created and passed, covering basic scanning, nested structures, permission errors, and case-insensitive extension matching.\n- **Initial Performance:** Preliminary tests on a sample set of 884 files completed in approximately 0.036 seconds.\n</info added on 2025-09-28T17:02:54.125Z>",
+            "testStrategy": "Create a new test file `tests/scanner/test_file_scanner.py`. Write unit tests that create a temporary directory with a known number of files and subdirectories, call `scan_directory`, and assert that the function yields the correct number of file entries."
+          },
+          {
+            "id": 3,
+            "title": "Develop Performance Profiling Script",
+            "description": "Create a script to measure the execution time and throughput of the core scanning function against the large test directory.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Create a new script `scripts/profile_scanner.py`. This script will import `scan_directory` from `src/anivault/scanner/file_scanner.py`. It will use `time.perf_counter()` to accurately measure the time taken to fully iterate through the directory generated by `scripts/generate_test_files.py`. The script must print a summary to the console, including total files scanned, total execution time, and the calculated rate in both files/second and paths/minute.\n<info added on 2025-09-28T17:05:58.309Z>\nThe `scripts/profile_scanner.py` script has been implemented, significantly expanding on the original requirements to provide a more robust profiling tool.\n\n**Implementation Details:**\n- In addition to the base `scan_directory` function, the script also profiles two new variants from `src/anivault/scanner/file_scanner.py`: `scan_with_stats` (which collects file metadata) and `count_only` (which performs the fastest possible count).\n- The script uses a loop to run multiple iterations, calculating and displaying minimum, maximum, average, and standard deviation for the execution time. It also includes a \"warm-up\" iteration to ensure system caches are primed for more consistent results.\n- It has been built with a command-line interface using `argparse`, allowing the target directory (`--target`) and number of iterations (`--iterations`) to be specified at runtime.\n- The final report includes a performance evaluation section which compares the measured `paths/minute` rate against a defined target (120,000 paths/min) and assigns a qualitative grade (e.g., \"EXCELLENT\").\n\n**Initial Test Results:**\n- Early tests on an SSD show that all scanning functions dramatically exceed the performance target. For a directory with 884 files, the average rate was over 24,000 files/sec, achieving more than 1,200% of the target rate.\n\n**Example Usage:**\n```bash\npython scripts/profile_scanner.py --target ./test_data --iterations 3\n```\n</info added on 2025-09-28T17:05:58.309Z>",
+            "testStrategy": "The script itself is the test. Its successful execution and the generation of a clear, readable performance summary in the console will validate this subtask. The output must be repeatable and consistent."
+          },
+          {
+            "id": 4,
+            "title": "Document Baseline Results for SSD and HDD",
+            "description": "Execute the profiling script on different hardware (SSD and HDD) and document the results as the official performance baseline.",
             "status": "pending",
-            "testStrategy": "Use component tests with a library like React Testing Library to verify form rendering and validation behavior. Conduct end-to-end tests using Cypress to simulate a full user journey: navigating to the registration page, filling out the form, submitting, and then using the new credentials to log in."
+            "dependencies": [],
+            "details": "Run the `scripts/profile_scanner.py` on the 100k+ file set on at least two systems: one with an SSD and one with an HDD. Create a new markdown file, `docs/performance_baselines.md`. In this file, document the hardware specifications of each test system, the exact command used, and the resulting performance metrics (files/sec, paths/minute). Compare the SSD results to the PRD target of 120,000 paths/minute.",
+            "testStrategy": "Submit a pull request with the new `docs/performance_baselines.md` file. The PR will be reviewed to ensure the documentation is clear, complete, and accurately reflects the performance of the scanning implementation on both drive types."
           }
         ]
       },
@@ -427,7 +445,7 @@
     ],
     "metadata": {
       "created": "2025-09-27T21:38:07.246Z",
-      "updated": "2025-09-28T16:34:42.780Z",
+      "updated": "2025-09-28T17:06:00.607Z",
       "description": "Tasks for 1-foundation-setup context"
     }
   },
@@ -436,13 +454,59 @@
       {
         "id": 1,
         "title": "Initial PyInstaller Setup and Basic Build",
-        "description": "Configure the initial PyInstaller environment and create a basic single-file executable for the AniVault v3 CLI. This foundational step will validate the core application structure's compatibility with PyInstaller before tackling complex dependencies.",
-        "details": "Install PyInstaller. Create an initial `.spec` file using `pyi-makespec`. Configure the spec file for `--onefile` and `--console` mode. Perform a test build of the main application script to ensure a basic, runnable executable can be created without critical dependencies.",
-        "testStrategy": "Run the generated executable on the development machine. Verify that it launches without crashing and displays basic CLI output, such as a help message. Establish a baseline for executable size and startup time.",
-        "priority": "high",
+        "description": "Configured the initial PyInstaller environment and created a basic single-file executable for the AniVault v3 CLI. This foundational step validated the core application structure's compatibility with PyInstaller before tackling complex dependencies.",
+        "status": "done",
         "dependencies": [],
-        "status": "todo",
-        "subtasks": []
+        "priority": "high",
+        "details": "Created `anivault-mini.spec` targeting the `anivault/main.py` entry point. Configured the spec file for a single-file, console-based executable (`--onefile`, `--console`). A successful test build produced `dist/anivault-mini.exe`, confirming the basic build process works without including complex dependencies like `anitopy` or `cryptography` yet.",
+        "testStrategy": "Ran the generated `dist/anivault-mini.exe` on the development machine. Verified that it launched without crashing and correctly displayed output for basic commands like `--help` and `version`. The final executable size was 18.8MB and startup time was instantaneous, establishing a successful baseline.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "",
+            "description": "Verify PyInstaller installation (v6.16.0)",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "",
+            "description": "Create initial spec file (anivault-mini.spec) for anivault/main.py",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "",
+            "description": "Perform a single-file build to generate anivault-mini.exe",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "",
+            "description": "Test basic CLI commands (--help, version) on the generated executable",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "",
+            "description": "Verify executable size (18.8MB) and startup time meet initial targets",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 2,
@@ -452,19 +516,56 @@
         "testStrategy": "Execute the bundled application and run test commands. For `anitopy`, parse several complex anime filenames and verify the output. For `cryptography`, perform a simple encrypt/decrypt operation and test keyring access. Monitor for any DLL or native library loading errors during execution.",
         "priority": "high",
         "dependencies": [],
-        "status": "todo",
+        "status": "done",
         "subtasks": []
       },
       {
         "id": 3,
         "title": "Integrate `tmdbv3api` and Bundle Data Files",
-        "description": "Ensure the `tmdbv3api` library functions correctly, allowing for network requests from within the bundled executable. Also, bundle necessary data files such as schemas and templates required by the application.",
-        "details": "Update the `.spec` file's `datas` section to include all required non-code files (e.g., JSON schemas, templates). Verify that Python's SSL certificate store (e.g., via `certifi`) is correctly bundled to allow for HTTPS requests. Implement a test command in the CLI to fetch data from the TMDB API.",
-        "testStrategy": "Run the executable and use the test command to make a live API call to TMDB. Verify a successful response is received and parsed. Confirm that the application can access the bundled data files correctly, paying attention to PyInstaller's runtime path (`sys._MEIPASS`).",
-        "priority": "high",
+        "description": "Successfully integrated the `tmdbv3api` library and bundled all necessary data files, enabling live network requests from the final executable. This includes bundling SSL certificates (`certifi`), the `.env` file, and the `schemas` directory.",
+        "status": "done",
         "dependencies": [],
-        "status": "todo",
-        "subtasks": []
+        "priority": "high",
+        "details": "The `anivault-mini.spec` file was updated to include `('.env', '.')` and `('schemas', 'schemas')` in the `datas` list. PyInstaller's analysis correctly bundled the `certifi` package, ensuring SSL certificates were available for HTTPS requests. A `test-tmdb` command was added to the CLI (likely in `anivault/main.py`) to validate live API calls for both TV shows and movies.",
+        "testStrategy": "Executed the bundled `anivault-mini.exe` and ran the `test-tmdb` command. Confirmed successful API responses for both TV ('Attack on Titan', ID: 1429) and Movie ('Spirited Away', ID: 129) searches. Verified that the application correctly located and used bundled data files (e.g., `.env` for API keys) by checking for successful authentication and that rate-limiting was respected. SSL/HTTPS connectivity was confirmed to be fully functional.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Bundle `tmdbv3api` and `certifi` for network requests",
+            "description": "",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Update `anivault-mini.spec` to bundle `schemas` directory and `.env` file",
+            "description": "",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement `test-tmdb` CLI command for live API validation",
+            "description": "",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Verify successful TV/Movie API searches and SSL connection",
+            "description": "",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 4,
@@ -508,7 +609,7 @@
     ],
     "metadata": {
       "created": "2025-09-27T21:38:08.717Z",
-      "updated": "2025-09-28T14:55:31.593Z",
+      "updated": "2025-09-28T18:32:42.277Z",
       "description": "Tasks for 2-single-exe-poc context"
     }
   },
@@ -522,7 +623,7 @@
         "testStrategy": "Unit test the directory scanning generator with a mock file system to verify it correctly yields paths. Test the bounded queue by creating a producer-consumer scenario and asserting that the producer blocks when the queue is full. Verify thread-safe operations.",
         "priority": "high",
         "dependencies": [],
-        "status": "todo",
+        "status": "pending",
         "subtasks": []
       },
       {
@@ -607,7 +708,7 @@
     ],
     "metadata": {
       "created": "2025-09-27T21:38:10.173Z",
-      "updated": "2025-09-28T14:56:24.067Z",
+      "updated": "2025-09-28T18:36:17.317Z",
       "description": "Tasks for 3-scan-parse-pipeline context"
     }
   },
@@ -1657,7 +1758,7 @@
         "testStrategy": "Verify that running the command without `--apply` results in zero file system modifications. Test the `--lang` option with various languages (e.g., 'ja', 'en') to confirm correct title fetching and fallback behavior. Unit test the name generation function using mock TMDB data. Confirm that the console output in dry-run mode accurately reflects all proposed file renames.",
         "priority": "high",
         "dependencies": [],
-        "status": "To Do",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -1668,7 +1769,7 @@
         "testStrategy": "Generate a plan file and validate its structure and content against the PRD specification. Execute a plan using `--from-plan` and `--apply` and verify that all files are moved/renamed correctly. Test execution without `--apply` to ensure it remains a dry run. Ensure robust error handling for malformed or non-existent plan files.",
         "priority": "high",
         "dependencies": [],
-        "status": "To Do",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -1679,7 +1780,7 @@
         "testStrategy": "Unit test the naming function with inputs for multi-episode files and special episodes. Test filenames containing forbidden characters and reserved names to ensure correct sanitization. Create a test case with a deeply nested directory and a long filename to verify the path length handling logic.",
         "priority": "high",
         "dependencies": [],
-        "status": "To Do",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -1692,7 +1793,7 @@
         "dependencies": [
           3
         ],
-        "status": "To Do",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -1703,7 +1804,7 @@
         "testStrategy": "Run an organization operation and inspect the generated log file. Verify that the JSON structure and data types match the PRD specification. Check that `source`, `destination`, and `file_hash` are recorded correctly. Test a failing operation (e.g., due to permissions) and confirm the `status` is logged as 'failure'.",
         "priority": "high",
         "dependencies": [],
-        "status": "To Do",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -1716,13 +1817,13 @@
         "dependencies": [
           5
         ],
-        "status": "To Do",
+        "status": "done",
         "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-27T21:38:15.806Z",
-      "updated": "2025-09-28T14:59:36.357Z",
+      "updated": "2025-09-28T17:58:30.576Z",
       "description": "Tasks for 7-organize-safety context"
     }
   },
@@ -3883,6 +3984,522 @@
       "created": "2025-09-27T21:38:26.269Z",
       "updated": "2025-09-28T15:05:13.747Z",
       "description": "Tasks for 14-documentation context"
+    }
+  },
+  "tui-development": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "TUI Framework Dependency Setup and Basic Structure",
+        "description": "Add prompt_toolkit and InquirerPy dependencies to pyproject.toml, and create the basic directory structure and entry point for the TUI module.",
+        "details": "### 1. Update Dependencies\n- Open `pyproject.toml`.\n- Add the following lines under the `[tool.poetry.dependencies]` section:\n```toml\nprompt_toolkit = \"3.0.48\"\nInquirerPy = \"0.3.4\"\n```\n- After saving the file, run `poetry lock && poetry install` in your terminal to update the environment with the new libraries.\n\n### 2. Create Directory and File Structure\n- Create a new directory: `src/ui`.\n- Inside `src/ui`, create two new files:\n  - `__init__.py`: This file can be left empty. It marks the `ui` directory as a Python package.\n  - `tui.py`: This file will contain the main TUI logic.\n\n### 3. Implement TUI Entry Point\n- In `src/ui/tui.py`, implement the main home screen menu using `InquirerPy`.\n\n```python\n# src/ui/tui.py\nfrom InquirerPy import inquirer\nfrom InquirerPy.base.control import Choice\n\ndef start_tui():\n    \"\"\"Main entry point for the TUI application.\"\"\"\n    print(\"Welcome to AniVault!\")\n\n    while True:\n        choice = inquirer.select(\n            message=\"Select an option:\",\n            choices=[\n                Choice(value=\"search\", name=\"Search Anime\"),\n                Choice(value=\"watchlist\", name=\"View Watchlist\"),\n                Choice(value=None, name=\"Exit\"),\n            ],\n            default=None,\n        ).execute()\n\n        if choice == \"search\":\n            print(\"Navigating to Search... (Not implemented yet)\")\n            # Placeholder for search functionality\n        elif choice == \"watchlist\":\n            print(\"Navigating to Watchlist... (Not implemented yet)\")\n            # Placeholder for watchlist functionality\n        elif choice is None:\n            print(\"Exiting AniVault. Goodbye!\")\n            break\n\nif __name__ == '__main__':\n    # For direct testing of the TUI module\n    start_tui()\n\n```\n\n### 4. Integrate with Main Application\n- Modify `src/main.py` to launch the TUI.\n\n```python\n# src/main.py\nfrom ui.tui import start_tui\n\ndef main():\n    \"\"\"Application entry point.\"\"\"\n    start_tui()\n\nif __name__ == \"__main__\":\n    main()\n\n```\n\n### 5. Basic Widget Structure Design (Conceptual)\n- For future tasks, we will adopt a class-based approach for UI components (widgets). A base class could be designed in a new file like `src/ui/widgets/base.py`. This is a conceptual note for now and does not require implementation in this task.\n\n```python\n# Conceptual example for future reference\nclass BaseWidget:\n    def __init__(self, session):\n        self.session = session\n\n    def draw(self):\n        \"\"\"Renders the widget to the screen.\"\"\"\n        raise NotImplementedError\n\n    def handle_input(self, key_press):\n        \"\"\"Handles user input for this widget.\"\"\"\n        raise NotImplementedError\n```",
+        "testStrategy": "1. **Dependency Verification:**\n   - After running `poetry install`, execute `poetry show prompt_toolkit` and verify the version is `3.0.48`.\n   - Execute `poetry show InquirerPy` and verify the version is `0.3.4`.\n\n2. **Application Execution:**\n   - Run the application from the project root using the command: `poetry run python src/main.py`.\n   - The application should start without any import errors.\n\n3. **TUI Functional Test:**\n   - Verify that the welcome message and the main menu (\"Select an option:\") are displayed in the terminal.\n   - Use the arrow keys to navigate between \"Search Anime\", \"View Watchlist\", and \"Exit\".\n   - Select \"Search Anime\" and press Enter. Confirm the message \"Navigating to Search...\" is printed.\n   - The menu should reappear. Select \"View Watchlist\" and press Enter. Confirm the message \"Navigating to Watchlist...\" is printed.\n   - Select the \"Exit\" option and press Enter. The application should print the exit message and terminate gracefully.\n\n4. **Windows Compatibility Test:**\n   - On a Windows machine, repeat the execution test (Step 2 & 3) in both Command Prompt (cmd.exe) and Windows PowerShell to ensure there are no rendering artifacts or compatibility issues.",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Implement TOML-based Profile Management System",
+        "description": "Create a service to manage user profiles using TOML files, including functionality for creating, loading, saving, validating, and switching between different profiles.",
+        "details": "### 1. Add Dependencies\n- Open `pyproject.toml`.\n- Add the following lines under the `[tool.poetry.dependencies]` section to handle TOML file parsing. `tomli` is for reading TOML files (standard in Python 3.11+ but good for compatibility) and `tomli-w` is for writing them.\n```toml\ntomli = \"^2.0.1\"\ntomli-w = \"^1.0.0\"\n```\n- Run `poetry lock && poetry install` to update the environment.\n\n### 2. Define Profile Schema and Location\n- Create the main service file: `src/services/profile_manager.py`.\n- Profiles will be stored in a user-specific directory, e.g., `~/.config/anivault/profiles/`. The manager should create this directory if it doesn't exist.\n- A default profile, `default.toml`, should be created on first run if no profiles exist. Define its structure inside `profile_manager.py` as a template.\n\n**Example `default.toml` Schema:**\n```toml\n# Profile metadata\n[profile]\nname = \"default\"\ndescription = \"Default user profile\"\n\n# Input/Output settings\n[io]\nsource_directory = \"\"\ndestination_directory = \"\"\nfilename_pattern = \"{series_title} - {episode_number} [{quality}]\"\n\n# Localization and language preferences\n[locale]\nlanguage = \"en-US\"\nsubtitle_preference = [\"en\", \"eng\"]\n\n# API and download rate limits\n[limits]\napi_requests_per_minute = 60\nmax_concurrent_downloads = 3\n\n# Content and download policies\n[policy]\nmin_quality = \"1080p\"\nallowed_formats = [\"mkv\", \"mp4\"]\nskip_existing_files = true\n\n# Security and authentication settings\n[security]\napi_key_service_a = \"\"\napi_key_service_b = \"\"\n```\n\n### 3. Implement `ProfileManager` in `src/services/profile_manager.py`\n- Create a class `ProfileManager` to encapsulate all profile-related logic.\n\n```python\nimport tomli\nimport tomli_w\nfrom pathlib import Path\nimport os\nimport shutil\n\nclass ProfileManager:\n    def __init__(self, base_dir=None):\n        \"\"\"Initializes the profile manager, sets up paths, and loads the active profile.\"\"\"\n        # Define base path for profiles (e.g., ~/.config/anivault)\n        # Load the last used profile name or default to 'default'\n        # Call self.load_profile()\n\n    def get_profile_dir(self) -> Path:\n        \"\"\"Returns the path to the profiles directory, creating it if necessary.\"\"\"\n        # Logic to find/create ~/.config/anivault/profiles\n\n    def list_profiles(self) -> list[str]:\n        \"\"\"Returns a list of available profile names (without .toml extension).\"\"\"\n\n    def load_profile(self, profile_name: str = 'default') -> dict:\n        \"\"\"Loads a profile from a TOML file. If it doesn't exist, create it from a default template. Merges with defaults to ensure all keys are present.\"\"\"\n        # 1. Get default schema.\n        # 2. Construct file path for profile_name.\n        # 3. If file exists, load it with tomli.load().\n        # 4. Merge loaded data with defaults (loaded data takes precedence).\n        # 5. If file doesn't exist, create it using save_profile with default data.\n        # 6. Store the loaded config and set as current profile.\n\n    def save_profile(self, profile_name: str, config: dict):\n        \"\"\"Saves a configuration dict to a TOML file.\"\"\"\n        # Use tomli_w.dump() to write the dict to the corresponding .toml file.\n\n    def switch_profile(self, new_profile_name: str):\n        \"\"\"Switches the active profile.\"\"\"\n        # Load the new profile and set it as the current one.\n        # Persist the name of the new active profile (e.g., in a separate state file).\n\n    def delete_profile(self, profile_name: str, backup: bool = True):\n        \"\"\"Deletes a profile. Cannot delete the 'default' profile.\"\"\"\n        # If backup is True, rename the file to .toml.bak before deleting.\n\n    def get_current_config(self) -> dict:\n        \"\"\"Returns the currently loaded profile configuration.\"\"\"\n\n    def _validate_profile(self, config: dict) -> bool:\n        \"\"\"Validates that the config contains all the required sections and keys.\"\"\"\n        # Simple check to ensure top-level keys (profile, io, etc.) exist.\n```\n\n### 4. Integration\n- The main application entry point (`src/main.py` or TUI entry point) should instantiate `ProfileManager` to make the current profile's configuration available globally or through a context object.",
+        "testStrategy": "1. **Dependency Verification:**\n   - After running `poetry install`, execute `poetry show tomli` and `poetry show tomli-w` to confirm they are installed.\n\n2. **Initial Run Test:**\n   - Delete the `~/.config/anivault` directory if it exists.\n   - Run the application's main entry point.\n   - Verify that the `~/.config/anivault/profiles/` directory is created.\n   - Verify that `default.toml` is created inside it and its content matches the defined schema.\n\n3. **Unit Testing (`pytest`):**\n   - Create a test file `tests/services/test_profile_manager.py`.\n   - **`test_load_profile`**: Test loading an existing, valid profile. Check that the returned dictionary is correct.\n   - **`test_load_missing_profile`**: Test loading a non-existent profile. Verify it creates a new file with default values and returns the default config.\n   - **`test_load_partial_profile`**: Create a profile file with a missing section (e.g., no `[limits]` section). Verify that `load_profile` successfully merges it with the defaults, so the resulting config dictionary contains the `limits` section from the default template.\n   - **`test_save_profile`**: Call `save_profile` with a modified config. Read the file back manually and assert its contents are correct.\n   - **`test_list_profiles`**: Create several dummy `.toml` files in the test profile directory and verify that `list_profiles` returns the correct list of names.\n   - **`test_delete_profile`**: Test deleting a profile. Verify the file is removed. Test the backup functionality by checking for a `.toml.bak` file.\n   - **`test_delete_default_profile`**: Ensure that attempting to delete the 'default' profile raises an exception or fails gracefully.\n\n4. **Integration Test:**\n   - In `src/main.py`, instantiate `ProfileManager`.\n   - Call `get_current_config()` and print a value from the configuration (e.g., `config['io']['filename_pattern']`).\n   - Verify the output is the expected default value.",
+        "status": "pending",
+        "dependencies": [
+          1
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement Run Configuration Wizard",
+        "description": "Implement a multi-step TUI wizard for configuring run settings, executing the core logic, and displaying results.",
+        "details": "### 1. Add Rich Dependency\n- Open `pyproject.toml`.\n- Add `rich` to the `[tool.poetry.dependencies]` section for advanced terminal graphics, including progress bars.\n```toml\nrich = \"^13.7.1\"\n```\n- Run `poetry lock && poetry install`.\n\n### 2. Create Wizard Module\n- Create the main file for the wizard: `src/ui/wizard.py`.\n- This module will house all the functions related to the step-by-step configuration process.\n\n### 3. Implement Wizard Steps\n- In `src/ui/wizard.py`, use `InquirerPy` to create a series of prompts. The main function could be `run_wizard()` which calls other helper functions for each step.\n\n**Step 1: Source & Destination Paths**\n- Create a function `_prompt_for_paths()`.\n- Use `InquirerPy.prompt` with the `filepath` question type for both source and destination directories.\n- Enable `only_directories=True`.\n- Add validation to ensure the source directory exists.\n\n**Step 2: Core Settings**\n- Create a function `_prompt_for_settings(default_config)`.\n- This function will take a default profile configuration from `profile_manager` as an argument.\n- Use `InquirerPy` prompts for the following settings, pre-filling with defaults:\n  - `language`: `select` type.\n  - `rate_limit`: `input` type with number validation.\n  - `concurrency`: `input` type with number validation.\n  - `workers`: `input` type with number validation.\n\n**Step 3: Review and Save Profile**\n- Create a function `_prompt_for_review_and_save(config)`.\n- Display the collected configuration settings in a formatted way (e.g., using `rich.panel.Panel`).\n- Use a `confirm` prompt to ask the user if the settings are correct.\n- If correct, use another `confirm` prompt to ask if they want to save these settings as a new profile.\n- If yes, prompt for a profile name and use the `profile_manager.save_profile()` function from Task #2.\n\n### 4. Implement Progress Display\n- Create a function `_execute_and_show_progress(config)`.\n- This function will be responsible for launching the core application logic as a subprocess.\n- It will read the subprocess's `stdout` line by line, assuming it's an NDJSON event stream.\n- Use `rich.progress.Progress` to set up and display multiple progress bars (e.g., one for overall progress, one for current file).\n- Parse each NDJSON line and update the corresponding progress bar.\n\n### 5. Implement Results Screen\n- After the subprocess completes, display a final summary screen.\n- Use `rich.panel.Panel` or `rich.table.Table` to show:\n  - A summary of the move/copy plan.\n  - The final location of the generated plan file.\n  - Any errors that occurred.\n\n### 6. Integration with Main TUI\n- In `src/ui/tui.py` (created in Task #1), add an option to the main menu to launch the wizard.\n- This option will call `from src.ui.wizard import run_wizard` and then execute it.",
+        "testStrategy": "1. **Dependency Check:**\n   - After installation, run `poetry show rich` to confirm it's installed correctly.\n\n2. **Wizard Flow Navigation:**\n   - Launch the wizard from the main TUI.\n   - Step through each prompt, entering valid data. Verify that you can proceed to the next step and that the data is carried over.\n   - At the review step, choose to go back and edit. Verify that you are returned to the first prompt and that previous values are pre-filled.\n\n3. **Path Input Validation:**\n   - In the path selection step, try to enter a non-existent directory for the source. Verify that the validation fails with an appropriate message.\n   - Use the file browser (`<tab>`) to select a directory and confirm it works.\n\n4. **Profile Saving:**\n   - Complete the wizard and choose to save the configuration as a new profile named `test-wizard-profile`.\n   - Check the `~/.config/anivault/profiles/` directory for a `test-wizard-profile.toml` file.\n   - Use the `profile_manager` or manually inspect the file to ensure the settings match what you entered in the wizard.\n\n5. **Progress Bar Mock Test:**\n   - Create a temporary Python script (`mock_process.py`) that prints pre-defined NDJSON strings to `stdout` with `time.sleep` calls in between.\n   - Temporarily modify `_execute_and_show_progress` to run `python mock_process.py`.\n   - Run the wizard and confirm that the `rich` progress bars appear and update according to the output of the mock script.\n\n6. **Results Screen Verification:**\n   - After the mock process finishes, verify that the results screen is displayed with the expected summary information.",
+        "status": "pending",
+        "dependencies": [
+          1,
+          2
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Implement Profile Management UI",
+        "description": "Create a dedicated Text-based User Interface (TUI) for managing user profiles, including creation, editing, deletion, and backup/restore functionality.",
+        "details": "### 1. Create Profile UI Module\n- Create a new file: `src/ui/profiles.py`.\n- This module will contain all UI-related functions for profile management, leveraging the `InquirerPy` library for interactive prompts, consistent with `src/ui/main_menu.py` and `src/ui/wizard.py`.\n\n### 2. Integrate with Main Menu\n- Modify `src/ui/main_menu.py` to add a new option, \"Profile Management\".\n- This option should call the main entry function in `src/ui/profiles.py`, for example, `show_profile_menu()`.\n\n### 3. Implement Main Profile Menu\n- In `src/ui/profiles.py`, create the main function `show_profile_menu()`.\n- This function will act as the central hub for profile operations.\n- It should first import and instantiate the `ProfileManager` from `src/services/profile_manager.py`.\n- Use an `InquirerPy` `list` prompt to display the following options:\n  - List & Select Profile (to Load)\n  - Create New Profile\n  - Edit Existing Profile\n  - Delete Profile\n  - Set Default Profile\n  - Backup All Profiles\n  - Restore Profiles from Backup\n  - Back to Main Menu\n\n### 4. Profile Creation Wizard\n- Implement a `run_profile_creation_wizard()` function.\n- This function will be a multi-step wizard, similar to the one in `src/ui/wizard.py`.\n- It will prompt the user for all necessary profile settings (e.g., name, paths, options) as defined by the profile schema in `profile_manager.py`.\n- Use `InquirerPy`'s built-in validators for inputs like file paths.\n- On completion, it will gather the data into a dictionary and call `profile_manager.save_profile()`.\n\n### 5. Implement Edit, Delete, and Set Default\n- For these actions, first prompt the user to select a profile from a list fetched via `profile_manager.get_all_profiles()`.\n- **Edit:** After selection, re-use the `run_profile_creation_wizard()`, pre-filling the prompts with the existing profile's data loaded via `profile_manager.load_profile()`.\n- **Delete:** After selection, use an `InquirerPy` `confirm` prompt to ask for confirmation before calling `profile_manager.delete_profile()`.\n- **Set Default:** After selection, call `profile_manager.set_default_profile()` and display a confirmation message.\n\n### 6. Implement Backup and Restore\n- **Backup:** Prompt the user for a destination file path using an `InquirerPy` `filepath` prompt. Call a corresponding service method like `profile_manager.backup_profiles(destination_path)`.\n- **Restore:** Prompt for the source backup file. Display a strong warning about overwriting existing configurations. Upon confirmation, call `profile_manager.restore_profiles(source_path)`.\n\n### 7. Error Handling\n- Wrap all calls to the `ProfileManager` service in `try...except` blocks.\n- Catch potential exceptions (e.g., `FileNotFoundError`, validation errors from the service layer) and display clear, user-friendly error messages using `rich.print` for better formatting (e.g., `rich.print('[bold red]Error: Profile not found.[/bold red]')`).",
+        "testStrategy": "1. **Menu Integration:**\n   - Run the application and verify the \"Profile Management\" option appears in the main menu.\n   - Test entering and exiting the profile management screen to ensure smooth navigation back to the main menu.\n\n2. **Profile Creation Wizard:**\n   - Navigate to 'Create New Profile'.\n   - Complete the wizard with valid data. Verify that a new `.toml` file is created in the profiles directory (`~/.config/anivault/profiles`).\n   - Attempt to create a profile with an existing name and verify that the UI handles the error gracefully.\n   - Test input validation by entering invalid paths or data formats.\n\n3. **Profile Operations (Edit/Delete/Set Default):**\n   - **List:** Ensure the UI correctly lists all available profiles.\n   - **Edit:** Select a profile, change one of its values, and save. Manually inspect the corresponding `.toml` file to confirm the update.\n   - **Delete:** Select a profile and confirm deletion. Verify the `.toml` file is removed and the profile no longer appears in the list.\n   - **Set Default:** Choose a non-default profile and set it as the default. Check `~/.config/anivault/config.toml` to ensure the `default_profile` key has been updated.\n\n4. **Backup & Restore Functionality:**\n   - Use the 'Backup' feature and specify a path. Verify a backup archive is created at the location.\n   - Delete one or more profiles via the UI.\n   - Use the 'Restore' feature, pointing to the created backup. Verify the deleted profiles are restored and reappear in the list.\n\n5. **Error Handling:**\n   - Manually delete a profile file and try to edit it via the UI to ensure a 'not found' error is handled.\n   - Test the restore functionality with a corrupted or invalid backup file to check error handling.",
+        "status": "pending",
+        "dependencies": [
+          1,
+          2
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement Settings Management UI",
+        "description": "Create a TUI for managing application settings such as TMDB API keys, rate limits, and language preferences, storing them within the active user profile.",
+        "details": "### 1. Add Cryptography Dependency\n- Open `pyproject.toml` and add the `cryptography` library for securing the TMDB API key.\n```toml\n[tool.poetry.dependencies]\ncryptography = \"^43.0.0\"\n```\n- Run `poetry lock && poetry install`.\n\n### 2. Extend Profile Schema for Settings\n- In `src/services/profile_manager.py`, update the `Profile` dataclass or schema to include a nested `settings` section.\n- Add fields for `tmdb_api_key`, `rate_limit`, `language`, `logging` (with sub-fields for level, rotation, retention), and `cache` (with sub-fields for limit, ttl).\n- Provide sensible default values for all new settings.\n\n### 3. Implement Encryption for API Key\n- In `src/services/profile_manager.py`, add helper functions `_encrypt(data: str) -> str` and `_decrypt(data: str) -> str` using the `cryptography.fernet` module.\n- A key will need to be generated and stored securely (e.g., in a file within the profile directory, protected by filesystem permissions).\n- Modify the `load_profile` and `save_profile` functions to automatically decrypt the `tmdb_api_key` after loading and encrypt it before saving.\n\n### 4. Create Settings UI Module\n- Create a new file: `src/ui/settings.py`.\n- This module will house the TUI for settings, consistent with the `InquirerPy` usage in `src/ui/wizard.py` and `src/ui/profiles.py`.\n- Create a main entry function, e.g., `show_settings_menu(profile_manager)`.\n\n### 5. Integrate with Main Menu\n- Modify `src/ui/main_menu.py` to add a new \"Settings\" option.\n- This option should call `show_settings_menu`, passing the active `profile_manager` instance to it.\n\n### 6. Implement Settings Form\n- In `src/ui/settings.py`, use `InquirerPy`'s `form` prompt to create a comprehensive settings page.\n- **TMDB API Key**: Use the `secret` prompt type for masked input.\n- **Rate Limit**: Use the `text` prompt type with a validator to ensure the input is a number.\n- **Language**: Use the `list` prompt type with choices: `ko-KR`, `ja-JP`, `en-US`.\n- **Logging/Cache**: For these nested settings, create sub-menus. For example, the main settings menu will have a \"Logging Settings...\" option that calls another function presenting prompts for level, rotation, and retention.\n- The form's result should be used to update the loaded profile object. A final confirmation prompt should call `profile_manager.save_profile()`.\n\n### 7. Implement Import/Export Functionality\n- Add \"Export Settings\" and \"Import Settings\" options to the `show_settings_menu`.\n- **Export**: Prompt for a file path and save the `settings` portion of the current profile to a JSON file. The API key must be exported in its encrypted form.\n- **Import**: Prompt for a file path, read the JSON, validate its contents, update the settings in the current profile object, and then save the profile.",
+        "testStrategy": "1. **Dependency Check**: After installation, run `poetry show cryptography` to confirm it's installed correctly.\n\n2. **UI Integration and Navigation**:\n   - Run the application and verify the \"Settings\" option appears in the main menu.\n   - Test entering and exiting the settings screen to ensure smooth navigation back to the main menu.\n\n3. **TMDB Key Security**:\n   - Enter a new API key and confirm the input is masked.\n   - Save the settings and manually inspect the corresponding profile TOML file to verify the `tmdb_api_key` is a long, encrypted string, not plaintext.\n   - Relaunch the app, go to settings, and verify a placeholder (e.g., '********') indicates the key is set.\n\n4. **Settings Persistence**:\n   - Change the language to `ja-JP` and the rate limit to `10`.\n   - Save, exit, and relaunch the application.\n   - Re-enter the settings menu and confirm that `ja-JP` and `10` are the current values.\n\n5. **Input Validation**:\n   - Attempt to save a non-numeric value for the rate limit and verify that a validation error from `InquirerPy` prevents it.\n\n6. **Import/Export Verification**:\n   - Use the \"Export Settings\" feature.\n   - Check the contents of the exported JSON file to ensure it contains the correct settings data, with the API key encrypted.\n   - Change a setting in the UI (e.g., language to `en-US`).\n   - Use the \"Import Settings\" feature with the previously exported file and verify the language setting reverts to its original value.",
+        "status": "pending",
+        "dependencies": [
+          1,
+          2
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Implement Tools UI",
+        "description": "Implement a TUI for various utility functions, including reviewing and applying execution plans, managing the cache, viewing live logs, and resuming interrupted runs.",
+        "details": "### 1. Create Tools UI Module and Integrate\n- Create a new file: `src/ui/tools.py`.\n- In `src/ui/main_menu.py`, add a new \"Tools\" option to the main menu list. This option should call a new entry function, `show_tools_menu()`, in `src/ui/tools.py`.\n\n### 2. Implement Tools Sub-Menu\n- In `src/ui/tools.py`, create the `show_tools_menu()` function.\n- Use `InquirerPy` to display a list of available tools:\n  - \"Review/Edit Last Plan\"\n  - \"Apply Last Plan\"\n  - \"Cache Management\"\n  - \"View Live Logs\"\n  - \"Resume Last Run\"\n  - \"Back to Main Menu\"\n\n### 3. Plan Review & Apply UI\n- **Review/Edit Plan**: \n  - Read and parse `out/last.plan.json`.\n  - Use the `rich.json.JSON` component to pretty-print the contents to the console for review.\n  - For editing, provide an option that opens `out/last.plan.json` in the system's default text editor (e.g., using `os.system(f\"{$EDITOR} out/last.plan.json\")`).\n- **Apply Plan**:\n  - Add a confirmation prompt using `InquirerPy`.\n  - On confirmation, call the core execution logic with parameters simulating the `--from-plan out/last.plan.json --apply` CLI flags. This will likely involve importing a run function from the module created in Task 3.\n  - Display execution progress using `rich.progress.Progress`, consistent with the run wizard.\n\n### 4. Cache Management UI\n- Create a `show_cache_menu()` function called from the main tools menu.\n- This function will use `InquirerPy` to present options: \"View Statistics\", \"Clear All Cache\", \"Warm-up Cache\".\n- **View Statistics**: Call a (to-be-created or existing) `get_stats()` function from a cache service module and display the output using a `rich.table.Table`.\n- **Clear Cache**: After a confirmation prompt, call a `clear_cache()` function.\n- **Warm-up Cache**: Call a `warm_up()` function and display progress.\n\n### 5. Log Viewer UI\n- Create a `view_logs()` function.\n- Use `rich.live.Live` to display the contents of the main application log file.\n- Implement a loop that continuously reads new lines from the log file (`f.seek()`, `f.readlines()`) and updates the `Live` display, simulating `tail -f`.\n- Add a simple input prompt before starting the stream to ask for an optional filter keyword. Only display log lines containing the keyword if provided.\n- Instruct the user to press `Ctrl+C` to exit the log view.\n\n### 6. Checkpoint Resume UI\n- Create a `resume_run()` function.\n- After a confirmation prompt, call the core execution logic with a parameter simulating the `--resume` flag.\n- Reuse the `rich.progress.Progress` display from the run wizard (Task 3) to show the status of the resumed operation.",
+        "testStrategy": "1. **Menu Integration**: Launch the app and verify that the \"Tools\" option appears in the main menu. Test navigation into the tools sub-menu and back to the main menu.\n\n2. **Plan Functionality**: \n   - Run the main wizard (from Task 3) to generate an `out/last.plan.json` file.\n   - Select \"Review/Edit Last Plan\" and verify the JSON is displayed correctly. Test the edit functionality to ensure it opens in an editor.\n   - Select \"Apply Last Plan\" and confirm. Verify from console output/logs that the application runs using the plan file.\n\n3. **Cache Management**: \n   - Manually populate the cache or mock the cache service.\n   - Test \"View Statistics\" to ensure data is displayed correctly in a table.\n   - Test \"Clear All Cache\", and then re-check statistics to confirm the cache is empty.\n\n4. **Log Viewer**: \n   - While the log viewer is running, manually append several lines to the application's log file.\n   - Verify that the new lines appear in the TUI in real-time.\n   - Restart the viewer, provide a filter keyword, and verify that only matching lines are displayed.\n   - Press `Ctrl+C` to ensure it exits gracefully.\n\n5. **Resume Functionality**:\n   - Manually create a checkpoint file or simulate a failed run state.\n   - Select \"Resume Last Run\" and confirm. Verify from logs that the application correctly identifies and uses the checkpoint to resume.",
+        "status": "pending",
+        "dependencies": [
+          1,
+          2,
+          3
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement Common TUI Widgets",
+        "description": "Develop a set of reusable TUI widgets for consistent user interaction, including directory browsers, progress bars, status indicators, input validators, and error displays.",
+        "details": "### 1. Create Widget and Theme Modules\n- Create a new file: `src/ui/widgets.py`. This file will contain all the reusable widget functions and classes.\n- Create a new file: `src/ui/theme.py`. This will centralize color schemes and styles for both `rich` and `InquirerPy` to ensure a consistent look and feel across the application.\n\n### 2. Implement Common Theme\n- In `src/ui/theme.py`, define a `rich.theme.Theme` object with custom styles for common elements like `info`, `warning`, `error`, `prompt.question`, `badge.key`, `badge.value`.\n- Also in `src/ui/theme.py`, define a dictionary for `InquirerPy` styling to be passed to prompts, ensuring consistent colors for questions, answers, pointers, etc.\n\n### 3. Implement Widgets in `src/ui/widgets.py`\n- **Directory Browser:** Create a function `select_directory_from_tree(start_path)` that uses `rich.tree.Tree` to display the file system and `InquirerPy` to allow navigation and selection.\n- **Progress Bar:** Implement a wrapper function `create_progress_bar()` that returns a pre-configured `rich.progress.Progress` instance using styles from `theme.py`. This will standardize the appearance of all progress bars in the app.\n- **Status Indicators:** Create a function `create_status_badge(label, value)` that returns a `rich` renderable group (e.g., `[bold cyan]Mode:[/] [yellow]CacheOnly[/]`). This will be used for displaying states.\n- **Input Validators:** Implement custom validator classes inheriting from `InquirerPy.validator.Validator`. Create `PathValidator` (checks if a path exists), `IntegerValidator` (checks for valid integer input), and `ApiKeyValidator` (checks for non-empty string).\n- **Error Display:** Create a function `display_error_panel(title, message, log_path=None)` that prints a styled `rich.panel.Panel` to the console using the 'error' style from the theme. If `log_path` is provided, include it in the message.\n\n### 4. Integrate Widgets\n- Refactor `src/ui/wizard.py` (from Task 3) and other UI modules to import and use the new common widgets and themes instead of defining styles and prompts inline. For example, replace ad-hoc path input prompts with one that uses the new `PathValidator`.",
+        "testStrategy": "1. **Theme and Style Verification:**\n   - Run the application and navigate to the main menu and the run configuration wizard (from Task 3).\n   - Verify that all prompts, questions, and text now use the centralized styles defined in `src/ui/theme.py`.\n\n2. **Validator Integration Test:**\n   - In the run configuration wizard, when prompted for a directory path, enter an invalid/non-existent path. Verify that the `PathValidator`'s error message is displayed and prevents proceeding.\n   - Enter a valid path and confirm the wizard continues.\n\n3. **Widget Isolation Test:**\n   - Create a temporary script (e.g., `test_widgets.py`) that imports and calls each function from `src/ui/widgets.py`.\n   - Run the script to display the directory browser, a sample progress bar, a status badge, and an error panel. Confirm each one renders correctly with the expected styling from the theme.\n\n4. **Progress Bar Refactoring:**\n   - Identify a process in the wizard (e.g., scanning files) that should have a progress bar.\n   - Implement the `create_progress_bar()` widget for that process. Run the wizard and confirm the standardized progress bar appears and functions correctly during the operation.",
+        "status": "pending",
+        "dependencies": [
+          3,
+          "1"
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement TUI Tests",
+        "description": "Create a comprehensive test suite for all Text-based User Interface (TUI) components and workflows, ensuring functionality, robustness, and compatibility.",
+        "details": "### 1. Test Environment Setup\n- Add `pytest-mock` to the `[tool.poetry.group.dev.dependencies]` section in `pyproject.toml` to facilitate mocking user input and service calls.\n- Create the test file `tests/ui/test_tui_widgets.py` for widget-specific unit tests.\n- Create a second test file, `tests/ui/test_tui_flows.py`, for housing integration tests of multi-step user workflows.\n\n### 2. Mocking Strategy\n- Utilize `pytest-mock`'s `mocker` fixture to patch `InquirerPy` functions (e.g., `InquirerPy.prompt`, `InquirerPy.validator.PathValidator`). This will allow simulating user input sequences without manual interaction.\n- Mock backend service functions from `src/services/profile_manager.py` and `src/services/plan_manager.py` to isolate the UI logic from the business logic during tests.\n\n### 3. Widget Unit Tests (`tests/ui/test_tui_widgets.py`)\n- Reference `src/ui/widgets.py` (from Task 7).\n- Write unit tests for each custom validator. For example, test `validate_not_empty` with both a non-empty string and an empty string to assert the expected `ValidationResult`.\n- Test functions that generate `rich` renderables. Assert that objects are created with the correct styles and content based on input parameters.\n\n### 4. TUI Integration Tests (`tests/ui/test_tui_flows.py`)\n- **Wizard Flow (Task 3):** Test the main wizard from `src/ui/wizard.py`. Create a test that mocks a complete user journey, providing simulated input for each step. Assert that the final configuration data passed to the execution logic is correct.\n- **Profile Management (Task 4):** Test the workflows in `src/ui/profiles.py`. Simulate creating a new profile and assert that `profile_manager.save_profile` is called with the expected data structure. Test the load, edit, and delete flows by mocking menu selections and confirming the correct service functions are invoked.\n- **Settings Management (Task 5):** Test `src/ui/settings.py`. Write a test to simulate editing the TMDB API key. Verify that the prompt displays a masked value (e.g., `****key`) if one already exists. Mock new user input and assert that the profile is saved with the new, unencrypted key.\n- **Tools Functions (Task 6):** Test `src/ui/tools.py`. Simulate selecting 'Review Last Plan' and mock the underlying file read to assert that the plan content is correctly formatted and displayed to the user. Test the 'Clear Cache' flow, ensuring the confirmation prompt is shown and the correct cache-clearing function is called upon confirmation.",
+        "testStrategy": "### 1. Automated Testing (CI)\n- Configure the CI pipeline to execute `poetry run pytest tests/ui` on all pull requests.\n- The tests should run using mocked inputs and services, requiring no interactive environment.\n\n### 2. Widget Unit Test Verification\n- Execute `pytest tests/ui/test_tui_widgets.py`.\n- Verify that all validator tests pass for both valid and invalid input scenarios.\n- Confirm that tests for widget factory functions (e.g., for progress bars, tables) pass, ensuring correct object instantiation.\n\n### 3. Flow Integration Test Verification\n- Execute `pytest tests/ui/test_tui_flows.py`.\n- **Wizard:** Check that the wizard test completes successfully and the final mocked call to the core logic contains the correctly assembled configuration dictionary.\n- **Profiles:** Verify the profile creation test results in a mocked call to `save_profile` with the exact data provided in the test's simulated input.\n- **Settings:** Confirm the settings test correctly asserts that a masked API key is displayed during the 'edit' prompt.\n\n### 4. Manual Compatibility and Build Testing\n- **Windows Console Test:** Manually launch the application (`poetry run anivault`) on a Windows machine using both Command Prompt (cmd.exe) and Windows Terminal. Navigate through all menus (main, profiles, settings, tools, wizard) to check for any UI rendering artifacts or compatibility issues with `rich` and `InquirerPy`.\n- **PyInstaller Bundle Test:** After creating a production build with PyInstaller, execute the generated `.exe` file on a clean Windows environment (or VM) that does not have Python or project dependencies installed. Verify that the application launches and the TUI is fully functional.",
+        "status": "pending",
+        "dependencies": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          "1",
+          "2"
+        ],
+        "priority": "low",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-28T17:26:08.321Z",
+      "updated": "2025-09-28T17:31:09.522Z",
+      "description": "TUI 기반 사용자 인터페이스 개발 태그"
+    }
+  },
+  "new-scan-pipeline": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Implement Core ScanParsePool and Extension Filtering",
+        "description": "Set up the main file processing pipeline using `concurrent.futures.ThreadPoolExecutor` for parallel scanning. Implement a whitelist-based filter to process only relevant file extensions.",
+        "details": "Create a `ScanParsePool` class that manages a `ThreadPoolExecutor`. Implement a directory scanning function that yields file paths. Add a configuration-driven extension whitelist (e.g., .mkv, .mp4, .avi) to filter files before they are queued for parsing.",
+        "testStrategy": "Unit test the extension filter with various file names, including those with and without whitelisted extensions. Integration test the pool by scanning a small directory and verifying that only whitelisted files are submitted to the executor for processing.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create ScanParsePool Class Structure",
+            "description": "Design and implement the core ScanParsePool class using ThreadPoolExecutor",
+            "details": "Create the main ScanParsePool class that manages a ThreadPoolExecutor for parallel file processing. Define the class structure, initialization, and basic methods for managing the thread pool.\n<info added on 2025-09-28T18:52:26.977Z>\n**Implementation Details:**\n\n- **File to Create:** `src/anivault/scanner/directory_scanner.py`\n- **Function to Implement:** Create a generator function `scan_directory(root_path: str) -> Iterator[str]`.\n- **Core Logic:**\n  - Use `os.walk()` to recursively traverse the directory structure starting from `root_path`.\n  - For each file found during the traversal, the function should `yield` its absolute path. This generator-based approach avoids loading all file paths into memory at once, which is a preliminary step towards the memory-efficiency goals of Task 3.\n\n**Integration with `ScanParsePool`:**\n\n- The newly created `scan_directory` function will serve as the `scanner_func` argument for the `ScanParsePool.process_directory` method that was implemented in the previous subtask.\n- The `ScanParsePool` will iterate over the paths yielded by `scan_directory`, apply its internal extension filtering, and submit the matching files to its thread pool for processing.\n- **Note:** The `scan_directory` function itself should **not** perform any extension filtering. Its sole responsibility is to discover all files. Filtering is handled by the `ScanParsePool` to maintain separation of concerns.\n\n**Project Structure Update:**\n\n- Update `src/anivault/scanner/__init__.py` to export the `scan_directory` function, making it accessible from the package level (e.g., `from anivault.scanner import scan_directory`).\n</info added on 2025-09-28T18:52:26.977Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 2,
+            "title": "Implement Basic Directory Scanner",
+            "description": "Create a directory scanning function that yields file paths for processing",
+            "details": "Implement a directory scanning function that recursively traverses directories and yields file paths. Use os.scandir for efficient directory traversal and handle various file system edge cases.\n<info added on 2025-09-28T18:53:30.898Z>\n**Implementation Update:**\n\nA new generator function, `scan_directory_paths`, has been implemented in `src/anivault/scanner/file_scanner.py`. This function serves as a strategic wrapper around the existing `scan_directory` generator. Instead of yielding `os.DirEntry` objects, it now yields the file path as a `str`.\n\nThis change was integrated into the `ScanParsePool` by updating the `_scan_directory_task` method in `src/anivault/scanner/scan_parse_pool.py` to use this new string-based generator.\n\n**Architectural Justification:**\n- **Decoupling:** Yielding simple `str` paths decouples the file system scanning logic from the consumers within the thread pool. Consumers no longer need to handle `os.DirEntry` objects, making the parsing tasks simpler and more focused.\n- **Thread-Safety & Serialization:** String paths are inherently thread-safe and easily passed between threads via the upcoming bounded queue (Task 2), avoiding potential issues with pickling or sharing more complex objects.\n- **Efficiency:** This implementation retains the high performance and memory efficiency of the underlying `os.scandir` approach, directly contributing to the goals of Task 3 (Optimize Directory Scanning).\n\nThis provides a clean, efficient, and robust data stream of file paths, setting a solid foundation for the next subtask: implementing the configuration-driven extension filter. The new function `scan_directory_paths` is now exported via `src/anivault/scanner/__init__.py`.\n</info added on 2025-09-28T18:53:30.898Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 3,
+            "title": "Develop Configuration-Driven Extension Filter",
+            "description": "Create a whitelist-based filter to process only relevant file extensions",
+            "details": "Implement a configuration-driven extension filter that only processes files with whitelisted extensions (e.g., .mkv, .mp4, .avi). Make the filter configurable and efficient for large directory scans.\n<info added on 2025-09-28T18:54:56.126Z>\nA new, dedicated module for file filtering has been created at `src/anivault/scanner/extension_filter.py`. This module introduces several key functions, including `create_media_extension_filter()` for basic filtering and `get_default_media_filter()`, which sources its whitelist from `APP_CONFIG.media_extensions` for configuration-driven behavior.\n\nThe primary integration point is within `src/anivault/scanner/scan_parse_pool.py`. The `ScanParsePool.__init__` method has been modified to use `get_default_media_filter()` as the default `filter_func`. This change ensures that if no custom filter is supplied during instantiation, the pool will automatically filter for media files based on the global application configuration. The implementation leverages `set` collections for efficient O(1) extension lookups.\n\nFinally, `src/anivault/scanner/__init__.py` has been updated to export all new public filter functions, making them accessible throughout the `anivault.scanner` package.\n</info added on 2025-09-28T18:54:56.126Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 4,
+            "title": "Write Unit and Integration Tests",
+            "description": "Create comprehensive unit and integration tests for the ScanParsePool functionality",
+            "details": "Write unit tests for individual components and integration tests for the complete ScanParsePool workflow. Test various scenarios including edge cases, error handling, and performance characteristics.\n<info added on 2025-09-28T18:57:32.249Z>\nA comprehensive test suite has been implemented in `tests/scanner/test_scan_parse_pool.py` using `pytest`. This new suite contains 31 test cases that validate the core functionality and integration of the `ScanParsePool` and `extension_filter` modules.\n\n**Key Implementation Details:**\n- **Test Structure:** The tests heavily utilize `pytest`'s `tmp_path` fixture to create temporary, isolated directory structures for controlled testing of file and directory scanning.\n- **`ScanParsePool` Coverage (22 tests):** The suite validates the complete lifecycle of the `ScanParsePool`, including its behavior as a context manager (`__enter__`/`__exit__`), manual start/shutdown, concurrent task processing with the internal `ThreadPoolExecutor`, and statistics collection.\n- **`ExtensionFilter` Coverage (9 tests):** Tests for the `anivault.scanner.extension_filter` module are included, verifying filtering logic with default configurations (from `APP_CONFIG`), custom include/exclude rules, and case-insensitivity.\n- **Integration Validation:** The suite ensures that `ScanParsePool` correctly integrates the `ExtensionFilter`, processing only files that match the filter criteria.\n- **Error and Edge Case Handling:** Scenarios such as scanning non-existent paths, handling empty directories, and managing permissions errors are explicitly tested.\n- **Scanner Function Tests:** The existing `tests/scanner/test_file_scanner.py` file was updated with new tests for the `scan_directory_paths` function to confirm its correctness.\n\nThe test suite achieves over 95% code coverage for the newly introduced `scan_parse_pool.py` and `extension_filter.py` modules, confirming their robustness and reliability.\n</info added on 2025-09-28T18:57:32.249Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Integrate Bounded Queues with Backpressure",
+        "description": "Implement bounded queues between the file scanning (producer) and parsing (consumer) stages to manage memory and prevent overflow. Define and implement a 'wait' backpressure policy.",
+        "details": "Use `queue.Queue(maxsize=...)` to create a bounded queue with a sensible limit (e.g., 1000). The file scanner thread will put paths into this queue. The parser threads will get paths from it. The scanner should block ('wait' policy) when the queue is full, preventing it from outpacing the parsers and consuming excessive memory.",
+        "testStrategy": "Create a test scenario with a fast producer (scanner) and a slow consumer (mock parser with `time.sleep`). Verify that the queue fills up and the producer blocks, confirming that memory growth is constrained.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Integrate Bounded Queue into ScanParsePool",
+            "description": "Integrate a bounded queue.Queue into the ScanParsePool for producer-consumer pattern",
+            "details": "Modify the ScanParsePool to use a bounded queue.Queue for managing the flow of files between the scanner (producer) and parser (consumer) threads. Implement proper queue initialization and management.\n<info added on 2025-09-28T19:01:00.796Z>\nWith the producer-consumer pattern now established within `ScanParsePool`, the next step is to refactor the producer logic into a dedicated `Scanner` class. This will improve separation of concerns, making `ScanParsePool` solely responsible for managing the consumer (parser) pool.\n\n**Implementation Plan:**\n\n1.  **Create a new `Scanner` class** in a new file, likely `src/anivault/scanner.py`.\n2.  **Move Producer Logic:** Migrate the directory traversal and file filtering logic from `ScanParsePool._scan_directory_task()` into a new method within the `Scanner` class, such as `scan(directory, file_queue, extension_whitelist)`.\n3.  **Refactor `ScanParsePool`:**\n    *   Remove the `_scan_directory_task()` method.\n    *   In the `start()` method, instantiate the new `Scanner`.\n    *   Submit a single call to `scanner.scan()` to the `ThreadPoolExecutor`. This task will act as the sole producer.\n    *   The `ScanParsePool` will continue to manage the consumer threads that call `_consume_queue()`.\n4.  **Update Shutdown Signaling:** Ensure the new `Scanner` class is responsible for putting the `None` sentinel values onto the queue (one for each consumer thread) once it has finished scanning the directory.\n\nThis change will decouple the act of scanning from the pool management, resulting in a cleaner architecture where the `Scanner` produces paths and the `ScanParsePool` consumes them for parsing.\n</info added on 2025-09-28T19:01:00.796Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          },
+          {
+            "id": 2,
+            "title": "Refactor Scanner as Producer",
+            "description": "Refactor the scanner to put items onto the bounded queue as a producer",
+            "details": "Modify the directory scanner to act as a producer that puts file paths onto the bounded queue. Implement proper error handling and queue management for the producer side.\n<info added on 2025-09-28T19:02:33.042Z>\n**Refactoring Summary:**\n\nThe directory scanning logic has been successfully refactored into a dedicated producer class, establishing a clean producer-consumer architecture.\n\n- **New Producer Class:** A new `Scanner` class was created in `src/anivault/scanner/producer_scanner.py`. This class encapsulates all file discovery and queueing logic, acting as the producer.\n- **Producer Implementation:** The `Scanner.scan()` method now handles directory traversal. It puts valid file paths onto the bounded `file_queue`. Crucially, the `queue.put()` call is blocking, which provides the required backpressure when the queue is full, thus fulfilling the 'wait' policy.\n- **Graceful Shutdown:** Upon completing the scan, the `Scanner` places a `None` sentinel value onto the queue for each consumer thread. This signals the end of the stream and allows consumer threads to shut down gracefully.\n- **`ScanParsePool` Refactoring:** The `ScanParsePool` class (in `src/anivault/pools/scan_parse_pool.py`) has been updated to act as the consumer manager. It no longer contains scanning logic (`_scan_directory_task` was removed). Instead, it now instantiates the `Scanner`, creates the bounded queue, and invokes `scanner.scan()` to start the production of file paths.\n- **Statistics Integration:** The new `Scanner` class tracks its own operational statistics (e.g., files found, backpressure events), which are now integrated into the final statistics report generated by `ScanParsePool`.\n</info added on 2025-09-28T19:02:33.042Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          },
+          {
+            "id": 3,
+            "title": "Implement Parser Worker as Consumer",
+            "description": "Implement the parser worker to get items from the queue as a consumer",
+            "details": "Create parser worker threads that act as consumers, getting file paths from the bounded queue and processing them. Implement proper error handling and queue management for the consumer side.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Optimize Directory Scanning with Generator/Streaming",
+        "description": "Refactor the file scanning logic to use generator-based, memory-efficient patterns for traversing large directories (100k+ files), ensuring memory usage stays within the 500MB limit.",
+        "details": "Replace any list-based directory walking (like `os.walk` that returns a full list) with an iterator-based approach using `os.scandir`. This ensures that file paths are processed as a stream and fed directly into the bounded queue without being collected into a large list in memory first.",
+        "testStrategy": "Profile the memory usage of the scanning process on a test directory with 100k+ empty files using `memory-profiler`. Verify that the peak memory usage is minimal and does not scale linearly with the number of files.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Refactor Directory Scanning with os.scandir and Generators",
+            "description": "Refactor the directory scanning logic to use os.scandir and generators for memory efficiency",
+            "details": "Refactor the directory scanning logic to use os.scandir for efficient directory traversal and implement generator-based patterns to minimize memory usage during large directory scans.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 2,
+            "title": "Create Memory Profiling Test for Large-Scale Directory",
+            "description": "Create and run a memory profiling test on a large-scale test directory to verify constant memory usage",
+            "details": "Create a memory profiling test that uses a large-scale test directory (100k+ files) to verify that memory usage remains constant and low. Use memory profiling tools to measure and validate memory efficiency.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 3
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Implement anitopy and Fallback Parsing Logic",
+        "description": "Integrate the `anitopy` library for primary filename parsing. Implement a fallback mechanism using the `parse` library for filenames that `anitopy` fails to process.",
+        "details": "Create a parsing function that takes a filename. First, it attempts to parse with `anitopy==2.1.1`. If the parsing fails or returns insufficient data, it then attempts to parse using a set of predefined patterns with `parse==1.20.0`. The function should log parsing failures and indicate which parser (primary or fallback) was successful.",
+        "testStrategy": "Unit test the parsing function with a diverse set of known filename formats, including complex cases that are expected to require the fallback parser. Track the failure rate against a sample dataset to work towards the ≤3% target.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Primary Parsing Logic using anitopy",
+            "description": "Implement the primary filename parsing logic using the anitopy library",
+            "details": "Implement the main parsing logic using the anitopy library to extract anime information from filenames. Handle various filename formats and extract relevant metadata like title, season, episode, quality, etc.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 2,
+            "title": "Design and Implement Fallback Parsing Mechanism",
+            "description": "Create a fallback parsing mechanism using the parse library for filenames that anitopy fails to process",
+            "details": "Implement a fallback parsing mechanism using the parse library with a set of initial patterns for common filename formats. This should handle cases where anitopy fails to extract sufficient information.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 3,
+            "title": "Create Unified Parsing Function with Logging",
+            "description": "Create a unified parsing function that orchestrates the primary/fallback flow and includes comprehensive logging",
+            "details": "Implement a unified parsing function that tries the primary anitopy parser first, and falls back to the parse library if needed. Include comprehensive logging for debugging and monitoring purposes.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 4,
+            "title": "Build Robust Unit Test Suite",
+            "description": "Create a comprehensive unit test suite with a wide variety of filename examples",
+            "details": "Create a comprehensive unit test suite that tests the parsing logic with a wide variety of real-world filename examples. Include edge cases, different formats, and various languages to ensure robust parsing.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 4
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Build JSON Cache System v1",
+        "description": "Implement the v1 JSON caching system to store parsing results. This includes the `cache/search/*.json` schema, key normalization, TTL management, and cache hit/miss counters.",
+        "details": "Create a `CacheManager` class. Implement a key normalization function (e.g., lowercase, remove special characters, whitespace normalization). Before parsing, check the cache. After parsing, store the result in a JSON file at `cache/search/{normalized_key}.json`. Implement TTL by checking the file's modification time. Atomically increment hit/miss counters.",
+        "testStrategy": "Unit test the key normalization algorithm. Integration test the full cache flow: scan a directory, verify cache files are created. Scan it again and assert that the hit counter increases and parsing logic is skipped for cached files.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Key Normalization Logic",
+            "description": "Create a function to normalize cache keys by converting to lowercase, removing special characters, and standardizing whitespace",
+            "details": "Implement a key normalization function that takes a query string and returns a normalized version suitable for use as a cache key. This should handle case-insensitive matching, remove special characters, and normalize whitespace.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 2,
+            "title": "Implement Core Cache Read/Write Operations",
+            "description": "Create atomic file handling for cache read/write operations with proper error handling",
+            "details": "Implement the core cache operations including reading from and writing to JSON files. Ensure atomic operations by using temporary files and atomic rename operations to prevent corruption during concurrent access.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 3,
+            "title": "Add TTL (Time-To-Live) Validation",
+            "description": "Implement TTL validation based on file modification times to automatically expire old cache entries",
+            "details": "Add TTL validation logic that checks file modification times against the current time. Implement cache expiration logic that automatically removes or marks expired entries as invalid.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 4,
+            "title": "Implement Thread-Safe Cache Hit/Miss Counters",
+            "description": "Create thread-safe counters for tracking cache performance metrics",
+            "details": "Implement thread-safe counters using appropriate synchronization mechanisms to track cache hits and misses. These counters should be accessible from multiple threads without race conditions.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 5,
+            "title": "Integrate CacheManager into Main Processing Pipeline",
+            "description": "Integrate the CacheManager into the main processing pipeline to enable caching during file processing",
+            "details": "Integrate the CacheManager into the main processing pipeline so that parsing results are automatically cached and retrieved. Ensure proper integration with the existing scan and parse workflow.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 5
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Add Progress Indicators and Real-time Statistics",
+        "description": "Provide user feedback during the scan/parse process by implementing progress indicators and displaying real-time statistics like scan speed, files processed, and cache performance.",
+        "details": "Use a library like `rich` or `tqdm` to display a progress bar for the number of files being processed. Create a status panel or logging output to display live stats: paths/min, cache hit/miss ratio, current memory usage (using `psutil`), and parsing failure rate. These stats should be updated periodically.",
+        "testStrategy": "Manually run the CLI on a medium-sized directory (1k+ files). Visually inspect and verify that the progress bar advances correctly and the displayed statistics are plausible and update in real-time.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Integrate Basic Progress Bar for File Count",
+            "description": "Add a basic progress bar to show the number of files processed during scanning",
+            "details": "Implement a simple progress bar using the rich library to display the current progress of file scanning. The progress bar should show the number of files processed out of the total number of files.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 6
+          },
+          {
+            "id": 2,
+            "title": "Create Thread-Safe Statistics Aggregation Class",
+            "description": "Create a thread-safe class for aggregating real-time statistics from multiple concurrent sources",
+            "details": "Implement a thread-safe statistics class that can collect and aggregate real-time metrics like scan speed, cache hits, memory usage, and other performance indicators from multiple concurrent threads.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 6
+          },
+          {
+            "id": 3,
+            "title": "Instrument Pipeline to Update Statistics",
+            "description": "Add instrumentation to the processing pipeline to update statistics in real-time",
+            "details": "Add instrumentation points throughout the processing pipeline to collect and update statistics. This includes tracking file processing speed, cache performance, memory usage, and other relevant metrics.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 6
+          },
+          {
+            "id": 4,
+            "title": "Design and Implement Rich Layout for Progress Display",
+            "description": "Create a rich layout to display progress bar and live statistics panel",
+            "details": "Design and implement a rich layout that displays both the progress bar and live statistics panel in an organized and visually appealing way. Use the rich library's layout capabilities to create a professional-looking interface.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 6
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Perform Fuzz Testing and Prepare Accuracy Dataset",
+        "description": "Ensure the robustness of the parsing system using property-based fuzz testing with `Hypothesis`. Prepare a labeled sample dataset to evaluate matching accuracy.",
+        "details": "Create a `Hypothesis` test suite (`hypothesis==6.88.0`) that generates at least 1,000 varied filename-like strings and feeds them to the parsing function, ensuring no unhandled exceptions or crashes occur. Separately, curate and manually label a dataset of 100-200 diverse, real-world filenames with their expected parsing output.",
+        "testStrategy": "Run the Hypothesis test suite as part of the CI/CD pipeline; it must pass without any falsifying examples. The labeled dataset will be used in a separate test to calculate the matching accuracy score.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Property-Based Test Suite with Hypothesis",
+            "description": "Create a property-based test suite for the parsing function using Hypothesis to ensure robustness",
+            "details": "Implement property-based tests using Hypothesis to test the parsing function with a wide variety of generated inputs. Define data generation strategies and invariant properties to ensure robust parsing behavior.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 7
+          },
+          {
+            "id": 2,
+            "title": "Curate and Label Real-World Filename Dataset",
+            "description": "Curate, manually label, and commit a dataset of at least 100 real-world filenames",
+            "details": "Collect and manually label a dataset of at least 100 real-world anime filenames with their expected parsing results. This dataset will be used for accuracy evaluation and should cover various formats and languages.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 7
+          },
+          {
+            "id": 3,
+            "title": "Implement Accuracy Evaluation Test Script",
+            "description": "Implement a test script that uses the labeled dataset to calculate and report parser accuracy",
+            "details": "Create a test script that loads the labeled dataset, runs the parsing function on each filename, and calculates accuracy metrics. Report the results including success rate, failure cases, and performance statistics.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 7
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Profile Performance and Validate Success Criteria",
+        "description": "Conduct final performance testing to validate that all success criteria are met. Profile memory usage and scan throughput on a large scale, and document the results.",
+        "details": "Create a test environment with 100k+ files. Use a memory profiler (e.g., `memray`) to execute the scan and verify memory usage remains ≤500MB. Measure the P95 scan throughput in paths/min. Run the scan twice to measure the cache hit rate on the second run. Document all results against the PRD targets.",
+        "testStrategy": "Execute a dedicated performance benchmark script. The test passes if memory usage is ≤500MB, P95 scan throughput is ≥120k paths/min, and the second-run cache hit rate is ≥90%. The results must be recorded in performance benchmark documentation.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Script Creation of 100k+ File Test Environment",
+            "description": "Create a script to generate a large-scale test environment with 100k+ files for benchmarking",
+            "details": "Develop a script that can generate a large-scale test environment with 100k+ files for performance benchmarking. The script should create realistic file structures and naming patterns for accurate testing.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 2,
+            "title": "Develop Benchmark Execution Script with Memory Profiler",
+            "description": "Create a benchmark execution script that measures throughput and integrates memory profiling",
+            "details": "Develop a comprehensive benchmark execution script that measures scan throughput, memory usage, and cache performance. Integrate memory profiling tools like memray to track memory usage patterns during execution.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 3,
+            "title": "Execute Benchmark and Gather Performance Data",
+            "description": "Run the benchmark to collect data on throughput, memory, and cache performance",
+            "details": "Execute the benchmark script on the large-scale test environment to gather comprehensive performance data. Collect metrics on scan throughput, memory usage, cache hit rates, and other relevant performance indicators.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 4,
+            "title": "Analyze Performance Data and Derive Metrics",
+            "description": "Analyze the collected benchmark data to derive final metrics including P95 and peak memory",
+            "details": "Analyze the collected performance data to calculate final metrics including P95 scan throughput, peak memory usage, cache hit rates, and other relevant performance indicators. Perform statistical analysis on the results.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 5,
+            "title": "Author Final Performance Report",
+            "description": "Create a comprehensive performance report documenting results against project success criteria",
+            "details": "Create a comprehensive performance report that documents all benchmark results against the project's success criteria. Include detailed analysis, recommendations, and validation of performance targets.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 8
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-28T18:41:45.993Z",
+      "updated": "2025-09-28T19:14:40.862Z",
+      "description": "Tasks for new-scan-pipeline context"
     }
   }
 }

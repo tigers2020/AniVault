@@ -95,3 +95,4 @@ log_file = "logs/anivault.log"
 log_level = "INFO"
 log_max_bytes = 10485760  # 10MB
 log_backup_count = 5
+media_extensions = [".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".m4v", ".webm"]

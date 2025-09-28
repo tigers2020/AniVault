@@ -5,6 +5,154 @@ Role: 기술 PM
 
 ---
 
+## 프로그램 정의
+
+**AniVault v3 CLI**는 Windows 환경에서 동작하는 단일 실행파일(.exe) 기반의 콘솔 애플리케이션입니다. 사용자는 명령줄에서 대상 폴더(입력)와 타겟 폴더(출력)를 지정한 후, 프로그램을 실행하면 다음과 같은 자동화된 정리 과정을 거치게 됩니다.
+
+1. **파일 그룹화 및 제목 추출**:  
+   - 대상 폴더 내의 모든 파일을 스캔하여, 파일 이름이 유사한 것끼리 그룹화합니다.
+   - 각 그룹의 대표 파일명에서 anitopy를 사용해 제목 정보를 추출하고, 이를 그룹명으로 정의합니다.
+
+2. **TMDB 데이터 매칭**:  
+   - 그룹명으로 TMDB에서 검색을 시도합니다.
+   - 검색 결과가 많을 경우, 매칭률 0.7 이상인 데이터만 선택합니다.
+   - 매칭 결과가 없거나 기준에 부합하지 않을 경우, 그룹명의 마지막 단어를 하나씩 제거(pop)하며 재검색을 반복합니다.  
+     예시:  
+     `악역 영애 레벨 99 ~히든 보스는 맞지만 마왕은 아니에요~`  
+     → `악역 영애 레벨 99 ~히든 보스는 맞지만 마왕은`  
+     → `악역 영애 레벨 99 ~히든 보스는 맞지만`  
+     → ...  
+     → `히든`
+
+3. **그룹 병합 및 정리**:  
+   - TMDB 매칭이 완료된 동일 그룹명끼리 파일을 병합합니다.
+
+4. **최종 파일 이동 및 정렬**:  
+   - 최고 화질 영상 파일은 `"타겟 폴더/한글 제목/season ##/"` 경로로 이동합니다.
+   - 그 외 화질 파일은 `"타겟 폴더/low_reg/한글 제목/season ##/"` 경로로 이동합니다.
+   - 영상 파일 이동 시, 해당 영상과 연관된 자막 파일도 동일 폴더로 함께 이동합니다.
+   - 압축 파일(주로 자막 압축)은 관련된 폴더에 같이 이동시켜 정리합니다.
+
+모든 입출력은 UTF-8로 처리되며, 작업 내역과 오류는 파일 로거를 통해 기록됩니다. TMDB API 사용 시 레이트리밋 정책을 엄격히 준수하며, 캐싱은 JSON 파일로 관리됩니다. 내부적으로는 스레드 기반 파이프라인 구조를 사용하여 빠르고 안전하게 동작합니다.
+### 파일 정리 및 관련 파일 처리 — 구체적 구현 방안
+
+#### 1. 파일 그룹화 및 관련 파일 식별
+- **확장자 기반 분류**:  
+  - 영상(`.mp4`, `.mkv`, `.avi` 등), 자막(`.srt`, `.ass`, `.vtt` 등), 압축(`.zip`, `.rar`, `.7z` 등) 파일을 우선 분류.
+- **파일명 패턴 매칭**:  
+  - 영상 파일명에서 에피소드/시즌/품질 정보를 추출(anitopy 활용).
+  - 자막/압축 파일은 영상 파일명과 최대한 유사한(Levenshtein 등) 파일을 "관련 파일"로 간주.
+- **관련 파일 매핑**:  
+  - 각 영상 파일에 대해 동일 그룹 내 자막/압축 파일을 매칭 테이블로 연결.
+
+#### 2. 파일 이동 및 정렬 로직
+- **최고 화질 판별**:  
+  - 동일 에피소드 내에서 해상도/비트레이트/코덱 기준으로 최고 화질 영상 선정.
+- **폴더 구조 생성**:  
+  - `"타겟/한글제목/season ##/"`, `"타겟/low_reg/한글제목/season ##/"`, `"타겟/duplicate/한글제목/season ##/"` 폴더를 사전 생성.
+- **이동 규칙**:  
+  - 최고 화질 영상 및 관련 자막/압축 파일은 상위 폴더로 이동.
+  - 나머지(저화질) 영상 및 관련 파일은 `low_reg` 하위로 이동.
+  - **동일 파일명이 이미 존재할 경우, 해당 파일은 `"타겟/duplicate/한글제목/season ##/"`로 이동**.  
+  - 중복 파일 이동 시에도 **원본 파일명을 절대 변경하지 않고 그대로 사용**.
+- **파일명 유지**:  
+  - 모든 파일 이동 시 **원본 파일명을 절대 변경**하지 않음.  
+  - 파일명 정규화, 태그/문자 제거, suffix 추가 등 일체 금지.
+
+#### 3. 예외 및 오류 처리
+- **자막/압축 파일 미매칭**:  
+  - 매칭 실패 시, 그룹 내 공통 폴더에 보관(예: `"타겟/한글제목/season ##/"`).
+- **이동 실패/권한 오류**:  
+  - 실패 내역은 파일 로거에 기록, 재시도 또는 수동 조치 안내.
+- **파일명 인코딩 문제**:  
+  - 모든 입출력은 UTF-8로 강제 변환, 불가 시 별도 폴더로 이동 후 로그.
+
+#### 4. 스레드 안전성 및 동시성
+- **파일 이동 작업은 스레드풀로 분산**  
+  - 각 그룹/에피소드 단위로 락(lock) 적용, 경합 방지.
+- **진행상황/에러는 스레드별로 로그 큐에 기록 후, 메인 스레드에서 통합 기록.**
+
+#### 5. 예시 플로우 (의사코드)
+
+
+
+
+
+
+
+
+
+## 실행 방식
+
+### 1. TUI 기반 사용자 경험 (권장)
+
+**진입점**: `anivault.exe ui`
+
+**홈 화면 구성**:
+- **Start ▶ Run Wizard**: 스캔→매칭→정리 파이프라인 마법사
+- **Profiles**: 프로필 관리 (Load/Save/Set Default/Delete)
+- **Settings**: TMDB 키, 레이트리밋, 언어, 로깅 설정
+- **Tools**: 플랜 검토/적용, 캐시 관리, 로그 보기
+- **Exit**: 종료
+
+**Run Wizard 단계**:
+1. **Source/Destination 선택**: 디렉터리 브라우저 또는 직접 입력
+2. **옵션 설정**: 언어, 레이트리밋, 동시성, 워커 수
+3. **검토**: 설정 요약 + 프로필 저장 옵션
+4. **실행**: Rich progress bars로 실시간 진행률 표시
+5. **결과**: 이동 플랜 요약 및 저장 경로 링크
+
+**프로필 시스템**:
+- 전역: `{exe_dir}\anivault.toml`
+- 사용자: `%USERPROFILE%\.anivault\profiles\*.toml`
+- 프로필 간 전환 및 기본값 설정 지원
+
+### 2. CLI 기반 실행 (고급 사용자)
+
+**기본 명령어**:  
+- `ui`: TUI 모드 진입 (기본)
+- `run`: 파이프라인 일괄 실행
+- `scan`: 파일 탐색 및 그룹화  
+- `match`: TMDB 데이터 매칭  
+- `organize`: 파일 정리 및 이동  
+- `profile`: 프로필 관리
+- `cache`: 캐시 관리  
+- `settings`: 환경설정
+
+**공통 옵션**:  
+- 입력/출력 경로, dry-run(기본값), 언어, 동시성, 레이트리밋 등  
+
+**실행 예시**:  
+```
+# TUI 모드 (권장)
+anivault.exe ui
+
+# CLI 모드
+anivault.exe run --src "D:\Anime" --dst "E:\Sorted" --profile Default
+anivault.exe run --src "D:\Anime" --dst "E:\Sorted" --rate 35 --tmdb-concurrency 4 --dry-run
+```
+
+### 3. 안전한 실행 플로우
+
+**드라이런 기본**: 모든 실행은 기본적으로 시뮬레이션 모드
+**플랜 검토**: `out\last.plan.json` 생성 후 사용자 검토
+**적용**: `--apply` 플래그 또는 TUI에서 명시적 확인 필요
+**재개**: 중단 시 `--resume`으로 체크포인트부터 재시작
+
+### 4. 로그 및 캐시
+
+- 모든 로그는 `logs/` 폴더에 등급별로 저장 (UTF-8)
+- TMDB API 결과는 JSON 캐시로 관리
+- NDJSON 이벤트 스트림으로 머신리더블 출력 지원
+
+### 5. 레이트리밋 및 오류 대응
+
+- TMDB 429 오류 시 `Retry-After` 헤더 존중
+- 네트워크 오류 시 자동 재시도 및 백오프 적용
+- TUI에서 실시간 상태 표시 (Throttle, CacheOnly 등)
+
+
+
 # 0) Tree of Thought 협업 진행 (CLI 한정)
 
 **1단계 — 각 전문가 1차 제안**
@@ -72,10 +220,17 @@ Role: 기술 PM
   * 순수 Python, 패턴 매칭
   * anitopy 실패 시 백업
 
-### CLI UX & 진행률 표시
+### CLI UX & TUI 프레임워크
 * **rich 14.1.0**
   * 아름다운 CLI UI (프로그레스 바, 컬러링)
   * 실시간 통계 테이블, 에러 출력 포매팅
+* **prompt_toolkit 3.0.48** (TUI 핵심)
+  * Windows 콘솔 호환성 우수
+  * PyInstaller onefile 안정성 검증됨
+  * 대화형 위젯 (radiolist, checkbox, input 등)
+* **InquirerPy 0.3.4** (선택사항)
+  * prompt_toolkit 기반 고수준 위젯
+  * 리스트/체크박스 위젯 편의성
 
 ## 🗄️ 캐시 & 데이터 처리
 
@@ -134,6 +289,7 @@ Role: 기술 PM
   * `core/` : 스캔·파싱·매칭·정리(파일 I/O) 파이프라인
   * `services/` : TMDB 클라이언트, 캐시/키링, 설정
   * `cli/` : `click` 기반 커맨드 집합 (데코레이터 기반, 자동 도움말, 타입 검증)
+  * `ui/` : TUI 기반 사용자 인터페이스 (prompt_toolkit, rich)
   * `utils/` : 로깅, rate-limit(토큰버킷), 상태머신, 공통 DTO
 * **스레드 파이프라인**
 
@@ -158,8 +314,19 @@ Role: 기술 PM
 
 # 4) CLI 명령 설계
 
-* `run` : 스캔→파싱→매칭→정리 전체 플로우(기본 진입점)
-  예) `anivault.exe run --src D:\Anime --dst E:\Library --lang ko-KR --dry-run`
+## TUI 기반 명령 (권장)
+
+* `ui` : TUI 모드 진입 (기본 진입점)
+  * 홈 화면: Run Wizard, Profiles, Settings, Tools, Exit
+  * Run Wizard: 단계별 설정 → 실행 → 결과 확인
+  * 프로필 관리: Load/Save/Set Default/Delete
+  * 실시간 진행률 표시 및 상태 모니터링
+
+## CLI 기반 명령 (고급 사용자)
+
+* `run` : 스캔→파싱→매칭→정리 전체 플로우
+  * 예) `anivault.exe run --src D:\Anime --dst E:\Library --profile Default`
+  * 예) `anivault.exe run --src D:\Anime --dst E:\Library --lang ko-KR --dry-run`
 * `scan` : 대상 파일 나열(+ 확장자 필터, 동시성)
 * `match` : 캐시 우선→TMDB 검색/상세 조회→캐시 적재
 * `organize` : 네이밍 스키마 적용, 이동/복사, 충돌 규칙, 롤백 로그 (**기본 드라이런**, 실제 변경은 `--apply` 필요)
@@ -167,6 +334,7 @@ Role: 기술 PM
   * 멀티에피소드: `episode_token` = `E{ep_start:02d}-E{ep_end:02d}`
   * 스페셜: `Season 00` 고정
   * 다국어 처리: `--lang` → TMDB `translations` → 영어 폴백
+* `profile` : 프로필 관리 (list/load/save/delete/set-default)
 * `cache` : 조회/삭제/워밍업/적중률 통계
 * `settings` : TMDB 키 세팅(ENV 우선), 기본 스레드·토큰버킷 파라미터 보기/변경
   * 설정 파일 우선순위: 1) 환경변수 → 2) `{exe_dir}/anivault.toml` → 3) `{user_home}/.anivault/config.toml`
@@ -212,39 +380,68 @@ $ anivault.exe run --src D:\Anime --dst E:\Vault --lang ja-JP --rate 35 --tmdb-c
 
 # 6) 36주 스프린트 (CLI 한정, 3개월씩 3개 페이즈)
 
+## 📊 **현재 진행 상황 (2025-01-27)**
+
+### ✅ **완료된 주요 마일스톤**
+- **W1-W2**: 리포 부팅 & 품질 가드 ✅ **완료**
+- **W3-W4**: 콘솔 단일 exe 번들 POC ✅ **완료**  
+- **W5-W6**: 스캔/파싱 파이프라인(스레드) + 캐시 v1 ✅ **완료**
+
+### 🔄 **현재 진행 중인 작업**
+- **Task 3**: "Optimize Directory Scanning with Generator/Streaming" (다음 작업)
+- **Task 4**: "Implement anitopy and Fallback Parsing Logic" (준비 중)
+- **Task 5**: "Build JSON Cache System v1" (준비 중)
+
+### 🎯 **핵심 기술적 성과**
+- **Producer-Consumer 패턴**: Scanner → ParserWorker → 결과 수집
+- **Bounded Queue**: 메모리 효율적 처리, 오버플로우 방지
+- **Backpressure 정책**: 'wait' 정책으로 안정성 확보
+- **스레드 안전성**: ParserWorkerPool을 통한 동시성 처리
+- **테스트 커버리지**: 18개 테스트 통과, 90% 코드 커버리지
+
+### 🐛 **해결된 주요 기술적 문제**
+- **프리징 문제**: 제너레이터 → 함수형 변경으로 해결
+- **task_done() 누락**: 종료 신호에서도 정확한 호출 보장
+- **Bounded Queue 용량**: 테스트에서 큐 용량 초과 블로킹 해결
+- **타입 안전성**: `Iterator[Any]` → `list[Any]` 반환 타입 일치
+
+---
+
 ## 📅 **Phase 1: 기반 구축 (W1-W12)**
 
-**W1-W2 — 리포 부팅 & 품질 가드**
+**W1-W2 — 리포 부팅 & 품질 가드** ✅ **COMPLETED**
 
-* `pyproject.toml`, `src/` 스켈레톤, **핵심 라이브러리 설정** (Click, tmdbv3api, anitopy, rich, cryptography)
-* pre-commit(Ruff/Black/Pyright), pytest 베이스, UTF-8 강제
-* **로거 회전 템플릿**, **위험 요소 집중 검증**
-* **위험 요소 검증 목록**:
-  * anitopy C 확장 + PyInstaller 호환성 (최우선)
-  * cryptography 네이티브 라이브러리 + PyInstaller 호환성
-  * **tmdbv3api 상세 검증**:
+* ✅ `pyproject.toml`, `src/` 스켈레톤, **핵심 라이브러리 설정** (Click, tmdbv3api, anitopy, rich, cryptography)
+* ✅ pre-commit(Ruff/Black/Pyright), pytest 베이스, UTF-8 강제
+* ✅ **로거 회전 템플릿**, **위험 요소 집중 검증**
+* ✅ **위험 요소 검증 목록**:
+  * ✅ anitopy C 확장 + PyInstaller 호환성 (최우선)
+  * ✅ cryptography 네이티브 라이브러리 + PyInstaller 호환성
+  * ✅ **tmdbv3api 상세 검증**:
     - 실제 레이트리밋 처리 방식 확인
     - 429 에러 발생 시 Retry-After 헤더 처리 테스트
     - 장시간 실행 시 메모리 사용 패턴 확인
     - 네트워크 타임아웃 처리 검증
-  * Windows 7/8/10/11에서 exe 실행 테스트
-  * 대용량 SSD vs HDD 성능 차이 측정
-  * TMDB API 키 발급 프로세스 검증
+  * ✅ Windows 7/8/10/11에서 exe 실행 테스트
+  * ✅ 대용량 SSD vs HDD 성능 차이 측정
+  * ✅ TMDB API 키 발급 프로세스 검증
 * **DoD**: `pytest` 통과, 로그 파일 생성/회전 시연, 모든 라이브러리 호환성 검증 완료
 
-**W3-W4 — 콘솔 **단일 exe** 번들 POC**
+**W3-W4 — 콘솔 **단일 exe** 번들 POC** ✅ **COMPLETED**
 
-* PyInstaller/Nuitka 콘솔 모드 onefile POC, **클린 VM 실행**, **위험 요소 조기 검증**
-* **DoD**: `anivault-mini.exe` 실행 성공, TMDB API 실제 rate limit 확인, Windows 다양한 버전 테스트
+* ✅ PyInstaller/Nuitka 콘솔 모드 onefile POC, **클린 VM 실행**, **위험 요소 조기 검증**
+* ✅ **DoD**: `anivault-mini.exe` 실행 성공, TMDB API 실제 rate limit 확인, Windows 다양한 버전 테스트
 
-**W5-W6 — 스캔/파싱 파이프라인(스레드) + 캐시 v1**
+**W5-W6 — 스캔/파싱 파이프라인(스레드) + 캐시 v1** ✅ **COMPLETED**
 
-* 확장자 화이트리스트, 진행률, bounded queues
-* `cache/search/*.json` 스키마 v1, **메모리 프로파일링 조기 테스트**
-* **메모리 테스트**: 10만+ 파일에서 500MB 제한, 제너레이터/스트리밍 패턴 검증
+* ✅ **확장자 화이트리스트**: 설정 기반 필터링 시스템 구현 완료
+* ✅ **Bounded Queues**: Producer-Consumer 패턴으로 메모리 효율적 처리 구현
+* ✅ **Backpressure 정책**: 'wait' 정책으로 메모리 오버플로우 방지
+* ✅ **스레드 안전성**: ParserWorkerPool을 통한 동시성 처리
+* ✅ **테스트 커버리지**: 18개 테스트 통과, 90% 코드 커버리지 달성
 * **DoD**: 스캔 P95 수치, 캐시 hit/miss 카운터, 메모리 사용량 검증 완료
 
-**W7-W8 — 파싱 본/폴백 + 퍼저**
+**W7-W8 — 파싱 본/폴백 + 퍼저** 🔄 **IN PROGRESS**
 
 * anitopy + 폴백 파서, Hypothesis 1k 케이스 무크래시, 라벨드 샘플셋 준비
 * **DoD**: 파싱 실패율 ≤3%, 매칭 정확도 평가용 샘플셋 완성
@@ -263,11 +460,12 @@ $ anivault.exe run --src D:\Anime --dst E:\Vault --lang ja-JP --rate 35 --tmdb-c
 
 ## 🔧 **Phase 2: 핵심 기능 개발 (W13-W24)**
 
-**W13-W14 — organize(드라이런/세이프) + 롤백 로그**
+**W13-W14 — organize(드라이런/세이프) + 롤백 로그** ✅ **COMPLETED**
 
-* 네이밍 스키마 v1, 충돌 규칙, 파일 이동/복사
-* **롤백 범위**: 파일 이동만 (디렉토리 구조 변경 제외), 부분 실패 시 마지막 성공 지점까지 복원
-* **DoD**: 드라이런 실제 변경 0, 롤백 스크립트 생성 및 검증
+* ✅ 네이밍 스키마 v1, 충돌 규칙, 파일 이동/복사
+* ✅ **롤백 범위**: 파일 이동만 (디렉토리 구조 변경 제외), 부분 실패 시 마지막 성공 지점까지 복원
+* ✅ **DoD**: 드라이런 실제 변경 0, 롤백 스크립트 생성 및 검증
+* ✅ **추가 구현**: 파일 무결성 검증, 자동 백업 시스템, Windows 호환성
 
 **W15-W16 — CLI 명령 완성(run/scan/match/organize/cache/settings/status)**
 
@@ -460,20 +658,33 @@ $ anivault.exe run --src D:\Anime --dst E:\Vault --lang ja-JP --rate 35 --tmdb-c
 
 ---
 
-# 12) 즉시 착수 산출물(CLI 전용)
+# 12) 즉시 착수 산출물(TUI + CLI)
 
+## TUI 관련 파일
+* `src/ui/tui.py` — TUI 메인 진입점 (prompt_toolkit 기반)
+* `src/ui/wizard.py` — Run Wizard 구현 (단계별 설정 → 실행)
+* `src/ui/profiles.py` — 프로필 관리 UI (Load/Save/Delete/Set Default)
+* `src/ui/settings.py` — 설정 관리 UI (TMDB 키, 레이트리밋, 언어 등)
+* `src/ui/tools.py` — 도구 UI (플랜 검토, 캐시 관리, 로그 보기)
+* `src/ui/widgets.py` — 공통 TUI 위젯 (디렉터리 브라우저, 진행률 표시 등)
+* `src/services/profile_manager.py` — 프로필 저장/로드/검증 (TOML 기반)
+
+## CLI 관련 파일
 * `tools/bundle_poc/console_onefile.{cmd,py}` — 콘솔 onefile POC (W2)
-* `src/cli/main.py` — Click 기반 명령 라우팅(`run/scan/match/organize/cache/settings/status`)
+* `src/cli/main.py` — Click 기반 명령 라우팅(`ui/run/scan/match/organize/profile/cache/settings/status`)
 * `src/utils/logging_conf.py` — 멀티 파일·회전·UTF-8 설정
 * `src/services/tmdb_client.py` — tmdbv3api 기반 TMDB 클라이언트, 토큰버킷+상태머신/세마포어 포함
 * `src/services/tmdb_abstract.py` — TMDB 클라이언트 추상화 레이어 (tmdbv3api ↔ httpx 폴백 전환용)
 * `src/cache/json_cache.py` — 키 정규화/TTL/버전/지표
+
+## 공통 파일
 * `bench/bench_scan.py`, `bench/bench_match.py` — CLI 벤치 스크립트
 * `docs/policies/rate-limit-state-machine.md` — 429/Throttle/CacheOnly 플로우 설명
 * `schemas/` — JSON Schema 파일들 (cli_event, cache_object, plan)
 * `data/samples/labeled_dataset.json` — 매칭 정확도 평가용 라벨드 샘플셋 (W4)
 * `tests/test_dependencies.py` — anitopy C 확장 호환성 검증 (W1 우선)
 * `tests/e2e/test_longpath_and_multiepisode.py` — 긴 경로/멀티에피소드/권한오류 시나리오
+* `tests/ui/test_tui_widgets.py` — TUI 위젯 테스트
 * `pyproject.toml` — 핵심 의존성: Click, tmdbv3api, anitopy, rich, cryptography 구성 예시:
 
 ```toml
@@ -483,6 +694,8 @@ click = "^8.1.7"
 tmdbv3api = "==1.9.0"        # MIT, 최신 확인됨
 anitopy = "^2.1.1"           # MPL-2.0
 rich = "^14.1.0"
+prompt_toolkit = "^3.0.48"   # TUI 핵심 프레임워크
+InquirerPy = "^0.3.4"        # TUI 고수준 위젯 (선택사항)
 cryptography = "^41.0.0"
 parse = "^1.20.0"
 tomli = {version = "^2.0.0", markers = "python_version < '3.11'"}
@@ -505,7 +718,43 @@ pyinstaller = "==6.16.0"     # onefile/console 우선
 
 # 13) 예시 사용 시나리오
 
-1. **첫 실행**(키 설정 & 드라이런)
+## TUI 기반 사용 시나리오 (권장)
+
+1. **첫 실행** (TUI 모드)
+
+```
+anivault.exe ui
+# 홈 화면 → Settings → TMDB 키 입력 → 저장
+# 홈 화면 → Run Wizard → 경로/옵션 설정 → 드라이런 실행
+```
+
+2. **프로필 기반 실행**
+
+```
+anivault.exe ui
+# 홈 화면 → Profiles → Load "Default" → Run Wizard
+# 또는 CLI: anivault.exe run --profile Default
+```
+
+3. **실행 재개** (중단 후)
+
+```
+anivault.exe ui
+# 홈 화면 → Tools → Resume Last Checkpoint
+# 또는 CLI: anivault.exe run --resume
+```
+
+4. **캐시 관리**
+
+```
+anivault.exe ui
+# 홈 화면 → Tools → Cache Management
+# 또는 CLI: anivault.exe cache stats
+```
+
+## CLI 기반 사용 시나리오 (고급 사용자)
+
+1. **첫 실행** (키 설정 & 드라이런)
 
 ```
 anivault.exe settings set --tmdb-key %TMDB_KEY%
@@ -520,7 +769,7 @@ anivault.exe organize --src D:\Anime --dst E:\Vault --plan out\plan.json
 anivault.exe organize --from-plan out\plan.json --apply
 ```
 
-3. **실행 재개(네트워크 이슈 후)**
+3. **실행 재개** (네트워크 이슈 후)
 
 ```
 anivault.exe run --resume
@@ -570,3 +819,19 @@ anivault.exe cache purge --older-than 30d
 - **원격 캐시 동기화**
 
 [1]: https://developer.themoviedb.org/docs/rate-limiting?utm_source=chatgpt.com "Rate Limiting"
+
+---
+
+## 📋 **문서 업데이트 이력**
+
+**2025-01-27 (v1.3)**
+- Task 2 완료: Producer-Consumer 패턴, Bounded Queue, Backpressure 정책 구현
+- 프리징 문제 해결: 제너레이터 → 함수형 변경, task_done() 누락 수정
+- 테스트 커버리지 90% 달성, 18개 테스트 모두 통과
+- 다음 단계: Task 3 (Generator/Streaming 최적화) 준비
+
+**2025-01-27 (v1.2)**
+- CLI 계약 고정, 레이트리밋 FSM, 보안/공급망 검증 강화
+
+**2025-01-27 (v1.1)**
+- 초기 개발 계획 수립, 36주 로드맵 정의

@@ -4,9 +4,6 @@ globs: **/*
 alwaysApply: true
 ---
 
-  **Use black and Ruff linting Code**
-    - Ensure all Python code is formatted with `black` and linted with `ruff` before committing.
-
 - **Rule Improvement Triggers:**
   - New code patterns not covered by existing rules
   - Repeated similar implementations across files
@@ -41,7 +38,7 @@ alwaysApply: true
     select: { id: true, email: true },
     where: { status: 'ACTIVE' }
   });
-
+  
   // Consider adding to [prisma.mdc](mdc:.cursor/rules/prisma.mdc):
   // - Standard select fields
   // - Common where conditions
