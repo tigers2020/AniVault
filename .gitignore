@@ -136,6 +136,18 @@ cache/
 *.tmp
 *.temp
 
+# Coverage reports
+coverage.xml
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
 # IDE
 .vscode/
 .idea/
