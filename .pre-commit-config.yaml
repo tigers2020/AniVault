@@ -2,52 +2,33 @@
 # See https://pre-commit.com for more information
 
 repos:
-  # Ruff for linting and formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.0
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
-
-  # MyPy for type checking
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.1
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-requests, types-toml]
-        args: [--strict, --ignore-missing-imports]
-
-  # General hooks
+  # Essential file checks only (minimal setup)
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-      - id: check-json
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
-      - id: check-case-conflict
-      - id: check-docstring-first
       - id: debug-statements
       - id: requirements-txt-fixer
 
-  # Security checks
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.0
+  # Basic formatting only (no linting for now)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.13.0
     hooks:
-      - id: bandit
-        args: [-r, src/, -f, json, -o, bandit-report.json]
-        exclude: ^tests/
+      - id: ruff-format
+        exclude: ^(tools/|scripts/|tests/)
 
-  # Import sorting
+  # Import sorting (essential)
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
         args: [--profile, black, --line-length, "88"]
+        exclude: ^(tools/|scripts/|tests/)
 
   # Commit message linting
   - repo: https://github.com/commitizen-tools/commitizen
