@@ -5,7 +5,7 @@
 ### 1. 메인 CLI 구조 (cli-1) ✅
 - **위치**: `src/anivault/cli/main.py`
 - **기능**: Click 기반 메인 CLI 인터페이스
-- **특징**: 
+- **특징**:
   - 글로벌 옵션 지원 (--config, --log-level, --json, --no-color, --version)
   - 자동 도움말 생성
   - 버전 정보 표시 (앱 버전, Python 버전, 플랫폼, 빌드 정보)

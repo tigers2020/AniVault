@@ -28,4 +28,3 @@ Modify the directory scanner to act as a producer that puts file paths onto the 
 ### Description: Implement the parser worker to get items from the queue as a consumer
 ### Details:
 Create parser worker threads that act as consumers, getting file paths from the bounded queue and processing them. Implement proper error handling and queue management for the consumer side.
-

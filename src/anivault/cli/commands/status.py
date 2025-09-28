@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import click
 from rich.console import Console
@@ -40,12 +40,12 @@ def status(
     metrics: bool,
 ) -> None:
     """Show AniVault status and diagnostic information.
-    
+
     This command provides status information about the last run,
     system diagnostics, and performance metrics.
     """
     json_output = ctx.obj.get("json_output", False)
-    
+
     try:
         if diag:
             _show_diagnostics(json_output)
@@ -56,9 +56,9 @@ def status(
         else:
             # Default: show general status
             _show_general_status(json_output)
-        
+
         sys.exit(0)
-        
+
     except Exception as e:
         logger.exception("Status command failed")
         if json_output:
@@ -71,23 +71,23 @@ def status(
 def _show_general_status(json_output: bool) -> None:
     """Show general status information."""
     status_info = _get_general_status()
-    
+
     if json_output:
         _output_json_event("status", "general", status_info)
     else:
         console.print("[blue]AniVault Status[/blue]")
-        
+
         # Create table
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Component", style="cyan")
         table.add_column("Status", style="green")
-        
+
         table.add_row("CLI", status_info["cli_status"])
         table.add_row("TMDB API", status_info["tmdb_status"])
         table.add_row("Cache", status_info["cache_status"])
         table.add_row("Logging", status_info["logging_status"])
         table.add_row("Last Run", status_info["last_run"])
-        
+
         console.print(table)
 
 
@@ -98,36 +98,36 @@ def _get_general_status() -> Dict[str, Any]:
         "tmdb_status": "Not configured",
         "cache_status": "Available",
         "logging_status": "Active",
-        "last_run": "Never"
+        "last_run": "Never",
     }
 
 
 def _show_diagnostics(json_output: bool) -> None:
     """Show diagnostic information."""
     diag_info = _get_diagnostics()
-    
+
     if json_output:
         _output_json_event("status", "diagnostics", diag_info)
     else:
         console.print("[blue]System Diagnostics[/blue]")
-        
+
         # Create table
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Component", style="cyan")
         table.add_column("Value", style="green")
-        
+
         for key, value in diag_info.items():
             table.add_row(key, str(value))
-        
+
         console.print(table)
 
 
 def _get_diagnostics() -> Dict[str, Any]:
     """Get diagnostic information."""
+    import os
     import platform
     import sys
-    import os
-    
+
     return {
         "platform": platform.platform(),
         "python_version": sys.version,
@@ -138,7 +138,7 @@ def _get_diagnostics() -> Dict[str, Any]:
         "cache_directory": str(Path(".anivault/cache")),
         "logs_directory": str(Path("logs")),
         "tmdb_api_key_set": bool(os.getenv("TMDB_API_KEY")),
-        "max_path_length": _get_max_path_length()
+        "max_path_length": _get_max_path_length(),
     }
 
 
@@ -146,7 +146,7 @@ def _check_long_path_support() -> bool:
     """Check if long path support is available."""
     try:
         # Try to create a long path
-        test_path = Path(".") / ("x" * 300)
+        test_path = Path("x" * 300)
         test_path.mkdir(exist_ok=True)
         test_path.rmdir()
         return True
@@ -157,29 +157,29 @@ def _check_long_path_support() -> bool:
 def _get_max_path_length() -> int:
     """Get maximum path length."""
     import platform
+
     if platform.system() == "Windows":
         return 260  # Default Windows limit
-    else:
-        return 4096  # Typical Unix limit
+    return 4096  # Typical Unix limit
 
 
 def _show_last_run(json_output: bool) -> None:
     """Show last run information."""
     last_run_info = _get_last_run_info()
-    
+
     if json_output:
         _output_json_event("status", "last_run", last_run_info)
     else:
         console.print("[blue]Last Run Information[/blue]")
-        
+
         # Create table
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
-        
+
         for key, value in last_run_info.items():
             table.add_row(key, str(value))
-        
+
         console.print(table)
 
 
@@ -194,27 +194,27 @@ def _get_last_run_info() -> Dict[str, Any]:
         "files_matched": 0,
         "files_organized": 0,
         "errors": 0,
-        "duration": "N/A"
+        "duration": "N/A",
     }
 
 
 def _show_metrics(json_output: bool) -> None:
     """Show performance metrics."""
     metrics_info = _get_metrics()
-    
+
     if json_output:
         _output_json_event("status", "metrics", metrics_info)
     else:
         console.print("[blue]Performance Metrics[/blue]")
-        
+
         # Create table
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
-        
+
         for key, value in metrics_info.items():
             table.add_row(key, str(value))
-        
+
         console.print(table)
 
 
@@ -227,7 +227,7 @@ def _get_metrics() -> Dict[str, Any]:
         "organize_speed": "N/A",
         "cache_hit_rate": "N/A",
         "memory_usage": "N/A",
-        "cpu_usage": "N/A"
+        "cpu_usage": "N/A",
     }
 
 
@@ -237,7 +237,7 @@ def _output_json_event(phase: str, event: str, fields: Dict[str, Any]) -> None:
         "phase": phase,
         "event": event,
         "ts": datetime.utcnow().isoformat() + "Z",
-        "fields": fields
+        "fields": fields,
     }
     print(json.dumps(event_data))
 
@@ -251,7 +251,7 @@ def _output_json_error(error_code: str, message: str) -> None:
         "fields": {
             "error_code": error_code,
             "message": message,
-            "level": "ERROR"
-        }
+            "level": "ERROR",
+        },
     }
     print(json.dumps(error_data))

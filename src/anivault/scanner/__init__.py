@@ -22,17 +22,17 @@ from .producer_scanner import Scanner
 from .scan_parse_pool import ScanParsePool
 
 __all__ = [
-    "scan_directory",
-    "scan_directory_paths",
-    "scan_directory_with_stats", 
-    "get_media_files_count",
     "ParserWorker",
     "ParserWorkerPool",
-    "Scanner",
     "ScanParsePool",
-    "create_media_extension_filter",
+    "Scanner",
     "create_custom_extension_filter",
+    "create_media_extension_filter",
     "get_default_media_filter",
+    "get_media_files_count",
     "is_media_file",
+    "scan_directory",
+    "scan_directory_paths",
+    "scan_directory_with_stats",
     "validate_extension_filter",
 ]

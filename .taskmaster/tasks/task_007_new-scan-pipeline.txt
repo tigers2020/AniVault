@@ -28,4 +28,3 @@ Collect and manually label a dataset of at least 100 real-world anime filenames 
 ### Description: Implement a test script that uses the labeled dataset to calculate and report parser accuracy
 ### Details:
 Create a test script that loads the labeled dataset, runs the parsing function on each filename, and calculates accuracy metrics. Report the results including success rate, failure cases, and performance statistics.
-

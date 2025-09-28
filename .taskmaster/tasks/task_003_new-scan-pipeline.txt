@@ -22,4 +22,3 @@ Refactor the directory scanning logic to use os.scandir for efficient directory 
 ### Description: Create and run a memory profiling test on a large-scale test directory to verify constant memory usage
 ### Details:
 Create a memory profiling test that uses a large-scale test directory (100k+ files) to verify that memory usage remains constant and low. Use memory profiling tools to measure and validate memory efficiency.
-

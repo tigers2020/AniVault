@@ -15,7 +15,7 @@
       "description": "Source directory path"
     },
     "destination": {
-      "type": "string", 
+      "type": "string",
       "description": "Destination directory path"
     },
     "naming_schema": {

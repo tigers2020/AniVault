@@ -4210,14 +4210,14 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Refactor Directory Scanning with os.scandir and Generators",
             "description": "Refactor the directory scanning logic to use os.scandir and generators for memory efficiency",
             "details": "Refactor the directory scanning logic to use os.scandir for efficient directory traversal and implement generator-based patterns to minimize memory usage during large directory scans.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 3
           },
@@ -4226,7 +4226,7 @@
             "title": "Create Memory Profiling Test for Large-Scale Directory",
             "description": "Create and run a memory profiling test on a large-scale test directory to verify constant memory usage",
             "details": "Create a memory profiling test that uses a large-scale test directory (100k+ files) to verify that memory usage remains constant and low. Use memory profiling tools to measure and validate memory efficiency.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 3
           }
@@ -4249,7 +4249,7 @@
             "title": "Implement Primary Parsing Logic using anitopy",
             "description": "Implement the primary filename parsing logic using the anitopy library",
             "details": "Implement the main parsing logic using the anitopy library to extract anime information from filenames. Handle various filename formats and extract relevant metadata like title, season, episode, quality, etc.",
-            "status": "pending",
+            "status": "in-progress",
             "dependencies": [],
             "parentTaskId": 4
           },
@@ -4498,7 +4498,7 @@
     ],
     "metadata": {
       "created": "2025-09-28T18:41:45.993Z",
-      "updated": "2025-09-28T19:14:40.862Z",
+      "updated": "2025-09-28T19:36:00.499Z",
       "description": "Tasks for new-scan-pipeline context"
     }
   }

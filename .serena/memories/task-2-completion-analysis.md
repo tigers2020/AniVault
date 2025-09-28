@@ -2,7 +2,7 @@
 
 ## Task 2 완료 상태 (2025-01-27)
 - **Task 2**: "Integrate Bounded Queues with Backpressure" ✅ **완료**
-- **핵심 성과**: 
+- **핵심 성과**:
   - Producer-Consumer 패턴 구현
   - Bounded Queue를 통한 메모리 관리
   - Backpressure 정책 ('wait') 구현

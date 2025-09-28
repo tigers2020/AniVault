@@ -8,7 +8,6 @@ from typing import Any, Dict, Optional
 
 import click
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
 from anivault.core.logging import get_logger
 
@@ -110,12 +109,12 @@ def run(
     checkpoint_dir: Path,
 ) -> None:
     """Run the complete AniVault pipeline.
-    
+
     This command executes the full pipeline: scan -> match -> organize
     in a single operation with progress tracking and checkpoint support.
     """
     json_output = ctx.obj.get("json_output", False)
-    
+
     try:
         # Validate TMDB key
         if not tmdb_key and not apply:  # Allow dry-run without API key
@@ -125,36 +124,44 @@ def run(
             else:
                 console.print(f"[red]Error: {error_msg}[/red]")
             sys.exit(2)
-        
+
         # Output run start event
         if json_output:
-            _output_json_event("run", "start", {
-                "source": str(src),
-                "destination": str(dst),
-                "rate_limit": rate_limit,
-                "concurrency": concurrency,
-                "language": language,
-                "extensions": list(extensions) if extensions else None,
-                "max_workers": max_workers,
-                "naming_schema": naming_schema,
-                "conflict_resolution": conflict_resolution,
-                "apply": apply,
-                "resume": resume
-            })
+            _output_json_event(
+                "run",
+                "start",
+                {
+                    "source": str(src),
+                    "destination": str(dst),
+                    "rate_limit": rate_limit,
+                    "concurrency": concurrency,
+                    "language": language,
+                    "extensions": list(extensions) if extensions else None,
+                    "max_workers": max_workers,
+                    "naming_schema": naming_schema,
+                    "conflict_resolution": conflict_resolution,
+                    "apply": apply,
+                    "resume": resume,
+                },
+            )
         else:
             mode = "APPLY" if apply else "DRY-RUN"
-            console.print(f"[blue]Running AniVault pipeline ({mode}): {src} -> {dst}[/blue]")
-        
+            console.print(
+                f"[blue]Running AniVault pipeline ({mode}): {src} -> {dst}[/blue]"
+            )
+
         # Create checkpoint directory
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Load checkpoint if resuming
         checkpoint = None
         if resume:
             checkpoint = _load_checkpoint(checkpoint_dir)
             if checkpoint:
-                console.print(f"[yellow]Resuming from checkpoint: {checkpoint['timestamp']}[/yellow]")
-        
+                console.print(
+                    f"[yellow]Resuming from checkpoint: {checkpoint['timestamp']}[/yellow]"
+                )
+
         # Execute pipeline phases
         results = _execute_pipeline(
             src=src,
@@ -170,25 +177,25 @@ def run(
             apply=apply,
             checkpoint=checkpoint,
             checkpoint_dir=checkpoint_dir,
-            json_output=json_output
+            json_output=json_output,
         )
-        
+
         # Output final results
         if json_output:
             _output_json_event("run", "complete", results)
         else:
-            console.print(f"[green]Pipeline completed successfully![/green]")
+            console.print("[green]Pipeline completed successfully![/green]")
             console.print(f"Files scanned: {results['files_scanned']}")
             console.print(f"Files matched: {results['files_matched']}")
             console.print(f"Files organized: {results['files_organized']}")
             console.print(f"Errors: {results['errors']}")
-        
+
         # Exit with appropriate code
         if results["errors"] > 0:
             sys.exit(10)  # Partial success
         else:
             sys.exit(0)  # Full success
-            
+
     except Exception as e:
         logger.exception("Pipeline failed")
         if json_output:
@@ -202,7 +209,7 @@ def _load_checkpoint(checkpoint_dir: Path) -> Optional[Dict[str, Any]]:
     """Load checkpoint from directory."""
     checkpoint_file = checkpoint_dir / "last_checkpoint.json"
     if checkpoint_file.exists():
-        with open(checkpoint_file, "r", encoding="utf-8") as f:
+        with open(checkpoint_file, encoding="utf-8") as f:
             return json.load(f)
     return None
 
@@ -212,9 +219,9 @@ def _save_checkpoint(checkpoint_dir: Path, phase: str, data: Dict[str, Any]) -> 
     checkpoint = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "phase": phase,
-        "data": data
+        "data": data,
     }
-    
+
     checkpoint_file = checkpoint_dir / "last_checkpoint.json"
     with open(checkpoint_file, "w", encoding="utf-8") as f:
         json.dump(checkpoint, f, indent=2, ensure_ascii=False)
@@ -241,9 +248,9 @@ def _execute_pipeline(
         "files_scanned": 0,
         "files_matched": 0,
         "files_organized": 0,
-        "errors": 0
+        "errors": 0,
     }
-    
+
     # Phase 1: Scan
     if not checkpoint or checkpoint.get("phase") != "scan":
         console.print("[blue]Phase 1: Scanning files...[/blue]")
@@ -253,24 +260,39 @@ def _execute_pipeline(
     else:
         scan_results = checkpoint["data"]
         results["files_scanned"] = len(scan_results.get("files", []))
-    
+
     # Phase 2: Match
     if not checkpoint or checkpoint.get("phase") != "match":
         console.print("[blue]Phase 2: Matching with TMDB...[/blue]")
         match_results = _execute_match_phase(
-            scan_results, tmdb_key, rate_limit, concurrency, language, json_output
+            scan_results,
+            tmdb_key,
+            rate_limit,
+            concurrency,
+            language,
+            json_output,
         )
-        results["files_matched"] = len([m for m in match_results.get("results", []) if m.get("match")])
+        results["files_matched"] = len(
+            [m for m in match_results.get("results", []) if m.get("match")]
+        )
         _save_checkpoint(checkpoint_dir, "match", match_results)
     else:
         match_results = checkpoint["data"]
-        results["files_matched"] = len([m for m in match_results.get("results", []) if m.get("match")])
-    
+        results["files_matched"] = len(
+            [m for m in match_results.get("results", []) if m.get("match")]
+        )
+
     # Phase 3: Organize
     if not checkpoint or checkpoint.get("phase") != "organize":
         console.print("[blue]Phase 3: Organizing files...[/blue]")
         organize_results = _execute_organize_phase(
-            match_results, src, dst, naming_schema, conflict_resolution, apply, json_output
+            match_results,
+            src,
+            dst,
+            naming_schema,
+            conflict_resolution,
+            apply,
+            json_output,
         )
         results["files_organized"] = organize_results.get("files_moved", 0)
         results["errors"] = organize_results.get("errors", 0)
@@ -279,7 +301,7 @@ def _execute_pipeline(
         organize_results = checkpoint["data"]
         results["files_organized"] = organize_results.get("files_moved", 0)
         results["errors"] = organize_results.get("errors", 0)
-    
+
     return results
 
 
@@ -295,7 +317,7 @@ def _execute_scan_phase(
     return {
         "files": [],
         "directories_scanned": 0,
-        "errors": 0
+        "errors": 0,
     }
 
 
@@ -314,7 +336,7 @@ def _execute_match_phase(
         "results": [],
         "total_files": 0,
         "matched_files": 0,
-        "errors": 0
+        "errors": 0,
     }
 
 
@@ -333,7 +355,7 @@ def _execute_organize_phase(
     return {
         "files_moved": 0,
         "files_skipped": 0,
-        "errors": 0
+        "errors": 0,
     }
 
 
@@ -343,7 +365,7 @@ def _output_json_event(phase: str, event: str, fields: Dict[str, Any]) -> None:
         "phase": phase,
         "event": event,
         "ts": datetime.utcnow().isoformat() + "Z",
-        "fields": fields
+        "fields": fields,
     }
     print(json.dumps(event_data))
 
@@ -357,7 +379,7 @@ def _output_json_error(error_code: str, message: str) -> None:
         "fields": {
             "error_code": error_code,
             "message": message,
-            "level": "ERROR"
-        }
+            "level": "ERROR",
+        },
     }
     print(json.dumps(error_data))

@@ -4,7 +4,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import click
 from rich.console import Console
@@ -53,16 +53,16 @@ def cache(
     cache_dir: Path,
 ) -> None:
     """Manage JSON cache system.
-    
+
     This command provides cache management functionality including
     statistics, clearing, purging expired entries, and cache warming.
     """
     json_output = ctx.obj.get("json_output", False)
-    
+
     try:
         # Ensure cache directory exists
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Execute requested operations
         if stats:
             _show_cache_stats(cache_dir, json_output)
@@ -75,9 +75,9 @@ def cache(
         else:
             # Default: show stats
             _show_cache_stats(cache_dir, json_output)
-        
+
         sys.exit(0)
-        
+
     except Exception as e:
         logger.exception("Cache operation failed")
         if json_output:
@@ -90,24 +90,24 @@ def cache(
 def _show_cache_stats(cache_dir: Path, json_output: bool) -> None:
     """Show cache statistics."""
     stats = _get_cache_stats(cache_dir)
-    
+
     if json_output:
         _output_json_event("cache", "stats", stats)
     else:
         console.print("[blue]Cache Statistics[/blue]")
-        
+
         # Create table
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
-        
+
         table.add_row("Total Entries", str(stats["total_entries"]))
         table.add_row("Valid Entries", str(stats["valid_entries"]))
         table.add_row("Expired Entries", str(stats["expired_entries"]))
         table.add_row("Cache Size", f"{stats['cache_size_mb']:.2f} MB")
         table.add_row("Hit Rate", f"{stats['hit_rate']:.1%}")
         table.add_row("Last Access", stats["last_access"])
-        
+
         console.print(table)
 
 
@@ -121,7 +121,7 @@ def _get_cache_stats(cache_dir: Path) -> Dict[str, Any]:
         "expired_entries": 0,
         "cache_size_mb": 0.0,
         "hit_rate": 0.0,
-        "last_access": "Never"
+        "last_access": "Never",
     }
 
 
@@ -131,11 +131,11 @@ def _clear_cache(cache_dir: Path, json_output: bool) -> None:
         _output_json_event("cache", "clear", {"cache_dir": str(cache_dir)})
     else:
         console.print(f"[yellow]Clearing cache: {cache_dir}[/yellow]")
-    
+
     # Remove all cache files
     for cache_file in cache_dir.glob("*.json"):
         cache_file.unlink()
-    
+
     if not json_output:
         console.print("[green]Cache cleared successfully[/green]")
 
@@ -146,7 +146,7 @@ def _purge_cache(cache_dir: Path, json_output: bool) -> None:
         _output_json_event("cache", "purge", {"cache_dir": str(cache_dir)})
     else:
         console.print(f"[yellow]Purging expired cache entries: {cache_dir}[/yellow]")
-    
+
     # This would integrate with the actual cache system
     # For now, just show a message
     if not json_output:
@@ -159,7 +159,7 @@ def _warmup_cache(cache_dir: Path, json_output: bool) -> None:
         _output_json_event("cache", "warmup", {"cache_dir": str(cache_dir)})
     else:
         console.print(f"[yellow]Warming up cache: {cache_dir}[/yellow]")
-    
+
     # This would integrate with the actual cache system
     # For now, just show a message
     if not json_output:
@@ -172,7 +172,7 @@ def _output_json_event(phase: str, event: str, fields: Dict[str, Any]) -> None:
         "phase": phase,
         "event": event,
         "ts": datetime.utcnow().isoformat() + "Z",
-        "fields": fields
+        "fields": fields,
     }
     print(json.dumps(event_data))
 
@@ -186,7 +186,7 @@ def _output_json_error(error_code: str, message: str) -> None:
         "fields": {
             "error_code": error_code,
             "message": message,
-            "level": "ERROR"
-        }
+            "level": "ERROR",
+        },
     }
     print(json.dumps(error_data))

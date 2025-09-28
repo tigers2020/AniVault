@@ -27,7 +27,9 @@ class Config:
         self.log_level = config_dict.get("log_level", "INFO")
         self.log_max_bytes = config_dict.get("log_max_bytes", 10485760)  # 10MB
         self.log_backup_count = config_dict.get("log_backup_count", 5)
-        self.media_extensions = config_dict.get("media_extensions", [".mkv", ".mp4", ".avi"])
+        self.media_extensions = config_dict.get(
+            "media_extensions", [".mkv", ".mp4", ".avi"]
+        )
 
     def get_log_file_path(self) -> Path:
         """Get the absolute path to the log file.
@@ -75,7 +77,7 @@ def load_config(config_path: Path | None = None) -> Config:
         except Exception:
             # Fall back to default if custom config fails
             pass
-    
+
     # Load from pyproject.toml
     project_root = _find_project_root()
     pyproject_path = project_root / "pyproject.toml"

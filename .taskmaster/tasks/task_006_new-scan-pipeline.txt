@@ -34,4 +34,3 @@ Add instrumentation points throughout the processing pipeline to collect and upd
 ### Description: Create a rich layout to display progress bar and live statistics panel
 ### Details:
 Design and implement a rich layout that displays both the progress bar and live statistics panel in an organized and visually appealing way. Use the rich library's layout capabilities to create a professional-looking interface.
-

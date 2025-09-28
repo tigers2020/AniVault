@@ -34,4 +34,3 @@ Implement a unified parsing function that tries the primary anitopy parser first
 ### Description: Create a comprehensive unit test suite with a wide variety of filename examples
 ### Details:
 Create a comprehensive unit test suite that tests the parsing logic with a wide variety of real-world filename examples. Include edge cases, different formats, and various languages to ensure robust parsing.
-

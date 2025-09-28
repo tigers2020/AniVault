@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import click
 from rich.console import Console
@@ -47,18 +47,18 @@ def cli(
     no_color: bool,
 ) -> None:
     """AniVault v3 CLI - Anime file organization tool.
-    
+
     A powerful command-line tool for organizing anime files using TMDB API
     for metadata matching and intelligent file organization.
     """
-    
+
     # Store global options in context
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
     ctx.obj["log_level"] = log_level
     ctx.obj["json_output"] = json
     ctx.obj["no_color"] = no_color
-    
+
     # Load configuration
     try:
         app_config = load_config(config)
@@ -75,10 +75,11 @@ def cli(
 
 def _show_version() -> None:
     """Show version information."""
-    import anivault
     import platform
     import sys
-    
+
+    import anivault
+
     version_info = {
         "app_version": anivault.__version__,
         "python_version": sys.version,
@@ -87,7 +88,7 @@ def _show_version() -> None:
         "git_commit": "unknown",  # Will be replaced by build process
         "pyinstaller_version": "unknown",  # Will be replaced by build process
     }
-    
+
     console.print(f"AniVault CLI v{version_info['app_version']}")
     console.print(f"Python: {version_info['python_version']}")
     console.print(f"Platform: {version_info['platform']}")
@@ -100,7 +101,7 @@ def _output_json_error(error_code: str, message: str) -> None:
     """Output error in JSON format."""
     import json
     from datetime import datetime
-    
+
     error_data = {
         "phase": "error",
         "event": "error",
@@ -108,28 +109,22 @@ def _output_json_error(error_code: str, message: str) -> None:
         "fields": {
             "error_code": error_code,
             "message": message,
-            "level": "ERROR"
-        }
+            "level": "ERROR",
+        },
     }
     print(json.dumps(error_data))
 
 
 # Import and register command groups
-from anivault.cli.commands import (
-    cache,
-    match,
-    organize,
-    run,
-    scan,
-    settings,
-    status,
-)
+from anivault.cli.commands import cache, match, organize, run, scan, settings, status
+
 
 # Add version command
 @cli.command()
 def version() -> None:
     """Show version information."""
     _show_version()
+
 
 # Register command groups
 cli.add_command(run.run)

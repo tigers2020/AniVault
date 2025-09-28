@@ -22,6 +22,12 @@ rapidfuzz>=3.0.0
 SQLAlchemy>=2.0.0
 tmdbsimple>=2.9.0
 
+# TMDB API
+tmdbv3api>=1.9.0
+
+# SSL certificates for HTTPS requests
+certifi>=2023.0.0
+
 
 # Development dependencies (install with: pip install -r requirements-dev.txt)
 # pytest>=7.0.0

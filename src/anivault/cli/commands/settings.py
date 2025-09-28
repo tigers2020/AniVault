@@ -67,16 +67,16 @@ def settings(
     config_file: Optional[Path],
 ) -> None:
     """Manage AniVault settings.
-    
+
     This command allows you to view and modify AniVault configuration
     settings including TMDB API key, rate limits, and other preferences.
     """
     json_output = ctx.obj.get("json_output", False)
-    
+
     try:
         # Load current configuration
         config = _load_config(config_file)
-        
+
         # Handle different operations
         if show:
             _show_settings(config, json_output)
@@ -93,9 +93,9 @@ def settings(
         else:
             # Default: show settings
             _show_settings(config, json_output)
-        
+
         sys.exit(0)
-        
+
     except Exception as e:
         logger.exception("Settings operation failed")
         if json_output:
@@ -108,9 +108,9 @@ def settings(
 def _load_config(config_file: Optional[Path]) -> Dict[str, Any]:
     """Load configuration from file."""
     if config_file and config_file.exists():
-        with open(config_file, "r", encoding="utf-8") as f:
+        with open(config_file, encoding="utf-8") as f:
             return json.load(f)
-    
+
     # Default configuration
     return {
         "tmdb_api_key": "",
@@ -119,7 +119,7 @@ def _load_config(config_file: Optional[Path]) -> Dict[str, Any]:
         "language": "en-US",
         "max_workers": 4,
         "naming_schema": "{title} ({year})/Season {season:02d}",
-        "conflict_resolution": "rename"
+        "conflict_resolution": "rename",
     }
 
 
@@ -129,17 +129,17 @@ def _show_settings(config: Dict[str, Any], json_output: bool) -> None:
         _output_json_event("settings", "show", config)
     else:
         console.print("[blue]Current Settings[/blue]")
-        
+
         # Create table
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Setting", style="cyan")
         table.add_column("Value", style="green")
-        
+
         for key, value in config.items():
             # Mask sensitive values
             display_value = "***" if "key" in key.lower() else str(value)
             table.add_row(key, display_value)
-        
+
         console.print(table)
 
 
@@ -153,17 +153,21 @@ def _set_setting(
     """Set a configuration value."""
     old_value = config.get(key)
     config[key] = value
-    
+
     # Save configuration
     if config_file:
         _save_config(config, config_file)
-    
+
     if json_output:
-        _output_json_event("settings", "set", {
-            "key": key,
-            "old_value": old_value,
-            "new_value": value
-        })
+        _output_json_event(
+            "settings",
+            "set",
+            {
+                "key": key,
+                "old_value": old_value,
+                "new_value": value,
+            },
+        )
     else:
         console.print(f"[green]Setting '{key}' updated[/green]")
         console.print(f"  Old value: {old_value}")
@@ -183,7 +187,7 @@ def _output_json_event(phase: str, event: str, fields: Dict[str, Any]) -> None:
         "phase": phase,
         "event": event,
         "ts": datetime.utcnow().isoformat() + "Z",
-        "fields": fields
+        "fields": fields,
     }
     print(json.dumps(event_data))
 
@@ -197,7 +201,7 @@ def _output_json_error(error_code: str, message: str) -> None:
         "fields": {
             "error_code": error_code,
             "message": message,
-            "level": "ERROR"
-        }
+            "level": "ERROR",
+        },
     }
     print(json.dumps(error_data))
