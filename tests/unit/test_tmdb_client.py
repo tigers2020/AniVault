@@ -140,7 +140,9 @@ class TestTMDBClient:
         mock_response.headers = {}
 
         with patch.object(
-            client.session, "request", return_value=mock_response
+            client.session,
+            "request",
+            return_value=mock_response,
         ) as mock_request:
             response = client._make_request("GET", "https://api.test.com/test")
 
@@ -168,7 +170,9 @@ class TestTMDBClient:
     def test_make_request_timeout(self, client):
         """Test request timeout."""
         with patch.object(
-            client.session, "request", side_effect=Timeout("Request timeout")
+            client.session,
+            "request",
+            side_effect=Timeout("Request timeout"),
         ):
             with pytest.raises(Timeout):
                 client._make_request("GET", "https://api.test.com/test")
@@ -282,9 +286,9 @@ class TestTMDBClientIntegration:
             memory_increase = final_memory - initial_memory
 
             # Memory increase should be reasonable (< 10MB)
-            assert memory_increase < 10 * 1024 * 1024, (
-                f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
-            )
+            assert (
+                memory_increase < 10 * 1024 * 1024
+            ), f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
 
             client.close()
 

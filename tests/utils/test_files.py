@@ -75,9 +75,15 @@ class TestSafeOpen:
             f.write("Valid UTF-8: こんにちは")
 
         # This should raise an error with strict encoding
-        with pytest.raises(UnicodeError), safe_open(
-            test_file, "w", encoding="ascii", errors="strict",
-        ) as f:
+        with (
+            pytest.raises(UnicodeError),
+            safe_open(
+                test_file,
+                "w",
+                encoding="ascii",
+                errors="strict",
+            ) as f,
+        ):
             f.write("Invalid ASCII: こんにちは")
 
     def test_safe_open_with_errors_ignore(self, tmp_path):

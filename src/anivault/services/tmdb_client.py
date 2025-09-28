@@ -60,7 +60,7 @@ class TMDBConfig:
         """Validate configuration after initialization."""
         if not self.api_key:
             raise ValueError(
-                "TMDB_API_KEY is required. Set it in environment variables or pass it directly."
+                "TMDB_API_KEY is required. Set it in environment variables or pass it directly.",
             )
 
 
@@ -103,7 +103,7 @@ class TMDBClient:
         self.session.mount("https://", adapter)
 
         logger.info(
-            f"TMDB client initialized with rate limit: {config.rate_limit.max_requests_per_second} rps"
+            f"TMDB client initialized with rate limit: {config.rate_limit.max_requests_per_second} rps",
         )
 
     def _check_rate_limit(self) -> bool:
@@ -138,7 +138,7 @@ class TMDBClient:
             try:
                 wait_time = float(retry_after)
                 logger.warning(
-                    f"Rate limited: waiting {wait_time}s (Retry-After header)"
+                    f"Rate limited: waiting {wait_time}s (Retry-After header)",
                 )
                 time.sleep(wait_time)
             except ValueError:
@@ -191,7 +191,7 @@ class TMDBClient:
             if failure_rate > self.config.rate_limit.circuit_breaker_threshold:
                 if self.circuit_breaker_start is None:
                     logger.warning(
-                        f"Circuit breaker opened: failure rate {failure_rate:.2%}"
+                        f"Circuit breaker opened: failure rate {failure_rate:.2%}",
                     )
                     self.circuit_breaker_start = time.time()
                     self.rate_limit_state = RateLimitState.CACHE_ONLY
@@ -298,7 +298,7 @@ class TMDBClient:
         try:
             results = self.movie.search(query, page=page)
             logger.debug(
-                f"Movie search successful: {len(results)} results for '{query}'"
+                f"Movie search successful: {len(results)} results for '{query}'",
             )
             return results
         except Exception as e:

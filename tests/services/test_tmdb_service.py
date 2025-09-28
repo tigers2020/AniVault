@@ -179,7 +179,9 @@ class TestTMDBService:
         from tmdbv3api.exceptions import TMDbException
 
         with patch.object(
-            service.movie_search, "movies", side_effect=TMDbException("API Error")
+            service.movie_search,
+            "movies",
+            side_effect=TMDbException("API Error"),
         ):
             result = service.search_movie("Test Movie")
 
@@ -283,7 +285,9 @@ class TestTMDBServiceIntegration:
             # Mock successful responses
             mock_movie = {"id": 123, "title": "Test Movie"}
             with patch.object(
-                service.movie_search, "movies", return_value=[mock_movie]
+                service.movie_search,
+                "movies",
+                return_value=[mock_movie],
             ):
                 # Simulate many requests
                 for i in range(100):
@@ -294,9 +298,9 @@ class TestTMDBServiceIntegration:
             memory_increase = final_memory - initial_memory
 
             # Memory increase should be reasonable (< 10MB)
-            assert memory_increase < 10 * 1024 * 1024, (
-                f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
-            )
+            assert (
+                memory_increase < 10 * 1024 * 1024
+            ), f"Memory increased by {memory_increase / 1024 / 1024:.2f}MB"
 
             service.close()
 
