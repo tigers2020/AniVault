@@ -5,18 +5,20 @@ AniVault Development Helper Script
 This script provides common development tasks and utilities.
 """
 
+from __future__ import annotations
+
 import argparse
 import subprocess
 import sys
 
 
-def run_command(command: str, description: str = None) -> bool:
+def run_command(command: str, description: str | None = None) -> bool:
     """Run a command and return success status."""
     if description:
         print(f"🔄 {description}...")
 
     try:
-        result = subprocess.run(command, shell=True, check=True)
+        subprocess.run(command, shell=True, check=True)
         if description:
             print(f"✅ {description} completed successfully")
         return True
@@ -26,7 +28,7 @@ def run_command(command: str, description: str = None) -> bool:
         return False
 
 
-def lint_code():
+def lint_code() -> bool:
     """Run code linting."""
     print("🔍 Running code linting...")
     commands = [
@@ -35,13 +37,10 @@ def lint_code():
         "mypy src/",
     ]
 
-    for command in commands:
-        if not run_command(command):
-            return False
-    return True
+    return all(run_command(command) for command in commands)
 
 
-def run_tests():
+def run_tests() -> bool:
     """Run test suite."""
     print("🧪 Running tests...")
     return run_command(
@@ -49,19 +48,19 @@ def run_tests():
     )
 
 
-def run_tests_fast():
+def run_tests_fast() -> bool:
     """Run fast tests only."""
     print("⚡ Running fast tests...")
     return run_command("pytest tests/ -v -m 'not slow'")
 
 
-def build_package():
+def build_package() -> bool:
     """Build the package."""
     print("📦 Building package...")
     return run_command("python -m build")
 
 
-def clean_build():
+def clean_build() -> None:
     """Clean build artifacts."""
     print("🧹 Cleaning build artifacts...")
     commands = [
@@ -79,32 +78,32 @@ def clean_build():
         run_command(command)
 
 
-def format_code():
+def format_code() -> bool:
     """Format code using ruff."""
     print("🎨 Formatting code...")
     return run_command("ruff format src/ tests/")
 
 
-def check_dependencies():
+def check_dependencies() -> bool:
     """Check for dependency issues."""
     print("🔍 Checking dependencies...")
     return run_command("pip check")
 
 
-def run_security_check():
+def run_security_check() -> bool:
     """Run security checks."""
     print("🔒 Running security checks...")
     return run_command("ruff check src/ --select S")
 
 
-def generate_docs():
+def generate_docs() -> None:
     """Generate documentation."""
     print("📚 Generating documentation...")
     # This would be implemented when documentation tools are added
     print("⚠️  Documentation generation not yet implemented")
 
 
-def main():
+def main() -> None:
     """Main function."""
     parser = argparse.ArgumentParser(description="AniVault Development Helper")
     parser.add_argument(

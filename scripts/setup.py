@@ -16,8 +16,12 @@ def run_command(command: str, description: str) -> bool:
     """Run a command and return success status."""
     print(f"🔄 {description}...")
     try:
-        result = subprocess.run(
-            command, shell=True, check=True, capture_output=True, text=True,
+        subprocess.run(
+            command,
+            shell=True,
+            check=True,
+            capture_output=True,
+            text=True,
         )
         print(f"✅ {description} completed successfully")
         return True
@@ -27,16 +31,19 @@ def run_command(command: str, description: str) -> bool:
         return False
 
 
-def check_python_version():
+def check_python_version() -> None:
     """Check if Python version is compatible."""
     version = sys.version_info
-    if version.major < 3 or (version.major == 3 and version.minor < 9):
+    min_python_version = (3, 9)
+    if version.major < min_python_version[0] or (
+        version.major == min_python_version[0] and version.minor < min_python_version[1]
+    ):
         print("❌ Python 3.9 or higher is required")
         sys.exit(1)
     print(f"✅ Python {version.major}.{version.minor}.{version.micro} detected")
 
 
-def create_directories():
+def create_directories() -> None:
     """Create necessary directories."""
     directories = ["logs", "data", "config", "tests", "src/anivault", "scripts"]
 
@@ -45,7 +52,7 @@ def create_directories():
         print(f"📁 Created directory: {directory}")
 
 
-def install_dependencies():
+def install_dependencies() -> bool:
     """Install project dependencies."""
     commands = [
         ("pip install --upgrade pip", "Upgrading pip"),
@@ -53,13 +60,10 @@ def install_dependencies():
         ("pip install -e .[dev]", "Installing development dependencies"),
     ]
 
-    for command, description in commands:
-        if not run_command(command, description):
-            return False
-    return True
+    return all(run_command(command, description) for command, description in commands)
 
 
-def setup_pre_commit():
+def setup_pre_commit() -> bool:
     """Set up pre-commit hooks."""
     if not run_command("pre-commit install", "Installing pre-commit hooks"):
         print("⚠️  Pre-commit setup failed, continuing without it")
@@ -67,7 +71,7 @@ def setup_pre_commit():
     return True
 
 
-def setup_git_hooks():
+def setup_git_hooks() -> bool:
     """Set up Git hooks."""
     if not run_command("git config core.hooksPath .githooks", "Configuring Git hooks"):
         print("⚠️  Git hooks setup failed, continuing without it")
@@ -75,7 +79,7 @@ def setup_git_hooks():
     return True
 
 
-def main():
+def main() -> None:
     """Main setup function."""
     print("🚀 Setting up AniVault development environment...")
     print(f"Platform: {platform.system()} {platform.release()}")
