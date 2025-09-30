@@ -5,15 +5,17 @@ in the file processing pipeline, scanning directories for files with
 specific extensions and feeding them into a bounded queue.
 """
 
+from __future__ import annotations
+
 import os
+import threading
 from collections.abc import Generator
 from pathlib import Path
-from typing import Union
 
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 
 
-class DirectoryScanner:
+class DirectoryScanner(threading.Thread):
     """Directory scanner that acts as a producer in the pipeline.
 
     This class recursively scans a directory for files with specific
@@ -28,7 +30,7 @@ class DirectoryScanner:
 
     def __init__(
         self,
-        root_path: Union[str, Path],
+        root_path: str | Path,
         extensions: list[str],
         input_queue: BoundedQueue,
         stats: ScanStatistics,
@@ -41,10 +43,12 @@ class DirectoryScanner:
             input_queue: BoundedQueue instance to put scanned file paths into.
             stats: ScanStatistics instance for tracking scan metrics.
         """
+        super().__init__()
         self.root_path = Path(root_path)
         self.extensions = {ext.lower() for ext in extensions}
         self.input_queue = input_queue
         self.stats = stats
+        self._stop_event = threading.Event()
 
     def scan_files(self) -> Generator[Path, None, None]:
         """Generator that recursively scans for files with specified extensions.
@@ -59,7 +63,7 @@ class DirectoryScanner:
             return
 
         # Use os.walk for efficient directory traversal
-        for root, dirs, files in os.walk(self.root_path):
+        for root, _dirs, files in os.walk(self.root_path):
             # Convert root to Path for easier manipulation
             root_path = Path(root)
 
@@ -72,6 +76,10 @@ class DirectoryScanner:
                 # Check if file has one of the specified extensions
                 if file_path.suffix.lower() in self.extensions:
                     yield file_path.absolute()
+
+    def stop(self) -> None:
+        """Signal the scanner thread to stop."""
+        self._stop_event.set()
 
     def run(self) -> None:
         """Main method that orchestrates the scanning process.
@@ -91,6 +99,10 @@ class DirectoryScanner:
 
             # Scan files and put them into the queue
             for file_path in self.scan_files():
+                # Check if we should stop
+                if self._stop_event.is_set():
+                    break
+
                 try:
                     self.input_queue.put(file_path)
                     self.stats.increment_files_scanned()
@@ -100,13 +112,6 @@ class DirectoryScanner:
 
         except Exception as e:
             print(f"Error during directory scanning: {e}")
-
-        finally:
-            # Signal completion with sentinel value
-            try:
-                self.input_queue.put(None)
-            except Exception as e:
-                print(f"Error signaling completion: {e}")
 
     def get_scan_summary(self) -> dict:
         """Get a summary of the scanning results.

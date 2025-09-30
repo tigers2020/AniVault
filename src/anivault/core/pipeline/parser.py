@@ -5,9 +5,11 @@ and ParserWorkerPool to consume file paths from the input queue and
 process them concurrently.
 """
 
+from __future__ import annotations
+
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from anivault.core.pipeline.cache import CacheV1
 from anivault.core.pipeline.utils import BoundedQueue, ParserStatistics
@@ -34,7 +36,7 @@ class ParserWorker(threading.Thread):
         output_queue: BoundedQueue,
         stats: ParserStatistics,
         cache: CacheV1,
-        worker_id: Optional[str] = None,
+        worker_id: str | None = None,
     ) -> None:
         """Initialize the parser worker.
 
@@ -61,7 +63,13 @@ class ParserWorker(threading.Thread):
                 file_path = self.input_queue.get(timeout=1.0)
 
                 # Check for sentinel value (end of input)
+                # Sentinel can be None or a special Sentinel object
                 if file_path is None:
+                    break
+
+                # Skip if not a valid Path object (sentinel or other invalid value)
+                if not isinstance(file_path, Path):
+                    # Could be a sentinel object, stop processing
                     break
 
                 # Process the file
@@ -100,8 +108,8 @@ class ParserWorker(threading.Thread):
                 # Perform placeholder parsing
                 result = self._parse_file(file_path)
 
-                # Store result in cache
-                self.cache.set(str(file_path), result)
+                # Store result in cache (24 hours TTL)
+                self.cache.set(str(file_path), result, ttl_seconds=86400)
 
                 # Put result in output queue
                 self.output_queue.put(result)
@@ -228,7 +236,7 @@ class ParserWorkerPool:
 
         self._started = True
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         """Wait for all worker threads to complete.
 
         Args:

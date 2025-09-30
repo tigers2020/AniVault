@@ -11,12 +11,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-from anivault.core.bounded_queue import BoundedQueue
 from anivault.core.pipeline.cache import CacheV1
 from anivault.core.pipeline.collector import ResultCollector
 from anivault.core.pipeline.parser import ParserWorkerPool
 from anivault.core.pipeline.scanner import DirectoryScanner
 from anivault.core.pipeline.utils import (
+    BoundedQueue,
     ParserStatistics,
     QueueStatistics,
     ScanStatistics,
@@ -25,12 +25,8 @@ from anivault.core.pipeline.utils import (
 logger = logging.getLogger(__name__)
 
 
-# Sentinel object to signal end of processing
-class _Sentinel:
-    """Sentinel object to signal end of queue processing."""
-
-
-SENTINEL = _Sentinel()
+# Sentinel value to signal end of processing
+SENTINEL = None
 
 
 def format_statistics(
@@ -148,16 +144,15 @@ def run_pipeline(
     cache = CacheV1(cache_dir=Path("cache"))
 
     # Create bounded queues for inter-component communication
-    file_queue = BoundedQueue(capacity=max_queue_size)
-    result_queue = BoundedQueue(capacity=max_queue_size)
+    file_queue = BoundedQueue(maxsize=max_queue_size)
+    result_queue = BoundedQueue(maxsize=max_queue_size)
 
     # Initialize pipeline components
     scanner = DirectoryScanner(
         root_path=Path(root_path),
-        output_queue=file_queue,
+        input_queue=file_queue,
         extensions=extensions,
         stats=scan_stats,
-        cache_path=cache_path,
     )
 
     parser_pool = ParserWorkerPool(

@@ -4,10 +4,12 @@ This module provides the ResultCollector class that consumes processed
 data from the output queue and stores it for final retrieval.
 """
 
+from __future__ import annotations
+
 import queue
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 from anivault.core.pipeline.utils import BoundedQueue
 
@@ -15,7 +17,7 @@ from anivault.core.pipeline.utils import BoundedQueue
 SENTINEL = None
 
 
-class ResultCollector:
+class ResultCollector(threading.Thread):
     """Collector that processes results from the output queue.
 
     This class consumes processed file data from the output queue, storing it
@@ -29,7 +31,7 @@ class ResultCollector:
     def __init__(
         self,
         output_queue: BoundedQueue,
-        collector_id: Optional[str] = None,
+        collector_id: str | None = None,
     ) -> None:
         """Initialize the result collector.
 
@@ -37,6 +39,7 @@ class ResultCollector:
             output_queue: BoundedQueue instance to get processed results from.
             collector_id: Optional identifier for this collector.
         """
+        super().__init__()
         self.output_queue = output_queue
         self.collector_id = collector_id or f"collector_{id(self) & 0xffff}"
         self._stopped = threading.Event()
@@ -75,7 +78,7 @@ class ResultCollector:
 
     def run(
         self,
-        max_idle_loops: Optional[int] = None,
+        max_idle_loops: int | None = None,
         idle_sleep: float = 0.05,
         get_timeout: float = 0.1,
     ) -> None:
@@ -238,7 +241,7 @@ class ResultCollector:
                     ext = result.get("file_extension", "")
                     if ext:
                         extensions.add(ext)
-            return sorted(list(extensions))
+            return sorted(extensions)
 
     def get_worker_ids(self) -> list[str]:
         """Get a list of unique worker IDs that processed files.
@@ -252,7 +255,7 @@ class ResultCollector:
                 worker_id = result.get("worker_id")
                 if worker_id:
                     worker_ids.add(worker_id)
-            return sorted(list(worker_ids))
+            return sorted(worker_ids)
 
     def get_summary(self) -> dict[str, Any]:
         """Get a summary of collected results.
@@ -338,7 +341,7 @@ class ResultCollectorPool:
         self,
         output_queue,
         num_collectors: int = 1,
-        collector_id_prefix: Optional[str] = None,
+        collector_id_prefix: str | None = None,
     ) -> None:
         """Initialize the ResultCollector pool.
 
@@ -371,7 +374,7 @@ class ResultCollectorPool:
 
             self._started = True
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         """Wait for all collector instances to complete.
 
         Args:

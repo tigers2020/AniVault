@@ -190,15 +190,11 @@ class TestDirectoryScanner:
             scanner.run()
 
             # Verify that put was called for each matching file
-            assert input_queue.put.call_count == 3  # 2 files + 1 sentinel
+            assert input_queue.put.call_count == 2  # 2 files only (no sentinel)
 
             # Verify that statistics were updated
             assert stats.increment_files_scanned.call_count == 2
             assert stats.increment_directories_scanned.call_count == 1
-
-            # Verify that sentinel value was put last
-            calls = input_queue.put.call_args_list
-            assert calls[-1][0][0] is None  # Last call should be None
 
     def test_run_nonexistent_directory(self) -> None:
         """Test run method with non-existent directory."""
@@ -210,9 +206,8 @@ class TestDirectoryScanner:
         scanner = DirectoryScanner(root_path, extensions, input_queue, stats)
         scanner.run()
 
-        # Should still put sentinel value
-        assert input_queue.put.call_count == 1
-        assert input_queue.put.call_args[0][0] is None
+        # Should not put anything (directory doesn't exist)
+        assert input_queue.put.call_count == 0
 
     def test_run_file_as_root(self) -> None:
         """Test run method when root_path is a file."""
@@ -228,9 +223,8 @@ class TestDirectoryScanner:
             scanner = DirectoryScanner(test_file, extensions, input_queue, stats)
             scanner.run()
 
-            # Should still put sentinel value
-            assert input_queue.put.call_count == 1
-            assert input_queue.put.call_args[0][0] is None
+            # Should not put anything (file, not directory)
+            assert input_queue.put.call_count == 0
 
     def test_run_queue_error_handling(self) -> None:
         """Test run method handles queue errors gracefully."""
@@ -248,17 +242,18 @@ class TestDirectoryScanner:
             # Should not raise exception
             scanner.run()
 
-            # Should still put sentinel value
-            assert input_queue.put.call_count == 2  # 1 file + 1 sentinel
+            # Should put only the file (no sentinel)
+            assert input_queue.put.call_count == 1  # 1 file only
 
-    def test_run_sentinel_error_handling(self) -> None:
-        """Test run method handles sentinel value errors gracefully."""
+    def test_run_queue_put_error_handling(self) -> None:
+        """Test run method handles queue put errors gracefully."""
         with tempfile.TemporaryDirectory() as temp_dir:
             root_path = Path(temp_dir)
+            (root_path / "test.mp4").touch()
 
             extensions = [".mp4"]
             input_queue = Mock(spec=BoundedQueue)
-            input_queue.put.side_effect = [None, Exception("Sentinel error")]
+            input_queue.put.side_effect = Exception("Queue error")
             stats = Mock(spec=ScanStatistics)
 
             scanner = DirectoryScanner(root_path, extensions, input_queue, stats)

@@ -55,7 +55,7 @@ def create_large_test_directory(
     groups = ["SubsPlease", "Erai-raws", "HorribleSubs", "Commie"]
 
     for i in range(num_files):
-        # Generate a realistic anime filename
+        # Generate a realistic anime filename with unique index to avoid duplicates
         title = random.choice(anime_titles)
         season = random.randint(1, 5)
         episode = random.randint(1, 50)
@@ -63,12 +63,12 @@ def create_large_test_directory(
         group = random.choice(groups)
         extension = random.choice(extensions)
 
-        # Create filename with various patterns
+        # Create filename with various patterns (include index for uniqueness)
         patterns = [
-            f"[{group}] {title} - S{season:02d}E{episode:02d} [{quality}]{extension}",
-            f"{title}_S{season:02d}E{episode:02d}_{quality}{extension}",
-            f"[{group}] {title} - {episode:02d} [{quality}]{extension}",
-            f"{title}.{episode:02d}.{quality}{extension}",
+            f"[{group}] {title} - S{season:02d}E{episode:02d} [{quality}] - {i:06d}{extension}",
+            f"{title}_S{season:02d}E{episode:02d}_{quality}_{i:06d}{extension}",
+            f"[{group}] {title} - {episode:02d} [{quality}] - {i:06d}{extension}",
+            f"{title}.{episode:02d}.{quality}.{i:06d}{extension}",
         ]
 
         filename = random.choice(patterns)
