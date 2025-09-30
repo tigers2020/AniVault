@@ -1459,7 +1459,7 @@
           5,
           6
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -1467,7 +1467,7 @@
             "description": "In the `_worker` method of `ParserWorkerPool`, implement the logic to check the cache for each incoming file path. Based on the result of the cache lookup, increment either the `cache_hits` or `cache_misses` counter on the `ParserStatistics` object.",
             "dependencies": [],
             "details": "Modify `anivault/core/pipeline/parser.py`. The `_worker` method currently has a `_# TODO: Check cache_` placeholder. Replace this with a call to `self.cache.get()`. If the result is not `None`, increment `self.stats.increment_cache_hit()`. Otherwise, increment `self.stats.increment_cache_miss()`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "In an integration test, prime the cache with one file. Run the pipeline with two files (one cached, one not). Verify that `cache_hits` is 1 and `cache_misses` is 1."
           },
           {
@@ -1478,7 +1478,7 @@
               "7.1"
             ],
             "details": "Modify `anivault/core/pipeline/parser.py`. Inside the `_worker` method's main loop, add a call to `self.stats.increment_processed()` at the beginning. Wrap the parsing logic (which runs on a cache miss) in a `try...except` block. On success, call `self.stats.increment_success()`. In the `except` block, call `self.stats.increment_failure()`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Using a test setup with known good and bad files, verify that the `items_processed`, `successes`, and `failures` counters in `ParserStatistics` are updated correctly after the pipeline runs."
           },
           {
@@ -1487,7 +1487,7 @@
             "description": "In `anivault/core/pipeline/main.py`, create a new helper function that takes all the statistics objects (`ScanStatistics`, `QueueStatistics`, `ParserStatistics`) as arguments and returns a formatted, multi-line string suitable for printing to the console.",
             "dependencies": [],
             "details": "Create a function like `format_statistics(scan_stats, queue_stats, parser_stats) -> str`. This function will read the final values from each stats object (e.g., `scan_stats.files_scanned`, `queue_stats.peak_size`, `parser_stats.successes`) and assemble them into a human-readable report.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit test this function by passing it mock statistics objects with known values and asserting that the output string is formatted as expected."
           },
           {
@@ -1498,7 +1498,7 @@
               "7.3"
             ],
             "details": "In `anivault/core/pipeline/main.py`, locate the `# TODO: Display final statistics` comment within the `run_pipeline` function. Replace it with a call to the `format_statistics` function, passing the `scan_stats`, `queue_stats`, and `parser_stats` objects. Print the returned string.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run the full pipeline with a small dataset and visually inspect the console output to ensure the final statistics report is displayed correctly upon completion."
           },
           {
@@ -1509,7 +1509,7 @@
               "7.4"
             ],
             "details": "In `anivault/core/pipeline/main.py`, record the start time at the beginning of `run_pipeline` and calculate the elapsed time at the end. Pass this total duration to the `format_statistics` function. Update `format_statistics` to accept and display the total pipeline time, alongside the `scan_duration` already available in `ScanStatistics`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run the pipeline and verify that the console output includes a plausible 'Total Pipeline Time' and 'Scan Duration' in the final report."
           }
         ]
@@ -1582,7 +1582,7 @@
     ],
     "metadata": {
       "created": "2025-09-30T00:46:38.504Z",
-      "updated": "2025-09-30T21:29:45.949Z",
+      "updated": "2025-09-30T21:39:57.790Z",
       "description": "Tasks for w5-w6-scan-parse-pipeline context"
     }
   },

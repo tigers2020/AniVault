@@ -4,16 +4,23 @@ This module provides the main entry point for running the complete
 file processing pipeline: Scanner → ParserWorkerPool → ResultCollector.
 """
 
+from __future__ import annotations
+
 import logging
+import time
 from pathlib import Path
-from typing import Any, Optional
-from unittest.mock import Mock
+from typing import Any
 
 from anivault.core.bounded_queue import BoundedQueue
 from anivault.core.pipeline.cache import CacheV1
 from anivault.core.pipeline.collector import ResultCollector
 from anivault.core.pipeline.parser import ParserWorkerPool
 from anivault.core.pipeline.scanner import DirectoryScanner
+from anivault.core.pipeline.utils import (
+    ParserStatistics,
+    QueueStatistics,
+    ScanStatistics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +33,84 @@ class _Sentinel:
 SENTINEL = _Sentinel()
 
 
+def format_statistics(
+    scan_stats: ScanStatistics,
+    queue_stats: QueueStatistics,
+    parser_stats: ParserStatistics,
+    total_duration: float,
+) -> str:
+    """Format pipeline statistics into a human-readable report.
+
+    Args:
+        scan_stats: ScanStatistics instance with scanning metrics.
+        queue_stats: QueueStatistics instance with queue metrics.
+        parser_stats: ParserStatistics instance with parser metrics.
+        total_duration: Total pipeline execution time in seconds.
+
+    Returns:
+        A formatted multi-line string containing all statistics.
+    """
+    # Calculate success/failure percentages
+    total_processed = parser_stats.items_processed
+    success_rate = (
+        (parser_stats.successes / total_processed * 100) if total_processed > 0 else 0
+    )
+    failure_rate = (
+        (parser_stats.failures / total_processed * 100) if total_processed > 0 else 0
+    )
+
+    # Calculate cache hit/miss percentages
+    total_cache_ops = parser_stats.cache_hits + parser_stats.cache_misses
+    cache_hit_rate = (
+        (parser_stats.cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0
+    )
+    cache_miss_rate = (
+        (parser_stats.cache_misses / total_cache_ops * 100)
+        if total_cache_ops > 0
+        else 0
+    )
+
+    # Build the statistics report
+    lines = [
+        "",
+        "=" * 60,
+        "                    PIPELINE STATISTICS",
+        "=" * 60,
+        "",
+        "Timing:",
+        f"  - Total pipeline time:  {total_duration:.2f}s",
+        "",
+        "Scanner:",
+        f"  - Files scanned:        {scan_stats.files_scanned:,}",
+        f"  - Directories scanned:  {scan_stats.directories_scanned:,}",
+        "",
+        "Queue:",
+        f"  - Items put:            {queue_stats.items_put:,}",
+        f"  - Items got:            {queue_stats.items_got:,}",
+        f"  - Peak size:            {queue_stats.max_size:,}",
+        "",
+        "Parser:",
+        f"  - Items processed:      {parser_stats.items_processed:,}",
+        f"  - Successful:           {parser_stats.successes:,} ({success_rate:.2f}%)",
+        f"  - Failed:               {parser_stats.failures:,} ({failure_rate:.2f}%)",
+        "",
+        "Cache:",
+        f"  - Cache hits:           {parser_stats.cache_hits:,} ({cache_hit_rate:.2f}%)",
+        f"  - Cache misses:         {parser_stats.cache_misses:,} ({cache_miss_rate:.2f}%)",
+        "",
+        "=" * 60,
+        "",
+    ]
+
+    return "\n".join(lines)
+
+
 def run_pipeline(
     root_path: str,
     extensions: list[str],
     num_workers: int = 4,
     max_queue_size: int = 100,
-    cache_path: Optional[str] = None,
+    cache_path: str | None = None,
 ) -> list[dict[str, Any]]:
     """Run the complete file processing pipeline.
 
@@ -51,15 +130,19 @@ def run_pipeline(
         List of processed file results.
     """
     logger.info(
-        f"Starting pipeline: root={root_path}, extensions={extensions}, workers={num_workers}",
+        "Starting pipeline: root=%s, extensions=%s, workers=%s",
+        root_path,
+        extensions,
+        num_workers,
     )
 
-    # Create a mock statistics object (since Statistics is abstract)
-    stats = Mock()
-    stats.items_found = 0
-    stats.items_processed = 0
-    stats.successes = 0
-    stats.failures = 0
+    # Record pipeline start time
+    start_time = time.time()
+
+    # Create statistics objects for each component
+    scan_stats = ScanStatistics()
+    queue_stats = QueueStatistics()
+    parser_stats = ParserStatistics()
 
     # Create cache instance
     cache = CacheV1(cache_dir=Path("cache"))
@@ -73,7 +156,7 @@ def run_pipeline(
         root_path=Path(root_path),
         output_queue=file_queue,
         extensions=extensions,
-        stats=stats,
+        stats=scan_stats,
         cache_path=cache_path,
     )
 
@@ -81,7 +164,7 @@ def run_pipeline(
         num_workers=num_workers,
         input_queue=file_queue,
         output_queue=result_queue,
-        stats=stats,
+        stats=parser_stats,
         cache=cache,
     )
 
@@ -95,7 +178,7 @@ def run_pipeline(
         logger.info("Starting scanner...")
         scanner.start()
 
-        logger.info(f"Starting parser pool with {num_workers} workers...")
+        logger.info("Starting parser pool with %s workers...", num_workers)
         parser_pool.start()
 
         logger.info("Starting result collector...")
@@ -104,17 +187,20 @@ def run_pipeline(
         # Wait for scanner to finish discovering files
         logger.info("Waiting for scanner to complete...")
         scanner.join()
-        logger.info(f"Scanner completed. Found {stats.items_found} files.")
+        logger.info("Scanner completed. Found %s files.", scan_stats.files_scanned)
 
         # Signal parser workers to shut down by sending sentinel values
-        logger.info(f"Sending {num_workers} sentinel values to parser workers...")
+        logger.info("Sending %s sentinel values to parser workers...", num_workers)
         for _ in range(num_workers):
             file_queue.put(SENTINEL, timeout=30.0)
 
         # Wait for parser pool to finish processing
         logger.info("Waiting for parser pool to complete...")
         parser_pool.join()
-        logger.info(f"Parser pool completed. Processed {stats.items_processed} files.")
+        logger.info(
+            "Parser pool completed. Processed %s files.",
+            parser_stats.items_processed,
+        )
 
         # Signal collector to shut down
         logger.info("Sending sentinel value to result collector...")
@@ -124,24 +210,31 @@ def run_pipeline(
         logger.info("Waiting for result collector to complete...")
         collector.join()
         logger.info(
-            f"Result collector completed. Collected {collector.get_result_count()} results.",
+            "Result collector completed. Collected %s results.",
+            collector.get_result_count(),
         )
 
         # Retrieve and return final results
         results = collector.get_results()
 
-        # Log final statistics
+        # Calculate total pipeline duration
+        total_duration = time.time() - start_time
+
+        # Format and display final statistics
+        stats_report = format_statistics(
+            scan_stats=scan_stats,
+            queue_stats=queue_stats,
+            parser_stats=parser_stats,
+            total_duration=total_duration,
+        )
         logger.info("Pipeline completed successfully!")
-        logger.info(f"Total files found: {stats.items_found}")
-        logger.info(f"Total files processed: {stats.items_processed}")
-        logger.info(f"Successful: {stats.successes}")
-        logger.info(f"Failed: {stats.failures}")
-        logger.info(f"Results collected: {len(results)}")
+        logger.info(stats_report)
+        print(stats_report)
 
         return results
 
-    except Exception as e:
-        logger.error(f"Pipeline error: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Pipeline error")
 
         # Attempt graceful shutdown
         logger.info("Attempting graceful shutdown...")

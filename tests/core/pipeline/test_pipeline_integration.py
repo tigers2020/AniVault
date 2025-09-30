@@ -3,7 +3,12 @@
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from anivault.core.pipeline.main import run_pipeline
+from anivault.core.pipeline.main import run_pipeline, format_statistics
+from anivault.core.pipeline.utils import (
+    ScanStatistics,
+    QueueStatistics,
+    ParserStatistics,
+)
 
 
 class TestPipelineIntegration:
@@ -218,3 +223,108 @@ class TestPipelineIntegration:
             scanner_call_args = MockScanner.call_args
             assert ".mp4" in scanner_call_args.kwargs["extensions"]
             assert ".txt" not in scanner_call_args.kwargs["extensions"]
+
+
+class TestStatisticsFormatting:
+    """Statistics formatting tests."""
+
+    def test_format_statistics_with_valid_data(self) -> None:
+        """Test statistics formatting with valid data."""
+        # Given
+        scan_stats = ScanStatistics()
+        scan_stats._files_scanned = 150
+        scan_stats._directories_scanned = 25
+
+        queue_stats = QueueStatistics()
+        queue_stats._items_put = 150
+        queue_stats._items_got = 150
+        queue_stats._max_size = 42
+
+        parser_stats = ParserStatistics()
+        parser_stats._items_processed = 150
+        parser_stats._successes = 145
+        parser_stats._failures = 5
+        parser_stats._cache_hits = 75
+        parser_stats._cache_misses = 75
+
+        total_duration = 12.34
+
+        # When
+        result = format_statistics(
+            scan_stats,
+            queue_stats,
+            parser_stats,
+            total_duration,
+        )
+
+        # Then
+        assert isinstance(result, str)
+        assert "PIPELINE STATISTICS" in result
+        assert "150" in result  # files scanned
+        assert "25" in result  # directories scanned
+        assert "42" in result  # peak size
+        assert "145" in result  # successes
+        assert "5" in result  # failures
+        assert "75" in result  # cache hits
+        assert "75" in result  # cache misses
+        assert "12.34" in result  # total duration
+        assert "96.67%" in result  # success rate
+        assert "3.33%" in result  # failure rate
+        assert "50.00%" in result  # cache hit rate
+
+    def test_format_statistics_with_zero_values(self) -> None:
+        """Test statistics formatting with zero values."""
+        # Given
+        scan_stats = ScanStatistics()
+        queue_stats = QueueStatistics()
+        parser_stats = ParserStatistics()
+        total_duration = 0.0
+
+        # When
+        result = format_statistics(
+            scan_stats,
+            queue_stats,
+            parser_stats,
+            total_duration,
+        )
+
+        # Then
+        assert isinstance(result, str)
+        assert "PIPELINE STATISTICS" in result
+        assert "0" in result
+        assert "0.00%" in result  # percentages should be 0
+
+    def test_format_statistics_with_large_numbers(self) -> None:
+        """Test statistics formatting with large numbers."""
+        # Given
+        scan_stats = ScanStatistics()
+        scan_stats._files_scanned = 1_234_567
+        scan_stats._directories_scanned = 12_345
+
+        queue_stats = QueueStatistics()
+        queue_stats._items_put = 1_234_567
+        queue_stats._items_got = 1_234_567
+        queue_stats._max_size = 999
+
+        parser_stats = ParserStatistics()
+        parser_stats._items_processed = 1_234_567
+        parser_stats._successes = 1_234_000
+        parser_stats._failures = 567
+        parser_stats._cache_hits = 600_000
+        parser_stats._cache_misses = 634_567
+
+        total_duration = 123.456
+
+        # When
+        result = format_statistics(
+            scan_stats,
+            queue_stats,
+            parser_stats,
+            total_duration,
+        )
+
+        # Then
+        assert isinstance(result, str)
+        assert "1,234,567" in result  # comma formatting
+        assert "12,345" in result
+        assert "123.46" in result  # duration rounded
