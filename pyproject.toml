@@ -71,6 +71,8 @@ ignore = [
     "TCH001",  # Move application import into type-checking block
     "TCH003",  # Move standard library import into type-checking block
     "RET504",  # Unnecessary assignment before return
+    "INP001",  # Implicit namespace package (for scripts/)
+    "PLR2004",  # Magic value used in comparison
 ]
 exclude = [
     "tests/",
