@@ -46,9 +46,7 @@
         "details": "Develop a `CacheManager` that saves API responses as JSON files in a local cache directory. The cache key can be the TMDB series ID or a search query. Implement a Time-To-Live (TTL) system where cache entries expire after a configured duration. Provide a CLI option to manually clear the cache.",
         "testStrategy": "Write unit tests to verify cache hits (data is retrieved from file) and misses (API is called). Test the TTL functionality by manipulating file modification timestamps. Test the cache invalidation function to ensure it properly deletes cache files.",
         "priority": "medium",
-        "dependencies": [
-          3
-        ],
+        "dependencies": [],
         "status": "pending",
         "subtasks": []
       },
@@ -59,10 +57,7 @@
         "details": "Implement a module that takes the parsed file data and TMDB metadata to construct new filenames and directory paths. The naming and folder structure should follow a configurable template (e.g., `{Series Title}/Season {S_Num}/{Series Title} - S{S_Num}E{E_Num} - {Episode Title}.ext`). The logic must safely handle file system operations, including creating directories and moving files, with checks to prevent accidental data loss.",
         "testStrategy": "Using `pytest`'s `tmp_path` fixture, create a temporary file structure. Run the organization logic and assert that the final file and directory layout matches the expected outcome. Test edge cases like special characters in titles, pre-existing files, and missing metadata.",
         "priority": "high",
-        "dependencies": [
-          2,
-          4
-        ],
+        "dependencies": [],
         "status": "pending",
         "subtasks": []
       },
@@ -73,9 +68,7 @@
         "details": "Use the `Click` framework to build the main application commands, such as `anivault organize <directory>`. Integrate `Rich` to provide users with a real-time progress bar during file processing, a summary table of proposed changes before execution, and color-coded log messages for clarity.",
         "testStrategy": "Utilize `Click.testing.CliRunner` to write integration tests for the CLI. Capture the console output to assert that progress bars, tables, and log messages are displayed as expected. Test various command-line arguments and options to ensure they are parsed correctly.",
         "priority": "medium",
-        "dependencies": [
-          5
-        ],
+        "dependencies": [],
         "status": "pending",
         "subtasks": []
       },
@@ -99,9 +92,7 @@
         "details": "Create and configure a `PyInstaller` spec file for a one-file (`--onefile`) build. Ensure all dependencies, including potentially hidden ones from libraries like `cryptography`, are correctly included. Perform final end-to-end testing on the generated `.exe` to validate functionality and performance requirements.",
         "testStrategy": "Manually execute the compiled `.exe` on a clean Windows environment (e.g., a virtual machine) without Python installed. Run the application on a large test library of over 100k files to measure processing speed and memory usage (target < 500MB). Verify that all features work as expected and no runtime errors occur.",
         "priority": "high",
-        "dependencies": [
-          6
-        ],
+        "dependencies": [],
         "status": "pending",
         "subtasks": []
       }
@@ -122,14 +113,14 @@
         "testStrategy": "Verify that the directory structure matches the PRD exactly. Confirm that `git status` shows a clean working directory after initial commits. Check that the `.gitignore` file correctly ignores Python virtual environments and cache files.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Create Directory Structure",
             "description": "Set up the standard Python project directory structure as specified in the PRD",
             "details": "Create the following directories: src/anivault/, src/anivault/cli/, src/anivault/core/, src/anivault/services/, src/anivault/ui/, src/anivault/utils/, tests/, docs/. Add __init__.py files to all Python packages.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 1
           },
@@ -138,7 +129,7 @@
             "title": "Initialize Git Repository",
             "description": "Set up Git repository with proper .gitignore file",
             "details": "Initialize Git repository, create comprehensive .gitignore file for Python projects, add initial commit with basic project structure.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 1
           },
@@ -147,7 +138,7 @@
             "title": "Create Basic Configuration Files",
             "description": "Set up initial configuration files and project metadata",
             "details": "Create README.md with project description, create basic pyproject.toml template, set up initial logging configuration.",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 1
           }
@@ -201,9 +192,7 @@
         "details": "Create a `.pre-commit-config.yaml` file. Configure hooks for `ruff` (for linting and formatting), `black`, and `mypy` for static type checking. Install the hooks using `pre-commit install`.",
         "testStrategy": "Create a temporary Python file with deliberate style and linting errors. Attempt to commit the file. Verify that the pre-commit hooks run and prevent the commit, reporting the errors. Fix the errors and confirm the commit succeeds.",
         "priority": "medium",
-        "dependencies": [
-          2
-        ],
+        "dependencies": [],
         "status": "done",
         "subtasks": []
       },
@@ -214,11 +203,37 @@
         "details": "Configure pytest settings within `pyproject.toml` (e.g., test paths). Create a simple test file `tests/test_initial.py` with a function like `def test_sanity(): assert True`.",
         "testStrategy": "Run `poetry run pytest` from the project root. Verify that pytest discovers and runs the `test_sanity` test, and that the test passes.",
         "priority": "medium",
-        "dependencies": [
-          2
-        ],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Configure pytest in pyproject.toml",
+            "description": "Add pytest configuration settings to pyproject.toml",
+            "details": "Configure pytest settings including test paths, test discovery patterns, and output formatting options in the pyproject.toml file.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 2,
+            "title": "Create Initial Test File",
+            "description": "Create tests/test_initial.py with basic sanity test",
+            "details": "Create a simple test file with a basic sanity test function to verify that pytest can discover and run tests correctly.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 3,
+            "title": "Run pytest and Verify Setup",
+            "description": "Execute pytest and verify the test framework is working correctly",
+            "details": "Run poetry run pytest from the project root to verify that pytest discovers and runs the test_sanity test successfully.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 4
+          }
+        ]
       },
       {
         "id": 5,
@@ -230,8 +245,45 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create UTF-8 Configuration Module",
+            "description": "Create a utility module to enforce UTF-8 encoding throughout the application",
+            "details": "Create a module that sets up UTF-8 encoding globally and provides utilities for safe file I/O operations with UTF-8 encoding",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 2,
+            "title": "Create Logging Configuration Module",
+            "description": "Create a centralized logging configuration with console and file rotation support",
+            "details": "Set up Python's logging module with both console output and RotatingFileHandler for log files",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 3,
+            "title": "Create Integration Tests",
+            "description": "Write tests to verify UTF-8 handling and logging functionality",
+            "details": "Create tests that verify UTF-8 file I/O with non-ASCII characters and logging output to both console and files",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 4,
+            "title": "Update Application Entry Points",
+            "description": "Integrate UTF-8 and logging configuration into the main application entry points",
+            "details": "Update the main application entry points to initialize UTF-8 configuration and logging before any other operations",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          }
+        ]
       },
       {
         "id": 6,
@@ -240,17 +292,15 @@
         "details": "Create a minimal script `poc_bundle.py` that imports and calls a simple function from `anitopy` and `cryptography`. Use PyInstaller to build a single-file executable from this script.",
         "testStrategy": "Run the generated `.exe` file from a clean command prompt (without the Python environment activated). Verify that the program executes without import errors or runtime crashes. Document any required PyInstaller hooks or `--hidden-import` flags.",
         "priority": "high",
-        "dependencies": [
-          2
-        ],
-        "status": "pending",
+        "dependencies": [],
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Test anitopy PyInstaller Bundling",
             "description": "Verify anitopy C extension can be bundled with PyInstaller",
             "details": "Create a minimal test script that imports and uses anitopy, build it with PyInstaller, test the resulting executable to ensure anitopy functions correctly",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 6
           },
@@ -259,7 +309,7 @@
             "title": "Test cryptography PyInstaller Bundling",
             "description": "Verify cryptography native library can be bundled with PyInstaller",
             "details": "Create a minimal test script that imports and uses cryptography, build it with PyInstaller, test the resulting executable to ensure cryptography functions correctly",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 6
           },
@@ -268,7 +318,7 @@
             "title": "Test Combined Libraries Bundling",
             "description": "Test bundling both anitopy and cryptography together",
             "details": "Create a test script that uses both anitopy and cryptography, build with PyInstaller, verify both libraries work together in the executable",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 6
           }
@@ -281,17 +331,15 @@
         "details": "Write a script using a TMDB API key to intentionally trigger a 429 error. Check for automatic handling of the `Retry-After` header. Simulate network timeouts to test exception handling. Monitor the script's memory usage over a long series of requests.",
         "testStrategy": "The script must successfully demonstrate: 1) Catching a 429 error. 2) Reading the `Retry-After` header value. 3) Handling a `requests.exceptions.Timeout`. 4) Stable memory footprint. Document all findings.",
         "priority": "high",
-        "dependencies": [
-          2
-        ],
-        "status": "pending",
+        "dependencies": [],
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Test TMDB API Rate Limiting",
             "description": "Verify tmdbv3api handles rate limits correctly",
             "details": "Test API calls that trigger rate limiting, verify Retry-After header handling, test automatic retry behavior, measure actual rate limit thresholds",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 7
           },
@@ -300,7 +348,7 @@
             "title": "Test Error Handling and Network Timeouts",
             "description": "Verify robust error handling for network issues and API errors",
             "details": "Test 429, 401, 404, 500 error responses, test network timeout scenarios, verify proper exception handling and logging",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 7
           },
@@ -309,7 +357,7 @@
             "title": "Test Long-running Memory Usage",
             "description": "Monitor memory usage during extended API operations",
             "details": "Run extended API operations, monitor memory usage patterns, test for memory leaks during long-running sessions",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 7
           }
@@ -322,11 +370,37 @@
         "details": "Obtain the executable generated in Task 6. Execute it on clean installations or virtual machines of Windows 7, 8, 10, and 11.",
         "testStrategy": "For each Windows version, run the executable and confirm it starts and completes without errors. Document any missing DLLs or OS-specific issues. The test passes if the executable runs successfully on at least Windows 10 and 11.",
         "priority": "high",
-        "dependencies": [
-          6
-        ],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Windows 10/11 Execution Test",
+            "description": "Test the generated executables on Windows 10 and 11 systems",
+            "details": "Run all three executables (anitopy_poc.exe, cryptography_poc.exe, combined_poc.exe) on Windows 10 and 11 systems. Verify they start without errors and complete their intended functionality.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 2,
+            "title": "Windows 7/8 Compatibility Test (Optional)",
+            "description": "Test executables on Windows 7 and 8 for legacy compatibility",
+            "details": "Attempt to run the executables on Windows 7 and 8 systems. Document any compatibility issues, missing DLLs, or OS-specific problems. This is optional as the main requirement is Windows 10/11 compatibility.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 3,
+            "title": "Documentation and Results Compilation",
+            "description": "Document test results and create compatibility report",
+            "details": "Create a comprehensive report documenting the Windows multi-version execution test results, including any issues found, DLL dependencies, and compatibility recommendations.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 8
+          }
+        ]
       },
       {
         "id": 9,
@@ -338,8 +412,36 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Performance Test Script",
+            "description": "Create a script to simulate directory scanning with 10k+ files",
+            "details": "Create a comprehensive performance test script that simulates scanning large directories with thousands of files, measuring execution time using time.perf_counter().",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 9
+          },
+          {
+            "id": 2,
+            "title": "Generate Test Dataset",
+            "description": "Create a large test dataset with 10k+ files for performance testing",
+            "details": "Generate a test dataset with thousands of files to simulate real-world anime file collections for performance testing on different storage types.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 9
+          },
+          {
+            "id": 3,
+            "title": "Run Performance Tests and Document Results",
+            "description": "Execute performance tests and document baseline results",
+            "details": "Run the performance test script on the current system, measure execution times, and document the results as a performance baseline for future optimization comparisons.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 9
+          }
+        ]
       },
       {
         "id": 10,
@@ -349,8 +451,36 @@
         "testStrategy": "A new team member should be able to follow the documentation to successfully obtain an API key. Running the `check_api_key.py` script with the new key should result in a success message.",
         "priority": "low",
         "dependencies": [],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research TMDB API Key Process",
+            "description": "Research and document the official TMDB API key acquisition process",
+            "details": "Research the current official process for obtaining a TMDB API key, including account creation, application registration, and key generation steps.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 10
+          },
+          {
+            "id": 2,
+            "title": "Create API Key Validation Script",
+            "description": "Create check_api_key.py script for validating TMDB API keys",
+            "details": "Create a simple script that takes a TMDB API key as input and makes a test API call to verify its validity and functionality.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 10
+          },
+          {
+            "id": 3,
+            "title": "Document API Key Process",
+            "description": "Create comprehensive documentation for TMDB API key acquisition",
+            "details": "Create detailed documentation in docs/ directory explaining the step-by-step process for obtaining and using TMDB API keys, including troubleshooting tips and best practices.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 10
+          }
+        ]
       },
       {
         "id": 11,
@@ -359,14 +489,28 @@
         "details": "Create a `DEVELOPMENT_GUIDE.md` explaining project setup. Create a `RISK_VALIDATION_REPORT.md` that summarizes the results of tasks 6, 7, 8, and 9, including the PyInstaller results, tmdbv3api behavior, Windows compatibility matrix, and performance benchmarks.",
         "testStrategy": "Review the documents for clarity and completeness. The development guide must be usable by another developer to set up the project from scratch. The report must clearly state all findings.",
         "priority": "medium",
-        "dependencies": [
-          8,
-          7,
-          9,
-          10
-        ],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Development Guide",
+            "description": "Create comprehensive DEVELOPMENT_GUIDE.md for project setup",
+            "details": "Create a detailed development guide that explains how to set up the AniVault project from scratch, including dependencies, configuration, and development workflow.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 11
+          },
+          {
+            "id": 2,
+            "title": "Create Risk Validation Report",
+            "description": "Create comprehensive RISK_VALIDATION_REPORT.md summarizing all validation results",
+            "details": "Create a detailed report that consolidates findings from tasks 6, 7, 8, and 9, including PyInstaller results, TMDB API behavior, Windows compatibility, and performance benchmarks.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 11
+          }
+        ]
       },
       {
         "id": 12,
@@ -375,36 +519,1071 @@
         "details": "Run the full test suite with `poetry run pytest`. Run `poetry run pre-commit run --all-files`. Execute a script demonstrating the logging system. Perform a full 'clean environment' test: `git clone`, `poetry install`, `poetry run pytest`. Create and run the minimal PyInstaller executable.",
         "testStrategy": "All checks must pass: pytest reports 100% pass, pre-commit reports no errors, logging demo works, and the clean environment setup succeeds. A final checklist confirming each DoD item is complete will be the output.",
         "priority": "medium",
-        "dependencies": [
-          3,
-          4,
-          5,
-          11
-        ],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Run Full Test Suite",
+            "description": "Execute complete pytest test suite to verify all tests pass",
+            "details": "Run the full test suite using pytest to ensure 100% test pass rate and verify test framework is working correctly.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 12
+          },
+          {
+            "id": 2,
+            "title": "Run Code Quality Checks",
+            "description": "Execute pre-commit hooks and code quality tools",
+            "details": "Run pre-commit hooks and code quality tools (ruff, mypy) to ensure code quality standards are met.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 12
+          },
+          {
+            "id": 3,
+            "title": "Test Logging System",
+            "description": "Demonstrate logging system functionality",
+            "details": "Create and execute a script to demonstrate the logging system is working correctly with proper log levels and file output.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 12
+          },
+          {
+            "id": 4,
+            "title": "Clean Environment Test",
+            "description": "Perform clean environment setup test",
+            "details": "Simulate a clean environment setup by testing the installation and setup process as if starting from scratch.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 12
+          },
+          {
+            "id": 5,
+            "title": "Create Minimal PyInstaller Executable",
+            "description": "Build and test minimal PyInstaller executable",
+            "details": "Create a minimal PyInstaller executable that demonstrates the core functionality and verify it runs correctly.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 12
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-09-30T00:46:33.334Z",
-      "updated": "2025-09-30T01:13:47.204Z",
+      "updated": "2025-09-30T02:13:08.079Z",
       "description": "Tasks for w1-w2-repo-boot context"
     }
   },
   "w3-w4-console-exe-poc": {
-    "tasks": [],
+    "tasks": [
+      {
+        "id": 12,
+        "title": "Install and Configure PyInstaller for Basic Builds",
+        "description": "Install PyInstaller as a development dependency and create an initial build script to generate a basic executable for testing.",
+        "details": "1. **Add PyInstaller Dependency**: Use Poetry to add PyInstaller as a development dependency. Run the command: `poetry add pyinstaller==6.16.0 --group dev`. This will update `pyproject.toml` and `poetry.lock` to include the specific version of PyInstaller for reproducible builds.\n2. **Create Initial Build Script**: Create a new file named `build.bat` in the project root. This script will automate the build process.\n3. **Implement Build Command**: Add the following PyInstaller command to `build.bat`: `poetry run pyinstaller src/anivault/__main__.py --name anivault-mini --onefile --clean`.\n   - `src/anivault/__main__.py`: Assumes this is the main entry point based on Task 8.\n   - `--name anivault-mini`: Sets the output executable name as required by subsequent tasks (e.g., Task 7).\n   - `--onefile`: Bundles everything into a single executable file.\n   - `--clean`: Clears PyInstaller's cache and temporary files before building.\n4. **Update .gitignore**: Add the following lines to the `.gitignore` file to prevent build artifacts from being committed to version control:\n   ```\n   # PyInstaller\n   /build/\n   /dist/\n   *.spec\n   ```",
+        "testStrategy": "1. **Dependency Verification**: After running the `poetry add` command, inspect `pyproject.toml` to confirm that `pyinstaller` is present under the `[tool.poetry.group.dev.dependencies]` section.\n2. **Execute Build Script**: Run the `build.bat` script from the command line. The script should complete without any errors.\n3. **Artifact Validation**: Check the project directory. A `dist` folder should be created containing the single executable file `anivault-mini.exe`. A `build` folder and an `anivault-mini.spec` file will also be created.\n4. **Basic Runtime Test**: Open a terminal, navigate to the `dist` directory, and run `anivault-mini.exe --help`. The test is successful if the application starts and prints the command-line help message to the console, confirming the basic bundling was successful.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add PyInstaller as a Development Dependency",
+            "description": "Use Poetry to add the specified version of PyInstaller to the project's development dependencies, ensuring a reproducible build environment.",
+            "dependencies": [],
+            "details": "In the project root directory, execute the following command in your terminal: `poetry add pyinstaller==6.16.0 --group dev`. After execution, verify that the `pyproject.toml` file now includes `pyinstaller = \"==6.16.0\"` under the `[tool.poetry.group.dev.dependencies]` section.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Create the `build.bat` Script File",
+            "description": "Create a new batch file in the project root to automate the build process.",
+            "dependencies": [],
+            "details": "In the root directory of the project (`F:\\Python_Projects\\AniVault`), create a new, empty file named `build.bat`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement the Basic PyInstaller Build Command",
+            "description": "Add the command to `build.bat` that invokes PyInstaller to create a single-file executable from the application's entry point.",
+            "dependencies": [
+              "12.1",
+              "12.2"
+            ],
+            "details": "Open the `build.bat` file and add the following line: `poetry run pyinstaller src/anivault/__main__.py --name anivault-mini --onefile --clean`. This command uses the correct entry point, sets the executable name, bundles all dependencies into one file, and cleans previous build artifacts.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Update .gitignore to Exclude Build Artifacts",
+            "description": "Modify the project's `.gitignore` file to prevent PyInstaller-generated directories and specification files from being tracked by Git.",
+            "dependencies": [],
+            "details": "Open the `.gitignore` file and append the following lines to ensure build outputs are not committed to the repository:\n```\n# PyInstaller\n/build/\n/dist/\n*.spec\n```",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Execute Initial Build and Verify Executable",
+            "description": "Run the build script and confirm that the single-file executable is successfully created in the `dist` directory.",
+            "dependencies": [
+              "12.3",
+              "12.4"
+            ],
+            "details": "From your terminal in the project root, execute the `build.bat` script. Once it completes, navigate to the newly created `dist` directory and verify that the file `anivault-mini.exe` exists.",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Create and Configure anivault.spec File",
+        "description": "Generate a PyInstaller .spec file using pyi-makespec and configure it with necessary hidden imports and build options, including disabling UPX compression.",
+        "details": "1. **Generate Base Spec File**: From the project root, run the command `poetry run pyi-makespec src/anivault/__main__.py --name anivault` to create the initial `anivault.spec` file. This command correctly points to the application's entry point within the `src` directory structure.\n\n2. **Modify `anivault.spec`**: Open the newly created `anivault.spec` file and make the following adjustments within the `Analysis` object:\n   - **`pathex`**: Ensure the path to the source code is correctly set. It should look like `pathex=['src']` to allow PyInstaller to find the `anivault` package.\n   - **`hiddenimports`**: Add the required list of hidden imports that PyInstaller's static analysis might miss. The list should be: `hiddenimports=['anitopy', 'cryptography', 'tmdbv3api', 'rich', 'prompt_toolkit']`.\n\n3. **Disable UPX Compression**: In the `EXE` object within the spec file, ensure that UPX compression is disabled to avoid potential false positives from antivirus software and compatibility issues. Set the `upx` parameter to `False`: `exe = EXE(..., upx=False, ...)`.",
+        "testStrategy": "1. **Execute Build**: Run the build process using the command `poetry run pyinstaller anivault.spec` from the project root.\n2. **Verify Build Success**: Confirm that the build completes without any `ModuleNotFoundError` exceptions, which would indicate that the `hiddenimports` were correctly processed.\n3. **Inspect Build Logs**: Check the `build/anivault/warn-anivault.txt` file for any unexpected warnings about missing modules.\n4. **Confirm UPX Disabled**: Review the console output from the build process to ensure there are no messages indicating that files are being compressed with UPX.\n5. **Basic Executable Test**: Run the generated executable from the `dist` folder (`dist/anivault/anivault.exe --help`) and verify that it starts and displays the help message without errors.",
+        "status": "done",
+        "dependencies": [
+          12
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Generate Initial anivault.spec File",
+            "description": "Use the `pyi-makespec` command to generate the base `anivault.spec` file, pointing to the application's main entry point.",
+            "dependencies": [],
+            "details": "From the project root directory, execute the following command: `poetry run pyi-makespec src/anivault/__main__.py --name anivault`. This will create the `anivault.spec` file in the root of the project.",
+            "status": "done",
+            "testStrategy": "Verify that the `anivault.spec` file is created in the project root directory after running the command."
+          },
+          {
+            "id": 2,
+            "title": "Configure Analysis Block in anivault.spec",
+            "description": "Modify the `Analysis` object in the generated `anivault.spec` file to include the correct source path and add necessary hidden imports.",
+            "dependencies": [
+              "13.1"
+            ],
+            "details": "Open `anivault.spec` and locate the `a = Analysis(...)` block. Make two changes:\n1. Set `pathex=['src']` to ensure PyInstaller correctly resolves modules from the `src` directory.\n2. Add the `hiddenimports` parameter with the following list: `hiddenimports=['anitopy', 'cryptography', 'tmdbv3api', 'rich', 'prompt_toolkit']`.",
+            "status": "done",
+            "testStrategy": "Inspect the `anivault.spec` file to confirm that the `pathex` and `hiddenimports` parameters are correctly set within the `Analysis` block."
+          },
+          {
+            "id": 3,
+            "title": "Configure EXE Block and Disable UPX",
+            "description": "Modify the `EXE` object in `anivault.spec` to disable UPX compression and ensure the application runs without a console window, matching the behavior of the existing build script.",
+            "dependencies": [
+              "13.1"
+            ],
+            "details": "In `anivault.spec`, find the `exe = EXE(...)` definition. Add or modify the following parameters:\n1. Set `upx=False` to prevent issues with antivirus software.\n2. Set `console=False` to replicate the `--noconsole` flag from the `build.bat` script.",
+            "status": "done",
+            "testStrategy": "Review the `EXE` object in `anivault.spec` to ensure `upx=False` and `console=False` are present and correctly configured."
+          },
+          {
+            "id": 4,
+            "title": "Update build.bat to Use the Spec File",
+            "description": "Modify the existing `build.bat` script to use the newly configured `anivault.spec` file for the build process, instead of passing command-line arguments directly to PyInstaller.",
+            "dependencies": [
+              "13.1",
+              "13.2",
+              "13.3"
+            ],
+            "details": "Open `build.bat` and make the following changes:\n1. Remove the line `if exist \"anivault.spec\" (...) del anivault.spec` to prevent the new spec file from being deleted.\n2. Replace the line `poetry run pyinstaller src/anivault/__main__.py --name anivault --onefile --noconsole` with `poetry run pyinstaller anivault.spec --onefile`. The `--name` and `--noconsole` options are now handled inside the spec file.",
+            "status": "done",
+            "testStrategy": "Inspect the `build.bat` file to confirm it no longer deletes `anivault.spec` and that it now calls `poetry run pyinstaller anivault.spec --onefile`."
+          },
+          {
+            "id": 5,
+            "title": "Test Build with New Spec File",
+            "description": "Execute the modified build script and verify that the PyInstaller build completes successfully without any module-related errors.",
+            "dependencies": [
+              "13.4"
+            ],
+            "details": "Run the `build.bat` script from the command line. Monitor the output for any errors, particularly `ModuleNotFoundError`, which would indicate a problem with `pathex` or `hiddenimports`. The build should complete successfully.",
+            "status": "done",
+            "testStrategy": "Confirm that the build process finishes with a 'Build successful' message and that a single executable file, `anivault.exe`, is created in the `dist` directory."
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Enhance `build.bat` for Automated One-File Builds with Error Handling",
+        "description": "Upgrade the `build.bat` script to perform a robust, automated one-file build using the `anivault.spec` file, including steps for error handling and build result verification.",
+        "details": "This task involves modifying the existing `build.bat` script to create a production-ready build process. The script will be responsible for cleaning the environment, running the PyInstaller build using the `anivault.spec` file, checking for errors, and verifying the output.\n\n1. **Set Script Environment**: Start `build.bat` with `@echo off` and `setlocal` to prevent command echoing and localize environment variable changes.\n\n2. **Clean Previous Builds**: Before starting the build, add commands to remove the `build` and `dist` directories to ensure a clean state. Use `if exist dist rmdir /s /q dist` and `if exist build rmdir /s /q build`.\n\n3. **Execute Build Command**: Update the script to execute the build using the spec file: `poetry run pyinstaller anivault.spec`. This leverages the configurations from Task #13, ensuring all hidden imports and one-file settings are applied.\n\n4. **Implement Error Handling**: Immediately after the PyInstaller command, check the exit code. Use `if %ERRORLEVEL% neq 0 (...)` to handle failures. Inside the block, print a clear error message (e.g., `echo [ERROR] PyInstaller build failed.`) and exit the script with a non-zero exit code (`exit /b 1`).\n\n5. **Verify Build Artifact**: After a successful build command, add a check to ensure the final executable exists. Use `if not exist dist\\anivault.exe (...)`. If the file is missing, print an error (`echo [ERROR] Build artifact 'dist\\anivault.exe' not found.`) and exit.\n\n6. **Success Message**: If all steps pass, print a success message indicating the build was completed and show the path to the final executable, e.g., `echo [SUCCESS] Build completed. Executable is at dist\\anivault.exe`.\n\n**Example `build.bat` structure:**\n```batch\n@echo off\nsetlocal\n\necho Cleaning up previous build artifacts...\nif exist dist rmdir /s /q dist\nif exist build rmdir /s /q build\n\necho Starting PyInstaller build using anivault.spec...\npoetry run pyinstaller anivault.spec\n\nif %ERRORLEVEL% neq 0 (\n    echo [ERROR] PyInstaller build failed.\n    exit /b 1\n)\n\necho Verifying build artifact...\nif not exist dist\\anivault.exe (\n    echo [ERROR] Build artifact 'dist\\anivault.exe' not found after successful build.\n    exit /b 1\n)\n\necho [SUCCESS] Build completed. Executable is at dist\\anivault.exe\nendlocal\nexit /b 0\n```",
+        "testStrategy": "1. **Successful Build Test**: Execute `build.bat` from the project root. The script must complete without errors, print the `[SUCCESS]` message, and create a single executable file at `dist\\anivault.exe`.\n2. **Error Handling Test**: Introduce a syntax error into a core Python file (e.g., `src/anivault/__main__.py`). Run `build.bat`. The script must detect the PyInstaller failure, print the `[ERROR] PyInstaller build failed.` message, and exit with a non-zero status code. The `dist` directory should not contain the final executable.\n3. **Artifact Verification Test**: After a successful build, manually delete the `dist\\anivault.exe` file and then run only the verification part of the script. It should correctly identify that the artifact is missing and report an error. (Alternatively, temporarily change the output name in `anivault.spec` and run the full script to see the verification fail).",
+        "status": "done",
+        "dependencies": [
+          12,
+          13
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize `build.bat` with Environment Setup and Cleanup Logic",
+            "description": "Create or overwrite `build.bat` to set up a clean execution environment. This involves disabling command echoing, localizing environment variables, and removing any artifacts from previous builds to ensure a clean slate.",
+            "dependencies": [],
+            "details": "In the project root, create or modify `build.bat`. Start the file with `@echo off` and `setlocal`. Add an informational message like `echo Cleaning up previous build artifacts...`. Then, implement the cleanup using `if exist dist rmdir /s /q dist` and `if exist build rmdir /s /q build`.",
+            "status": "done",
+            "testStrategy": "Run `build.bat`. The script should execute without errors, print the 'Cleaning up...' message, and if the `dist` or `build` directories exist, they should be deleted."
+          },
+          {
+            "id": 2,
+            "title": "Add the PyInstaller Build Command",
+            "description": "Integrate the core build command into `build.bat` to execute PyInstaller using the `anivault.spec` configuration file, which defines the one-file build settings.",
+            "dependencies": [
+              "14.1"
+            ],
+            "details": "In `build.bat`, after the cleanup commands, add an `echo` statement like `echo Starting PyInstaller build using anivault.spec...`. Follow this with the command `poetry run pyinstaller anivault.spec` to trigger the build process.",
+            "status": "done",
+            "testStrategy": "Run `build.bat`. The script should now attempt to run PyInstaller after the cleanup phase. This step is expected to create new `build` and `dist` directories."
+          },
+          {
+            "id": 3,
+            "title": "Implement Error Handling for the Build Command",
+            "description": "Add logic to `build.bat` to check the exit code of the PyInstaller process. If the build fails, the script must report a clear error and terminate immediately with a non-zero exit code.",
+            "dependencies": [
+              "14.2"
+            ],
+            "details": "Immediately following the `poetry run pyinstaller anivault.spec` command in `build.bat`, add an error-checking block: `if %ERRORLEVEL% neq 0 ( echo [ERROR] PyInstaller build failed. & exit /b 1 )`. The `&` ensures both commands run if the condition is met.",
+            "status": "done",
+            "testStrategy": "Temporarily introduce a syntax error into a Python source file (e.g., `src/anivault/__main__.py`). Run `build.bat`. The script should detect the PyInstaller failure, print the `[ERROR]` message, and exit."
+          },
+          {
+            "id": 4,
+            "title": "Add Verification for the Final Build Artifact",
+            "description": "After a successful build command, add a check to ensure the expected executable file (`anivault.exe`) was actually created in the `dist` directory. This guards against cases where PyInstaller exits successfully but fails to produce the artifact.",
+            "dependencies": [
+              "14.3"
+            ],
+            "details": "In `build.bat`, after the PyInstaller error handling block, add a verification step. First, `echo Verifying build artifact...`. Then, add the check: `if not exist dist\\anivault.exe ( echo [ERROR] Build artifact 'dist\\anivault.exe' not found. & exit /b 1 )`.",
+            "status": "done",
+            "testStrategy": "After a successful build, manually delete `dist\\anivault.exe` and run only the verification part of the script (or temporarily modify the spec file to produce a different name). The script should print the 'artifact not found' error and exit."
+          },
+          {
+            "id": 5,
+            "title": "Add Success Message and Finalize Script Execution",
+            "description": "Conclude the `build.bat` script with a success message if all previous steps passed, and ensure the script terminates cleanly by restoring the environment and returning a success exit code.",
+            "dependencies": [
+              "14.4"
+            ],
+            "details": "As the final steps in `build.bat`, add the success message: `echo [SUCCESS] Build completed. Executable is at dist\\anivault.exe`. Follow this with `endlocal` to restore the environment variables and `exit /b 0` to signal successful completion of the entire script.",
+            "status": "done",
+            "testStrategy": "Run `build.bat` against a correct codebase. The script should complete all steps, print the final `[SUCCESS]` message with the correct path, and the command prompt's error level should be 0 after it finishes (verify with `echo %ERRORLEVEL%`)."
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Verify Core Dependency Functionality in Bundled Executable",
+        "description": "Create and execute a verification process to ensure that key dependencies with native components or complex behaviors (anitopy, cryptography, tmdbv3api, rich, prompt_toolkit) function correctly within the final bundled executable.",
+        "details": "This task involves creating dedicated tests to run against the `anivault.exe` produced by the build process. The goal is to confirm that PyInstaller has correctly bundled all necessary components, including C extensions, native libraries, data files, and console drivers.\n\n1.  **Create Verification Entry Points**: Modify `src/anivault/__main__.py` to accept special command-line flags for testing purposes. These flags will trigger specific test functions and then exit, allowing for targeted verification without running the full application.\n    *   Add arguments like `--verify-anitopy`, `--verify-crypto`, `--verify-tmdb`, `--verify-rich`, and `--verify-prompt` using `argparse`.\n\n2.  **Implement `anitopy` Test**: Create a function that is triggered by `--verify-anitopy`. This function will parse a hardcoded sample filename (e.g., `\"[SubsPlease] Jujutsu Kaisen S2 - 23 (1080p) [F02B9643].mkv\"`) using `anitopy.parse()`. It should print the parsed dictionary to stdout. This validates that the C extensions are bundled and executable.\n\n3.  **Implement `cryptography` Test**: Create a function for `--verify-crypto`. This function will perform a simple symmetric encryption/decryption round trip using `cryptography.fernet.Fernet`. It will generate a key, encrypt a sample string, decrypt it, and print `\"SUCCESS\"` if the decrypted text matches the original. This confirms the native cryptography libraries are correctly included.\n\n4.  **Implement `tmdbv3api` Test**: Create a function for `--verify-tmdb`. This function will attempt to connect to the TMDB API and perform a simple search (e.g., search for 'Jujutsu Kaisen'). It should print the status of the request and the number of results found. This verifies that networking libraries (`requests`) and required SSL certificates are bundled correctly.\n\n5.  **Implement UI Library Tests**:\n    *   **`rich`**: The function for `--verify-rich` should print a `rich.table.Table` and several lines of colored text using `rich.print`. This allows for visual inspection of console rendering.\n    *   **`prompt_toolkit`**: The function for `--verify-prompt` should display a simple interactive prompt using `prompt_toolkit.prompt()`, wait for user input, and then exit. This validates the interactive console components.",
+        "testStrategy": "The verification will be a combination of automated checks and manual observation.\n\n1.  **Build Executable**: Run the `build.bat` script to generate a fresh `dist\\anivault.exe` as defined in Task 14.\n\n2.  **Automated Verification**: Create a batch script (e.g., `verify_build.bat`) that executes the bundled application with the test flags and checks the output.\n    *   `dist\\anivault.exe --verify-anitopy`: Check that the output contains expected parsed keys like `'anime_title': 'Jujutsu Kaisen'` and `'episode_number': '23'`.\n    *   `dist\\anivault.exe --verify-crypto`: Check that the output is exactly `\"SUCCESS\"`.\n    *   `dist\\anivault.exe --verify-tmdb`: Check that the output indicates a successful connection and that results were found.\n\n3.  **Manual UI Verification**: Run the following commands manually from a terminal.\n    *   `dist\\anivault.exe --verify-rich`: Visually inspect the console output. The table borders, text alignment, and colors should render correctly without any garbled characters or escape codes.\n    *   `dist\\anivault.exe --verify-prompt`: Confirm that an interactive input prompt appears. Type text and press Enter. The application should exit gracefully. The cursor should behave as expected during input.\n\n4.  **Clean Environment Test**: For final validation, copy `dist\\anivault.exe` to a clean Windows environment (like a VM) that does not have Python or any project dependencies installed. Repeat the manual UI verification steps to ensure the executable is fully self-contained.",
+        "status": "done",
+        "dependencies": [
+          14
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Verification Entry Points in __main__.py",
+            "description": "Modify `src/anivault/__main__.py` to add a dedicated argument group for verification flags. These flags will trigger specific test functions and exit immediately, preventing the full application from launching.",
+            "dependencies": [],
+            "details": "In `src/anivault/__main__.py`, locate the `argparse.ArgumentParser` instance. Add a new argument group titled 'Verification Flags'. Within this group, add the following boolean arguments: `--verify-anitopy`, `--verify-crypto`, `--verify-tmdb`, `--verify-rich`, and `--verify-prompt`. After parsing arguments, implement an `if/elif` block that checks for each of these flags. If a flag is present, call a corresponding placeholder function (e.g., `_verify_anitopy()`) and then call `sys.exit(0)`.",
+            "status": "done",
+            "testStrategy": "Run `poetry run python src/anivault/__main__.py --help`. Verify that the new 'Verification Flags' group and all five arguments are listed. Run `poetry run python src/anivault/__main__.py --verify-anitopy` and confirm it exits without error and without launching the main UI."
+          },
+          {
+            "id": 2,
+            "title": "Implement `anitopy` Verification Function",
+            "description": "Create the test function for `anitopy` to validate that its C extensions are correctly bundled and functional within the executable.",
+            "dependencies": [
+              "15.1"
+            ],
+            "details": "In `src/anivault/__main__.py`, create a function named `_verify_anitopy()`. This function should import `anitopy` and `pprint`. Inside the function, call `anitopy.parse()` with a hardcoded sample filename like `'[SubsPlease] Jujutsu Kaisen S2 - 23 (1080p) [F02B9643].mkv'`. Use `pprint.pprint()` to print the resulting dictionary to standard output. Add a try/except block to catch any potential errors and print a failure message.",
+            "status": "done",
+            "testStrategy": "Run `poetry run python src/anivault/__main__.py --verify-anitopy`. Verify that a well-formatted dictionary of parsed file metadata is printed to the console."
+          },
+          {
+            "id": 3,
+            "title": "Implement `cryptography` Verification Function",
+            "description": "Create the test function for `cryptography` to confirm that its native libraries have been bundled correctly by performing a simple encryption and decryption cycle.",
+            "dependencies": [
+              "15.1"
+            ],
+            "details": "In `src/anivault/__main__.py`, create a function named `_verify_cryptography()`. Import `Fernet` from `cryptography.fernet`. Inside the function, generate a key using `Fernet.generate_key()`. Instantiate `Fernet` with the key. Encrypt a sample byte string (e.g., `b'This is a secret message.'`). Decrypt the token. Assert that the decrypted text matches the original. If the assertion passes, print 'Cryptography SUCCESS'. Include a try/except block to report any failures.",
+            "status": "done",
+            "testStrategy": "Run `poetry run python src/anivault/__main__.py --verify-crypto`. Verify that the output is exactly 'Cryptography SUCCESS'."
+          },
+          {
+            "id": 4,
+            "title": "Implement `tmdbv3api` Verification Function",
+            "description": "Create the test function for `tmdbv3api` to ensure that network requests can be made and SSL certificates are correctly bundled, allowing for successful API communication.",
+            "dependencies": [
+              "15.1"
+            ],
+            "details": "In `src/anivault/__main__.py`, create a function `_verify_tmdb()`. This function should import `TMDb`, `Search`, and the application's configuration loader (e.g., `from .config import get_tmdb_api_key`). Initialize the `TMDb` object and set its `api_key` using the value from the config. Perform a search using `Search().tv_shows('Jujutsu Kaisen')`. Print the number of results found (e.g., `f'TMDB search found {len(results)} results.'`). Ensure a valid TMDB API key is available via the application's configuration for this test.",
+            "status": "done",
+            "testStrategy": "Ensure a valid `TMDB_API_KEY` is set in the environment or `.env` file. Run `poetry run python src/anivault/__main__.py --verify-tmdb`. Verify the output indicates that a non-zero number of results were found."
+          },
+          {
+            "id": 5,
+            "title": "Implement UI Library Verification Functions (`rich` and `prompt_toolkit`)",
+            "description": "Create two separate test functions to visually verify that the console rendering and interactive input libraries are working correctly in the bundled environment.",
+            "dependencies": [
+              "15.1"
+            ],
+            "details": "In `src/anivault/__main__.py`, create two functions: `_verify_rich()` and `_verify_prompt_toolkit()`. \n1. **`_verify_rich()`**: Import `Table` and `print` from `rich`. Create a simple `Table` with a few columns and rows and print it. Then, use `rich.print` to output several lines of text with different colors and styles (e.g., `'[bold green]Rich SUCCESS[/bold green]'`). \n2. **`_verify_prompt_toolkit()`**: Import `prompt` from `prompt_toolkit`. Call `prompt('prompt_toolkit > ')` to display an interactive prompt. Print the received input back to the user to confirm it was captured.",
+            "status": "done",
+            "testStrategy": "1. Run `poetry run python src/anivault/__main__.py --verify-rich`. Visually inspect the console to confirm a formatted table and colored text are rendered correctly. \n2. Run `poetry run python src/anivault/__main__.py --verify-prompt`. Type 'test' and press Enter. Verify that the program prints 'test' and exits."
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "Prepare Clean Windows VM for Testing",
+        "description": "Set up a clean virtual machine environment that mimics a target user's system to perform unbiased testing of the executable.",
+        "details": "1. **Select Virtualization Software**: Install a virtualization tool like VirtualBox, VMware Workstation Player, or enable Windows Hyper-V.\n2. **Install Windows**: Using an official ISO, perform a clean installation of Windows 10 or Windows 11 in a new virtual machine.\n3. **Emulate User Environment**: During setup, create a standard local user account. Critically, ensure that Python, Git, or any other development tools are NOT installed. The system should represent a typical end-user's machine.\n4. **Configure System State**: Let Windows complete its initial updates. Ensure Windows Defender is active with its default settings and that no custom folder exclusions are in place. Configure the VM's network adapter (e.g., NAT) to provide internet access.\n5. **Create Snapshot**: Once the VM is in a pristine, updated state, shut it down and create a snapshot. Name it something descriptive like 'Clean State - Pre-Testing'. This snapshot will be used to revert the VM before each test run, guaranteeing a consistent environment.",
+        "testStrategy": "1. **Verify Python Absence**: Open Command Prompt within the VM and execute `python --version` and `py --version`. Both commands must fail with an error indicating the program is not recognized.\n2. **Verify Defender Status**: Open the Windows Security center and navigate to 'Virus & threat protection'. Confirm that 'Real-time protection' is enabled.\n3. **Verify Network Connectivity**: Open a command prompt and run `ping 8.8.8.8`. The command should receive replies, confirming the VM has internet access.\n4. **Verify Snapshot**: Check the virtualization software's manager to confirm that the 'Clean State - Pre-Testing' snapshot was successfully created and is available to be restored.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Select and Install Virtualization Software",
+            "description": "Choose and install a virtualization tool on your development machine. This software will host the clean Windows environment.",
+            "dependencies": [],
+            "details": "Download and install one of the following virtualization platforms: VirtualBox (recommended for cross-platform compatibility), VMware Workstation Player, or enable the Windows Hyper-V feature if you are on a compatible version of Windows.",
+            "status": "done",
+            "testStrategy": "Confirm the virtualization software launches successfully after installation."
+          },
+          {
+            "id": 2,
+            "title": "Create VM and Install Windows OS",
+            "description": "Create a new virtual machine and perform a clean installation of Windows 10 or Windows 11 using an official ISO.",
+            "dependencies": [
+              "16.1"
+            ],
+            "details": "Download an official Windows 10 or 11 ISO from the Microsoft website. In your chosen virtualization software, create a new VM, allocating at least 4GB RAM, 2 CPU cores, and 60GB of disk space. Mount the ISO and follow the on-screen prompts to install Windows. During setup, opt for a standard local user account (e.g., 'TestUser') and skip any optional software installations.",
+            "status": "done",
+            "testStrategy": "The VM should successfully boot into the Windows desktop environment after installation is complete."
+          },
+          {
+            "id": 3,
+            "title": "Configure System State and Network Access",
+            "description": "Update the operating system, ensure default security is active, and configure network access. This step ensures the VM mimics a standard, up-to-date user machine.",
+            "dependencies": [
+              "16.2"
+            ],
+            "details": "Once logged into the new user account, connect the VM to the internet (typically using the default 'NAT' network adapter setting). Run Windows Update and install all available updates, restarting as necessary. Verify that Windows Defender (Windows Security) is active with its default real-time protection settings and no custom folder exclusions are present.",
+            "status": "done",
+            "testStrategy": "Open a web browser in the VM and confirm you can access the internet. Open Windows Security and verify that 'Virus & threat protection' is green and active."
+          },
+          {
+            "id": 4,
+            "title": "Verify Absence of Development Tools",
+            "description": "Confirm that no development tools, especially Python, are installed on the system to ensure an unbiased test environment.",
+            "dependencies": [
+              "16.3"
+            ],
+            "details": "Open the Command Prompt (cmd.exe) within the VM. Execute the commands `python --version`, `py --version`, and `git --version`. All of these commands must fail with an error message indicating the program is not found or not recognized as an internal or external command. This is critical to validate that the environment is 'clean'.",
+            "status": "done",
+            "testStrategy": "Each command (`python`, `py`, `git`) must result in a 'command not found' or similar error."
+          },
+          {
+            "id": 5,
+            "title": "Create and Document 'Clean State' Snapshot",
+            "description": "Create a snapshot of the fully configured and verified VM. This snapshot will serve as a reusable baseline for all future tests.",
+            "dependencies": [
+              "16.4"
+            ],
+            "details": "After all configurations and verifications are complete, shut down the virtual machine. In the virtualization software's manager, create a new snapshot. Name it descriptively, such as 'Clean State - Pre-Testing'. Add a description noting the OS version, update status, and user credentials. This snapshot will be used to revert the VM to its pristine state before each test run of the AniVault executable.",
+            "status": "done",
+            "testStrategy": "Verify that the snapshot 'Clean State - Pre-Testing' is listed in the VM's snapshot manager and that you can successfully restore the VM to this state."
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "Perform Runtime Validation and Performance Measurement on Clean VM",
+        "description": "Execute the bundled anivault-mini.exe on a clean VM to validate its core functionality, check for missing runtime dependencies, test file system access, and measure its memory footprint.",
+        "details": "1. **File Preparation**: Copy the `anivault-mini.exe` file, generated by the `build.bat` script (Task 14), from the `dist/` directory to the clean VM prepared in Task 16.\n2. **Basic Execution & Dependency Test**: On the VM, open a Command Prompt and run `anivault-mini.exe --help`. Watch for any pop-up errors regarding missing DLLs (e.g., `VCRUNTIME140.dll`). Verify that the help message generated by `argparse` is displayed correctly in the console.\n3. **File System Access Test**: Verify that the application can create its configuration directory (e.g., `.anivault`) and/or log/cache files within the user's home directory (`%USERPROFILE%`). This can be triggered by running a command that initializes settings, if available.\n4. **Memory Usage Measurement**:\n    - Open the Windows Task Manager.\n    - While running a simple command like `anivault-mini.exe --help`, locate the `anivault-mini.exe` process in the 'Details' tab.\n    - Record the 'Memory (private working set)' value. This provides a baseline for the application's memory footprint.",
+        "testStrategy": "1. **Successful Execution**: The test passes if `anivault-mini.exe` runs immediately without any prompts to install Python, specific VC Runtimes, or errors about missing DLLs.\n2. **Command Output Verification**: The `anivault-mini.exe --help` command must complete successfully and print the expected help text to the console.\n3. **File Creation Verification**: After running a test command, confirm that a `.anivault` directory or related configuration/log files have been created in the `%USERPROFILE%` path, verifying file system access.\n4. **Performance Benchmark**: The measured memory usage must be recorded and meet a predefined acceptable threshold (e.g., under 100MB for a simple command execution).",
+        "status": "done",
+        "dependencies": [
+          14,
+          15,
+          16
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Transfer Executable and Perform Initial Runtime Check on Clean VM",
+            "description": "Copy the `anivault-mini.exe` from the local `dist/` directory to the clean VM. Then, perform a basic execution test to check for missing runtime dependencies like VC Runtimes or other DLLs.",
+            "dependencies": [],
+            "details": "1. Locate the `anivault-mini.exe` file generated by the build script (Task 14). 2. Transfer this file to the desktop or a user folder on the clean VM (prepared in Task 16). 3. Open a Command Prompt on the VM, navigate to the file's location, and run `anivault-mini.exe --help`. 4. Carefully observe for any system error pop-ups (e.g., 'VCRUNTIME140.dll was not found') and verify that the application's help message, generated by argparse, is printed to the console.",
+            "status": "done",
+            "testStrategy": "The test is successful if the command executes without any pop-up errors and the complete help text for the application is displayed in the command prompt."
+          },
+          {
+            "id": 2,
+            "title": "Test File System Access and Measure Baseline Memory Footprint",
+            "description": "Verify that the application can create its necessary configuration directory and files in the user's home directory, and measure its baseline memory usage during this operation.",
+            "dependencies": [
+              "17.1"
+            ],
+            "details": "1. On the VM, run a command intended to initialize or display configuration, which should trigger the creation of the config directory (e.g., `anivault-mini.exe config --show`). 2. Open File Explorer and navigate to `%USERPROFILE%` (e.g., `C:\\Users\\YourUser`). Verify that a `.anivault` directory and its internal configuration file have been created. 3. While the command is running or immediately after, open Task Manager, go to the 'Details' tab, find `anivault-mini.exe`, and record its 'Memory (private working set)' value.",
+            "status": "done",
+            "testStrategy": "Success is defined by the successful creation of the `.anivault` directory and its contents in the user's profile. The measured memory value should be recorded for the task's final report."
+          },
+          {
+            "id": 3,
+            "title": "Configure and Persist TMDB API Key",
+            "description": "Use the application's command-line interface to set a valid TMDB API key and verify that this key is correctly persisted in the configuration file.",
+            "dependencies": [
+              "17.2"
+            ],
+            "details": "1. Obtain a valid TMDB API key for testing. 2. In the VM's command prompt, execute the command to set the API key, for example: `anivault-mini.exe config --tmdb-api-key \"YOUR_ACTUAL_API_KEY\"`. 3. Run the configuration display command again (e.g., `anivault-mini.exe config --show`) to confirm the application acknowledges that the key is set. Note whether the key is displayed directly or masked for security.",
+            "status": "done",
+            "testStrategy": "The test passes if the set-key command executes without error and the subsequent show-config command confirms that an API key is now configured. Checking the modification timestamp of the config file can provide additional verification."
+          },
+          {
+            "id": 4,
+            "title": "Execute Live TMDB API Search Command",
+            "description": "Perform a search operation that requires the application to use the configured TMDB API key to make a live network request and fetch data.",
+            "dependencies": [
+              "17.3"
+            ],
+            "details": "1. In the VM's command prompt, execute a search command with a well-known anime title, for instance: `anivault-mini.exe search \"Cowboy Bebop\"`. 2. Monitor the console output for any error messages related to network connectivity, SSL/TLS, or API authentication (e.g., HTTP 401 Unauthorized). The application should indicate that it is performing a search.",
+            "status": "done",
+            "testStrategy": "The test is successful if the command executes without printing any authentication or network-related errors. The expected output is a 'searching...' message or similar, followed by results, not an immediate crash or API error."
+          },
+          {
+            "id": 5,
+            "title": "Validate Search Results and Document All Test Findings",
+            "description": "Confirm that the search command's output contains valid, formatted data from the TMDB API, and compile a comprehensive report of all validation steps.",
+            "dependencies": [
+              "17.4"
+            ],
+            "details": "1. Examine the console output from the `search` command executed in the previous subtask. Verify that it displays recognizable and correctly formatted search results (e.g., a list of titles, years, and summaries). 2. Create a summary document or comment on the parent task. This report must include: a) Runtime dependency status (pass/fail), b) The recorded memory footprint, c) File system access test result (pass/fail), d) API key configuration result (pass/fail), and e) API search call result (pass/fail, with output sample if successful).",
+            "status": "done",
+            "testStrategy": "The test passes if the search output is valid and contains the expected data. The final compiled report must be complete and attached to the main task for review."
+          }
+        ]
+      },
+      {
+        "id": 18,
+        "title": "실제 TMDB API 호출 테스트 및 응답 검증",
+        "description": "TMDB API 키를 설정하고, 실제 API를 호출하는 테스트 스크립트를 작성하여 검색 기능, 응답 데이터 구조, 그리고 API 속도 제한(rate limit) 동작을 검증합니다.",
+        "details": "1. **API 키 환경 설정**:\n    - 프로젝트 루트에 `.env` 파일을 생성하고 `TMDB_API_KEY='your_actual_api_key'` 형식으로 실제 TMDB API 키를 추가합니다. 이 파일은 `.gitignore`에 포함되어야 합니다.\n    - 동료 개발자들을 위해 `.env.example` 파일을 생성하고 `TMDB_API_KEY=''` 내용을 추가하여 필요한 환경 변수를 안내합니다.\n    - `src/anivault/config.py` (또는 유사한 설정 모듈)에서 `python-dotenv` 라이브러리를 사용하여 `.env` 파일로부터 API 키를 로드하는 기능을 구현하거나 확인합니다.\n\n2. **테스트 스크립트 작성**:\n    - 프로젝트 루트에 `scripts` 디렉토리를 생성하고, 그 안에 `test_tmdb_api.py` 파일을 생성합니다. 이 스크립트는 애플리케이션의 일부가 아닌 일회성 테스트용입니다.\n\n3. **API 호출 로직 구현**:\n    - `test_tmdb_api.py` 스크립트 내에서 `tmdbv3api` 라이브러리와 `rich` 라이브러리를 import 합니다.\n    - 설정 모듈을 통해 API 키를 불러와 `TMDb` 객체를 초기화합니다. `tmdb.language = 'ko'`로 설정하여 한국어 결과를 받도록 합니다.\n    - `Search` 객체를 사용하여 특정 검색어(예: '진격의 거인')로 `multi_search`를 실행합니다.\n    - `rich.print`를 사용하여 반환된 결과 객체를 보기 좋게 출력합니다. 결과 목록, 각 항목의 `id`, `title` (또는 `name`), `media_type`, `overview` 등을 확인합니다.\n\n4. **Rate Limit 테스트**:\n    - 짧은 `for` 루프(예: 40~50회 반복) 내에서 API 요청을 연속으로 보내 TMDB의 속도 제한(초당 요청 수 제한)에 도달하는 상황을 시뮬레이션합니다.\n    - `try...except` 블록을 사용하여 `tmdbv3api.exceptions.TMDbException`을 포착하고, 예외 발생 시 상태 코드(HTTP 429)와 에러 메시지를 출력하여 속도 제한이 올바르게 처리되는지 확인합니다.",
+        "testStrategy": "1. **준비**:\n    - `poetry install`을 실행하여 `tmdbv3api`, `rich`, `python-dotenv` 등 필요한 모든 의존성이 설치되었는지 확인합니다.\n    - 프로젝트 루트에 유효한 TMDB API 키가 포함된 `.env` 파일을 생성합니다.\n\n2. **실행**:\n    - 터미널에서 `poetry run python scripts/test_tmdb_api.py` 명령을 실행합니다.\n\n3. **성공 기준**:\n    - 스크립트가 인증 오류(401) 없이 성공적으로 실행됩니다.\n    - '진격의 거인' 검색 결과가 콘솔에 정상적으로 출력되며, 예상되는 미디어 정보(제목, 개요 등)가 포함되어 있습니다.\n    - Rate limit 테스트 섹션에서 API를 반복 호출한 후, HTTP 429 상태 코드와 함께 `TMDbException`이 발생하고 해당 정보가 콘솔에 출력됩니다.\n\n4. **실패 기준**:\n    - 잘못된 API 키로 인해 401 Unauthorized 오류가 발생하는 경우.\n    - 유효한 검색어에 대해 결과가 반환되지 않거나, API 응답 구조가 예상과 달라 파싱 오류가 발생하는 경우.\n    - Rate limit에 도달했음에도 불구하고 예외가 발생하지 않거나 다른 종류의 오류가 발생하는 경우.",
+        "status": "done",
+        "dependencies": [
+          17
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "API 키 환경 설정 파일 생성 및 .gitignore 확인",
+            "description": "프로젝트 루트에 `.env`와 `.env.example` 파일을 생성하여 TMDB API 키 설정을 준비합니다. 또한, `.gitignore`에 `.env`가 포함되어 있는지 다시 한번 확인하여 API 키 유출을 방지합니다.",
+            "dependencies": [],
+            "details": "1. 프로젝트 루트에 `.env.example` 파일을 생성하고 `TMDB_API_KEY=''` 내용을 추가합니다.\n2. `.env.example`을 복사하여 `.env` 파일을 생성하고, `TMDB_API_KEY`에 실제 발급받은 키를 입력합니다.\n3. `.gitignore` 파일을 열어 `.env` 항목이 이미 포함되어 있는지 확인합니다. (분석 결과 이미 포함되어 있음)\n4. 이 작업을 통해 `src/anivault/config.py`의 `TMDB_API_KEY = os.getenv(\"TMDB_API_KEY\")` 코드가 정상적으로 동작할 환경을 구축합니다.",
+            "status": "done",
+            "testStrategy": "스크립트 실행 시 `anivault.config.TMDB_API_KEY`가 None이 아닌 실제 키 값으로 로드되는지 확인합니다."
+          },
+          {
+            "id": 2,
+            "title": "TMDB API 테스트 스크립트 기본 구조 작성",
+            "description": "실제 TMDB API 호출을 테스트하기 위한 일회성 스크립트 파일을 생성하고, API 클라이언트 초기화에 필요한 기본 코드를 작성합니다. 이 스크립트는 애플리케이션의 일부가 아닌 개발 및 검증용입니다.",
+            "dependencies": [
+              "18.1"
+            ],
+            "details": "1. 프로젝트 루트에 `scripts` 디렉토리를 생성합니다.\n2. `scripts` 디렉토리 내에 `test_tmdb_api.py` 파일을 생성합니다.\n3. 스크립트 상단에 `from tmdbv3api import TMDb, Search`와 `from rich import print`를 추가하고, `from anivault.config import TMDB_API_KEY`를 통해 설정 값을 가져옵니다.\n4. `TMDb` 객체를 초기화하고 API 키를 설정합니다. (`tmdb = TMDb()`, `tmdb.api_key = TMDB_API_KEY`)\n5. API 키가 없을 경우 에러 메시지를 출력하고 종료하는 예외 처리 로직을 포함합니다. (`if not TMDB_API_KEY: ...`)\n6. `tmdb.language = 'ko'`로 설정하여 한국어 결과를 받도록 합니다.",
+            "status": "done",
+            "testStrategy": "스크립트를 실행했을 때 인증 오류 없이 TMDB 객체가 성공적으로 초기화되는지 확인합니다."
+          },
+          {
+            "id": 3,
+            "title": "다중 검색(Multi-Search) API 호출 및 응답 검증",
+            "description": "`test_tmdb_api.py` 스크립트에서 `tmdbv3api`를 사용하여 특정 키워드로 다중 검색을 실행하고, 반환된 응답의 구조와 내용을 확인하여 API가 정상적으로 동작하는지 검증합니다.",
+            "dependencies": [
+              "18.2"
+            ],
+            "details": "1. `test_tmdb_api.py`에 `Search` 객체를 생성합니다. (`search = Search()`)\n2. `search.multi_search()` 메소드를 사용하여 '진격의 거인'과 같은 특정 검색어로 API를 호출합니다.\n3. `rich.print`를 사용하여 반환된 결과 리스트 전체를 콘솔에 보기 좋게 출력합니다.\n4. 출력된 결과를 통해 검색 결과 목록이 비어있지 않은지, 각 항목에 `id`, `title` (또는 `name`), `media_type`, `overview` 등의 주요 필드가 포함되어 있는지 육안으로 확인합니다.",
+            "status": "done",
+            "testStrategy": "스크립트 실행 시 콘솔에 '진격의 거인' 관련 검색 결과가 여러 개 출력되고, 각 항목의 `media_type`이 'tv' 또는 'movie' 등으로 표시되는지 확인합니다."
+          },
+          {
+            "id": 4,
+            "title": "API 속도 제한(Rate Limit) 동작 테스트 구현",
+            "description": "짧은 시간 내에 여러 번의 API 요청을 보내 TMDB의 속도 제한 정책(초당 요청 수)에 도달하는 상황을 시뮬레이션하고, 라이브러리가 이를 어떻게 처리하는지 검증합니다.",
+            "dependencies": [
+              "18.2"
+            ],
+            "details": "1. `test_tmdb_api.py` 내에 별도의 테스트 함수 또는 코드 블록을 생성합니다.\n2. `for` 루프를 사용하여 40~50회 연속으로 간단한 API 요청(예: `search.multi_search('test')`)을 보냅니다.\n3. `try...except TMDbException as e:` 블록으로 API 호출 코드를 감쌉니다.\n4. `except` 블록 내에서 `print(e)`를 사용하여 예외 객체를 출력하고, 상태 코드가 429 (Too Many Requests)인지 확인하여 속도 제한이 예상대로 동작하고 예외 처리가 가능한지 검증합니다.",
+            "status": "done",
+            "testStrategy": "스크립트 실행 시, 루프가 반복되다가 'HTTP 429: Too Many Requests'와 유사한 예외 메시지가 콘솔에 출력되면 테스트가 성공한 것으로 간주합니다."
+          },
+          {
+            "id": 5,
+            "title": "테스트 스크립트 최종 정리 및 문서화",
+            "description": "작성된 `test_tmdb_api.py` 스크립트의 가독성을 높이고 다른 개발자가 쉽게 이해하고 실행할 수 있도록 코드를 정리하고 주석을 추가합니다.",
+            "dependencies": [
+              "18.3",
+              "18.4"
+            ],
+            "details": "1. 스크립트의 각 테스트 섹션(예: '# 1. 기본 검색 테스트', '# 2. 속도 제한 테스트')에 명확한 주석을 추가합니다.\n2. `if __name__ == \"__main__\":` 블록을 사용하여 스크립트 실행 로직을 구성하고, 각 테스트 함수를 순차적으로 호출하도록 구조화합니다.\n3. 각 테스트의 목적과 예상 결과를 설명하는 간단한 `print`문을 추가하여 실행 시 어떤 테스트가 진행 중인지 명확히 알 수 있도록 합니다.\n4. 전체 코드의 포맷팅을 `black` 또는 `autopep8` 등의 도구를 사용하여 프로젝트의 코딩 스타일에 맞게 일관성 있게 정리합니다.",
+            "status": "done",
+            "testStrategy": "동료 개발자가 별도의 설명 없이 `python scripts/test_tmdb_api.py` 명령을 실행했을 때, 각 테스트 단계가 명확하게 출력되고 스크립트의 의도를 쉽게 파악할 수 있는지 확인합니다."
+          }
+        ]
+      }
+    ],
     "metadata": {
       "created": "2025-09-30T00:46:35.845Z",
-      "updated": "2025-09-30T00:46:35.845Z",
-      "description": "W3-W4: 콘솔 단일 exe 번들 POC - PyInstaller/Nuitka 콘솔 모드 onefile POC, 클린 VM 실행, 위험 요소 조기 검증"
+      "updated": "2025-09-30T16:43:22.017Z",
+      "description": "Tasks for w3-w4-console-exe-poc context"
     }
   },
   "w5-w6-scan-parse-pipeline": {
-    "tasks": [],
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Implement BoundedQueue and Statistics Base Classes",
+        "description": "Create the foundational `BoundedQueue` class to manage memory-efficient data transfer between threads and define the base classes for collecting statistics across the pipeline.",
+        "details": "Implement `BoundedQueue` as a wrapper around Python's `queue.Queue`, enforcing a maximum size to apply backpressure ('wait' policy). Also, create the basic structure for statistics classes (`ScanStatistics`, `QueueStatistics`, `ParserStatistics`) with methods for incrementing counters. These will be integrated into other components later. Place these utilities in a new `anivault.core.pipeline.utils` module.",
+        "testStrategy": "Unit test `BoundedQueue` to ensure it blocks when full and correctly puts/gets items. Verify that `maxsize` is respected. Create simple tests for the statistics classes to confirm counters increment as expected.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Pipeline Utilities Module File",
+            "description": "Create the new Python module file `anivault/core/pipeline/utils.py` which will serve as the location for the BoundedQueue and various statistics-related classes.",
+            "dependencies": [],
+            "details": "Based on the file structure analysis, the `anivault/core/pipeline/` directory exists but does not contain a `utils.py` file. This task involves creating this new, empty file to prepare for the implementation of the pipeline utility classes.",
+            "status": "done",
+            "testStrategy": "N/A"
+          },
+          {
+            "id": 2,
+            "title": "Implement the BoundedQueue Class",
+            "description": "Implement the `BoundedQueue` class in `anivault/core/pipeline/utils.py` as a thread-safe wrapper around Python's `queue.Queue`.",
+            "dependencies": [],
+            "details": "The `BoundedQueue` class should be initialized with a `maxsize` parameter. It must implement `put(item)` and `get()` methods that delegate to the underlying `queue.Queue` instance, using the default blocking behavior to enforce backpressure. This class is foundational for managing data flow between concurrent pipeline stages.",
+            "status": "done",
+            "testStrategy": "Unit tests will be created in a subsequent subtask to verify blocking behavior and item transfer."
+          },
+          {
+            "id": 3,
+            "title": "Implement Base Statistics Classes",
+            "description": "Define and implement the `ScanStatistics`, `QueueStatistics`, and `ParserStatistics` classes in `anivault/core/pipeline/utils.py` for collecting pipeline metrics.",
+            "dependencies": [],
+            "details": "Create three distinct classes for metrics collection: `ScanStatistics` (for `files_scanned`, `directories_scanned`), `QueueStatistics` (for `items_put`, `items_got`, `max_size`), and `ParserStatistics` (for `items_processed`, `successes`, `failures`). Each class must initialize its counters to zero and provide thread-safe methods to increment them, using `threading.Lock` to protect counter state.",
+            "status": "done",
+            "testStrategy": "Unit tests will be created in a subsequent subtask to confirm that counters increment correctly and are thread-safe."
+          },
+          {
+            "id": 4,
+            "title": "Create Unit Tests for BoundedQueue",
+            "description": "Develop unit tests for the `BoundedQueue` class to verify its size enforcement, blocking behavior, and item handling.",
+            "dependencies": [],
+            "details": "Create a new test file, likely `tests/core/pipeline/test_utils.py`. Write specific tests to: 1. Confirm `BoundedQueue` is initialized with the correct `maxsize`. 2. Verify that a `put` operation on a full queue blocks (can be tested using a short timeout). 3. Ensure that `get` and `put` operations correctly transfer items in FIFO order.",
+            "status": "done",
+            "testStrategy": "Use Python's `unittest` or `pytest` framework. Employ `threading` to test the blocking behavior by attempting to `put` to a full queue from a separate thread."
+          },
+          {
+            "id": 5,
+            "title": "Create Unit Tests for Statistics Classes",
+            "description": "Add unit tests to `tests/core/pipeline/test_utils.py` to ensure the statistics classes correctly and safely increment their counters.",
+            "dependencies": [],
+            "details": "For each statistics class (`ScanStatistics`, `QueueStatistics`, `ParserStatistics`), write a test that: 1. Initializes an instance. 2. Calls its various increment methods. 3. Asserts that the final counter values are as expected. 4. Includes a basic concurrency test where multiple threads increment the same counter instance to verify thread-safety.",
+            "status": "done",
+            "testStrategy": "Use Python's `unittest` or `pytest` framework. The thread-safety test will involve creating multiple threads that call an increment method in a loop and then asserting the final count matches the total number of calls across all threads."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Develop the DirectoryScanner (Producer)",
+        "description": "Implement the `DirectoryScanner` class, which acts as the producer in the pipeline. It will scan a root directory for files with specific extensions and feed them into the `BoundedQueue`.",
+        "details": "Create the `DirectoryScanner` class in `anivault.core.pipeline.scanner`. It should take a root path and a list of extensions. The `scan_files` method must be a generator (`yield`) to minimize memory usage. Integrate the `ScanStatistics` class to count the number of files scanned. The scanner's main loop will `put` file paths into the input queue.",
+        "testStrategy": "Test with a mock directory structure containing various file types. Verify that it correctly identifies and yields only the files with the specified extensions. Ensure it handles empty directories and non-existent root paths gracefully. Check that the `scanned` counter is updated correctly.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create DirectoryScanner Class Structure",
+            "description": "Create the file `anivault/core/pipeline/scanner.py` and define the `DirectoryScanner` class. Implement the `__init__` method to accept and store the `root_path`, `extensions`, input `queue` (an instance of `BoundedQueue`), and `stats` (an instance of `ScanStatistics`).",
+            "dependencies": [],
+            "details": "The constructor should initialize the instance variables `self.root_path`, `self.extensions`, `self.input_queue`, and `self.stats`. Ensure proper type hinting for clarity. The `extensions` parameter should be stored in a format suitable for quick lookups, like a tuple or set.",
+            "status": "done",
+            "testStrategy": "Instantiate the class with mock objects for the queue and stats. Verify that all instance attributes are set correctly."
+          },
+          {
+            "id": 2,
+            "title": "Implement the `scan_files` Generator Method",
+            "description": "Implement the `scan_files` method within the `DirectoryScanner` class. This method must be a generator that recursively scans the `root_path` using `os.walk` and yields the absolute path of each file that has one of the specified `extensions`.",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "The method should take no arguments. Use `os.walk(self.root_path)` to traverse the directory tree. For each file, check if its extension (e.g., using `os.path.splitext`) is in `self.extensions`. If it matches, `yield os.path.join(root, file)`.",
+            "status": "done",
+            "testStrategy": "Unit test this method by pointing it to a temporary directory structure with various files (matching, non-matching, in subdirectories). Assert that the generator yields the correct file paths and only those paths."
+          },
+          {
+            "id": 3,
+            "title": "Implement the Main `run` Method",
+            "description": "Create a public `run` method in the `DirectoryScanner` class. This method will orchestrate the scanning process by iterating through the `scan_files` generator and putting each yielded file path onto the `self.input_queue`.",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "The `run` method will contain the main loop. It should call `self.scan_files()` and for each `file_path` in the returned generator, it will call `self.input_queue.put(file_path)`. This method will effectively drive the production of file paths for the pipeline.",
+            "status": "done",
+            "testStrategy": "Test the `run` method with a mock queue and a `scan_files` generator that yields a predefined list of paths. Verify that `queue.put` is called for each path."
+          },
+          {
+            "id": 4,
+            "title": "Integrate ScanStatistics Counter",
+            "description": "Modify the `run` method to integrate the `ScanStatistics` class. For each file path found by the scanner, call the appropriate method on the `self.stats` object to increment the count of scanned files.",
+            "dependencies": [
+              "2.3"
+            ],
+            "details": "Inside the `run` method's loop, just before calling `self.input_queue.put(file_path)`, add a call to `self.stats.increment_scanned()`. This ensures that the statistics are updated for every file that is about to be processed.",
+            "status": "done",
+            "testStrategy": "Using a mock `ScanStatistics` object, run the `DirectoryScanner`. After the run, assert that the `increment_scanned` method on the mock object was called the correct number of times, matching the number of files yielded by `scan_files`."
+          },
+          {
+            "id": 5,
+            "title": "Add Error Handling and Completion Signaling",
+            "description": "Enhance the `run` method to handle cases where the `root_path` is invalid or doesn't exist. After the scanning is complete, put a sentinel value (e.g., `None`) onto the queue to signal to consumers that no more items will be produced.",
+            "dependencies": [
+              "2.3"
+            ],
+            "details": "At the beginning of the `run` method, check if `self.root_path` exists and is a directory using `os.path.isdir`. If not, log an error and return early. After the main loop finishes, add a `finally` block to ensure that a sentinel value (`None`) is always put on the queue, signaling the end of production to downstream workers.",
+            "status": "done",
+            "testStrategy": "Test the error handling by instantiating `DirectoryScanner` with a non-existent path and verifying it exits gracefully. Test the completion signal by running the scanner and asserting that the last item placed on the mock queue is `None`."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Implement the JSON-based CacheV1",
+        "description": "Create the `CacheV1` class to provide a simple, file-based JSON caching mechanism to avoid reprocessing files.",
+        "details": "Implement the `CacheV1` class in `anivault.core.pipeline.cache`. It should have `get` and `set` methods. The `set` method will save a dictionary as a JSON file, including metadata like `created_at` and `ttl`. The `get` method will read the JSON file, check the TTL (though TTL expiration logic can be basic for now), and return the data. The key for the cache should be a unique identifier for the file, like a hash of its path and modification time.",
+        "testStrategy": "Unit test the `get` and `set` methods. Verify that data can be written to and read from a cache file. Test the cache miss scenario (file not found) and the cache hit scenario. Add a test for handling potentially corrupted JSON files during a `get` operation.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create CacheV1 Class Structure and Key Generation",
+            "description": "Create the file `anivault/core/pipeline/cache.py` and define the `CacheV1` class. Implement the `__init__` method to accept a cache directory path and ensure the directory exists. Also, create a private helper method to generate a unique cache key from a file path and its modification time.",
+            "dependencies": [],
+            "details": "In `anivault/core/pipeline/cache.py`, define `class CacheV1`. The `__init__(self, cache_dir: Path)` should store the directory path and call `cache_dir.mkdir(parents=True, exist_ok=True)`. Implement `_generate_key(self, file_path: str, mtime: float) -> str` which will compute a SHA256 hash of the concatenated string of `file_path` and `mtime` to serve as the unique cache entry key.",
+            "status": "done",
+            "testStrategy": "Unit tests will be added in a later subtask, but this method can be tested to ensure it produces a consistent hash for the same inputs."
+          },
+          {
+            "id": 2,
+            "title": "Implement the CacheV1 `set` Method",
+            "description": "Implement the `set` method in the `CacheV1` class. This method will take a key, a data dictionary, and a TTL, then write them to a JSON file in the cache directory.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Define `set(self, key: str, data: dict, ttl_seconds: int) -> None`. This method should construct a payload dictionary containing the provided `data` along with metadata keys: `created_at` (using `datetime.now(timezone.utc).isoformat()`) and `ttl_seconds`. The entire payload should be serialized to a JSON string and written to a file named after the `key` within the configured `cache_dir`.",
+            "status": "done",
+            "testStrategy": "A unit test will verify that calling `set` creates a file with the correct name and that the file contains a valid JSON object with `data`, `created_at`, and `ttl_seconds` fields."
+          },
+          {
+            "id": 3,
+            "title": "Implement the CacheV1 `get` Method with Error Handling",
+            "description": "Implement the `get` method to read and parse a cache file. It must handle cases where the file does not exist or is corrupted.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Define `get(self, key: str) -> Optional[dict]`. This method should first construct the full path to the cache file. It must wrap the file reading and JSON parsing in a try-except block. It should catch `FileNotFoundError` and return `None` for a cache miss. It should also catch `json.JSONDecodeError` for corrupted files and return `None`.",
+            "status": "done",
+            "testStrategy": "Unit tests will cover a cache miss (non-existent key) and a case where the cache file contains invalid JSON, ensuring the method returns `None` in both scenarios."
+          },
+          {
+            "id": 4,
+            "title": "Add TTL Expiration Logic to the `get` Method",
+            "description": "Enhance the `get` method to check for cache entry expiration based on its Time-To-Live (TTL).",
+            "dependencies": [
+              "3.3"
+            ],
+            "details": "Inside the `get` method, after successfully parsing the JSON data, extract the `created_at` timestamp and `ttl_seconds`. Convert the `created_at` string back to a datetime object. Calculate the expiration time. If the current UTC time is past the expiration time, the entry is stale; the method should return `None`. Otherwise, it should return the `data` portion of the cached payload.",
+            "status": "done",
+            "testStrategy": "A unit test will be created where an item is set with a short TTL. After waiting for the TTL to pass, a `get` call should return `None`, confirming the expiration logic works."
+          },
+          {
+            "id": 5,
+            "title": "Create Unit Tests for CacheV1",
+            "description": "Develop a comprehensive suite of unit tests for the `CacheV1` class to ensure its correctness and robustness.",
+            "dependencies": [
+              "3.2",
+              "3.4"
+            ],
+            "details": "Create `tests/core/pipeline/test_cache.py`. Using Python's `unittest` or `pytest` framework and a temporary directory, write tests covering: 1. A successful set/get cycle (cache hit). 2. A cache miss for a non-existent key. 3. A cache get for an expired entry. 4. A cache get for a corrupted (invalid JSON) file. 5. Verification of the `_generate_key` method's output.",
+            "status": "done",
+            "testStrategy": "This subtask directly implements the test strategy for the parent task, ensuring all specified scenarios are covered by automated tests."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Develop ParserWorker and ParserWorkerPool (Consumer)",
+        "description": "Implement the `ParserWorker` (as a `threading.Thread` subclass) and the `ParserWorkerPool` to consume file paths from the input queue and process them concurrently.",
+        "details": "Create `ParserWorker` in `anivault.core.pipeline.parser`. Each worker will loop, `get` a file path from the input queue, perform a placeholder parsing action (e.g., extracting file info), and `put` the result into an output queue. Implement `ParserWorkerPool` to create, start, and manage a configurable number of `ParserWorker` threads. Integrate `ParserStatistics` to track successes and failures.",
+        "testStrategy": "Test the `ParserWorkerPool` by starting it with a mock input queue containing several items. Verify that all items are processed and the results appear in the mock output queue. Ensure the number of active threads matches the configured `num_workers`.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create ParserWorker Class Skeleton",
+            "description": "In a new file `anivault/core/pipeline/parser.py`, define the basic structure for the `ParserWorker` class. It must inherit from `threading.Thread` and have a constructor that accepts the necessary components.",
+            "dependencies": [],
+            "details": "Create the file `anivault/core/pipeline/parser.py`. Inside, define `class ParserWorker(threading.Thread):`. The `__init__` method should accept `input_queue`, `output_queue`, and `stats` (an instance of `ParserStatistics`) as arguments, call `super().__init__()`, and store these arguments as instance attributes. Add a placeholder `run(self): pass` method.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement ParserWorker's Main Loop and Shutdown Logic",
+            "description": "Implement the `run` method in `ParserWorker`. It should continuously fetch items from the input queue and include logic to gracefully shut down when a sentinel value (`None`) is received.",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "In the `ParserWorker.run` method, create a `while True:` loop. Inside the loop, call `file_path = self.input_queue.get()`. Add a condition to check `if file_path is None:`. If true, the loop should `break`. This follows the producer-consumer pattern where `None` signals the end of the input stream.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Placeholder Parsing, Error Handling, and Statistics",
+            "description": "Within the `ParserWorker`'s loop, add the core processing logic. This includes a placeholder parsing action, putting the result on the output queue, and updating the `ParserStatistics` for both successes and failures.",
+            "dependencies": [
+              "4.2"
+            ],
+            "details": "Wrap the processing logic in a `try...except Exception:` block. In the `try` block, perform a placeholder action like extracting file info using `os.path.splitext` and `os.path.getsize`. Put the resulting dictionary into `self.output_queue` and call `self.stats.increment_success()`. In the `except` block, call `self.stats.increment_failed()`. Crucially, add a `finally` block to call `self.input_queue.task_done()` to ensure the queue task counter is always decremented.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Define the ParserWorkerPool Class",
+            "description": "In `anivault/core/pipeline/parser.py`, create the `ParserWorkerPool` class to manage a collection of `ParserWorker` threads. Its constructor will initialize the pool's configuration.",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Define `class ParserWorkerPool:`. The `__init__` method should accept `num_workers`, `input_queue`, `output_queue`, and `stats`. It should store these parameters and initialize an empty list, `self.workers`, to hold the thread instances that will be created.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement ParserWorkerPool Lifecycle Methods",
+            "description": "Implement the `start` and `join` methods for the `ParserWorkerPool`. The `start` method will create and run the worker threads, and the `join` method will wait for them all to complete.",
+            "dependencies": [
+              "4.3",
+              "4.4"
+            ],
+            "details": "Create a `start()` method that iterates `self.num_workers` times. In each iteration, it should instantiate a `ParserWorker` with the correct queues and stats object, append it to `self.workers`, and call the worker's `start()` method. Create a `join()` method that iterates through `self.workers` and calls `thread.join()` on each one.",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement ResultCollector and Integrate the Full Pipeline",
+        "description": "Create the `ResultCollector` and an orchestrator to connect all components: Scanner → BoundedQueue → ParserWorkerPool → ResultCollector.",
+        "details": "Develop a `ResultCollector` class/thread that consumes from the output queue and stores the final results. Create a main pipeline orchestrator function/class in `anivault.core.pipeline.main` that initializes all components (`Scanner`, `BoundedQueue`s, `ParserWorkerPool`, `ResultCollector`), starts the threads, and manages their lifecycle (e.g., waiting for completion, handling shutdown signals).",
+        "testStrategy": "Create an integration test that runs the entire pipeline on a small, controlled set of files. Verify that files are scanned, processed, and the results are correctly gathered by the `ResultCollector`. Ensure the pipeline shuts down cleanly after the input queue is exhausted and all items are processed.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          4
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create the ResultCollector Class",
+            "description": "Implement the `ResultCollector` class as a thread that consumes processed data from the output queue and stores it.",
+            "dependencies": [],
+            "details": "Create a new file `anivault/core/pipeline/collector.py`. Inside, define a `ResultCollector` class that inherits from `threading.Thread`. Its constructor should accept an output queue. The `run` method will continuously `get` items from this queue and append them to an internal list (`self.results`). The loop should terminate when it receives a sentinel value (e.g., `None`). Add a `get_results()` method to allow retrieval of the collected data after the thread has finished.",
+            "status": "done",
+            "testStrategy": "Unit test the `ResultCollector` by creating a mock queue, putting several data items and a `None` sentinel into it, starting the collector, joining it, and then verifying that `get_results()` returns the correct list of data."
+          },
+          {
+            "id": 2,
+            "title": "Create the Pipeline Orchestrator Module and Function",
+            "description": "Create the main orchestrator module and define the primary `run_pipeline` function that will house the pipeline logic.",
+            "dependencies": [],
+            "details": "Create a new file `anivault/core/pipeline/main.py`. In this file, define a function `run_pipeline(root_path: str, extensions: list[str], num_workers: int)`. This function will serve as the entry point for initializing and running the entire processing pipeline. Initially, it will just contain the function signature and necessary imports from other pipeline modules (`scanner`, `parser`, `utils`, and the new `collector`).",
+            "status": "done",
+            "testStrategy": "No specific test is needed for this structural subtask, as it will be tested implicitly by the integration tests for the full pipeline."
+          },
+          {
+            "id": 3,
+            "title": "Instantiate and Connect Pipeline Components",
+            "description": "Within the `run_pipeline` function, initialize all the necessary components and connect them using bounded queues.",
+            "dependencies": [
+              "5.1",
+              "5.2"
+            ],
+            "details": "In `anivault.core.pipeline.main.run_pipeline`, implement the setup logic. This includes: 1. Creating two `BoundedQueue` instances: `file_queue` (for scanner-to-parser) and `result_queue` (for parser-to-collector). 2. Instantiating `DirectoryScanner`, passing it the `root_path`, `extensions`, and `file_queue`. 3. Instantiating `ParserWorkerPool`, passing it `file_queue`, `result_queue`, and `num_workers`. 4. Instantiating `ResultCollector`, passing it the `result_queue`.",
+            "status": "done",
+            "testStrategy": "This will be tested as part of the overall pipeline integration test. Correct instantiation is verified if the pipeline runs without `TypeError` or `NameError`."
+          },
+          {
+            "id": 4,
+            "title": "Implement Pipeline Lifecycle Management (Start, Join, Shutdown)",
+            "description": "Implement the logic to start all pipeline threads, wait for their completion, and manage a graceful shutdown sequence.",
+            "dependencies": [
+              "5.3"
+            ],
+            "details": "In `anivault.core.pipeline.main.run_pipeline`, after component instantiation: 1. Start all components by calling their `start()` methods (`scanner.start()`, `parser_pool.start()`, `collector.start()`). 2. Wait for the scanner to finish its work with `scanner.join()`. 3. After the scanner is done, signal the parser workers to shut down by putting `num_workers` sentinel values (`None`) onto the `file_queue`. 4. Wait for the parser pool to finish with `parser_pool.join()`. 5. Signal the collector to shut down by putting one sentinel value (`None`) onto the `result_queue`. 6. Wait for the collector to finish with `collector.join()`.",
+            "status": "done",
+            "testStrategy": "Run the pipeline with a small number of files and verify that the program exits cleanly without deadlocks. Use logging to trace the start and end of each component's lifecycle."
+          },
+          {
+            "id": 5,
+            "title": "Finalize Pipeline and Return Collected Results",
+            "description": "Complete the `run_pipeline` function by retrieving the final results from the `ResultCollector` and returning them.",
+            "dependencies": [
+              "5.4"
+            ],
+            "details": "At the end of the `anivault.core.pipeline.main.run_pipeline` function, after all threads have been joined, call the `get_results()` method on the `ResultCollector` instance. The function should then return this list of collected results. This makes the pipeline's output accessible to its caller.",
+            "status": "done",
+            "testStrategy": "Create an integration test that calls `run_pipeline` with a test directory. Assert that the returned list of results is not empty and contains the expected processed data for the files in the test directory."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Integrate CacheV1 into the ParserWorker",
+        "description": "Modify the `ParserWorker` to use the `CacheV1` system to prevent re-parsing of unchanged files.",
+        "details": "In the `ParserWorker`'s processing loop, before performing the main parsing logic, use the `CacheV1.get()` method to check if a valid result for the file already exists. If a cache hit occurs, use the cached data and skip parsing. If it's a miss, perform the parsing and use `CacheV1.set()` to store the new result. Implement cache hit/miss counters in `ParserStatistics`.",
+        "testStrategy": "Run the pipeline twice on the same dataset. On the first run, verify that all files are processed (cache misses). On the second run, verify that all files result in a cache hit and that the parsing logic is skipped. Check that the hit/miss counters are accurate.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          5
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Extend ParserStatistics with Cache Counters",
+            "description": "Modify the `ParserStatistics` class in `anivault/core/pipeline/utils.py` to include counters for cache hits and misses. This involves adding `cache_hits` and `cache_misses` attributes and their corresponding thread-safe increment methods (`increment_cache_hit`, `increment_cache_miss`).",
+            "dependencies": [],
+            "details": "In `anivault/core/pipeline/utils.py`, update the `ParserStatistics` class. Add `self.cache_hits = 0` and `self.cache_misses = 0` to the `__init__` method. Implement `increment_cache_hit()` and `increment_cache_miss()` methods, ensuring they use the existing `self.lock` for thread safety, similar to `increment_processed()`.",
+            "status": "done",
+            "testStrategy": "Update unit tests for `ParserStatistics` to verify that the new cache counters can be incremented correctly."
+          },
+          {
+            "id": 2,
+            "title": "Update ParserWorker to Accept CacheV1 Instance",
+            "description": "Modify the `ParserWorker`'s `__init__` method in `anivault/core/pipeline/parser.py` to accept an instance of `CacheV1`. This instance will be used for all cache operations within the worker.",
+            "dependencies": [],
+            "details": "In `anivault/core/pipeline/parser.py`, change the `ParserWorker.__init__` signature to `__init__(self, input_queue, output_queue, stats, cache)`. Store the passed cache object as an instance attribute, e.g., `self.cache = cache`. The `ParserWorkerPool` will be responsible for creating and passing this instance later.",
+            "status": "done",
+            "testStrategy": "Adjust existing `ParserWorker` tests to pass a mock cache object during initialization."
+          },
+          {
+            "id": 3,
+            "title": "Implement Cache Check Logic in ParserWorker",
+            "description": "In the `ParserWorker.run` method, before the main parsing logic, implement the call to `self.cache.get()` to check for a pre-existing result for the current file path.",
+            "dependencies": [
+              "6.2"
+            ],
+            "details": "Inside the `run` method's `while` loop in `anivault/core/pipeline/parser.py`, after getting a `file_path` from the queue, call `cached_result = self.cache.get(file_path)`. This will be the basis for the conditional logic to follow.",
+            "status": "done",
+            "testStrategy": "This logic will be tested as part of the integrated cache hit/miss tests."
+          },
+          {
+            "id": 4,
+            "title": "Handle Cache Hits and Misses in ParserWorker",
+            "description": "Add conditional logic to the `ParserWorker.run` method to handle both cache hits and misses. On a hit, skip parsing and use the cached data. On a miss, proceed to the parsing block and update statistics accordingly.",
+            "dependencies": [
+              "6.1",
+              "6.3"
+            ],
+            "details": "Following the `self.cache.get()` call, add an `if cached_result:` block. Inside this block (cache hit), increment the cache hit counter (`self.stats.increment_cache_hit()`), put the `cached_result` into the `output_queue`, and `continue` to the next loop iteration. In the `else` block (cache miss), increment the cache miss counter (`self.stats.increment_cache_miss()`) before allowing execution to fall through to the existing parsing logic.",
+            "status": "done",
+            "testStrategy": "Run the pipeline on a dataset. On the second run, mock `cache.get()` to return a valid result and verify that the parsing logic is skipped and the cache hit counter is incremented."
+          },
+          {
+            "id": 5,
+            "title": "Store New Results in Cache on Miss",
+            "description": "After a successful parse (on a cache miss), modify the `ParserWorker` to store the new result in the cache using `self.cache.set()`.",
+            "dependencies": [
+              "6.4"
+            ],
+            "details": "In `anivault/core/pipeline/parser.py`, within the `try` block where parsing occurs (which is now only executed on a cache miss), after a `result` is successfully generated and before it's put on the output queue, add a call to `self.cache.set(file_path, result)`. This ensures that newly processed files are cached for subsequent runs.",
+            "status": "done",
+            "testStrategy": "Run the pipeline on a new file. Verify that after processing, a corresponding cache file is created. On a subsequent run, verify this file is read as a cache hit."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement and Display Final Statistics",
+        "description": "Fully integrate the statistics collection into all components and have the `ResultCollector` or orchestrator report a summary at the end of the process.",
+        "details": "Ensure that `Scanner`, `BoundedQueue`, and `ParserWorkerPool` are correctly updating their respective statistics objects throughout the pipeline's execution. The final report should include total files scanned, queue peak size, items processed, parsing successes/failures, and cache hits/misses. Display this information to the console upon pipeline completion.",
+        "testStrategy": "Run the pipeline and manually verify the reported statistics against a small, known dataset. For example, with 10 files where 2 will fail parsing and 3 are cached, check if the final numbers match expectations.",
+        "priority": "medium",
+        "dependencies": [
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Integrate Cache Statistics into ParserWorkerPool",
+            "description": "In the `_worker` method of `ParserWorkerPool`, implement the logic to check the cache for each incoming file path. Based on the result of the cache lookup, increment either the `cache_hits` or `cache_misses` counter on the `ParserStatistics` object.",
+            "dependencies": [],
+            "details": "Modify `anivault/core/pipeline/parser.py`. The `_worker` method currently has a `_# TODO: Check cache_` placeholder. Replace this with a call to `self.cache.get()`. If the result is not `None`, increment `self.stats.increment_cache_hit()`. Otherwise, increment `self.stats.increment_cache_miss()`.",
+            "status": "pending",
+            "testStrategy": "In an integration test, prime the cache with one file. Run the pipeline with two files (one cached, one not). Verify that `cache_hits` is 1 and `cache_misses` is 1."
+          },
+          {
+            "id": 2,
+            "title": "Implement Processing and Success/Failure Statistics in ParserWorkerPool",
+            "description": "In the `_worker` method of `ParserWorkerPool`, update the statistics to reflect the processing outcome. Increment the total items processed, and then based on whether the parsing succeeds or fails, update the respective counters.",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Modify `anivault/core/pipeline/parser.py`. Inside the `_worker` method's main loop, add a call to `self.stats.increment_processed()` at the beginning. Wrap the parsing logic (which runs on a cache miss) in a `try...except` block. On success, call `self.stats.increment_success()`. In the `except` block, call `self.stats.increment_failure()`.",
+            "status": "pending",
+            "testStrategy": "Using a test setup with known good and bad files, verify that the `items_processed`, `successes`, and `failures` counters in `ParserStatistics` are updated correctly after the pipeline runs."
+          },
+          {
+            "id": 3,
+            "title": "Create a Statistics Aggregation and Formatting Function",
+            "description": "In `anivault/core/pipeline/main.py`, create a new helper function that takes all the statistics objects (`ScanStatistics`, `QueueStatistics`, `ParserStatistics`) as arguments and returns a formatted, multi-line string suitable for printing to the console.",
+            "dependencies": [],
+            "details": "Create a function like `format_statistics(scan_stats, queue_stats, parser_stats) -> str`. This function will read the final values from each stats object (e.g., `scan_stats.files_scanned`, `queue_stats.peak_size`, `parser_stats.successes`) and assemble them into a human-readable report.",
+            "status": "pending",
+            "testStrategy": "Unit test this function by passing it mock statistics objects with known values and asserting that the output string is formatted as expected."
+          },
+          {
+            "id": 4,
+            "title": "Display Final Statistics in Pipeline Orchestrator",
+            "description": "At the end of the `run_pipeline` function in `anivault/core/pipeline/main.py`, call the new statistics formatting function and print the resulting report to the console.",
+            "dependencies": [
+              "7.3"
+            ],
+            "details": "In `anivault/core/pipeline/main.py`, locate the `# TODO: Display final statistics` comment within the `run_pipeline` function. Replace it with a call to the `format_statistics` function, passing the `scan_stats`, `queue_stats`, and `parser_stats` objects. Print the returned string.",
+            "status": "pending",
+            "testStrategy": "Run the full pipeline with a small dataset and visually inspect the console output to ensure the final statistics report is displayed correctly upon completion."
+          },
+          {
+            "id": 5,
+            "title": "Add Total Pipeline Execution Time to the Final Report",
+            "description": "Measure the total execution time of the `run_pipeline` function and include this duration, along with the scanner-specific duration, in the final statistics report.",
+            "dependencies": [
+              "7.4"
+            ],
+            "details": "In `anivault/core/pipeline/main.py`, record the start time at the beginning of `run_pipeline` and calculate the elapsed time at the end. Pass this total duration to the `format_statistics` function. Update `format_statistics` to accept and display the total pipeline time, alongside the `scan_duration` already available in `ScanStatistics`.",
+            "status": "pending",
+            "testStrategy": "Run the pipeline and verify that the console output includes a plausible 'Total Pipeline Time' and 'Scan Duration' in the final report."
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Performance and Concurrency Validation",
+        "description": "Conduct performance benchmarks and concurrency tests to ensure the pipeline meets the PRD's requirements for throughput, memory usage, and thread safety.",
+        "details": "Create a large test directory (e.g., 100k+ empty files) to benchmark the scanner's throughput. Use memory profiling tools (like `memory-profiler`) to monitor memory usage during the large-scale test, ensuring it stays below the 500MB limit. Design a test to check for race conditions by having parsers modify a shared resource (with appropriate locking) to validate thread safety.",
+        "testStrategy": "Execute the benchmark script and record the P95 scan throughput, comparing it against the 120k paths/min target. Run the memory profiler during a full pipeline execution and log the peak memory usage. Review code for correct lock implementation and run concurrency tests to try and trigger deadlocks or race conditions.",
+        "priority": "medium",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Setup Benchmarking Environment and Test Data Generator",
+            "description": "Prepare the environment for performance testing by adding necessary dependencies and creating a utility to generate large-scale test data.",
+            "dependencies": [],
+            "details": "Add `memory-profiler` and `pytest-benchmark` to the development dependencies in `pyproject.toml` or `requirements-dev.txt`. Create a new helper function in a `tests/helpers.py` or similar utility file. This function, `create_large_test_directory(path, num_files)`, will generate a specified number of empty files (e.g., 100,000+) within a given directory to serve as the dataset for throughput and memory tests.",
+            "status": "pending",
+            "testStrategy": "Run `pip install` to confirm the new dependencies are installed correctly. Write a simple unit test for the `create_large_test_directory` helper to ensure it creates the correct number of files in a temporary directory."
+          },
+          {
+            "id": 2,
+            "title": "Implement Throughput Benchmark Test",
+            "description": "Create a benchmark test using `pytest-benchmark` to measure the file scanning throughput of the pipeline.",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "In a new test file, `tests/benchmarks/test_throughput.py`, create a test function that uses the `pytest-benchmark` fixture. Inside the test, use the helper from subtask 8.1 to generate 120,000 empty files. Run the full pipeline (Scanner, Queue, Parser) against this directory. The benchmark will measure the total execution time. Use the final statistics (Task 7) to get the total files scanned and calculate the throughput in paths/minute. Assert that the throughput meets or exceeds the 120,000 paths/min target.",
+            "status": "pending",
+            "testStrategy": "Execute the benchmark test via `pytest`. The `pytest-benchmark` plugin will automatically handle multiple runs and statistical analysis. The test will pass if the calculated throughput meets the required threshold."
+          },
+          {
+            "id": 3,
+            "title": "Implement Memory Usage Profiling Test",
+            "description": "Create a test script to profile the pipeline's memory consumption during a large-scale run to ensure it stays within the specified limits.",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Create a new standalone script, `scripts/run_memory_profile.py`. This script will import the main pipeline components. It will use the helper from subtask 8.1 to create the large test directory. The main pipeline execution function within this script will be decorated with `@profile` from the `memory_profiler` library. The script will then run the pipeline and print the memory usage report generated by the profiler. The primary goal is to check that the peak memory usage remains below the 500MB limit.",
+            "status": "pending",
+            "testStrategy": "Run the script using the `mprof` command-line tool (e.g., `mprof run scripts/run_memory_profile.py` and `mprof plot`). Manually inspect the generated report or plot to verify that the peak memory usage is below 500MB. Log the peak usage value for reporting."
+          },
+          {
+            "id": 4,
+            "title": "Design a Test Parser for Concurrency Validation",
+            "description": "Create a specialized parser and a shared resource object to set up a test for detecting race conditions.",
+            "dependencies": [],
+            "details": "In a new test utility file, e.g., `tests/core/pipeline/concurrency_helpers.py`, define a `SharedCounter` class that contains an integer value and a `threading.Lock`. Implement an `increment` method that acquires the lock, increments the counter, and releases the lock. In the same file, create a `RaceConditionTestParser` class that inherits from the base parser. Its `parse` method will take the `SharedCounter` as an argument, sleep for a tiny random interval (e.g., `time.sleep(random.uniform(0.01, 0.05))`) to encourage race conditions, and then call the counter's `increment` method.",
+            "status": "pending",
+            "testStrategy": "Write a simple unit test for the `SharedCounter` to ensure that its `increment` method correctly modifies the value. No test is needed for the parser itself, as it will be tested in the next subtask."
+          },
+          {
+            "id": 5,
+            "title": "Implement and Execute Race Condition Test",
+            "description": "Write and run a test that uses the specialized parser to validate the thread safety of the pipeline's concurrent operations.",
+            "dependencies": [
+              "8.4"
+            ],
+            "details": "In a new test file, `tests/core/pipeline/test_concurrency.py`, create a test function. Instantiate the `SharedCounter` from subtask 8.4. Configure and run the pipeline with a small number of files (e.g., 100) but with a high number of parser workers (e.g., 16). Pass the `SharedCounter` instance to the `RaceConditionTestParser` and use this parser in the `ParserWorkerPool`. After the pipeline completes, assert that the final value of the `SharedCounter` is exactly equal to the number of files processed (e.g., 100). A mismatch would indicate a race condition where the lock was not effective.",
+            "status": "pending",
+            "testStrategy": "Run the test using `pytest`. The test passes if the final counter value matches the expected value, proving that the lock prevented concurrent access issues. To double-check, temporarily remove the lock from the `SharedCounter`'s `increment` method and confirm that the test now fails intermittently."
+          }
+        ]
+      }
+    ],
     "metadata": {
       "created": "2025-09-30T00:46:38.504Z",
-      "updated": "2025-09-30T00:46:38.504Z",
-      "description": "W5-W6: 스캔/파싱 파이프라인(스레드) + 캐시 v1 - Producer-Consumer 패턴, Bounded Queues, Backpressure 정책, 스레드 안전성"
+      "updated": "2025-09-30T21:29:45.949Z",
+      "description": "Tasks for w5-w6-scan-parse-pipeline context"
     }
   },
   "w7-directory-scan-optimization": {

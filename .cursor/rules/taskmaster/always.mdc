@@ -1,0 +1,4 @@
+use task-master, mcp-server, senera
+---
+alwaysApply: true
+---
