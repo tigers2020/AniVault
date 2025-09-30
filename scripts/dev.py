@@ -8,23 +8,47 @@ This script provides common development tasks and utilities.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
+from pathlib import Path
+
+# Initialize UTF-8 and logging
+os.environ.setdefault("PYTHONUTF8", "1")
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+try:
+    from anivault.utils.logging_config import get_logger, setup_logging
+
+    # Set up logging for dev script
+    setup_logging(console_output=True, file_output=False)
+    logger = get_logger("anivault.dev")
+except ImportError:
+    # Fallback if utils module is not available yet
+    logger = None
 
 
 def run_command(command: str, description: str | None = None) -> bool:
     """Run a command and return success status."""
     if description:
         print(f"🔄 {description}...")
+        if logger:
+            logger.info("Running command: %s", command)
 
     try:
         subprocess.run(command, shell=True, check=True)
         if description:
             print(f"✅ {description} completed successfully")
+            if logger:
+                logger.info("Command completed successfully: %s", description)
         return True
     except subprocess.CalledProcessError as e:
         if description:
             print(f"❌ {description} failed: {e}")
+            if logger:
+                logger.exception("Command failed: %s", description)
         return False
 
 

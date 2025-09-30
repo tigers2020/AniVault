@@ -1,6 +1,6 @@
 [project]
 name = "anivault"
-version = "3.0.0"
+version = "0.1.0"
 description = "AniVault CLI - Anime file organization tool with TMDB integration"
 requires-python = ">=3.9"
 authors = [
@@ -48,6 +48,7 @@ target-version = "py39"
 line-length = 88
 
 [tool.ruff.lint]
+# Black과 충돌 방지: E501 (line too long) 끄기
 select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
 ignore = [
     "S101", "T201", "PLR0913", "PLR0912", "PLR0915",
@@ -60,7 +61,7 @@ ignore = [
     "PERF203",  # try-except within loop
     "S110",  # try-except-pass detected
     "ARG001",  # Unused function argument
-    "E501",  # Line too long
+    "E501",  # Line too long (Black이 처리)
     "DTZ007",  # Naive datetime
     "S602",  # subprocess call with shell=True (needed for dev scripts)
 ]
@@ -84,6 +85,24 @@ exclude = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
 
 [tool.mypy]
 python_version = "3.9"

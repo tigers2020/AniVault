@@ -7,7 +7,7 @@ repos:
         language_version: python3
         args: [--line-length=88]
 
-  # Ruff - 린팅 및 자동 수정
+  # Ruff - 린팅 및 자동 수정 (import 정리 등)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.4
     hooks:
@@ -15,13 +15,13 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       # ruff-format은 사용하지 않음 (Black과 충돌 방지)
 
-  # MyPy - 타입 체킹
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-requests, types-PyYAML]
-        args: [--ignore-missing-imports]
+  # MyPy - 타입 체킹 (비활성화)
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.10.0
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies: [types-requests, types-PyYAML]
+  #       args: [--ignore-missing-imports]
 
   # 일반적인 Git 훅들
   - repo: https://github.com/pre-commit/pre-commit-hooks

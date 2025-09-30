@@ -6,10 +6,28 @@ This script helps set up the development environment for AniVault.
 It handles dependency installation, environment configuration, and initial setup.
 """
 
+# Initialize UTF-8 and logging
+import os
 import platform
 import subprocess
 import sys
 from pathlib import Path
+
+os.environ.setdefault("PYTHONUTF8", "1")
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+try:
+    from anivault.utils.logging_config import get_logger, log_startup, setup_logging
+
+    # Set up logging for setup script
+    setup_logging(console_output=True, file_output=False)
+    logger = get_logger("anivault.setup")
+    log_startup(logger, "0.1.0")
+except ImportError:
+    # Fallback if utils module is not available yet
+    logger = None
 
 
 def run_command(command: str, description: str) -> bool:
@@ -84,25 +102,39 @@ def main() -> None:
     print("🚀 Setting up AniVault development environment...")
     print(f"Platform: {platform.system()} {platform.release()}")
 
+    if logger:
+        logger.info("Starting AniVault development environment setup")
+        logger.info("Platform: %s %s", platform.system(), platform.release())
+
     # Check Python version
     check_python_version()
 
     # Create directories
     print("\n📁 Creating project directories...")
+    if logger:
+        logger.info("Creating project directories")
     create_directories()
 
     # Install dependencies
     print("\n📦 Installing dependencies...")
+    if logger:
+        logger.info("Installing project dependencies")
     if not install_dependencies():
         print("❌ Dependency installation failed")
+        if logger:
+            logger.error("Dependency installation failed")
         sys.exit(1)
 
     # Setup pre-commit
     print("\n🔧 Setting up development tools...")
+    if logger:
+        logger.info("Setting up development tools")
     setup_pre_commit()
     setup_git_hooks()
 
     print("\n✅ AniVault setup completed successfully!")
+    if logger:
+        logger.info("AniVault setup completed successfully")
     print("\nNext steps:")
     print("1. Set up your TMDB API key in environment variables")
     print("2. Run tests: pytest")

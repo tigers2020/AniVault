@@ -10,12 +10,14 @@ __author__ = "AniVault Team"
 __email__ = "contact@anivault.dev"
 
 # Core modules
-from .parser import MetadataParser
-from .scanner import AnimeScanner
-from .tmdb_client import TMDBClient
+from .core import BoundedQueue, Statistics
+
+# Other modules will be imported when they are implemented
 
 __all__ = [
-    "AnimeScanner",
-    "MetadataParser",
-    "TMDBClient",
+    "BoundedQueue",
+    "Statistics",
+    # "AnimeScanner",
+    # "MetadataParser",
+    # "TMDBClient",
 ]

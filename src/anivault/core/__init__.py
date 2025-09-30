@@ -1,3 +1,14 @@
-"""Core module for AniVault application."""
+"""
+Core components for AniVault.
 
-__version__ = "3.0.0"
+This module contains fundamental data structures and utilities
+used throughout the AniVault system.
+"""
+
+from .bounded_queue import BoundedQueue
+from .statistics import Statistics
+
+__all__ = [
+    "BoundedQueue",
+    "Statistics",
+]

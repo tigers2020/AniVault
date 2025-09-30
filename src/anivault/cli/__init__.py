@@ -1,3 +1,5 @@
-"""CLI module for AniVault application."""
+"""
+AniVault CLI Module
 
-__version__ = "3.0.0"
+Command-line interface for the AniVault anime collection management system.
+"""
