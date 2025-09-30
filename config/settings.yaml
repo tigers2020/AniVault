@@ -3,7 +3,7 @@
 # Application Settings
 app:
   name: "AniVault"
-  version: "0.1.0"
+  version: "3.0.0"
   description: "Anime Collection Management System"
   debug: false
 

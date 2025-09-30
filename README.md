@@ -1,6 +1,6 @@
-# AniVault
+# AniVault v3.0.0
 
-AniVault는 TMDB API를 활용한 애니메이션 파일 자동 정리 시스템입니다.
+AniVault는 TMDB API를 활용한 애니메이션 파일 자동 정리 시스템입니다. v3는 완전히 재설계된 아키텍처로 더 나은 성능과 사용성을 제공합니다.
 
 ## 기능
 

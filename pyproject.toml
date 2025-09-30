@@ -1,6 +1,6 @@
 [project]
 name = "anivault"
-version = "0.1.0"
+version = "3.0.0"
 description = "AniVault CLI - Anime file organization tool with TMDB integration"
 requires-python = ">=3.9"
 authors = [
