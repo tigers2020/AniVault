@@ -5,18 +5,16 @@ AniVault Development Helper Script
 This script provides common development tasks and utilities.
 """
 
-import os
-import sys
-import subprocess
 import argparse
-from pathlib import Path
+import subprocess
+import sys
 
 
 def run_command(command: str, description: str = None) -> bool:
     """Run a command and return success status."""
     if description:
         print(f"🔄 {description}...")
-    
+
     try:
         result = subprocess.run(command, shell=True, check=True)
         if description:
@@ -36,7 +34,7 @@ def lint_code():
         "ruff format --check src/",
         "mypy src/",
     ]
-    
+
     for command in commands:
         if not run_command(command):
             return False
@@ -46,7 +44,9 @@ def lint_code():
 def run_tests():
     """Run test suite."""
     print("🧪 Running tests...")
-    return run_command("pytest tests/ -v --cov=src --cov-report=html --cov-report=term-missing")
+    return run_command(
+        "pytest tests/ -v --cov=src --cov-report=html --cov-report=term-missing",
+    )
 
 
 def run_tests_fast():
@@ -74,7 +74,7 @@ def clean_build():
         "find . -type d -name __pycache__ -exec rm -rf {} +",
         "find . -type f -name '*.pyc' -delete",
     ]
-    
+
     for command in commands:
         run_command(command)
 
@@ -107,13 +107,25 @@ def generate_docs():
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(description="AniVault Development Helper")
-    parser.add_argument("command", choices=[
-        "lint", "test", "test-fast", "build", "clean", "format", 
-        "check-deps", "security", "docs", "all"
-    ], help="Command to run")
-    
+    parser.add_argument(
+        "command",
+        choices=[
+            "lint",
+            "test",
+            "test-fast",
+            "build",
+            "clean",
+            "format",
+            "check-deps",
+            "security",
+            "docs",
+            "all",
+        ],
+        help="Command to run",
+    )
+
     args = parser.parse_args()
-    
+
     if args.command == "lint":
         success = lint_code()
     elif args.command == "test":
@@ -136,13 +148,13 @@ def main():
         success = True
     elif args.command == "all":
         success = (
-            format_code() and
-            lint_code() and
-            run_tests() and
-            check_dependencies() and
-            run_security_check()
+            format_code()
+            and lint_code()
+            and run_tests()
+            and check_dependencies()
+            and run_security_check()
         )
-    
+
     if success:
         print("✅ Command completed successfully")
         sys.exit(0)

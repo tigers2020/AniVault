@@ -39,4 +39,3 @@ task-master next
 ## 라이선스
 
 MIT License
-

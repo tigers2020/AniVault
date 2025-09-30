@@ -6,10 +6,9 @@ This script helps set up the development environment for AniVault.
 It handles dependency installation, environment configuration, and initial setup.
 """
 
-import os
-import sys
-import subprocess
 import platform
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -17,7 +16,9 @@ def run_command(command: str, description: str) -> bool:
     """Run a command and return success status."""
     print(f"🔄 {description}...")
     try:
-        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            command, shell=True, check=True, capture_output=True, text=True,
+        )
         print(f"✅ {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -37,15 +38,8 @@ def check_python_version():
 
 def create_directories():
     """Create necessary directories."""
-    directories = [
-        "logs",
-        "data",
-        "config",
-        "tests",
-        "src/anivault",
-        "scripts"
-    ]
-    
+    directories = ["logs", "data", "config", "tests", "src/anivault", "scripts"]
+
     for directory in directories:
         Path(directory).mkdir(parents=True, exist_ok=True)
         print(f"📁 Created directory: {directory}")
@@ -58,7 +52,7 @@ def install_dependencies():
         ("pip install -e .", "Installing AniVault in development mode"),
         ("pip install -e .[dev]", "Installing development dependencies"),
     ]
-    
+
     for command, description in commands:
         if not run_command(command, description):
             return False
@@ -85,25 +79,25 @@ def main():
     """Main setup function."""
     print("🚀 Setting up AniVault development environment...")
     print(f"Platform: {platform.system()} {platform.release()}")
-    
+
     # Check Python version
     check_python_version()
-    
+
     # Create directories
     print("\n📁 Creating project directories...")
     create_directories()
-    
+
     # Install dependencies
     print("\n📦 Installing dependencies...")
     if not install_dependencies():
         print("❌ Dependency installation failed")
         sys.exit(1)
-    
+
     # Setup pre-commit
     print("\n🔧 Setting up development tools...")
     setup_pre_commit()
     setup_git_hooks()
-    
+
     print("\n✅ AniVault setup completed successfully!")
     print("\nNext steps:")
     print("1. Set up your TMDB API key in environment variables")
