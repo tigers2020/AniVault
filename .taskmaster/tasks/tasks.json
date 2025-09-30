@@ -1524,7 +1524,7 @@
         "dependencies": [
           7
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -1532,7 +1532,7 @@
             "description": "Prepare the environment for performance testing by adding necessary dependencies and creating a utility to generate large-scale test data.",
             "dependencies": [],
             "details": "Add `memory-profiler` and `pytest-benchmark` to the development dependencies in `pyproject.toml` or `requirements-dev.txt`. Create a new helper function in a `tests/helpers.py` or similar utility file. This function, `create_large_test_directory(path, num_files)`, will generate a specified number of empty files (e.g., 100,000+) within a given directory to serve as the dataset for throughput and memory tests.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run `pip install` to confirm the new dependencies are installed correctly. Write a simple unit test for the `create_large_test_directory` helper to ensure it creates the correct number of files in a temporary directory."
           },
           {
@@ -1582,7 +1582,7 @@
     ],
     "metadata": {
       "created": "2025-09-30T00:46:38.504Z",
-      "updated": "2025-09-30T21:39:57.790Z",
+      "updated": "2025-09-30T22:17:13.640Z",
       "description": "Tasks for w5-w6-scan-parse-pipeline context"
     }
   },
