@@ -1524,7 +1524,7 @@
         "dependencies": [
           7
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -1563,7 +1563,7 @@
             "description": "Create a specialized parser and a shared resource object to set up a test for detecting race conditions.",
             "dependencies": [],
             "details": "In a new test utility file, e.g., `tests/core/pipeline/concurrency_helpers.py`, define a `SharedCounter` class that contains an integer value and a `threading.Lock`. Implement an `increment` method that acquires the lock, increments the counter, and releases the lock. In the same file, create a `RaceConditionTestParser` class that inherits from the base parser. Its `parse` method will take the `SharedCounter` as an argument, sleep for a tiny random interval (e.g., `time.sleep(random.uniform(0.01, 0.05))`) to encourage race conditions, and then call the counter's `increment` method.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Write a simple unit test for the `SharedCounter` to ensure that its `increment` method correctly modifies the value. No test is needed for the parser itself, as it will be tested in the next subtask."
           },
           {
@@ -1574,7 +1574,7 @@
               "8.4"
             ],
             "details": "In a new test file, `tests/core/pipeline/test_concurrency.py`, create a test function. Instantiate the `SharedCounter` from subtask 8.4. Configure and run the pipeline with a small number of files (e.g., 100) but with a high number of parser workers (e.g., 16). Pass the `SharedCounter` instance to the `RaceConditionTestParser` and use this parser in the `ParserWorkerPool`. After the pipeline completes, assert that the final value of the `SharedCounter` is exactly equal to the number of files processed (e.g., 100). A mismatch would indicate a race condition where the lock was not effective.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run the test using `pytest`. The test passes if the final counter value matches the expected value, proving that the lock prevented concurrent access issues. To double-check, temporarily remove the lock from the `SharedCounter`'s `increment` method and confirm that the test now fails intermittently."
           }
         ]
@@ -1582,7 +1582,7 @@
     ],
     "metadata": {
       "created": "2025-09-30T00:46:38.504Z",
-      "updated": "2025-09-30T22:48:03.702Z",
+      "updated": "2025-09-30T22:51:28.252Z",
       "description": "Tasks for w5-w6-scan-parse-pipeline context"
     }
   },
