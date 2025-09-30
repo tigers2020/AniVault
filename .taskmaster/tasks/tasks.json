@@ -163,14 +163,14 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Configure Core Dependencies",
             "description": "Set up all core library dependencies in pyproject.toml",
             "details": "Add Click 8.1.0, Rich 14.1.0, prompt_toolkit 3.0.48, anitopy 2.1.1, parse 1.20.0, tmdbv3api 1.9.0, cryptography 41.0.0 to pyproject.toml",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 2
           },
@@ -179,7 +179,7 @@
             "title": "Configure Development Dependencies",
             "description": "Set up all development and testing dependencies",
             "details": "Add pytest 7.4.0, hypothesis 6.88.0, ruff, mypy, pre-commit, PyInstaller 6.16.0 to development dependencies in pyproject.toml",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 2
           },
@@ -188,7 +188,7 @@
             "title": "Install and Verify Dependencies",
             "description": "Install all dependencies and verify compatibility",
             "details": "Run poetry install to install all dependencies, verify that all libraries can be imported without errors, test basic functionality of each library",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "parentTaskId": 2
           }
@@ -387,7 +387,7 @@
     ],
     "metadata": {
       "created": "2025-09-30T00:46:33.334Z",
-      "updated": "2025-09-30T00:55:19.040Z",
+      "updated": "2025-09-30T01:08:28.660Z",
       "description": "Tasks for w1-w2-repo-boot context"
     }
   },
