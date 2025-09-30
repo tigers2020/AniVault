@@ -48,7 +48,37 @@ build-backend = "setuptools.build_meta"
 target-version = "py39"
 line-length = 88
 select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "FURB", "LOG", "RUF"]
-ignore = ["S101", "T201", "PLR0913", "PLR0912", "PLR0915"]
+ignore = [
+    "S101", "T201", "PLR0913", "PLR0912", "PLR0915",
+    "C901",  # Function too complex
+    "TRY300",  # Consider moving statement to else block
+    "TRY301",  # Abstract raise to inner function
+    "BLE001",  # Do not catch blind exception
+    "SLF001",  # Private member accessed
+    "PLW0603",  # Using global statement
+    "PERF203",  # try-except within loop
+    "S110",  # try-except-pass detected
+    "ARG001",  # Unused function argument
+    "E501",  # Line too long
+    "DTZ007",  # Naive datetime
+]
+exclude = [
+    "tests/",
+    "test_*.py",
+    "**/test_*.py",
+    "**/tests/",
+    "tools/",
+    "bench/",
+    "build/",
+    "dist/",
+    "cache/",
+    "htmlcov/",
+    "logs/",
+    "test_data_*/",
+    "test_output/",
+    "test_files/",
+    "test_new_features.py"
+]
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]

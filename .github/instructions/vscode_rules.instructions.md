@@ -1,7 +1,6 @@
 ---
-description: Guidelines for creating and maintaining Cursor rules to ensure consistency and effectiveness.
-globs: .cursor/rules/*.mdc
-alwaysApply: true
+description: Guidelines for creating and maintaining VS Code rules to ensure consistency and effectiveness.
+applyTo: ".github/instructions/*.instructions.md"
 ---
 
 - **Required Rule Structure:**
@@ -19,7 +18,7 @@ alwaysApply: true
 
 - **File References:**
   - Use `[filename](mdc:path/to/file)` ([filename](mdc:filename)) to reference files
-  - Example: [prisma.mdc](mdc:.cursor/rules/prisma.mdc) for rule references
+  - Example: [prisma.instructions.md](.github/instructions/prisma.instructions.md) for rule references
   - Example: [schema.prisma](mdc:prisma/schema.prisma) for code references
 
 - **Code Examples:**

@@ -1,39 +1,17 @@
-aiohttp>=3.8.0
-aiolimiter>=1.1.0
-
-# File parsing and metadata
-anitopy>=2.0.0
-
-# SSL certificates for HTTPS requests
-certifi>=2023.0.0
-
-# Security
-cryptography>=41.0.0
-jellyfish>=0.9.0
-
-# Basic system utilities
-psutil>=5.9.0
 # Core dependencies
-PyQt5>=5.15.0
-PyQt5-Qt5>=5.15.0
-PyQt5-sip>=12.9.0
-
-# Smart cache matching
-rapidfuzz>=3.0.0
-
-# Database
-SQLAlchemy>=2.0.0
-tmdbsimple>=2.9.0
-
-# TMDB API
+click>=8.1.0
+rich>=14.1.0
+anitopy>=2.1.1
 tmdbv3api>=1.9.0
+cryptography>=41.0.0
 
+# Development dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=23.0.0
+ruff>=0.1.0
+pyright>=1.1.0
 
-# Development dependencies (install with: pip install -r requirements-dev.txt)
-# pytest>=7.0.0
-# pytest-qt>=4.0.0
-# pytest-cov>=4.0.0
-# black>=23.0.0
-# ruff>=0.1.0
-# pyright>=1.1.0
-# mypy>=1.0.0
+# Build dependencies
+PyInstaller>=6.16.0
+

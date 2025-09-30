@@ -129,24 +129,15 @@ dmypy.json
 .pyre/
 
 # AniVault specific
+data/
 logs/
-cache/
-*.exe
-*.log
-*.tmp
-*.temp
-
-# Coverage reports
-coverage.xml
-htmlcov/
-.coverage
-.coverage.*
-.pytest_cache/
-
-# Test artifacts
-.pytest_cache/
-.coverage
-htmlcov/
+*.sqlite
+*.db
+test_data_*/
+test_output/
+test_files/
+test_plan.json
+tmdb_cache.sqlite
 
 # IDE
 .vscode/
@@ -158,53 +149,17 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# Task Master
-.taskmaster/state.json
-.taskmaster/reports/
-.taskmaster/docs/research/
-
-# Build artifacts
-build/
-dist/
-*.egg-info/
-
-# Test artifacts
-.pytest_cache/
-.coverage
-htmlcov/
 
 # Temporary files
 *.tmp
 *.temp
 *.bak
 *.backup
+*.rollback_backup
 
-# API keys and secrets
-.env
-secrets.json
-config.json
+# Coverage reports
+coverage.xml
+htmlcov/
 
-# Logs
-logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-# Dependency directories
-node_modules/
-# Environment variables
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-# OS specific
-
-# Task files
-# tasks.json
-# tasks/
+# Task Master
+.taskmaster/

@@ -1,7 +1,6 @@
 ---
-description: Guidelines for continuously improving Cursor rules based on emerging code patterns and best practices.
-globs: **/*
-alwaysApply: true
+description: Guidelines for continuously improving VS Code rules based on emerging code patterns and best practices.
+applyTo: "**/*"
 ---
 
 - **Rule Improvement Triggers:**
@@ -39,7 +38,7 @@ alwaysApply: true
     where: { status: 'ACTIVE' }
   });
   
-  // Consider adding to [prisma.mdc](mdc:.cursor/rules/prisma.mdc):
+  // Consider adding to [prisma.instructions.md](.github/instructions/prisma.instructions.md):
   // - Standard select fields
   // - Common where conditions
   // - Performance optimization patterns
@@ -69,4 +68,4 @@ alwaysApply: true
   - Update references to external docs
   - Maintain links between related rules
   - Document breaking changes
-Follow [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc) for proper rule formatting and structure.
+Follow [vscode_rules.instructions.md](.github/instructions/vscode_rules.instructions.md) for proper rule formatting and structure.
