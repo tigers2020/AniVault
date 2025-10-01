@@ -1,0 +1,421 @@
+"""
+AniVault Settings Configuration
+
+This module defines Pydantic models for application configuration,
+including filter settings for the smart filtering engine.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import yaml
+from pydantic import BaseModel, Field, field_validator
+
+
+class FilterConfig(BaseModel):
+    """Configuration for the smart filtering engine."""
+
+    # File extension filtering
+    allowed_extensions: list[str] = Field(
+        default=[
+            # Video files
+            ".mkv",
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".wmv",
+            ".flv",
+            ".m4v",
+            ".webm",
+            ".m2ts",
+            ".ts",
+            # Subtitle files
+            ".srt",
+            ".ass",
+            ".ssa",
+            ".sub",
+            ".idx",
+            ".vtt",
+            ".smi",
+            ".sami",
+            ".mks",
+            ".sup",
+            ".pgs",
+            ".dvb",
+        ],
+        description="List of allowed file extensions including video and subtitle files",
+    )
+
+    # File size filtering
+    min_file_size_mb: int = Field(
+        default=50,
+        ge=0,
+        description="Minimum file size in MB to include in scan",
+    )
+
+    # Filename pattern exclusion
+    excluded_filename_patterns: list[str] = Field(
+        default=[
+            "*sample*",
+            "*trailer*",
+            "*preview*",
+            "*teaser*",
+            "*demo*",
+            "*test*",
+            "*temp*",
+            "*tmp*",
+        ],
+        description="Filename patterns to exclude from scanning",
+    )
+
+    # Directory pattern exclusion
+    excluded_dir_patterns: list[str] = Field(
+        default=[
+            ".git",
+            ".svn",
+            ".hg",
+            "$RECYCLE.BIN",
+            "System Volume Information",
+            "Thumbs.db",
+            "__pycache__",
+            ".pytest_cache",
+            "node_modules",
+            ".vscode",
+            ".idea",
+            ".DS_Store",
+            "lost+found",
+        ],
+        description="Directory patterns to exclude from scanning",
+    )
+
+    # Hidden file/directory filtering
+    skip_hidden_files: bool = Field(
+        default=True,
+        description="Skip files and directories starting with '.'",
+    )
+
+    # System file filtering
+    skip_system_files: bool = Field(
+        default=True,
+        description="Skip system files and directories",
+    )
+
+    @field_validator("allowed_extensions")
+    @classmethod
+    def validate_extensions(cls, v: list[str]) -> list[str]:
+        """Validate that extensions start with a dot."""
+        for ext in v:
+            if not ext.startswith("."):
+                msg = f"Extension '{ext}' must start with a dot"
+                raise ValueError(msg)
+        return v
+
+    @field_validator("excluded_filename_patterns", "excluded_dir_patterns")
+    @classmethod
+    def validate_patterns(cls, v: list[str]) -> list[str]:
+        """Validate that patterns are non-empty strings."""
+        for pattern in v:
+            if not isinstance(pattern, str) or not pattern.strip():
+                raise ValueError("Patterns must be non-empty strings")
+        return v
+
+
+class ScanConfig(BaseModel):
+    """Configuration for directory scanning."""
+
+    # Supported file extensions (legacy compatibility)
+    supported_extensions: list[str] = Field(
+        default=[
+            # Video files
+            ".mkv",
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".wmv",
+            ".flv",
+            ".m4v",
+            ".webm",
+            ".m2ts",
+            ".ts",
+            # Subtitle files
+            ".srt",
+            ".ass",
+            ".ssa",
+            ".sub",
+            ".idx",
+            ".vtt",
+            ".smi",
+            ".sami",
+            ".mks",
+            ".sup",
+            ".pgs",
+            ".dvb",
+        ],
+        description="Supported file extensions for scanning including video and subtitle files",
+    )
+
+    # Batch processing settings
+    batch_size: int = Field(
+        default=100,
+        gt=0,
+        description="Number of files to process in each batch",
+    )
+
+    # Worker settings
+    max_workers: int = Field(
+        default=4,
+        gt=0,
+        description="Maximum number of worker threads",
+    )
+
+    # Timeout settings
+    timeout: int = Field(
+        default=300,
+        gt=0,
+        description="Timeout in seconds for file processing",
+    )
+
+    # Parallel scanning settings
+    enable_parallel_scanning: bool = Field(
+        default=True,
+        description="Enable parallel directory scanning",
+    )
+
+    parallel_threshold: int = Field(
+        default=1000,
+        gt=0,
+        description="Minimum file count to use parallel scanning",
+    )
+
+    # Filter configuration
+    filter: FilterConfig = Field(
+        default_factory=FilterConfig,
+        description="Smart filtering configuration",
+    )
+
+    @field_validator("supported_extensions")
+    @classmethod
+    def validate_supported_extensions(cls, v: list[str]) -> list[str]:
+        """Validate that extensions start with a dot."""
+        for ext in v:
+            if not ext.startswith("."):
+                msg = f"Extension '{ext}' must start with a dot"
+                raise ValueError(msg)
+        return v
+
+
+class AppConfig(BaseModel):
+    """Application configuration."""
+
+    name: str = Field(default="AniVault", description="Application name")
+    version: str = Field(default="0.1.0", description="Application version")
+    description: str = Field(
+        default="Anime Collection Management System",
+        description="Application description",
+    )
+    debug: bool = Field(default=False, description="Enable debug mode")
+
+
+class LoggingConfig(BaseModel):
+    """Logging configuration."""
+
+    level: str = Field(default="INFO", description="Logging level")
+    format: str = Field(
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        description="Log format string",
+    )
+    file: str = Field(default="logs/anivault.log", description="Log file path")
+    max_bytes: int = Field(
+        default=10485760,
+        description="Maximum log file size in bytes",  # 10MB
+    )
+    backup_count: int = Field(
+        default=5,
+        description="Number of backup log files to keep",
+    )
+    console_output: bool = Field(default=True, description="Enable console logging")
+
+
+class TMDBConfig(BaseModel):
+    """TMDB API configuration."""
+
+    base_url: str = Field(
+        default="https://api.themoviedb.org/3",
+        description="TMDB API base URL",
+    )
+    timeout: int = Field(default=30, gt=0, description="Request timeout in seconds")
+    retry_attempts: int = Field(default=3, ge=0, description="Number of retry attempts")
+    retry_delay: float = Field(
+        default=1.0,
+        ge=0,
+        description="Delay between retries in seconds",
+    )
+    rate_limit_delay: float = Field(
+        default=0.25,
+        ge=0,
+        description="Delay between requests in seconds",
+    )
+
+
+class CacheConfig(BaseModel):
+    """Cache configuration."""
+
+    enabled: bool = Field(default=True, description="Enable caching")
+    ttl: int = Field(default=3600, gt=0, description="Cache time-to-live in seconds")
+    max_size: int = Field(default=1000, gt=0, description="Maximum cache size")
+    backend: str = Field(
+        default="memory",
+        description="Cache backend (memory, redis, sqlite)",
+    )
+
+
+class PerformanceConfig(BaseModel):
+    """Performance configuration."""
+
+    memory_limit: str = Field(
+        default="2GB",
+        description="Memory limit for the application",
+    )
+    cpu_limit: int = Field(default=4, gt=0, description="CPU limit for the application")
+    enable_profiling: bool = Field(
+        default=False,
+        description="Enable performance profiling",
+    )
+    profile_output: str = Field(
+        default="logs/profiling.json",
+        description="Profiling output file path",
+    )
+
+
+class Settings(BaseModel):
+    """Main settings model containing all configuration sections."""
+
+    app: AppConfig = Field(default_factory=AppConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    tmdb: TMDBConfig = Field(default_factory=TMDBConfig)
+    file_processing: ScanConfig = Field(default_factory=ScanConfig)
+    cache: CacheConfig = Field(default_factory=CacheConfig)
+    performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
+
+    @classmethod
+    def from_yaml_file(cls, file_path: str | Path) -> Settings:
+        """Load settings from a YAML file.
+
+        Args:
+            file_path: Path to the YAML configuration file
+
+        Returns:
+            Settings instance loaded from the file
+
+        Raises:
+            FileNotFoundError: If the configuration file doesn't exist
+            yaml.YAMLError: If the YAML file is malformed
+            ValidationError: If the configuration doesn't match the schema
+        """
+        file_path = Path(file_path)
+
+        if not file_path.exists():
+            msg = f"Configuration file not found: {file_path}"
+            raise FileNotFoundError(msg)
+
+        with open(file_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        return cls.model_validate(data)
+
+    @classmethod
+    def from_environment(cls) -> Settings:
+        """Load settings from environment variables.
+
+        Returns:
+            Settings instance with values from environment variables
+        """
+        return cls.model_validate(
+            {
+                "app": {
+                    "name": os.getenv("ANIVAULT_NAME", "AniVault"),
+                    "version": os.getenv("ANIVAULT_VERSION", "0.1.0"),
+                    "debug": os.getenv("ANIVAULT_DEBUG", "false").lower() == "true",
+                },
+                "logging": {
+                    "level": os.getenv("ANIVAULT_LOG_LEVEL", "INFO"),
+                    "console_output": os.getenv("ANIVAULT_LOG_CONSOLE", "true").lower()
+                    == "true",
+                },
+                "tmdb": {
+                    "base_url": os.getenv(
+                        "TMDB_BASE_URL",
+                        "https://api.themoviedb.org/3",
+                    ),
+                    "timeout": int(os.getenv("TMDB_TIMEOUT", "30")),
+                    "retry_attempts": int(os.getenv("TMDB_RETRY_ATTEMPTS", "3")),
+                    "rate_limit_delay": float(
+                        os.getenv("TMDB_RATE_LIMIT_DELAY", "0.25"),
+                    ),
+                },
+                "file_processing": {
+                    "max_workers": int(os.getenv("ANIVAULT_MAX_WORKERS", "4")),
+                    "enable_parallel_scanning": os.getenv(
+                        "ANIVAULT_PARALLEL_SCAN",
+                        "true",
+                    ).lower()
+                    == "true",
+                    "parallel_threshold": int(
+                        os.getenv("ANIVAULT_PARALLEL_THRESHOLD", "1000"),
+                    ),
+                },
+                "cache": {
+                    "enabled": os.getenv("ANIVAULT_CACHE_ENABLED", "true").lower()
+                    == "true",
+                    "ttl": int(os.getenv("ANIVAULT_CACHE_TTL", "3600")),
+                },
+            },
+        )
+
+    def to_yaml_file(self, file_path: str | Path) -> None:
+        """Save settings to a YAML file.
+
+        Args:
+            file_path: Path where to save the YAML configuration file
+        """
+        file_path = Path(file_path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            yaml.dump(
+                self.model_dump(exclude_defaults=True),
+                f,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
+
+
+def load_settings(config_path: str | Path | None = None) -> Settings:
+    """Load settings from configuration file or environment.
+
+    Args:
+        config_path: Optional path to configuration file. If None, tries to load
+                    from default locations or environment variables.
+
+    Returns:
+        Settings instance loaded from the specified source
+    """
+    if config_path:
+        return Settings.from_yaml_file(config_path)
+
+    # Try to load from default configuration file
+    default_config_paths = [
+        Path("config/settings.yaml"),
+        Path("settings.yaml"),
+        Path.home() / ".anivault" / "settings.yaml",
+    ]
+
+    for config_path in default_config_paths:
+        if config_path.exists():
+            return Settings.from_yaml_file(config_path)
+
+    # Fall back to environment variables
+    return Settings.from_environment()

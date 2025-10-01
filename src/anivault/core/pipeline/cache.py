@@ -4,11 +4,13 @@ This module provides a simple, file-based JSON caching mechanism
 to avoid reprocessing files that haven't changed.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class CacheV1:
@@ -68,7 +70,7 @@ class CacheV1:
         with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2, ensure_ascii=False)
 
-    def get(self, key: str) -> Optional[dict[str, Any]]:
+    def get(self, key: str) -> dict[str, Any] | None:
         """Retrieve data from the cache.
 
         Args:

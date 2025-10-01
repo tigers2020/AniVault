@@ -5,9 +5,11 @@ This module provides core utilities for the file processing pipeline:
 - Statistics classes: For collecting pipeline metrics
 """
 
+from __future__ import annotations
+
 import queue
 import threading
-from typing import Any, Optional
+from typing import Any
 
 
 class BoundedQueue:
@@ -35,7 +37,7 @@ class BoundedQueue:
         self,
         item: Any,
         block: bool = True,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> None:
         """Put an item into the queue.
 
@@ -49,7 +51,7 @@ class BoundedQueue:
         """
         self._queue.put(item, block=block, timeout=timeout)
 
-    def get(self, block: bool = True, timeout: Optional[float] = None) -> Any:
+    def get(self, block: bool = True, timeout: float | None = None) -> Any:
         """Get an item from the queue.
 
         Args:

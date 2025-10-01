@@ -1587,19 +1587,1074 @@
     }
   },
   "w7-directory-scan-optimization": {
-    "tasks": [],
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Establish Performance Baseline and Profiling Suite",
+        "description": "Create a comprehensive benchmarking suite to measure the current performance of the `os.walk()` based directory scanner. This will serve as the baseline for all future optimization efforts.",
+        "details": "Implement a script that uses the `time` and `memory_profiler` libraries. The script should scan a large, pre-defined directory structure (e.g., 100k+ files). It must log key metrics: total time taken, paths scanned per minute, and peak memory usage. This aligns with the 'Benchmark current performance with detailed profiling' strategy. The results will be used to validate the success of subsequent optimization tasks.",
+        "testStrategy": "Create a test fixture with a large number of dummy files and directories. Run the benchmark script against this fixture multiple times to ensure consistent and reliable baseline metrics. The script itself should be unit-tested for correctness in its calculations.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Test Data Generation Script",
+            "description": "Develop a Python script in a new `scripts/` directory named `generate_test_data.py`. This script will programmatically create a large, nested directory structure with a configurable number of empty files, providing a consistent and reproducible environment for benchmarking.",
+            "dependencies": [],
+            "details": "The script must use Python's `argparse` to accept command-line arguments for the root path of the test data, the total number of files to create, and the maximum directory depth. This ensures the test fixture can be easily scaled (e.g., to 100k+ files) and regenerated.",
+            "status": "done",
+            "testStrategy": "Run the script with different arguments and verify that the created directory structure matches the specified file count and depth using a simple verification function within the script itself."
+          },
+          {
+            "id": 2,
+            "title": "Develop Initial Benchmark Script Structure",
+            "description": "Create a new script, `scripts/benchmark.py`, that will serve as the main entry point for the profiling suite. This script will import and instantiate the existing `DirectoryScanner` from `src/scanner.py`.",
+            "dependencies": [],
+            "details": "The script should define a primary function, e.g., `run_scan(path)`, which takes a directory path, creates a `DirectoryScanner` instance, and executes its `scan()` method. This function will be the target for profiling in subsequent tasks. The script should initially just print the total count of files found to confirm it correctly invokes the scanner.",
+            "status": "done",
+            "testStrategy": "Run the script against a small, known directory structure and assert that the printed file count is correct."
+          },
+          {
+            "id": 3,
+            "title": "Integrate Time and Memory Profiling",
+            "description": "Modify `scripts/benchmark.py` to measure execution time and memory usage. This involves using the `time` module for timing and the `memory_profiler` library for memory analysis.",
+            "dependencies": [],
+            "details": "In `scripts/benchmark.py`, use `time.perf_counter()` before and after the call to the `run_scan` function to measure wall-clock time. Add the `@profile` decorator from `memory_profiler` to the `run_scan` function to enable memory tracking. The script will need to be executed via `python -m memory_profiler scripts/benchmark.py`.",
+            "status": "done",
+            "testStrategy": "Execute the benchmark script and confirm that timing information is printed to the console and that `memory_profiler` outputs a line-by-line memory usage report."
+          },
+          {
+            "id": 4,
+            "title": "Implement Metrics Calculation and Structured Logging",
+            "description": "Enhance `scripts/benchmark.py` to process the raw profiling data into the required key metrics and log them to a file in a structured format.",
+            "dependencies": [],
+            "details": "Capture the output of `memory_profiler` by redirecting its stream to an `io.StringIO` object. Parse this output to find the peak memory usage. Calculate 'paths scanned per minute' using the total paths found and the total time taken. Consolidate these three metrics (Total Time, Peak Memory, Paths/Min) into a dictionary and append it as a JSON object to a specified log file.",
+            "status": "done",
+            "testStrategy": "Run the benchmark and inspect the output JSON log file to verify it contains the correct keys and plausible, correctly formatted numerical values for each metric."
+          },
+          {
+            "id": 5,
+            "title": "Build Command-Line Interface for the Benchmark Runner",
+            "description": "Finalize `scripts/benchmark.py` by adding a command-line interface using the `argparse` module, turning it into a reusable and configurable tool.",
+            "dependencies": [],
+            "details": "The CLI should expose arguments to specify the target directory to scan (e.g., `--path`) and the location of the results log file (e.g., `--output-file`). This decouples the script's configuration from its code and allows it to be easily integrated into testing or CI/CD workflows. Ensure helpful descriptions are provided for each argument.",
+            "status": "done",
+            "testStrategy": "Run the script from the command line with various `--path` and `--output-file` arguments. Verify that it runs without errors, scans the correct directory, and writes results to the specified file."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Implement Parallel Directory Traversal with ThreadPoolExecutor",
+        "description": "Refactor the existing `DirectoryScanner` to use `concurrent.futures.ThreadPoolExecutor` for parallel directory traversal, replacing the single-threaded `os.walk()` approach.",
+        "details": "The new implementation should submit subdirectories to the thread pool for concurrent processing. Use `os.scandir()` for better performance over `os.listdir()`. Implement an adaptive strategy: for small directories, revert to a single-threaded scan to avoid thread creation overhead. Ensure thread-safe collection of results. This directly addresses the primary goal of enhancing performance to 150,000+ paths/min.",
+        "testStrategy": "Test with various directory structures (deep vs. wide). Use the benchmark suite from Task 1 to measure performance improvement. Verify that the total number of files and directories found matches the single-threaded version exactly. Add specific tests for the adaptive threading logic.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize Parallel Scanning Framework in DirectoryScanner",
+            "description": "Modify the `DirectoryScanner` class in `src/anivault/scanner/directory_scanner.py` to support parallel execution. This involves adding imports for `concurrent.futures` and `threading`, and initializing a `ThreadPoolExecutor` instance and a `threading.Lock` for managing shared resources within the class constructor.",
+            "dependencies": [],
+            "details": "Based on the analysis of `src/anivault/scanner/directory_scanner.py`, the class currently uses a simple `os.walk`. This subtask will add the necessary components for parallelism. A `ThreadPoolExecutor` will be added as a class attribute, likely initialized in the `scan` method or `__init__`. A `threading.Lock` is also required to protect access to the shared result lists (`self.file_paths`, `self.dir_paths`) in later steps.\n<info added on 2025-09-30T23:14:49.914Z>\nBased on the performance report from the initial parallel implementation, the current approach of parallelizing `os.walk` or submitting each directory as an independent, shallow task is creating significant overhead, leading to slower performance than the sequential scan.\n\nThis subtask will replace that inefficient logic with a truly recursive, parallel scanning function that leverages `os.scandir` for better performance.\n\n**Implementation Plan:**\n\n1.  **Create a new private method** in `src/anivault/scanner/directory_scanner.py`, for example, `_recursive_scan(self, path)`. This will be the core function submitted to the thread pool.\n\n2.  **Implement the `_recursive_scan` logic:**\n    *   Use a `try...except PermissionError` block to gracefully handle inaccessible directories.\n    *   Inside the `try` block, iterate through entries using `os.scandir(path)`. This is more efficient than `os.listdir` as it avoids extra `stat` calls.\n    *   For each `entry` from the iterator:\n        *   If `entry.is_dir()`, recursively submit a new task to the executor for the new directory path: `self.executor.submit(self._recursive_scan, entry.path)`.\n        *   If `entry.is_file()`, acquire the `self.lock` and append `entry.path` to the `self.file_paths` list.\n\n3.  **Refactor the main `scan` method:**\n    *   The `scan` method should now be responsible for initializing the `ThreadPoolExecutor` and submitting the initial root directories to it.\n    *   It will submit `self._recursive_scan` for each `root_dir` provided.\n    *   After submitting the initial tasks, it must wait for all submitted futures to complete before returning the results. This is typically done by shutting down the executor and waiting.\n\nThis approach ensures that the work unit for each thread is a directory scan, and as new subdirectories are discovered, they are immediately added to the thread pool's work queue. This creates a much more efficient, work-stealing-like pattern that is better suited for traversing deep and complex directory structures, directly addressing the performance bottleneck identified in the user's report.\n</info added on 2025-09-30T23:14:49.914Z>",
+            "status": "done",
+            "testStrategy": "Verify that the `DirectoryScanner` class can be instantiated without errors. No functional change is expected yet, but the setup should be in place. Unit tests can check for the presence of the executor and lock attributes after initialization."
+          },
+          {
+            "id": 2,
+            "title": "Implement Core Recursive Scan Function with os.scandir",
+            "description": "Create a new private method, `_scan_directory`, within the `DirectoryScanner` class. This method will take a directory path as an argument, use `os.scandir()` to iterate through its entries, and for each entry, categorize it as a file or a subdirectory.",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "This method will form the core of the parallel work. It will replace the logic inside the `os.walk` loop. It should use a `try-except` block to handle potential `PermissionError` during `os.scandir()`. For each `DirEntry` that is a file, it will add its path to the results list (using the lock). For each entry that is a directory, it will recursively submit a new `_scan_directory` task to the `ThreadPoolExecutor`.\n<info added on 2025-09-30T23:16:37.685Z>\n**Developer Update & Implementation Notes:**\n\nThe core recursive scanning logic has been implemented, but with a revised parallelization strategy that proved more effective than the initially proposed plan of submitting every subdirectory to the thread pool.\n\n**New Strategy:**\n- The scanner now first identifies all immediate subdirectories within the root scan paths using a new `_scan_root_directories` method.\n- Each of these top-level subdirectories is then submitted as a single, large task to the `ThreadPoolExecutor`.\n- A new `_recursive_scan_directory` method, which uses `os.scandir` for efficiency, is executed by each worker thread. This method performs a deep, sequential scan of the entire directory tree it was assigned, without submitting further tasks to the pool.\n- Files directly in the root paths are handled separately by `_scan_root_files`.\n\n**Performance Results:**\n- This approach significantly reduces thread creation and management overhead.\n- Benchmarking on a set of 5,864 files shows a performance increase to **2,474,713 paths/min** (up from 1,684,746 paths/min).\n- It was observed that a smaller number of worker threads (e.g., 8) is more efficient than a large number (e.g., 64), as this strategy benefits from fewer, more substantial work units, minimizing thread contention.\n\nThis implementation completes the primary goal of this subtask by creating an `os.scandir`-based recursive function and integrating it into the parallel execution framework.\n</info added on 2025-09-30T23:16:37.685Z>",
+            "status": "done",
+            "testStrategy": "Test this method in isolation if possible, or as part of the integrated scan. Verify that for a single-level directory, it correctly identifies and adds all files and submits all subdirectories to the executor. Mock the `executor.submit` call to confirm it's being called for each subdirectory."
+          },
+          {
+            "id": 3,
+            "title": "Ensure Thread-Safe Collection of Scan Results",
+            "description": "Refactor the process of adding file and directory paths to the shared result lists (`self.file_paths`, `self.dir_paths`) to be thread-safe. Use the `threading.Lock` created in subtask 2.1 to protect all write operations to these lists.",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "In the `_scan_directory` method, wrap all `self.file_paths.append(path)` and `self.dir_paths.append(path)` calls within a `with self.lock:` block. This is a critical step to prevent race conditions where multiple threads attempt to modify the lists simultaneously, which could lead to data loss or corruption.\n<info added on 2025-09-30T23:18:18.856Z>\n**Update:** The implementation for this subtask has been completed, adopting a more sophisticated approach than originally planned to enhance both thread safety and performance.\n\nInstead of directly locking individual `list.append` operations, which could create a high-contention bottleneck, a more robust queue-based, batch-processing pattern was implemented.\n\n- **New Methods Implemented:**\n  - `_thread_safe_put_files`: Safely adds batches of discovered files to a shared queue, ensuring atomicity.\n  - `_thread_safe_update_stats`: Processes statistical updates (file/dir counts) in batches, significantly reducing the frequency of lock acquisitions and thus minimizing thread contention.\n\n- **Core Logic Refactoring:**\n  - The `_recursive_scan_directory` method was modified to return local file and directory counts. This change facilitates the new batch-based update strategy.\n  - The main scanning loop now utilizes these new thread-safe methods to collect results from worker threads.\n\n- **Outcome & Verification:**\n  - This design successfully prevents race conditions, as verified on both small and large datasets (5,800+ files).\n  - Performance remains high and stable (~2,370,000 paths/min), demonstrating that thread safety was achieved without introducing performance degradation. The implementation also includes more robust handling for errors and cancellation signals.\n</info added on 2025-09-30T23:18:18.856Z>",
+            "status": "done",
+            "testStrategy": "Create a stress test that runs the scanner on a directory structure with many subdirectories to maximize thread contention. After the scan, compare the total number of files and directories found against a run of the original single-threaded `os.walk` version. The counts must match exactly."
+          },
+          {
+            "id": 4,
+            "title": "Integrate Parallel Logic into the Public `scan` Method",
+            "description": "Refactor the public `scan` method in `DirectoryScanner` to orchestrate the parallel scan. This method will now clear previous results, initialize the scan by submitting the root path to the `ThreadPoolExecutor`, and then shut down the executor, waiting for all tasks to complete.",
+            "dependencies": [
+              "2.3"
+            ],
+            "details": "The `scan` method will no longer contain the `os.walk` loop. Instead, it will be structured around a `with concurrent.futures.ThreadPoolExecutor() as executor:` block. It will make the initial call `executor.submit(self._scan_directory, root_path)`. The `with` statement ensures that the program waits for all futures (including recursively submitted ones) to complete before proceeding and that resources are properly cleaned up.\n<info added on 2025-09-30T23:20:52.427Z>\nThe parallel scanning logic has been successfully integrated into the public API of the `DirectoryScanner` class, providing a unified interface for both sequential and parallel modes.\n\n**Implementation Details:**\n- The public `scan` method in `anivault/scanner/directory_scanner.py` now serves as the orchestrator. It accepts new boolean `parallel` and integer `max_workers` parameters to control the scanning mode.\n- Internally, the `scan` method acts as a dispatcher, calling the new `_scan_parallel` method if `parallel=True` or falling back to the existing `_scan_sequential` method (which contains the original `os.walk` logic) for sequential scans.\n- The `ThreadPoolExecutor` context manager is now implemented within the `_scan_parallel` method, which is invoked by the public `scan` method. This encapsulates the parallel execution logic while keeping the public API clean.\n- Thread-safe methods (`_thread_safe_put_files`, `_thread_safe_update_stats`) using `self.lock` are correctly utilized by the parallel worker function (`_parallel_scan_directory`).\n\n**Validation:**\n- The integration is complete, and benchmark results show a modest performance gain (~3%) with the parallel scanner.\n- Both `parallel=True` and `parallel=False` modes have been confirmed to produce identical, correct output on test datasets, ensuring the reliability of the new implementation.\n</info added on 2025-09-30T23:20:52.427Z>",
+            "status": "done",
+            "testStrategy": "Run the refactored `scan` method on various directory structures (deep, wide, mixed). Verify that the returned lists of files and directories are complete and correct by comparing them to a ground truth generated by a simple, trusted script (e.g., using `os.walk`)."
+          },
+          {
+            "id": 5,
+            "title": "Implement Adaptive Threshold for Small Directories",
+            "description": "Modify the `_scan_directory` method to include an adaptive strategy. For directories containing fewer entries than a defined threshold, process them and their subtrees synchronously in the current thread instead of submitting new tasks to the thread pool.",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "Inside `_scan_directory`, after using `os.scandir`, convert the iterator to a list to get its size. If `len(entries)` is below a constant (e.g., `SMALL_DIR_THRESHOLD = 10`), iterate through the entries and for each subdirectory, call `_scan_directory(subdir_path)` directly instead of `executor.submit(self._scan_directory, subdir_path)`. This avoids the overhead of thread creation for trivial tasks.\n<info added on 2025-09-30T23:23:05.055Z>\nAn initial adaptive strategy has been implemented at the top level of the `scan` method. Before the main traversal begins, a new private method, `_estimate_total_files`, is called to quickly approximate the total number of files in the target directory. This estimate is then used by another new method, `_should_use_parallel`, to decide whether the entire scan should proceed sequentially or in parallel.\n\nThis decision is based on a new `parallel_threshold` class attribute, which has been set to 1000 files. If the estimated file count is below this threshold, the scanner will fall back to the original single-threaded `_scan_sequential` method to avoid the overhead of the `ThreadPoolExecutor`. If the count is above the threshold, it proceeds with the parallel `_scan_parallel` method. A `quiet` parameter has also been added to the `scan` method to control the logging output related to this adaptive mode selection.\n</info added on 2025-09-30T23:23:05.055Z>",
+            "status": "done",
+            "testStrategy": "Create a test with a directory structure containing a mix of large and small subdirectories. Use a mock or logging to verify that for small directories, `executor.submit` is not called, and for large directories, it is. Measure performance on a suitable benchmark to confirm that this optimization provides a benefit without compromising correctness."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Develop a Configurable Smart Filtering Engine",
+        "description": "Create a filtering engine that intelligently prunes the file list during the scan, before any heavy processing occurs, based on a set of configurable rules.",
+        "details": "The engine should support multiple filtering strategies as specified in the PRD: by file extension (e.g., '.mkv', '.mp4'), by file size (e.g., skip files < 50MB), by pattern-based exclusion (e.g., '*sample*', '*trailer*'), and skipping hidden/system directories (e.g., '.git', '$RECYCLE.BIN'). These rules should be applied as early as possible in the scanning process to minimize I/O.",
+        "testStrategy": "Unit test each filter type in isolation. Create integration tests where the filtering engine is used by the `DirectoryScanner`. Verify that files/directories are correctly included or excluded based on various combinations of filter rules. Measure the performance impact of filtering on the benchmark.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define Filter Configuration Model in Settings",
+            "description": "Extend the application's configuration to include a structured model for all filtering rules. This will allow users to easily configure the filtering engine via a settings file.",
+            "dependencies": [],
+            "details": "In `anivault/config/settings.py`, create a new Pydantic model named `FilterConfig`. This model should be nested within the existing `ScanConfig` model. It must define fields for `allowed_extensions` (list of strings), `min_file_size_mb` (integer), `excluded_filename_patterns` (list of strings, e.g., '*sample*'), and `excluded_dir_patterns` (list of strings, e.g., '.git', '$RECYCLE.BIN'). Provide sensible default values.",
+            "status": "done",
+            "testStrategy": "Add a unit test to verify that the `Settings` model can be successfully loaded with default filter values and also with custom values from a mock configuration file. Assert that the types and default values are correct."
+          },
+          {
+            "id": 2,
+            "title": "Create the Core FilterEngine Class Structure",
+            "description": "Develop the foundational `FilterEngine` class that will encapsulate all filtering logic, taking the configuration model as input.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Create a new file `anivault/core/filter.py`. Inside this file, define a class named `FilterEngine`. The constructor `__init__` should accept an instance of the `FilterConfig` model created in the previous subtask. Create placeholder methods `should_skip_directory(self, dir_name: str) -> bool` and `should_skip_file(self, file_path: str, file_stat: os.stat_result) -> bool`. This class will serve as the central point for all filtering decisions.",
+            "status": "done",
+            "testStrategy": "Write a unit test to ensure the `FilterEngine` can be initialized correctly with a `FilterConfig` object. Test that the placeholder methods exist and have the correct signature."
+          },
+          {
+            "id": 3,
+            "title": "Implement Directory-Level Filtering Logic",
+            "description": "Implement the logic within the `FilterEngine` to identify and skip excluded directories based on pattern matching.",
+            "dependencies": [
+              "3.2"
+            ],
+            "details": "In `anivault/core/filter.py`, implement the `should_skip_directory` method. This method should iterate through the `excluded_dir_patterns` from its configuration. Use the `fnmatch` module to check if the given `dir_name` matches any of the exclusion patterns. The method should return `True` if a match is found, indicating the directory should be skipped.",
+            "status": "done",
+            "testStrategy": "Create unit tests for the `should_skip_directory` method. Test with various directory names against a sample configuration, including cases that should be skipped (e.g., '.git', 'node_modules', '$RECYCLE.BIN') and cases that should not."
+          },
+          {
+            "id": 4,
+            "title": "Implement File-Level Filtering Logic",
+            "description": "Implement the logic within the `FilterEngine` to filter individual files based on extension, size, and name patterns.",
+            "dependencies": [
+              "3.2"
+            ],
+            "details": "In `anivault/core/filter.py`, implement the `should_skip_file` method. The logic should apply filters in order of efficiency: first, check against `allowed_extensions`. Second, use `fnmatch` to check the filename against `excluded_filename_patterns`. Finally, check if the file size from the `file_stat` object is less than `min_file_size_mb`. The method should return `True` if the file fails any of these checks. Note that the file size check is last as it depends on an `os.stat` call which is more expensive.",
+            "status": "done",
+            "testStrategy": "Write comprehensive unit tests for `should_skip_file`. Test each filter type in isolation: a file with a wrong extension, a file with a matching exclusion pattern (e.g., 'anime-sample.mkv'), and a file smaller than the minimum size. Also test combinations to ensure the logic is correct."
+          },
+          {
+            "id": 5,
+            "title": "Integrate FilterEngine into DirectoryScanner",
+            "description": "Modify the `DirectoryScanner` to use the `FilterEngine` to actively prune directories and files during the traversal process.",
+            "dependencies": [
+              "3.3",
+              "3.4"
+            ],
+            "details": "In `anivault/core/scanner.py`, update the `DirectoryScanner`'s `__init__` to accept a `FilterEngine` instance. Inside the `scan` method's `os.walk` loop, call `engine.should_skip_directory` for each directory in the `dirs` list and remove matching directories from `dirs` in-place to prevent `os.walk` from traversing them. For each file, call `engine.should_skip_file` before adding it to the results list, passing the file's path and its `os.stat_result` (use `os.scandir` for efficiency if possible).",
+            "status": "done",
+            "testStrategy": "Create an integration test for the `DirectoryScanner`. Set up a test directory structure with a mix of valid files, skippable files (samples, trailers), and skippable directories (.git). Run the scanner with a specific filter configuration and assert that the final list of files is exactly as expected, containing only the valid files."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Integrate YAML-based Configuration Management",
+        "description": "Implement a configuration system that loads scan parameters from a YAML file, providing users with flexibility to customize scanner behavior.",
+        "details": "Use a library like `PyYAML` to parse a `config.yml` file. Expose settings for scan depth, include/exclude patterns for the filtering engine (Task 3), and performance vs. accuracy trade-offs (e.g., enabling/disabling certain checks). The application should load this configuration at startup and pass it to the `DirectoryScanner`.",
+        "testStrategy": "Test the loading of valid YAML files with different configurations. Test error handling for malformed or missing files. Verify that the `DirectoryScanner` and `FilteringEngine` correctly alter their behavior based on the loaded configuration.",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create YAML Configuration Loader Module",
+            "description": "Create a new module, e.g., `anivault/config.py`, responsible for handling the `config.yml` file. This module will define the default configuration structure and include a function to load the YAML file, creating a default one if it doesn't exist.",
+            "dependencies": [],
+            "details": "Add `PyYAML` to project dependencies. The loader function in `anivault/config.py` should search for `config.yml` in the application's root directory. If not found, it must generate a default `config.yml` with keys for `scan_depth`, `filters` (containing `include_patterns` and `exclude_patterns`), and `performance`. Implement error handling for `yaml.YAMLError` to gracefully manage malformed files.\n<info added on 2025-10-01T00:49:54.805Z>\nBased on the completed implementation in Task 4.1, this subtask's focus shifts from creation to refinement. The typed configuration model is already implemented using Pydantic in `src/anivault/config/settings.py`.\n\nYour goal is to review and finalize the existing Pydantic models (`Settings`, `FilterConfig`, `ScanConfig`, etc.) to ensure they are comprehensive and robust.\n\n**Implementation Notes:**\n- **File Location:** The relevant models are defined in `src/anivault/config/settings.py`.\n- **Verify Completeness:** Ensure the models cover all required configuration keys from the parent task, including:\n  - `scan_depth` (likely within a `ScanConfig` model).\n  - `filters` with `include_patterns` and `exclude_patterns` (likely within a `FilterConfig` model).\n  - A new `PerformanceConfig` model or section to manage performance-related settings.\n- **Default Values:** Leverage Pydantic's default values for each field. This effectively replaces the need to manually generate a default `config.yml`, as the `Settings` object will be populated with defaults if the `config/settings.yaml` file or specific keys are missing.\n- **Validation:** Rely on Pydantic's built-in type validation. Consider adding custom validators (e.g., using `@field_validator`) for fields that require specific constraints, such as ensuring `scan_depth` is a non-negative integer (or -1 for unlimited).\n</info added on 2025-10-01T00:49:54.805Z>",
+            "status": "done",
+            "testStrategy": "Test that a default `config.yml` is created if none exists. Test that a valid YAML file is parsed correctly. Test that the loader raises an appropriate exception for a malformed YAML file."
+          },
+          {
+            "id": 2,
+            "title": "Define a Typed Configuration Data Model",
+            "description": "Within the new `anivault/config.py` module, define a `dataclass` or a similar typed structure to represent the application's configuration, ensuring type safety and structured access to settings.",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create a `Config` data class with typed attributes like `scan_depth: int`, `filters: dict`, and `performance: dict`. The loading function from subtask 1 should parse the raw dictionary from YAML into an instance of this `Config` class. This provides autocompletion and static analysis benefits.",
+            "status": "done",
+            "testStrategy": "Verify that the loader function returns an instance of the `Config` data class. Test that accessing attributes of the returned object provides the correct values and types from the source YAML."
+          },
+          {
+            "id": 3,
+            "title": "Integrate Configuration Loading at Application Startup",
+            "description": "Modify the main application entry point, `anivault/main.py`, to invoke the new configuration loader at startup and make the configuration object available for other components.",
+            "dependencies": [
+              "4.2"
+            ],
+            "details": "In `anivault/main.py`, import the configuration loading function. Call this function at the beginning of the `main()` function to load the settings into the `Config` data class object. This object will be passed to the `DirectoryScanner` in the next step.\n<info added on 2025-10-01T00:50:31.335Z>\nBased on your feedback and a review of the codebase, the core integration is indeed already in place. The current implementation in `anivault/main.py` instantiates a `FilterEngine` using the configuration loaded into the global `SETTINGS` object from `anivault/config/settings.py` (specifically `SETTINGS.scan.filter`). This `FilterEngine` is then correctly passed to the `DirectoryScanner` during its initialization.\n\nTherefore, this subtask's focus shifts from initial implementation to verification and finalization.\n\n**Updated Action Items:**\n1.  Verify that the `main()` function in `anivault/main.py` correctly constructs the `FilterEngine` with the `FilterConfig` from `SETTINGS.scan.filter` and passes it to the `DirectoryScanner`.\n2.  Add a log statement at the beginning of the `main()` function to output the path of the loaded configuration file and confirm that the settings have been successfully initialized. This will improve debuggability.\n\nSince the primary dependency injection pattern is already established, completing these verification and logging steps will finalize this subtask.\n</info added on 2025-10-01T00:50:31.335Z>",
+            "status": "done",
+            "testStrategy": "Run the main application and verify through logging or debugging that the configuration is loaded successfully before any scanning operations begin. Test the application's behavior when `config.yml` is missing (it should create one and proceed) and when it's malformed (it should exit gracefully with an error message)."
+          },
+          {
+            "id": 4,
+            "title": "Refactor DirectoryScanner to Use Configuration Object",
+            "description": "Update the `DirectoryScanner` class to accept the `Config` object and use its settings, such as `scan_depth`, to control its behavior, removing hardcoded parameters.",
+            "dependencies": [
+              "4.3"
+            ],
+            "details": "Modify the `__init__` method of `anivault/scanner/directory_scanner.py` to accept the `Config` data class instance. Replace any hardcoded logic for scan depth with the value from `config.scan_depth`. The `DirectoryScanner` will now be responsible for holding the config and passing relevant parts to its sub-components.",
+            "status": "done",
+            "testStrategy": "Unit test the `DirectoryScanner` by passing it mock `Config` objects with different `scan_depth` values. Verify that the scanner correctly limits its traversal depth according to the provided configuration."
+          },
+          {
+            "id": 5,
+            "title": "Pass Filter Configuration to FilteringEngine",
+            "description": "Connect the configuration system to the `FilteringEngine` by passing the filter-related settings from the loaded configuration object during its initialization.",
+            "dependencies": [
+              "4.4"
+            ],
+            "details": "Inside `DirectoryScanner.__init__`, when initializing the `FilteringEngine` (from Task 3), pass the `config.filters` dictionary or a dedicated filter settings object to its constructor. Refactor `FilteringEngine` to parse this configuration and set up its internal rules for include/exclude patterns. This makes the filtering behavior directly controllable via `config.yml`.",
+            "status": "done",
+            "testStrategy": "Create an integration test where `DirectoryScanner` is initialized with a `Config` object containing specific include/exclude patterns. Run a scan and assert that the final list of files correctly reflects the filtering rules defined in the configuration."
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement Real-time Progress Tracking and Scan Cancellation",
+        "description": "Enhance the user experience by providing real-time feedback during long scans and allowing the user to gracefully cancel the operation.",
+        "details": "The `DirectoryScanner` should accept a callback function to report progress (e.g., number of paths scanned, current directory). Implement a thread-safe cancellation flag (`threading.Event` or similar) that the scanner checks periodically. When the flag is set, the scanner should stop processing new directories and clean up resources before returning. Calculate and report an estimated time remaining (ETR).",
+        "testStrategy": "Create a mock UI or logger that receives progress updates and verify they are sent at regular intervals. Write a test that starts a scan on a large directory, triggers the cancellation flag from another thread, and asserts that the scan stops prematurely but gracefully. Verify that no resource leaks occur on cancellation.",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Modify DirectoryScanner to Accept Callbacks and a Cancellation Event",
+            "description": "Update the `DirectoryScanner` class in `src/anivault/core/scanner.py` to accept and store a progress callback function and a `threading.Event` for cancellation. This will form the foundation for progress tracking and cancellation features.",
+            "dependencies": [],
+            "details": "Modify the `DirectoryScanner.__init__` method to accept `progress_callback: Optional[Callable] = None` and `cancel_event: Optional[threading.Event] = None`. Store these as instance attributes. Additionally, introduce a `threading.Lock` instance attribute (`self._lock = threading.Lock()`) to prepare for making counter increments thread-safe.",
+            "status": "done",
+            "testStrategy": "Update unit tests for `DirectoryScanner` to verify that it can be instantiated with a mock callback and event object, and that these are correctly stored on the instance."
+          },
+          {
+            "id": 2,
+            "title": "Make Shared Counters Thread-Safe",
+            "description": "Refactor the `_scan_directory` method to ensure that modifications to shared counters like `self.scanned_paths` are thread-safe to prevent race conditions.",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "In `src/anivault/core/scanner.py`, locate the `_scan_directory` method. Wrap the increment operation `self.scanned_paths += 1` with the `threading.Lock` created in the previous subtask (e.g., `with self._lock: self.scanned_paths += 1`). Similarly, in the main `scan` method's `as_completed` loop, protect the updates to `self.total_files` and `self.total_dirs` with the same lock.\n<info added on 2025-10-01T00:54:35.048Z>\n**UPDATE:** This subtask is marked as complete as the required functionality was already implemented in a more robust manner, likely as part of Task 2 (Parallel Directory Traversal).\n\nInstead of adding locks directly within the `DirectoryScanner`, the codebase utilizes a dedicated `ScanStatistics` class (defined in `src/anivault/core/statistics.py`). This class encapsulates all scan counters and manages its own thread-safety internally using a `threading.Lock`. All counter-mutating methods (e.g., `increment_files_scanned`) and property accessors within `ScanStatistics` are protected by this lock.\n\nThe `DirectoryScanner` in `src/anivault/core/scanner.py` already instantiates and uses this thread-safe `ScanStatistics` object to track progress. Therefore, the objective of making shared counters thread-safe is already achieved, and no further changes are necessary.\n</info added on 2025-10-01T00:54:35.048Z>",
+            "status": "done",
+            "testStrategy": "This is difficult to test directly without stress testing. The primary verification will be observing correct counts in integration tests after other features are implemented. Code review is critical here."
+          },
+          {
+            "id": 3,
+            "title": "Integrate Graceful Cancellation Check into Scanning Logic",
+            "description": "Implement checks for the `cancel_event` within the directory scanning loops to allow for graceful termination of the scan.",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "In `_scan_directory`, add a check `if self.cancel_event and self.cancel_event.is_set(): return [], []` at the beginning of the method. In the main `scan` method, add a similar check inside the `for future in as_completed(futures):` loop. If the event is set, break the loop to stop processing completed futures and prevent new subdirectories from being submitted.\n<info added on 2025-10-01T00:54:50.415Z>\nUpon review, this functionality is already implemented in the `DirectoryScanner` class.\n\nThe scanner utilizes a `threading.Event` named `_stop_event` to manage graceful cancellation. Checks for `self._stop_event.is_set()` are correctly placed within the `_parallel_scan_directory` and `scan_files` methods, ensuring that both directory traversal and file processing loops can be terminated early.\n\nAdditionally, the main processing loop in the `run` method, which uses `concurrent.futures.as_completed`, includes logic to break when the stop event is set. It also goes a step further by iterating through the remaining `futures` and calling `future.cancel()` on each, ensuring a clean and rapid shutdown of the thread pool. This existing implementation fully satisfies the requirements of this subtask.\n</info added on 2025-10-01T00:54:50.415Z>",
+            "status": "done",
+            "testStrategy": "Write a test that starts a scan on a large directory structure. From a separate thread, set the `cancel_event` after a short delay. Assert that the `scan` method returns prematurely and that the number of scanned paths is less than the total possible."
+          },
+          {
+            "id": 4,
+            "title": "Implement Progress Reporting and ETR Calculation",
+            "description": "Invoke the progress callback with real-time scan data, including an Estimated Time Remaining (ETR), from within the main scan loop.",
+            "dependencies": [
+              "5.2",
+              "5.3"
+            ],
+            "details": "In the `scan` method, track the number of submitted and completed futures. Inside the `as_completed` loop, calculate the scan rate (completed futures / elapsed time). Use this to calculate ETR for the remaining queued futures. Create a `ProgressUpdate` TypedDict or dataclass to hold `paths_scanned`, `files_found`, `dirs_found`, and `etr`. Populate this object using the thread-safe counters and ETR calculation, then call `self.progress_callback(update)` if it exists.\n<info added on 2025-10-01T00:55:20.699Z>\n**Implementation Update:**\nA private `_report_progress` method was added to the `DirectoryScanner` to act as a safe wrapper for the `progress_callback`. This implementation includes a `try...except` block to catch and log any errors from the callback, preventing them from halting the entire scan. For flexibility, progress data is passed as arbitrary keyword arguments (`**kwargs`) rather than a predefined `TypedDict`, allowing for easy addition of new metrics. This method is called within the `as_completed` loop with calculated statistics like ETR, `paths_scanned`, `files_found`, and `dirs_found`.\n</info added on 2025-10-01T00:55:20.699Z>",
+            "status": "done",
+            "testStrategy": "Create a test that provides a mock callback function to the scanner. Run a scan and assert that the callback is called multiple times. Verify that the data passed to the callback (e.g., `paths_scanned`) is monotonically increasing and the ETR is a plausible number."
+          },
+          {
+            "id": 5,
+            "title": "Update ScanResult to Reflect Scan Status",
+            "description": "Modify the `ScanResult` model and the `DirectoryScanner.scan` method's return value to indicate whether the scan completed successfully or was cancelled.",
+            "dependencies": [
+              "5.3"
+            ],
+            "details": "First, read `src/anivault/core/models.py` and add a `status: str` field to the `ScanResult` dataclass/class. In the `DirectoryScanner.scan` method, determine the final status. If the `cancel_event` was set, set `status = 'cancelled'`. Otherwise, set `status = 'completed'`. Update the return statement to include this status in the final `ScanResult` object.",
+            "status": "done",
+            "testStrategy": "Extend the cancellation test from subtask 5.3. After triggering cancellation and the scan returns, assert that the returned `ScanResult` object has its `status` attribute set to 'cancelled'. Run a separate, uninterrupted scan and assert its status is 'completed'."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Optimize Memory Usage with Streaming and Adaptive Batching",
+        "description": "Refactor the data handling logic to process files in a streaming fashion rather than collecting all paths in memory, ensuring scalability for 500,000+ files.",
+        "details": "Modify the scanner to `yield` file paths or small batches of paths as they are discovered, instead of returning a single large list. This creates a generator-based pipeline. Implement a backpressure mechanism or adaptive batching to pause discovery if downstream consumers (like a parser) are slow, preventing memory spikes. Use `gc.collect()` hints after processing large batches.",
+        "testStrategy": "Run the scanner on a very large dataset (500k+ files) using the benchmark suite. Monitor memory usage with `memory_profiler` to ensure it stays below the 200MB target. Verify that the streaming output processes all files correctly and in the expected order.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Refactor DirectoryScanner.scan to be a Generator",
+            "description": "Modify the primary scanning method in `DirectoryScanner` to `yield` file paths as they are discovered, instead of collecting them into a single large list. This is the foundational change to convert the data pipeline from a batch process to a stream.",
+            "dependencies": [],
+            "details": "Based on the codebase structure, the `scan` method within `src/anivault/scanner/directory_scanner.py` currently returns a `list[str]`. This method must be refactored to remove the internal list that accumulates all paths. Instead, as each valid file path is identified by the directory traversal logic (whether single-threaded or parallel), it should be immediately yielded using `yield file_path`. The method's return type annotation must be updated to `Generator[str, None, None]`. This change will need to be compatible with the `ThreadPoolExecutor` logic from Task 2, ensuring results from futures are yielded iteratively, not collected.",
+            "status": "done",
+            "testStrategy": "Update a basic test case to consume the generator (e.g., using `list(scanner.scan())`) and assert that the total count of yielded items matches the expected file count for a small test directory. This verifies the core API change."
+          },
+          {
+            "id": 2,
+            "title": "Implement Configurable Batch Yielding",
+            "description": "Modify the generator to `yield` small batches (lists) of paths instead of individual strings. This improves performance by reducing the frequency of `yield` calls and provides a discrete unit of work for downstream consumers.",
+            "dependencies": [
+              "6.1"
+            ],
+            "details": "Update the `scan` method in `src/anivault/scanner/directory_scanner.py`. Introduce a temporary list to act as a batch buffer. As file paths are discovered, append them to this buffer. When the buffer size reaches a configurable `batch_size` (e.g., 500), `yield` the entire batch list and then clear it. A final, partially-filled batch must be yielded after the traversal is complete. The method's return type annotation will change to `Generator[list[str], None, None]`. The `batch_size` should be added as a parameter to the `ScannerConfig`.",
+            "status": "done",
+            "testStrategy": "Write a unit test that calls `scan` with a specific `batch_size` on a directory with a known number of files. Assert that the generator yields the correct number of batches and that the final batch has the correct number of remaining items."
+          },
+          {
+            "id": 3,
+            "title": "Integrate a Bounded Queue for Backpressure",
+            "description": "Introduce a thread-safe, size-limited queue to act as a buffer between the file discovery worker threads and the main generator consumer. This creates a natural backpressure mechanism, pausing file discovery when downstream processing is slow, thus controlling memory usage.",
+            "dependencies": [
+              "6.2"
+            ],
+            "details": "Refactor the parallel scanning logic that uses `ThreadPoolExecutor`. Instead of futures returning results directly, the worker functions should `put()` completed path batches into a shared `queue.Queue` instance initialized with a small `maxsize` (e.g., 4). The main `scan` generator loop will then `get()` batches from this queue and `yield` them. The `put()` call will block when the queue is full, effectively pausing the worker threads and preventing them from consuming excessive memory by discovering files too far ahead of the consumer.",
+            "status": "done",
+            "testStrategy": "Create a test with a slow consumer (e.g., by adding `time.sleep()` in the loop that processes yielded batches). Monitor the size of the internal queue or the state of worker threads to verify that producers are correctly blocked when the queue is full, demonstrating that backpressure is effective."
+          },
+          {
+            "id": 4,
+            "title": "Add Periodic Garbage Collection Hints",
+            "description": "Introduce strategic calls to `gc.collect()` to encourage the Python garbage collector to free memory after a significant number of files have been processed, helping to keep the memory footprint low and stable during very large scans.",
+            "dependencies": [
+              "6.2"
+            ],
+            "details": "In the main generator loop of the `scan` method, after a batch has been yielded, increment a counter for the total number of processed files. When this counter exceeds a large, configurable threshold (e.g., 50,000 files), call `gc.collect()` and reset the counter. This threshold should be part of `ScannerConfig` to allow tuning. This prevents the performance overhead of calling `gc.collect()` too frequently while still prompting memory cleanup at sensible intervals.",
+            "status": "done",
+            "testStrategy": "This is difficult to unit test directly. The primary validation will be through memory profiling during the full benchmark test in subtask 6.5. A log message can be added when `gc.collect()` is triggered to verify it's being called at the correct intervals during a test run."
+          },
+          {
+            "id": 5,
+            "title": "Update Consumers and Tests for Streaming API",
+            "description": "Audit the codebase for all usages of `DirectoryScanner.scan` and update them to correctly handle the new generator-based return type. Adapt the test suite to work with the streaming/batching API and add a memory benchmark.",
+            "dependencies": [
+              "6.1"
+            ],
+            "details": "Use search tools to find all call sites of `DirectoryScanner.scan`. Refactor the calling code from expecting a list (e.g., `results = scanner.scan()`) to iterating over the generator (e.g., `for batch in scanner.scan(): ...`). Update tests in `tests/scanner/` that perform assertions on the entire result set (like `len()`) to first consume the generator into a list. Crucially, implement the test described in the parent task's Test Strategy: create a benchmark test using `memory_profiler` to run a scan on 500k+ files and assert that peak memory usage remains below the 200MB target.",
+            "status": "done",
+            "testStrategy": "Execute the entire updated test suite to ensure no regressions were introduced. Run the new `memory_profiler` benchmark and verify it passes the memory constraint. Manually verify that any UI or logging components that consume scan results still function correctly."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement Directory-Level Caching for Incremental Scans",
+        "description": "Add a caching mechanism to store directory modification times, allowing the scanner to skip unchanged directories on subsequent runs.",
+        "details": "Before scanning a directory, check its modification time (`os.stat().st_mtime`). Compare it against a stored value in a cache file (e.g., a JSON or SQLite database). If the timestamp is unchanged, skip scanning that directory and use the cached list of files/subdirectories. If it has changed, re-scan it and update the cache. This is crucial for fast 'refresh' operations.",
+        "testStrategy": "Run a scan, then run it again immediately and assert that the second scan is significantly faster and logs indicate cache hits. Modify a file in a subdirectory, re-run the scan, and verify that only the modified directory and its parents are re-scanned. Test cache invalidation and correctness.",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create `CacheManager` for Cache File Operations",
+            "description": "Develop a new `CacheManager` class in `src/anivault/scanner/cache.py`. This class will be responsible for loading the cache from a JSON file (e.g., `.anivault_cache.json`) at initialization and saving it back to the file. It must handle file-not-found errors gracefully by creating an empty in-memory cache.",
+            "dependencies": [],
+            "details": "The class should provide `load_cache()` and `save_cache()` methods for file I/O. It should also expose methods like `get_dir_data(path)` and `update_dir_data(path, data)` to interact with the in-memory cache. The data stored for each directory path should be a dictionary containing its modification time (`mtime`), a list of its contained files (`files`), and a list of its subdirectories (`subdirs`).",
+            "status": "done",
+            "testStrategy": "Unit test the `CacheManager` class. Verify it can correctly load a valid JSON cache file, save the in-memory cache to a file, and handle a missing cache file by creating a new one on save."
+          },
+          {
+            "id": 2,
+            "title": "Integrate `CacheManager` into the `DirectoryScanner` Lifecycle",
+            "description": "Modify the `DirectoryScanner` class to instantiate and manage the `CacheManager`. The cache must be loaded when a scan begins and saved when it completes successfully.",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "In the `DirectoryScanner.__init__` method, create an instance of the `CacheManager`. The main `scan()` method should be updated to call `self.cache_manager.load_cache()` before scanning starts and `self.cache_manager.save_cache()` after the scan finishes. This ensures the cache is always in a consistent state before and after a run.\n<info added on 2025-10-01T00:58:50.820Z>\nThe `DirectoryCacheManager` is now confirmed to be complete, providing thread-safe operations, JSON-based persistence, and robust error handling for corrupted files. This makes it ready for integration into the scanner's lifecycle.\n\n**Implementation Notes:**\n- In `src/anivault/scanner/directory_scanner.py`, update the `DirectoryScanner`'s `scan` method.\n- To ensure cache integrity, especially with potential scan cancellations (Task 5) or errors, the core scanning logic should be placed within a `try...finally` block.\n- Call `self.cache_manager.load_cache()` before the `try` block.\n- Call `self.cache_manager.save_cache()` within the `finally` block to guarantee it runs upon completion or interruption.\n- The confirmed thread-safety of the `DirectoryCacheManager` is essential, as it will operate within the multi-threaded environment of the `ThreadPoolExecutor` implemented in Task 2.\n</info added on 2025-10-01T00:58:50.820Z>",
+            "status": "done",
+            "testStrategy": "Verify that a cache file is created after a scan. Run a scan, then check that `load_cache` and `save_cache` are called by mocking the `CacheManager` methods and asserting they were called."
+          },
+          {
+            "id": 3,
+            "title": "Refactor Scanning Logic to a Recursive Method for Cache Integration",
+            "description": "Replace the existing `os.walk` loop in `DirectoryScanner.scan()` with a new internal recursive method, e.g., `_scan_directory(path)`. This refactoring is essential to allow for checking the cache at each directory level before deciding whether to descend further.",
+            "dependencies": [
+              "7.2"
+            ],
+            "details": "The new `_scan_directory(path)` method should use `os.scandir()` to iterate through directory entries, which is more performant. It will be responsible for processing a single directory and recursively calling itself for subdirectories. The main `scan()` method will now initialize the process by calling `_scan_directory(self.root_dir)`. This structure is crucial for both caching and future parallelization (Task 2).",
+            "status": "done",
+            "testStrategy": "After refactoring, run existing scanner tests to ensure the output (list of files) remains identical to the `os.walk` implementation. Benchmark to ensure performance has not regressed."
+          },
+          {
+            "id": 4,
+            "title": "Implement Cache Check and Hit Logic in the Recursive Scan",
+            "description": "Within the new `_scan_directory(path)` method, implement the core cache-read logic. Before scanning a directory's contents from the filesystem, get its modification time and check it against the value stored in the `CacheManager`.",
+            "dependencies": [
+              "7.3"
+            ],
+            "details": "At the beginning of `_scan_directory(path)`, get `os.stat(path).st_mtime`. Compare this with the `mtime` from `self.cache_manager.get_dir_data(path)`. If they match (a 'cache hit'), retrieve the file and subdirectory lists from the cache, add them to the scan results, and recursively call `_scan_directory` on the cached subdirectories. The filesystem should not be accessed for this directory.",
+            "status": "done",
+            "testStrategy": "Create a test where a scan is run twice on an unchanged directory. Assert that the second scan is significantly faster. Use logging or mocks to verify that the second scan reads from the cache instead of using `os.scandir`."
+          },
+          {
+            "id": 5,
+            "title": "Implement Cache Miss and Update Logic",
+            "description": "Handle the 'cache miss' scenario within `_scan_directory(path)`. If a directory is not in the cache or its modification time has changed, scan it from the filesystem and update the cache with the new information.",
+            "dependencies": [
+              "7.4"
+            ],
+            "details": "If the cache check fails, proceed with the `os.scandir()` iteration to get current files and subdirectories. After collecting this information, call `self.cache_manager.update_dir_data()` with the directory's path, its new `mtime`, and the freshly collected lists of files and subdirectories. This ensures the cache is populated and corrected for the next run.",
+            "status": "done",
+            "testStrategy": "Run a scan, then modify a file within a subdirectory. Run the scan again. Verify that only the modified directory and its parents are re-scanned from the filesystem, while other directories result in a cache hit. Check that the cache file is updated with the new `mtime`."
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Add Platform-Specific Optimizations and Final Validation",
+        "description": "Fine-tune the scanner with platform-specific API calls if available and conduct a final validation run to ensure all success metrics are met.",
+        "details": "Research and implement platform-specific optimizations. For example, on Windows, investigate using the `FindFirstFile`/`FindNextFile` APIs via `ctypes` for potentially faster directory enumeration. On Linux, ensure the use of `scandir` is optimal. Run the full benchmark suite from Task 1 on all target platforms (Windows, Linux, macOS) to confirm that throughput, memory, and responsiveness goals are met or exceeded across the board.",
+        "testStrategy": "Execute the full benchmark suite on Windows, Linux, and macOS environments. Compare the results against the PRD's success metrics (150k+ paths/min, <200MB memory for 500k files). Perform a final regression test to ensure all features (filtering, cancellation, caching) work together correctly. The final deliverable is a report confirming all metrics are met.",
+        "priority": "low",
+        "dependencies": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Windows-Specific Directory Iterator using ctypes",
+            "description": "Create a new directory iteration function for Windows using the `ctypes` library to call the native Win32 APIs `FindFirstFileW`, `FindNextFileW`, and `FindClose`. This function should be designed as a drop-in replacement for `os.scandir` to yield directory entries.",
+            "dependencies": [],
+            "details": "In a new utility module, e.g., `src/anivault/scanner/platform_utils.py`, implement a generator function that interacts with `kernel32.dll`. This function will handle Unicode paths (`W` suffix), correctly manage file handles with `FindClose`, and yield objects that mimic the `os.DirEntry` interface (providing `name`, `path`, `is_dir()`, `is_file()`). This is expected to be faster than Python's default `os.scandir` on Windows for very large directories.",
+            "status": "done",
+            "testStrategy": "Write unit tests that call the new ctypes-based iterator on a test directory structure. Verify that it correctly lists all files and subdirectories, including those with Unicode characters. Test edge cases like empty directories and access-denied errors."
+          },
+          {
+            "id": 2,
+            "title": "Review and Optimize os.scandir Usage for Linux/macOS",
+            "description": "Research and verify that the current implementation of the parallel scanner in `directory_scanner.py` uses `os.scandir` in the most performant way for POSIX-compliant systems like Linux and macOS. Implement any identified micro-optimizations.",
+            "dependencies": [],
+            "details": "Based on the analysis of `src/anivault/scanner/directory_scanner.py`, the core loop uses `os.scandir`. This subtask involves researching potential performance pitfalls, such as excessive `stat` calls or inefficient error handling within the loop on ext4/APFS filesystems. Confirm that the existing implementation is sound or apply minor refactoring to improve its efficiency on these platforms.",
+            "status": "done",
+            "testStrategy": "No new tests are required if no code changes are made. If optimizations are applied, re-run the existing `tests/test_directory_scanner.py` suite on a Linux or macOS environment to ensure no regressions are introduced and that the file/directory count remains accurate."
+          },
+          {
+            "id": 3,
+            "title": "Integrate Platform-Specific Iterators into DirectoryScanner",
+            "description": "Modify the `DirectoryScanner` class to dynamically select the appropriate directory iteration function at runtime based on the operating system (`sys.platform`).",
+            "dependencies": [
+              "8.1",
+              "8.2"
+            ],
+            "details": "In `src/anivault/scanner/directory_scanner.py`, add logic at the class or method level to check `sys.platform`. If the platform is 'win32', the scanner's internal directory processing method (`_process_directory`) should use the new ctypes-based iterator from `platform_utils.py`. For all other platforms (e.g., 'linux', 'darwin'), it should continue to use the existing `os.scandir` implementation.",
+            "status": "done",
+            "testStrategy": "Manually run a small scan on both a Windows machine and a Linux/macOS machine to confirm the correct code path is being executed. Add a unit test that mocks `sys.platform` to verify that the `DirectoryScanner` attempts to call the correct underlying function for each platform."
+          },
+          {
+            "id": 4,
+            "title": "Execute Cross-Platform Performance Benchmark Suite",
+            "description": "Run the full performance benchmark suite on dedicated Windows, Linux, and macOS environments to gather final performance data for throughput and memory usage.",
+            "dependencies": [
+              "8.3"
+            ],
+            "details": "Using the script `src/anivault/scanner/performance_benchmark.py` (created in Task 1), execute the benchmark against a standardized large directory structure (e.g., 500k files). Run the benchmark multiple times on each target OS (Windows, Linux, macOS) to ensure results are consistent. Record the average paths/minute, peak memory usage, and total execution time for each platform.",
+            "status": "done",
+            "testStrategy": "The task itself is a test execution. The strategy is to ensure the testing environment is clean and consistent for each run to produce reliable and comparable data. Document the hardware specifications of the test machines for context."
+          },
+          {
+            "id": 5,
+            "title": "Analyze Benchmark Results and Conduct Final Regression Test",
+            "description": "Compare the collected benchmark data against the project's success metrics and perform a final, full-feature regression test to ensure system stability and correctness.",
+            "dependencies": [
+              "8.4"
+            ],
+            "details": "Create a summary report comparing the benchmark results from all three platforms against the PRD goals (150k+ paths/min, <200MB memory for 500k files). Following the performance validation, conduct a manual or semi-automated regression test to verify that all major features—including YAML configuration (Task 4), filtering, progress tracking, and cancellation (Task 5)—function correctly with the new platform-specific optimizations in place.",
+            "status": "done",
+            "testStrategy": "The analysis will be validated by comparing numbers directly against the documented success criteria. The regression test will involve creating a `config.yml` with specific filters, running a scan, observing progress updates, triggering cancellation, and verifying the output is as expected."
+          }
+        ]
+      }
+    ],
     "metadata": {
       "created": "2025-09-30T00:46:41.148Z",
-      "updated": "2025-09-30T00:46:41.148Z",
-      "description": "W7: 디렉토리 스캔 최적화 (Generator/Streaming) - 메모리 효율적 디렉토리 스캔, os.scandir() 기반, 메모리 프로파일링"
+      "updated": "2025-10-01T00:58:51.296Z",
+      "description": "Tasks for w7-directory-scan-optimization context"
     }
   },
   "w8-parsing-fallback-fuzzer": {
-    "tasks": [],
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Define Core Parser Models and Install Dependencies",
+        "description": "Create the foundational data structures for the parsing system and set up the project environment with the necessary third-party libraries. This includes defining the `ParsingResult` dataclass which will be the unified output format for all parsers.",
+        "details": "1. Create a new file `src/anivault/core/parser/models.py`. 2. Inside this file, define the `ParsingResult` dataclass as specified in the PRD, including fields like `title`, `episode`, `season`, `quality`, `confidence`, `parser_used`, etc. Ensure all fields are properly typed, using `Optional` where appropriate. 3. Add `anitopy` and `hypothesis` to the project's dependencies in `pyproject.toml`.",
+        "testStrategy": "Create a simple unit test in `tests/core/parser/test_models.py` to verify that an instance of `ParsingResult` can be created with default values and that its attributes can be set correctly.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Parser Module and Test Directories",
+            "description": "Establish the necessary directory structure for the new parser module and its corresponding tests. This involves creating the `core/parser` directories within both `src/anivault` and `tests`.",
+            "dependencies": [],
+            "details": "1. Create the directory `src/anivault/core`. 2. Create the directory `src/anivault/core/parser`. 3. Create an empty file `src/anivault/core/__init__.py`. 4. Create an empty file `src/anivault/core/parser/__init__.py`. 5. Create the directory `tests/core`. 6. Create the directory `tests/core/parser`.",
+            "status": "done",
+            "testStrategy": "This is a structural task. Verification will be done by checking for the existence of the specified directories and `__init__.py` files in the project structure."
+          },
+          {
+            "id": 2,
+            "title": "Add `anitopy` Production Dependency",
+            "description": "Update the project's dependencies to include the `anitopy` library, which will serve as the primary parsing engine.",
+            "dependencies": [],
+            "details": "1. Open the `pyproject.toml` file. 2. Locate the `[tool.poetry.dependencies]` section. 3. Add a new line for `anitopy`, specifying a compatible version (e.g., `anitopy = \"^1.2.0\"`). 4. Run `poetry lock` and `poetry install` to apply the changes.",
+            "status": "done",
+            "testStrategy": "After running `poetry install`, verify that `anitopy` is listed in the output of `poetry show` and can be imported in a Python shell within the project's virtual environment."
+          },
+          {
+            "id": 3,
+            "title": "Add `hypothesis` Development Dependency",
+            "description": "Update the project's development dependencies to include the `hypothesis` library for property-based testing.",
+            "dependencies": [],
+            "details": "1. Open the `pyproject.toml` file. 2. Locate the `[tool.poetry.group.dev.dependencies]` section. 3. Add a new line for `hypothesis`, specifying a compatible version (e.g., `hypothesis = \"^6.88.0\"`). 4. Run `poetry lock` and `poetry install` to apply the changes.",
+            "status": "done",
+            "testStrategy": "After running `poetry install`, verify that `hypothesis` is listed in the output of `poetry show --group dev` and can be imported in a Python shell within the project's virtual environment."
+          },
+          {
+            "id": 4,
+            "title": "Define `ParsingResult` Dataclass in `models.py`",
+            "description": "Create the `ParsingResult` dataclass, which will serve as the standardized data structure for all parser outputs.",
+            "dependencies": [],
+            "details": "1. Create a new file at `src/anivault/core/parser/models.py`. 2. Import `dataclass` from `dataclasses` and `Optional` from `typing`. 3. Define a dataclass named `ParsingResult`. 4. Add the following typed fields: `title: str`, `episode: int`, `season: Optional[int]`, `quality: Optional[str]`, `confidence: float`, and `parser_used: str`.",
+            "status": "done",
+            "testStrategy": "This subtask's output is a Python class definition. It will be directly validated by the implementation of subtask 5, which will attempt to import and instantiate it."
+          },
+          {
+            "id": 5,
+            "title": "Implement Unit Test for `ParsingResult` Instantiation",
+            "description": "Create a basic unit test to verify that the `ParsingResult` dataclass can be instantiated correctly and its attributes hold the assigned values.",
+            "dependencies": [],
+            "details": "1. Create a new file at `tests/core/parser/test_models.py`. 2. Import `pytest` and `ParsingResult` from `src.anivault.core.parser.models`. 3. Create a test function, e.g., `test_parsing_result_instantiation`. 4. Inside the test, create an instance of `ParsingResult` with sample data. 5. Use `assert` statements to verify that each attribute of the created object matches the sample data provided during instantiation.",
+            "status": "done",
+            "testStrategy": "Run `pytest tests/core/parser/test_models.py`. The test should pass, confirming the `ParsingResult` model is correctly defined and functional."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Implement AnitopyParser Wrapper",
+        "description": "Develop a wrapper class for the `anitopy` library to serve as the primary parsing engine. This class will abstract the direct usage of `anitopy` and translate its output into the standardized `ParsingResult` format.",
+        "details": "1. Create the file `src/anivault/core/parser/anitopy_parser.py`. 2. Implement the `AnitopyParser` class with a `parse` method that takes a filename string. 3. The `parse` method should call `anitopy.parse()`, handle potential exceptions gracefully, and use a private helper method `_convert_to_result` to map the `anitopy` dictionary output to a `ParsingResult` object. 4. Implement the episode and season extraction logic as outlined in the PRD.",
+        "testStrategy": "In `tests/core/parser/test_anitopy_parser.py`, write unit tests that pass various common filenames to `AnitopyParser.parse()` and assert that the returned `ParsingResult` object contains the correctly extracted title, episode, quality, etc. Test edge cases like filenames that `anitopy` might fail to parse.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create AnitopyParser Class and File Structure",
+            "description": "Create the file `src/anivault/core/parser/anitopy_parser.py` and define the `AnitopyParser` class. The class should inherit from `BaseParser` and have the basic structure for the `parse` method and the private `_convert_to_result` helper.",
+            "dependencies": [],
+            "details": "In `src/anivault/core/parser/anitopy_parser.py`, import `anitopy`, `BaseParser` from `anivault.core.parser.base_parser`, and `ParsingResult` from `anivault.core.models`. Define the class `AnitopyParser(BaseParser)` with a `parse` method signature that matches the base class and a placeholder for the `_convert_to_result` private method.",
+            "status": "done",
+            "testStrategy": "N/A - This is a structural setup task. Verification will occur in subsequent subtasks."
+          },
+          {
+            "id": 2,
+            "title": "Implement Core Parsing Logic and Exception Handling",
+            "description": "Implement the main `parse` method to call the `anitopy.parse()` function. It must include robust error handling to catch any exceptions from the anitopy library and return a default `ParsingResult` in case of failure.",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "In the `AnitopyParser.parse` method, wrap the call to `anitopy.parse(filename)` in a `try...except` block. If an exception occurs, log the error and return a default `ParsingResult` instance initialized with the `raw_filename`. If successful, pass the resulting dictionary to the `_convert_to_result` helper method and return its result.",
+            "status": "done",
+            "testStrategy": "In `tests/core/parser/test_anitopy_parser.py`, create a test that passes a malformed or problematic filename that causes `anitopy` to fail, and assert that a default `ParsingResult` is returned without crashing."
+          },
+          {
+            "id": 3,
+            "title": "Implement Basic Field Mapping in `_convert_to_result`",
+            "description": "Implement the initial version of the `_convert_to_result` helper method to map the straightforward fields from the anitopy dictionary to the `ParsingResult` object.",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "In `_convert_to_result`, take the anitopy dictionary as input. Map the following keys directly to their corresponding `ParsingResult` fields: 'anime_title', 'file_resolution', 'video_codec', 'audio_codec', and 'release_group'. Ensure that `None` is used if a key is not present in the anitopy output.",
+            "status": "done",
+            "testStrategy": "In `tests/core/parser/test_anitopy_parser.py`, test a standard filename like '[SubsPlease] My Anime (2023) - 01 (1080p) [F22923E8].mkv' and assert that `anime_title`, `file_resolution`, and `release_group` are correctly populated in the result."
+          },
+          {
+            "id": 4,
+            "title": "Implement Episode and Season Number Extraction Logic",
+            "description": "Enhance the `_convert_to_result` method with specific logic to correctly parse and convert episode and season numbers from the anitopy output.",
+            "dependencies": [
+              "2.3"
+            ],
+            "details": "Within `_convert_to_result`, add logic to handle the 'episode_number' and 'anime_season' keys from the anitopy result. Anitopy may return these as strings, lists, or a single number. Ensure the logic correctly identifies the primary episode number, converts it to an integer, and assigns it to `episode_number`. Do the same for `season_number`. Handle cases where an episode number might be a list (e.g., for multi-episode files) by taking the first valid number.",
+            "status": "done",
+            "testStrategy": "Add tests for various episode/season formats: a simple number ('05'), a prefixed number ('E05'), a season and episode ('S02E05'), and a list of numbers. Assert that `episode_number` and `season_number` are correctly extracted as integers."
+          },
+          {
+            "id": 5,
+            "title": "Implement Confidence Scoring and `other_info` Population",
+            "description": "Finalize the `_convert_to_result` method by implementing confidence score calculation and populating the `other_info` field with unmapped data from the anitopy result.",
+            "dependencies": [
+              "2.3",
+              "2.4"
+            ],
+            "details": "In `_convert_to_result`, calculate a `confidence` score. A simple approach is to assign a high score (e.g., 0.9) if both `anime_title` and `episode_number` are found, a medium score (e.g., 0.6) if only `anime_title` is found, and a low score otherwise. Then, iterate through the anitopy dictionary and add any keys that were not mapped to a specific `ParsingResult` field to the `other_info` list as 'key: value' strings.",
+            "status": "done",
+            "testStrategy": "Test a filename that results in a successful parse and assert the confidence score is high. Test a filename where only the title is found and assert the confidence is medium. For both cases, check that the `other_info` field contains any expected leftover data from the anitopy output."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Implement Regex-Based FallbackParser",
+        "description": "Create a secondary, regex-based parser that will be used when the primary `AnitopyParser` fails to extract essential information. This parser will handle common filename patterns that `anitopy` might miss.",
+        "details": "1. Create the file `src/anivault/core/parser/fallback_parser.py`. 2. Implement the `FallbackParser` class. 3. Define the class-level `PATTERNS` list with the initial regular expressions provided in the PRD. 4. Implement the `parse` method to iterate through the patterns, find a match, and populate a `ParsingResult` object. 5. Add logic to extract secondary information like quality, codec, and source using separate regex patterns.",
+        "testStrategy": "In `tests/core/parser/test_fallback_parser.py`, create specific unit tests for each regex pattern. For each pattern, provide a sample filename that should match and assert that all expected fields (`title`, `episode`, `season`, etc.) are correctly extracted.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create FallbackParser Class and File Structure",
+            "description": "Create the file `src/anivault/core/parser/fallback_parser.py` and define the `FallbackParser` class structure. The class should import `ParsingResult` and have a `parse` method stub.",
+            "dependencies": [],
+            "details": "In `src/anivault/core/parser/fallback_parser.py`, create the `FallbackParser` class. Import the `ParsingResult` from `anivault.core.models`. Define the `parse` method with the signature `def parse(self, filename: str) -> ParsingResult:`. The method should initially return an empty `ParsingResult` object.",
+            "status": "done",
+            "testStrategy": "No specific test needed for this setup task, but subsequent tests will fail until this is complete."
+          },
+          {
+            "id": 2,
+            "title": "Define and Implement Primary Regex Patterns",
+            "description": "Define the class-level `PATTERNS` list within `FallbackParser` and implement the main loop in the `parse` method to iterate through them and find a match for essential information (title, season, episode).",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Inside the `FallbackParser` class, create a class attribute `PATTERNS` as a list of compiled regular expressions. These patterns should use named capture groups (`?P<title>`, `?P<season>`, `?P<episode>`) for clarity. In the `parse` method, loop through `self.PATTERNS`, attempt to match each one against the filename, and break the loop upon the first successful match.",
+            "status": "done",
+            "testStrategy": "This will be tested in subtask 3.5, where specific filenames are crafted to match each of these primary patterns."
+          },
+          {
+            "id": 3,
+            "title": "Populate ParsingResult from Primary Match",
+            "description": "Using the `re.Match` object from a successful primary pattern match, extract the captured groups and populate a `ParsingResult` object with the title, season, and episode number.",
+            "dependencies": [
+              "3.2"
+            ],
+            "details": "After a successful regex match in the `parse` method, access the match object's `groupdict()`. Use the values for 'title', 'season', and 'episode' to instantiate and populate a `ParsingResult` object. Ensure type conversion is handled correctly (e.g., string to int for episode/season). If a match is not found after checking all patterns, return an empty `ParsingResult`.",
+            "status": "done",
+            "testStrategy": "Unit tests in `test_fallback_parser.py` will assert that for a given filename, the returned `ParsingResult` has the correct `title`, `season`, and `episode` values."
+          },
+          {
+            "id": 4,
+            "title": "Implement Secondary Information Extraction",
+            "description": "Add logic to extract secondary information like quality, codec, and source using a separate set of regular expressions that are applied after the primary information has been found.",
+            "dependencies": [
+              "3.3"
+            ],
+            "details": "Define additional regex patterns for secondary attributes (e.g., `QUALITY_PATTERNS`, `CODEC_PATTERNS`). After a `ParsingResult` object has been populated with primary info, iterate through these secondary patterns, and if a match is found in the filename, add the corresponding information (e.g., `result.quality = match.group(1)`) to the existing `ParsingResult` object.",
+            "status": "done",
+            "testStrategy": "Unit tests will be expanded to include filenames with secondary information (e.g., '[1080p]', '[x265]', '[Blu-ray]') and assert that these fields are correctly populated in the `ParsingResult`."
+          },
+          {
+            "id": 5,
+            "title": "Create Unit Tests for FallbackParser",
+            "description": "Create the test file `tests/core/parser/test_fallback_parser.py` and implement unit tests for each regex pattern to ensure correct data extraction.",
+            "dependencies": [
+              "3.4"
+            ],
+            "details": "In `tests/core/parser/test_fallback_parser.py`, create a `TestFallbackParser` class. For each regex pattern defined in `FallbackParser.PATTERNS`, write a dedicated test case. Each test should use a sample filename designed to be parsed by that specific pattern and assert that all expected fields (`title`, `episode`, `season`, `quality`, etc.) in the returned `ParsingResult` are correct.",
+            "status": "done",
+            "testStrategy": "This task is the implementation of the test strategy itself. It will involve creating a comprehensive suite of tests that cover all defined regex patterns and edge cases for the `FallbackParser`."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Implement UnifiedFilenameParser",
+        "description": "Develop the main parser class that orchestrates the parsing process by combining the primary (`anitopy`) and secondary (`fallback`) parsers into a single, cohesive interface.",
+        "details": "1. Create `src/anivault/core/parser/unified_parser.py`. 2. Implement the `UnifiedFilenameParser` class, which initializes instances of `AnitopyParser` and `FallbackParser`. 3. Implement the `parse` method as defined in the PRD: it first calls `anitopy_parser.parse()`. 4. Implement the `_is_valid_result` helper to check if the result from anitopy is sufficient (e.g., has `title` and `episode`). 5. If the primary parse is invalid, the method should then call `fallback_parser.parse()`. 6. Ensure the `parser_used` and `confidence` fields are set correctly based on which parser succeeded.",
+        "testStrategy": "In `tests/core/parser/test_unified_parser.py`, write integration tests. Test a filename that `anitopy` handles well and assert `parser_used` is 'anitopy'. Test a filename that `anitopy` fails on but the fallback handles, and assert `parser_used` is 'fallback'.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create UnifiedFilenameParser Class and Initialize Parsers",
+            "description": "Create the file `src/anivault/core/parser/unified_parser.py` and define the `UnifiedFilenameParser` class. Implement the `__init__` method to import and instantiate `AnitopyParser` and `FallbackParser`, making them available as instance attributes.",
+            "dependencies": [],
+            "details": "In `src/anivault/core/parser/unified_parser.py`, create the `UnifiedFilenameParser` class. The constructor (`__init__`) should import `AnitopyParser` from `.anitopy_parser` and `FallbackParser` from `.fallback_parser`. It will then create and store instances, e.g., `self.anitopy_parser = AnitopyParser()` and `self.fallback_parser = FallbackParser()`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement the `_is_valid_result` Helper Method",
+            "description": "Implement the private helper method `_is_valid_result` within the `UnifiedFilenameParser` class. This method will determine if a parsing result is sufficient for processing.",
+            "dependencies": [],
+            "details": "Inside the `UnifiedFilenameParser` class, define a method `_is_valid_result(self, result: 'ParsingResult') -> bool`. This method should take a `ParsingResult` object as input and return `True` only if both `result.anime_title` and `result.episode_number` are not `None`. Otherwise, it should return `False`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Core Parsing Logic with Fallback",
+            "description": "Implement the main `parse` method to orchestrate the parsing process. It should first attempt to parse with the primary parser and then use the fallback parser if the initial result is invalid.",
+            "dependencies": [],
+            "details": "Implement the `parse(self, filename: str) -> 'ParsingResult'` method. Inside, first call `self.anitopy_parser.parse(filename)`. Then, use the `self._is_valid_result()` helper to check the result. If the result is invalid, call `self.fallback_parser.parse(filename)`. The method should then hold onto the chosen result to be returned later.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Set `parser_used` Metadata Field",
+            "description": "Modify the `parse` method to populate the `parser_used` field in the final `ParsingResult` object based on which parser provided the successful result.",
+            "dependencies": [],
+            "details": "In the `parse` method, after determining which parser's result to use (anitopy's or fallback's), set the `parser_used` attribute on that `ParsingResult` object. Set it to the string 'anitopy' if the primary parse was successful, or 'fallback' if the secondary parser was used.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Set `confidence` Metadata and Finalize Return",
+            "description": "Finalize the `parse` method by setting the `confidence` score on the `ParsingResult` object and ensuring the completed object is returned.",
+            "dependencies": [],
+            "details": "In the `parse` method, set the `confidence` attribute on the chosen `ParsingResult` object. Assign a higher value (e.g., 0.9) if `parser_used` is 'anitopy' and a lower value (e.g., 0.7) if it is 'fallback'. Ensure the fully populated `ParsingResult` object is the return value of the method.",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Create Real-World Filename Test Dataset",
+        "description": "Collect and curate a comprehensive dataset of real-world anime filenames to be used for accuracy testing. This dataset is critical for validating and improving the parser's real-world performance.",
+        "details": "1. Create a new JSON file at `tests/fixtures/real_world_filenames.json`. 2. Populate this file with a list of objects. Each object should contain a `filename` string and an `expected` object with the ideal parsed values (`title`, `episode`, `season`, etc.). 3. Collect at least 100 diverse examples, covering different release groups, formats (S01E01 vs. - 01), quality tags, and edge cases.",
+        "testStrategy": "This task's output is a test artifact. Validation involves a manual review of the JSON file to ensure it is well-formed and the `expected` data accurately reflects the `filename`.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Dataset File and Add Standard Filename Examples",
+            "description": "Create the `real_world_filenames.json` file and populate it with the first set of common, standard anime filenames.",
+            "dependencies": [],
+            "details": "Create a new file at `tests/fixtures/real_world_filenames.json`. Initialize it with an empty JSON array `[]`. Add the first 25 examples, focusing on the most common pattern: `[ReleaseGroup] Anime Title - EpisodeNumber [Quality].mkv`. Ensure the `expected` object for each entry is meticulously filled out, matching the fields in the `ParsingResult` model.",
+            "status": "done",
+            "testStrategy": "Manually validate the created JSON file for correct syntax. Review the first 25 entries to ensure the `filename` and `expected` values are accurate and consistent."
+          },
+          {
+            "id": 2,
+            "title": "Add Season and Complex Episode Numbering Examples",
+            "description": "Expand the dataset with filenames that use various season and episode numbering schemes.",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Add 25 new examples to `tests/fixtures/real_world_filenames.json` that cover different season/episode formats. Include cases like `S01E01`, `S02E15`, `1x01`, `Season 2 - 05`, absolute numbering for multi-season shows (e.g., episode 13 for S02E01), and multi-episode files (e.g., `01-02`).",
+            "status": "done",
+            "testStrategy": "Review the newly added entries to confirm they correctly represent diverse season and episode patterns and that their `expected` `season` and `episode` values are correct."
+          },
+          {
+            "id": 3,
+            "title": "Add Examples with Diverse Metadata Tags",
+            "description": "Enrich the dataset with filenames featuring a wide variety of metadata tags for quality, source, audio, and video codecs.",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Add 25 new examples to `tests/fixtures/real_world_filenames.json`. These examples should focus on testing the parser's ability to extract secondary information. Include a wide range of tags such as `[1080p]`, `[720p]`, `[BD]`, `[WEB-DL]`, `[Dual Audio]`, `[FLAC]`, `[x265]`, `[10-bit]`, `[HEVC]`, and combinations thereof.",
+            "status": "done",
+            "testStrategy": "Verify that the `expected` objects for the new entries correctly capture the metadata (e.g., `quality`, `audio`, `codec`) from the filenames."
+          },
+          {
+            "id": 4,
+            "title": "Add Edge Case Examples (Movies, OVAs, Specials)",
+            "description": "Incorporate challenging edge cases into the dataset, including movies, OVAs, specials, and filenames with unconventional structures.",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Add 25 new examples to `tests/fixtures/real_world_filenames.json` representing difficult parsing scenarios. Include filenames for movies (which lack an episode number), OVAs/OADs/Specials, files with version numbers (v2, v3), files with no release group, and files using unusual delimiters or character sets.",
+            "status": "done",
+            "testStrategy": "Manually inspect the new edge case entries to ensure the `expected` object accurately reflects the intended parsing, even when some fields (like `episode`) are intentionally `null`."
+          },
+          {
+            "id": 5,
+            "title": "Final Review and Dataset Validation",
+            "description": "Perform a final, comprehensive review of the entire dataset to ensure it meets the 100+ entry requirement, is well-formed, and all data is accurate.",
+            "dependencies": [
+              "5.1",
+              "5.2",
+              "5.3",
+              "5.4"
+            ],
+            "details": "Review the complete `tests/fixtures/real_world_filenames.json` file. Ensure it contains at least 100 unique and diverse entries. Use a JSON linter or validator to check for syntax errors. Manually scan all entries for consistency in the `expected` object structure and correctness of the parsed values.",
+            "status": "done",
+            "testStrategy": "The task itself is a validation process. Success is a fully populated, valid JSON file with over 100 high-quality, reviewed test cases."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Implement Accuracy Testing with Real-World Dataset",
+        "description": "Build a test suite that measures the `UnifiedFilenameParser`'s accuracy against the curated real-world filename dataset. This will provide a concrete metric for success and guide further improvements.",
+        "details": "1. Create the test file `tests/core/parser/test_real_world.py`. 2. Implement a test, `test_real_world_accuracy`, that loads `real_world_filenames.json`. 3. The test should iterate through each case, pass the `filename` to the `UnifiedFilenameParser`, and compare the resulting `ParsingResult` object with the `expected` values. 4. Keep track of correct and incorrect parses. 5. Assert that the final accuracy meets the PRD's target (e.g., `accuracy >= 0.97`). Log failed cases for manual review.",
+        "testStrategy": "The test itself is the strategy. It will systematically validate the parser's accuracy. If the test fails, the developer must analyze the logged failures and refine the `AnitopyParser`'s conversion logic or the `FallbackParser`'s regex patterns.",
+        "priority": "high",
+        "dependencies": [
+          4,
+          5
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Test File and Data Loading Fixture",
+            "description": "Create the new test file `tests/core/parser/test_real_world.py` and implement a pytest fixture to load and provide the test data from `tests/data/real_world_filenames.json`.",
+            "dependencies": [],
+            "details": "Based on existing test patterns, a pytest fixture is the conventional way to handle test data. Create a fixture named `real_world_data` in `tests/core/parser/test_real_world.py`. This fixture will be responsible for opening and loading the `tests/data/real_world_filenames.json` file. It should handle potential `FileNotFoundError` and return the parsed list of test cases. This assumes the dataset from Task 5 will be placed in `tests/data/`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement Result Comparison Helper Function",
+            "description": "In `tests/core/parser/test_real_world.py`, create a helper function that accurately compares a `ParsingResult` object against an 'expected' dictionary from the test data.",
+            "dependencies": [],
+            "details": "Create a private helper function, e.g., `_compare_results(result: ParsingResult, expected: dict) -> bool`. This function will iterate through the keys in the `expected` dictionary. For each key, it must compare its value with the corresponding attribute of the `ParsingResult` object. The function must return `True` only if all fields present in the `expected` dictionary match the `ParsingResult` attributes, otherwise `False`. This isolates the comparison logic.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement the Core Accuracy Test Loop",
+            "description": "Implement the main test function, `test_real_world_accuracy`, that iterates through the dataset, runs the parser, and uses the comparison helper to determine correctness.",
+            "dependencies": [
+              "6.1",
+              "6.2"
+            ],
+            "details": "In `tests/core/parser/test_real_world.py`, create the test `test_real_world_accuracy` which accepts the `real_world_data` fixture. Inside the test, initialize the `UnifiedFilenameParser`. Loop through each case provided by the fixture. For each case, pass the `filename` to the parser's `parse` method and call the `_compare_results` helper function with the returned `ParsingResult` and the `expected` dictionary.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Integrate Accuracy Calculation and Final Assertion",
+            "description": "Modify `test_real_world_accuracy` to track the number of correct and incorrect parses and assert that the final accuracy score meets the required 97% threshold.",
+            "dependencies": [
+              "6.3"
+            ],
+            "details": "Within `test_real_world_accuracy`, initialize counters for `correct_parses` and `total_cases` before the main loop. Based on the boolean result from the `_compare_results` helper in each iteration, increment the `correct_parses` counter. After the loop completes, calculate the accuracy as `correct_parses / total_cases`. Finally, add an `assert accuracy >= 0.97` to enforce the project's quality gate.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Add Detailed Logging for Failed Test Cases",
+            "description": "Enhance the test loop to log detailed, structured information for each failed parsing attempt to facilitate manual review and debugging.",
+            "dependencies": [
+              "6.3"
+            ],
+            "details": "Inside the `test_real_world_accuracy` loop, if the `_compare_results` helper returns `False`, use Python's `logging` module to record the failure. The log message should be clearly formatted and include the source `filename`, the `expected` dictionary, and the `actual` result from the parser. The `ParsingResult`'s `to_dict()` method should be used to get a clean representation of the actual result. This creates an actionable report for improving the parser.",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement Hypothesis Fuzzing Tests for Robustness",
+        "description": "Use property-based testing with the Hypothesis library to ensure the parser is robust and can handle a wide range of unexpected inputs without crashing or violating basic contracts.",
+        "details": "1. Create the file `tests/core/parser/test_fuzzing.py`. 2. Define a Hypothesis strategy (`filename_strategy`) that generates random-but-plausible filenames. 3. Write a test `test_parsing_never_crashes` that uses `@given(filename_strategy)` to feed generated filenames to `UnifiedFilenameParser.parse()` and asserts that it never raises an exception. 4. Add other property tests, such as `test_confidence_in_range` (0.0 to 1.0) and `test_parser_used_field` (is always 'anitopy' or 'fallback').",
+        "testStrategy": "Run the Hypothesis tests. Hypothesis will explore edge cases and attempt to find a minimal failing example if any of the properties are violated. The goal is to have these tests pass for a large number of generated examples.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Fuzzing Test File and Basic No-Crash Property Test",
+            "description": "Initialize the testing environment for Hypothesis by creating the test file and implementing the most fundamental property test: ensuring the parser does not crash on arbitrary string inputs.",
+            "dependencies": [],
+            "details": "Create the file `tests/core/parser/test_fuzzing.py`. Import `given`, `strategies as st` from `hypothesis`, and `UnifiedFilenameParser` from `anivault.core.parser.unified_parser`. Write a test `test_parsing_never_crashes` decorated with `@given(st.text())`. Inside the test, call `UnifiedFilenameParser.parse()` with the generated text and assert that no exceptions are raised. This serves as the baseline for robustness.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Define a Composite Strategy for Plausible Filenames",
+            "description": "Create a sophisticated Hypothesis strategy that generates random but structurally plausible anime filenames. This will make the fuzzing tests more effective at finding realistic edge cases than purely random text.",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "In `tests/core/parser/test_fuzzing.py`, define a new strategy named `filename_strategy`. Use `st.composite` to build it. Combine various strategies: `st.text(min_size=3, max_size=50)` for titles, `st.integers(min_value=1, max_value=100)` for episode/season numbers, `st.sampled_from(['720p', '1080p', '480p'])` for resolutions, and various delimiters. Join these components to form a complete filename string.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Update Crash Test and Implement Confidence Range Test",
+            "description": "Refine the initial crash test to use the more realistic filename strategy and add a new property test to validate that the parsing confidence score is always within its expected range [0.0, 1.0].",
+            "dependencies": [
+              "7.1",
+              "7.2"
+            ],
+            "details": "Modify the `@given` decorator on `test_parsing_never_crashes` to use the new `filename_strategy`. Then, create a new test `test_confidence_is_always_in_range`, also decorated with `@given(filename_strategy)`. In this test, parse the filename, get the `ParsingResult` object, and assert that `0.0 <= result.confidence <= 1.0`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement Property Test for `parser_used` Field",
+            "description": "Add a property test to ensure that the `parser_used` field in the `ParsingResult` is always one of the valid, expected values, as this is a key contract of the UnifiedParser.",
+            "dependencies": [
+              "7.1",
+              "7.2"
+            ],
+            "details": "In `tests/core/parser/test_fuzzing.py`, create a new test `test_parser_used_is_always_valid`, decorated with `@given(filename_strategy)`. Inside the test, call `UnifiedFilenameParser.parse()`, and assert that the returned `result.parser_used` is in the set `{'anitopy', 'fallback'}`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement Property Test for Numeric Field Types",
+            "description": "Add a property test to verify that numeric fields in the `ParsingResult`, such as episode and season numbers, are always of the correct type (positive integers) when they are not None.",
+            "dependencies": [
+              "7.1",
+              "7.2"
+            ],
+            "details": "In `tests/core/parser/test_fuzzing.py`, create a test `test_numeric_fields_have_valid_types` using the `@given(filename_strategy)`. Parse the filename and for fields like `episode_number` and `season`, assert that if the value is not `None`, it must be an instance of `int` and be greater than 0. This ensures data integrity for downstream consumers.",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Benchmark Performance and Finalize Documentation",
+        "description": "Measure the performance of the parsing system to ensure it meets speed and memory requirements. Finalize the implementation by adding comprehensive documentation.",
+        "details": "1. Create a script (e.g., `scripts/benchmark_parser.py`) that parses a large number of filenames (e.g., 10,000+) in a loop and measures the total time taken to calculate filenames/second. 2. Use a memory profiler to measure the memory footprint of the parser instance. 3. If performance targets are not met, profile the code to identify bottlenecks and optimize. 4. Ensure all new classes, methods, and modules have clear, complete docstrings and type hints. 5. Create a `README.md` in `src/anivault/core/parser/` explaining the system's architecture.",
+        "testStrategy": "Execute the benchmark script and compare its output against the PRD's performance targets (≥ 1000 filenames/sec, ≤ 10MB memory). Review the generated documentation for clarity, completeness, and correctness.",
+        "priority": "medium",
+        "dependencies": [
+          6,
+          7
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Speed Benchmark Script for Parser",
+            "description": "Develop a script to measure the parsing speed of the `UnifiedFilenameParser` to establish a performance baseline.",
+            "dependencies": [],
+            "details": "Create a new file `scripts/benchmark_parser.py`. This script should: 1. Create or load a list of at least 10,000 diverse anime filenames (a new `scripts/data/sample_filenames.txt` file is recommended). 2. Instantiate the `UnifiedFilenameParser`. 3. Use the `time` module to accurately measure the total execution time for parsing all filenames in a loop. 4. Calculate and print the performance metric in 'filenames per second' to the console.",
+            "status": "done",
+            "testStrategy": "Run `python scripts/benchmark_parser.py` and ensure it executes without errors and outputs a numerical value for filenames/second."
+          },
+          {
+            "id": 2,
+            "title": "Implement Memory Profiling for Parser",
+            "description": "Measure the memory footprint of the `UnifiedFilenameParser` during a benchmark run to ensure it meets memory usage requirements.",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "1. Add `memory-profiler` to the project's development dependencies. 2. Modify the `scripts/benchmark_parser.py` script by wrapping the core parsing logic in a function decorated with `@profile` from `memory_profiler`. 3. Document the commands required to run the memory benchmark (e.g., `mprof run scripts/benchmark_parser.py`) and generate a report/plot (`mprof plot`) in the script's docstring or a separate `CONTRIBUTING.md` section.",
+            "status": "done",
+            "testStrategy": "Execute the memory benchmark command and verify that a memory usage report (`.dat` file) is generated. Use `mprof plot` to visualize the results and check that the peak memory consumption is within the target of ≤ 10MB."
+          },
+          {
+            "id": 3,
+            "title": "Add Docstrings and Type Hints to All Parser Modules",
+            "description": "Ensure all classes, methods, and functions within the parser subsystem are fully documented with docstrings and have complete type hints for maintainability and clarity.",
+            "dependencies": [],
+            "details": "Systematically review and update the following files: `src/anivault/core/parser/models.py`, `src/anivault/core/parser/anitopy_parser.py`, `src/anivault/core/parser/fallback_parser.py`, and `src/anivault/core/parser/unified_parser.py`. For each module, ensure that all public classes and methods have clear docstrings explaining their purpose, parameters (Args), and return values (Returns). Verify that all function signatures and class attributes have correct and complete type hints.",
+            "status": "done",
+            "testStrategy": "Manually review the code to confirm all public APIs are documented. Run a static analysis tool like `mypy` against the `src/anivault/core/parser/` directory to verify the correctness and completeness of the type hints."
+          },
+          {
+            "id": 4,
+            "title": "Create Parser Architecture README File",
+            "description": "Create a `README.md` file in the parser directory to explain the system's architecture and usage for other developers.",
+            "dependencies": [
+              "8.3"
+            ],
+            "details": "Create a new file: `src/anivault/core/parser/README.md`. This document should contain: 1. A high-level overview of the parsing system's purpose. 2. A description of the `UnifiedFilenameParser` and its role as the main entry point. 3. An explanation of the primary (`AnitopyParser`) and secondary (`FallbackParser`) strategy, including the fallback logic. 4. A brief on the `ParsingResult` data model. 5. A simple, runnable code example showing how to use the `UnifiedFilenameParser`.",
+            "status": "done",
+            "testStrategy": "Review the generated `README.md` for clarity, accuracy, and completeness. Ensure the code example provided is correct and runs as expected."
+          },
+          {
+            "id": 5,
+            "title": "Optimize FallbackParser by Pre-Compiling Regex Patterns",
+            "description": "Analyze performance and implement a key optimization in the `FallbackParser` by pre-compiling its regular expression patterns to improve parsing speed.",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "1. Run the speed benchmark from subtask 8.1 to establish a baseline. 2. Modify the `FallbackParser` in `src/anivault/core/parser/fallback_parser.py`. Change the class-level `PATTERNS` list to store pre-compiled regex objects by applying `re.compile()` to each pattern string during class definition. 3. Update the `parse` method to use these pre-compiled patterns directly, avoiding on-the-fly compilation within the loop. 4. Rerun the speed benchmark to measure and document the performance improvement.",
+            "status": "done",
+            "testStrategy": "Run the `scripts/benchmark_parser.py` script before and after the change to quantify the performance improvement. Run the test suite for `test_fallback_parser.py` to ensure that all parsing logic remains correct after the refactor."
+          }
+        ]
+      }
+    ],
     "metadata": {
       "created": "2025-09-30T00:46:43.693Z",
-      "updated": "2025-09-30T00:46:43.693Z",
-      "description": "W8: 파싱 본/폴백 + 퍼저 - anitopy + 폴백 파서, UnifiedFilenameParser, Hypothesis 퍼징 테스트, 실세계 데이터셋"
+      "updated": "2025-10-01T01:35:51.352Z",
+      "description": "Tasks for w8-parsing-fallback-fuzzer context"
     }
   },
   "w9-w10-tmdb-client-rate-limit": {

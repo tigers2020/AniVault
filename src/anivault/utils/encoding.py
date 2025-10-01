@@ -85,7 +85,7 @@ def open_utf8(
     if "b" not in mode and "errors" not in kwargs:
         kwargs["errors"] = "replace"
 
-    return Path(file_path).open(mode, **kwargs)  # noqa: SIM115
+    return Path(file_path).open(mode, **kwargs)
 
 
 def read_text_file(file_path: str | Path, encoding: str = UTF8_ENCODING) -> str:

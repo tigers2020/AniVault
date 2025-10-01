@@ -12,6 +12,8 @@ from unittest.mock import Mock, patch
 
 from anivault.core.pipeline.scanner import DirectoryScanner
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
+from anivault.core.filter import FilterEngine
+from anivault.config import FilterConfig
 
 
 class TestDirectoryScanner:
@@ -189,8 +191,8 @@ class TestDirectoryScanner:
             scanner = DirectoryScanner(root_path, extensions, input_queue, stats)
             scanner.run()
 
-            # Verify that put was called for each matching file
-            assert input_queue.put.call_count == 2  # 2 files only (no sentinel)
+            # Verify that put was called for each matching file + sentinel
+            assert input_queue.put.call_count == 3  # 2 files + 1 sentinel
 
             # Verify that statistics were updated
             assert stats.increment_files_scanned.call_count == 2
@@ -206,8 +208,8 @@ class TestDirectoryScanner:
         scanner = DirectoryScanner(root_path, extensions, input_queue, stats)
         scanner.run()
 
-        # Should not put anything (directory doesn't exist)
-        assert input_queue.put.call_count == 0
+        # Should only put sentinel (directory doesn't exist)
+        assert input_queue.put.call_count == 1  # Only sentinel
 
     def test_run_file_as_root(self) -> None:
         """Test run method when root_path is a file."""
@@ -223,8 +225,8 @@ class TestDirectoryScanner:
             scanner = DirectoryScanner(test_file, extensions, input_queue, stats)
             scanner.run()
 
-            # Should not put anything (file, not directory)
-            assert input_queue.put.call_count == 0
+            # Should only put sentinel (file, not directory)
+            assert input_queue.put.call_count == 1  # Only sentinel
 
     def test_run_queue_error_handling(self) -> None:
         """Test run method handles queue errors gracefully."""
@@ -242,8 +244,8 @@ class TestDirectoryScanner:
             # Should not raise exception
             scanner.run()
 
-            # Should put only the file (no sentinel)
-            assert input_queue.put.call_count == 1  # 1 file only
+            # Should put the file + sentinel (even though both fail)
+            assert input_queue.put.call_count == 2  # 1 file + 1 sentinel attempt
 
     def test_run_queue_put_error_handling(self) -> None:
         """Test run method handles queue put errors gracefully."""
@@ -363,3 +365,149 @@ class TestDirectoryScanner:
 
             file_names = {f.name for f in files}
             assert file_names == {".hidden_video.mp4", "normal_video.mp4"}
+
+
+class TestDirectoryScannerStreamingAPI:
+    """Test cases for DirectoryScanner streaming API (scan method)."""
+
+    def test_scan_returns_batches(self) -> None:
+        """Test that scan() returns batches of files."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_path = Path(temp_dir)
+
+            # Create test files
+            for i in range(15):
+                (root_path / f"video{i}.mp4").touch()
+
+            extensions = [".mp4"]
+            input_queue = Mock(spec=BoundedQueue)
+            stats = Mock(spec=ScanStatistics)
+
+            # Create scanner with small batch size
+            scanner = DirectoryScanner(
+                root_path, extensions, input_queue, stats, batch_size=5
+            )
+
+            # Collect all batches
+            batches = list(scanner.scan())
+
+            # Should have 3 batches (5 + 5 + 5)
+            assert len(batches) == 3
+            assert all(isinstance(batch, list) for batch in batches)
+            assert all(len(batch) == 5 for batch in batches)
+
+    def test_scan_with_partial_batch(self) -> None:
+        """Test that scan() handles partial last batch."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_path = Path(temp_dir)
+
+            # Create test files
+            for i in range(12):
+                (root_path / f"video{i}.mp4").touch()
+
+            extensions = [".mp4"]
+            input_queue = Mock(spec=BoundedQueue)
+            stats = Mock(spec=ScanStatistics)
+
+            # Create scanner with batch size of 5
+            scanner = DirectoryScanner(
+                root_path, extensions, input_queue, stats, batch_size=5
+            )
+
+            # Collect all batches
+            batches = list(scanner.scan())
+
+            # Should have 3 batches (5 + 5 + 2)
+            assert len(batches) == 3
+            assert len(batches[0]) == 5
+            assert len(batches[1]) == 5
+            assert len(batches[2]) == 2  # Partial batch
+
+    def test_scan_with_backpressure(self) -> None:
+        """Test scan_with_backpressure() respects queue limits."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_path = Path(temp_dir)
+
+            # Create test files
+            for i in range(20):
+                (root_path / f"video{i}.mp4").touch()
+
+            extensions = [".mp4"]
+            input_queue = BoundedQueue(maxsize=5)  # Real queue
+            output_queue = BoundedQueue(maxsize=3)  # Small queue for backpressure
+            stats = ScanStatistics()
+
+            # Create scanner with small batch size
+            scanner = DirectoryScanner(
+                root_path, extensions, input_queue, stats, batch_size=3
+            )
+
+            # Collect batches with backpressure
+            batches = []
+            for batch in scanner.scan_with_backpressure(output_queue):
+                batches.append(batch)
+                # Stop after a few batches
+                if len(batches) >= 5:
+                    break
+
+            # Should have collected 5 batches
+            assert len(batches) == 5
+            assert all(isinstance(batch, list) for batch in batches)
+
+    def test_scan_with_filtering(self) -> None:
+        """Test scan() with FilterEngine integration."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_path = Path(temp_dir)
+
+            # Create test files with different sizes
+            for i in range(10):
+                file_path = root_path / f"video{i}.mp4"
+                with open(file_path, "wb") as f:
+                    # Create files with varying sizes (some small, some large)
+                    f.write(b"x" * (i * 1024 * 1024))  # i MB
+
+            extensions = [".mp4"]
+            input_queue = Mock(spec=BoundedQueue)
+            stats = Mock(spec=ScanStatistics)
+
+            # Create filter config that only allows files >= 3MB
+            filter_config = FilterConfig()
+            filter_config.min_file_size_mb = 3
+            filter_config.excluded_filename_patterns = []
+            filter_engine = FilterEngine(filter_config)
+
+            # Create scanner with filtering
+            scanner = DirectoryScanner(
+                root_path,
+                extensions,
+                input_queue,
+                stats,
+                filter_engine=filter_engine,
+                batch_size=5,
+            )
+
+            # Collect all files
+            all_files = []
+            for batch in scanner.scan():
+                all_files.extend(batch)
+
+            # Should only have files >= 3MB (video3 through video9)
+            assert len(all_files) == 7  # Files 3-9
+            assert all("video" in str(f.name) for f in all_files)
+
+    def test_scan_empty_directory(self) -> None:
+        """Test scan() with empty directory."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_path = Path(temp_dir)
+            extensions = [".mp4"]
+            input_queue = Mock(spec=BoundedQueue)
+            stats = Mock(spec=ScanStatistics)
+
+            scanner = DirectoryScanner(
+                root_path, extensions, input_queue, stats, batch_size=5
+            )
+
+            batches = list(scanner.scan())
+
+            # Should have no batches
+            assert len(batches) == 0
