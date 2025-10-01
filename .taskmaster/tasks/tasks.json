@@ -2658,11 +2658,507 @@
     }
   },
   "w9-w10-tmdb-client-rate-limit": {
-    "tasks": [],
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Implement Thread-Safe Token Bucket Rate Limiter",
+        "description": "Create the foundational rate limiting module using a token bucket algorithm. This component will control the request rate to the TMDB API to prevent hitting rate limits.",
+        "details": "Create `src/anivault/services/rate_limiter.py`. Implement a `TokenBucketRateLimiter` class that is thread-safe using `threading.Lock`. The class should have a configurable capacity (bucket size) and refill rate. It must include a non-blocking `try_acquire()` method to request a token. Default settings should be a bucket size of 35 tokens and a refill rate of 35 tokens per second, as specified in the PRD.",
+        "testStrategy": "Write unit tests in `tests/services/test_rate_limiter.py`. Verify thread-safety by having multiple threads acquire tokens concurrently. Test that the rate is correctly limited over time and that the bucket refills as expected. Test edge cases like an empty bucket.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create TokenBucketRateLimiter Class Skeleton",
+            "description": "Create the file `src/anivault/services/rate_limiter.py` and define the `TokenBucketRateLimiter` class. Implement the `__init__` method to accept `capacity` and `refill_rate` arguments, setting the default values to 35. Initialize instance variables for tokens, the last refill timestamp, and a `threading.Lock`.",
+            "dependencies": [],
+            "details": "The `__init__` method should look like `def __init__(self, capacity: int = 35, refill_rate: float = 35.0):`. It should initialize `self.capacity`, `self.refill_rate`, `self.tokens` (set to `capacity`), `self.last_refill` (set to `time.monotonic()`), and `self.lock` (set to `threading.Lock()`).",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement Private Token Refill Logic",
+            "description": "Within the `TokenBucketRateLimiter` class, create a private method (e.g., `_refill`) that calculates the number of tokens to add to the bucket based on the elapsed time since the last refill and the configured `refill_rate`. This method should ensure the token count does not exceed the bucket's `capacity`.",
+            "dependencies": [],
+            "details": "This method will calculate `elapsed = time.monotonic() - self.last_refill`. The number of new tokens will be `elapsed * self.refill_rate`. The bucket's token count should be updated with `min(self.capacity, self.tokens + new_tokens)`. Finally, update `self.last_refill` to the current time. This method should be called within the locked section of `try_acquire`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Thread-Safe try_acquire Method",
+            "description": "Implement the public `try_acquire()` method. This method must use the `threading.Lock` to ensure thread safety. Inside the lock, it should first call the token refill logic, then check if at least one token is available. If a token is available, it should decrement the token count by one and return `True`. Otherwise, it should return `False`.",
+            "dependencies": [],
+            "details": "The method signature is `def try_acquire(self) -> bool:`. It should use a `with self.lock:` block to ensure atomicity. Inside the block, call the `_refill()` method, then check `if self.tokens >= 1`. If true, decrement `self.tokens` and return `True`. If false, return `False`.",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Implement Semaphore for Concurrency Control",
+        "description": "Develop a semaphore manager to limit the number of concurrent requests sent to the TMDB API. This prevents overwhelming the API and helps manage application resources.",
+        "details": "Create `src/anivault/services/semaphore_manager.py`. Implement a `SemaphoreManager` class that wraps Python's `threading.Semaphore`. The default concurrency level should be set to 4. The manager should provide `acquire()` and `release()` methods. Implement a timeout of 30 seconds for acquiring the semaphore to prevent indefinite waits.",
+        "testStrategy": "Write unit tests in `tests/services/test_semaphore_manager.py`. Simulate more than 4 concurrent tasks trying to acquire the semaphore and assert that only 4 can run at once. Test the timeout functionality.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create `semaphore_manager.py` and `SemaphoreManager` Class Skeleton",
+            "description": "Create the new file `src/anivault/services/semaphore_manager.py` and define the basic structure for the `SemaphoreManager` class with placeholder methods, importing the necessary `threading` module.",
+            "dependencies": [],
+            "details": "Create the file `src/anivault/services/semaphore_manager.py`. Inside this file, define an empty class `SemaphoreManager` with `pass` statements for the `__init__`, `acquire`, and `release` methods. Add `import threading` at the top of the file.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement `SemaphoreManager` Initialization",
+            "description": "Implement the `__init__` method to initialize the `threading.Semaphore` instance. The concurrency level should be configurable with a default value of 4.",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "In the `SemaphoreManager` class, implement the `__init__` method. It should accept a `concurrency_limit` integer parameter with a default value of 4. Inside the method, create and store an instance of `threading.Semaphore` initialized with this `concurrency_limit`.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement the `acquire` Method with Timeout",
+            "description": "Implement the `acquire` method to attempt to acquire the semaphore, including a 30-second timeout to prevent indefinite blocking.",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "Implement the `acquire` method in the `SemaphoreManager` class. This method should call the `acquire()` method on the internal `threading.Semaphore` instance, setting the `timeout` parameter to 30. The method should return the boolean result from the underlying semaphore's `acquire` call, which indicates whether the acquisition was successful.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement the `release` Method",
+            "description": "Implement the `release` method to release a previously acquired semaphore, making it available for other threads.",
+            "dependencies": [
+              "2.2"
+            ],
+            "details": "Implement the `release` method in the `SemaphoreManager` class. This method should simply call the `release()` method on the internal `threading.Semaphore` instance. It does not need to return any value.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement Context Manager Protocol for Automatic Release",
+            "description": "Implement the `__enter__` and `__exit__` methods to allow `SemaphoreManager` to be used as a context manager, ensuring that the semaphore is automatically released.",
+            "dependencies": [
+              "2.3",
+              "2.4"
+            ],
+            "details": "Implement `__enter__` and `__exit__` in the `SemaphoreManager` class. The `__enter__` method should call `self.acquire()` and should raise a `TimeoutError` if acquisition fails (returns `False`). The `__exit__` method should call `self.release()` to guarantee the semaphore is released when the `with` block is exited.",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Extend Configuration for TMDB Client",
+        "description": "Update the existing configuration system to include settings for the TMDB client, rate limiter, and semaphore manager. This allows for easy adjustments without code changes.",
+        "details": "Modify `src/anivault/core/config.py`. Extend the Pydantic `Settings` class to include `TMDB_API_KEY`, `TMDB_RATE_LIMIT_RPS` (default 35), `TMDB_CONCURRENT_REQUESTS` (default 4), and other relevant parameters. Ensure these can be loaded from environment variables.",
+        "testStrategy": "Update unit tests for `config.py` to verify that the new TMDB-related settings are loaded correctly from environment variables and have the correct default values.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add TMDB_API_KEY to Settings Class",
+            "description": "Modify the Pydantic Settings class in `src/anivault/core/config.py` to include the mandatory API key for the TMDB client.",
+            "dependencies": [],
+            "details": "In the `Settings` class within `src/anivault/core/config.py`, add a new attribute `TMDB_API_KEY: str = Field(..., description=\"The API key for The Movie Database (TMDB).\")`. This field must be configured via an environment variable and has no default value, ensuring it is explicitly set for the application to run.",
+            "status": "done",
+            "testStrategy": "A subsequent subtask will cover testing, but this change will be validated by a test that checks for a `ValidationError` when the environment variable is not set."
+          },
+          {
+            "id": 2,
+            "title": "Add TMDB_RATE_LIMIT_RPS to Settings Class",
+            "description": "Extend the Pydantic Settings class to include the rate limit configuration for the TMDB client.",
+            "dependencies": [],
+            "details": "In the `Settings` class within `src/anivault/core/config.py`, add a new attribute `TMDB_RATE_LIMIT_RPS: int = Field(default=35, description=\"The number of requests per second allowed for the TMDB API rate limiter.\")`. This value should be configurable via an environment variable but default to 35.",
+            "status": "done",
+            "testStrategy": "A subsequent subtask will add a test to verify that this setting correctly loads from an environment variable and falls back to the default value of 35 when not set."
+          },
+          {
+            "id": 3,
+            "title": "Add TMDB_CONCURRENT_REQUESTS to Settings Class",
+            "description": "Extend the Pydantic Settings class to include the concurrent request limit for the TMDB semaphore manager.",
+            "dependencies": [],
+            "details": "In the `Settings` class within `src/anivault/core/config.py`, add a new attribute `TMDB_CONCURRENT_REQUESTS: int = Field(default=4, description=\"The maximum number of concurrent requests to the TMDB API.\")`. This value should be configurable via an environment variable but default to 4.",
+            "status": "done",
+            "testStrategy": "A subsequent subtask will add a test to verify that this setting correctly loads from an environment variable and falls back to the default value of 4 when not set."
+          },
+          {
+            "id": 4,
+            "title": "Update Unit Tests for Configuration",
+            "description": "Create or update unit tests in `tests/core/test_config.py` to verify the new TMDB-related settings are loaded correctly from environment variables and have the correct default values.",
+            "dependencies": [
+              "3.1",
+              "3.2",
+              "3.3"
+            ],
+            "details": "In `tests/core/test_config.py`, add test cases using `monkeypatch` to: 1. Verify that `TMDB_API_KEY`, `TMDB_RATE_LIMIT_RPS`, and `TMDB_CONCURRENT_REQUESTS` are correctly loaded from environment variables. 2. Verify that `TMDB_RATE_LIMIT_RPS` and `TMDB_CONCURRENT_REQUESTS` fall back to their default values (35 and 4, respectively) when the corresponding environment variables are not set. 3. Verify that a `pydantic.ValidationError` is raised if the `TMDB_API_KEY` environment variable is missing.",
+            "status": "done",
+            "testStrategy": null
+          },
+          {
+            "id": 5,
+            "title": "Document New Environment Variables in .env.example",
+            "description": "Update the `.env.example` file to include the new environment variables for TMDB configuration, making it easier for developers to set up their local environment.",
+            "dependencies": [
+              "3.1",
+              "3.2",
+              "3.3"
+            ],
+            "details": "Locate the `.env.example` file in the project root. Add the following new entries with descriptive comments:\n# TMDB Configuration\nTMDB_API_KEY=\"\"\nTMDB_RATE_LIMIT_RPS=35\nTMDB_CONCURRENT_REQUESTS=4",
+            "status": "done",
+            "testStrategy": null
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Create Basic TMDB API Client Wrapper",
+        "description": "Develop a wrapper around the `tmdbv3api` library to abstract away direct API calls and provide a clean interface for searching for media.",
+        "details": "First, add `tmdbv3api==1.9.0` to the project dependencies (e.g., `pyproject.toml`). Create `src/anivault/services/tmdb_client.py`. Implement a `TMDBClient` class that initializes the TMDB object with the API key from the configuration (Task 3). Create initial methods for searching TV shows and movies, like `search_media(title: str)`. This initial version will not yet have retry logic.",
+        "testStrategy": "Write unit tests in `tests/services/test_tmdb_client.py` using `unittest.mock` to patch `tmdbv3api` calls. Verify that the client correctly calls the underlying library with the right parameters and processes the results.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add tmdbv3api to Project Dependencies",
+            "description": "Modify the `pyproject.toml` file to include `tmdbv3api==1.9.0` as a project dependency under the `[tool.poetry.dependencies]` section to make the library available for the project.",
+            "dependencies": [],
+            "details": "Open `pyproject.toml` and add the line `tmdbv3api = \"1.9.0\"` within the `[tool.poetry.dependencies]` table. After editing, you may need to run `poetry lock` and `poetry install` to update the environment.",
+            "status": "done",
+            "testStrategy": "Verify by running `poetry show tmdbv3api` in the terminal, which should display the package information for version 1.9.0."
+          },
+          {
+            "id": 2,
+            "title": "Create TMDBClient Class Skeleton",
+            "description": "Create the file `src/anivault/services/tmdb_client.py` and define the empty `TMDBClient` class. Include necessary initial imports for `TMDb`, `TV`, `Movie` from `tmdbv3api` and `get_config` from `anivault.config`.",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Create the new Python file. The initial content should be:\n```python\nfrom tmdbv3api import TMDb, TV, Movie\nfrom anivault.config import get_config\n\nclass TMDBClient:\n    pass\n```",
+            "status": "done",
+            "testStrategy": "Confirm the file `src/anivault/services/tmdb_client.py` is created with the specified class skeleton. The code should be syntactically correct."
+          },
+          {
+            "id": 3,
+            "title": "Implement TMDBClient Initialization",
+            "description": "Implement the `__init__` method for the `TMDBClient` class. This method will fetch the configuration using `get_config`, set the TMDB API key, and initialize instances of the `TMDb`, `TV`, and `Movie` objects from the `tmdbv3api` library.",
+            "dependencies": [
+              "4.2"
+            ],
+            "details": "In `TMDBClient`, add the `__init__` method. It should call `get_config()`, access `config.tmdb.api_key`, and assign it to `self.tmdb.api_key`. It should also create and store `self.tv = TV()` and `self.movie = Movie()` for later use.",
+            "status": "done",
+            "testStrategy": "Unit test the constructor by mocking `get_config` to return a mock config object. Assert that `tmdbv3api.TMDb().api_key` is set with the key from the mock config."
+          },
+          {
+            "id": 4,
+            "title": "Implement search_media Method",
+            "description": "Implement a public method `search_media(self, title: str) -> list` in the `TMDBClient` class. This method will perform searches for both TV shows and movies using the respective `tmdbv3api` objects and return a combined list of results.",
+            "dependencies": [
+              "4.3"
+            ],
+            "details": "The `search_media` method should call `self.tv.search(title)` and `self.movie.search(title)`. It should then process and combine the results from both calls into a single list. For this initial version, returning the raw result objects from the library is acceptable.",
+            "status": "done",
+            "testStrategy": "In a unit test, mock the `tv.search` and `movie.search` methods. Call `client.search_media('some title')` and assert that both mocked search methods were called with the correct title. Verify that the returned list contains the mock results from both calls."
+          },
+          {
+            "id": 5,
+            "title": "Set Up Unit Tests for TMDBClient",
+            "description": "Create the test file `tests/services/test_tmdb_client.py` and set up the basic test structure. This includes creating a `TestTMDBClient` class and using `unittest.mock.patch` to mock the entire `tmdbv3api` module to prevent actual API calls during tests.",
+            "dependencies": [
+              "4.4"
+            ],
+            "details": "Create the test file. Use a class-level or method-level decorator like `@patch('anivault.services.tmdb_client.TMDb')` and similar patches for `TV` and `Movie`. Write a simple `test_initialization` that creates an instance of `TMDBClient` within the mocked context to ensure it can be instantiated without errors.",
+            "status": "done",
+            "testStrategy": "Run the test suite. The new test file should be discovered and the basic test case for client initialization should pass, confirming that the mocking strategy is effective."
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement Rate Limiting State Machine",
+        "description": "Create a state machine to manage the operational state of the TMDB client based on API feedback, particularly for handling rate limits and errors.",
+        "details": "Create `src/anivault/services/state_machine.py`. Implement a `RateLimitStateMachine` class with states: `NORMAL`, `THROTTLE`, `SLEEP_THEN_RESUME`, and `CACHE_ONLY`. Define the transition logic: `NORMAL` -> `THROTTLE` on 429 response; `THROTTLE` -> `SLEEP_THEN_RESUME` after waiting; `SLEEP_THEN_RESUME` -> `NORMAL` on success. Implement the circuit breaker logic: transition to `CACHE_ONLY` if the ratio of 429/5xx errors exceeds 60% over a 5-minute window.",
+        "testStrategy": "Write unit tests in `tests/services/test_state_machine.py`. For each state, test that the transition logic works correctly based on simulated inputs (e.g., receiving a 429 error, successful calls). Verify the circuit breaker logic with a series of simulated failed requests.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create State Machine Enum and Class Structure",
+            "description": "Define the states (NORMAL, THROTTLE, SLEEP_THEN_RESUME, CACHE_ONLY) as an Enum and create the RateLimitStateMachine class structure in src/anivault/services/state_machine.py",
+            "details": "Create the file src/anivault/services/state_machine.py. Define a RateLimitState enum with values: NORMAL, THROTTLE, SLEEP_THEN_RESUME, CACHE_ONLY. Create the RateLimitStateMachine class with __init__ method that initializes the current state to NORMAL and sets up thread-safe data structures for tracking error timestamps.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 2,
+            "title": "Implement State Transition Methods",
+            "description": "Implement the basic state transition methods (handle_429, handle_success, handle_error) that manage state changes based on API responses",
+            "details": "Implement methods in RateLimitStateMachine class: handle_429() to transition to THROTTLE state, handle_success() to transition back to NORMAL from SLEEP_THEN_RESUME, handle_error() to track 5xx errors. Each method should be thread-safe and log state transitions.",
+            "status": "done",
+            "dependencies": [
+              "5.1"
+            ],
+            "parentTaskId": 5
+          },
+          {
+            "id": 3,
+            "title": "Implement Circuit Breaker Logic",
+            "description": "Implement the circuit breaker logic including a thread-safe data structure to track error timestamps over a 5-minute window",
+            "details": "Add circuit breaker functionality to RateLimitStateMachine. Use collections.deque with threading.Lock to track error timestamps. Implement method to calculate error ratio over 5-minute window. When error ratio exceeds 60%, transition to CACHE_ONLY state. Include method to reset circuit breaker and transition back to NORMAL after successful requests.",
+            "status": "done",
+            "dependencies": [
+              "5.2"
+            ],
+            "parentTaskId": 5
+          },
+          {
+            "id": 4,
+            "title": "Create Comprehensive Unit Tests for State Machine",
+            "description": "Write comprehensive unit tests in tests/services/test_state_machine.py to verify all state transitions and circuit breaker logic",
+            "details": "Create test file tests/services/test_state_machine.py. Write tests for: all state transitions (NORMAL->THROTTLE, THROTTLE->SLEEP_THEN_RESUME, SLEEP_THEN_RESUME->NORMAL), circuit breaker activation when error ratio > 60%, circuit breaker reset after successful requests, thread safety of state machine operations, and edge cases like rapid state transitions.",
+            "status": "done",
+            "dependencies": [
+              "5.3"
+            ],
+            "parentTaskId": 5
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Integrate Advanced Error Handling and Retry Logic into TMDB Client",
+        "description": "Enhance the TMDB client with a robust 429 recovery mechanism and retry logic, integrating the rate limiter, semaphore, and state machine.",
+        "details": "Refactor `src/anivault/services/tmdb_client.py`. Wrap API call methods with logic that uses the `SemaphoreManager` (Task 2) and `RateLimiter` (Task 1). In the error handling block, catch HTTP 429 errors. When a 429 occurs, transition the `StateMachine` (Task 5) to `THROTTLE`. Parse the `Retry-After` header and wait for the specified duration. If the header is absent, use an exponential backoff strategy (e.g., 1s, 2s, 4s) with a max of 5 retries. Reset the token bucket after a 429 event.",
+        "testStrategy": "Write integration tests in `tests/services/test_tmdb_client_integration.py`. Mock the HTTP responses to simulate a 429 error with a `Retry-After` header and verify the client waits correctly. Simulate a 429 without the header to test exponential backoff. Test that the state machine transitions correctly during these events.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Refactor TMDBClient for Dependency Injection and a Private Request Method",
+            "description": "Modify the TMDBClient's constructor to accept instances of RateLimiter, SemaphoreManager, and StateMachine. Create a new private async method, `_make_request`, to serve as a centralized place for all future API call logic, moving the basic httpx call into it.",
+            "dependencies": [],
+            "details": "In `src/anivault/services/tmdb_client.py`, update `TMDBClient.__init__` to take `rate_limiter`, `semaphore_manager`, and `state_machine` as arguments and store them as instance attributes. Create a new method `async def _make_request(self, method: str, endpoint: str, **kwargs)`. For now, this method will just perform the `self.client.request()` call and basic error handling, similar to the existing logic in `search_media`.",
+            "status": "done",
+            "testStrategy": "Update unit tests for `TMDBClient` initialization to pass in mock dependencies. No functional change to test yet, but ensures the class can be instantiated with the new signature."
+          },
+          {
+            "id": 2,
+            "title": "Integrate Semaphore and Rate Limiter into the Request Method",
+            "description": "Wrap the core API call logic within the `_make_request` method with the SemaphoreManager and RateLimiter to control concurrency and request rate.",
+            "dependencies": [
+              "6.1"
+            ],
+            "details": "In `_make_request` within `src/anivault/services/tmdb_client.py`, before making the `httpx` call, add `await self.rate_limiter.wait_for_token()`. Wrap the entire request sequence in a `try...finally` block that calls `await self.semaphore_manager.acquire()` at the beginning of the `try` and `self.semaphore_manager.release()` in the `finally` block to ensure the semaphore is always released.",
+            "status": "done",
+            "testStrategy": "In integration tests, mock the dependencies and verify that `semaphore_manager.acquire` and `rate_limiter.wait_for_token` are called before the HTTP request is made, and that `semaphore_manager.release` is called afterwards."
+          },
+          {
+            "id": 3,
+            "title": "Implement Retry Loop Structure with Exponential Backoff",
+            "description": "Establish the main retry loop within `_make_request` that attempts an API call up to a maximum number of times and implements an exponential backoff strategy for generic failures.",
+            "dependencies": [
+              "6.2"
+            ],
+            "details": "In `_make_request`, create a `for` loop that iterates up to a max of 5 retries (e.g., `for attempt in range(max_retries)`). Initialize a backoff delay (e.g., 1 second) before the loop. Inside the loop, place the `httpx` call. In the `except httpx.HTTPStatusError` block, if the error is not a 429, log the attempt, wait for the current backoff duration, and then double the delay for the next potential attempt. If the loop finishes without success, raise the last exception.",
+            "status": "done",
+            "testStrategy": "Mock an `httpx.HTTPStatusError` with a 500 status code. Verify that the client retries the request multiple times with increasing sleep intervals between attempts."
+          },
+          {
+            "id": 4,
+            "title": "Implement Specific 429 Recovery Mechanism",
+            "description": "Enhance the error handling block to specifically catch HTTP 429 errors, parse the 'Retry-After' header, transition the state machine, and reset the rate limiter.",
+            "dependencies": [
+              "6.3"
+            ],
+            "details": "Inside the `except httpx.HTTPStatusError as e:` block in `_make_request`, add a condition: `if e.response.status_code == 429:`. Inside this block, call `self.state_machine.transition_to(SystemState.THROTTLE)`. Parse the `Retry-After` header from `e.response.headers`. If present, `await asyncio.sleep()` for that integer value. If absent, use the existing exponential backoff delay. After determining the wait time but before sleeping, call `self.rate_limiter.reset()` to clear the token bucket.",
+            "status": "done",
+            "testStrategy": "Mock an `httpx.HTTPStatusError` with a 429 status code and a 'Retry-After: 2' header. Assert that `state_machine.transition_to`, `rate_limiter.reset` are called, and that `asyncio.sleep` is called with `2`. Also test the case where the header is missing to ensure it falls back to exponential backoff."
+          },
+          {
+            "id": 5,
+            "title": "Refactor Public Methods to Use the New Request Logic",
+            "description": "Update the public methods `search_media` and `get_media_details` to delegate their functionality to the new, robust `_make_request` method.",
+            "dependencies": [
+              "6.4"
+            ],
+            "details": "In `src/anivault/services/tmdb_client.py`, rewrite the implementation of `search_media` and `get_media_details`. These methods should now simply call `await self._make_request(...)` with the appropriate HTTP method ('GET'), endpoint, and parameters. Remove all old `try...except` blocks and direct `httpx` calls from these public methods.",
+            "status": "done",
+            "testStrategy": "Run existing or new integration tests for `search_media` and `get_media_details`. Verify they return correct data on success and correctly handle mocked 429 and 500 errors, demonstrating that the retry logic in `_make_request` is being properly utilized."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Develop Full Integration and Performance Tests",
+        "description": "Create a suite of integration and performance tests to validate that all components work together correctly under load and meet the specified performance targets.",
+        "details": "Create a new test file, e.g., `tests/test_e2e_tmdb_flow.py`. This test will simulate a realistic workload of multiple concurrent requests for media information. It will use the fully-featured `TMDBClient`. The test should run against a mocked TMDB API server that can be programmed to return 429 errors. Measure the achieved RPS, memory usage, and response times. Assert that the system maintains ~35 RPS and recovers from simulated API errors.",
+        "testStrategy": "The task itself is to create tests. The success criteria are: the integration test successfully demonstrates the flow from request -> semaphore -> rate limit -> API call -> response/retry. The performance test script should be able to report RPS, memory usage, and error rate, and these metrics should meet the PRD's success criteria.",
+        "priority": "high",
+        "dependencies": [
+          6
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set Up Mock HTTP Server for TMDB API Simulation",
+            "description": "Create a test setup with pytest-httpserver to simulate TMDB API behavior including 429 error responses",
+            "details": "Create test file tests/test_e2e_tmdb_flow.py. Set up pytest-httpserver to create a mock TMDB API server. Configure endpoints for TV and movie search that can return both successful responses and 429 errors with Retry-After headers on demand. Add pytest fixtures for the mock server and TMDB client configuration.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 7
+          },
+          {
+            "id": 2,
+            "title": "Implement High-Concurrency Load Test",
+            "description": "Create a test function that uses thread pool to simulate high-concurrency workload and measures system performance",
+            "details": "Implement test function that creates fully integrated TMDBClient with all dependencies. Use ThreadPoolExecutor to simulate multiple concurrent requests. Measure total execution time, count successful requests, and calculate achieved RPS. Include memory usage monitoring and error rate tracking. Verify system maintains target 35 RPS under load.",
+            "status": "done",
+            "dependencies": [
+              "7.1"
+            ],
+            "parentTaskId": 7
+          },
+          {
+            "id": 3,
+            "title": "Implement 429 Recovery Scenario Test",
+            "description": "Create test to verify system correctly recovers from 429 errors and maintains functionality",
+            "details": "Implement test function that configures mock server to return 429 errors with Retry-After headers for first few requests, then successful responses. Verify that system correctly handles 429 responses, respects Retry-After timing, and eventually recovers to normal operation. Test state machine transitions and rate limiter reset functionality.",
+            "status": "done",
+            "dependencies": [
+              "7.2"
+            ],
+            "parentTaskId": 7
+          },
+          {
+            "id": 4,
+            "title": "Add Performance Metrics Collection and Assertions",
+            "description": "Implement comprehensive performance metrics collection and assertions to validate system meets requirements",
+            "details": "Add instrumentation to collect detailed performance metrics: RPS, response time percentiles (P50, P95, P99), memory usage, error rates, and throughput. Implement assertions to verify system meets PRD requirements: 35 RPS target, <100MB memory usage, <5% error rate, successful 429 recovery. Generate detailed test reports with performance graphs and statistics.",
+            "status": "done",
+            "dependencies": [
+              "7.3"
+            ],
+            "parentTaskId": 7
+          },
+          {
+            "id": 5,
+            "title": "Create Circuit Breaker Integration Test",
+            "description": "Test circuit breaker functionality by simulating sustained high error rates",
+            "details": "Implement test that simulates sustained 5xx errors over 5-minute window to trigger circuit breaker activation. Verify system transitions to CACHE_ONLY state when error ratio exceeds 60%. Test circuit breaker reset functionality when error rate drops below threshold. Verify system returns to NORMAL state and resumes API calls after circuit breaker resets.",
+            "status": "done",
+            "dependencies": [
+              "7.4"
+            ],
+            "parentTaskId": 7
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Integrate TMDB Service into Main Application and Document",
+        "description": "Integrate the complete TMDB client service into the main AniVault CLI application and provide comprehensive documentation for the new modules.",
+        "details": "Refactor the main application logic (likely in `src/anivault/cli.py` or a new processing service) to use the `TMDBClient` to fetch metadata for scanned files. Ensure the client is initialized once and shared. Add docstrings to all new classes and methods in `rate_limiter.py`, `semaphore_manager.py`, `state_machine.py`, and `tmdb_client.py`. Update the project's `README.md` or create new documentation in a `docs/` folder explaining the rate limiting architecture and configuration.",
+        "testStrategy": "Perform manual end-to-end testing using the CLI. Run the CLI against a sample directory of files and verify that it correctly fetches metadata from the (mocked or real) TMDB API. Review the generated documentation for clarity and completeness. Ensure the code passes a final review.",
+        "priority": "medium",
+        "dependencies": [
+          7
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Add Docstrings to Core Concurrency and State Services",
+            "description": "Add comprehensive docstrings to all classes and public methods in `rate_limiter.py`, `semaphore_manager.py`, and `state_machine.py`. The docstrings should follow PEP 257 and explain the purpose, arguments, and return values of each component.",
+            "dependencies": [],
+            "details": "Navigate to `src/anivault/services/`. Edit `rate_limiter.py`, `semaphore_manager.py`, and `state_machine.py`. For each file, add a module-level docstring. For each class (`RateLimiter`, `SemaphoreManager`, `StateMachine`) and their public methods (`__init__`, `wait`, `acquire`, `release`, `transition_to`, etc.), add a clear and concise docstring explaining its function and parameters.",
+            "status": "done",
+            "testStrategy": "Perform a manual review of the generated docstrings for clarity, accuracy, and adherence to PEP 257 standards. Use a linter like pydocstyle if available."
+          },
+          {
+            "id": 2,
+            "title": "Add Docstrings to the TMDBClient Class",
+            "description": "Add comprehensive docstrings to the `TMDBClient` class and its public methods in `src/anivault/services/tmdb_client.py`. The documentation should explain how the client uses the rate limiter, semaphore, and state machine.",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Edit `src/anivault/services/tmdb_client.py`. Add a docstring to the `TMDBClient` class explaining its role and how it orchestrates API requests. Document the `__init__` method, detailing its parameters (`api_key`, `rate_limiter`, etc.). Add docstrings for `search_media`, `get_details`, and the internal `_make_request` method, explaining their purpose, parameters, return values, and the errors they might raise.",
+            "status": "done",
+            "testStrategy": "Review the docstrings to ensure they clearly explain the client's interaction with the other services and the overall API request lifecycle, including error handling and retry logic."
+          },
+          {
+            "id": 3,
+            "title": "Instantiate and Integrate TMDBClient into CLI Application",
+            "description": "Refactor `src/anivault/cli.py` to initialize all required services (`RateLimiter`, `SemaphoreManager`, `StateMachine`, `TMDBClient`) and use the client to fetch metadata for scanned files.",
+            "dependencies": [],
+            "details": "In `src/anivault/cli.py`, modify the `main` function to instantiate the `RateLimiter`, `SemaphoreManager`, and `StateMachine`. Then, instantiate the `TMDBClient`, passing the other services and the TMDB API key from the configuration. Modify the `process_directory` function to accept the `TMDBClient` instance as an argument. Inside the file processing loop, after a file is parsed by `FileParser`, use the `TMDBClient` instance to call `search_media` with the parsed title and print the results.",
+            "status": "done",
+            "testStrategy": "Run the CLI pointing to a directory with a few sample video files. Verify that the console output shows the parsed file information followed by the metadata fetched from the TMDB API for each file."
+          },
+          {
+            "id": 4,
+            "title": "Create High-Level Documentation for Rate Limiting Architecture",
+            "description": "Create a new documentation file that explains the project's rate limiting, concurrency, and state management architecture.",
+            "dependencies": [],
+            "details": "Create a new directory `docs/`. Inside it, create a new Markdown file named `architecture.md`. In this file, write a detailed explanation of how `RateLimiter`, `SemaphoreManager`, and `StateMachine` work together within `TMDBClient` to manage API requests. Describe the purpose of each component, the states of the `StateMachine` (e.g., `RUNNING`, `THROTTLE`), and how a 429 error triggers a state transition and backoff. Optionally, update the main `README.md` to link to this new documentation.",
+            "status": "done",
+            "testStrategy": "Review the `docs/architecture.md` file for clarity, accuracy, and completeness. Ensure a new developer could read it and understand the system's approach to API resilience."
+          },
+          {
+            "id": 5,
+            "title": "Perform Manual E2E Test and Final Documentation Review",
+            "description": "Conduct a final end-to-end test of the CLI application and perform a comprehensive review of all new documentation (docstrings and architecture guide).",
+            "dependencies": [
+              "8.2",
+              "8.3",
+              "8.4"
+            ],
+            "details": "Prepare a test directory with 5-10 properly named media files. Run the `anivault` CLI command against this directory. Verify that the output correctly displays the fetched metadata for each file. Check for any errors or unexpected behavior. Finally, perform a full review of all docstrings added in `rate_limiter.py`, `semaphore_manager.py`, `state_machine.py`, and `tmdb_client.py`, as well as the content in `docs/architecture.md`, ensuring everything is consistent, clear, and accurate.",
+            "status": "done",
+            "testStrategy": "The successful execution of the CLI against the test directory without errors and with correct output serves as the test pass criteria. The documentation review will be considered complete when it is approved by a peer."
+          }
+        ]
+      }
+    ],
     "metadata": {
       "created": "2025-09-30T00:46:46.340Z",
-      "updated": "2025-09-30T00:46:46.340Z",
-      "description": "W9-W10: TMDB 클라이언트 + 레이트리밋 상태머신 - 토큰버킷 알고리즘, 세마포어 동시성 제어, 429 복구 메커니즘, 상태머신 구현"
+      "updated": "2025-10-01T15:32:32.826Z",
+      "description": "Tasks for w9-w10-tmdb-client-rate-limit context"
     }
   },
   "w11-w12-matching-accuracy-cache-v2": {

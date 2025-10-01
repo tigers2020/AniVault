@@ -245,6 +245,10 @@ class TMDBConfig(BaseModel):
         default="https://api.themoviedb.org/3",
         description="TMDB API base URL",
     )
+    api_key: str = Field(
+        default="",
+        description="TMDB API key (required for API access)",
+    )
     timeout: int = Field(default=30, gt=0, description="Request timeout in seconds")
     retry_attempts: int = Field(default=3, ge=0, description="Number of retry attempts")
     retry_delay: float = Field(
@@ -256,6 +260,16 @@ class TMDBConfig(BaseModel):
         default=0.25,
         ge=0,
         description="Delay between requests in seconds",
+    )
+    rate_limit_rps: float = Field(
+        default=35.0,
+        gt=0,
+        description="Rate limit in requests per second",
+    )
+    concurrent_requests: int = Field(
+        default=4,
+        gt=0,
+        description="Maximum number of concurrent requests",
     )
 
 
@@ -349,10 +363,16 @@ class Settings(BaseModel):
                         "TMDB_BASE_URL",
                         "https://api.themoviedb.org/3",
                     ),
+                    "api_key": os.getenv("TMDB_API_KEY", ""),
                     "timeout": int(os.getenv("TMDB_TIMEOUT", "30")),
                     "retry_attempts": int(os.getenv("TMDB_RETRY_ATTEMPTS", "3")),
+                    "retry_delay": float(os.getenv("TMDB_RETRY_DELAY", "1.0")),
                     "rate_limit_delay": float(
                         os.getenv("TMDB_RATE_LIMIT_DELAY", "0.25"),
+                    ),
+                    "rate_limit_rps": float(os.getenv("TMDB_RATE_LIMIT_RPS", "35.0")),
+                    "concurrent_requests": int(
+                        os.getenv("TMDB_CONCURRENT_REQUESTS", "4"),
                     ),
                 },
                 "file_processing": {
