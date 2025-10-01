@@ -10,13 +10,14 @@ __author__ = "AniVault Team"
 __email__ = "contact@anivault.dev"
 
 # Core modules
-from .core import BoundedQueue, Statistics
+from .core import BoundedQueue, StatisticsCollector, get_statistics_collector
 
 # Other modules will be imported when they are implemented
 
 __all__ = [
     "BoundedQueue",
-    "Statistics",
+    "StatisticsCollector",
+    "get_statistics_collector",
     # "AnimeScanner",
     # "MetadataParser",
     # "TMDBClient",

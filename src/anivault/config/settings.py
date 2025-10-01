@@ -439,3 +439,19 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
 
     # Fall back to environment variables
     return Settings.from_environment()
+
+
+# Global settings instance
+_settings: Settings | None = None
+
+
+def get_config() -> Settings:
+    """Get the global settings instance.
+
+    Returns:
+        The global Settings instance, loading it if necessary.
+    """
+    global _settings
+    if _settings is None:
+        _settings = load_settings()
+    return _settings

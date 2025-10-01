@@ -1,0 +1,616 @@
+"""Multi-stage matching engine for finding anime titles in TMDB.
+
+This module provides the core matching functionality that uses normalized queries
+to search TMDB and find potential matches using various strategies including
+fuzzy matching, year-based filtering, and confidence scoring.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from fuzzywuzzy import fuzz
+
+from anivault.core.normalization import normalize_query_from_anitopy
+from anivault.core.matching.scoring import calculate_confidence_score
+from anivault.core.statistics import StatisticsCollector
+from anivault.services.cache_v2 import JSONCacheV2
+from anivault.services.tmdb_client import TMDBClient
+
+logger = logging.getLogger(__name__)
+
+# Confidence thresholds for fallback strategies
+HIGH_CONFIDENCE_THRESHOLD = 0.8
+MEDIUM_CONFIDENCE_THRESHOLD = 0.6
+LOW_CONFIDENCE_THRESHOLD = 0.4
+
+
+# Genre-based filtering constants
+ANIMATION_GENRE_ID = 16
+GENRE_BOOST = 0.1
+
+
+class MatchingEngine:
+    """Multi-stage matching engine for finding anime titles in TMDB.
+
+    This engine orchestrates the entire matching process by:
+    1. Normalizing the input query
+    2. Searching TMDB with caching
+    3. Scoring candidates using fuzzy matching
+    4. Filtering and sorting by year
+    5. Returning the best match
+
+    Args:
+        cache: Cache v2 instance for storing TMDB search results
+        tmdb_client: TMDB client for API calls
+    """
+
+    def __init__(
+        self,
+        cache: JSONCacheV2,
+        tmdb_client: TMDBClient,
+        statistics: StatisticsCollector | None = None,
+    ):
+        """Initialize the matching engine.
+
+        Args:
+            cache: Cache v2 instance for storing TMDB search results
+            tmdb_client: TMDB client for API calls
+            statistics: Optional statistics collector for performance tracking
+        """
+        self.cache = cache
+        self.tmdb_client = tmdb_client
+        self.statistics = statistics or StatisticsCollector()
+
+    async def _search_tmdb(self, normalized_query: dict[str, Any]) -> list[dict[str, Any]]:
+        """Search TMDB with caching support.
+
+        This method first checks the cache for existing search results.
+        On a cache miss, it calls the TMDB API to search for both TV and Movie
+        results, combines them, and stores the combined list in the cache.
+
+        Args:
+            normalized_query: Normalized query containing title and metadata
+
+        Returns:
+            List of TMDB search results with media_type field
+        """
+        # Use normalized title as cache key
+        cache_key = normalized_query.get("title", "")
+        
+        # Check if title is empty before doing anything
+        if not cache_key:
+            logger.warning("Empty title in normalized query, skipping TMDB search")
+            return []
+        
+        # Check cache first
+        cached_results = self.cache.get(cache_key, "search")
+        if cached_results is not None:
+            logger.debug("Cache hit for search query: %s", cache_key)
+            self.statistics.record_cache_hit("search")
+            return cached_results
+
+        # Cache miss - search TMDB
+        logger.debug("Cache miss for search query: %s", cache_key)
+        self.statistics.record_cache_miss("search")
+        title = cache_key
+
+        try:
+            # Search TMDB for both TV and movies
+            self.statistics.record_api_call("tmdb_search", success=True)
+            results = await self.tmdb_client.search_media(title)
+            
+            # Store results in cache (7 days TTL)
+            self.cache.set(
+                key=cache_key,
+                data=results,
+                cache_type="search",
+                ttl_seconds=7 * 24 * 60 * 60,  # 7 days
+            )
+            
+            logger.debug("Found %d results for query: %s", len(results), title)
+            return results
+
+        except Exception as e:
+            logger.error("TMDB search failed for query '%s': %s", title, str(e))
+            self.statistics.record_api_call("tmdb_search", success=False, error=str(e))
+            return []
+
+    def _score_candidates(
+        self,
+        candidates: list[dict[str, Any]],
+        normalized_title: str,
+    ) -> list[dict[str, Any]]:
+        """Score candidates using fuzzy matching.
+
+        This method iterates through a list of TMDB candidates and calculates
+        a title similarity score for each using fuzzywuzzy.
+
+        Args:
+            candidates: List of TMDB search results
+            normalized_title: Normalized title to match against
+
+        Returns:
+            List of candidates with added 'title_score' field
+        """
+        if not normalized_title:
+            logger.warning("Empty normalized title, returning unscored candidates")
+            return candidates
+
+        scored_candidates = []
+        
+        for candidate in candidates:
+            # Extract title from candidate
+            candidate_title = candidate.get("title", "") or candidate.get("name", "")
+            
+            if not candidate_title:
+                logger.debug("Skipping candidate with no title")
+                continue
+
+            # Calculate fuzzy match score
+            title_score = fuzz.ratio(normalized_title.lower(), candidate_title.lower())
+            
+            # Add score to candidate
+            candidate_with_score = candidate.copy()
+            candidate_with_score["title_score"] = title_score
+            
+            scored_candidates.append(candidate_with_score)
+            
+            logger.debug(
+                "Scored candidate '%s' against '%s': %d",
+                candidate_title,
+                normalized_title,
+                title_score,
+            )
+
+        # Sort by title score (highest first)
+        scored_candidates.sort(key=lambda x: x.get("title_score", 0), reverse=True)
+        
+        logger.debug("Scored %d candidates", len(scored_candidates))
+        return scored_candidates
+
+    def _filter_and_sort_by_year(
+        self,
+        candidates: list[dict[str, Any]],
+        year_hint: str | None,
+    ) -> list[dict[str, Any]]:
+        """Filter and sort candidates by year match.
+
+        This method processes a list of scored candidates, filtering and sorting
+        them based on how well their release year matches the provided year hint.
+
+        Args:
+            candidates: List of scored candidates
+            year_hint: Year hint from normalized query (optional)
+
+        Returns:
+            List of candidates filtered and sorted by year match
+        """
+        if not year_hint:
+            logger.debug("No year hint provided, returning candidates as-is")
+            return candidates
+
+        try:
+            target_year = int(year_hint)
+        except (ValueError, TypeError):
+            logger.warning("Invalid year hint: %s", year_hint)
+            return candidates
+
+        filtered_candidates = []
+        
+        for candidate in candidates:
+            # Extract year from candidate
+            candidate_year = None
+            
+            # Try different year fields
+            for year_field in ["first_air_date", "release_date", "year"]:
+                year_value = candidate.get(year_field)
+                if year_value:
+                    try:
+                        if isinstance(year_value, str):
+                            # Extract year from date string (YYYY-MM-DD)
+                            candidate_year = int(year_value.split("-")[0])
+                        else:
+                            candidate_year = int(year_value)
+                        break
+                    except (ValueError, TypeError, AttributeError):
+                        continue
+
+            if candidate_year is None:
+                logger.debug("No year found for candidate: %s", candidate.get("title", ""))
+                # Include candidates without year but with lower priority
+                candidate_with_year = candidate.copy()
+                candidate_with_year["year_score"] = 0
+                candidate_with_year["year_diff"] = 999  # High difference for sorting
+                filtered_candidates.append(candidate_with_year)
+                continue
+
+            # Calculate year difference
+            year_diff = abs(candidate_year - target_year)
+            
+            # Add year score (lower difference = higher score)
+            candidate_with_year = candidate.copy()
+            candidate_with_year["year_score"] = max(0, 100 - year_diff)
+            candidate_with_year["year_diff"] = year_diff
+            
+            filtered_candidates.append(candidate_with_year)
+            
+            logger.debug(
+                "Year match for '%s': %d vs %d (diff: %d, score: %d)",
+                candidate.get("title", ""),
+                candidate_year,
+                target_year,
+                year_diff,
+                candidate_with_year["year_score"],
+            )
+
+        # Sort by year score (highest first), then by title score
+        filtered_candidates.sort(
+            key=lambda x: (x.get("year_score", 0), x.get("title_score", 0)),
+            reverse=True,
+        )
+        
+        logger.debug("Filtered %d candidates by year", len(filtered_candidates))
+        return filtered_candidates
+
+    def _calculate_confidence_scores(
+        self,
+        candidates: list[dict[str, Any]],
+        normalized_query: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Calculate confidence scores for all candidates.
+
+        This method uses the confidence scoring system to evaluate each candidate
+        and add a confidence_score field to each candidate.
+
+        Args:
+            candidates: List of TMDB search results
+            normalized_query: Normalized query containing title, year, and language
+
+        Returns:
+            List of candidates with added 'confidence_score' field
+        """
+        scored_candidates = []
+        
+        for candidate in candidates:
+            try:
+                # Calculate confidence score using the scoring system
+                confidence_score = calculate_confidence_score(normalized_query, candidate)
+                
+                # Add confidence score to candidate
+                candidate_with_confidence = candidate.copy()
+                candidate_with_confidence["confidence_score"] = confidence_score
+                
+                scored_candidates.append(candidate_with_confidence)
+                
+                logger.debug(
+                    "Confidence score for '%s': %.3f",
+                    candidate.get("title", ""),
+                    confidence_score,
+                )
+                
+            except Exception as e:
+                logger.warning(
+                    "Error calculating confidence score for candidate '%s': %s",
+                    candidate.get("title", ""),
+                    str(e),
+                )
+                # Add candidate with 0 confidence score
+                candidate_with_confidence = candidate.copy()
+                candidate_with_confidence["confidence_score"] = 0.0
+                scored_candidates.append(candidate_with_confidence)
+
+        # Sort by confidence score (highest first)
+        scored_candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
+        
+        logger.debug("Calculated confidence scores for %d candidates", len(scored_candidates))
+        return scored_candidates
+
+    async def find_match(self, anitopy_result: dict[str, Any]) -> dict[str, Any] | None:
+        """Find the best match for an anime title using multi-stage matching with fallback strategies.
+
+        This method orchestrates the entire matching process:
+        1. Normalize the input query
+        2. Search TMDB with caching
+        3. Calculate confidence scores for all candidates
+        4. Apply fallback strategies if needed
+        5. Return the best match with confidence metadata
+
+        Args:
+            anitopy_result: Result from anitopy.parse() containing anime metadata
+
+        Returns:
+            Best matching TMDB result with confidence metadata or None if no good match found
+        """
+        # Start timing the matching operation
+        self.statistics.start_timing("matching_operation")
+        
+        try:
+            # Step 1: Normalize the query
+            normalized_query = normalize_query_from_anitopy(anitopy_result)
+            if not normalized_query:
+                logger.warning("Failed to normalize query from anitopy result")
+                return None
+
+            title = normalized_query.get("title", "")
+            if not title:
+                logger.warning("No title found in normalized query")
+                return None
+
+            logger.info("Searching for match: %s", title)
+
+            # Step 2: Search TMDB with caching
+            candidates = await self._search_tmdb(normalized_query)
+            if not candidates:
+                logger.info("No candidates found for: %s", title)
+                return None
+
+            # Step 3: Calculate confidence scores for all candidates
+            scored_candidates = self._calculate_confidence_scores(candidates, normalized_query)
+            if not scored_candidates:
+                logger.info("No scored candidates for: %s", title)
+                return None
+
+            # Step 4: Check if we have high-confidence matches
+            best_candidate = scored_candidates[0]
+            best_confidence = best_candidate.get("confidence_score", 0.0)
+            
+            logger.info(
+                "Best candidate for '%s': '%s' (confidence: %.3f)",
+                title,
+                best_candidate.get("title", ""),
+                best_confidence,
+            )
+
+            # Step 5: Apply fallback strategies if confidence is too low
+            if best_confidence < HIGH_CONFIDENCE_THRESHOLD:
+                logger.info(
+                    "Low confidence (%.3f < %.3f), applying fallback strategies",
+                    best_confidence,
+                    HIGH_CONFIDENCE_THRESHOLD,
+                )
+                
+                # Apply fallback strategies (to be implemented in later subtasks)
+                # For now, we'll use the best candidate we have
+                fallback_candidates = self._apply_fallback_strategies(
+                    scored_candidates, normalized_query
+                )
+                
+                if fallback_candidates:
+                    best_candidate = fallback_candidates[0]
+                    best_confidence = best_candidate.get("confidence_score", 0.0)
+                    logger.info(
+                        "Fallback improved confidence to %.3f",
+                        best_confidence,
+                    )
+
+            # Step 6: Final confidence check
+            if best_confidence < LOW_CONFIDENCE_THRESHOLD:
+                logger.warning(
+                    "Very low confidence (%.3f < %.3f), returning None",
+                    best_confidence,
+                    LOW_CONFIDENCE_THRESHOLD,
+                )
+                return None
+
+            # Step 7: Add metadata about the matching process
+            best_candidate["matching_metadata"] = {
+                "original_title": title,
+                "year_hint": normalized_query.get("year"),
+                "language": normalized_query.get("language"),
+                "total_candidates": len(candidates),
+                "scored_candidates": len(scored_candidates),
+                "confidence_score": best_confidence,
+                "confidence_level": self._get_confidence_level(best_confidence),
+                "used_fallback": best_confidence < HIGH_CONFIDENCE_THRESHOLD,
+            }
+
+            logger.info(
+                "Found best match for '%s': '%s' (confidence: %.3f, level: %s)",
+                title,
+                best_candidate.get("title", ""),
+                best_confidence,
+                best_candidate["matching_metadata"]["confidence_level"],
+            )
+
+            # Record successful match statistics
+            self.statistics.record_match_success(
+                confidence=best_confidence,
+                candidates_count=len(candidates),
+                used_fallback=best_candidate["matching_metadata"]["used_fallback"]
+            )
+            self.statistics.end_timing("matching_operation")
+
+            return best_candidate
+
+        except Exception as e:
+            logger.error("Error in find_match: %s", str(e))
+            # Record failed match statistics
+            self.statistics.record_match_failure()
+            self.statistics.end_timing("matching_operation")
+            return None
+
+    def _apply_fallback_strategies(
+        self,
+        candidates: list[dict[str, Any]],
+        normalized_query: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Apply fallback strategies to improve matching.
+
+        This method implements various fallback strategies when primary matching
+        yields low confidence results. Strategies include genre-based filtering
+        and partial substring matching.
+
+        Args:
+            candidates: List of scored candidates
+            normalized_query: Normalized query containing title and metadata
+
+        Returns:
+            List of candidates after applying fallback strategies
+        """
+        logger.debug("Applying fallback strategies to %d candidates", len(candidates))
+        
+        # Stage 1: Apply genre-based filtering
+        genre_filtered_candidates = self._apply_genre_filter(candidates)
+        
+        # Check if genre filtering improved confidence
+        if genre_filtered_candidates:
+            best_confidence = genre_filtered_candidates[0].get("confidence_score", 0.0)
+            if best_confidence >= HIGH_CONFIDENCE_THRESHOLD:
+                logger.debug("Genre filtering produced high confidence match: %.3f", best_confidence)
+                return genre_filtered_candidates
+        
+        # Stage 2: Apply partial substring matching
+        partial_matched_candidates = self._apply_partial_substring_match(
+            genre_filtered_candidates, normalized_query
+        )
+        
+        logger.debug("Fallback strategies completed, returning %d candidates", len(partial_matched_candidates))
+        return partial_matched_candidates
+
+    def _apply_genre_filter(self, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Apply genre-based filtering to boost animation candidates.
+
+        This method iterates through candidates and boosts the confidence score
+        of any candidate that has the Animation genre (ID 16) in its genre_ids list.
+
+        Args:
+            candidates: List of scored candidates
+
+        Returns:
+            List of candidates with updated confidence scores, sorted by new scores
+        """
+        if not candidates:
+            logger.debug("No candidates to apply genre filter to")
+            return candidates
+
+        logger.debug("Applying genre filter to %d candidates", len(candidates))
+        
+        boosted_candidates = []
+        
+        for candidate in candidates:
+            # Create a copy to avoid modifying the original
+            boosted_candidate = candidate.copy()
+            
+            # Check if candidate has genre information
+            genre_ids = candidate.get("genre_ids", [])
+            if not genre_ids:
+                # Try to get genre_ids from nested tmdb_data if available
+                tmdb_data = candidate.get("tmdb_data", {})
+                genre_ids = tmdb_data.get("genre_ids", [])
+            
+            # Apply genre boost if this is an animation
+            if ANIMATION_GENRE_ID in genre_ids:
+                current_confidence = boosted_candidate.get("confidence_score", 0.0)
+                new_confidence = min(1.0, current_confidence + GENRE_BOOST)
+                boosted_candidate["confidence_score"] = new_confidence
+                
+                logger.debug(
+                    "Applied genre boost to '%s': %.3f -> %.3f",
+                    candidate.get("title", ""),
+                    current_confidence,
+                    new_confidence,
+                )
+            else:
+                logger.debug("No genre boost for '%s' (not animation)", candidate.get("title", ""))
+            
+            boosted_candidates.append(boosted_candidate)
+        
+        # Sort by confidence score (highest first)
+        boosted_candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
+        
+        logger.debug("Genre filter applied to %d candidates", len(boosted_candidates))
+        return boosted_candidates
+
+    def _apply_partial_substring_match(
+        self,
+        candidates: list[dict[str, Any]],
+        normalized_query: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Apply partial substring matching to improve matching for abbreviated titles.
+
+        This method uses fuzzywuzzy's partial_ratio to calculate new confidence scores
+        for candidates, which is useful for cases like 'OP' matching 'One Piece' or
+        'KNY' matching 'Kimetsu no Yaiba'.
+
+        Args:
+            candidates: List of scored candidates
+            normalized_query: Normalized query containing title and metadata
+
+        Returns:
+            List of candidates with updated confidence scores based on partial matching
+        """
+        if not candidates:
+            logger.debug("No candidates to apply partial substring matching to")
+            return candidates
+
+        title = normalized_query.get("title", "")
+        if not title:
+            logger.debug("No title in normalized query for partial substring matching")
+            return candidates
+
+        logger.debug("Applying partial substring matching to %d candidates for title: %s", len(candidates), title)
+        
+        partial_matched_candidates = []
+        
+        for candidate in candidates:
+            # Create a copy to avoid modifying the original
+            partial_candidate = candidate.copy()
+            
+            # Extract candidate title
+            candidate_title = candidate.get("title", "") or candidate.get("name", "")
+            if not candidate_title:
+                logger.debug("Skipping candidate with no title for partial matching")
+                partial_matched_candidates.append(partial_candidate)
+                continue
+            
+            # Calculate partial ratio score
+            partial_score = fuzz.partial_ratio(title.lower(), candidate_title.lower())
+            
+            # Convert partial score (0-100) to confidence score (0.0-1.0)
+            partial_confidence = partial_score / 100.0
+            
+            # Use the higher of the original confidence or partial confidence
+            original_confidence = partial_candidate.get("confidence_score", 0.0)
+            new_confidence = max(original_confidence, partial_confidence)
+            partial_candidate["confidence_score"] = new_confidence
+            
+            # Add partial matching metadata
+            partial_candidate["partial_match_score"] = partial_score
+            partial_candidate["used_partial_matching"] = partial_confidence > original_confidence
+            
+            logger.debug(
+                "Partial match for '%s' vs '%s': %d (confidence: %.3f -> %.3f)",
+                title,
+                candidate_title,
+                partial_score,
+                original_confidence,
+                new_confidence,
+            )
+            
+            partial_matched_candidates.append(partial_candidate)
+        
+        # Sort by confidence score (highest first)
+        partial_matched_candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
+        
+        logger.debug("Partial substring matching applied to %d candidates", len(partial_matched_candidates))
+        return partial_matched_candidates
+
+    def _get_confidence_level(self, confidence_score: float) -> str:
+        """Get confidence level description based on score.
+
+        Args:
+            confidence_score: Confidence score between 0.0 and 1.0
+
+        Returns:
+            Confidence level description
+        """
+        if confidence_score >= HIGH_CONFIDENCE_THRESHOLD:
+            return "high"
+        elif confidence_score >= MEDIUM_CONFIDENCE_THRESHOLD:
+            return "medium"
+        elif confidence_score >= LOW_CONFIDENCE_THRESHOLD:
+            return "low"
+        else:
+            return "very_low"

@@ -1,390 +1,482 @@
 """
-Statistics - Base class for metrics collection and analysis.
+Statistics Collection and Performance Benchmarking Module
 
-Provides a foundation for collecting, aggregating, and analyzing
-performance metrics and operational statistics.
+This module provides comprehensive statistics collection and performance
+benchmarking capabilities for the AniVault matching system.
 """
 
 from __future__ import annotations
 
-import threading
+import logging
 import time
-from abc import ABC, abstractmethod
-from collections import defaultdict, deque
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Callable
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any
 
-
-class MetricType(Enum):
-    """Types of metrics that can be collected."""
-
-    COUNTER = "counter"
-    GAUGE = "gauge"
-    HISTOGRAM = "histogram"
-    TIMER = "timer"
-    RATE = "rate"
+logger = logging.getLogger(__name__)
 
 
 @dataclass
-class MetricValue:
-    """Container for a metric value with metadata."""
+class PerformanceMetrics:
+    """Container for performance metrics."""
 
-    value: int | float
-    timestamp: float
-    tags: dict[str, str] = field(default_factory=dict)
-    unit: str | None = None
+    # Timing metrics
+    total_time: float = 0.0
+    matching_time: float = 0.0
+    cache_time: float = 0.0
+    api_time: float = 0.0
+
+    # Cache metrics
+    cache_hits: int = 0
+    cache_misses: int = 0
+    cache_hit_ratio: float = 0.0
+
+    # Matching metrics
+    total_files: int = 0
+    successful_matches: int = 0
+    failed_matches: int = 0
+    high_confidence_matches: int = 0
+    medium_confidence_matches: int = 0
+    low_confidence_matches: int = 0
+
+    # API metrics
+    api_calls: int = 0
+    api_errors: int = 0
+    rate_limit_hits: int = 0
+
+    # Memory metrics
+    peak_memory_mb: float = 0.0
+    average_memory_mb: float = 0.0
+
+    def __post_init__(self):
+        """Calculate derived metrics after initialization."""
+        self.cache_hit_ratio = (
+            self.cache_hits / (self.cache_hits + self.cache_misses)
+            if (self.cache_hits + self.cache_misses) > 0
+            else 0.0
+        )
+
+        self.match_success_rate = (
+            self.successful_matches / self.total_files if self.total_files > 0 else 0.0
+        )
 
 
 @dataclass
-class HistogramData:
-    """Histogram data structure."""
+class BenchmarkResult:
+    """Container for benchmark test results."""
 
-    count: int
-    sum: float
-    min: float
-    max: float
-    mean: float
-    percentiles: dict[float, float] = field(default_factory=dict)
+    test_name: str
+    start_time: datetime
+    end_time: datetime
+    duration: float
+    metrics: PerformanceMetrics
+    success: bool
+    error_message: str | None = None
+
+    def __post_init__(self):
+        """Calculate duration if not provided."""
+        if self.duration == 0.0:
+            self.duration = (self.end_time - self.start_time).total_seconds()
 
 
-class Statistics(ABC):
-    """
-    Base class for statistics collection and analysis.
+class StatisticsCollector:
+    """Central aggregator for all performance and accuracy metrics."""
 
-    Provides a foundation for collecting various types of metrics
-    including counters, gauges, histograms, and timers.
-    """
+    def __init__(self):
+        """Initialize the statistics collector."""
+        self.metrics = PerformanceMetrics()
+        self.benchmark_results: list[BenchmarkResult] = []
+        self.session_start = datetime.now(timezone.utc)
+        self.timing_stack: list[float] = []
 
-    def __init__(self, name: str, max_history: int = 1000) -> None:
-        """
-        Initialize statistics collector.
+        # Detailed tracking
+        self.file_metrics: dict[str, dict[str, Any]] = defaultdict(dict)
+        self.api_call_times: list[float] = []
+        self.cache_operations: list[dict[str, Any]] = []
 
-        Args:
-            name: Name of the statistics collector
-            max_history: Maximum number of historical values to keep
-        """
-        self.name = name
-        self.max_history = max_history
-        self._lock = threading.RLock()
-        self._metrics: dict[str, deque] = defaultdict(lambda: deque(maxlen=max_history))
-        self._counters: dict[str, int] = defaultdict(int)
-        self._gauges: dict[str, float] = {}
-        self._histograms: dict[str, list[float]] = defaultdict(list)
-        self._timers: dict[str, list[float]] = defaultdict(list)
-        self._rates: dict[str, deque] = defaultdict(
-            lambda: deque(maxlen=60),
-        )  # 60 seconds
-        self._start_time = time.time()
+        logger.info("StatisticsCollector initialized")
 
-    def increment_counter(
-        self,
-        name: str,
-        value: int = 1,
-        tags: dict[str, str] | None = None,
-    ) -> None:
-        """
-        Increment a counter metric.
+    def start_timing(self, operation: str) -> None:
+        """Start timing an operation.
 
         Args:
-            name: Name of the counter
-            value: Value to increment by
-            tags: Optional tags for the metric
+            operation: Name of the operation being timed
         """
-        with self._lock:
-            self._counters[name] += value
-            self._record_metric(name, MetricType.COUNTER, self._counters[name], tags)
+        self.timing_stack.append(time.time())
+        logger.debug(f"Started timing operation: {operation}")
 
-    def set_gauge(
-        self,
-        name: str,
-        value: float,
-        tags: dict[str, str] | None = None,
-    ) -> None:
-        """
-        Set a gauge metric value.
+    def end_timing(self, operation: str) -> float:
+        """End timing an operation and return duration.
 
         Args:
-            name: Name of the gauge
-            value: Value to set
-            tags: Optional tags for the metric
-        """
-        with self._lock:
-            self._gauges[name] = value
-            self._record_metric(name, MetricType.GAUGE, value, tags)
-
-    def record_histogram(
-        self,
-        name: str,
-        value: float,
-        tags: dict[str, str] | None = None,
-    ) -> None:
-        """
-        Record a value in a histogram.
-
-        Args:
-            name: Name of the histogram
-            value: Value to record
-            tags: Optional tags for the metric
-        """
-        with self._lock:
-            self._histograms[name].append(value)
-            # Keep only recent values
-            if len(self._histograms[name]) > self.max_history:
-                self._histograms[name] = self._histograms[name][-self.max_history :]
-            self._record_metric(name, MetricType.HISTOGRAM, value, tags)
-
-    def record_timer(
-        self,
-        name: str,
-        duration: float,
-        tags: dict[str, str] | None = None,
-    ) -> None:
-        """
-        Record a timer duration.
-
-        Args:
-            name: Name of the timer
-            duration: Duration in seconds
-            tags: Optional tags for the metric
-        """
-        with self._lock:
-            self._timers[name].append(duration)
-            # Keep only recent values
-            if len(self._timers[name]) > self.max_history:
-                self._timers[name] = self._timers[name][-self.max_history :]
-            self._record_metric(name, MetricType.TIMER, duration, tags)
-
-    def record_rate(
-        self,
-        name: str,
-        value: float,
-        tags: dict[str, str] | None = None,
-    ) -> None:
-        """
-        Record a rate value.
-
-        Args:
-            name: Name of the rate metric
-            value: Value to record
-            tags: Optional tags for the metric
-        """
-        with self._lock:
-            current_time = time.time()
-            self._rates[name].append((current_time, value))
-            self._record_metric(name, MetricType.RATE, value, tags)
-
-    def time_function(self, name: str, func: Callable, *args, **kwargs) -> Any:
-        """
-        Time a function execution and record the duration.
-
-        Args:
-            name: Name of the timer
-            func: Function to time
-            *args: Arguments for the function
-            **kwargs: Keyword arguments for the function
+            operation: Name of the operation being timed
 
         Returns:
-            Result of the function execution
+            Duration in seconds
         """
-        start_time = time.time()
-        try:
-            return func(*args, **kwargs)
-        finally:
-            duration = time.time() - start_time
-            self.record_timer(name, duration)
+        if not self.timing_stack:
+            logger.warning(f"No timing started for operation: {operation}")
+            return 0.0
 
-    def get_counter(self, name: str) -> int:
-        """Get the current value of a counter."""
-        with self._lock:
-            return self._counters.get(name, 0)
+        start_time = self.timing_stack.pop()
+        duration = time.time() - start_time
 
-    def get_gauge(self, name: str) -> float | None:
-        """Get the current value of a gauge."""
-        with self._lock:
-            return self._gauges.get(name)
+        logger.debug(f"Ended timing operation: {operation}, duration: {duration:.3f}s")
+        return duration
 
-    def get_histogram_data(self, name: str) -> HistogramData | None:
-        """
-        Get histogram statistics for a metric.
-
-        Args:
-            name: Name of the histogram
-
-        Returns:
-            HistogramData object with statistics, or None if no data
-        """
-        with self._lock:
-            values = self._histograms.get(name, [])
-            if not values:
-                return None
-
-            return HistogramData(
-                count=len(values),
-                sum=sum(values),
-                min=min(values),
-                max=max(values),
-                mean=sum(values) / len(values),
-                percentiles=self._calculate_percentiles(values),
-            )
-
-    def get_timer_data(self, name: str) -> HistogramData | None:
-        """
-        Get timer statistics for a metric.
-
-        Args:
-            name: Name of the timer
-
-        Returns:
-            HistogramData object with statistics, or None if no data
-        """
-        with self._lock:
-            values = self._timers.get(name, [])
-            if not values:
-                return None
-
-            return HistogramData(
-                count=len(values),
-                sum=sum(values),
-                min=min(values),
-                max=max(values),
-                mean=sum(values) / len(values),
-                percentiles=self._calculate_percentiles(values),
-            )
-
-    def get_rate(self, name: str, window_seconds: int = 60) -> float | None:
-        """
-        Get the current rate for a metric.
-
-        Args:
-            name: Name of the rate metric
-            window_seconds: Time window in seconds
-
-        Returns:
-            Rate value, or None if no data
-        """
-        with self._lock:
-            current_time = time.time()
-            cutoff_time = current_time - window_seconds
-
-            # Filter recent values
-            recent_values = [
-                (timestamp, value)
-                for timestamp, value in self._rates[name]
-                if timestamp >= cutoff_time
-            ]
-
-            if not recent_values:
-                return None
-
-            # Calculate rate (values per second)
-            time_span = recent_values[-1][0] - recent_values[0][0]
-            if time_span == 0:
-                return 0.0
-
-            total_value = sum(value for _, value in recent_values)
-            return total_value / time_span
-
-    def get_all_metrics(self) -> dict[str, Any]:
-        """Get all current metric values."""
-        with self._lock:
-            return {
-                "counters": dict(self._counters),
-                "gauges": dict(self._gauges),
-                "histograms": {
-                    name: self.get_histogram_data(name) for name in self._histograms
-                },
-                "timers": {name: self.get_timer_data(name) for name in self._timers},
-                "rates": {name: self.get_rate(name) for name in self._rates},
-            }
-
-    def reset(self) -> None:
-        """Reset all metrics to initial state."""
-        with self._lock:
-            self._counters.clear()
-            self._gauges.clear()
-            self._histograms.clear()
-            self._timers.clear()
-            self._rates.clear()
-            self._metrics.clear()
-            self._start_time = time.time()
-
-    def get_uptime(self) -> float:
-        """Get the uptime in seconds since initialization."""
-        return time.time() - self._start_time
-
-    def export_metrics(self) -> dict[str, Any]:
-        """
-        Export metrics in a standardized format.
-
-        Returns:
-            Dictionary containing all metrics in export format
-        """
-        with self._lock:
-            return {
-                "name": self.name,
-                "uptime": self.get_uptime(),
-                "timestamp": time.time(),
-                "metrics": self.get_all_metrics(),
-            }
-
-    @abstractmethod
-    def _record_metric(
+    def record_matching_operation(
         self,
-        name: str,
-        metric_type: MetricType,
-        value: float,
-        tags: dict[str, str] | None,
+        file_path: str,
+        success: bool,
+        confidence: float | None = None,
+        duration: float | None = None,
+        used_fallback: bool = False,
     ) -> None:
-        """
-        Record a metric value (to be implemented by subclasses).
+        """Record a matching operation.
 
         Args:
-            name: Name of the metric
-            metric_type: Type of the metric
-            value: Value to record
-            tags: Optional tags for the metric
+            file_path: Path to the file being matched
+            success: Whether the matching was successful
+            confidence: Confidence score of the match (0.0-1.0)
+            duration: Duration of the matching operation
+            used_fallback: Whether fallback strategies were used
         """
+        self.metrics.total_files += 1
 
-    def _calculate_percentiles(
-        self,
-        values: list[float],
-        percentiles: list[float] | None = None,
-    ) -> dict[float, float]:
-        """
-        Calculate percentiles for a list of values.
+        if success:
+            self.metrics.successful_matches += 1
 
-        Args:
-            values: List of values to calculate percentiles for
-            percentiles: List of percentile values to calculate
-
-        Returns:
-            Dictionary mapping percentile to value
-        """
-        if percentiles is None:
-            percentiles = [50.0, 90.0, 95.0, 99.0]
-
-        if not values:
-            return {}
-
-        sorted_values = sorted(values)
-        result = {}
-
-        max_percentile = 100.0
-        for percentile in percentiles:
-            if percentile == max_percentile:
-                result[percentile] = sorted_values[-1]
-            else:
-                index = (percentile / 100.0) * (len(sorted_values) - 1)
-                if index.is_integer():
-                    result[percentile] = sorted_values[int(index)]
+            if confidence is not None:
+                if confidence >= 0.8:
+                    self.metrics.high_confidence_matches += 1
+                elif confidence >= 0.6:
+                    self.metrics.medium_confidence_matches += 1
                 else:
-                    lower = sorted_values[int(index)]
-                    upper = sorted_values[int(index) + 1]
-                    result[percentile] = lower + (upper - lower) * (index - int(index))
+                    self.metrics.low_confidence_matches += 1
+        else:
+            self.metrics.failed_matches += 1
+
+        # Store detailed metrics for this file
+        self.file_metrics[file_path] = {
+            "success": success,
+            "confidence": confidence,
+            "duration": duration,
+            "used_fallback": used_fallback,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        logger.debug(
+            f"Recorded matching operation for {file_path}: success={success}, confidence={confidence}",
+        )
+
+    def record_cache_operation(
+        self,
+        operation: str,
+        hit: bool,
+        duration: float | None = None,
+        key: str | None = None,
+    ) -> None:
+        """Record a cache operation.
+
+        Args:
+            operation: Type of cache operation (get, set, delete)
+            hit: Whether it was a cache hit
+            duration: Duration of the operation
+            key: Cache key used
+        """
+        if operation == "get":
+            if hit:
+                self.metrics.cache_hits += 1
+            else:
+                self.metrics.cache_misses += 1
+
+        # Store detailed cache operation
+        self.cache_operations.append(
+            {
+                "operation": operation,
+                "hit": hit,
+                "duration": duration,
+                "key": key,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+
+        logger.debug(f"Recorded cache operation: {operation}, hit={hit}")
+
+    def record_api_call(
+        self,
+        endpoint: str,
+        success: bool,
+        duration: float | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Record an API call.
+
+        Args:
+            endpoint: API endpoint called
+            success: Whether the call was successful
+            duration: Duration of the API call
+            error: Error message if the call failed
+        """
+        self.metrics.api_calls += 1
+
+        if not success:
+            self.metrics.api_errors += 1
+
+        if duration is not None:
+            self.api_call_times.append(duration)
+            self.metrics.api_time += duration
+
+        logger.debug(
+            f"Recorded API call: {endpoint}, success={success}, duration={duration}",
+        )
+
+    def record_rate_limit_hit(self) -> None:
+        """Record a rate limit hit."""
+        self.metrics.rate_limit_hits += 1
+        logger.debug("Recorded rate limit hit")
+
+    def record_memory_usage(self, memory_mb: float) -> None:
+        """Record current memory usage.
+
+        Args:
+            memory_mb: Memory usage in megabytes
+        """
+        self.metrics.peak_memory_mb = max(memory_mb, self.metrics.peak_memory_mb)
+
+        # Update average memory usage using a separate counter
+        if not hasattr(self, "_memory_samples"):
+            self._memory_samples = 0
+            self._memory_sum = 0.0
+
+        self._memory_samples += 1
+        self._memory_sum += memory_mb
+        self.metrics.average_memory_mb = self._memory_sum / self._memory_samples
+
+        logger.debug(f"Recorded memory usage: {memory_mb:.2f} MB")
+
+    def record_cache_hit(self, cache_type: str) -> None:
+        """Record a cache hit.
+
+        Args:
+            cache_type: Type of cache (search, metadata, etc.)
+        """
+        self.metrics.cache_hits += 1
+        logger.debug("Recorded cache hit for type: %s", cache_type)
+
+    def record_cache_miss(self, cache_type: str) -> None:
+        """Record a cache miss.
+
+        Args:
+            cache_type: Type of cache (search, metadata, etc.)
+        """
+        self.metrics.cache_misses += 1
+        logger.debug("Recorded cache miss for type: %s", cache_type)
+
+    def record_match_success(
+        self,
+        confidence: float,
+        candidates_count: int,
+        used_fallback: bool = False,
+    ) -> None:
+        """Record a successful match.
+
+        Args:
+            confidence: Confidence score of the match
+            candidates_count: Number of candidates considered
+            used_fallback: Whether fallback strategies were used
+        """
+        self.metrics.successful_matches += 1
+
+        # Categorize by confidence level
+        if confidence >= 0.8:
+            self.metrics.high_confidence_matches += 1
+        elif confidence >= 0.6:
+            self.metrics.medium_confidence_matches += 1
+        else:
+            self.metrics.low_confidence_matches += 1
+
+        logger.debug(
+            "Recorded successful match: confidence=%.3f, candidates=%d, fallback=%s",
+            confidence,
+            candidates_count,
+            used_fallback,
+        )
+
+    def record_match_failure(self) -> None:
+        """Record a failed match."""
+        self.metrics.failed_matches += 1
+        logger.debug("Recorded match failure")
+
+    def record_api_error(self, api_type: str) -> None:
+        """Record an API error.
+
+        Args:
+            api_type: Type of API call that failed
+        """
+        self.metrics.api_errors += 1
+        logger.debug("Recorded API error for type: %s", api_type)
+
+    def get_cache_hit_ratio(self) -> float:
+        """Get the current cache hit ratio.
+
+        Returns:
+            Cache hit ratio as a percentage (0.0 to 100.0)
+        """
+        total_requests = self.metrics.cache_hits + self.metrics.cache_misses
+        if total_requests == 0:
+            return 0.0
+        return (self.metrics.cache_hits / total_requests) * 100.0
+
+    def start_benchmark(self, test_name: str) -> None:
+        """Start a benchmark test.
+
+        Args:
+            test_name: Name of the benchmark test
+        """
+        self.start_timing(f"benchmark_{test_name}")
+        logger.info(f"Started benchmark: {test_name}")
+
+    def end_benchmark(
+        self,
+        test_name: str,
+        success: bool = True,
+        error_message: str | None = None,
+    ) -> BenchmarkResult:
+        """End a benchmark test and create a result.
+
+        Args:
+            test_name: Name of the benchmark test
+            success: Whether the benchmark was successful
+            error_message: Error message if the benchmark failed
+
+        Returns:
+            BenchmarkResult object
+        """
+        duration = self.end_timing(f"benchmark_{test_name}")
+
+        result = BenchmarkResult(
+            test_name=test_name,
+            start_time=self.session_start,  # Simplified for now
+            end_time=datetime.now(timezone.utc),
+            duration=duration,
+            metrics=self.metrics,
+            success=success,
+            error_message=error_message,
+        )
+
+        self.benchmark_results.append(result)
+        logger.info(
+            f"Ended benchmark: {test_name}, success={success}, duration={duration:.3f}s",
+        )
 
         return result
 
-    def __repr__(self) -> str:
-        """Return a string representation of the statistics collector."""
-        return f"Statistics(name='{self.name}', uptime={self.get_uptime():.2f}s)"
+    def get_summary(self) -> dict[str, Any]:
+        """Get a summary of all collected statistics.
+
+        Returns:
+            Dictionary containing summary statistics
+        """
+        session_duration = (
+            datetime.now(timezone.utc) - self.session_start
+        ).total_seconds()
+
+        return {
+            "session_info": {
+                "start_time": self.session_start.isoformat(),
+                "duration_seconds": session_duration,
+                "total_benchmarks": len(self.benchmark_results),
+            },
+            "performance_metrics": {
+                "total_files": self.metrics.total_files,
+                "successful_matches": self.metrics.successful_matches,
+                "failed_matches": self.metrics.failed_matches,
+                "match_success_rate": self.metrics.match_success_rate,
+                "high_confidence_matches": self.metrics.high_confidence_matches,
+                "medium_confidence_matches": self.metrics.medium_confidence_matches,
+                "low_confidence_matches": self.metrics.low_confidence_matches,
+                "cache_hits": self.metrics.cache_hits,
+                "cache_misses": self.metrics.cache_misses,
+                "cache_hit_ratio": self.metrics.cache_hit_ratio,
+                "api_calls": self.metrics.api_calls,
+                "api_errors": self.metrics.api_errors,
+                "rate_limit_hits": self.metrics.rate_limit_hits,
+                "total_time": self.metrics.total_time,
+                "matching_time": self.metrics.matching_time,
+                "cache_time": self.metrics.cache_time,
+                "api_time": self.metrics.api_time,
+                "peak_memory_mb": self.metrics.peak_memory_mb,
+                "average_memory_mb": self.metrics.average_memory_mb,
+            },
+            "detailed_metrics": {
+                "file_metrics_count": len(self.file_metrics),
+                "cache_operations_count": len(self.cache_operations),
+                "api_call_times_count": len(self.api_call_times),
+            },
+        }
+
+    def reset(self) -> None:
+        """Reset all collected statistics."""
+        self.metrics = PerformanceMetrics()
+        self.benchmark_results.clear()
+        self.session_start = datetime.now(timezone.utc)
+        self.timing_stack.clear()
+        self.file_metrics.clear()
+        self.api_call_times.clear()
+        self.cache_operations.clear()
+
+        # Reset memory tracking
+        if hasattr(self, "_memory_samples"):
+            self._memory_samples = 0
+            self._memory_sum = 0.0
+
+        logger.info("StatisticsCollector reset")
+
+    def export_to_json(self) -> dict[str, Any]:
+        """Export all statistics to a JSON-serializable format.
+
+        Returns:
+            Dictionary containing all statistics data
+        """
+        return {
+            "summary": self.get_summary(),
+            "file_metrics": dict(self.file_metrics),
+            "cache_operations": self.cache_operations,
+            "api_call_times": self.api_call_times,
+            "benchmark_results": [
+                {
+                    "test_name": result.test_name,
+                    "start_time": result.start_time.isoformat(),
+                    "end_time": result.end_time.isoformat(),
+                    "duration": result.duration,
+                    "success": result.success,
+                    "error_message": result.error_message,
+                }
+                for result in self.benchmark_results
+            ],
+        }
+
+
+# Global statistics collector instance
+_global_collector: StatisticsCollector | None = None
+
+
+def get_statistics_collector() -> StatisticsCollector:
+    """Get the global statistics collector instance.
+
+    Returns:
+        StatisticsCollector instance
+    """
+    global _global_collector
+    if _global_collector is None:
+        _global_collector = StatisticsCollector()
+    return _global_collector
+
+
+def reset_statistics() -> None:
+    """Reset the global statistics collector."""
+    global _global_collector
+    if _global_collector is not None:
+        _global_collector.reset()
