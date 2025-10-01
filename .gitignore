@@ -133,11 +133,28 @@ data/
 logs/
 *.sqlite
 *.db
+test_data/
 test_data_*/
 test_output/
 test_files/
 test_plan.json
 tmdb_cache.sqlite
+
+# Large test files
+filenames.txt
+large_test_data/
+
+# Benchmark results
+*_parallel.json
+*_sequential.json
+*_results.json
+*_improved.json
+benchmark_*.json
+enhanced_benchmark.json
+parallel_*.json
+sequential_*.json
+integrated_*.json
+adaptive_*.json
 
 # IDE
 .vscode/
