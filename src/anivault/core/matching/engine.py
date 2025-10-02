@@ -12,8 +12,8 @@ from typing import Any
 
 from fuzzywuzzy import fuzz
 
-from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.matching.scoring import calculate_confidence_score
+from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
@@ -63,7 +63,9 @@ class MatchingEngine:
         self.tmdb_client = tmdb_client
         self.statistics = statistics or StatisticsCollector()
 
-    async def _search_tmdb(self, normalized_query: dict[str, Any]) -> list[dict[str, Any]]:
+    async def _search_tmdb(
+        self, normalized_query: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """Search TMDB with caching support.
 
         This method first checks the cache for existing search results.
@@ -78,12 +80,12 @@ class MatchingEngine:
         """
         # Use normalized title as cache key
         cache_key = normalized_query.get("title", "")
-        
+
         # Check if title is empty before doing anything
         if not cache_key:
             logger.warning("Empty title in normalized query, skipping TMDB search")
             return []
-        
+
         # Check cache first
         cached_results = self.cache.get(cache_key, "search")
         if cached_results is not None:
@@ -100,7 +102,7 @@ class MatchingEngine:
             # Search TMDB for both TV and movies
             self.statistics.record_api_call("tmdb_search", success=True)
             results = await self.tmdb_client.search_media(title)
-            
+
             # Store results in cache (7 days TTL)
             self.cache.set(
                 key=cache_key,
@@ -108,7 +110,7 @@ class MatchingEngine:
                 cache_type="search",
                 ttl_seconds=7 * 24 * 60 * 60,  # 7 days
             )
-            
+
             logger.debug("Found %d results for query: %s", len(results), title)
             return results
 
@@ -139,24 +141,24 @@ class MatchingEngine:
             return candidates
 
         scored_candidates = []
-        
+
         for candidate in candidates:
             # Extract title from candidate
             candidate_title = candidate.get("title", "") or candidate.get("name", "")
-            
+
             if not candidate_title:
                 logger.debug("Skipping candidate with no title")
                 continue
 
             # Calculate fuzzy match score
             title_score = fuzz.ratio(normalized_title.lower(), candidate_title.lower())
-            
+
             # Add score to candidate
             candidate_with_score = candidate.copy()
             candidate_with_score["title_score"] = title_score
-            
+
             scored_candidates.append(candidate_with_score)
-            
+
             logger.debug(
                 "Scored candidate '%s' against '%s': %d",
                 candidate_title,
@@ -166,7 +168,7 @@ class MatchingEngine:
 
         # Sort by title score (highest first)
         scored_candidates.sort(key=lambda x: x.get("title_score", 0), reverse=True)
-        
+
         logger.debug("Scored %d candidates", len(scored_candidates))
         return scored_candidates
 
@@ -198,11 +200,11 @@ class MatchingEngine:
             return candidates
 
         filtered_candidates = []
-        
+
         for candidate in candidates:
             # Extract year from candidate
             candidate_year = None
-            
+
             # Try different year fields
             for year_field in ["first_air_date", "release_date", "year"]:
                 year_value = candidate.get(year_field)
@@ -218,7 +220,9 @@ class MatchingEngine:
                         continue
 
             if candidate_year is None:
-                logger.debug("No year found for candidate: %s", candidate.get("title", ""))
+                logger.debug(
+                    "No year found for candidate: %s", candidate.get("title", ""),
+                )
                 # Include candidates without year but with lower priority
                 candidate_with_year = candidate.copy()
                 candidate_with_year["year_score"] = 0
@@ -228,14 +232,14 @@ class MatchingEngine:
 
             # Calculate year difference
             year_diff = abs(candidate_year - target_year)
-            
+
             # Add year score (lower difference = higher score)
             candidate_with_year = candidate.copy()
             candidate_with_year["year_score"] = max(0, 100 - year_diff)
             candidate_with_year["year_diff"] = year_diff
-            
+
             filtered_candidates.append(candidate_with_year)
-            
+
             logger.debug(
                 "Year match for '%s': %d vs %d (diff: %d, score: %d)",
                 candidate.get("title", ""),
@@ -250,7 +254,7 @@ class MatchingEngine:
             key=lambda x: (x.get("year_score", 0), x.get("title_score", 0)),
             reverse=True,
         )
-        
+
         logger.debug("Filtered %d candidates by year", len(filtered_candidates))
         return filtered_candidates
 
@@ -272,24 +276,26 @@ class MatchingEngine:
             List of candidates with added 'confidence_score' field
         """
         scored_candidates = []
-        
+
         for candidate in candidates:
             try:
                 # Calculate confidence score using the scoring system
-                confidence_score = calculate_confidence_score(normalized_query, candidate)
-                
+                confidence_score = calculate_confidence_score(
+                    normalized_query, candidate,
+                )
+
                 # Add confidence score to candidate
                 candidate_with_confidence = candidate.copy()
                 candidate_with_confidence["confidence_score"] = confidence_score
-                
+
                 scored_candidates.append(candidate_with_confidence)
-                
+
                 logger.debug(
                     "Confidence score for '%s': %.3f",
                     candidate.get("title", ""),
                     confidence_score,
                 )
-                
+
             except Exception as e:
                 logger.warning(
                     "Error calculating confidence score for candidate '%s': %s",
@@ -303,8 +309,10 @@ class MatchingEngine:
 
         # Sort by confidence score (highest first)
         scored_candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
-        
-        logger.debug("Calculated confidence scores for %d candidates", len(scored_candidates))
+
+        logger.debug(
+            "Calculated confidence scores for %d candidates", len(scored_candidates),
+        )
         return scored_candidates
 
     async def find_match(self, anitopy_result: dict[str, Any]) -> dict[str, Any] | None:
@@ -325,7 +333,7 @@ class MatchingEngine:
         """
         # Start timing the matching operation
         self.statistics.start_timing("matching_operation")
-        
+
         try:
             # Step 1: Normalize the query
             normalized_query = normalize_query_from_anitopy(anitopy_result)
@@ -347,7 +355,9 @@ class MatchingEngine:
                 return None
 
             # Step 3: Calculate confidence scores for all candidates
-            scored_candidates = self._calculate_confidence_scores(candidates, normalized_query)
+            scored_candidates = self._calculate_confidence_scores(
+                candidates, normalized_query,
+            )
             if not scored_candidates:
                 logger.info("No scored candidates for: %s", title)
                 return None
@@ -355,7 +365,7 @@ class MatchingEngine:
             # Step 4: Check if we have high-confidence matches
             best_candidate = scored_candidates[0]
             best_confidence = best_candidate.get("confidence_score", 0.0)
-            
+
             logger.info(
                 "Best candidate for '%s': '%s' (confidence: %.3f)",
                 title,
@@ -370,13 +380,13 @@ class MatchingEngine:
                     best_confidence,
                     HIGH_CONFIDENCE_THRESHOLD,
                 )
-                
+
                 # Apply fallback strategies (to be implemented in later subtasks)
                 # For now, we'll use the best candidate we have
                 fallback_candidates = self._apply_fallback_strategies(
-                    scored_candidates, normalized_query
+                    scored_candidates, normalized_query,
                 )
-                
+
                 if fallback_candidates:
                     best_candidate = fallback_candidates[0]
                     best_confidence = best_candidate.get("confidence_score", 0.0)
@@ -418,7 +428,7 @@ class MatchingEngine:
             self.statistics.record_match_success(
                 confidence=best_confidence,
                 candidates_count=len(candidates),
-                used_fallback=best_candidate["matching_metadata"]["used_fallback"]
+                used_fallback=best_candidate["matching_metadata"]["used_fallback"],
             )
             self.statistics.end_timing("matching_operation")
 
@@ -450,26 +460,34 @@ class MatchingEngine:
             List of candidates after applying fallback strategies
         """
         logger.debug("Applying fallback strategies to %d candidates", len(candidates))
-        
+
         # Stage 1: Apply genre-based filtering
         genre_filtered_candidates = self._apply_genre_filter(candidates)
-        
+
         # Check if genre filtering improved confidence
         if genre_filtered_candidates:
             best_confidence = genre_filtered_candidates[0].get("confidence_score", 0.0)
             if best_confidence >= HIGH_CONFIDENCE_THRESHOLD:
-                logger.debug("Genre filtering produced high confidence match: %.3f", best_confidence)
+                logger.debug(
+                    "Genre filtering produced high confidence match: %.3f",
+                    best_confidence,
+                )
                 return genre_filtered_candidates
-        
+
         # Stage 2: Apply partial substring matching
         partial_matched_candidates = self._apply_partial_substring_match(
-            genre_filtered_candidates, normalized_query
+            genre_filtered_candidates, normalized_query,
         )
-        
-        logger.debug("Fallback strategies completed, returning %d candidates", len(partial_matched_candidates))
+
+        logger.debug(
+            "Fallback strategies completed, returning %d candidates",
+            len(partial_matched_candidates),
+        )
         return partial_matched_candidates
 
-    def _apply_genre_filter(self, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _apply_genre_filter(
+        self, candidates: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """Apply genre-based filtering to boost animation candidates.
 
         This method iterates through candidates and boosts the confidence score
@@ -486,26 +504,26 @@ class MatchingEngine:
             return candidates
 
         logger.debug("Applying genre filter to %d candidates", len(candidates))
-        
+
         boosted_candidates = []
-        
+
         for candidate in candidates:
             # Create a copy to avoid modifying the original
             boosted_candidate = candidate.copy()
-            
+
             # Check if candidate has genre information
             genre_ids = candidate.get("genre_ids", [])
             if not genre_ids:
                 # Try to get genre_ids from nested tmdb_data if available
                 tmdb_data = candidate.get("tmdb_data", {})
                 genre_ids = tmdb_data.get("genre_ids", [])
-            
+
             # Apply genre boost if this is an animation
             if ANIMATION_GENRE_ID in genre_ids:
                 current_confidence = boosted_candidate.get("confidence_score", 0.0)
                 new_confidence = min(1.0, current_confidence + GENRE_BOOST)
                 boosted_candidate["confidence_score"] = new_confidence
-                
+
                 logger.debug(
                     "Applied genre boost to '%s': %.3f -> %.3f",
                     candidate.get("title", ""),
@@ -513,13 +531,18 @@ class MatchingEngine:
                     new_confidence,
                 )
             else:
-                logger.debug("No genre boost for '%s' (not animation)", candidate.get("title", ""))
-            
+                logger.debug(
+                    "No genre boost for '%s' (not animation)",
+                    candidate.get("title", ""),
+                )
+
             boosted_candidates.append(boosted_candidate)
-        
+
         # Sort by confidence score (highest first)
-        boosted_candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
-        
+        boosted_candidates.sort(
+            key=lambda x: x.get("confidence_score", 0), reverse=True,
+        )
+
         logger.debug("Genre filter applied to %d candidates", len(boosted_candidates))
         return boosted_candidates
 
@@ -550,36 +573,42 @@ class MatchingEngine:
             logger.debug("No title in normalized query for partial substring matching")
             return candidates
 
-        logger.debug("Applying partial substring matching to %d candidates for title: %s", len(candidates), title)
-        
+        logger.debug(
+            "Applying partial substring matching to %d candidates for title: %s",
+            len(candidates),
+            title,
+        )
+
         partial_matched_candidates = []
-        
+
         for candidate in candidates:
             # Create a copy to avoid modifying the original
             partial_candidate = candidate.copy()
-            
+
             # Extract candidate title
             candidate_title = candidate.get("title", "") or candidate.get("name", "")
             if not candidate_title:
                 logger.debug("Skipping candidate with no title for partial matching")
                 partial_matched_candidates.append(partial_candidate)
                 continue
-            
+
             # Calculate partial ratio score
             partial_score = fuzz.partial_ratio(title.lower(), candidate_title.lower())
-            
+
             # Convert partial score (0-100) to confidence score (0.0-1.0)
             partial_confidence = partial_score / 100.0
-            
+
             # Use the higher of the original confidence or partial confidence
             original_confidence = partial_candidate.get("confidence_score", 0.0)
             new_confidence = max(original_confidence, partial_confidence)
             partial_candidate["confidence_score"] = new_confidence
-            
+
             # Add partial matching metadata
             partial_candidate["partial_match_score"] = partial_score
-            partial_candidate["used_partial_matching"] = partial_confidence > original_confidence
-            
+            partial_candidate["used_partial_matching"] = (
+                partial_confidence > original_confidence
+            )
+
             logger.debug(
                 "Partial match for '%s' vs '%s': %d (confidence: %.3f -> %.3f)",
                 title,
@@ -588,13 +617,18 @@ class MatchingEngine:
                 original_confidence,
                 new_confidence,
             )
-            
+
             partial_matched_candidates.append(partial_candidate)
-        
+
         # Sort by confidence score (highest first)
-        partial_matched_candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
-        
-        logger.debug("Partial substring matching applied to %d candidates", len(partial_matched_candidates))
+        partial_matched_candidates.sort(
+            key=lambda x: x.get("confidence_score", 0), reverse=True,
+        )
+
+        logger.debug(
+            "Partial substring matching applied to %d candidates",
+            len(partial_matched_candidates),
+        )
         return partial_matched_candidates
 
     def _get_confidence_level(self, confidence_score: float) -> str:
@@ -608,9 +642,8 @@ class MatchingEngine:
         """
         if confidence_score >= HIGH_CONFIDENCE_THRESHOLD:
             return "high"
-        elif confidence_score >= MEDIUM_CONFIDENCE_THRESHOLD:
+        if confidence_score >= MEDIUM_CONFIDENCE_THRESHOLD:
             return "medium"
-        elif confidence_score >= LOW_CONFIDENCE_THRESHOLD:
+        if confidence_score >= LOW_CONFIDENCE_THRESHOLD:
             return "low"
-        else:
-            return "very_low"
+        return "very_low"

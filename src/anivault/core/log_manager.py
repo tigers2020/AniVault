@@ -8,7 +8,6 @@ which are essential for dry-run previews and rollback capabilities.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from pydantic import ValidationError, parse_obj_as
 
@@ -82,7 +81,9 @@ class OperationLogManager:
             # Ensure paths are serialized as strings
             for operation_data in plan_data:
                 operation_data["source_path"] = str(operation_data["source_path"])
-                operation_data["destination_path"] = str(operation_data["destination_path"])
+                operation_data["destination_path"] = str(
+                    operation_data["destination_path"],
+                )
 
             # Write to file
             with log_path.open("w", encoding="utf-8") as f:
@@ -136,9 +137,7 @@ class OperationLogManager:
 
         # Find all JSON files that match the organize-*.json pattern
         log_files = [
-            path
-            for path in self.logs_dir.glob("organize-*.json")
-            if path.is_file()
+            path for path in self.logs_dir.glob("organize-*.json") if path.is_file()
         ]
 
         # Sort by modification time (newest first)

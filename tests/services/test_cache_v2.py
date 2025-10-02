@@ -46,7 +46,7 @@ class TestCacheEntry:
             cache_type="search",
             key_hash="abc123",
         )
-        
+
         assert entry.data == {"title": "Test Anime", "year": 2023}
         assert entry.created_at == "2023-01-01T00:00:00+00:00"
         assert entry.cache_type == "search"
@@ -62,7 +62,7 @@ class TestCacheEntry:
             cache_type="search",
             key_hash="abc123",
         )
-        
+
         assert entry.expires_at == "2023-01-02T00:00:00+00:00"
 
     def test_cache_entry_validation(self):
@@ -82,7 +82,7 @@ class TestJSONCacheV2Initialization:
     def test_initialization_with_path(self, temp_cache_dir):
         """Test initialization with Path object."""
         cache = JSONCacheV2(temp_cache_dir)
-        
+
         assert cache.cache_dir == temp_cache_dir
         assert cache.search_dir == temp_cache_dir / "search"
         assert cache.details_dir == temp_cache_dir / "details"
@@ -92,7 +92,7 @@ class TestJSONCacheV2Initialization:
     def test_initialization_with_string(self, temp_cache_dir):
         """Test initialization with string path."""
         cache = JSONCacheV2(str(temp_cache_dir))
-        
+
         assert cache.cache_dir == temp_cache_dir
         assert cache.search_dir == temp_cache_dir / "search"
         assert cache.details_dir == temp_cache_dir / "details"
@@ -101,7 +101,7 @@ class TestJSONCacheV2Initialization:
         """Test that initialization creates necessary directories."""
         cache_dir = temp_cache_dir / "new_cache"
         cache = JSONCacheV2(cache_dir)
-        
+
         assert cache_dir.exists()
         assert (cache_dir / "search").exists()
         assert (cache_dir / "details").exists()
@@ -119,7 +119,7 @@ class TestJSONCacheV2FilePathGeneration:
     def test_generate_file_path_search(self, cache_v2):
         """Test generating file path for search cache."""
         path = cache_v2._generate_file_path("test key", "search")
-        
+
         assert path.parent == cache_v2.search_dir
         assert path.suffix == ".json"
         assert len(path.stem) == 64  # SHA-256 hash length
@@ -127,7 +127,7 @@ class TestJSONCacheV2FilePathGeneration:
     def test_generate_file_path_details(self, cache_v2):
         """Test generating file path for details cache."""
         path = cache_v2._generate_file_path("test key", "details")
-        
+
         assert path.parent == cache_v2.details_dir
         assert path.suffix == ".json"
         assert len(path.stem) == 64  # SHA-256 hash length
@@ -142,7 +142,7 @@ class TestJSONCacheV2FilePathGeneration:
         path1 = cache_v2._generate_file_path("Test Key", "search")
         path2 = cache_v2._generate_file_path("test key", "search")
         path3 = cache_v2._generate_file_path("  TEST KEY  ", "search")
-        
+
         assert path1 == path2 == path3
 
 
@@ -153,7 +153,7 @@ class TestJSONCacheV2Set:
         """Test setting basic data without TTL."""
         data = {"title": "Test Anime", "year": 2023}
         cache_v2.set("test_key", data, "search")
-        
+
         # Verify file was created
         cache_file = cache_v2._generate_file_path("test_key", "search")
         assert cache_file.exists()
@@ -162,7 +162,7 @@ class TestJSONCacheV2Set:
         """Test setting data with TTL."""
         data = {"title": "Test Anime"}
         cache_v2.set("test_key", data, "search", ttl_seconds=3600)
-        
+
         # Verify file was created
         cache_file = cache_v2._generate_file_path("test_key", "search")
         assert cache_file.exists()
@@ -170,20 +170,20 @@ class TestJSONCacheV2Set:
     def test_set_different_cache_types(self, cache_v2):
         """Test setting data in different cache types."""
         data = {"title": "Test Anime"}
-        
+
         cache_v2.set("search_key", data, "search")
         cache_v2.set("details_key", data, "details")
-        
+
         search_file = cache_v2._generate_file_path("search_key", "search")
         details_file = cache_v2._generate_file_path("details_key", "details")
-        
+
         assert search_file.exists()
         assert details_file.exists()
 
     def test_set_invalid_cache_type(self, cache_v2):
         """Test setting data with invalid cache type."""
         data = {"title": "Test Anime"}
-        
+
         with pytest.raises(ValueError, match="Invalid cache_type"):
             cache_v2.set("test_key", data, "invalid")
 
@@ -195,7 +195,7 @@ class TestJSONCacheV2Get:
         """Test getting data from cache (hit)."""
         data = {"title": "Test Anime", "year": 2023}
         cache_v2.set("test_key", data, "search")
-        
+
         result = cache_v2.get("test_key", "search")
         assert result == data
 
@@ -208,13 +208,13 @@ class TestJSONCacheV2Get:
         """Test getting data from different cache types."""
         search_data = {"title": "Search Result"}
         details_data = {"title": "Details Result"}
-        
+
         cache_v2.set("test_key", search_data, "search")
         cache_v2.set("test_key", details_data, "details")
-        
+
         search_result = cache_v2.get("test_key", "search")
         details_result = cache_v2.get("test_key", "details")
-        
+
         assert search_result == search_data
         assert details_result == details_data
 
@@ -223,11 +223,12 @@ class TestJSONCacheV2Get:
         data = {"title": "Test Anime"}
         # Set with very short TTL
         cache_v2.set("test_key", data, "search", ttl_seconds=0)
-        
+
         # Wait a moment and try to get
         import time
+
         time.sleep(0.1)
-        
+
         result = cache_v2.get("test_key", "search")
         assert result is None
 
@@ -241,7 +242,7 @@ class TestJSONCacheV2Get:
         # Create a corrupted cache file
         cache_file = cache_v2._generate_file_path("test_key", "search")
         cache_file.write_text("invalid json content")
-        
+
         result = cache_v2.get("test_key", "search")
         assert result is None
         # File should be deleted
@@ -255,10 +256,10 @@ class TestJSONCacheV2Delete:
         """Test deleting an existing cache entry."""
         data = {"title": "Test Anime"}
         cache_v2.set("test_key", data, "search")
-        
+
         result = cache_v2.delete("test_key", "search")
         assert result is True
-        
+
         # Verify entry is gone
         get_result = cache_v2.get("test_key", "search")
         assert get_result is None
@@ -282,10 +283,10 @@ class TestJSONCacheV2Clear:
         # Add some entries
         cache_v2.set("search_key", {"data": "search"}, "search")
         cache_v2.set("details_key", {"data": "details"}, "details")
-        
+
         deleted_count = cache_v2.clear()
         assert deleted_count == 2
-        
+
         # Verify entries are gone
         assert cache_v2.get("search_key", "search") is None
         assert cache_v2.get("details_key", "details") is None
@@ -295,10 +296,10 @@ class TestJSONCacheV2Clear:
         # Add entries to both cache types
         cache_v2.set("search_key", {"data": "search"}, "search")
         cache_v2.set("details_key", {"data": "details"}, "details")
-        
+
         deleted_count = cache_v2.clear("search")
         assert deleted_count == 1
-        
+
         # Verify only search entry is gone
         assert cache_v2.get("search_key", "search") is None
         assert cache_v2.get("details_key", "details") is not None
@@ -308,10 +309,10 @@ class TestJSONCacheV2Clear:
         # Add entries to both cache types
         cache_v2.set("search_key", {"data": "search"}, "search")
         cache_v2.set("details_key", {"data": "details"}, "details")
-        
+
         deleted_count = cache_v2.clear("details")
         assert deleted_count == 1
-        
+
         # Verify only details entry is gone
         assert cache_v2.get("search_key", "search") is not None
         assert cache_v2.get("details_key", "details") is None
@@ -328,7 +329,7 @@ class TestJSONCacheV2GetCacheInfo:
     def test_get_cache_info_empty(self, cache_v2):
         """Test getting cache info for empty cache."""
         info = cache_v2.get_cache_info()
-        
+
         assert info["total_files"] == 0
         assert info["valid_entries"] == 0
         assert info["expired_entries"] == 0
@@ -340,9 +341,9 @@ class TestJSONCacheV2GetCacheInfo:
         # Add some entries
         cache_v2.set("search_key", {"data": "search"}, "search")
         cache_v2.set("details_key", {"data": "details"}, "details")
-        
+
         info = cache_v2.get_cache_info()
-        
+
         assert info["total_files"] == 2
         assert info["valid_entries"] == 2
         assert info["expired_entries"] == 0
@@ -353,10 +354,10 @@ class TestJSONCacheV2GetCacheInfo:
         # Add entries to both types
         cache_v2.set("search_key", {"data": "search"}, "search")
         cache_v2.set("details_key", {"data": "details"}, "details")
-        
+
         search_info = cache_v2.get_cache_info("search")
         details_info = cache_v2.get_cache_info("details")
-        
+
         assert search_info["total_files"] == 1
         assert search_info["cache_type"] == "search"
         assert details_info["total_files"] == 1
@@ -376,7 +377,7 @@ class TestJSONCacheV2PurgeExpired:
         # Add non-expired entries
         cache_v2.set("search_key", {"data": "search"}, "search")
         cache_v2.set("details_key", {"data": "details"}, "details")
-        
+
         purged_count = cache_v2.purge_expired()
         assert purged_count == 0
 
@@ -385,14 +386,15 @@ class TestJSONCacheV2PurgeExpired:
         # Add expired entries
         cache_v2.set("expired_key", {"data": "expired"}, "search", ttl_seconds=0)
         cache_v2.set("valid_key", {"data": "valid"}, "search", ttl_seconds=3600)
-        
+
         # Wait a moment for expiration
         import time
+
         time.sleep(0.1)
-        
+
         purged_count = cache_v2.purge_expired()
         assert purged_count == 1
-        
+
         # Verify expired entry is gone, valid entry remains
         assert cache_v2.get("expired_key", "search") is None
         assert cache_v2.get("valid_key", "search") is not None
@@ -402,14 +404,15 @@ class TestJSONCacheV2PurgeExpired:
         # Add expired entries to both types
         cache_v2.set("expired_search", {"data": "expired"}, "search", ttl_seconds=0)
         cache_v2.set("expired_details", {"data": "expired"}, "details", ttl_seconds=0)
-        
+
         # Wait for expiration
         import time
+
         time.sleep(0.1)
-        
+
         purged_count = cache_v2.purge_expired("search")
         assert purged_count == 1
-        
+
         # Verify only search expired entry is gone
         assert cache_v2.get("expired_search", "search") is None
         assert cache_v2.get("expired_details", "details") is None
@@ -428,26 +431,26 @@ class TestJSONCacheV2Integration:
         # Set data
         search_data = {"results": [{"title": "Anime 1"}, {"title": "Anime 2"}]}
         details_data = {"title": "Anime 1", "overview": "Great anime"}
-        
+
         cache_v2.set("search:attack on titan", search_data, "search", ttl_seconds=3600)
         cache_v2.set("details:12345", details_data, "details", ttl_seconds=7200)
-        
+
         # Get data
         retrieved_search = cache_v2.get("search:attack on titan", "search")
         retrieved_details = cache_v2.get("details:12345", "details")
-        
+
         assert retrieved_search == search_data
         assert retrieved_details == details_data
-        
+
         # Get cache info
         info = cache_v2.get_cache_info()
         assert info["total_files"] == 2
         assert info["valid_entries"] == 2
-        
+
         # Delete one entry
         deleted = cache_v2.delete("search:attack on titan", "search")
         assert deleted is True
-        
+
         # Verify deletion
         assert cache_v2.get("search:attack on titan", "search") is None
         assert cache_v2.get("details:12345", "details") is not None
@@ -455,18 +458,18 @@ class TestJSONCacheV2Integration:
     def test_key_normalization_consistency(self, cache_v2):
         """Test that key normalization is consistent across operations."""
         data = {"title": "Test Anime"}
-        
+
         # Set with different key formats
         cache_v2.set("  Test Key  ", data, "search")
-        
+
         # Get with different key formats - should all work
         assert cache_v2.get("test key", "search") == data
         assert cache_v2.get("TEST KEY", "search") == data
         assert cache_v2.get("  test key  ", "search") == data
-        
+
         # Delete with different key format
         deleted = cache_v2.delete("Test Key", "search")
         assert deleted is True
-        
+
         # Verify deletion
         assert cache_v2.get("test key", "search") is None

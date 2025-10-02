@@ -26,7 +26,9 @@ class TestCalculateTitleScore:
 
     def test_partial_match(self):
         """Test partial title match."""
-        score = _calculate_title_score("Attack on Titan", "Attack on Titan: The Final Season")
+        score = _calculate_title_score(
+            "Attack on Titan", "Attack on Titan: The Final Season"
+        )
         assert score > 0.6  # Should be reasonably high but not perfect
 
     def test_no_match(self):
@@ -146,91 +148,71 @@ class TestCalculateConfidenceScore:
 
     def test_perfect_match(self):
         """Test perfect match scenario."""
-        query = {
-            "title": "Attack on Titan",
-            "language": "en",
-            "year": 2013
-        }
+        query = {"title": "Attack on Titan", "language": "en", "year": 2013}
         result = {
             "title": "Attack on Titan",
             "release_date": "2013-04-07",
             "media_type": "tv",
             "popularity": 85.2,
-            "genres": [{"name": "Animation"}]
+            "genres": [{"name": "Animation"}],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert score > 0.9  # Should be very high
 
     def test_good_match(self):
         """Test good match scenario."""
-        query = {
-            "title": "Attack on Titan",
-            "language": "en",
-            "year": 2013
-        }
+        query = {"title": "Attack on Titan", "language": "en", "year": 2013}
         result = {
             "title": "Attack on Titan: The Final Season",
             "release_date": "2014-04-07",
             "media_type": "tv",
             "popularity": 75.0,
-            "genres": [{"name": "Animation"}]
+            "genres": [{"name": "Animation"}],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert 0.6 <= score < 0.9  # Should be high but not perfect
 
     def test_medium_match(self):
         """Test medium match scenario."""
-        query = {
-            "title": "Attack on Titan",
-            "language": "en",
-            "year": 2013
-        }
+        query = {"title": "Attack on Titan", "language": "en", "year": 2013}
         result = {
             "title": "Attack on Titan: Junior High",
             "release_date": "2015-10-03",
             "media_type": "tv",
             "popularity": 45.0,
-            "genres": [{"name": "Animation"}]
+            "genres": [{"name": "Animation"}],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert 0.4 <= score < 0.7  # Should be medium
 
     def test_poor_match(self):
         """Test poor match scenario."""
-        query = {
-            "title": "Attack on Titan",
-            "language": "en",
-            "year": 2013
-        }
+        query = {"title": "Attack on Titan", "language": "en", "year": 2013}
         result = {
             "title": "Naruto",
             "release_date": "2002-10-03",
             "media_type": "tv",
             "popularity": 90.0,
-            "genres": [{"name": "Animation"}]
+            "genres": [{"name": "Animation"}],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert score < 0.4  # Should be low
 
     def test_missing_data(self):
         """Test handling of missing data."""
-        query = {
-            "title": "Attack on Titan",
-            "language": "en",
-            "year": None
-        }
+        query = {"title": "Attack on Titan", "language": "en", "year": None}
         result = {
             "title": "Attack on Titan",
             "release_date": None,
             "media_type": None,
             "popularity": 0,
-            "genres": []
+            "genres": [],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert 0.0 <= score <= 1.0  # Should be valid score
 
@@ -242,56 +224,44 @@ class TestCalculateConfidenceScore:
             "release_date": "2013-04-07",
             "media_type": "tv",
             "popularity": 85.2,
-            "genres": [{"name": "Animation"}]
+            "genres": [{"name": "Animation"}],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert score == 0.0  # Should be 0 for empty query
 
     def test_empty_result(self):
         """Test empty result handling."""
-        query = {
-            "title": "Attack on Titan",
-            "language": "en",
-            "year": 2013
-        }
+        query = {"title": "Attack on Titan", "language": "en", "year": 2013}
         result = {}
-        
+
         score = calculate_confidence_score(query, result)
         assert score == 0.0  # Should be 0 for empty result
 
     def test_invalid_data_handling(self):
         """Test handling of invalid data."""
-        query = {
-            "title": "Attack on Titan",
-            "language": "en",
-            "year": 2013
-        }
+        query = {"title": "Attack on Titan", "language": "en", "year": 2013}
         result = {
             "title": "Attack on Titan",
             "release_date": "invalid-date",
             "media_type": "tv",
             "popularity": "invalid-popularity",
-            "genres": [{"name": "Animation"}]
+            "genres": [{"name": "Animation"}],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert 0.0 <= score <= 1.0  # Should handle gracefully
 
     def test_score_bounds(self):
         """Test that scores are always within bounds."""
-        query = {
-            "title": "Test",
-            "language": "en",
-            "year": 2020
-        }
+        query = {"title": "Test", "language": "en", "year": 2020}
         result = {
             "title": "Test",
             "release_date": "2020-01-01",
             "media_type": "tv",
             "popularity": 1000,  # Very high popularity
-            "genres": [{"name": "Animation"}]
+            "genres": [{"name": "Animation"}],
         }
-        
+
         score = calculate_confidence_score(query, result)
         assert 0.0 <= score <= 1.0  # Should be within bounds

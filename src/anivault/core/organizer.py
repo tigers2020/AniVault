@@ -5,13 +5,11 @@ This module provides the FileOrganizer class that handles the planning
 and execution of file organization operations based on scanned anime metadata.
 """
 
-import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
-from anivault.config.settings import AppConfig, Settings
+from anivault.config.settings import Settings
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
 
@@ -55,44 +53,44 @@ class FileOrganizer:
         """
         # Get metadata from the parsed result
         metadata = scanned_file.metadata
-        
+
         # Extract series information
         series_title = metadata.anime_title or "Unknown Series"
         season_number = metadata.season_number
         episode_number = metadata.episode_number
         episode_title = metadata.episode_title
-        
+
         # Clean series title for filesystem compatibility
         series_title = self._sanitize_filename(series_title)
-        
+
         # Build directory structure: Series/Season XX/
         base_dir = Path("Anime")  # Base directory for anime files
-        
+
         if season_number is not None:
             season_dir = f"Season {season_number:02d}"
             series_dir = base_dir / series_title / season_dir
         else:
             series_dir = base_dir / series_title
-        
+
         # Build filename
         filename_parts = [series_title]
-        
+
         if season_number is not None:
             filename_parts.append(f"S{season_number:02d}")
-        
+
         if episode_number is not None:
             filename_parts.append(f"E{episode_number:02d}")
-        
+
         if episode_title:
             episode_title = self._sanitize_filename(episode_title)
             filename_parts.append(episode_title)
-        
+
         # Join filename parts
         base_filename = " - ".join(filename_parts)
-        
+
         # Add file extension
         filename = f"{base_filename}{scanned_file.extension}"
-        
+
         return series_dir / filename
 
     def _sanitize_filename(self, filename: str) -> str:
@@ -107,23 +105,24 @@ class FileOrganizer:
         """
         # Characters not allowed in filenames on most filesystems
         invalid_chars = '<>:"/\\|?*'
-        
+
         # Replace invalid characters with underscores
         sanitized = filename
         for char in invalid_chars:
-            sanitized = sanitized.replace(char, '_')
-        
+            sanitized = sanitized.replace(char, "_")
+
         # Remove leading/trailing whitespace and dots
-        sanitized = sanitized.strip(' .')
-        
+        sanitized = sanitized.strip(" .")
+
         # Replace multiple spaces/underscores with single underscore
         import re
-        sanitized = re.sub(r'[_\s]+', '_', sanitized)
-        
+
+        sanitized = re.sub(r"[_\s]+", "_", sanitized)
+
         # Ensure filename is not empty
         if not sanitized:
             sanitized = "Unknown"
-        
+
         return sanitized
 
     def generate_plan(self, scanned_files: list[ScannedFile]) -> list[FileOperation]:
@@ -140,28 +139,28 @@ class FileOrganizer:
             List of FileOperation objects representing the organization plan.
         """
         operations: list[FileOperation] = []
-        
+
         for scanned_file in scanned_files:
             # Skip files that don't have sufficient metadata
             if not scanned_file.metadata.anime_title:
                 continue
-            
+
             # Construct destination path
             destination_path = self._construct_destination_path(scanned_file)
-            
+
             # Skip if source and destination are the same
             if scanned_file.file_path.resolve() == destination_path.resolve():
                 continue
-            
+
             # Create file operation
             operation = FileOperation(
                 operation_type=OperationType.MOVE,
                 source_path=scanned_file.file_path,
                 destination_path=destination_path,
             )
-            
+
             operations.append(operation)
-        
+
         return operations
 
     def execute_plan(
@@ -188,39 +187,43 @@ class FileOrganizer:
             OSError: If file operations fail.
         """
         moved_files: list[tuple[str, str]] = []
-        
+
         for operation in plan:
             try:
                 # Ensure destination directory exists
                 destination_dir = operation.destination_path.parent
                 destination_dir.mkdir(parents=True, exist_ok=True)
-                
+
                 # Perform the file move
                 if operation.operation_type == OperationType.MOVE:
-                    shutil.move(str(operation.source_path), str(operation.destination_path))
-                    moved_files.append((
-                        str(operation.source_path),
-                        str(operation.destination_path)
-                    ))
+                    shutil.move(
+                        str(operation.source_path), str(operation.destination_path),
+                    )
+                    moved_files.append(
+                        (str(operation.source_path), str(operation.destination_path)),
+                    )
                 elif operation.operation_type == OperationType.COPY:
-                    shutil.copy2(str(operation.source_path), str(operation.destination_path))
-                    moved_files.append((
-                        str(operation.source_path),
-                        str(operation.destination_path)
-                    ))
-                    
+                    shutil.copy2(
+                        str(operation.source_path), str(operation.destination_path),
+                    )
+                    moved_files.append(
+                        (str(operation.source_path), str(operation.destination_path)),
+                    )
+
             except (OSError, shutil.Error) as e:
                 # Log the error but continue with other operations
-                print(f"Failed to move {operation.source_path} to {operation.destination_path}: {e}")
+                print(
+                    f"Failed to move {operation.source_path} to {operation.destination_path}: {e}",
+                )
                 continue
-        
+
         # Log the operation if requested
         if not no_log and moved_files:
             try:
                 self.log_manager.save_plan(plan)
             except Exception as e:
                 print(f"Warning: Failed to save operation log: {e}")
-        
+
         return moved_files
 
     def organize(
@@ -246,12 +249,12 @@ class FileOrganizer:
         """
         # Generate the organization plan
         plan = self.generate_plan(scanned_files)
-        
+
         if dry_run:
             return plan
-        
+
         # Execute the plan
         operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         moved_files = self.execute_plan(plan, operation_id, no_log)
-        
+
         return moved_files

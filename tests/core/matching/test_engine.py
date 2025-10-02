@@ -34,7 +34,7 @@ class TestMatchingEngine:
     def test_initialization(self, mock_cache, mock_tmdb_client):
         """Test MatchingEngine initialization."""
         engine = MatchingEngine(cache=mock_cache, tmdb_client=mock_tmdb_client)
-        
+
         assert engine.cache is mock_cache
         assert engine.tmdb_client is mock_tmdb_client
 
@@ -58,7 +58,9 @@ class TestMatchingEngine:
         mock_cache.set.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_search_tmdb_cache_miss(self, matching_engine, mock_cache, mock_tmdb_client):
+    async def test_search_tmdb_cache_miss(
+        self, matching_engine, mock_cache, mock_tmdb_client
+    ):
         """Test TMDB search with cache miss."""
         # Setup
         normalized_query = {"title": "Attack on Titan"}
@@ -93,7 +95,9 @@ class TestMatchingEngine:
         mock_cache.set.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_search_tmdb_api_error(self, matching_engine, mock_cache, mock_tmdb_client):
+    async def test_search_tmdb_api_error(
+        self, matching_engine, mock_cache, mock_tmdb_client
+    ):
         """Test TMDB search with API error."""
         # Setup
         normalized_query = {"title": "Attack on Titan"}
@@ -112,27 +116,43 @@ class TestMatchingEngine:
         """Test confidence score calculation."""
         # Setup
         candidates = [
-            {"id": 1, "title": "Attack on Titan", "media_type": "tv", "release_date": "2013-04-07", "popularity": 85.2},
-            {"id": 2, "title": "Attack on Titan: The Final Season", "media_type": "tv", "release_date": "2020-12-07", "popularity": 75.0},
-            {"id": 3, "title": "One Piece", "media_type": "tv", "release_date": "1999-10-20", "popularity": 90.0},
+            {
+                "id": 1,
+                "title": "Attack on Titan",
+                "media_type": "tv",
+                "release_date": "2013-04-07",
+                "popularity": 85.2,
+            },
+            {
+                "id": 2,
+                "title": "Attack on Titan: The Final Season",
+                "media_type": "tv",
+                "release_date": "2020-12-07",
+                "popularity": 75.0,
+            },
+            {
+                "id": 3,
+                "title": "One Piece",
+                "media_type": "tv",
+                "release_date": "1999-10-20",
+                "popularity": 90.0,
+            },
         ]
-        normalized_query = {
-            "title": "Attack on Titan",
-            "year": 2013,
-            "language": "en"
-        }
+        normalized_query = {"title": "Attack on Titan", "year": 2013, "language": "en"}
 
         # Execute
-        result = matching_engine._calculate_confidence_scores(candidates, normalized_query)
+        result = matching_engine._calculate_confidence_scores(
+            candidates, normalized_query
+        )
 
         # Verify
         assert len(result) == 3
         assert all("confidence_score" in candidate for candidate in result)
-        
+
         # Should be sorted by confidence score (highest first)
         assert result[0]["confidence_score"] >= result[1]["confidence_score"]
         assert result[1]["confidence_score"] >= result[2]["confidence_score"]
-        
+
         # First candidate should have highest confidence (exact match)
         assert result[0]["title"] == "Attack on Titan"
         assert result[0]["confidence_score"] > 0.8  # Should be high confidence
@@ -142,15 +162,15 @@ class TestMatchingEngine:
         # Test high confidence
         assert matching_engine._get_confidence_level(0.9) == "high"
         assert matching_engine._get_confidence_level(0.8) == "high"
-        
+
         # Test medium confidence
         assert matching_engine._get_confidence_level(0.7) == "medium"
         assert matching_engine._get_confidence_level(0.6) == "medium"
-        
+
         # Test low confidence
         assert matching_engine._get_confidence_level(0.5) == "low"
         assert matching_engine._get_confidence_level(0.4) == "low"
-        
+
         # Test very low confidence
         assert matching_engine._get_confidence_level(0.3) == "very_low"
         assert matching_engine._get_confidence_level(0.0) == "very_low"
@@ -188,9 +208,24 @@ class TestMatchingEngine:
         """Test year-based filtering and sorting."""
         # Setup
         candidates = [
-            {"id": 1, "title": "Attack on Titan", "first_air_date": "2013-04-07", "title_score": 100},
-            {"id": 2, "title": "Attack on Titan S2", "first_air_date": "2017-04-01", "title_score": 95},
-            {"id": 3, "title": "Attack on Titan S3", "first_air_date": "2018-07-23", "title_score": 90},
+            {
+                "id": 1,
+                "title": "Attack on Titan",
+                "first_air_date": "2013-04-07",
+                "title_score": 100,
+            },
+            {
+                "id": 2,
+                "title": "Attack on Titan S2",
+                "first_air_date": "2017-04-01",
+                "title_score": 95,
+            },
+            {
+                "id": 3,
+                "title": "Attack on Titan S3",
+                "first_air_date": "2018-07-23",
+                "title_score": 90,
+            },
         ]
         year_hint = "2013"
 
@@ -201,11 +236,11 @@ class TestMatchingEngine:
         assert len(result) == 3
         assert all("year_score" in candidate for candidate in result)
         assert all("year_diff" in candidate for candidate in result)
-        
+
         # Should be sorted by year score (highest first)
         assert result[0]["year_score"] >= result[1]["year_score"]
         assert result[1]["year_score"] >= result[2]["year_score"]
-        
+
         # First candidate should have best year match
         assert result[0]["id"] == 1  # 2013
         assert result[0]["year_score"] == 100
@@ -252,7 +287,9 @@ class TestMatchingEngine:
         assert result[1]["id"] == 2  # No Year (title_score: 90)
 
     @pytest.mark.asyncio
-    async def test_find_match_success(self, matching_engine, mock_cache, mock_tmdb_client):
+    async def test_find_match_success(
+        self, matching_engine, mock_cache, mock_tmdb_client
+    ):
         """Test successful match finding."""
         # Setup
         anitopy_result = {
@@ -261,12 +298,24 @@ class TestMatchingEngine:
             "release_group": "HorribleSubs",
             "anime_year": 2013,
         }
-        
+
         tmdb_results = [
-            {"id": 1, "title": "Attack on Titan", "media_type": "tv", "release_date": "2013-04-07", "popularity": 85.2},
-            {"id": 2, "title": "Attack on Titan: The Final Season", "media_type": "tv", "release_date": "2020-12-07", "popularity": 75.0},
+            {
+                "id": 1,
+                "title": "Attack on Titan",
+                "media_type": "tv",
+                "release_date": "2013-04-07",
+                "popularity": 85.2,
+            },
+            {
+                "id": 2,
+                "title": "Attack on Titan: The Final Season",
+                "media_type": "tv",
+                "release_date": "2020-12-07",
+                "popularity": 75.0,
+            },
         ]
-        
+
         mock_cache.get.return_value = None  # Cache miss
         mock_tmdb_client.search_media.return_value = tmdb_results
 
@@ -284,7 +333,9 @@ class TestMatchingEngine:
         assert result["matching_metadata"]["confidence_score"] > 0.0
 
     @pytest.mark.asyncio
-    async def test_find_match_no_candidates(self, matching_engine, mock_cache, mock_tmdb_client):
+    async def test_find_match_no_candidates(
+        self, matching_engine, mock_cache, mock_tmdb_client
+    ):
         """Test match finding with no candidates."""
         # Setup
         anitopy_result = {"anime_title": "Unknown Anime"}
@@ -351,17 +402,17 @@ class TestMatchingEngine:
 
         # Verify
         assert len(result) == 3
-        
+
         # Check that animation candidates got boosted
         attack_on_titan = next(c for c in result if c["id"] == 1)
         matrix = next(c for c in result if c["id"] == 2)
         spirited_away = next(c for c in result if c["id"] == 3)
-        
+
         # Animation candidates should have higher confidence
         assert attack_on_titan["confidence_score"] == 0.7  # 0.6 + 0.1
         assert spirited_away["confidence_score"] == 0.6  # 0.5 + 0.1
         assert matrix["confidence_score"] == 0.7  # No boost
-        
+
         # Results should be sorted by confidence (highest first)
         assert result[0]["confidence_score"] >= result[1]["confidence_score"]
         assert result[1]["confidence_score"] >= result[2]["confidence_score"]
@@ -439,19 +490,21 @@ class TestMatchingEngine:
         normalized_query = {"title": "KNY"}
 
         # Execute
-        result = matching_engine._apply_partial_substring_match(candidates, normalized_query)
+        result = matching_engine._apply_partial_substring_match(
+            candidates, normalized_query
+        )
 
         # Verify
         assert len(result) == 2
-        
+
         # KNY should match "Kimetsu no Yaiba" better
         kimetsu = next(c for c in result if c["id"] == 1)
         attack = next(c for c in result if c["id"] == 2)
-        
+
         assert kimetsu["partial_match_score"] > 0
         assert kimetsu["used_partial_matching"] is True
         assert kimetsu["confidence_score"] > 0.3  # Should be improved
-        
+
         # Results should be sorted by confidence
         assert result[0]["confidence_score"] >= result[1]["confidence_score"]
 
@@ -468,7 +521,9 @@ class TestMatchingEngine:
         normalized_query = {"title": "xyz"}  # Very different title
 
         # Execute
-        result = matching_engine._apply_partial_substring_match(candidates, normalized_query)
+        result = matching_engine._apply_partial_substring_match(
+            candidates, normalized_query
+        )
 
         # Verify
         assert len(result) == 1
@@ -490,12 +545,16 @@ class TestMatchingEngine:
         normalized_query = {}
 
         # Execute
-        result = matching_engine._apply_partial_substring_match(candidates, normalized_query)
+        result = matching_engine._apply_partial_substring_match(
+            candidates, normalized_query
+        )
 
         # Verify
         assert result == candidates  # Should return unchanged
 
-    def test_apply_fallback_strategies_high_confidence_after_genre(self, matching_engine):
+    def test_apply_fallback_strategies_high_confidence_after_genre(
+        self, matching_engine
+    ):
         """Test fallback strategies when genre filtering produces high confidence."""
         # Setup
         candidates = [
@@ -515,7 +574,9 @@ class TestMatchingEngine:
         normalized_query = {"title": "Totoro"}
 
         # Execute
-        result = matching_engine._apply_fallback_strategies(candidates, normalized_query)
+        result = matching_engine._apply_fallback_strategies(
+            candidates, normalized_query
+        )
 
         # Verify
         assert len(result) == 2
@@ -524,7 +585,9 @@ class TestMatchingEngine:
         assert result[0]["confidence_score"] > 0.6  # Should be higher than original
         assert result[0]["confidence_score"] >= 0.7  # Should be at least genre boost
 
-    def test_apply_fallback_strategies_low_confidence_after_genre(self, matching_engine):
+    def test_apply_fallback_strategies_low_confidence_after_genre(
+        self, matching_engine
+    ):
         """Test fallback strategies when genre filtering doesn't improve confidence enough."""
         # Setup
         candidates = [
@@ -538,7 +601,9 @@ class TestMatchingEngine:
         normalized_query = {"title": "AOT"}
 
         # Execute
-        result = matching_engine._apply_fallback_strategies(candidates, normalized_query)
+        result = matching_engine._apply_fallback_strategies(
+            candidates, normalized_query
+        )
 
         # Verify
         assert len(result) == 1
