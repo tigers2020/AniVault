@@ -9,14 +9,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console
+
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.match_handler import handle_match_command
 from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.progress import create_progress_manager
 from anivault.cli.scan_handler import handle_scan_command
-from anivault.shared.errors import ApplicationError, ErrorCode
+from anivault.shared.errors import ApplicationError
 from anivault.shared.logging import get_logger
-from rich.console import Console
 
 logger = get_logger(__name__)
 
@@ -33,49 +34,31 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
     """
     try:
         # Validate directory
-        directory = Path(args.directory)
-        if not directory.exists():
-            error_msg = f"Directory does not exist: {directory}"
-            if hasattr(args, "json") and args.json:
-                json_output = format_json_output(
-                    success=False,
-                    command="run",
-                    errors=[error_msg],
-                    data={
-                        "error_code": ErrorCode.FILE_NOT_FOUND,
-                        "directory": str(directory),
-                    },
-                )
-                sys.stdout.buffer.write(json_output)
-                sys.stdout.buffer.write(b"\n")
-                sys.stdout.buffer.flush()
-            else:
-                logger.error(error_msg)
-            return 1
+        from anivault.cli.common.context import get_cli_context, validate_directory
 
-        if not directory.is_dir():
-            error_msg = f"Path is not a directory: {directory}"
-            if hasattr(args, "json") and args.json:
+        try:
+            directory = validate_directory(args.directory)
+        except ApplicationError as e:
+            context = get_cli_context()
+            if context and context.is_json_output_enabled():
                 json_output = format_json_output(
                     success=False,
                     command="run",
-                    errors=[error_msg],
-                    data={
-                        "error_code": ErrorCode.VALIDATION_ERROR,
-                        "directory": str(directory),
-                    },
+                    errors=[f"Application error: {e.message}"],
+                    data={"error_code": e.code, "context": e.context},
                 )
                 sys.stdout.buffer.write(json_output)
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
-                logger.error(error_msg)
+                logger.exception("Application error: %s", e.message)
             return 1
 
         # Initialize console and progress manager
         console = Console()
+        context = get_cli_context()
         progress_manager = create_progress_manager(
-            disabled=hasattr(args, "json") and args.json,
+            disabled=context and context.is_json_output_enabled(),
         )
 
         # Collect run data for JSON output
@@ -95,7 +78,7 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
 
         # Step 1: Scan (if not skipped)
         if not args.skip_scan:
-            if not (hasattr(args, "json") and args.json):
+            if not (context and context.is_json_output_enabled()):
                 console.print(
                     "\n[bold blue]Step 1: Scanning for anime files...[/bold blue]",
                 )
@@ -109,7 +92,7 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
 
         # Step 2: Match (if not skipped)
         if not args.skip_match:
-            if not (hasattr(args, "json") and args.json):
+            if not (context and context.is_json_output_enabled()):
                 console.print(
                     "\n[bold blue]Step 2: Matching files with TMDB...[/bold blue]",
                 )
@@ -123,7 +106,7 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
 
         # Step 3: Organize (if not skipped)
         if not args.skip_organize:
-            if not (hasattr(args, "json") and args.json):
+            if not (context and context.is_json_output_enabled()):
                 console.print("\n[bold blue]Step 3: Organizing files...[/bold blue]")
 
             with progress_manager.spinner("Organizing files..."):
@@ -134,7 +117,7 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
                     return _handle_run_error("Organize step failed", run_data, args)
 
         # Success - output results
-        if hasattr(args, "json") and args.json:
+        if context and context.is_json_output_enabled():
             json_output = format_json_output(success=True, command="run", data=run_data)
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
@@ -149,7 +132,7 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
 
     except ApplicationError as e:
         logger.exception("Application error in run command: %s", e.message)
-        if hasattr(args, "json") and args.json:
+        if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
                 command="run",
@@ -163,7 +146,7 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
 
     except Exception as e:
         logger.exception("Unexpected error in run command")
-        if hasattr(args, "json") and args.json:
+        if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
                 command="run",
@@ -359,7 +342,10 @@ def _handle_run_error(error_message: str, run_data: dict[str, Any], args: Any) -
     Returns:
         Exit code (1 for error)
     """
-    if hasattr(args, "json") and args.json:
+    from anivault.cli.common.context import get_cli_context
+
+    context = get_cli_context()
+    if context and context.is_json_output_enabled():
         json_output = format_json_output(
             success=False,
             command="run",

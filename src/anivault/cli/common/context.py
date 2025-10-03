@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import contextvars
 from enum import Enum
-from typing import Optional
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 
@@ -76,6 +76,54 @@ class CliContext(BaseModel):
         if self.is_verbose():
             return LogLevel.DEBUG.value
         return self.log_level.value
+
+    def is_json_output_enabled(self) -> bool:
+        """Check if JSON output is enabled."""
+        return self.json_output
+
+    def is_verbose_output_enabled(self) -> bool:
+        """Check if verbose output is enabled."""
+        return self.is_verbose()
+
+
+def validate_directory(directory_path: str) -> Path:
+    """
+    Validate that the given path is a valid directory.
+
+    Args:
+        directory_path: Path to validate
+
+    Returns:
+        Path: Validated Path object
+
+    Raises:
+        ApplicationError: If directory is invalid
+    """
+    from pathlib import Path
+
+    from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+
+    path = Path(directory_path)
+
+    if not path.exists():
+        raise ApplicationError(
+            ErrorCode.FILE_NOT_FOUND,
+            f"Directory does not exist: {path}",
+            ErrorContext(
+                operation="validate_directory", additional_data={"path": str(path)}
+            ),
+        )
+
+    if not path.is_dir():
+        raise ApplicationError(
+            ErrorCode.VALIDATION_ERROR,
+            f"Path is not a directory: {path}",
+            ErrorContext(
+                operation="validate_directory", additional_data={"path": str(path)}
+            ),
+        )
+
+    return path
 
 
 # Global context variable for thread-safe access

@@ -138,7 +138,7 @@ def _setup_organize_console() -> Any:
 def _validate_organize_directory(args: Any, console: Any) -> Any:
     """Validate directory for organize command."""
     try:
-        from anivault.cli.utils import validate_directory
+        from anivault.cli.common.context import validate_directory
 
         directory = validate_directory(args.directory)
         if not (hasattr(args, "json") and args.json):

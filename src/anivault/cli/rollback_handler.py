@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from anivault.cli.common_options import is_json_output_enabled
+from anivault.cli.common.context import get_cli_context
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI
 from anivault.shared.errors import (
@@ -36,7 +36,8 @@ def handle_rollback_command(args: Any) -> int:
     logger.info(CLI.INFO_COMMAND_STARTED.format(command="rollback"))
 
     try:
-        if is_json_output_enabled(args):
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             return _handle_rollback_command_json(args)
         return _handle_rollback_command_console(args)
 
@@ -45,7 +46,8 @@ def handle_rollback_command(args: Any) -> int:
             "Application error in rollback command",
             extra={"context": e.context, "error_code": e.code},
         )
-        if is_json_output_enabled(args):
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             error_output = format_json_output(
                 success=False,
                 command="rollback",
@@ -59,7 +61,8 @@ def handle_rollback_command(args: Any) -> int:
             "Infrastructure error in rollback command",
             extra={"context": e.context, "error_code": e.code},
         )
-        if is_json_output_enabled(args):
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             error_output = format_json_output(
                 success=False,
                 command="rollback",
@@ -70,7 +73,8 @@ def handle_rollback_command(args: Any) -> int:
         return 1
     except Exception as e:
         logger.exception("Unexpected error in rollback command")
-        if is_json_output_enabled(args):
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             error_output = format_json_output(
                 success=False,
                 command="rollback",

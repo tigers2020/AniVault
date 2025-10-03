@@ -28,9 +28,27 @@ python scripts/validate_dependencies.py
 
 ## 사용법
 
+AniVault는 새로운 Typer 기반 CLI를 사용합니다:
+
 ```bash
 anivault --help
 ```
+
+### 주요 명령어
+
+- `anivault scan <directory>` - 애니메이션 파일 스캔
+- `anivault match <directory>` - TMDB와 매칭
+- `anivault organize <directory>` - 파일 정리
+- `anivault run <directory>` - 전체 워크플로우 실행
+- `anivault log list` - 작업 로그 확인
+- `anivault rollback <timestamp>` - 작업 되돌리기
+
+### 공통 옵션
+
+- `--verbose, -v` - 상세 출력 (여러 번 사용 가능)
+- `--log-level <level>` - 로그 레벨 설정 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `--json` - JSON 형식으로 출력
+- `--version` - 버전 정보 표시
 
 ## Workflow and Recovery
 

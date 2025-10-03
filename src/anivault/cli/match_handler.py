@@ -92,7 +92,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
 
         # Validate directory
         try:
-            from anivault.cli.utils import validate_directory
+            from anivault.cli.common.context import validate_directory
 
             directory = validate_directory(args.directory)
         except ApplicationError as e:

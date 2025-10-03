@@ -12,6 +12,7 @@ from typing import Annotated
 
 import typer
 
+from anivault.cli.adapters import create_scan_command
 from anivault.cli.common.context import CliContext, LogLevel, set_cli_context
 from anivault.cli.common.options import (
     json_output_option,
@@ -29,6 +30,9 @@ app = typer.Typer(
     no_args_is_help=True,
     invoke_without_command=True,  # Allow running without subcommands
 )
+
+# Register command adapters
+app.add_typer(create_scan_command(), name="scan")
 
 # Version information
 __version__ = "0.1.0"
@@ -61,7 +65,7 @@ def main_callback(
     """
     # Handle version option first
     if version:
-        version_callback(True)
+        version_callback(value=True)
 
     # Create and set the CLI context
     context = CliContext(
