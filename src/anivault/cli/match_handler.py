@@ -11,9 +11,12 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import typer
+
 if TYPE_CHECKING:
     from rich.console import Console
 
+from anivault.cli.common.context import get_cli_context
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
@@ -576,3 +579,77 @@ def _collect_match_data(results, directory):
         },
         "files": file_data,
     }
+
+
+def match_command(
+    directory: Path = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Directory to match anime files against TMDB database",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    recursive: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--recursive/--no-recursive",
+        "-r",
+        help="Match files recursively in subdirectories",
+    ),
+    include_subtitles: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-subtitles/--no-include-subtitles",
+        help="Include subtitle files in matching",
+    ),
+    include_metadata: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-metadata/--no-include-metadata",
+        help="Include metadata files in matching",
+    ),
+    output_file: Path | None = typer.Option(  # type: ignore[misc]
+        None,
+        "--output",
+        "-o",
+        help="Output file for match results (JSON format)",
+        writable=True,
+    ),
+) -> None:
+    """
+    Match anime files against TMDB database.
+
+    This command takes scanned anime files and matches them against the TMDB database
+    to find corresponding TV shows and movies. It uses intelligent matching algorithms
+    to handle various naming conventions and provides detailed matching results.
+
+    Examples:
+        # Match files in current directory
+        anivault match .
+
+        # Match with custom options
+        anivault match /path/to/anime --recursive --output results.json
+
+        # Match without subtitles
+        anivault match /path/to/anime --no-include-subtitles
+    """
+
+    # Create a mock args object to maintain compatibility with existing handler
+    class MockArgs:
+        def __init__(self):
+            self.directory = directory
+            self.recursive = recursive
+            self.include_subtitles = include_subtitles
+            self.include_metadata = include_metadata
+            self.output = output_file
+
+            # Get CLI context for JSON output
+            context = get_cli_context()
+            self.json = context.json_output if context else False
+            self.verbose = context.verbose if context else 0
+
+    args = MockArgs()
+
+    # Call the existing handler
+    exit_code = handle_match_command(args)
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)

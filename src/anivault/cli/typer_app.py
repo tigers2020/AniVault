@@ -13,7 +13,6 @@ from typing import Annotated
 
 import typer
 
-from anivault.cli.scan_handler import scan_command
 from anivault.cli.common.context import CliContext, LogLevel, set_cli_context
 from anivault.cli.common.options import (
     json_output_option,
@@ -21,16 +20,8 @@ from anivault.cli.common.options import (
     verbose_option,
     version_option,
 )
-
-# Create the main Typer app
-app = typer.Typer(
-    name="anivault",
-    help="AniVault - Advanced Anime Collection Management System",
-    add_completion=False,  # Will be enabled later
-    rich_markup_mode="rich",  # Enable rich formatting
-    no_args_is_help=True,
-    invoke_without_command=True,  # Allow running without subcommands
-)
+from anivault.cli.match_handler import match_command
+from anivault.cli.scan_handler import scan_command
 
 # Version information
 __version__ = "0.1.0"
@@ -74,72 +65,154 @@ def main_callback(
     set_cli_context(context)
 
 
-# Create scan command with common options
-def create_scan_command_with_options():
-    """Create scan command with common options."""
-    @app.command("scan")
-    def scan_with_options(
-        directory: Path = typer.Argument(
-            ...,
-            help="Directory to scan for anime files",
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-        ),
-        recursive: bool = typer.Option(
-            True,
-            "--recursive",
-            "-r",
-            help="Scan directories recursively",
-        ),
-        include_subtitles: bool = typer.Option(
-            True,
-            "--include-subtitles",
-            help="Include subtitle files in scan",
-        ),
-        include_metadata: bool = typer.Option(
-            True,
-            "--include-metadata",
-            help="Include metadata files in scan",
-        ),
-        output_file: Path | None = typer.Option(
-            None,
-            "--output",
-            "-o",
-            help="Output file for scan results (JSON format)",
-            writable=True,
-        ),
-        verbose: Annotated[int, verbose_option] = 0,
-        log_level: Annotated[LogLevel, log_level_option] = LogLevel.INFO,
-        json_output: Annotated[bool, json_output_option] = False,
-        version: Annotated[bool, version_option] = False,
-    ) -> None:
-        """
-        Scan directories for anime files and extract metadata.
+# Create the main Typer app with callback
+app = typer.Typer(
+    name="anivault",
+    help="AniVault - Advanced Anime Collection Management System",
+    add_completion=False,  # Will be enabled later
+    rich_markup_mode="rich",  # Enable rich formatting
+    no_args_is_help=True,
+    invoke_without_command=True,
+)
 
-        This command recursively scans the specified directory for anime files
-        and extracts metadata using anitopy. It can optionally include subtitle
-        and metadata files in the scan results.
 
-        Examples:
-            # Scan current directory
-            anivault scan .
+@app.callback()
+def main(
+    verbose: Annotated[int, verbose_option] = 0,
+    log_level: Annotated[LogLevel, log_level_option] = LogLevel.INFO,
+    json_output: Annotated[bool, json_output_option] = False,
+    version: Annotated[bool, version_option] = False,
+) -> None:
+    """
+    AniVault - Advanced Anime Collection Management System.
 
-            # Scan with custom options
-            anivault scan /path/to/anime --recursive --output results.json
+    A comprehensive tool for organizing anime collections with TMDB integration,
+    intelligent file matching, and automated organization capabilities.
+    """
+    # Process the common options
+    main_callback(verbose, log_level, json_output, version)
 
-            # Scan without subtitles
-            anivault scan /path/to/anime --no-include-subtitles
-        """
-        # Process common options
-        main_callback(verbose, log_level, json_output, version)
-        
-        # Call the scan command
-        scan_command(directory, recursive, include_subtitles, include_metadata, output_file)
 
-# Register the scan command
-create_scan_command_with_options()
+@app.command("scan")
+def scan_command_typer(
+    directory: Path = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Directory to scan for anime files",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    recursive: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--recursive",
+        "-r",
+        help="Scan directories recursively",
+    ),
+    include_subtitles: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-subtitles",
+        help="Include subtitle files in scan",
+    ),
+    include_metadata: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-metadata",
+        help="Include metadata files in scan",
+    ),
+    output_file: Path | None = typer.Option(  # type: ignore[misc]
+        None,
+        "--output",
+        "-o",
+        help="Output file for scan results (JSON format)",
+        writable=True,
+    ),
+) -> None:
+    """
+    Scan directories for anime files and extract metadata.
+
+    This command recursively scans the specified directory for anime files
+    and extracts metadata using anitopy. It can optionally include subtitle
+    and metadata files in the scan results.
+
+    Examples:
+        # Scan current directory
+        anivault scan .
+
+        # Scan with custom options
+        anivault scan /path/to/anime --recursive --output results.json
+
+        # Scan without subtitles
+        anivault scan /path/to/anime --no-include-subtitles
+    """
+    # Call the scan command
+    scan_command(
+        directory,
+        recursive,
+        include_subtitles,
+        include_metadata,
+        output_file,
+    )
+
+
+@app.command("match")
+def match_command_typer(
+    directory: Path = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Directory to match anime files against TMDB database",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    recursive: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--recursive/--no-recursive",
+        "-r",
+        help="Match files recursively in subdirectories",
+    ),
+    include_subtitles: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-subtitles/--no-include-subtitles",
+        help="Include subtitle files in matching",
+    ),
+    include_metadata: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-metadata/--no-include-metadata",
+        help="Include metadata files in matching",
+    ),
+    output_file: Path | None = typer.Option(  # type: ignore[misc]
+        None,
+        "--output",
+        "-o",
+        help="Output file for match results (JSON format)",
+        writable=True,
+    ),
+) -> None:
+    """
+    Match anime files against TMDB database.
+
+    This command takes scanned anime files and matches them against the TMDB database
+    to find corresponding TV shows and movies. It uses intelligent matching algorithms
+    to handle various naming conventions and provides detailed matching results.
+
+    Examples:
+        # Match files in current directory
+        anivault match .
+
+        # Match with custom options
+        anivault match /path/to/anime --recursive --output results.json
+
+        # Match without subtitles
+        anivault match /path/to/anime --no-include-subtitles
+    """
+    # Call the match command
+    match_command(
+        directory,
+        recursive,
+        include_subtitles,
+        include_metadata,
+        output_file,
+    )
 
 
 if __name__ == "__main__":
