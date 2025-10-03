@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from anivault.shared.constants import (
@@ -333,20 +332,22 @@ class Settings(BaseModel):
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
 
     @classmethod
-    def from_yaml_file(cls, file_path: str | Path) -> Settings:
-        """Load settings from a YAML file.
+    def from_toml_file(cls, file_path: str | Path) -> Settings:
+        """Load settings from a TOML file.
 
         Args:
-            file_path: Path to the YAML configuration file
+            file_path: Path to the TOML configuration file
 
         Returns:
             Settings instance loaded from the file
 
         Raises:
             FileNotFoundError: If the configuration file doesn't exist
-            yaml.YAMLError: If the YAML file is malformed
+            toml.TomlDecodeError: If the TOML file is malformed
             ValidationError: If the configuration doesn't match the schema
         """
+        import toml
+
         file_path = Path(file_path)
 
         if not file_path.exists():
@@ -354,7 +355,7 @@ class Settings(BaseModel):
             raise FileNotFoundError(msg)
 
         with open(file_path, encoding=Encoding.DEFAULT) as f:
-            data = yaml.safe_load(f)
+            data = toml.load(f)
 
         return cls.model_validate(data)
 
@@ -444,48 +445,47 @@ class Settings(BaseModel):
             },
         )
 
-    def to_yaml_file(self, file_path: str | Path) -> None:
-        """Save settings to a YAML file.
+    def to_toml_file(self, file_path: str | Path) -> None:
+        """Save settings to a TOML file.
 
         Args:
-            file_path: Path where to save the YAML configuration file
+            file_path: Path where to save the TOML configuration file
         """
+        import toml
+
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(file_path, "w", encoding=Encoding.DEFAULT) as f:
-            yaml.dump(
+            toml.dump(
                 self.model_dump(exclude_defaults=True),
                 f,
-                default_flow_style=False,
-                sort_keys=False,
-                allow_unicode=True,
             )
 
 
 def load_settings(config_path: str | Path | None = None) -> Settings:
-    """Load settings from configuration file or environment.
+    """Load settings from TOML configuration file or environment.
 
     Args:
-        config_path: Optional path to configuration file. If None, tries to load
+        config_path: Optional path to TOML configuration file. If None, tries to load
                     from default locations or environment variables.
 
     Returns:
         Settings instance loaded from the specified source
     """
     if config_path:
-        return Settings.from_yaml_file(config_path)
+        return Settings.from_toml_file(config_path)
 
     # Try to load from default configuration file
     default_config_paths = [
-        Path("config/settings.yaml"),
-        Path("settings.yaml"),
-        Path.home() / FileSystem.HOME_DIR / "settings.yaml",
+        Path("config/config.toml"),
+        Path("config.toml"),
+        Path.home() / FileSystem.HOME_DIR / "config.toml",
     ]
 
     for config_path in default_config_paths:
         if config_path.exists():
-            return Settings.from_yaml_file(config_path)
+            return Settings.from_toml_file(config_path)
 
     # Fall back to environment variables
     return Settings.from_environment()

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from anivault.cli.common_options import get_common_options_parser, get_version_argument
+from anivault.cli_utils import ConfigAwareArgumentParser
 from anivault.shared.constants import (
     APIConfig,
     CLIFormatting,
@@ -25,12 +26,12 @@ from anivault.shared.constants import (
 from anivault.shared.errors import ApplicationError, ErrorCode
 
 
-def create_argument_parser() -> argparse.ArgumentParser:
+def create_argument_parser() -> ConfigAwareArgumentParser:
     """
     Create and configure the main argument parser for AniVault CLI.
 
     Returns:
-        argparse.ArgumentParser: Configured argument parser with all subcommands
+        ConfigAwareArgumentParser: Configured argument parser with all subcommands
 
     Raises:
         ApplicationError: If parser configuration fails
@@ -39,7 +40,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         # Get common options parser for reuse across all commands
         common_options_parser = get_common_options_parser()
 
-        parser = argparse.ArgumentParser(
+        parser = ConfigAwareArgumentParser(
             description=(
                 "AniVault - Advanced Anime Collection Management System\n"
                 "\n"
@@ -71,6 +72,9 @@ def create_argument_parser() -> argparse.ArgumentParser:
         _add_run_parser(subparsers)
         _add_legacy_verification_flags(parser)
 
+        # Load configuration for dynamic defaults
+        parser.load_config()
+
         return parser
 
     except Exception as e:
@@ -80,7 +84,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ) from e
 
 
-def parse_arguments(parser: argparse.ArgumentParser) -> argparse.Namespace:
+def parse_arguments(parser: ConfigAwareArgumentParser) -> argparse.Namespace:
     """
     Parse command line arguments using the provided parser.
 
@@ -95,6 +99,14 @@ def parse_arguments(parser: argparse.ArgumentParser) -> argparse.Namespace:
     """
     try:
         args = parser.parse_args()
+
+        # Apply configuration defaults if parser has loaded config
+        if parser._config_loaded and parser._config_manager:
+            from anivault.cli_utils import apply_config_defaults, create_config_mappings
+
+            config_mappings = create_config_mappings()
+            apply_config_defaults(args, parser._config_manager, config_mappings)
+
         validate_parsed_args(args)
         return args
 

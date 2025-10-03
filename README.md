@@ -16,6 +16,16 @@ AniVault는 TMDB API를 활용한 애니메이션 파일 자동 정리 시스템
 pip install -e .
 ```
 
+### 의존성 검증
+
+프로젝트의 모든 의존성이 올바르게 설치되었는지 확인하려면:
+
+```bash
+python scripts/validate_dependencies.py
+```
+
+이 도구는 `pyproject.toml`에 정의된 모든 의존성(메인 및 개발 의존성)이 현재 환경에 올바르게 설치되었는지 검증합니다.
+
 ## 사용법
 
 ```bash

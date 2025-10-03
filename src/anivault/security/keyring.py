@@ -171,7 +171,8 @@ class Keyring:
                 ErrorCode.CONFIG_ERROR,
                 f"Failed to save key '{key_name}': {e}",
                 ErrorContext(
-                    operation="save_key", additional_data={"key_name": key_name}
+                    operation="save_key",
+                    additional_data={"key_name": key_name},
                 ),
                 original_error=e,
             ) from e
@@ -224,7 +225,8 @@ class Keyring:
             raise DecryptionError(
                 msg,
                 ErrorContext(
-                    operation="load_key", additional_data={"key_name": key_name}
+                    operation="load_key",
+                    additional_data={"key_name": key_name},
                 ),
                 original_error=e,
             ) from e
@@ -233,7 +235,8 @@ class Keyring:
                 ErrorCode.CONFIG_ERROR,
                 f"Failed to load key '{key_name}': {e}",
                 ErrorContext(
-                    operation="load_key", additional_data={"key_name": key_name}
+                    operation="load_key",
+                    additional_data={"key_name": key_name},
                 ),
                 original_error=e,
             ) from e
@@ -266,7 +269,8 @@ class Keyring:
                 ErrorCode.CONFIG_ERROR,
                 f"Failed to delete key '{key_name}': {e}",
                 ErrorContext(
-                    operation="delete_key", additional_data={"key_name": key_name}
+                    operation="delete_key",
+                    additional_data={"key_name": key_name},
                 ),
                 original_error=e,
             ) from e
