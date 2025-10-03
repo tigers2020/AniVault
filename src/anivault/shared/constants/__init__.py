@@ -10,27 +10,6 @@ to eliminate duplication and provide a single source of truth.
 """
 
 # Import all constant classes for direct access
-from .api import APIConfig, TMDBConfig, CacheConfig
-from .cli import (
-    WorkerConfig, QueueConfig, CacheConfig as CLICacheConfig,
-    ConfidenceConfig, BatchConfig, CLIMessages, CLIFormatting, LogConfig
-)
-from .file_formats import (
-    VideoFormats, SubtitleFormats, MetadataConfig, FileLimits, 
-    TestConfig, ExclusionPatterns
-)
-from .logging import LogLevels, LogConfig as LoggingConfig, LogMessages, PerformanceLogging, ErrorLogging, LogPaths
-from .matching import (
-    ConfidenceThresholds, ValidationConfig, MatchingAlgorithm,
-    TitleNormalization, FallbackStrategy, ScoringWeights
-)
-from .system import (
-    Application, FileSystem, Encoding, Config, Timeout, Batch, Process,
-    Memory, Cache, Status, EnrichmentStatus, MediaType, Language,
-    JsonKeys, Boolean, ErrorHandling, TMDBErrorHandling, Performance,
-    Logging, Pipeline, CLI
-)
-
 # Import backward compatibility aliases
 from .api import (
     DEFAULT_CONCURRENT_REQUESTS,
@@ -40,6 +19,9 @@ from .api import (
     DEFAULT_RETRY_DELAY,
     DEFAULT_TMDB_RATE_LIMIT_RPS,
     TMDB_API_BASE_URL,
+    APIConfig,
+    CacheConfig,
+    TMDBConfig,
 )
 from .cli import (
     CLI_DEFAULT_RATE_LIMIT_EXAMPLE,
@@ -64,7 +46,15 @@ from .cli import (
     DEFAULT_LOG_LEVEL,
     DEFAULT_QUEUE_SIZE,
     DEFAULT_WORKERS,
+    BatchConfig,
+    CLIFormatting,
+    CLIMessages,
+    ConfidenceConfig,
+    LogConfig,
+    QueueConfig,
+    WorkerConfig,
 )
+from .cli import CacheConfig as CLICacheConfig
 from .file_formats import (
     ADDITIONAL_VIDEO_FORMATS,
     EXCLUDED_DIRECTORY_PATTERNS,
@@ -75,6 +65,12 @@ from .file_formats import (
     SUPPORTED_VIDEO_EXTENSIONS,
     SUPPORTED_VIDEO_EXTENSIONS_MATCH,
     SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE,
+    ExclusionPatterns,
+    FileLimits,
+    MetadataConfig,
+    SubtitleFormats,
+    TestConfig,
+    VideoFormats,
 )
 from .logging import (
     DEFAULT_LOG_FILE,
@@ -89,7 +85,13 @@ from .logging import (
     LOG_LEVEL_WARNING,
     ORGANIZE_LOG_PREFIX,
     ROLLBACK_LOG_PREFIX,
+    ErrorLogging,
+    LogLevels,
+    LogMessages,
+    LogPaths,
+    PerformanceLogging,
 )
+from .logging import LogConfig as LoggingConfig
 from .matching import (
     DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD,
     HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
@@ -98,6 +100,12 @@ from .matching import (
     MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD,
     MEDIUM_CONFIDENCE_THRESHOLD,
     MIN_REQUIRED_KEYS,
+    ConfidenceThresholds,
+    FallbackStrategy,
+    MatchingAlgorithm,
+    ScoringWeights,
+    TitleNormalization,
+    ValidationConfig,
 )
 from .system import (
     ANIVAULT_HOME_DIR,
@@ -105,6 +113,7 @@ from .system import (
     APPLICATION_VERSION,
     BOOLEAN_FALSE_STRING,
     BOOLEAN_TRUE_STRING,
+    CLI,
     DEFAULT_BATCH_SIZE,
     DEFAULT_BATCH_SIZE_LARGE,
     DEFAULT_CACHE_BACKEND,
@@ -139,6 +148,26 @@ from .system import (
     PIPELINE_SENTINEL_TIMEOUT,
     PIPELINE_SHUTDOWN_TIMEOUT,
     SENTINEL,
+    Application,
+    Batch,
+    Boolean,
+    Cache,
+    Config,
+    Encoding,
+    EnrichmentStatus,
+    ErrorHandling,
+    FileSystem,
+    JsonKeys,
+    Language,
+    Logging,
+    MediaType,
+    Memory,
+    Performance,
+    Pipeline,
+    Process,
+    Status,
+    Timeout,
+    TMDBErrorHandling,
 )
 
 __all__ = [

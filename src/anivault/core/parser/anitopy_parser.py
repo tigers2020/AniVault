@@ -12,7 +12,7 @@ from typing import Any
 try:
     import anitopy
 except ImportError:
-    anitopy = None  # type: ignore[assignment]
+    anitopy = None
 
 from anivault.core.parser.models import ParsingResult
 

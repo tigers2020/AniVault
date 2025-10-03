@@ -54,7 +54,7 @@ class PerformanceMetrics:
     peak_memory_mb: float = 0.0
     average_memory_mb: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Calculate derived metrics after initialization."""
         self.cache_hit_ratio = (
             self.cache_hits / (self.cache_hits + self.cache_misses)
@@ -79,7 +79,7 @@ class BenchmarkResult:
     success: bool
     error_message: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Calculate duration if not provided."""
         if self.duration == 0.0:
             self.duration = (self.end_time - self.start_time).total_seconds()

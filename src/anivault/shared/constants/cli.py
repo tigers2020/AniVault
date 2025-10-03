@@ -78,7 +78,7 @@ class CLIMessages:
         NO_OPERATION_LOGS = "No operation logs found"
         TOTAL_LOGS = "Total logs: {count}"
 
-    class Warning:
+    class WarningMessages:
         """Warning message templates."""
 
         LOW_CONFIDENCE = "[yellow]Low confidence match: {confidence:.2f}[/yellow]"
@@ -122,8 +122,8 @@ SUCCESS_ORGANIZE_MESSAGE = CLIMessages.Success.ORGANIZE
 INFO_SCANNING_MESSAGE = CLIMessages.Info.SCANNING
 INFO_MATCHING_MESSAGE = CLIMessages.Info.MATCHING
 INFO_ORGANIZING_MESSAGE = CLIMessages.Info.ORGANIZING
-WARNING_LOW_CONFIDENCE = CLIMessages.Warning.LOW_CONFIDENCE
-WARNING_NO_MATCHES = CLIMessages.Warning.NO_MATCHES
+WARNING_LOW_CONFIDENCE = CLIMessages.WarningMessages.LOW_CONFIDENCE
+WARNING_NO_MATCHES = CLIMessages.WarningMessages.NO_MATCHES
 
 # CLI specific aliases
 CLI_INDENT_SIZE = CLIFormatting.INDENT_SIZE

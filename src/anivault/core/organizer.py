@@ -60,10 +60,10 @@ class FileOrganizer:
         metadata = scanned_file.metadata
 
         # Extract series information
-        series_title = metadata.anime_title or "Unknown Series"
-        season_number = metadata.season_number
-        episode_number = metadata.episode_number
-        episode_title = metadata.episode_title
+        series_title = metadata.title or "Unknown Series"
+        season_number = metadata.season
+        episode_number = metadata.episode
+        episode_title = metadata.other_info.get("episode_title")
 
         # Clean series title for filesystem compatibility
         series_title = self._sanitize_filename(series_title)
@@ -147,7 +147,7 @@ class FileOrganizer:
 
         for scanned_file in scanned_files:
             # Skip files that don't have sufficient metadata
-            if not scanned_file.metadata.anime_title:
+            if not scanned_file.metadata.title:
                 continue
 
             # Construct destination path
@@ -327,7 +327,10 @@ class FileOrganizer:
                     msg,
                 ) from e
 
-        return None
+        else:
+            # Unsupported operation type
+            msg = f"Unsupported operation type: {operation.operation_type}"
+            raise ValueError(msg)
 
     def _handle_operation_error(
         self,

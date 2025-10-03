@@ -5,6 +5,8 @@ This module contains all constants related to file formats,
 extensions, and file processing configuration.
 """
 
+from typing import ClassVar
+
 from .system import FileSystem
 
 
@@ -23,7 +25,7 @@ class VideoFormats:
     )
 
     # Additional extensions
-    ADDITIONAL_EXTENSIONS = [".m4v", ".m2ts", ".ts"]
+    ADDITIONAL_EXTENSIONS: ClassVar[list[str]] = [".m4v", ".m2ts", ".ts"]
 
     # All supported extensions
     ALL_EXTENSIONS = CORE_EXTENSIONS + tuple(ADDITIONAL_EXTENSIONS)
@@ -36,7 +38,7 @@ class VideoFormats:
 class SubtitleFormats:
     """Subtitle format configuration constants."""
 
-    EXTENSIONS = [
+    EXTENSIONS: ClassVar[list[str]] = [
         ".srt",
         ".ass",
         ".ssa",
@@ -85,7 +87,7 @@ class ExclusionPatterns:
     """File and directory exclusion patterns."""
 
     # Filename patterns to exclude
-    FILENAME_PATTERNS = [
+    FILENAME_PATTERNS: ClassVar[list[str]] = [
         "*sample*",
         "*trailer*",
         "*preview*",
@@ -97,7 +99,7 @@ class ExclusionPatterns:
     ]
 
     # Directory patterns to exclude
-    DIRECTORY_PATTERNS = [
+    DIRECTORY_PATTERNS: ClassVar[list[str]] = [
         ".git",
         ".svn",
         ".hg",

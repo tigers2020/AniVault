@@ -46,11 +46,8 @@ class FileOperation(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:
         """Validate paths after model initialization."""
-        # Convert string paths to Path objects if needed
-        if isinstance(self.source_path, str):
-            self.source_path = Path(self.source_path)
-        if isinstance(self.destination_path, str):
-            self.destination_path = Path(self.destination_path)
+        # Path fields are already validated by Pydantic
+        pass
 
     def __str__(self) -> str:
         """Return a human-readable string representation."""
@@ -84,9 +81,8 @@ class ScannedFile(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:
         """Validate paths after model initialization."""
-        # Convert string paths to Path objects if needed
-        if isinstance(self.file_path, str):
-            self.file_path = Path(self.file_path)
+        # Path fields are already validated by Pydantic
+        pass
 
     @property
     def extension(self) -> str:

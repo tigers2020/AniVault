@@ -152,7 +152,7 @@ class OperationLogManager:
         try:
             with log_path.open("w", encoding=DEFAULT_ENCODING) as f:
                 json.dump(plan_data, f, indent=CLI_INDENT_SIZE, ensure_ascii=False)
-        except (OSError, json.JSONEncodeError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             msg = f"Failed to save operation log to {log_path}: {e}"
             raise OSError(msg) from e
 
@@ -179,7 +179,7 @@ class OperationLogManager:
                 plan_data = json.load(f)
 
             # Deserialize to FileOperation objects
-            operations = parse_obj_as(list[FileOperation], plan_data)
+            operations: list[FileOperation] = parse_obj_as(list[FileOperation], plan_data)
             return operations
 
         except FileNotFoundError:
