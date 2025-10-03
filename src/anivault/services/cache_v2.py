@@ -21,6 +21,13 @@ except ImportError:
 from pydantic import BaseModel, Field
 
 from anivault.core.statistics import StatisticsCollector
+from anivault.shared.errors import (
+    DomainError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
+from anivault.shared.logging import log_operation_error, log_operation_success
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +50,8 @@ class CacheEntry(BaseModel):
     created_at: str = Field(..., description="ISO timestamp when entry was created")
     expires_at: str | None = Field(None, description="ISO timestamp when entry expires")
     cache_type: str = Field(
-        ..., description="Type of cache entry ('search' or 'details')",
+        ...,
+        description="Type of cache entry ('search' or 'details')",
     )
     key_hash: str = Field(..., description="SHA-256 hash of the original key")
 
@@ -61,7 +69,9 @@ class JSONCacheV2:
     """
 
     def __init__(
-        self, cache_dir: Path | str, statistics: StatisticsCollector | None = None,
+        self,
+        cache_dir: Path | str,
+        statistics: StatisticsCollector | None = None,
     ) -> None:
         """Initialize the cache with directory structure.
 
@@ -71,44 +81,86 @@ class JSONCacheV2:
             statistics: Optional statistics collector for performance tracking.
 
         Raises:
-            ImportError: If orjson library is not installed.
+            InfrastructureError: If orjson library is not installed or directory creation fails.
         """
-        if orjson is None:
-            raise ImportError(
-                "orjson library is not installed. "
-                "Install it with: pip install orjson",
-            )
-
-        self.cache_dir = Path(cache_dir)
-        self.search_dir = self.cache_dir / "search"
-        self.details_dir = self.cache_dir / "details"
-        self.statistics = statistics or StatisticsCollector()
-
-        # Create cache directories
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.search_dir.mkdir(parents=True, exist_ok=True)
-        self.details_dir.mkdir(parents=True, exist_ok=True)
-
-        # Cleanup expired entries on startup
-        try:
-            purged_count = self.purge_expired()
-            if purged_count > 0:
-                logger.info(
-                    "Cleaned up %d expired cache entries on startup",
-                    purged_count,
-                )
-        except Exception as e:
-            logger.warning(
-                "Failed to cleanup expired entries on startup: %s",
-                str(e),
-            )
-
-        logger.debug(
-            "Initialized JSONCacheV2 with directories: %s, %s, %s",
-            self.cache_dir,
-            self.search_dir,
-            self.details_dir,
+        context = ErrorContext(
+            operation="initialize_cache",
+            additional_data={"cache_dir": str(cache_dir)},
         )
+
+        if orjson is None:
+            error = InfrastructureError(
+                code=ErrorCode.DEPENDENCY_MISSING,
+                message="orjson library is not installed. Install it with: pip install orjson",
+                context=context,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="initialize_cache",
+                error=error,
+                additional_context={"cache_dir": str(cache_dir)},
+            )
+            raise error
+
+        try:
+            self.cache_dir = Path(cache_dir)
+            self.search_dir = self.cache_dir / "search"
+            self.details_dir = self.cache_dir / "details"
+            self.statistics = statistics or StatisticsCollector()
+
+            # Create cache directories
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self.search_dir.mkdir(parents=True, exist_ok=True)
+            self.details_dir.mkdir(parents=True, exist_ok=True)
+
+            # Cleanup expired entries on startup
+            try:
+                purged_count = self.purge_expired()
+                if purged_count > 0:
+                    logger.info(
+                        "Cleaned up %d expired cache entries on startup",
+                        purged_count,
+                    )
+            except Exception as e:
+                log_operation_error(
+                    logger=logger,
+                    operation="cleanup_expired_on_startup",
+                    error=e,
+                    additional_context=context,
+                )
+                logger.warning(
+                    "Failed to cleanup expired entries on startup: %s",
+                    str(e),
+                )
+
+            log_operation_success(
+                logger=logger,
+                operation="initialize_cache",
+                duration_ms=0,
+                context=context,
+            )
+
+            logger.debug(
+                "Initialized JSONCacheV2 with directories: %s, %s, %s",
+                self.cache_dir,
+                self.search_dir,
+                self.details_dir,
+            )
+
+        except Exception as e:
+            error = InfrastructureError(
+                code=ErrorCode.DIRECTORY_CREATION_FAILED,
+                message=f"Failed to initialize cache directory: {cache_dir}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="initialize_cache",
+                error=error,
+                additional_context=context,
+            )
+            raise error
 
     def _generate_file_path(self, key: str, cache_type: str = "search") -> Path:
         """Generate cache file path from key and cache type.
@@ -119,7 +171,15 @@ class JSONCacheV2:
 
         Returns:
             Path object pointing to the cache file.
+
+        Raises:
+            DomainError: If cache_type is invalid.
         """
+        context = ErrorContext(
+            operation="generate_file_path",
+            additional_data={"key": key, "cache_type": cache_type},
+        )
+
         # Normalize the key (remove special characters, convert to lowercase)
         normalized_key = key.lower().strip()
 
@@ -132,9 +192,18 @@ class JSONCacheV2:
         elif cache_type == "details":
             cache_dir = self.details_dir
         else:
-            raise ValueError(
-                f"Invalid cache_type: {cache_type}. Must be 'search' or 'details'",
+            error = DomainError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message=f"Invalid cache_type: {cache_type}. Must be 'search' or 'details'",
+                context=context,
             )
+            log_operation_error(
+                logger=logger,
+                operation="generate_file_path",
+                error=error,
+                additional_context=context,
+            )
+            raise error
 
         # Return file path with .json extension
         return cache_dir / f"{key_hash}.json"
@@ -155,8 +224,18 @@ class JSONCacheV2:
             ttl_seconds: Time-to-live in seconds (None for no expiration).
 
         Raises:
-            ValueError: If cache_type is invalid.
+            InfrastructureError: If file I/O operations fail.
+            DomainError: If cache_type is invalid or data validation fails.
         """
+        context = ErrorContext(
+            operation="cache_set",
+            additional_data={
+                "key": key,
+                "cache_type": cache_type,
+                "ttl_seconds": ttl_seconds,
+            },
+        )
+
         try:
             # Generate file path
             cache_file = self._generate_file_path(key, cache_type)
@@ -183,14 +262,68 @@ class JSONCacheV2:
             )
 
             # Serialize with orjson
-            json_data = orjson.dumps(entry.model_dump())
+            try:
+                json_data = orjson.dumps(entry.model_dump())
+            except orjson.JSONEncodeError as e:
+                error = DomainError(
+                    code=ErrorCode.CACHE_SERIALIZATION_ERROR,
+                    message=f"Failed to serialize cache data for key '{key}': {str(e)}",
+                    context=ErrorContext(
+                        operation="cache_set",
+                        additional_data={
+                            "key": key,
+                            "cache_type": cache_type,
+                            "data_size": len(str(data)),
+                            "json_error": str(e),
+                        },
+                    ),
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
+                    operation="cache_set",
+                    additional_context=context.additional_data if context else None,
+                )
+                raise error
 
             # Write to cache file
-            with open(cache_file, "wb") as f:
-                f.write(json_data)
+            try:
+                with open(cache_file, "wb") as f:
+                    f.write(json_data)
+            except (OSError, IOError) as e:
+                error = InfrastructureError(
+                    code=ErrorCode.FILE_WRITE_ERROR,
+                    message=f"Failed to write cache file for key '{key}': {str(e)}",
+                    context=ErrorContext(
+                        operation="cache_set",
+                        additional_data={
+                            "key": key,
+                            "cache_type": cache_type,
+                            "file_path": str(cache_file),
+                            "file_size": len(json_data),
+                            "io_error": str(e),
+                        },
+                    ),
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
+                    operation="cache_set",
+                    additional_context=context.additional_data if context else None,
+                )
+                raise error
 
             # Record cache operation
             self.statistics.record_cache_operation("set", hit=False, key=key)
+
+            log_operation_success(
+                logger=logger,
+                operation="cache_set",
+                duration_ms=0,
+                context=context,
+            )
 
             logger.debug(
                 "Cached data for key '%s' (%s) in %s",
@@ -199,13 +332,23 @@ class JSONCacheV2:
                 cache_file,
             )
 
-        except Exception as e:
-            logger.error(
-                "Failed to cache data for key '%s': %s",
-                key,
-                str(e),
-            )
+        except DomainError:
+            # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
+        except Exception as e:
+            error = InfrastructureError(
+                code=ErrorCode.FILE_WRITE_ERROR,
+                message=f"Failed to cache data for key '{key}': {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="cache_set",
+                error=error,
+                additional_context=context,
+            )
+            raise error
 
     def get(self, key: str, cache_type: str = "search") -> dict[str, Any] | None:
         """Retrieve data from the cache.
@@ -218,8 +361,14 @@ class JSONCacheV2:
             The cached data if found and not expired, None otherwise.
 
         Raises:
-            ValueError: If cache_type is invalid.
+            InfrastructureError: If file I/O operations fail.
+            DomainError: If cache_type is invalid.
         """
+        context = ErrorContext(
+            operation="cache_get",
+            additional_data={"key": key, "cache_type": cache_type},
+        )
+
         try:
             # Generate file path
             cache_file = self._generate_file_path(key, cache_type)
@@ -229,12 +378,40 @@ class JSONCacheV2:
                 return None  # Cache miss
 
             # Read and parse the cache file
-            with open(cache_file, "rb") as f:
-                json_data = f.read()
+            try:
+                with open(cache_file, "rb") as f:
+                    json_data = f.read()
+            except (OSError, IOError) as e:
+                error = InfrastructureError(
+                    code=ErrorCode.FILE_READ_ERROR,
+                    message=f"Failed to read cache file for key '{key}': {str(e)}",
+                    context=ErrorContext(
+                        operation="cache_get",
+                        additional_data={
+                            "key": key,
+                            "cache_type": cache_type,
+                            "file_path": str(cache_file),
+                            "io_error": str(e),
+                        },
+                    ),
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
+                    operation="cache_get",
+                    additional_context=context.additional_data if context else None,
+                )
+                return None
 
             # Deserialize with orjson
-            entry_dict = orjson.loads(json_data)
-            entry = CacheEntry.model_validate(entry_dict)
+            try:
+                entry_dict = orjson.loads(json_data)
+                entry = CacheEntry.model_validate(entry_dict)
+            except orjson.JSONDecodeError as e:
+                # Handle corrupted cache file
+                self._handle_corrupted_cache_file(cache_file, key, e, context)
+                return None
 
             # Verify key hash
             expected_hash = hashlib.sha256(
@@ -273,33 +450,98 @@ class JSONCacheV2:
         except FileNotFoundError:
             self.statistics.record_cache_miss(cache_type)
             return None  # Cache miss
-        except ValueError as e:
-            # Re-raise ValueError for invalid cache_type
-            if "Invalid cache_type" in str(e):
-                raise
-            logger.error(
-                "Error reading cache for key '%s': %s",
-                key,
-                str(e),
-            )
-            # Try to clean up corrupted file
-            try:
-                cache_file.unlink()
-            except (OSError, NameError):
-                pass
-            return None
+        except DomainError:
+            # Re-raise domain errors (like invalid cache_type) as they are validation errors
+            raise
         except Exception as e:
-            logger.error(
-                "Error reading cache for key '%s': %s",
-                key,
-                str(e),
-            )
             # Try to clean up corrupted file
             try:
-                cache_file.unlink()
+                if "cache_file" in locals() and cache_file.exists():
+                    cache_file.unlink()
             except (OSError, NameError):
                 pass
+
+            # Log the error but don't raise it for cache operations
+            # Cache misses are not considered errors
+            error = InfrastructureError(
+                code=ErrorCode.FILE_READ_ERROR,
+                message=f"Failed to read cache data for key '{key}': {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="cache_get",
+                error=error,
+                additional_context=context,
+            )
             return None
+
+    def _handle_corrupted_cache_file(
+        self,
+        cache_file: Path,
+        key: str,
+        json_error: orjson.JSONDecodeError,
+        context: ErrorContext,
+    ) -> None:
+        """Handle corrupted cache file by backing it up and logging the error.
+
+        Args:
+            cache_file: Path to the corrupted cache file
+            key: Cache key that failed to load
+            json_error: The JSON decode error that occurred
+            context: Error context for logging
+        """
+        try:
+            # Create backup filename with timestamp
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            backup_file = cache_file.with_suffix(f".corrupted.{timestamp}.json")
+
+            # Move corrupted file to backup location
+            cache_file.rename(backup_file)
+
+            # Log the corruption event
+            logger.warning(
+                "Cache file corrupted for key '%s', backed up to %s. "
+                "JSON decode error: %s",
+                key,
+                backup_file,
+                str(json_error),
+            )
+
+            # Create domain error for the corruption
+            error = DomainError(
+                code=ErrorCode.CACHE_CORRUPTED,
+                message=f"Cache file corrupted for key '{key}': {str(json_error)}",
+                context=ErrorContext(
+                    operation="cache_get",
+                    additional_data={
+                        "key": key,
+                        "file_path": str(cache_file),
+                        "backup_path": str(backup_file),
+                        "file_size": cache_file.stat().st_size
+                        if cache_file.exists()
+                        else 0,
+                        "json_error": str(json_error),
+                    },
+                ),
+                original_error=json_error,
+            )
+
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="cache_get",
+                additional_context=context.additional_data if context else None,
+            )
+
+        except OSError as e:
+            # If backup fails, just log and continue
+            logger.error(
+                "Failed to backup corrupted cache file %s: %s",
+                cache_file,
+                str(e),
+            )
 
     def delete(self, key: str, cache_type: str = "search") -> bool:
         """Delete a specific cache entry.
@@ -312,8 +554,14 @@ class JSONCacheV2:
             True if the entry was deleted, False if it didn't exist.
 
         Raises:
-            ValueError: If cache_type is invalid.
+            InfrastructureError: If file I/O operations fail.
+            DomainError: If cache_type is invalid.
         """
+        context = ErrorContext(
+            operation="cache_delete",
+            additional_data={"key": key, "cache_type": cache_type},
+        )
+
         try:
             cache_file = self._generate_file_path(key, cache_type)
             if cache_file.exists():
@@ -321,21 +569,21 @@ class JSONCacheV2:
                 logger.debug("Deleted cache entry for key '%s' (%s)", key, cache_type)
                 return True
             return False
-        except ValueError as e:
-            # Re-raise ValueError for invalid cache_type
-            if "Invalid cache_type" in str(e):
-                raise
-            logger.error(
-                "Error deleting cache entry for key '%s': %s",
-                key,
-                str(e),
-            )
-            return False
+        except DomainError:
+            # Re-raise domain errors (like invalid cache_type) as they are validation errors
+            raise
         except Exception as e:
-            logger.error(
-                "Error deleting cache entry for key '%s': %s",
-                key,
-                str(e),
+            error = InfrastructureError(
+                code=ErrorCode.FILE_DELETE_ERROR,
+                message=f"Error deleting cache entry for key '{key}': {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="cache_delete",
+                error=error,
+                context=context,
             )
             return False
 
@@ -349,8 +597,14 @@ class JSONCacheV2:
             Number of files deleted.
 
         Raises:
-            ValueError: If cache_type is invalid.
+            InfrastructureError: If file I/O operations fail.
+            DomainError: If cache_type is invalid.
         """
+        context = ErrorContext(
+            operation="cache_clear",
+            additional_data={"cache_type": cache_type},
+        )
+
         deleted_count = 0
 
         try:
@@ -369,7 +623,25 @@ class JSONCacheV2:
                     cache_file.unlink()
                     deleted_count += 1
             else:
-                raise ValueError(f"Invalid cache_type: {cache_type}")
+                error = DomainError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message=f"Invalid cache_type: {cache_type}",
+                    context=context,
+                )
+                log_operation_error(
+                    logger=logger,
+                    operation="cache_clear",
+                    error=error,
+                    additional_context=context,
+                )
+                raise error
+
+            log_operation_success(
+                logger=logger,
+                operation="cache_clear",
+                duration_ms=0,
+                context=context,
+            )
 
             logger.info(
                 "Cleared %d cache entries (%s)",
@@ -377,9 +649,23 @@ class JSONCacheV2:
                 cache_type or "all",
             )
 
-        except Exception as e:
-            logger.error("Error clearing cache: %s", str(e))
+        except DomainError:
+            # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
+        except Exception as e:
+            error = InfrastructureError(
+                code=ErrorCode.FILE_DELETE_ERROR,
+                message=f"Error clearing cache: {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="cache_clear",
+                error=error,
+                additional_context=context,
+            )
+            raise error
 
         return deleted_count
 
@@ -393,8 +679,14 @@ class JSONCacheV2:
             Dictionary containing cache statistics and information.
 
         Raises:
-            ValueError: If cache_type is invalid.
+            InfrastructureError: If file I/O operations fail.
+            DomainError: If cache_type is invalid.
         """
+        context = ErrorContext(
+            operation="get_cache_info",
+            additional_data={"cache_type": cache_type},
+        )
+
         total_files = 0
         valid_entries = 0
         expired_entries = 0
@@ -408,7 +700,18 @@ class JSONCacheV2:
                     self.search_dir if cache_type == "search" else self.details_dir,
                 ]
             else:
-                raise ValueError(f"Invalid cache_type: {cache_type}")
+                error = DomainError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message=f"Invalid cache_type: {cache_type}",
+                    context=context,
+                )
+                log_operation_error(
+                    logger=logger,
+                    operation="get_cache_info",
+                    error=error,
+                    additional_context=context,
+                )
+                raise error
 
             for cache_dir in cache_dirs:
                 for cache_file in cache_dir.glob("*.json"):
@@ -439,9 +742,30 @@ class JSONCacheV2:
                         # Corrupted or invalid file
                         expired_entries += 1
 
-        except Exception as e:
-            logger.error("Error getting cache info: %s", str(e))
+            log_operation_success(
+                logger=logger,
+                operation="get_cache_info",
+                duration_ms=0,
+                context=context,
+            )
+
+        except DomainError:
+            # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
+        except Exception as e:
+            error = InfrastructureError(
+                code=ErrorCode.FILE_READ_ERROR,
+                message=f"Error getting cache info: {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="get_cache_info",
+                error=error,
+                additional_context=context,
+            )
+            raise error
 
         return {
             "total_files": total_files,
@@ -462,8 +786,14 @@ class JSONCacheV2:
             Number of expired entries removed.
 
         Raises:
-            ValueError: If cache_type is invalid.
+            InfrastructureError: If file I/O operations fail.
+            DomainError: If cache_type is invalid.
         """
+        context = ErrorContext(
+            operation="purge_expired",
+            additional_data={"cache_type": cache_type},
+        )
+
         purged_count = 0
 
         try:
@@ -474,7 +804,18 @@ class JSONCacheV2:
                     self.search_dir if cache_type == "search" else self.details_dir,
                 ]
             else:
-                raise ValueError(f"Invalid cache_type: {cache_type}")
+                error = DomainError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message=f"Invalid cache_type: {cache_type}",
+                    context=context,
+                )
+                log_operation_error(
+                    logger=logger,
+                    operation="purge_expired",
+                    error=error,
+                    additional_context=context,
+                )
+                raise error
 
             for cache_dir in cache_dirs:
                 for cache_file in cache_dir.glob("*.json"):
@@ -500,14 +841,35 @@ class JSONCacheV2:
                         cache_file.unlink()
                         purged_count += 1
 
+            log_operation_success(
+                logger=logger,
+                operation="purge_expired",
+                duration_ms=0,
+                context=context,
+            )
+
             logger.info(
                 "Purged %d expired cache entries (%s)",
                 purged_count,
                 cache_type or "all",
             )
 
-        except Exception as e:
-            logger.error("Error purging expired cache entries: %s", str(e))
+        except DomainError:
+            # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
+        except Exception as e:
+            error = InfrastructureError(
+                code=ErrorCode.FILE_DELETE_ERROR,
+                message=f"Error purging expired cache entries: {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="purge_expired",
+                error=error,
+                additional_context=context,
+            )
+            raise error
 
         return purged_count

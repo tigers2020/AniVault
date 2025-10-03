@@ -1,7 +1,7 @@
 """Unit tests for TokenBucketRateLimiter."""
 
-import time
 import threading
+import time
 from unittest.mock import patch
 
 import pytest
@@ -147,16 +147,24 @@ class TestTokenBucketRateLimiter:
 
     def test_negative_tokens_requested(self):
         """Test behavior when negative tokens are requested."""
+        from anivault.shared.errors import ApplicationError
+
         limiter = TokenBucketRateLimiter(capacity=10, refill_rate=5.0)
 
-        # Should handle negative tokens gracefully
-        assert limiter.try_acquire(-1) is True
-        assert limiter.get_tokens_available() == 10  # Should not change
+        # Should raise ApplicationError for negative tokens
+        with pytest.raises(
+            ApplicationError, match="Tokens to acquire must be positive"
+        ):
+            limiter.try_acquire(-1)
 
     def test_zero_tokens_requested(self):
         """Test behavior when zero tokens are requested."""
+        from anivault.shared.errors import ApplicationError
+
         limiter = TokenBucketRateLimiter(capacity=10, refill_rate=5.0)
 
-        # Should succeed when zero tokens are requested
-        assert limiter.try_acquire(0) is True
-        assert limiter.get_tokens_available() == 10  # Should not change
+        # Should raise ApplicationError for zero tokens
+        with pytest.raises(
+            ApplicationError, match="Tokens to acquire must be positive"
+        ):
+            limiter.try_acquire(0)

@@ -99,7 +99,7 @@ TMDB_API_KEY=your_api_key_here
 2. Replace the placeholder with your actual API key:
 
 ```python
-TMDB_API_KEY = "your_actual_api_key_here"
+TMDB_API_KEY = "your_actual_api_key_here"  # pragma: allowlist secret
 ```
 
 ### Method 3: Environment Variable
@@ -113,7 +113,7 @@ set TMDB_API_KEY=your_api_key_here
 
 **Windows (PowerShell):**
 ```powershell
-$env:TMDB_API_KEY="your_api_key_here"
+$env:TMDB_API_KEY="your_api_key_here"  # pragma: allowlist secret
 ```
 
 **Linux/macOS:**

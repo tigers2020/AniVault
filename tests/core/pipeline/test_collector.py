@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from anivault.core.pipeline.collector import ResultCollector
+from anivault.core.pipeline.collector import SENTINEL, ResultCollector
 from anivault.core.pipeline.utils import BoundedQueue
 
 
@@ -350,13 +350,13 @@ class TestResultCollector:
         fake_queue = FakeQueue(
             [
                 {"file_path": "/test1.mp4", "status": "success"},
-                None,  # sentinel
+                SENTINEL,  # sentinel
             ]
         )
         collector = ResultCollector(output_queue=fake_queue, collector_id="c0")
 
-        # When - run 메서드를 직접 호출 (동기 실행)
-        collector.run()
+        # When - run 메서드를 직접 호출 (동기 실행, 빠른 타임아웃 설정)
+        collector.run(max_idle_loops=1, idle_sleep=0.01)
 
         # Then
         assert collector.get_result_count() == 1
@@ -371,7 +371,7 @@ class TestResultCollector:
         collector = ResultCollector(output_queue=fake_queue)
 
         # When - run 메서드를 직접 호출 (max_idle_loops=1로 빠른 종료)
-        collector.run(max_idle_loops=1)
+        collector.run(max_idle_loops=1, idle_sleep=0.01)
 
         # Then - 예외가 발생해도 정상적으로 종료
         assert collector.get_result_count() == 0
@@ -384,13 +384,13 @@ class TestResultCollector:
                 {"file_path": "/test1.mp4", "status": "success"},
                 {"file_path": "/test2.mkv", "status": "success"},
                 {"file_path": "/test3.avi", "status": "error"},
-                None,  # sentinel
+                SENTINEL,  # sentinel
             ]
         )
         collector = ResultCollector(output_queue=fake_queue)
 
         # When
-        collector.run()
+        collector.run(max_idle_loops=1, idle_sleep=0.01)
 
         # Then
         assert collector.get_result_count() == 3
@@ -403,11 +403,11 @@ class TestResultCollector:
     def test_run_directly_without_start(self) -> None:
         """Test run method directly without start method."""
         # Given
-        fake_queue = FakeQueue([None])  # 즉시 종료
+        fake_queue = FakeQueue([SENTINEL])  # 즉시 종료
         collector = ResultCollector(output_queue=fake_queue)
 
         # When - run을 직접 호출
-        collector.run()
+        collector.run(max_idle_loops=1, idle_sleep=0.01)
 
         # Then
         assert collector.get_result_count() == 0  # 센티넬만 처리됨
@@ -419,7 +419,7 @@ class TestResultCollector:
             [
                 {"file_path": "/test1.mp4", "status": "success"},
                 {"file_path": "/test2.mkv", "status": "success"},
-                None,  # sentinel
+                SENTINEL,  # sentinel
             ]
         )
         collector = ResultCollector(output_queue=fake_queue)
@@ -457,7 +457,7 @@ class TestResultCollector:
         collector = ResultCollector(output_queue=fake_queue)
 
         # When - max_idle_loops=2로 설정
-        collector.run(max_idle_loops=2)
+        collector.run(max_idle_loops=2, idle_sleep=0.01)
 
         # Then - 2번의 idle 후 종료
         assert collector.get_result_count() == 0

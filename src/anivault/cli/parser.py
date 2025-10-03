@@ -94,12 +94,12 @@ def parse_arguments(parser: argparse.ArgumentParser) -> argparse.Namespace:
             raise SystemExit(0) from None
         # Invalid arguments
         raise ApplicationError(
-            ErrorCode.INVALID_ARGUMENTS,
+            ErrorCode.CLI_INVALID_ARGUMENTS,
             "Invalid command line arguments",
         ) from e
     except Exception as e:
         raise ApplicationError(
-            ErrorCode.INVALID_ARGUMENTS,
+            ErrorCode.CLI_INVALID_ARGUMENTS,
             f"Failed to parse arguments: {e}",
         ) from e
 
@@ -123,21 +123,21 @@ def validate_parsed_args(args: argparse.Namespace) -> None:
         if hasattr(args, "workers") and args.workers:
             if args.workers < 1 or args.workers > 32:
                 raise ApplicationError(
-                    ErrorCode.INVALID_ARGUMENTS,
+                    ErrorCode.CLI_INVALID_ARGUMENTS,
                     "Workers must be between 1 and 32",
                 )
 
         if hasattr(args, "rate_limit") and args.rate_limit:
             if args.rate_limit <= 0 or args.rate_limit > 100:
                 raise ApplicationError(
-                    ErrorCode.INVALID_ARGUMENTS,
+                    ErrorCode.CLI_INVALID_ARGUMENTS,
                     "Rate limit must be between 0.1 and 100 requests per second",
                 )
 
         if hasattr(args, "concurrent") and args.concurrent:
             if args.concurrent < 1 or args.concurrent > 20:
                 raise ApplicationError(
-                    ErrorCode.INVALID_ARGUMENTS,
+                    ErrorCode.CLI_INVALID_ARGUMENTS,
                     "Concurrent requests must be between 1 and 20",
                 )
 
@@ -145,13 +145,7 @@ def validate_parsed_args(args: argparse.Namespace) -> None:
         if hasattr(args, "extensions") and args.extensions:
             validate_file_extensions(args.extensions)
 
-        # Validate mutual exclusivity
-        if hasattr(args, "enrich") and hasattr(args, "no_enrich"):
-            if args.enrich and args.no_enrich:
-                raise ApplicationError(
-                    ErrorCode.INVALID_ARGUMENTS,
-                    "Cannot specify both --enrich and --no-enrich",
-                )
+        # Note: enrich/no-enrich mutual exclusivity is handled by argparse mutually_exclusive_group
 
     except ApplicationError:
         raise
@@ -217,13 +211,13 @@ def validate_file_extensions(extensions: list[str]) -> None:
         for ext in extensions:
             if not ext.startswith("."):
                 raise ApplicationError(
-                    ErrorCode.INVALID_ARGUMENTS,
+                    ErrorCode.CLI_INVALID_ARGUMENTS,
                     f"File extension '{ext}' must start with a dot",
                 )
 
             if len(ext) < 2:
                 raise ApplicationError(
-                    ErrorCode.INVALID_ARGUMENTS,
+                    ErrorCode.CLI_INVALID_ARGUMENTS,
                     f"File extension '{ext}' is too short",
                 )
 
@@ -287,14 +281,14 @@ def _add_scan_parser(subparsers) -> None:
         help="Directory to scan for anime files",
     )
 
-    scan_parser.add_argument(
+    enrich_group = scan_parser.add_mutually_exclusive_group()
+    enrich_group.add_argument(
         "--enrich",
         action="store_true",
-        default=True,
-        help="Enrich metadata with TMDB data (default: True)",
+        help="Enrich metadata with TMDB data (default behavior)",
     )
 
-    scan_parser.add_argument(
+    enrich_group.add_argument(
         "--no-enrich",
         action="store_true",
         help="Skip TMDB metadata enrichment",
@@ -405,7 +399,7 @@ def _add_organize_parser(subparsers) -> None:
     """Add organize command parser."""
     organize_parser = subparsers.add_parser(
         "organize",
-        help="Organize anime files into structured directories",
+        help="Organize anime files into structured directories with TMDB metadata",
     )
 
     organize_parser.add_argument(
@@ -417,7 +411,7 @@ def _add_organize_parser(subparsers) -> None:
     organize_parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show the planned file operations without executing them",
+        help="Preview planned file operations without making any changes to the filesystem",
     )
 
     organize_parser.add_argument(
@@ -437,7 +431,7 @@ def _add_organize_parser(subparsers) -> None:
         "--yes",
         "-y",
         action="store_true",
-        help="Bypass the confirmation prompt and execute the plan directly",
+        help="Skip the confirmation prompt and execute the organization plan immediately",
     )
 
 
@@ -445,18 +439,18 @@ def _add_log_parser(subparsers) -> None:
     """Add log command parser."""
     log_parser = subparsers.add_parser(
         "log",
-        help="Manage and inspect operation logs",
+        help="Manage operation logs for tracking and rollback purposes",
     )
 
     log_subparsers = log_parser.add_subparsers(
         dest="log_command",
-        help="Available log commands",
+        help="Available log management commands",
     )
 
     # Log list command
     log_subparsers.add_parser(
         "list",
-        help="List available operation logs",
+        help="Display all available operation logs from previous organize commands",
     )
 
 
@@ -464,26 +458,26 @@ def _add_rollback_parser(subparsers) -> None:
     """Add rollback command parser."""
     rollback_parser = subparsers.add_parser(
         "rollback",
-        help="Rollback a previous organization operation",
+        help="Revert a previous organization operation using an operation log",
     )
 
     rollback_parser.add_argument(
         "log_id",
         type=str,
-        help="The ID of the log file to use for the rollback",
+        help="The log ID (timestamp) from 'log list' to use for the rollback operation",
     )
 
     rollback_parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show the planned rollback operations without executing them",
+        help="Preview planned rollback operations without making any changes to the filesystem",
     )
 
     rollback_parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="Bypass the confirmation prompt and execute the rollback directly",
+        help="Skip the confirmation prompt and execute the rollback immediately",
     )
 
 

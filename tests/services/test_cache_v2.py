@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from anivault.services.cache_v2 import CacheEntry, JSONCacheV2
+from anivault.shared.errors import DomainError, InfrastructureError
 
 # Check if orjson is available
 try:
@@ -109,7 +110,9 @@ class TestJSONCacheV2Initialization:
     def test_initialization_without_orjson(self):
         """Test initialization fails without orjson."""
         with patch("anivault.services.cache_v2.orjson", None):
-            with pytest.raises(ImportError, match="orjson library is not installed"):
+            with pytest.raises(
+                InfrastructureError, match="orjson library is not installed"
+            ):
                 JSONCacheV2("/tmp/test")
 
 
@@ -134,7 +137,7 @@ class TestJSONCacheV2FilePathGeneration:
 
     def test_generate_file_path_invalid_type(self, cache_v2):
         """Test generating file path with invalid cache type."""
-        with pytest.raises(ValueError, match="Invalid cache_type"):
+        with pytest.raises(DomainError, match="Invalid cache_type"):
             cache_v2._generate_file_path("test key", "invalid")
 
     def test_generate_file_path_key_normalization(self, cache_v2):
@@ -184,7 +187,7 @@ class TestJSONCacheV2Set:
         """Test setting data with invalid cache type."""
         data = {"title": "Test Anime"}
 
-        with pytest.raises(ValueError, match="Invalid cache_type"):
+        with pytest.raises(DomainError, match="Invalid cache_type"):
             cache_v2.set("test_key", data, "invalid")
 
 
@@ -234,7 +237,7 @@ class TestJSONCacheV2Get:
 
     def test_get_invalid_cache_type(self, cache_v2):
         """Test getting data with invalid cache type."""
-        with pytest.raises(ValueError, match="Invalid cache_type"):
+        with pytest.raises(DomainError, match="Invalid cache_type"):
             cache_v2.get("test_key", "invalid")
 
     def test_get_corrupted_file(self, cache_v2):
@@ -271,7 +274,7 @@ class TestJSONCacheV2Delete:
 
     def test_delete_invalid_cache_type(self, cache_v2):
         """Test deleting with invalid cache type."""
-        with pytest.raises(ValueError, match="Invalid cache_type"):
+        with pytest.raises(DomainError, match="Invalid cache_type"):
             cache_v2.delete("test_key", "invalid")
 
 
@@ -319,7 +322,7 @@ class TestJSONCacheV2Clear:
 
     def test_clear_invalid_cache_type(self, cache_v2):
         """Test clearing with invalid cache type."""
-        with pytest.raises(ValueError, match="Invalid cache_type"):
+        with pytest.raises(DomainError, match="Invalid cache_type"):
             cache_v2.clear("invalid")
 
 
@@ -365,7 +368,7 @@ class TestJSONCacheV2GetCacheInfo:
 
     def test_get_cache_info_invalid_type(self, cache_v2):
         """Test getting cache info with invalid cache type."""
-        with pytest.raises(ValueError, match="Invalid cache_type"):
+        with pytest.raises(DomainError, match="Invalid cache_type"):
             cache_v2.get_cache_info("invalid")
 
 
@@ -419,7 +422,7 @@ class TestJSONCacheV2PurgeExpired:
 
     def test_purge_expired_invalid_type(self, cache_v2):
         """Test purging with invalid cache type."""
-        with pytest.raises(ValueError, match="Invalid cache_type"):
+        with pytest.raises(DomainError, match="Invalid cache_type"):
             cache_v2.purge_expired("invalid")
 
 

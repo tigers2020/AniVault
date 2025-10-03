@@ -3749,7 +3749,7 @@
         "testStrategy": "Use `typer.testing.CliRunner` to invoke the `organize` command with the `--dry-run` flag. Assert that the command's output contains the expected plan description and that no files in a temporary test directory have been moved or modified.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -3757,7 +3757,7 @@
             "description": "Modify the `organize` command function in `anivault/cli.py` to include a new boolean option for `--dry-run`.",
             "dependencies": [],
             "details": "In `anivault/cli.py`, locate the `@app.command()` decorator for the `organize` function. Add a new parameter `dry_run: bool` using `typer.Option`. The definition should look similar to: `dry_run: bool = typer.Option(False, \"--dry-run\", help=\"Show the planned file operations without executing them.\")`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Manual verification by running `python -m anivault organize --help` and confirming the `--dry-run` option is listed."
           },
           {
@@ -3766,7 +3766,7 @@
             "description": "In `anivault/cli.py`, create a new private helper function to format and print the list of `FileOperation` objects for a dry run.",
             "dependencies": [],
             "details": "Create a function named `_print_dry_run_plan(plan: list[FileOperation])`. This function will iterate through the list of `FileOperation` objects. For each operation, it should print a formatted string to the console, like `[DRY RUN] MOVE: 'path/to/source.mkv' -> 'path/to/destination.mkv'`. Use `rich.print` or a similar formatted output library if available in the project.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Can be unit tested in isolation by passing a mock `FileOperation` list and capturing stdout."
           },
           {
@@ -3775,7 +3775,7 @@
             "description": "Enhance the dry run printing function to provide a clear message when no file operations are planned.",
             "dependencies": [],
             "details": "Inside the `_print_dry_run_plan` function created in the previous subtask, add a check at the beginning to see if the `plan` list is empty. If it is, print a user-friendly message such as `[DRY RUN] No file operations are needed.` and return, avoiding the loop.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Update the unit test for `_print_dry_run_plan` to include a case with an empty list and assert the correct message is printed."
           },
           {
@@ -3784,7 +3784,7 @@
             "description": "Modify the `organize` command to use the `dry_run` flag to conditionally execute the plan or print the dry run output.",
             "dependencies": [],
             "details": "In the `organize` function in `anivault/cli.py`, after the `FileOrganizer.generate_plan()` call, add a conditional block. If `dry_run` is `True`, call the `_print_dry_run_plan` helper function with the generated plan and then terminate the command gracefully. The existing code that calls `FileOrganizer.execute_plan()` should be placed in the `else` part of this conditional block.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This will be tested as part of the final integration test in the next subtask."
           },
           {
@@ -3793,7 +3793,7 @@
             "description": "Add a new test case using `typer.testing.CliRunner` to verify the complete `--dry-run` workflow.",
             "dependencies": [],
             "details": "In a relevant test file (e.g., `tests/test_cli.py`), create a test function that sets up a temporary directory structure with mock anime files. Use `CliRunner.invoke` to call the `organize` command with the `--dry-run` flag. Assert that the command's exit code is 0, the stdout contains the expected `[DRY RUN] MOVE:` lines, and most importantly, assert that no files in the temporary directory have been moved or renamed.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "The test itself is the verification. It should cover both a scenario where files would be moved and a scenario where the plan is empty."
           }
         ]
@@ -3808,7 +3808,7 @@
         "dependencies": [
           3
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -3816,7 +3816,7 @@
             "description": "Modify the `organize` function signature in `anivault/cli.py` to include a new boolean option for bypassing confirmation prompts.",
             "dependencies": [],
             "details": "In `anivault/cli.py`, locate the `organize` command function. Add a new parameter `yes: bool = typer.Option(False, '--yes', '-y', help='Bypass the confirmation prompt and execute the plan directly.')`. This will make the flag available in the CLI.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This will be tested as part of the integration tests in a later subtask, but a manual run with `python -m anivault organize --help` can verify its presence."
           },
           {
@@ -3825,7 +3825,7 @@
             "description": "In the `organize` command, after generating the plan and if not in dry-run mode, print the plan to the console for the user to review.",
             "dependencies": [],
             "details": "In `anivault/cli.py`, inside the `organize` function and after the `dry_run` check, add logic to print the generated plan. You can reuse or adapt the plan printing logic from the `--dry-run` implementation, but without the '[DRY RUN]' prefix. A simple header like 'The following operations will be performed:' should be used.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Will be verified visually during interactive testing and as part of the output assertions in the final test subtask."
           },
           {
@@ -3836,7 +3836,7 @@
               "4.2"
             ],
             "details": "In `anivault/cli.py`, after printing the plan (from subtask 4.2), call `typer.confirm('Do you want to proceed?')`. If the function returns `False`, print an 'Operation cancelled.' message and exit the command gracefully using `raise typer.Abort()`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This will be tested using `CliRunner` by providing 'n' as input and asserting that the application aborts and no files are moved."
           },
           {
@@ -3848,7 +3848,7 @@
               "4.3"
             ],
             "details": "In `anivault/cli.py`, wrap the confirmation prompt logic in a conditional block: `if not yes:`. The call to `organizer.execute_plan(plan)` should only happen if the `yes` flag is true or if the confirmation prompt (from subtask 4.3) is answered affirmatively.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This logic will be tested by invoking the command with the `--yes` flag and asserting that the plan is executed without a prompt."
           },
           {
@@ -3859,7 +3859,7 @@
               "4.4"
             ],
             "details": "Using `typer.testing.CliRunner`, add three test cases for the `organize` command: 1. Invoke with `input='n\\n'` and assert that no files were moved. 2. Invoke with `input='y\\n'` and assert that files were moved correctly. 3. Invoke with the `--yes` flag and assert that files were moved without requiring any input.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run the pytest suite and ensure all new and existing tests pass, confirming the new logic works as expected and hasn't introduced regressions."
           }
         ]
@@ -3875,7 +3875,7 @@
           1,
           4
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -3883,7 +3883,7 @@
             "description": "Modify `anivault/cli.py` to import the `OperationLogManager` class from `anivault.core.log_manager` so it can be used within the `organize` command.",
             "dependencies": [],
             "details": "In `anivault/cli.py`, add the line `from .core.log_manager import OperationLogManager` alongside the other core component imports.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This is a preparatory step. Verification will occur in subsequent subtasks when the imported class is used. A linter check can confirm the import is valid."
           },
           {
@@ -3894,7 +3894,7 @@
               "5.1"
             ],
             "details": "Inside the `organize` function, just before the logic that executes the plan, add the line `log_manager = OperationLogManager()` to prepare for saving the log.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This is a preparatory step. Verification will occur when the `log_manager` instance is used to save the plan."
           },
           {
@@ -3905,7 +3905,7 @@
               "5.2"
             ],
             "details": "In `anivault/cli.py`, immediately following the `organizer.execute_plan(plan)` call, add `saved_log_path = log_manager.save_plan(plan)`. This ensures the log is only saved if the execution step does not raise an exception.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "In an integration test, run the `organize` command and assert that a new log file is created in the `.anivault/logs` directory after the command finishes."
           },
           {
@@ -3916,7 +3916,7 @@
               "5.3"
             ],
             "details": "Using the `saved_log_path` variable from the previous step, add a `console.print` statement to inform the user, for example: `console.print(f\"\\n[grey62]Operation logged to: {saved_log_path}[/grey62]\")`. This is critical for the user to be able to use the `rollback` command.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Extend the integration test to capture the CLI output and assert that it contains the 'Operation logged to:' message followed by a valid `.json` file path."
           },
           {
@@ -3928,7 +3928,7 @@
               "5.4"
             ],
             "details": "In `anivault/cli.py`, wrap the `log_manager.save_plan(plan)` call and its corresponding print statement in a `try...except Exception as e:` block. In the `except` block, use `console.print` to show a non-fatal warning to the user, like `console.print(f\"[bold yellow]Warning: Could not save operation log: {e}[/bold yellow]\")`. The command should still exit with a success status.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create a test where the log directory is made read-only. Run the `organize` command and assert that files are moved successfully, the command exits with code 0, and a warning about the logging failure is printed to stderr or stdout."
           }
         ]
@@ -3943,7 +3943,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -3951,7 +3951,7 @@
             "description": "Create the new file `anivault/core/rollback_manager.py` and define the basic structure for the `RollbackManager` class. This includes an `__init__` method and the method signature for `generate_rollback_plan`.",
             "dependencies": [],
             "details": "In the new file `anivault/core/rollback_manager.py`, create the `RollbackManager` class. The `__init__` method should accept an instance of `OperationLogManager`. The `generate_rollback_plan` method should be defined with the signature `(self, log_path: str) -> list[FileOperation]:` but can contain a `pass` statement for now. Import necessary types like `FileOperation` and `OperationLogManager`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -3960,7 +3960,7 @@
             "description": "Create a specific exception class for when a rollback log file cannot be found to allow for more precise error handling.",
             "dependencies": [],
             "details": "In the `anivault/core/exceptions.py` file, add a new exception class named `LogFileNotFoundError` that inherits from the base `AnivaultException` (or standard `Exception` if a base does not exist). This will be used by the `RollbackManager` to signal that a specified log file does not exist.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -3972,7 +3972,7 @@
               "6.2"
             ],
             "details": "Within the `generate_rollback_plan` method, use the `OperationLogManager` instance from `self` to call its `load_log` method with the provided `log_path`. Wrap this call in a `try...except FileNotFoundError` block. In the `except` block, raise the custom `LogFileNotFoundError` created in the previous subtask, providing a clear error message.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -3983,7 +3983,7 @@
               "6.3"
             ],
             "details": "After successfully loading the list of `FileOperation` objects, create a new list for the rollback plan. Iterate through the loaded operations, and for each one, create a new `FileOperation` instance with the `source_path` and `destination_path` attributes swapped. Finally, reverse the order of the newly created operations in the rollback plan list to ensure a LIFO (Last-In, First-Out) execution order, and return the list.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -3994,7 +3994,7 @@
               "6.4"
             ],
             "details": "Create a new test file `tests/core/test_rollback_manager.py`. Write a test case that provides a mock `OperationLogManager` and a sample list of operations, then asserts that `generate_rollback_plan` returns a correctly inverted and reversed plan. Add another test case that configures the mock `OperationLogManager` to raise `FileNotFoundError` and asserts that `generate_rollback_plan` correctly catches it and raises `LogFileNotFoundError`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -4009,7 +4009,7 @@
         "dependencies": [
           5
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -4017,7 +4017,7 @@
             "description": "Create a new file at `anivault/cli/log.py` to house log-related commands. Inside this file, initialize a new `typer.Typer` instance for the `log` subcommand group, following the existing pattern found in `anivault/cli/organize.py`.",
             "dependencies": [],
             "details": "Create the file `anivault/cli/log.py`. Add the standard imports like `import typer`. Define a new Typer app: `app = typer.Typer(name=\"log\", help=\"Manage and inspect operation logs.\", no_args_is_help=True)`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -4028,7 +4028,7 @@
               "7.1"
             ],
             "details": "In `anivault/cli/main.py`, add `from . import log` and then call `app.add_typer(log.app, name=\"log\")` before the `if __name__ == \"__main__\":` block, similar to how the `organize` app is registered.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -4037,7 +4037,7 @@
             "description": "Create a new utility function or a method within `anivault/core/log_manager.py` to scan the log directory, parse filenames, and return a list of log identifiers.",
             "dependencies": [],
             "details": "In a suitable location like `anivault/utils/logs.py` or as a static method in `anivault/core/log_manager.py`, create a function `get_log_identifiers()`. This function will use the `LOG_DIR` constant from `anivault.constants`. It should list all `.json` files in the directory, parse the timestamp from filenames like `organize-YYYYMMDD-HHMMSS.json`, and return a list of these timestamp strings. It should handle the case where the directory doesn't exist by returning an empty list.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -4049,7 +4049,7 @@
               "7.3"
             ],
             "details": "In `anivault/cli/log.py`, define a new function `list_logs()` decorated with `@app.command(name=\"list\")`. Inside this function, call the `get_log_identifiers()` function created in the previous subtask to retrieve the list of log IDs.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -4060,7 +4060,7 @@
               "7.4"
             ],
             "details": "Within the `list_logs` function in `anivault/cli/log.py`, check if the list of identifiers is empty and print a message if so. Otherwise, sort the list in reverse chronological order. Use the `rich` library to print a formatted table or a numbered list with a title like 'Available Operation Logs'.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create a temporary directory with several mock log files (e.g., `organize-20230101-120000.json`, `organize-20230102-130000.json`). Point the `LOG_DIR` constant to this temp directory. Run the `anivault log list` command using `CliRunner` and assert that the output contains the sorted identifiers '20230102-130000' and '20230101-120000'."
           }
         ]
@@ -4076,7 +4076,7 @@
           6,
           7
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -4084,7 +4084,7 @@
             "description": "In `anivault/cli.py`, create the basic structure for the new `rollback` command using Typer. This includes defining the function, adding the `@app.command()` decorator, and defining the required `log_id` argument.",
             "dependencies": [],
             "details": "Define a new function `rollback(log_id: str = typer.Argument(..., help='The ID of the log file to use for the rollback.'))` in `anivault/cli.py`. Add the `@app.command()` decorator. For now, the function body can just print the received `log_id` to confirm it's being parsed correctly.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Use `CliRunner` to invoke `anivault rollback TEST_ID` and assert that 'TEST_ID' is printed to the console."
           },
           {
@@ -4095,7 +4095,7 @@
               "8.1"
             ],
             "details": "Create a method `get_log_path(self, log_id: str) -> Path` in the `OperationLogManager` class. This method should scan the configured log directory for a file whose name contains the provided `log_id`. It should raise an error if no log file or multiple log files are found. Integrate this call into the `rollback` command in `cli.py` to resolve the `log_id` to a file path.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Write a unit test for `get_log_path` that creates mock log files and asserts that the correct path is returned for a given ID, and that an error is raised for a non-existent ID."
           },
           {
@@ -4106,7 +4106,7 @@
               "8.2"
             ],
             "details": "In the `rollback` command in `anivault/cli.py`, after getting the log file path, instantiate `RollbackManager`. Call its `generate_plan_from_log` method, passing the log file path. Store the returned plan (a list of `FileOperation` objects) in a variable.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "In an integration test, create a sample log file. Call the `rollback` command and mock `FileOrganizer.execute_plan`. Assert that the plan passed to the mocked `execute_plan` is the reverse of the operations in the sample log file."
           },
           {
@@ -4117,7 +4117,7 @@
               "8.3"
             ],
             "details": "In `anivault/cli.py`, add a `yes: bool` option to the `rollback` command signature using `typer.Option`. Before executing the plan, print the plan to the console for the user to review. If the `--yes` flag is not present, use `typer.confirm()` to ask for user confirmation. If the user declines, abort the operation with a message.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Using `CliRunner`, test the interactive prompt by providing 'n' as input and asserting that no file operations are executed. Test again with 'y' as input. Finally, test the `--yes` flag and confirm that it executes without a prompt."
           },
           {
@@ -4128,7 +4128,7 @@
               "8.4"
             ],
             "details": "In the `rollback` command in `anivault/cli.py`, after the user has confirmed the plan (or used `--yes`), instantiate `FileOrganizer` and call its `execute_plan` method, passing the rollback plan generated in the previous step. Add appropriate status messages to the console (e.g., 'Executing rollback...', 'Rollback complete.').",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create a full integration test: 1. Run `organize` to move files. 2. Get the `LOG_ID`. 3. Run `rollback <LOG_ID> --yes`. 4. Assert that the files have been moved back to their original locations and the destination directories created by `organize` are now empty."
           }
         ]
@@ -4143,7 +4143,7 @@
         "dependencies": [
           8
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -4151,7 +4151,7 @@
             "description": "Modify the `rollback` function signature in `anivault/cli.py` to accept `--dry-run` and `--yes` boolean flags using `typer.Option`, mirroring the `organize` command's options.",
             "dependencies": [],
             "details": "In the `anivault/cli.py` file, locate the `@app.command()` decorator for the `rollback` function. Add two new parameters: `dry_run: bool = typer.Option(False, \"--dry-run\", help=\"Show the planned rollback operations without executing them.\")` and `yes: bool = typer.Option(False, \"--yes\", \"-y\", help=\"Automatically confirm and execute the rollback.\")`. This will make the command's interface consistent with the `organize` command.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -4162,7 +4162,7 @@
               "9.1"
             ],
             "details": "Within the `rollback` function in `anivault/cli.py`, after the rollback plan is generated by the `RollbackManager`, add a conditional block `if dry_run:`. Inside this block, iterate through the plan's `FileOperation` objects and print each one to the console with a `[DRY RUN]` prefix (e.g., `[DRY RUN] MOVE: 'path/to/organized.mkv' -> 'path/to/original.mkv'`). Ensure the function exits after printing the plan to prevent execution.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -4173,7 +4173,7 @@
               "9.1"
             ],
             "details": "In `anivault/cli.py`, find the `typer.confirm(...)` call inside the `rollback` function. The plan execution logic is currently nested within the `if` block of this confirmation. Modify this structure so that the confirmation prompt is only shown if the `yes` flag is `False`. The plan execution should proceed if the user confirms or if the `--yes` flag is passed.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -4188,7 +4188,7 @@
         "dependencies": [
           8
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -4196,7 +4196,7 @@
             "description": "In `anivault/organizer/file_organizer.py`, modify the `execute_plan` method to wrap the `shutil.move` call within a `try...except` block. This is the foundational step for adding robust error handling.",
             "dependencies": [],
             "details": "Locate the `for op in plan:` loop within the `execute_plan` method. Add a `try:` statement before the `shutil.move` call and a preliminary `except Exception as e:` block that logs a generic error. This will establish the structure for more specific exception handling.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This is a structural change. Verification will be done in subsequent testing subtasks. At this stage, ensure the code remains syntactically correct."
           },
           {
@@ -4207,7 +4207,7 @@
               "10.1"
             ],
             "details": "Add an `except FileNotFoundError:` block before the generic `Exception` handler. Inside this block, use the module-level `logger` to log an error message, such as `ERROR: Source file not found, skipping: '{op.source}'`. Ensure the loop continues to the next file operation.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "A dedicated unit test will later verify this path, but for now, manual inspection can confirm the handler is in place."
           },
           {
@@ -4218,7 +4218,7 @@
               "10.2"
             ],
             "details": "Add an `except FileExistsError:` block. Inside, use the `logger` to log a clear error message like `ERROR: File already exists at destination, skipping: '{op.destination}'`. The process must continue with the remaining operations in the plan.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "A dedicated unit test will later verify this path. Manual inspection can confirm the handler is correctly placed alongside the `FileNotFoundError` handler."
           },
           {
@@ -4229,7 +4229,7 @@
               "10.3"
             ],
             "details": "Replace the initial generic `except Exception:` with a more specific but still broad `except IOError as e:`. This will catch issues like permissions errors without catching unrelated programming errors. The log message should be informative, e.g., `ERROR: An unexpected IO error occurred for '{op.source}': {e}`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "This handler will be tested as part of the comprehensive unit testing in the next subtask by mocking a generic `IOError`."
           },
           {
@@ -4240,7 +4240,7 @@
               "10.4"
             ],
             "details": "In the appropriate test file for `FileOrganizer`, create new test cases. Use `unittest.mock.patch` to mock `shutil.move`. Configure the mock to raise `FileNotFoundError`, `FileExistsError`, and a generic `IOError` on different calls within a single test plan. Use the `pytest` `caplog` fixture to assert that the correct error messages are logged for each failure and that the function attempts to process all operations in the plan without crashing.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create a test plan with three operations. Mock `shutil.move` to succeed on the first, raise `FileNotFoundError` on the second, and `FileExistsError` on the third. Verify that `caplog` contains the two expected error messages and that the mock was called for all three operations."
           }
         ]
@@ -4256,7 +4256,7 @@
           8,
           10
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -4264,7 +4264,7 @@
             "description": "In `src/anivault/cli.py`, intercept the plan generated by `RollbackManager` within the `rollback` command function. Instead of passing it directly to `FileOrganizer.execute_plan`, prepare to insert logic that validates the plan's operations before execution.",
             "dependencies": [],
             "details": "Locate the `rollback` command in `src/anivault/cli.py`. The goal is to create a clear separation point between generating the rollback plan and executing it, allowing for an intermediate validation step. This subtask involves restructuring the command's flow to accommodate the new validation logic.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Code review to ensure the structure is in place to call a validation function before `execute_plan`."
           },
           {
@@ -4275,7 +4275,7 @@
               "11.1"
             ],
             "details": "The new function, e.g., `_validate_rollback_plan`, will be the core of the resilience feature. It will iterate through the plan generated for the rollback. For each `FileOperation`, it must check `os.path.exists(operation.source_path)`. The `source_path` of a rollback operation is the destination of the original `organize` operation.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit test the helper function with a mock plan containing operations with existing and non-existing source paths."
           },
           {
@@ -4286,7 +4286,7 @@
               "11.2"
             ],
             "details": "The function `_validate_rollback_plan` should not just check for existence but actively partition the plan. It will initialize two empty lists and append each operation from the input plan to the appropriate list based on the `os.path.exists()` check. The function's signature will change to return a tuple of two lists: `(executable_plan, skipped_operations)`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Update the unit test for the helper function to assert that it correctly partitions a mixed input plan into two distinct and accurate output lists."
           },
           {
@@ -4297,7 +4297,7 @@
               "11.3"
             ],
             "details": "Integrate the validation function into the `rollback` command's control flow. The call to `organizer.execute_plan(plan)` will be replaced with `organizer.execute_plan(executable_plan)`. A new or modified display utility in `src/anivault/utils/display.py` may be needed to print a summary of skipped files, informing the user that they were not found.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Manually run the CLI and verify that the output correctly reports skipped files when a file is missing."
           },
           {
@@ -4308,7 +4308,7 @@
               "11.4"
             ],
             "details": "The test case must: 1. Use the `CliRunner` to invoke the `organize` command on a temporary directory. 2. Identify the path of one of the organized files and delete it using `os.remove()`. 3. Invoke the `rollback` command with the correct log ID and the `--yes` flag. 4. Assert that the command's exit code is 0. 5. Assert that the command's output contains a message about the skipped file. 6. Assert that the other files were successfully moved back to their original locations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "The test itself serves as the validation for the entire feature, ensuring it works end-to-end as specified."
           }
         ]
@@ -4323,7 +4323,7 @@
         "dependencies": [
           9
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -4331,7 +4331,7 @@
             "description": "Review and update the help messages in `anivault/cli.py` for the `organize` command and its options, specifically `--dry-run` and `--yes`.",
             "dependencies": [],
             "details": "In the `anivault/cli.py` file, locate the `organize` function. Update the main command's help string to reflect its purpose. Ensure the `typer.Option` help text for `--dry-run` clearly explains that it previews operations without making changes, and the help text for `--yes` explains that it bypasses the confirmation prompt.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run `anivault organize --help` and verify that the command description and the help text for the `--dry-run` and `--yes` flags are clear, accurate, and informative."
           },
           {
@@ -4340,7 +4340,7 @@
             "description": "Review and update the help messages in `anivault/cli.py` for the `log` command and its `list` subcommand.",
             "dependencies": [],
             "details": "In `anivault/cli.py`, locate the `log` subcommand group and the `list_logs` function. Add a clear help message to the `log` command itself, explaining that it's used for managing operation logs. Update the `list` subcommand's help message to specify that it displays a history of all past organization operations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run `anivault log --help` and `anivault log list --help` to verify the clarity and correctness of the help messages."
           },
           {
@@ -4349,7 +4349,7 @@
             "description": "Review and update the help messages in `anivault/cli.py` for the `rollback` command, its log file argument, and its options (`--dry-run`, `--yes`).",
             "dependencies": [],
             "details": "In `anivault/cli.py`, find the `rollback` function. Update its main help string to explain that it reverts a previous organization operation using a log file. Clarify the purpose of the `LOG_FILE` argument in its `typer.Argument` help text. Add/update the help strings for the `--dry-run` and `--yes` options to match their functionality (previewing the rollback and skipping confirmation).",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run `anivault rollback --help` to check that the command's purpose, the argument's role, and the options' behaviors are all well-documented."
           },
           {
@@ -4362,7 +4362,7 @@
               "12.3"
             ],
             "details": "Edit the `README.md` file to add a new major section titled 'Workflow and Recovery'. In this section, write a narrative explaining how a user can safely organize their files. The flow should cover: 1. Previewing changes with `organize --dry-run`. 2. Executing the organization with `organize`. 3. Viewing past operations with `log list`. 4. Reverting an operation with `rollback`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Review the `README.md` file to ensure the new section is well-structured, easy to understand, and accurately describes the intended workflow."
           },
           {
@@ -4373,7 +4373,7 @@
               "12.4"
             ],
             "details": "Within the newly created 'Workflow and Recovery' section of `README.md`, add subsections with code blocks for each key command. Provide a clear example for `anivault organize --dry-run ...`, `anivault log list`, and `anivault rollback .anivault/logs/organize-YYYYMMDD-HHMMSS.json`. Include brief descriptions of what each example command does and what the expected output might look like.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Review the `README.md` file to confirm that the examples are correct, easy to copy, and effectively demonstrate how to use the features."
           }
         ]
@@ -4460,7 +4460,7 @@
     ],
     "metadata": {
       "created": "2025-09-30T00:46:51.884Z",
-      "updated": "2025-10-01T22:31:54.463Z",
+      "updated": "2025-10-03T01:46:48.410Z",
       "description": "Tasks for w13-w14-organize-dryrun-rollback context"
     }
   },
@@ -4550,6 +4550,485 @@
       "created": "2025-09-30T00:47:22.062Z",
       "updated": "2025-09-30T00:47:22.062Z",
       "description": "W35-W36: 릴리스 준비 & 배포 - 단일 exe 릴리스 빌드, 릴리스 노트, 배포 준비, v1.0 태그, 클린 Windows에서 exe 1개로 작동 확인"
+    }
+  },
+  "code-quality-improvement": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "중앙 집중식 상수 관리 시스템 구축",
+        "description": "코드베이스에 분산된 매직 값들을 `src/anivault/shared/constants/` 디렉토리의 중앙 집중식 상수로 대체하여 코드의 가독성과 유지보수성을 향상시킵니다.",
+        "details": "### 1. 디렉토리 구조 생성\n- `src/anivault/shared/` 디렉토리 내에 `constants` 디렉토리를 생성합니다.\n- `src/anivault/shared/constants/__init__.py` 파일을 생성하여 각 상수 모듈을 쉽게 임포트할 수 있도록 구성합니다.\n\n### 2. 상수 모듈 파일 생성\n`src/anivault/shared/constants/` 디렉토리 내에 역할별로 파일을 분리하여 상수를 정의합니다.\n\n- **`api.py`**: API 관련 설정\n  ```python\n  # src/anivault/shared/constants/api.py\n  RATE_LIMIT_PER_MINUTE = 90\n  MAX_CONCURRENT_WORKERS = 5\n  RETRY_ATTEMPTS = 3\n  RETRY_BACKOFF_FACTOR = 0.5\n  REQUEST_TIMEOUT = 15  # seconds\n  ```\n\n- **`matching.py`**: 신뢰도 임계값\n  ```python\n  # src/anivault/shared/constants/matching.py\n  HIGH_CONFIDENCE_THRESHOLD = 0.85\n  MEDIUM_CONFIDENCE_THRESHOLD = 0.65\n  LOW_CONFIDENCE_THRESHOLD = 0.40\n  ```\n\n- **`files.py`**: 파일 시스템 관련 상수\n  ```python\n  # src/anivault/shared/constants/files.py\n  SUPPORTED_VIDEO_EXTENSIONS = (\".mkv\", \".mp4\", \".avi\")\n  METADATA_FILENAME = \"anivault_metadata.json\"\n  ```\n\n- **`errors.py`**: 에러 메시지 또는 코드\n  ```python\n  # src/anivault/shared/constants/errors.py\n  FILE_NOT_FOUND = \"Error: File not found at the specified path.\"\n  API_REQUEST_FAILED = \"Error: API request failed after multiple retries.\"\n  INVALID_CONFIG = \"Error: Configuration file is invalid or missing.\"\n  ```\n\n- **`logging.py`**: 로깅 설정\n  ```python\n  # src/anivault/shared/constants/logging.py\n  LOG_LEVEL = \"INFO\"\n  LOG_FORMAT = \"%(asctime)s - %(name)s - %(levelname)s - %(message)s\"\n  LOG_FILE_PATH = \"anivault.log\"\n  ```\n\n### 3. `__init__.py` 설정\n`src/anivault/shared/constants/__init__.py` 파일에 아래 코드를 추가하여 모듈 임포트를 간소화합니다.\n```python\n# src/anivault/shared/constants/__init__.py\nfrom . import api, matching, files, errors, logging\n\n__all__ = [\"api\", \"matching\", \"files\", \"errors\", \"logging\"]\n```\n\n### 4. 기존 코드 리팩토링\n코드베이스 전체에서 하드코딩된 매직 값들을 검색하여 새로 정의된 상수로 대체합니다.\n\n**예시 (Before):**\n```python\n# src/anivault/matcher/title_matcher.py\ndef get_best_match(title, candidates):\n    # ...\n    if score > 0.85:\n        return candidate\n```\n\n**예시 (After):**\n```python\n# src/anivault/matcher/title_matcher.py\nfrom anivault.shared.constants import matching\n\ndef get_best_match(title, candidates):\n    # ...\n    if score > matching.HIGH_CONFIDENCE_THRESHOLD:\n        return candidate\n```\n\n**주요 리팩토링 대상 파일:**\n- `src/anivault/api/*.py`: API 클라이언트의 rate limit, worker, retry 로직\n- `src/anivault/scanner/file_scanner.py`: 지원 파일 확장자 로직\n- `src/anivault/matcher/*.py`: 유사도 점수 비교 로직\n- `src/anivault/main.py` 및 `src/anivault/app.py`: 로깅 설정 및 전반적인 설정 값\n- 모든 예외 처리 구문: 에러 메시지",
+        "testStrategy": "### 1. 신규 테스트 케이스 작성\n- `tests/shared/` 디렉토리를 생성하고 `tests/shared/test_constants.py` 파일을 추가합니다.\n- 이 파일에서 각 상수 모듈이 올바르게 임포트되는지, 그리고 주요 상수 값들이 예상대로 정의되어 있는지 확인하는 테스트를 작성합니다.\n  ```python\n  # tests/shared/test_constants.py\n  from anivault.shared import constants\n\n  def test_api_constants_exist():\n      assert hasattr(constants.api, 'RATE_LIMIT_PER_MINUTE')\n      assert constants.api.RATE_LIMIT_PER_MINUTE == 90\n\n  def test_matching_constants_exist():\n      assert hasattr(constants.matching, 'HIGH_CONFIDENCE_THRESHOLD')\n      assert constants.matching.HIGH_CONFIDENCE_THRESHOLD == 0.85\n\n  def test_file_constants_exist():\n      assert \".mkv\" in constants.files.SUPPORTED_VIDEO_EXTENSIONS\n  ```\n\n### 2. 기존 테스트 케이스 수정\n- 기존 테스트 코드(`tests/`)에서 하드코딩된 값(예: `0.85`, `'.mp4'`)을 사용하는 부분을 찾아 임포트된 상수를 사용하도록 수정합니다.\n- 이를 통해 테스트 코드와 실제 구현 코드 간의 일관성을 유지합니다.\n\n### 3. 전체 테스트 실행\n- 리팩토링 완료 후, 프로젝트 루트에서 `pytest`를 실행하여 모든 테스트가 통과하는지 확인합니다.\n- 이를 통해 상수 교체 작업이 기존 기능에 영향을 주지 않았음을 보장합니다.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "shared/constants 디렉토리 구조 생성 및 기본 상수 정의",
+            "description": "src/anivault/shared/constants/ 디렉토리 구조를 생성하고 기본적인 상수들을 정의합니다.",
+            "details": "shared/constants 디렉토리 구조를 생성하고 기본 상수들을 정의합니다:\n\n1. 디렉토리 구조 생성:\n   - src/anivault/shared/constants/__init__.py\n   - src/anivault/shared/constants/api.py\n   - src/anivault/shared/constants/matching.py\n   - src/anivault/shared/constants/file_formats.py\n   - src/anivault/shared/constants/logging.py\n   - src/anivault/shared/constants/cli.py\n\n2. 기본 상수 정의:\n   - API 설정 상수 (rate_limit, workers, retry_attempts 등)\n   - 신뢰도 임계값 상수 (HIGH_CONFIDENCE, MEDIUM_CONFIDENCE 등)\n   - 파일 확장자 상수 (MKV, MP4, AVI 등)\n   - 로깅 레벨 및 설정 상수\n   - CLI 기본값 상수\n\n3. 상수 사용 패턴:\n   - Enum 클래스를 사용한 타입 안전한 상수 정의\n   - 의미 있는 상수명 사용\n   - 상수 그룹화 및 네임스페이스 관리\n\n4. 테스트 케이스:\n   - 모든 상수가 올바르게 정의되었는지 확인\n   - 상수 값의 타입 검증\n   - 상수 접근성 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 2,
+            "title": "기존 매직 값을 상수로 대체 - CLI 모듈",
+            "description": "src/anivault/cli/main.py의 모든 매직 값을 새로 정의된 상수로 대체합니다.",
+            "details": "CLI 모듈의 매직 값을 상수로 대체합니다:\n\n1. 로그 레벨 매직 값 대체:\n   - log_level=20을 LOG_LEVEL_DEBUG 상수로 대체\n   - 로그 레벨 관련 모든 매직 값을 상수로 대체\n\n2. 기본값 매직 값 대체:\n   - default=4를 DEFAULT_WORKERS 상수로 대체\n   - default=35.0을 DEFAULT_RATE_LIMIT 상수로 대체\n   - confidence >= 0.8을 HIGH_CONFIDENCE_THRESHOLD 상수로 대체\n\n3. CLI 메시지 매직 값 대체:\n   - \"[red]Error during scan: {e}[/red]\"을 ERROR_SCAN_MESSAGE 상수로 대체\n   - 모든 CLI 메시지를 상수로 정의\n\n4. 설정값 매직 값 대체:\n   - max_queue_size=100을 MAX_QUEUE_SIZE 상수로 대체\n   - 모든 설정값을 상수로 정의\n\n5. 테스트 케이스:\n   - 매직 값이 모두 상수로 대체되었는지 확인\n   - 상수 값의 정확성 검증\n   - CLI 동작 테스트",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentTaskId": 1
+          },
+          {
+            "id": 3,
+            "title": "기존 매직 값을 상수로 대체 - 코어 모듈",
+            "description": "src/anivault/core/ 디렉토리의 모든 매직 값을 새로 정의된 상수로 대체합니다.",
+            "details": "코어 모듈의 매직 값을 상수로 대체합니다:\n\n1. 설정값 매직 값 대체:\n   - retry_attempts=3을 DEFAULT_RETRY_ATTEMPTS 상수로 대체\n   - retry_delay=1.0을 DEFAULT_RETRY_DELAY 상수로 대체\n   - max_workers=4를 DEFAULT_MAX_WORKERS 상수로 대체\n\n2. 로깅 설정 매직 값 대체:\n   - DEFAULT_LOG_LEVEL, DEFAULT_LOG_FORMAT 등을 상수로 대체\n   - 로깅 관련 모든 매직 값을 상수로 대체\n\n3. 파일 처리 매직 값 대체:\n   - 파일 확장자 관련 매직 값을 상수로 대체\n   - 파일 크기 제한 등을 상수로 대체\n\n4. 테스트 케이스:\n   - 매직 값이 모두 상수로 대체되었는지 확인\n   - 상수 값의 정확성 검증\n   - 코어 모듈 동작 테스트",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentTaskId": 1
+          },
+          {
+            "id": 4,
+            "title": "기존 매직 값을 상수로 대체 - 서비스 모듈",
+            "description": "src/anivault/services/ 디렉토리의 모든 매직 값을 새로 정의된 상수로 대체합니다.",
+            "details": "서비스 모듈의 매직 값을 상수로 대체합니다:\n\n1. API 설정 매직 값 대체:\n   - API 엔드포인트 URL을 상수로 대체\n   - API 키 관련 설정을 상수로 대체\n   - API 호출 제한 등을 상수로 대체\n\n2. 캐시 설정 매직 값 대체:\n   - 캐시 파일 경로를 상수로 대체\n   - 캐시 만료 시간 등을 상수로 대체\n\n3. 테스트 케이스:\n   - 매직 값이 모두 상수로 대체되었는지 확인\n   - 상수 값의 정확성 검증\n   - 서비스 모듈 동작 테스트",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentTaskId": 1
+          },
+          {
+            "id": 5,
+            "title": "상수 사용 테스트 코드 작성",
+            "description": "새로 정의된 상수들이 올바르게 사용되고 있는지 검증하는 테스트 코드를 작성합니다.",
+            "details": "상수 사용을 검증하는 테스트 코드를 작성합니다:\n\n1. 상수 정의 테스트:\n   - 모든 상수가 올바르게 정의되었는지 확인\n   - 상수 값의 타입 검증\n   - 상수 접근성 테스트\n\n2. 상수 사용 테스트:\n   - 매직 값이 모두 상수로 대체되었는지 확인\n   - 상수 값의 정확성 검증\n   - 상수 사용 패턴 검증\n\n3. 통합 테스트:\n   - 상수 변경 시 시스템 동작 테스트\n   - 상수 의존성 테스트\n   - 상수 네임스페이스 테스트\n\n4. 성능 테스트:\n   - 상수 접근 성능 테스트\n   - 메모리 사용량 테스트\n   - 상수 로딩 시간 테스트",
+            "status": "done",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "parentTaskId": 1
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "main() 함수 리팩터링 - 단일 책임 원칙 적용",
+        "description": "src/anivault/cli/main.py의 거대한 main() 함수를 리팩터링하여 CLI 파싱, 명령 라우팅, 비즈니스 로직을 단일 책임을 갖는 개별 함수로 분리합니다.",
+        "details": "### 목표\n현재 `src/anivault/cli/main.py`에 있는 300줄 이상의 `main` 함수는 단일 책임 원칙(SRP)을 위반하는 'God Function'입니다. 이 작업을 통해 함수를 여러 개의 작고 관리하기 쉬운 모듈과 함수로 분해하여 코드 가독성, 테스트 용이성 및 유지보수성을 향상시킵니다.\n\n### 1. 신규 모듈 생성\n관심사를 분리하기 위해 `src/anivault/cli/` 디렉토리 내에 새로운 파일을 생성합니다.\n- `parser.py`: 인수 파싱 로직을 담당합니다.\n- `handlers.py`: 각 CLI 명령에 대한 비즈니스 로직을 처리합니다.\n- `utils.py`: 콘솔 설정, 디렉토리 유효성 검사 등 공유 유틸리티 함수를 포함합니다.\n\n### 2. 인수 파서 분리 (`parser.py`)\n`main.py`의 모든 `argparse` 관련 코드를 `src/anivault/cli/parser.py`의 `create_argument_parser()` 함수로 이동합니다.\n```python\n# src/anivault/cli/parser.py\nimport argparse\n\ndef create_argument_parser() -> argparse.ArgumentParser:\n    parser = argparse.ArgumentParser(description='AniVault CLI.')\n    subparsers = parser.add_subparsers(dest='command', required=True, help='Available commands')\n\n    # Scan command\n    scan_parser = subparsers.add_parser('scan', help='Scan a directory for video files.')\n    scan_parser.add_argument('path', type=str, help='Path to the directory to scan.')\n\n    # ... 다른 모든 하위 파서들을 여기에 추가 ...\n\n    return parser\n```\n\n### 3. 명령 핸들러 분리 (`handlers.py`)\n각 CLI 명령의 비즈니스 로직을 `src/anivault/cli/handlers.py`의 자체 함수로 추출합니다.\n- `handle_scan_command(args)`\n- `handle_verify_command(args)`\n- `handle_match_command(args)`\n- `handle_organize_command(args)`\n- `handle_log_command(args)`\n\n이 핸들러들은 `main.py`의 `if/elif` 블록에서 해당 로직을 가져와야 합니다. **중요**: 이 함수들은 Task 1에서 생성된 `anivault.shared.constants`의 중앙 집중식 상수를 사용해야 합니다.\n```python\n# src/anivault/cli/handlers.py\nfrom argparse import Namespace\n\ndef handle_scan_command(args: Namespace):\n    print(f\"Scanning directory: {args.path}\")\n    # 'scan' 명령에 대한 모든 비즈니스 로직이 여기에 위치합니다.\n\n# ... 다른 핸들러 함수들 ...\n```\n\n### 4. 유틸리티 함수 분리 (`utils.py`)\n공통 유틸리티 함수를 `src/anivault/cli/utils.py`로 이동합니다.\n- `setup_console() -> Console`: Rich 콘솔 객체를 설정하고 반환합니다.\n- `validate_directory(path: str)`: 경로가 유효한 디렉토리인지 확인하고, 그렇지 않으면 예외를 발생시킵니다.\n- `display_error_message(console: Console, message: str)`: 오류 메시지를 서식에 맞게 표시합니다.\n\n### 5. `main.py` 리팩터링\n위의 변경 사항을 적용하여 `main.py`를 크게 단순화합니다. `main()` 함수는 이제 오케스트레이션만 담당해야 합니다.\n\n- **`route_command(args: Namespace)`**: 파싱된 인수를 기반으로 적절한 핸들러를 호출하는 라우터를 생성합니다.\n- **`main()`**: 전체 애플리케이션 흐름을 조정합니다.\n\n```python\n# src/anivault/cli/main.py\nfrom argparse import Namespace\nfrom rich.console import Console\n\nfrom . import handlers\nfrom .parser import create_argument_parser\nfrom .utils import setup_console, display_error_message\n\nCOMMAND_HANDLERS = {\n    'scan': handlers.handle_scan_command,\n    'verify': handlers.handle_verify_command,\n    'match': handlers.handle_match_command,\n    'organize': handlers.handle_organize_command,\n    'log': handlers.handle_log_command,\n}\n\ndef route_command(args: Namespace):\n    \"\"\"Calls the appropriate command handler based on parsed arguments.\"\"\"\n    handler = COMMAND_HANDLERS.get(args.command)\n    if handler:\n        handler(args)\n    else:\n        # 이 경우는 argparse의 'required=True'로 인해 발생하지 않아야 함\n        raise ValueError(f\"Unknown command: {args.command}\")\n\ndef main():\n    \"\"\"Main entry point for the AniVault CLI.\"\"\"\n    console = setup_console()\n    try:\n        parser = create_argument_parser()\n        args = parser.parse_args()\n        route_command(args)\n    except Exception as e:\n        display_error_message(console, str(e))\n        # exit(1)\n\nif __name__ == '__main__':\n    main()\n```\n\n### 제약 조건\n- 새로 생성되거나 리팩터링된 각 함수는 80줄을 초과해서는 안 됩니다.",
+        "testStrategy": "### 1. 파서 유닛 테스트 (`tests/cli/test_parser.py`)\n- `create_argument_parser`가 모든 명령 (`scan`, `verify` 등)과 해당 인수를 올바르게 설정하는지 확인하는 테스트를 작성합니다.\n- 다양한 CLI 인수 조합을 시뮬레이션하여 파서가 예상대로 동작하는지 확인합니다. 예를 들어, `parser.parse_args(['scan', './videos'])`가 올바른 `Namespace` 객체를 반환하는지 테스트합니다.\n\n### 2. 핸들러 유닛 테스트 (`tests/cli/test_handlers.py`)\n- 각 `handle_*` 함수에 대한 테스트를 작성합니다.\n- `unittest.mock.patch`를 사용하여 파일 시스템, API 호출 (`AniListAPI`), 데이터베이스 상호작용과 같은 외부 종속성을 모의(mock) 처리합니다.\n- 각 핸들러가 주어진 인수에 따라 올바른 서비스나 함수를 올바른 매개변수로 호출하는지 확인합니다. 예를 들어, `handle_scan_command`가 올바른 경로로 `Scanner` 클래스를 초기화하는지 확인합니다.\n\n### 3. 유틸리티 유닛 테스트 (`tests/cli/test_utils.py`)\n- `validate_directory`가 존재하는 디렉토리와 존재하지 않는 디렉토리에 대해 올바르게 동작하는지 테스트합니다.\n- `display_error_message`가 `rich.console` 객체의 `print` 메서드를 예상된 형식의 메시지로 호출하는지 확인합니다. (콘솔 출력을 캡처하여 검증)\n\n### 4. 메인 및 라우터 통합 테스트 (`tests/cli/test_main.py`)\n- `main.py`의 `route_command` 함수를 테스트합니다.\n- `unittest.mock.patch`를 사용하여 `handlers` 모듈의 함수들을 모의 처리합니다.\n- `route_command`가 `args.command`의 값에 따라 올바른 핸들러 함수를 호출하는지 확인합니다. 예를 들어, `command='scan'`인 `args` 객체로 `route_command`를 호출하면 `handlers.handle_scan_command`가 한 번 호출되었는지 확인합니다.\n- 전체 `main` 함수에 대한 엔드투엔드 테스트를 업데이트하여, 특정 CLI 인수가 주어졌을 때 올바른 핸들러가 호출되는지 확인합니다.",
+        "status": "done",
+        "dependencies": [
+          1
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "CLI 파서 모듈 생성 및 argparse 로직 분리",
+            "description": "src/anivault/cli/parser.py를 생성하고 main.py의 모든 argparse 로직을 이전하여 CLI 파싱만 담당하는 모듈로 분리합니다.",
+            "details": "CLI 파싱 로직을 별도 모듈로 분리하여 단일 책임 원칙을 적용합니다:\n\n1. src/anivault/cli/parser.py 생성:\n   - create_argument_parser() 함수: 모든 CLI 인수 정의만 담당\n   - parse_arguments() 함수: 인수 파싱 및 검증만 담당\n   - validate_parsed_args() 함수: 파싱된 인수 유효성 검증만 담당\n\n2. argparse 로직 분리:\n   - scan 명령어 인수 정의 (directory, recursive, workers 등)\n   - verify/match 명령어 인수 정의 (confidence, dry-run 등)\n   - organize 명령어 인수 정의 (plan, execute 등)\n   - log 명령어 인수 정의 (show, clear 등)\n   - 공통 인수 정의 (verbose, config 등)\n\n3. 인수 검증 로직:\n   - 디렉토리 존재 여부 검증\n   - 숫자 범위 검증 (workers, confidence 등)\n   - 파일 형식 검증 (config 파일 등)\n   - 상호 배타적 인수 검증\n\n4. 에러 처리 개선:\n   - 잘못된 인수 시 ApplicationError 발생\n   - 사용자 친화적 에러 메시지 제공\n   - 구조적 로깅으로 디버깅 정보 제공\n\n5. 상수 사용:\n   - 기본값들을 anivault.shared.constants에서 가져오기\n   - 검증 규칙을 상수로 정의\n   - 도움말 메시지를 상수로 관리\n\n6. 테스트 케이스:\n   - 각 파서 함수의 단일 책임 검증 테스트\n   - 다양한 인수 조합에 대한 파싱 테스트\n   - 잘못된 인수에 대한 에러 처리 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          },
+          {
+            "id": 2,
+            "title": "명령 라우터 모듈 생성 및 핸들러 분리",
+            "description": "src/anivault/cli/router.py를 생성하고 main.py의 명령 라우팅 로직을 분리하여 각 명령어별 핸들러를 호출하는 역할만 담당하도록 합니다.",
+            "details": "명령 라우팅 로직을 별도 모듈로 분리하여 단일 책임 원칙을 적용합니다:\n\n1. src/anivault/cli/router.py 생성:\n   - route_command() 함수: 명령어별 핸들러 호출만 담당\n   - get_handler_for_command() 함수: 명령어에 맞는 핸들러 반환만 담당\n   - validate_command() 함수: 명령어 유효성 검증만 담당\n\n2. 핸들러 함수들 분리:\n   - handle_scan_command(): 스캔 명령어 처리만 담당\n   - handle_verify_command(): 검증 명령어 처리만 담당\n   - handle_match_command(): 매칭 명령어 처리만 담당\n   - handle_organize_command(): 정리 명령어 처리만 담당\n   - handle_log_command(): 로그 명령어 처리만 담당\n\n3. 각 핸들러 함수의 책임:\n   - 파싱된 인수를 받아 해당 비즈니스 로직 호출\n   - 결과를 사용자에게 표시\n   - 에러 발생 시 적절한 에러 처리\n   - 80줄 이하로 제한\n\n4. 에러 처리 개선:\n   - 알 수 없는 명령어 시 ApplicationError 발생\n   - 핸들러 실행 실패 시 적절한 에러 전파\n   - 사용자 친화적 에러 메시지 제공\n\n5. 상수 사용:\n   - 명령어 목록을 상수로 정의\n   - 핸들러 매핑을 상수로 관리\n   - 에러 메시지를 상수로 정의\n\n6. 테스트 케이스:\n   - 각 핸들러의 단일 책임 검증 테스트\n   - 명령어 라우팅 정확성 테스트\n   - 에러 처리 시나리오 테스트",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentTaskId": 2
+          },
+          {
+            "id": 3,
+            "title": "공통 유틸리티 함수 모듈 생성",
+            "description": "src/anivault/cli/utils.py를 생성하고 main.py의 공통 유틸리티 함수들을 분리하여 재사용 가능한 모듈로 만듭니다.",
+            "details": "공통 유틸리티 함수들을 별도 모듈로 분리하여 단일 책임 원칙을 적용합니다:\n\n1. src/anivault/cli/utils.py 생성:\n   - setup_console() 함수: Rich 콘솔 설정만 담당\n   - validate_directory() 함수: 디렉토리 유효성 검증만 담당\n   - display_error_message() 함수: 에러 메시지 표시만 담당\n   - display_success_message() 함수: 성공 메시지 표시만 담당\n   - format_file_size() 함수: 파일 크기 포맷팅만 담당\n\n2. setup_console() 함수:\n   - Rich Console 인스턴스 생성 및 설정\n   - 테마 및 스타일 설정\n   - 로그 레벨에 따른 출력 설정\n\n3. validate_directory() 함수:\n   - 디렉토리 존재 여부 검증\n   - 디렉토리 읽기 권한 검증\n   - 에러 발생 시 InfrastructureError 발생\n\n4. display_error_message() 함수:\n   - AniVaultError를 받아 사용자 친화적 메시지 표시\n   - Rich 스타일을 사용한 에러 메시지 포맷팅\n   - 에러 컨텍스트 정보 포함\n\n5. display_success_message() 함수:\n   - 성공 메시지를 Rich 스타일로 표시\n   - 작업 결과 요약 정보 포함\n   - 일관된 성공 메시지 포맷\n\n6. format_file_size() 함수:\n   - 바이트 수를 사람이 읽기 쉬운 형식으로 변환\n   - KB, MB, GB 단위로 자동 변환\n   - 소수점 자릿수 제한\n\n7. 테스트 케이스:\n   - 각 유틸리티 함수의 단일 책임 검증 테스트\n   - 다양한 입력에 대한 출력 형식 테스트\n   - 에러 처리 시나리오 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 2
+          },
+          {
+            "id": 4,
+            "title": "main() 함수 리팩터링 및 통합",
+            "description": "main.py의 main() 함수를 50줄 이하로 축소하고, 분리된 모듈들을 통합하여 단순한 오케스트레이션 역할만 담당하도록 리팩터링합니다.",
+            "details": "main() 함수를 단일 책임 원칙에 따라 오케스트레이션 역할만 담당하도록 리팩터링합니다:\n\n1. main() 함수 구조 단순화:\n   - CLI 인수 파싱 (parser 모듈 사용)\n   - 명령 라우팅 (router 모듈 사용)\n   - 에러 처리 및 사용자 메시지 표시\n   - 50줄 이하로 제한\n\n2. 분리된 모듈 통합:\n   - anivault.cli.parser 모듈에서 파싱 함수 호출\n   - anivault.cli.router 모듈에서 라우팅 함수 호출\n   - anivault.cli.utils 모듈에서 유틸리티 함수 호출\n\n3. 에러 처리 개선:\n   - AniVaultError 계층을 사용한 구조적 에러 처리\n   - 사용자 친화적 에러 메시지 표시\n   - 구조적 로깅으로 디버깅 정보 수집\n   - 적절한 종료 코드 반환\n\n4. 상수 사용:\n   - 종료 코드를 상수로 정의\n   - 에러 메시지를 상수로 관리\n   - 설정값들을 상수에서 가져오기\n\n5. 테스트 케이스:\n   - main() 함수의 오케스트레이션 역할 검증 테스트\n   - 모킹을 사용한 통합 테스트\n   - 에러 처리 시나리오 테스트\n   - 종료 코드 정확성 테스트\n\n6. 성능 최적화:\n   - 불필요한 import 제거\n   - 지연 로딩 적용\n   - 메모리 사용량 최적화",
+            "status": "done",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "parentTaskId": 2
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "구조적 에러 처리 시스템 구축",
+        "description": "중앙 집중식 에러 클래스, 에러 코드, 사용자 친화적 메시지 및 구조적 로깅을 포함하는 포괄적인 에러 처리 시스템을 구현합니다. 이 시스템은 기존의 일반적인 예외 처리를 대체하여 디버깅 효율성과 사용자 경험을 개선합니다.",
+        "details": "### 1. 중앙 집중식 에러 클래스 정의 (`src/anivault/shared/errors.py`)\n기본 `AniVaultError` 클래스와 이를 상속하는 `DomainError`, `InfrastructureError`, `ApplicationError`를 생성합니다. 각 에러는 에러 코드와 컨텍스트를 포함할 수 있어야 합니다.\n\n```python\n# src/anivault/shared/errors.py\nfrom typing import Any, Dict, Optional\nfrom .error_codes import ErrorCode\n\nclass AniVaultError(Exception):\n    \"\"\"AniVault 애플리케이션의 모든 사용자 정의 에러에 대한 기본 클래스입니다.\"\"\"\n    def __init__(self, code: ErrorCode, message: str, context: Optional[Dict[str, Any]] = None):\n        self.code = code\n        self.message = message\n        self.context = context or {}\n        super().__init__(f\"[{self.code.name}] {self.message}\")\n\nclass DomainError(AniVaultError):\n    \"\"\"도메인 로직 또는 비즈니스 규칙 위반과 관련된 에러입니다.\"\"\"\n    pass\n\nclass InfrastructureError(AniVaultError):\n    \"\"\"파일 시스템, 네트워크, API 등 외부 인프라와 관련된 에러입니다.\"\"\"\n    pass\n\nclass ApplicationError(AniVaultError):\n    \"\"\"애플리케이션 흐름 또는 상태와 관련된 에러입니다.\"\"\"\n    pass\n```\n\n### 2. 에러 코드 열거형 정의 (`src/anivault/shared/error_codes.py`)\n애플리케이션에서 발생할 수 있는 모든 예측 가능한 에러에 대한 `Enum`을 정의합니다.\n\n```python\n# src/anivault/shared/error_codes.py\nfrom enum import Enum, auto\n\nclass ErrorCode(Enum):\n    # Infrastructure Errors\n    FILE_NOT_FOUND = auto()\n    DIRECTORY_NOT_FOUND = auto()\n    API_CONNECTION_FAILED = auto()\n    API_AUTH_ERROR = auto()\n    RATE_LIMIT_EXCEEDED = auto()\n\n    # Domain Errors\n    INVALID_FILE_FORMAT = auto()\n    METADATA_PARSING_FAILED = auto()\n    NO_MATCH_FOUND = auto()\n\n    # Application Errors\n    CONFIGURATION_ERROR = auto()\n    UNKNOWN_COMMAND = auto()\n```\n\n### 3. 사용자 친화적 에러 메시지 관리 (`src/anivault/shared/error_messages.py`)\n`ErrorCode`를 사용자 친화적인 메시지로 매핑하는 딕셔너리를 생성합니다. 향후 다국어 지원을 위해 언어 코드별로 구조화합니다.\n\n```python\n# src/anivault/shared/error_messages.py\nfrom .error_codes import ErrorCode\n\nERROR_MESSAGES = {\n    'ko': {\n        ErrorCode.FILE_NOT_FOUND: \"파일을 찾을 수 없습니다: {path}\",\n        ErrorCode.API_CONNECTION_FAILED: \"API 서버에 연결할 수 없습니다. 네트워크 연결을 확인하세요.\",\n        ErrorCode.METADATA_PARSING_FAILED: \"미디어 파일에서 메타데이터를 파싱하는 데 실패했습니다.\",\n    },\n    'en': {\n        ErrorCode.FILE_NOT_FOUND: \"File not found: {path}\",\n        ErrorCode.API_CONNECTION_FAILED: \"Could not connect to the API server. Check your network connection.\",\n        ErrorCode.METADATA_PARSING_FAILED: \"Failed to parse metadata from the media file.\",\n    }\n}\n\ndef get_error_message(code: ErrorCode, lang: str = 'ko', **kwargs) -> str:\n    message_template = ERROR_MESSAGES.get(lang, ERROR_MESSAGES['en']).get(code, \"알 수 없는 오류가 발생했습니다.\")\n    return message_template.format(**kwargs)\n```\n\n### 4. 구조적 로깅 구현 (`src/anivault/shared/logging.py`)\n에러 발생 시 컨텍스트 정보(에러 코드, 컨텍스트 데이터)를 포함하여 구조화된 로그를 기록하는 함수를 구현합니다. JSON 포맷터를 사용하여 로그를 구조화하는 것을 권장합니다.\n\n```python\n# src/anivault/shared/logging.py\nimport logging\nfrom .errors import AniVaultError\n\n# 로거 설정 (예: main 또는 app 초기화 시)\n# logging.basicConfig(level=logging.INFO, format='{\"timestamp\": \"%(asctime)s\", \"level\": \"%(levelname)s\", \"message\": \"%(message)s\"}')\n\nlogger = logging.getLogger('anivault')\n\ndef log_operation_error(error: AniVaultError):\n    logger.error(\n        f'Operation failed: {error.message}',\n        extra={\n            'error_code': error.code.name,\n            'error_context': error.context\n        }\n    )\n\ndef log_operation_success(message: str, context: dict):\n    logger.info(message, extra=context)\n```\n\n### 5. 기존 코드 리팩터링\nTask 2에서 리팩터링된 `src/anivault/cli/handlers.py` 내의 함수들에서 `try...except Exception` 블록을 새로운 구조적 에러 처리 방식으로 교체합니다.\n\n**변경 전:**\n```python\n# in src/anivault/cli/handlers.py (hypothetical)\ndef handle_scan(args):\n    try:\n        # ... some logic that might fail ...\n        api_data = api_client.fetch_info('some_title')\n    except Exception as e:\n        print(f\"An error occurred: {e}\")\n```\n\n**변경 후:**\n```python\n# in src/anivault/cli/handlers.py (hypothetical)\nfrom anivault.shared import errors, error_codes, logging\n\ndef handle_scan(args):\n    try:\n        # ... some logic that might fail ...\n        api_data = api_client.fetch_info('some_title') # 이 함수는 InfrastructureError를 발생시킬 수 있음\n    except errors.InfrastructureError as e:\n        logging.log_operation_error(e)\n        # 사용자에게 친화적인 메시지 출력\n        user_message = get_error_message(e.code, context=e.context)\n        print(user_message)\n    except errors.AniVaultError as e:\n        logging.log_operation_error(e)\n        print(get_error_message(e.code, context=e.context))\n```",
+        "testStrategy": "### 1. 공유 모듈 유닛 테스트 (`tests/shared/`)\n- **`test_errors.py`**: `AniVaultError` 및 하위 클래스들이 올바른 `code`, `message`, `context`로 인스턴스화되고 `raise`될 수 있는지 테스트합니다.\n- **`test_error_messages.py`**: `get_error_message` 함수가 주어진 `ErrorCode`와 언어에 대해 정확한 메시지 문자열을 반환하는지, 그리고 포맷팅 인수가 올바르게 적용되는지 테스트합니다.\n- **`test_logging.py`**: `unittest.mock`을 사용하여 `logging.Logger` 객체를 패치합니다. `log_operation_error` 함수 호출 시 `logger.error`가 예상된 구조(특히 `extra` 딕셔너리)와 내용으로 호출되는지 확인합니다.\n\n### 2. 핸들러 통합 테스트 (`tests/cli/test_handlers.py`)\n- Task 2에서 생성된 핸들러 함수들에 대한 테스트를 확장합니다.\n- 외부 의존성(예: API 클라이언트, 파일 시스템 함수)을 모킹하여 의도적으로 에러를 발생시킵니다. 예를 들어, API 클라이언트 모의 객체가 `requests.exceptions.ConnectionError`를 발생시키도록 설정합니다.\n- 핸들러가 이 원시 예외를 포착하여 적절한 `InfrastructureError` (예: `API_CONNECTION_FAILED` 코드 포함)로 변환하고 `raise`하거나 처리하는지 확인합니다.\n- `capsys` 또는 `mock_print`를 사용하여 핸들러가 에러 발생 시 사용자에게 올바른 친화적 메시지를 출력하는지 검증합니다.\n\n```python\n# tests/cli/test_handlers.py 예시\nfrom unittest.mock import patch\nimport pytest\nfrom anivault.cli import handlers\nfrom anivault.shared import errors, error_codes\n\n@patch('anivault.api.client.ApiClient.fetch_info')\ndef test_handle_scan_api_connection_error(mock_fetch, capsys):\n    # API 클라이언트가 InfrastructureError를 발생시키도록 설정\n    mock_fetch.side_effect = errors.InfrastructureError(\n        code=error_codes.ErrorCode.API_CONNECTION_FAILED,\n        message=\"Connection timed out\"\n    )\n\n    # 핸들러 실행\n    # args 객체는 적절히 모킹해야 함\n    handlers.handle_scan(mock_args)\n\n    # 사용자에게 친화적 메시지가 출력되었는지 확인\n    captured = capsys.readouterr()\n    assert \"API 서버에 연결할 수 없습니다\" in captured.out\n```",
+        "status": "done",
+        "dependencies": [
+          2
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "AniVaultError 기반 커스텀 에러 클래스 계층 정의",
+            "description": "src/anivault/shared/errors.py에 AniVaultError를 기본으로 하는 DomainError, InfrastructureError, ApplicationError 클래스 계층을 정의합니다.",
+            "details": "src/anivault/shared/errors.py 파일을 생성하고 다음 에러 클래스 계층을 구현합니다:\n\n1. AniVaultError (기본 클래스):\n   - ErrorCode, message, context를 포함하는 기본 에러 클래스\n   - __str__ 메서드에서 에러 코드와 메시지를 조합하여 반환\n   - 컨텍스트 정보를 딕셔너리로 저장\n\n2. DomainError:\n   - 비즈니스 로직 위반, 도메인 규칙 위반 시 사용\n   - 예: 파일 형식 오류, 메타데이터 파싱 실패\n\n3. InfrastructureError:\n   - 외부 시스템(파일 시스템, 네트워크, API) 관련 에러\n   - 예: 파일 없음, API 연결 실패, 권한 오류\n\n4. ApplicationError:\n   - 애플리케이션 흐름, 상태 관련 에러\n   - 예: 설정 오류, 알 수 없는 명령어\n\n5. 각 에러 클래스는 다음 속성을 포함:\n   - code: ErrorCode 열거형 값\n   - message: 에러 메시지\n   - context: 추가 컨텍스트 정보 (딕셔너리)\n\n6. 테스트 케이스:\n   - 각 에러 클래스의 인스턴스 생성 테스트\n   - 에러 메시지 포맷팅 테스트\n   - 상속 관계 검증 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
+          },
+          {
+            "id": 2,
+            "title": "ErrorCode 열거형 및 사용자 친화적 메시지 시스템 구현",
+            "description": "src/anivault/shared/error_codes.py와 src/anivault/shared/error_messages.py를 생성하여 에러 코드 열거형과 사용자 친화적 메시지 시스템을 구현합니다.",
+            "details": "ErrorCode 열거형과 사용자 친화적 메시지 시스템을 구현합니다:\n\n1. src/anivault/shared/error_codes.py:\n   - ErrorCode 열거형 정의 (auto() 사용)\n   - Infrastructure Errors: FILE_NOT_FOUND, API_CONNECTION_FAILED, RATE_LIMIT_EXCEEDED 등\n   - Domain Errors: INVALID_FILE_FORMAT, METADATA_PARSING_FAILED, NO_MATCH_FOUND 등\n   - Application Errors: CONFIGURATION_ERROR, UNKNOWN_COMMAND 등\n\n2. src/anivault/shared/error_messages.py:\n   - ERROR_MESSAGES 딕셔너리 (한국어/영어 지원)\n   - get_error_message() 함수로 에러 코드를 사용자 친화적 메시지로 변환\n   - 메시지 템플릿에서 변수 치환 지원 (예: {path}, {filename})\n\n3. 다국어 지원 구조:\n   - 'ko', 'en' 언어 코드별 메시지 정의\n   - 기본 언어는 한국어로 설정\n   - 향후 확장 가능한 구조\n\n4. 메시지 포맷팅:\n   - 문자열 템플릿 사용 (.format() 메서드)\n   - 컨텍스트 정보를 키워드 인수로 전달\n   - 안전한 포맷팅으로 KeyError 방지\n\n5. 테스트 케이스:\n   - 모든 ErrorCode에 대한 메시지 존재 확인\n   - 포맷팅 변수 치환 테스트\n   - 다국어 메시지 정확성 테스트",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "parentTaskId": 3
+          },
+          {
+            "id": 3,
+            "title": "구조적 로깅 헬퍼 함수 구현",
+            "description": "src/anivault/shared/logging.py에 에러 발생 시 컨텍스트 정보를 포함하여 구조화된 로그를 기록하는 헬퍼 함수들을 구현합니다.",
+            "details": "src/anivault/shared/logging.py 파일을 생성하고 구조적 로깅 시스템을 구현합니다:\n\n1. 로거 설정:\n   - 'anivault' 네임스페이스 로거 생성\n   - JSON 포맷터 설정으로 구조화된 로그 출력\n   - 로그 레벨별 설정 (DEBUG, INFO, WARNING, ERROR, CRITICAL)\n\n2. log_operation_error() 함수:\n   - AniVaultError 객체를 받아 구조화된 에러 로그 기록\n   - 에러 코드, 메시지, 컨텍스트 정보를 extra 필드에 포함\n   - exc_info=True로 스택 트레이스 포함\n   - 타임스탬프 자동 추가\n\n3. log_operation_success() 함수:\n   - 성공적인 작업에 대한 정보 로그 기록\n   - 작업 이름, 소요 시간, 결과 정보 포함\n   - 컨텍스트 정보를 extra 필드에 포함\n\n4. log_operation_start() 함수:\n   - 작업 시작 시점 로그 기록\n   - 작업 식별자, 입력 파라미터 정보 포함\n\n5. 로그 포맷:\n   - JSON 형식으로 구조화된 로그 출력\n   - timestamp, level, message, error_code, context 필드 포함\n   - 로그 분석 도구에서 파싱하기 쉬운 형식\n\n6. 테스트 케이스:\n   - 로거 설정 및 포맷터 테스트\n   - 각 로깅 함수의 출력 형식 검증\n   - mock을 사용한 로그 호출 테스트",
+            "status": "done",
+            "dependencies": [
+              1,
+              2
+            ],
+            "parentTaskId": 3
+          },
+          {
+            "id": 4,
+            "title": "서비스 계층 에러 처리 리팩터링",
+            "description": "src/anivault/services/ 디렉토리의 서비스 클래스들에서 기존 try-except 블록을 새로운 구조적 에러 처리 시스템을 사용하도록 리팩터링합니다.",
+            "details": "서비스 계층의 에러 처리를 구조적 에러 처리 시스템으로 리팩터링합니다:\n\n1. TMDBClient 에러 처리 개선:\n   - requests.exceptions.RequestException을 InfrastructureError로 변환\n   - API 연결 실패, 인증 오류, 레이트 리밋 초과 등을 적절한 ErrorCode로 매핑\n   - 재시도 로직과 에러 처리 통합\n\n2. JSONCacheV2 에러 처리 개선:\n   - 파일 I/O 에러를 InfrastructureError로 변환\n   - JSON 파싱 에러를 DomainError로 변환\n   - 손상된 캐시 파일 자동 백업 및 복구 로직 추가\n   - 구조적 로깅으로 디버깅 정보 제공\n\n3. MetadataEnricher 에러 처리 개선:\n   - 부분 실패 허용 로직 구현\n   - 일부 메타데이터만 가져와도 성공으로 처리\n   - 완전 실패 시에만 에러 발생\n   - 각 단계별 에러 컨텍스트 수집\n\n4. RateLimiter 에러 처리 개선:\n   - 타임아웃 관련 에러를 InfrastructureError로 변환\n   - 백오프 전략 실패 시 적절한 에러 메시지 제공\n   - 구조적 로깅으로 레이트 리밋 상태 추적\n\n5. SemaphoreManager 에러 처리 개선:\n   - 동시성 제어 에러를 ApplicationError로 변환\n   - 데드락 방지 로직과 에러 처리 통합\n   - 리소스 누수 방지를 위한 에러 처리\n\n6. 테스트 케이스:\n   - 각 서비스의 에러 처리 시나리오 테스트\n   - 에러 변환 정확성 검증\n   - 구조적 로깅 출력 검증\n<info added on 2025-10-02T15:05:38.892Z>\n### 구현 계획: `TMDBClient` 리팩터링 상세 단계\n\n사용자님의 분석을 바탕으로, `TMDBClient` 리팩터링을 위한 구체적인 구현 계획을 제시합니다. 이는 `src/anivault/shared/errors.py`에 정의된 `InfrastructureError`와 `ErrorCode`, 그리고 `src/anivault/shared/log_handler.py`의 `log_error` 헬퍼를 활용하는 첫 단계입니다.\n\n#### 1. 대상 파일 및 목표\n- **파일**: `src/anivault/services/tmdb_client.py`\n- **목표**: 기존의 `requests.exceptions.RequestException` 및 `TMDbException` 처리 로직을 `AniVaultError` 기반의 구조적 에러 처리로 대체합니다. 이를 통해 API 통신 과정에서 발생하는 다양한 예외 상황(연결 실패, 인증 오류, API 제한 등)을 명확하게 구분하고, 구조화된 로그를 남깁니다.\n\n#### 2. 구현 패턴: `try-except` 블록 리팩터링\n\nAPI 요청을 보내는 모든 메서드 내의 `try-except` 블록을 아래 패턴에 따라 수정합니다.\n\n**기존 코드 (예상):**\n```python\n# src/anivault/services/tmdb_client.py\n\nimport requests\n# from .custom_exceptions import TMDbException # 기존 사용자 정의 예외\n\nclass TMDBClient:\n    def search_media(self, title: str):\n        try:\n            response = self.session.get(url, params=params, timeout=REQUEST_TIMEOUT)\n            response.raise_for_status()\n            return response.json()\n        except requests.exceptions.RequestException as e:\n            # 기존의 단순 로깅 또는 예외 변환\n            print(f\"Error during TMDB API request: {e}\")\n            raise TMDbException(f\"API request failed: {e}\") from e\n```\n\n**리팩터링 후 코드:**\n```python\n# src/anivault/services/tmdb_client.py\n\nimport requests\nfrom anivault.shared.errors import InfrastructureError, ErrorCode\nfrom anivault.shared.log_handler import log_error\nfrom anivault.shared.constants.api import REQUEST_TIMEOUT\n\nclass TMDBClient:\n    def search_media(self, title: str):\n        url = \"...\" # API 엔드포인트 URL\n        params = {\"query\": title, ...}\n        try:\n            response = self.session.get(url, params=params, timeout=REQUEST_TIMEOUT)\n            response.raise_for_status()\n            return response.json()\n        except requests.exceptions.HTTPError as e:\n            status_code = e.response.status_code\n            if status_code in [401, 403]:\n                code = ErrorCode.TMDB_API_AUTHENTICATION_ERROR\n            elif status_code == 429:\n                code = ErrorCode.TMDB_API_RATE_LIMIT_EXCEEDED\n            else:\n                code = ErrorCode.TMDB_API_REQUEST_FAILED\n\n            err = InfrastructureError(\n                code=code,\n                context={\"status_code\": status_code, \"url\": str(e.request.url), \"reason\": e.response.reason}\n            )\n            log_error(err, original_exception=e)\n            raise err from e\n        except requests.exceptions.ConnectionError as e:\n            err = InfrastructureError(\n                code=ErrorCode.TMDB_API_CONNECTION_ERROR,\n                context={\"url\": str(e.request.url)}\n            )\n            log_error(err, original_exception=e)\n            raise err from e\n        except requests.exceptions.Timeout as e:\n            err = InfrastructureError(\n                code=ErrorCode.TMDB_API_TIMEOUT,\n                context={\"url\": str(e.request.url)}\n            )\n            log_error(err, original_exception=e)\n            raise err from e\n        except requests.exceptions.RequestException as e:\n            # 그 외 모든 requests 관련 예외 처리\n            err = InfrastructureError(\n                code=ErrorCode.TMDB_API_REQUEST_FAILED,\n                context={\"url\": str(e.request.url), \"error_type\": type(e).__name__}\n            )\n            log_error(err, original_exception=e)\n            raise err from e\n```\n\n#### 3. 주요 변경 사항\n- **에러 클래스 교체**: `TMDbException`을 `InfrastructureError`로 대체합니다.\n- **세분화된 예외 처리**: `requests.exceptions.RequestException` 하나로 처리하던 것을 `HTTPError`, `ConnectionError`, `Timeout` 등으로 세분화하여 각 상황에 맞는 `ErrorCode`를 매핑합니다.\n- **컨텍스트 추가**: 에러 발생 시 디버깅에 유용한 정보(URL, 상태 코드, 원인 등)를 `context` 딕셔너리에 담아 `InfrastructureError` 객체를 생성합니다.\n- **구조적 로깅 연동**: `log_error` 헬퍼 함수를 호출하여 발생한 에러와 원본 예외를 함께 로깅합니다.\n- **예외 체이닝**: `raise err from e` 구문을 사용하여 원본 예외의 스택 트레이스를 보존합니다.\n\n#### 4. 다음 단계\n- `TMDBClient` 내의 모든 API 호출 지점에 위 리팩터링 패턴을 적용합니다.\n- 이후 `JSONCacheV2`, `SemaphoreManager`, `MetadataEnricher` 순서로 동일한 방식의 리팩터링을 진행합니다.\n</info added on 2025-10-02T15:05:38.892Z>\n<info added on 2025-10-02T15:11:11.677Z>\n### Task 3.4 완료 보고서\n\n#### 완료된 작업:\n\n1.  **`TMDBClient` 리팩터링 (`src/anivault/services/tmdb_client.py`):**\n    *   `requests.exceptions`를 `InfrastructureError`로 변환하는 `@_handle_request_errors` 데코레이터를 구현하여 모든 API 호출 메서드(`search_media`, `get_media_details` 등)에 적용했습니다.\n    *   `HTTPError`, `ConnectionError`, `Timeout` 등 예외 유형에 따라 `ErrorCode.TMDB_API_AUTHENTICATION_ERROR`, `ErrorCode.TMDB_API_CONNECTION_ERROR` 등 구체적인 에러 코드를 매핑했습니다.\n    *   `log_error` 헬퍼를 사용하여 구조화된 에러 컨텍스트(URL, 상태 코드 등)를 기록합니다.\n\n2.  **`JSONCacheV2` 리팩터링 (`src/anivault/services/json_cache_v2.py`):**\n    *   `_load_cache` 메서드에서 발생하는 `IOError` 및 `json.JSONDecodeError`를 `InfrastructureError(ErrorCode.CACHE_READ_ERROR)`로 래핑했습니다.\n    *   `save` 메서드에서 데이터 타입이 `dict` 또는 `list`가 아닐 경우 `DomainError(ErrorCode.CACHE_INVALID_DATA_TYPE)`를 발생시켜 데이터 무결성을 보장합니다.\n    *   손상된 캐시 파일 자동 정리 로직은 유지하면서, 에러 발생 시 `log_error`를 통해 상세 정보를 로깅합니다.\n\n3.  **`SemaphoreManager` 리팩터링 (`src/anivault/services/semaphore_manager.py`):**\n    *   `__aenter__` 메서드에서 세마포어 획득이 타임아웃될 경우, `ApplicationError(ErrorCode.RESOURCE_ACQUISITION_TIMEOUT)`를 발생시켜 리소스 대기 관련 문제를 명확히 했습니다.\n    *   `log_error`를 통해 리소스 획득 실패 상황을 추적합니다.\n\n4.  **`MetadataEnricher` 리팩터링 (`src/anivault/services/metadata_enricher.py`):**\n    *   `enrich_batch` 메서드의 메인 루프 내에 `try...except AniVaultError` 블록을 추가하여 부분 실패 허용 로직을 구현했습니다.\n    *   개별 파일 처리 중 에러가 발생해도 `log_error`로 기록만 하고 전체 배치는 중단 없이 계속 진행됩니다.\n\n#### 테스트 결과:\n*   기존 테스트 스위트의 모든 테스트(54개)를 통과했습니다.\n*   서비스 계층 전반에 걸쳐 일관된 에러 처리 및 로깅 패턴이 적용되었음을 확인했습니다.\n\n#### 개선된 점:\n*   서비스별(API, 파일 I/O, 동시성) 에러의 원인과 컨텍스트가 명확해졌습니다.\n*   `raise err from e` 구문을 일관되게 사용하여 모든 예외에서 원본 스택 트레이스가 보존됩니다.\n*   구조화된 로그 덕분에 특정 파일 처리 실패나 API 요청 오류와 같은 문제를 신속하게 진단할 수 있습니다.\n</info added on 2025-10-02T15:11:11.677Z>",
+            "status": "done",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "parentTaskId": 3
+          },
+          {
+            "id": 5,
+            "title": "CLI 핸들러 계층 에러 처리 리팩터링",
+            "description": "Task 2에서 리팩터링된 CLI 핸들러 함수들에서 기존 try-except 블록을 새로운 구조적 에러 처리 시스템을 사용하도록 리팩터링합니다.",
+            "details": "CLI 핸들러 계층의 에러 처리를 구조적 에러 처리 시스템으로 리팩터링합니다:\n\n1. handle_scan_command() 에러 처리:\n   - 디렉토리 스캔 실패 시 InfrastructureError로 변환\n   - 파일 권한 오류를 적절한 ErrorCode로 매핑\n   - 사용자에게 친화적인 에러 메시지 출력\n\n2. handle_verify_command() 에러 처리:\n   - 파일 검증 실패 시 DomainError로 변환\n   - 메타데이터 파싱 오류를 적절한 ErrorCode로 매핑\n   - 구조적 로깅으로 검증 과정 추적\n\n3. handle_match_command() 에러 처리:\n   - TMDB API 호출 실패 시 InfrastructureError로 변환\n   - 매칭 로직 오류를 DomainError로 변환\n   - 부분 매칭 실패 시에도 적절한 메시지 제공\n\n4. handle_organize_command() 에러 처리:\n   - 파일 이동 실패 시 InfrastructureError로 변환\n   - 권한 오류, 디스크 공간 부족 등을 적절한 ErrorCode로 매핑\n   - 롤백 실패 시에도 안전한 에러 처리\n\n5. handle_log_command() 에러 처리:\n   - 로그 파일 읽기 실패 시 InfrastructureError로 변환\n   - 로그 파싱 오류를 DomainError로 변환\n   - 사용자에게 명확한 에러 상황 설명\n\n6. 공통 에러 처리 유틸리티:\n   - display_error_to_user() 함수로 사용자 친화적 메시지 출력\n   - 에러 로깅과 사용자 메시지 출력 분리\n   - 에러 발생 시 적절한 종료 코드 반환\n\n7. 테스트 케이스:\n   - 각 핸들러의 에러 처리 시나리오 테스트\n   - 사용자 메시지 출력 정확성 검증\n   - 에러 로깅 형식 검증",
+            "status": "done",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "parentTaskId": 3
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "AI 코드 품질 자동 검증 시스템 구축",
+        "description": "매직 값, 함수 길이, 에러 처리 패턴을 자동으로 탐지하고 검증하는 시스템을 구축하여 지속적인 코드 품질 유지를 위한 핵심 인프라를 마련합니다.",
+        "details": "### 개요\nPython의 `ast` (Abstract Syntax Tree) 모듈을 활용하여 코드 구조를 정적으로 분석하는 스크립트 모음을 개발합니다. 이 스크립트들은 하드코딩된 값, 과도하게 긴 함수, 부적절한 에러 처리 등을 식별합니다. 최종적으로 이 검증기들을 통합 실행하고, Git pre-commit 훅과 GitHub Actions에 연동하여 코드 품질을 강제합니다.\n\n### 1. `scripts/validate_magic_values.py` - 매직 값 탐지기\n- **구현**: `ast`를 사용하여 소스 코드를 파싱하고 `ast.walk`로 트리를 순회합니다.\n- **탐지 로직**:\n  - `ast.Constant` (Python 3.8+) 또는 `ast.Num`, `ast.Str` 노드를 찾습니다.\n  - 예외 처리: `anivault.shared.constants` (Task 1)에서 임포트된 값, `ALL_CAPS`로 정의된 모듈 수준 상수, 함수의 기본 인자값 등은 탐지에서 제외하는 로직을 추가합니다.\n  - 하드코딩된 문자열(예: 상태 값, 에러 메시지)과 숫자(예: 임계값, 포트 번호)를 식별하여 파일 경로, 라인 번호와 함께 보고합니다.\n\n### 2. `scripts/validate_function_length.py` - 함수 길이 검사기\n- **구현**: `ast.walk`를 사용하여 `ast.FunctionDef` 및 `ast.AsyncFunctionDef` 노드를 찾습니다.\n- **길이 검사**: `node.end_lineno - node.lineno`를 계산하여 80줄을 초과하는 함수를 탐지합니다.\n- **복잡도 분석 (Proxy)**: 함수 본문 내의 분기 및 루프 노드(`ast.If`, `ast.For`, `ast.While`, `ast.With`, `ast.BoolOp`) 개수를 세어 복잡도 임계값을 초과하는 함수를 식별합니다.\n\n### 3. `scripts/validate_error_handling.py` - 에러 처리 검사기\n- **구현**: `ast.walk`를 사용하여 `ast.Try` 노드를 분석합니다.\n- **탐지 로직**:\n  - **예외 삼키기**: `except Exception:` 또는 bare `except:` 블록 내에 `pass`만 있거나 로깅/재발생이 없는 경우를 탐지합니다.\n  - **구조적 로깅 검증**: `except` 블록 내에 `logger.error`와 같은 로깅 함수 호출이 `exc_info=True` 또는 에러 객체와 함께 호출되는지 확인합니다.\n  - **사용자 친화적 에러**: `raise` 문이 `AniVaultError`의 서브클래스(Task 3)를 사용하는지, 아니면 일반 `Exception`이나 `ValueError`를 하드코딩된 문자열과 함께 사용하는지 검증합니다.\n\n### 4. `scripts/validate_ai_code_quality.py` - 통합 검증기\n- **구현**: `main` 스크립트로서 `subprocess` 모듈을 사용하여 위의 3개 검증 스크립트를 순차적으로 실행합니다.\n- **리포팅**: 각 스크립트의 출력을 취합하여 통합 리포트를 생성합니다. (예: Markdown 형식)\n- **점수 계산**: 100점에서 시작하여 각 위반 항목마다 점수를 차감하는 방식으로 품질 점수를 계산합니다.\n- **종료 코드**: 위반 사항이 하나라도 있으면 0이 아닌 종료 코드를 반환하여 CI/CD 파이프라인이나 Git 훅에서 실패를 인지할 수 있도록 합니다.\n\n### 5. `.git/hooks/pre-commit` - Pre-commit 훅 설정\n- 훅 스크립트를 작성하여 `python scripts/validate_ai_code_quality.py`를 실행합니다.\n- 스크립트가 0이 아닌 코드로 종료되면, 에러 메시지를 출력하고 `exit 1`을 호출하여 커밋을 중단시킵니다.\n- (권장) 수동 관리 대신 `pre-commit` 프레임워크를 도입하여 `.pre-commit-config.yaml` 파일로 관리를 자동화하는 방안을 고려합니다.\n\n### 6. GitHub Actions 워크플로우 (`.github/workflows/code_quality.yml`)\n- **트리거**: `main` 브랜치에 대한 `push` 및 모든 브랜치에 대한 `pull_request` 시에 실행되도록 설정합니다.\n- **단계**:\n  1. `actions/checkout@v3`: 코드 체크아웃\n  2. `actions/setup-python@v4`: Python 환경 설정\n  3. `pip install -r requirements.txt`: 의존성 설치\n  4. `python scripts/validate_ai_code_quality.py`: 품질 검증 스크립트 실행",
+        "testStrategy": "### 1. 테스트용 샘플 코드 작성 (`tests/scripts/test_data/`)\n검증 스크립트의 정확성을 테스트하기 위한 다양한 Python 샘플 파일을 생성합니다.\n- `magic_values_correct.py`: 상수를 올바르게 사용한 코드\n- `magic_values_incorrect.py`: 하드코딩된 숫자와 문자열을 포함한 코드\n- `functions_correct.py`: 짧고 단순한 함수들\n- `functions_long_complex.py`: 80줄을 초과하고 복잡도가 높은 함수\n- `error_handling_correct.py`: `AniVaultError`와 구조적 로깅을 사용한 코드 (Task 3 기반)\n- `error_handling_incorrect.py`: 예외를 삼키거나 일반 예외를 발생시키는 코드\n\n### 2. 개별 검증기 유닛 테스트 (`tests/scripts/`)\n- **`test_validate_magic_values.py`**: `subprocess`를 사용해 `validate_magic_values.py`를 샘플 파일에 대해 실행하고, `magic_values_incorrect.py`에서는 위반 사항을 탐지하고 0이 아닌 종료 코드를 반환하는지, `magic_values_correct.py`에서는 통과하는지 확인합니다.\n- **`test_validate_function_length.py`**: `functions_long_complex.py`에 대해 실행했을 때 긴 함수와 복잡한 함수를 정확히 식별하는지 테스트합니다.\n- **`test_validate_error_handling.py`**: `error_handling_incorrect.py`의 잘못된 패턴들을 모두 탐지하는지, `error_handling_correct.py`는 문제없이 통과하는지 확인합니다.\n\n### 3. 통합 검증기 테스트 (`tests/scripts/test_validate_ai_code_quality.py`)\n- `subprocess.run`을 모킹(mocking)하여 개별 검증 스크립트의 성공/실패 시나리오를 시뮬레이션합니다.\n- 하나 이상의 검증기가 실패했을 때 통합 검증기가 올바른 종합 리포트를 생성하고 0이 아닌 종료 코드를 반환하는지 테스트합니다.\n- 모든 검증기가 성공했을 때 100점의 품질 점수와 함께 성공적으로 종료되는지 확인합니다.",
+        "status": "done",
+        "dependencies": [
+          1,
+          3
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "매직 값 탐지 스크립트 개발",
+            "description": "Python AST를 사용하여 하드코딩된 문자열과 숫자를 탐지하는 validate_magic_values.py 스크립트를 개발합니다.",
+            "details": "scripts/validate_magic_values.py 파일을 생성하고 다음 기능을 구현합니다:\n\n1. AST 파싱 및 순회:\n   - ast.parse()로 Python 파일을 파싱\n   - ast.walk()로 모든 노드를 순회\n   - ast.Constant, ast.Num, ast.Str 노드 탐지\n\n2. 매직 값 탐지 로직:\n   - 하드코딩된 문자열 탐지 (상태값, 메시지 등)\n   - 하드코딩된 숫자 탐지 (임계값, 설정값 등)\n   - 예외 처리: 상수 정의, import 구문, 함수 기본값 제외\n\n3. 출력 형식:\n   - 파일 경로, 라인 번호, 매직 값 내용 출력\n   - 위반 사항이 있으면 0이 아닌 종료 코드 반환\n\n4. 테스트 케이스:\n   - tests/scripts/test_data/magic_values_correct.py (통과 케이스)\n   - tests/scripts/test_data/magic_values_incorrect.py (실패 케이스)",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 2,
+            "title": "함수 길이 및 복잡도 검증 스크립트 개발",
+            "description": "Python AST를 사용하여 80줄을 초과하는 함수와 높은 복잡도를 가진 함수를 탐지하는 validate_function_length.py 스크립트를 개발합니다.",
+            "details": "scripts/validate_function_length.py 파일을 생성하고 다음 기능을 구현합니다:\n\n1. 함수 탐지 및 분석:\n   - ast.FunctionDef, ast.AsyncFunctionDef 노드 탐지\n   - 함수 길이 계산: node.end_lineno - node.lineno\n   - 80줄 초과 함수 탐지\n\n2. 복잡도 분석:\n   - 함수 내 분기 및 루프 노드 개수 계산\n   - ast.If, ast.For, ast.While, ast.With, ast.BoolOp 탐지\n   - 복잡도 임계값(10) 초과 함수 식별\n\n3. 혼재 책임 탐지:\n   - UI 관련 코드 (setText, setEnabled 등)\n   - 비즈니스 로직 코드 (calculate, validate 등)\n   - I/O 관련 코드 (save, load, fetch 등) 혼재 탐지\n\n4. 출력 형식:\n   - 파일 경로, 라인 번호, 함수명, 길이/복잡도 출력\n   - 위반 사항이 있으면 0이 아닌 종료 코드 반환\n\n5. 테스트 케이스:\n   - tests/scripts/test_data/functions_correct.py (통과 케이스)\n   - tests/scripts/test_data/functions_long_complex.py (실패 케이스)",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 3,
+            "title": "에러 처리 패턴 검증 스크립트 개발",
+            "description": "Python AST를 사용하여 예외 삼키기, 구조적 로깅 부족, 사용자 친화적 메시지 부족을 탐지하는 validate_error_handling.py 스크립트를 개발합니다.",
+            "details": "scripts/validate_error_handling.py 파일을 생성하고 다음 기능을 구현합니다:\n\n1. try-except 블록 분석:\n   - ast.Try 노드 탐지 및 분석\n   - except 블록의 처리 방식 검증\n\n2. 예외 삼키기 탐지:\n   - bare except: 또는 except Exception: 패턴 탐지\n   - except 블록에 pass만 있는 경우 탐지\n   - 로깅이나 재발생이 없는 경우 탐지\n\n3. 구조적 로깅 검증:\n   - except 블록 내 logger.error 호출 확인\n   - exc_info=True 또는 에러 객체와 함께 호출되는지 확인\n   - 구조적 로깅 패턴 준수 여부 검증\n\n4. 사용자 친화적 에러 검증:\n   - AniVaultError 서브클래스 사용 여부 확인\n   - 일반 Exception이나 ValueError 하드코딩 탐지\n   - 에러 메시지의 사용자 친화성 검증\n\n5. 출력 형식:\n   - 파일 경로, 라인 번호, 위반 패턴 출력\n   - 위반 사항이 있으면 0이 아닌 종료 코드 반환\n\n6. 테스트 케이스:\n   - tests/scripts/test_data/error_handling_correct.py (통과 케이스)\n   - tests/scripts/test_data/error_handling_incorrect.py (실패 케이스)",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 4
+          },
+          {
+            "id": 4,
+            "title": "통합 검증 시스템 및 리포팅 개발",
+            "description": "개별 검증 스크립트들을 통합 실행하고 품질 점수를 계산하여 리포트를 생성하는 validate_ai_code_quality.py 메인 스크립트를 개발합니다.",
+            "details": "scripts/validate_ai_code_quality.py 파일을 생성하고 다음 기능을 구현합니다:\n\n1. 통합 검증 시스템:\n   - subprocess를 사용하여 개별 검증 스크립트들을 순차 실행\n   - 각 스크립트의 실행 결과 및 출력 수집\n   - 전체 검증 프로세스 오케스트레이션\n\n2. 품질 점수 계산:\n   - 100점에서 시작하여 각 위반 항목마다 점수 차감\n   - 매직 값 위반: 5점씩 차감\n   - 함수 길이 위반: 3점씩 차감\n   - 에러 처리 위반: 4점씩 차감\n   - 최종 품질 점수 계산 및 등급 분류\n\n3. 리포트 생성:\n   - Markdown 형식의 상세 리포트 생성\n   - 위반 사항별 통계 및 요약\n   - 개선 권장사항 제시\n   - JSON 형식의 머신 리더블 리포트도 생성\n\n4. 종료 코드 관리:\n   - 위반 사항이 있으면 1 반환 (CI/CD 실패)\n   - 모든 검증 통과 시 0 반환\n   - 에러 발생 시 2 반환\n\n5. 설정 파일 지원:\n   - .ai-quality-config.yaml 설정 파일 지원\n   - 임계값, 제외 파일 패턴, 리포트 형식 등 설정 가능\n\n6. 테스트 케이스:\n   - 통합 검증기의 성공/실패 시나리오 테스트\n   - 품질 점수 계산 정확성 검증\n   - 리포트 생성 형식 검증",
+            "status": "done",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "parentTaskId": 4
+          },
+          {
+            "id": 5,
+            "title": "Pre-commit 훅 및 CI/CD 연동 구현",
+            "description": "통합 검증 시스템을 Git pre-commit 훅과 GitHub Actions 워크플로우에 연동하여 자동화된 코드 품질 검증을 구현합니다.",
+            "details": "Pre-commit 훅과 CI/CD 파이프라인 연동을 구현합니다:\n\n1. Pre-commit 훅 설정:\n   - .git/hooks/pre-commit 스크립트 작성\n   - python scripts/validate_ai_code_quality.py 실행\n   - 검증 실패 시 커밋 차단 및 에러 메시지 출력\n   - 수동 관리 대신 pre-commit 프레임워크 도입 고려\n\n2. GitHub Actions 워크플로우:\n   - .github/workflows/ai-code-quality.yml 생성\n   - main 브랜치 push 및 모든 브랜치 pull_request 트리거\n   - Python 환경 설정 및 의존성 설치\n   - 코드 품질 검증 실행 및 결과 리포트\n\n3. 워크플로우 단계:\n   - actions/checkout@v3: 코드 체크아웃\n   - actions/setup-python@v4: Python 환경 설정\n   - pip install -r requirements.txt: 의존성 설치\n   - python scripts/validate_ai_code_quality.py: 품질 검증\n   - actions/upload-artifact@v3: 검증 리포트 업로드\n\n4. PR 차단 로직:\n   - 품질 점수 80점 미만 시 PR 병합 차단\n   - 위반 사항이 있으면 상세 리포트와 함께 실패 처리\n   - 성공 시 품질 점수와 함께 승인 처리\n\n5. 알림 시스템:\n   - 검증 실패 시 개발자에게 알림\n   - 품질 점수 트렌드 모니터링\n   - 개선 권장사항 자동 제안\n\n6. 테스트 케이스:\n   - pre-commit 훅의 커밋 차단 기능 테스트\n   - GitHub Actions 워크플로우의 성공/실패 시나리오 테스트\n   - PR 차단 로직 검증",
+            "status": "done",
+            "dependencies": [
+              4
+            ],
+            "parentTaskId": 4
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "코어 모듈 리팩터링 및 SRP 적용",
+        "description": "src/anivault/core/ 디렉토리의 주요 모듈들(MatchingEngine, FileOrganizer 등)에 있는 거대한 함수들을 단일 책임 원칙(SRP)에 따라 여러 개의 작고 테스트 가능한 함수로 분리합니다.",
+        "details": "### 개요\n이 태스크의 목표는 `src/anivault/core/` 내의 여러 클래스에 존재하는 거대한 메서드들을 단일 책임 원칙(SRP)에 따라 리팩터링하는 것입니다. 각 함수는 하나의 명확한 책임만 가지며, 80줄 이하로 유지되어야 합니다. 리팩터링 과정에서 Task 1의 중앙 집중식 상수와 Task 3의 구조적 에러 처리 시스템을 적극적으로 활용합니다.\n\n### 1. `MatchingEngine` 리팩터링 (`src/anivault/core/matching/engine.py`)\n`MatchingEngine.find_match()` 함수는 현재 API 요청, 데이터 처리, 점수 계산을 모두 수행합니다. 이를 다음과 같이 분리합니다.\n- **`_search_media(title: str) -> List[Dict]`**: 외부 미디어 데이터베이스(예: TMDB)에 API 요청을 보내 검색 결과를 가져오는 역할만 담당합니다. API 관련 설정은 `anivault.shared.constants.api`를 사용하고, 통신 오류 발생 시 `anivault.shared.errors.InfrastructureError`를 발생시킵니다.\n- **`_calculate_confidence(candidates: List[Dict], local_filename: str) -> List[Dict]`**: 검색된 후보 목록과 로컬 파일명을 기반으로 각 후보의 신뢰도 점수를 계산하는 로직을 담당합니다. 점수 계산에 사용되는 가중치 등은 `anivault.shared.constants.matching`에서 가져옵니다.\n- **`find_match(title: str)` (수정됨)**: 오케스트레이션 메서드로, `_search_media`와 `_calculate_confidence`를 순서대로 호출하고 가장 높은 점수를 받은 결과를 반환하는 책임만 가집니다.\n\n### 2. `FileOrganizer` 리팩터링 (`src/anivault/core/organizer.py`)\n`FileOrganizer.organize_files()` 함수는 계획 검증, 파일 이동, 로그 기록을 모두 처리합니다. 이를 다음과 같이 분리합니다.\n- **`_validate_operation(source_path: str, dest_path: str)`**: 단일 파일 이동 작업의 유효성을 검증합니다. 소스 파일 존재 여부, 대상 디렉토리 쓰기 권한 등을 확인하고, 문제 발생 시 `anivault.shared.errors.ApplicationError`를 발생시킵니다.\n- **`_execute_move(source_path: str, dest_path: str)`**: 실제 파일 이동 또는 복사 작업을 수행합니다. `shutil.move`를 사용하며, I/O 오류 발생 시 `InfrastructureError`를 발생시킵니다.\n- **`_log_operation(result: Dict)`**: 파일 이동 결과를 `OperationLogManager`를 사용하여 기록하는 책임을 가집니다.\n- **`organize_files(plan: List[Dict])` (수정됨)**: 오케스트레이터로서, 정리 계획(plan)을 순회하며 각 파일에 대해 `_validate_operation`, `_execute_move`, `_log_operation`을 순차적으로 호출합니다.\n\n### 3. `OperationLogManager` 리팩터링 (`src/anivault/core/log_manager.py`)\n`OperationLogManager.save_plan()` 함수는 데이터 가공과 파일 쓰기를 함께 수행합니다. 이를 다음과 같이 분리합니다.\n- **`_get_timestamp() -> str`**: ISO 8601 형식의 타임스탬프 문자열을 생성하는 책임만 가집니다.\n- **`_serialize_log_entry(data: Dict) -> str`**: 로그 데이터를 받아 타임스탬프를 추가하고 JSON 형식으로 직렬화하는 책임을 가집니다. 직렬화 실패 시 `ApplicationError`를 발생시킵니다.\n- **`save_plan(data: Dict)` (수정됨)**: `_serialize_log_entry`를 호출하여 직렬화된 데이터를 얻은 후, 이를 로그 파일에 쓰는(append) 책임만 가집니다. 파일 쓰기 오류 발생 시 `InfrastructureError`를 발생시킵니다.\n\n### 4. `Benchmark` 및 `Profiler` 리팩터링\n- **`src/anivault/core/benchmark.py`**: `run_benchmark`를 `_run_single_test`와 `_analyze_results`로 분리하여 테스트 실행과 결과 분석의 책임을 나눕니다.\n- **`src/anivault/core/profiler.py`**: `generate_report`를 `_collect_metrics`와 `_format_report_text`로 분리하여 데이터 수집과 리포트 포맷팅의 책임을 나눕니다.",
+        "testStrategy": "### 개요\n각각의 신규 함수에 대해 격리된 단위 테스트를 작성하여 단일 책임을 올바르게 수행하는지 검증합니다. 의존성이 있는 외부 시스템(API, 파일 시스템)이나 다른 클래스는 `unittest.mock`을 사용하여 모의(mock) 처리합니다.\n\n### 1. `MatchingEngine` 테스트 (`tests/core/matching/test_engine.py`)\n- **`test_search_media`**: `requests.get`을 모킹하여, 올바른 엔드포인트와 파라미터로 호출되는지 확인합니다. API가 200이 아닌 상태 코드를 반환했을 때 `InfrastructureError`가 발생하는지 테스트합니다.\n- **`test_calculate_confidence`**: 다양한 형태의 후보 데이터와 파일명을 입력으로 제공하고, 예상되는 신뢰도 점수와 정렬 순서를 반환하는지 검증합니다.\n- **`test_find_match_orchestration`**: `_search_media`와 `_calculate_confidence`를 모킹하여, 이들이 올바른 순서로 호출되고 그 결과를 조합하여 최종 결과를 반환하는지 테스트합니다.\n\n### 2. `FileOrganizer` 테스트 (`tests/core/test_organizer.py`)\n- **`test_validate_operation`**: `os.path.exists`, `os.access` 등을 모킹하여, 파일이 없거나 권한이 없을 때 `ApplicationError`가 발생하는 시나리오를 테스트합니다.\n- **`test_execute_move`**: `shutil.move`를 모킹하여, 올바른 소스 및 대상 경로로 호출되는지 확인하고, 모의된 함수가 예외를 발생시킬 때 `InfrastructureError`가 잡히는지 테스트합니다.\n- **`test_log_operation`**: `OperationLogManager.save_plan`을 모킹하여, 파일 이동 결과가 정확한 데이터 구조로 전달되는지 확인합니다.\n\n### 3. `OperationLogManager` 테스트 (`tests/core/test_log_manager.py`)\n- **`test_get_timestamp`**: 반환된 문자열이 유효한 ISO 8601 형식인지 정규식으로 검증합니다.\n- **`test_serialize_log_entry`**: 주어진 딕셔너리가 타임스탬프와 함께 올바른 JSON 문자열로 변환되는지 확인합니다.\n- **`test_save_plan`**: `builtins.open`을 모킹하여, `_serialize_log_entry`의 결과가 올바른 파일에 'a'(append) 모드로 쓰이는지 검증합니다.\n\n### 4. `Benchmark` 및 `Profiler` 테스트\n- 각 모듈의 테스트 파일(`tests/core/test_benchmark.py`, `tests/core/test_profiler.py`)에서 분리된 헬퍼 함수들(`_run_single_test`, `_analyze_results` 등)에 대한 단위 테스트를 추가합니다. 각 함수가 예상된 입력을 받아 정확한 출력을 생성하는지 독립적으로 검증합니다.",
+        "status": "done",
+        "dependencies": [
+          1,
+          3
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "MatchingEngine 리팩터링 - find_match 메서드 분리",
+            "description": "src/anivault/core/matching/engine.py의 MatchingEngine.find_match() 메서드를 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "MatchingEngine의 find_match() 메서드를 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. _search_media() 함수 분리:\n   - 외부 미디어 데이터베이스(TMDB) API 요청만 담당\n   - API 관련 설정은 anivault.shared.constants.api 사용\n   - 통신 오류 발생 시 InfrastructureError 발생\n\n2. _calculate_confidence() 함수 분리:\n   - 검색된 후보 목록과 로컬 파일명 기반으로 신뢰도 점수 계산\n   - 점수 계산 가중치는 anivault.shared.constants.matching에서 가져옴\n   - 순수한 계산 로직만 담당\n\n3. find_match() 메서드 수정:\n   - 오케스트레이션 역할만 담당 (80줄 이하로 제한)\n   - _search_media와 _calculate_confidence를 순차 호출\n   - 가장 높은 점수를 받은 결과 반환\n\n4. 에러 처리 개선:\n   - API 연결 실패 시 InfrastructureError 발생\n   - 매칭 로직 오류 시 DomainError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n5. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - API 호출 모킹을 통한 격리 테스트\n   - 에러 처리 시나리오 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 2,
+            "title": "FileOrganizer 리팩터링 - organize_files 메서드 분리",
+            "description": "src/anivault/core/organizer.py의 FileOrganizer.organize_files() 메서드를 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "FileOrganizer의 organize_files() 메서드를 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. _validate_operation() 함수 분리:\n   - 단일 파일 이동 작업의 유효성 검증만 담당\n   - 소스 파일 존재 여부, 대상 디렉토리 쓰기 권한 확인\n   - 문제 발생 시 ApplicationError 발생\n\n2. _execute_move() 함수 분리:\n   - 실제 파일 이동 또는 복사 작업만 담당\n   - shutil.move 사용하여 파일 이동 수행\n   - I/O 오류 발생 시 InfrastructureError 발생\n\n3. _log_operation() 함수 분리:\n   - 파일 이동 결과를 OperationLogManager에 기록하는 책임만 담당\n   - 구조적 로깅으로 작업 결과 추적\n\n4. organize_files() 메서드 수정:\n   - 오케스트레이션 역할만 담당 (80줄 이하로 제한)\n   - 정리 계획을 순회하며 각 함수를 순차 호출\n   - 에러 발생 시 적절한 롤백 처리\n\n5. 에러 처리 개선:\n   - 파일 권한 오류 시 InfrastructureError 발생\n   - 디스크 공간 부족 시 ApplicationError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n6. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - 파일 시스템 모킹을 통한 격리 테스트\n   - 에러 처리 시나리오 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 3,
+            "title": "OperationLogManager 리팩터링 - save_plan 메서드 분리",
+            "description": "src/anivault/core/log_manager.py의 OperationLogManager.save_plan() 메서드를 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "OperationLogManager의 save_plan() 메서드를 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. _get_timestamp() 함수 분리:\n   - ISO 8601 형식의 타임스탬프 문자열 생성만 담당\n   - datetime.utcnow().isoformat() 사용\n   - 순수한 유틸리티 함수\n\n2. _serialize_log_entry() 함수 분리:\n   - 로그 데이터를 받아 타임스탬프 추가 후 JSON 직렬화만 담당\n   - 직렬화 실패 시 ApplicationError 발생\n   - 데이터 변환 로직만 담당\n\n3. _write_log_file() 함수 분리:\n   - 직렬화된 데이터를 로그 파일에 쓰는 작업만 담당\n   - append 모드로 파일 쓰기 수행\n   - 파일 쓰기 오류 발생 시 InfrastructureError 발생\n\n4. save_plan() 메서드 수정:\n   - 오케스트레이션 역할만 담당 (80줄 이하로 제한)\n   - _serialize_log_entry와 _write_log_file을 순차 호출\n   - 에러 발생 시 적절한 에러 처리\n\n5. 에러 처리 개선:\n   - JSON 직렬화 실패 시 DomainError 발생\n   - 파일 I/O 오류 시 InfrastructureError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n6. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - 파일 시스템 모킹을 통한 격리 테스트\n   - JSON 직렬화/역직렬화 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          },
+          {
+            "id": 4,
+            "title": "Benchmark 및 Profiler 리팩터링 - 메서드 분리",
+            "description": "src/anivault/core/benchmark.py와 src/anivault/core/profiler.py의 거대한 메서드들을 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "Benchmark와 Profiler 클래스의 거대한 메서드들을 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. Benchmark.run_benchmark() 메서드 분리:\n   - _run_single_test() 함수: 단일 테스트 실행만 담당\n   - _analyze_results() 함수: 테스트 결과 분석만 담당\n   - _generate_report() 함수: 리포트 생성만 담당\n   - run_benchmark() 메서드: 오케스트레이션 역할만 담당 (80줄 이하)\n\n2. Profiler.generate_report() 메서드 분리:\n   - _collect_metrics() 함수: 메트릭 수집만 담당\n   - _format_report_text() 함수: 리포트 텍스트 포맷팅만 담당\n   - _save_report() 함수: 리포트 파일 저장만 담당\n   - generate_report() 메서드: 오케스트레이션 역할만 담당 (80줄 이하)\n\n3. 에러 처리 개선:\n   - 테스트 실행 실패 시 DomainError 발생\n   - 메트릭 수집 오류 시 InfrastructureError 발생\n   - 리포트 생성 실패 시 ApplicationError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n4. 상수 사용:\n   - 테스트 설정값들을 anivault.shared.constants에서 가져오기\n   - 리포트 포맷 설정을 상수로 정의\n   - 타임아웃 값 등을 상수로 관리\n\n5. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - 외부 의존성 모킹을 통한 격리 테스트\n   - 에러 처리 시나리오 테스트\n   - 리포트 생성 정확성 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 5
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "서비스 레이어 에러 처리 개선",
+        "description": "`src/anivault/services/` 디렉토리의 서비스 클래스들에서 발생하는 일반 예외를 `AniVaultError` 기반의 구체적인 에러로 전환하고, 구조적 로깅을 도입하여 시스템 안정성과 디버깅 효율성을 향상시킵니다.",
+        "details": "### 개요\n이 태스크의 목표는 `src/anivault/services/` 디렉토리 내의 여러 서비스 클래스에 존재하는 `except Exception:`과 같은 일반적인 예외 처리 패턴을 Task 3에서 정의한 구조적 에러 처리 시스템으로 대체하는 것입니다. 모든 저수준 예외는 적절한 `AniVaultError` 하위 클래스로 래핑되어야 하며, 디버깅에 유용한 컨텍스트 정보가 포함된 구조적 로그를 남겨야 합니다.\n\n### 공통 적용 패턴\n모든 서비스에서 다음 패턴을 적용합니다:\n1. 특정 저수준 예외(예: `requests.RequestException`, `IOError`)를 명시적으로 잡습니다.\n2. `logger.error()` 또는 `logger.warning()`을 사용하여 문제 상황과 컨텍스트(예: 파일 경로, API 엔드포인트)를 구조적으로 로깅합니다.\n3. Task 3에서 정의한 `InfrastructureError` 또는 `ApplicationError`를 발생시켜 예외를 래핑합니다. 이때 `ErrorCode` 열거형과 함께 원본 예외(`__cause__`)를 포함하여 스택 트레이스를 보존합니다.\n\n### 1. `TMDBClient` 개선 (`src/anivault/services/tmdb_client.py`)\n- **대상**: `search_media`, `get_media_details` 등 API 호출 메서드\n- **구현**:\n  - `requests.exceptions.RequestException`의 하위 예외들(예: `ConnectionError`, `Timeout`, `HTTPError`)을 개별적으로 또는 포괄적으로 처리합니다.\n  - 예외 발생 시, `InfrastructureError`를 `ErrorCode.TMDB_API_ERROR`와 함께 발생시킵니다.\n  - 에러 컨텍스트에 `{'url': ..., 'params': ..., 'status_code': ...}`와 같은 상세 정보를 포함하여 로깅합니다.\n  - 재시도 로직은 Task 1의 `api.RETRY_ATTEMPTS`, `api.RETRY_BACKOFF_FACTOR` 상수를 사용하도록 수정합니다.\n\n### 2. `JSONCacheV2` 개선 (`src/anivault/services/cache_v2.py`)\n- **대상**: `load`, `save` 메서드\n- **구현**:\n  - `load` 메서드에서 `FileNotFoundError`, `IOError` 발생 시, `InfrastructureError(code=ErrorCode.CACHE_READ_ERROR)`를 발생시킵니다.\n  - `json.JSONDecodeError` 발생 시, 파일 손상으로 간주하고 복구 로직을 수행합니다:\n    1. `logger.warning()`으로 파일 손상 사실과 파일 경로를 로깅합니다.\n    2. 손상된 파일을 `.bak` 확장자로 백업합니다.\n    3. 비어있는 캐시 객체(예: `{}`)를 반환하여 프로그램이 중단되지 않도록 합니다.\n  - `save` 메서드에서 `IOError` 발생 시, `InfrastructureError(code=ErrorCode.CACHE_WRITE_ERROR)`를 발생시키고 컨텍스트에 파일 경로를 포함합니다.\n\n### 3. `MetadataEnricher` 개선 (`src/anivault/services/metadata_enricher.py`)\n- **대상**: `enrich` 메서드\n- **구현**:\n  - 내부적으로 `TMDBClient` 호출 시 발생하는 `InfrastructureError`를 `try...except`로 잡습니다.\n  - 예외 발생 시, 프로세스를 중단하는 대신 `logger.warning()`으로 에러를 기록하고(컨텍스트에 어떤 미디어 보강에 실패했는지 명시), 보강되지 않은 원본 메타데이터를 반환하여 부분적 성공을 처리합니다.\n  - 이를 통해 단일 미디어 정보 조회 실패가 전체 프로세스를 중단시키지 않도록 합니다.\n\n### 4. `RateLimiter` 및 `SemaphoreManager` 개선\n- **`RateLimiter` (`src/anivault/services/rate_limiter.py`):**\n  - 현재는 `time.sleep`으로 대기만 하지만, 만약 대기 시간이 비정상적으로 길 경우(예: 60초 이상) `ApplicationError(code=ErrorCode.RATE_LIMIT_EXCEEDED)`를 발생시켜 사용자에게 피드백을 주거나 프로세스를 제어할 수 있도록 개선합니다.\n- **`SemaphoreManager` (`src/anivault/services/semaphore_manager.py`):**\n  - `asyncio.Semaphore.acquire`에서 발생하는 `TimeoutError`를 처리합니다.\n  - `ApplicationError(code=ErrorCode.CONCURRENCY_TIMEOUT)`를 발생시켜 동시성 제어 중 타임아웃이 발생했음을 명확히 알립니다. 컨텍스트에 대기 시간과 리소스 정보를 포함합니다.",
+        "testStrategy": "### 개요\n`unittest.mock` 라이브러리(pytest의 `mocker` فxture)를 사용하여 외부 의존성(API, 파일 시스템)을 모의(mock) 처리하고, 각 서비스가 특정 예외 상황에서 올바르게 동작하는지 검증합니다. `pytest.raises`를 사용하여 예상된 `AniVaultError`가 발생하는지 확인하고, `caplog` فxture를 사용하여 구조적 로깅이 올바르게 기록되는지 검증합니다.\n\n### 1. `TMDBClient` 테스트 (`tests/services/test_tmdb_client.py`)\n- `mocker.patch('requests.get', side_effect=requests.exceptions.Timeout)`를 사용하여 API 타임아웃 상황을 시뮬레이션합니다.\n- `pytest.raises(InfrastructureError, match=ErrorCode.TMDB_API_ERROR.name)` 블록 내에서 `tmdb_client.search_media()`를 호출하여 올바른 예외가 발생하는지 확인합니다.\n- `caplog`를 사용하여 에러 로그에 `url`, `params` 등의 컨텍스트 정보가 포함되었는지 검증합니다.\n\n### 2. `JSONCacheV2` 테스트 (`tests/services/test_cache_v2.py`)\n- `mocker.patch('builtins.open', side_effect=IOError)`를 사용하여 파일 쓰기 실패를 시뮬레이션하고, `save()` 호출 시 `InfrastructureError`가 발생하는지 테스트합니다.\n- `mocker.patch('json.load', side_effect=json.JSONDecodeError('mock error', 'doc', 0))`를 사용하여 JSON 파싱 실패를 시뮬레이션합니다.\n- `load()` 호출 시 예외가 발생하지 않고, `os.rename`이 호출되어 백업 파일이 생성되는지, 경고 로그가 기록되는지, 그리고 빈 딕셔너리가 반환되는지 확인합니다.\n\n### 3. `MetadataEnricher` 테스트 (`tests/services/test_metadata_enricher.py`)\n- `TMDBClient`의 `search_media` 메서드를 모킹하여 `InfrastructureError`를 발생시키도록 설정합니다.\n- `enricher.enrich()`를 호출했을 때 예외가 발생하지 않는지 확인합니다.\n- `caplog`를 통해 경고 로그가 기록되었는지 확인하고, 반환된 결과가 보강되지 않은 원본 데이터와 동일한지 검증합니다.\n\n### 4. `RateLimiter` 및 `SemaphoreManager` 테스트\n- **`test_rate_limiter.py`**: `time.sleep`을 모킹하고, 특정 조건에서 `ApplicationError`가 발생하는지 `pytest.raises`로 확인합니다.\n- **`test_semaphore_manager.py`**: `asyncio.Semaphore.acquire`를 모킹하여 `asyncio.TimeoutError`를 발생시키고, `ApplicationError`가 `ErrorCode.CONCURRENCY_TIMEOUT`과 함께 발생하는지 테스트합니다.",
+        "status": "done",
+        "dependencies": [
+          1,
+          3
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "TMDBClient 에러 처리 리팩터링",
+            "description": "src/anivault/services/tmdb_client.py의 TMDBClient 클래스에서 기존 try-except 블록을 새로운 구조적 에러 처리 시스템을 사용하도록 리팩터링합니다.",
+            "details": "TMDBClient의 에러 처리를 구조적 에러 처리 시스템으로 리팩터링합니다:\n\n1. API 호출 에러 처리 개선:\n   - requests.exceptions.RequestException을 InfrastructureError로 변환\n   - HTTP 상태 코드별 적절한 ErrorCode 매핑 (401: 인증 오류, 429: 레이트 리밋 등)\n   - 네트워크 연결 실패 시 InfrastructureError 발생\n\n2. 재시도 로직과 에러 처리 통합:\n   - 백오프 전략 실패 시 InfrastructureError 발생\n   - 최대 재시도 횟수 초과 시 적절한 에러 메시지 제공\n   - 재시도 간격을 상수로 관리\n\n3. 응답 파싱 에러 처리:\n   - JSON 파싱 실패 시 DomainError 발생\n   - 예상치 못한 응답 형식 시 DomainError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n4. 사용자 친화적 에러 메시지:\n   - 기술적 세부사항을 숨기고 사용자 친화적 메시지 제공\n   - 에러 컨텍스트 정보 수집 (요청 URL, 파라미터 등)\n   - 다국어 지원을 위한 에러 메시지 템플릿\n\n5. 구조적 로깅:\n   - API 호출 시작/완료 로그 기록\n   - 에러 발생 시 상세한 컨텍스트 정보 포함\n   - 성능 메트릭 수집 (응답 시간, 재시도 횟수 등)\n\n6. 테스트 케이스:\n   - 다양한 HTTP 에러 시나리오 테스트\n   - 네트워크 연결 실패 테스트\n   - JSON 파싱 에러 테스트\n   - 재시도 로직 테스트\n<info added on 2025-10-02T20:25:18.886Z>\n{}\n</info added on 2025-10-02T20:25:18.886Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 6
+          },
+          {
+            "id": 2,
+            "title": "JSONCacheV2 에러 처리 리팩터링",
+            "description": "src/anivault/services/cache_v2.py의 JSONCacheV2 클래스에서 기존 try-except 블록을 새로운 구조적 에러 처리 시스템을 사용하도록 리팩터링합니다.",
+            "details": "JSONCacheV2의 에러 처리를 구조적 에러 처리 시스템으로 리팩터링합니다:\n\n1. 파일 I/O 에러 처리 개선:\n   - FileNotFoundError, PermissionError를 InfrastructureError로 변환\n   - 디스크 공간 부족 시 InfrastructureError 발생\n   - 파일 잠금 오류 시 InfrastructureError 발생\n\n2. JSON 직렬화/역직렬화 에러 처리:\n   - JSONEncodeError, JSONDecodeError를 DomainError로 변환\n   - 손상된 캐시 파일 자동 백업 및 복구 로직 추가\n   - 구조적 로깅으로 디버깅 정보 제공\n\n3. 캐시 무결성 검증:\n   - 캐시 파일 읽기 전 무결성 검증\n   - 손상된 캐시 감지 시 자동 재생성\n   - 백업 파일에서 복구 시도\n\n4. 사용자 친화적 에러 메시지:\n   - 기술적 세부사항을 숨기고 사용자 친화적 메시지 제공\n   - 에러 컨텍스트 정보 수집 (파일 경로, 파일 크기 등)\n   - 복구 가능한 에러와 치명적 에러 구분\n\n5. 구조적 로깅:\n   - 캐시 읽기/쓰기 작업 로그 기록\n   - 에러 발생 시 상세한 컨텍스트 정보 포함\n   - 캐시 히트/미스 통계 수집\n\n6. 테스트 케이스:\n   - 파일 권한 오류 시나리오 테스트\n   - JSON 파싱 에러 테스트\n   - 디스크 공간 부족 시나리오 테스트\n   - 캐시 복구 로직 테스트\n<info added on 2025-10-02T20:28:16.719Z>\n### Implementation Notes (Based on Code Analysis)\n\nThe analysis of `src/anivault/services/cache_v2.py` confirms that a basic structure using `InfrastructureError` and `orjson` is in place. However, the error handling lacks specificity and robustness. The following changes should be implemented to align with the project's error handling strategy:\n\n1.  **Refine JSON Parsing Error Handling in `_load_from_file`:**\n    *   The current generic `except Exception:` block for JSON parsing must be replaced with a specific `except orjson.JSONDecodeError as e:`.\n    *   When this error is caught, it indicates data corruption. This should be wrapped in a `DomainError`, as it pertains to the integrity of the application's data, not an external system failure.\n    *   The `ErrorContext` for this `DomainError` must be populated with `file_path`, `file_size`, and the specific parsing error message from the exception `e` to aid debugging.\n\n2.  **Implement Robust Corrupted Cache Backup Logic:**\n    *   Within the new `except orjson.JSONDecodeError` block, before raising the `DomainError`, implement a backup mechanism for the corrupted file.\n    *   Rename the problematic file using a pattern like `{original_filename}.corrupted.{timestamp}`. This preserves the corrupted data for later analysis without blocking current operations.\n    *   Log a warning message indicating that the cache file was found to be corrupt, has been backed up, and will be regenerated.\n\n3.  **Strengthen I/O Error Context:**\n    *   For existing `try...except` blocks handling `IOError`, `PermissionError`, etc., in both `_load_from_file` and `_save_to_file`, ensure the `ErrorContext` of the raised `InfrastructureError` consistently includes `file_path` and `operation: 'read' | 'write'`.\n\n4.  **Update Test Cases:**\n    *   A new test case must be added to simulate `orjson.loads` raising an `orjson.JSONDecodeError`.\n    *   This test should assert that a `DomainError` is correctly raised and that the file backup logic (e.g., `os.rename`) is called with the expected arguments.\n</info added on 2025-10-02T20:28:16.719Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 6
+          },
+          {
+            "id": 3,
+            "title": "MetadataEnricher 에러 처리 리팩터링",
+            "description": "src/anivault/services/metadata_enricher.py의 MetadataEnricher 클래스에서 기존 try-except 블록을 새로운 구조적 에러 처리 시스템을 사용하도록 리팩터링합니다.",
+            "details": "MetadataEnricher의 에러 처리를 구조적 에러 처리 시스템으로 리팩터링합니다:\n\n1. TMDB API 호출 에러 처리:\n   - API 호출 실패 시 InfrastructureError로 변환\n   - 부분 실패 허용 로직 구현 (일부 메타데이터만 가져와도 성공으로 처리)\n   - 완전 실패 시에만 에러 발생\n\n2. 메타데이터 파싱 에러 처리:\n   - 파싱 실패 시 DomainError로 변환\n   - 각 단계별 에러 컨텍스트 수집\n   - 구조적 로깅으로 디버깅 정보 제공\n\n3. 폴백 로직 개선:\n   - TMDB API 실패 시 로컬 메타데이터 사용\n   - 부분적 성공 케이스 처리\n   - 에러 발생 시에도 가능한 정보 수집\n\n4. 사용자 친화적 에러 메시지:\n   - 기술적 세부사항을 숨기고 사용자 친화적 메시지 제공\n   - 에러 컨텍스트 정보 수집 (파일명, API 응답 등)\n   - 복구 가능한 에러와 치명적 에러 구분\n\n5. 구조적 로깅:\n   - 메타데이터 수집 과정 로그 기록\n   - 에러 발생 시 상세한 컨텍스트 정보 포함\n   - 성능 메트릭 수집 (수집 시간, 성공률 등)\n\n6. 테스트 케이스:\n   - API 호출 실패 시나리오 테스트\n   - 메타데이터 파싱 에러 테스트\n   - 폴백 로직 테스트\n   - 부분 실패 허용 로직 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 6
+          },
+          {
+            "id": 4,
+            "title": "RateLimiter 및 SemaphoreManager 에러 처리 리팩터링",
+            "description": "src/anivault/services/rate_limiter.py와 src/anivault/services/semaphore_manager.py의 에러 처리를 새로운 구조적 에러 처리 시스템을 사용하도록 리팩터링합니다.",
+            "details": "RateLimiter와 SemaphoreManager의 에러 처리를 구조적 에러 처리 시스템으로 리팩터링합니다:\n\n1. RateLimiter 에러 처리 개선:\n   - 타임아웃 관련 에러를 InfrastructureError로 변환\n   - 백오프 전략 실패 시 InfrastructureError 발생\n   - 레이트 리밋 초과 시 적절한 에러 메시지 제공\n\n2. SemaphoreManager 에러 처리 개선:\n   - 동시성 제어 에러를 ApplicationError로 변환\n   - 데드락 방지 로직과 에러 처리 통합\n   - 리소스 누수 방지를 위한 에러 처리\n\n3. 사용자 친화적 에러 메시지:\n   - 기술적 세부사항을 숨기고 사용자 친화적 메시지 제공\n   - 에러 컨텍스트 정보 수집 (요청 수, 대기 시간 등)\n   - 복구 가능한 에러와 치명적 에러 구분\n\n4. 구조적 로깅:\n   - 레이트 리밋 상태 추적 로그 기록\n   - 에러 발생 시 상세한 컨텍스트 정보 포함\n   - 성능 메트릭 수집 (대기 시간, 처리량 등)\n\n5. 테스트 케이스:\n   - 타임아웃 시나리오 테스트\n   - 데드락 방지 로직 테스트\n   - 리소스 누수 방지 테스트\n   - 에러 처리 시나리오 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 6
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "파이프라인 모듈 리팩터링 및 에러 처리 개선",
+        "description": "src/anivault/core/pipeline/ 디렉토리의 Scanner, Parser, Collector 모듈 내 거대 함수들을 리팩터링하고, 프로젝트의 구조적 에러 처리 시스템을 적용하여 안정성을 높입니다.",
+        "details": "### 개요\n이 태스크의 목표는 `src/anivault/core/pipeline/` 내 여러 모듈에 존재하는 거대 함수와 부적절한 예외 처리(예: `except: pass`) 패턴을 개선하는 것입니다. 각 함수는 단일 책임 원칙(SRP)을 준수하고 80줄 이하로 유지되어야 합니다. 리팩터링 과정에서 Task 3에서 정의한 `AniVaultError` 기반의 구조적 에러 처리와 Task 1의 중앙 집중식 상수를 적극적으로 활용합니다.\n\n### 1. `DirectoryScanner` 리팩터링 (`src/anivault/core/pipeline/scanner.py`)\n- **`_scan_directory()` 함수 분리**: 현재 디렉토리 순회, 파일 필터링, 큐잉 로직이 혼재된 `_scan_directory` 함수를 분리합니다.\n  - `_scan_directory()`: `os.walk`를 사용하여 디렉토리를 순회하는 핵심 루프만 유지합니다.\n  - `_queue_file(file_path: Path)`: 주어진 경로가 파일인지 확인하고 큐에 추가하는 역할을 담당합니다.\n  - `_handle_scan_error(path: Path, error: OSError)`: `os.walk` 등에서 발생하는 `OSError`를 처리합니다. 에러를 무시하는 대신, `logger.error`를 사용하여 구조적 로그를 남기고, Task 3의 `InfrastructureError`로 예외를 래핑하여 상위 호출자에게 전파하거나, 혹은 에러 카운트를 증가시키는 등의 정책을 적용합니다.\n\n### 2. `ParallelDirectoryScanner` 리팩터링 (`src/anivault/core/pipeline/parallel_scanner.py`)\n- **`_scan_subdirectories()` 함수 분리**: 동시성 관리와 결과 처리 로직을 분리합니다.\n  - `_submit_scan_jobs(executor: ThreadPoolExecutor, subdirectories: List[Path])`: `ThreadPoolExecutor`에 스캔 작업을 제출하는 역할을 담당합니다.\n  - `_process_scan_results(futures: List[Future])`: 완료된 `Future` 객체들의 결과를 처리합니다. `future.exception()`을 확인하여 작업 중 발생한 예외를 명시적으로 처리하고, `_handle_scan_error`와 유사한 방식으로 로깅 및 에러 처리를 수행합니다.\n\n### 3. `FileParser` 리팩터링 (`src/anivault/core/pipeline/parser.py`)\n- **`process_file()` 함수 분리**: 파일 처리의 각 단계를 별도 메서드로 분리합니다.\n  - `_extract_media_info(file_path: Path)`: `pymediainfo`와 같은 라이브러리를 사용하여 미디어 정보를 추출합니다. 이 과정에서 발생하는 라이브러리 특정 예외를 잡습니다.\n  - `_parse_title_from_filename(filename: str)`: 파일명에서 제목, 에피소드 번호 등의 정보를 파싱하는 정규식 또는 문자열 처리 로직을 담당합니다.\n  - `_handle_parsing_error(file_path: Path, error: Exception)`: 파싱 과정에서 발생하는 모든 예외를 처리합니다. 에러를 `logger.error`로 기록하고, Task 3의 `ApplicationError`로 래핑하여 파일 처리 실패를 명확히 알립니다. 타임아웃의 경우 `TimeoutError`를 명시적으로 처리합니다.\n\n### 4. `ResultCollector` 리팩터링 (`src/anivault/core/pipeline/collector.py`)\n- **`collect()` 함수 분리**: 결과 수집 루프와 개별 결과 처리 로직을 분리합니다.\n  - `collect()`: 파이프라인의 결과 큐에서 항목을 가져오는 루프를 유지합니다.\n  - `_process_single_result(result: Any)`: 단일 결과 항목을 처리하고, 데이터 구조를 검증하며, 최종 결과 목록에 추가합니다. 만약 결과가 손상되었거나 예상치 못한 형식일 경우 `_handle_invalid_result`를 호출합니다.\n  - `_handle_invalid_result(result: Any, error: Exception)`: 유효하지 않은 결과에 대한 에러를 로깅하고, 해당 결과를 건너뛰어 전체 수집 프로세스가 중단되지 않도록 하는 복구 로직을 구현합니다.",
+        "testStrategy": "### 개요\n각 모듈의 리팩터링된 함수들에 대해 격리된 단위 테스트를 작성합니다. `unittest.mock`을 사용하여 파일 시스템, 외부 라이브러리, 동시성 프리미티브를 모의(mock) 처리합니다. `pytest.raises`를 사용하여 예상된 커스텀 에러가 발생하는지 검증하고, `caplog` fixture를 사용하여 구조적 로깅이 올바르게 기록되는지 확인합니다.\n\n### 1. `Scanner` 테스트 (`tests/core/pipeline/test_scanner.py`)\n- `os.walk`를 모킹하여 특정 디렉토리 구조와 권한 오류(`OSError`)를 시뮬레이션합니다.\n- `_scan_directory`가 `_queue_file`을 올바른 파일 경로로 호출하는지 확인합니다.\n- `os.walk`가 `OSError`를 발생시킬 때, `_handle_scan_error`가 호출되고 `caplog`에 에러 로그가 기록되는지 검증합니다.\n\n### 2. `ParallelScanner` 테스트 (`tests/core/pipeline/test_parallel_scanner.py`)\n- `ThreadPoolExecutor`와 `Future` 객체를 모킹합니다.\n- `_submit_scan_jobs`가 주어진 디렉토리 목록에 대해 `executor.submit`을 정확한 횟수만큼 호출하는지 테스트합니다.\n- `_process_scan_results` 테스트 시, 일부 모의 `Future` 객체는 `exception()` 메서드가 예외를 반환하도록 설정합니다. 이 경우, 에러가 올바르게 로깅되고 처리되는지 확인합니다.\n\n### 3. `Parser` 테스트 (`tests/core/pipeline/test_parser.py`)\n- `pymediainfo`와 같은 외부 파싱 라이브러리를 모킹하여, 정상적인 미디어 정보나 예외를 반환하도록 설정합니다.\n- `_extract_media_info`가 라이브러리 예외 발생 시 `ApplicationError`를 발생시키는지 `pytest.raises`로 검증합니다.\n- `_parse_title_from_filename`에 다양한 형식의 파일명을 입력하여 파싱이 성공 또는 실패하는 경우를 테스트합니다.\n- `process_file` 전체 워크플로우에서 예외가 발생했을 때, `_handle_parsing_error`가 호출되고 최종적으로 `ApplicationError`가 상위로 전파되는지 확인합니다.\n\n### 4. `Collector` 테스트 (`tests/core/pipeline/test_collector.py`)\n- `collect` 메서드에 정상적인 결과 객체와 함께 `None` 또는 손상된 데이터(예: 필수 키가 없는 딕셔너리)를 포함하는 모의 큐를 제공합니다.\n- `_process_single_result`가 손상된 데이터를 받았을 때 `_handle_invalid_result`를 호출하고 예외를 발생시키는지 테스트합니다.\n- `collect` 메서드가 손상된 결과가 있더라도 중단되지 않고, 유효한 결과들만 최종적으로 수집하는지 확인합니다. `caplog`를 통해 손상된 결과에 대한 경고/에러 로그가 기록되었는지 검증합니다.",
+        "status": "done",
+        "dependencies": [
+          1,
+          3
+        ],
+        "priority": "low",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "DirectoryScanner 리팩터링 - _scan_directory 메서드 분리",
+            "description": "src/anivault/core/pipeline/scanner.py의 DirectoryScanner._scan_directory() 메서드를 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "DirectoryScanner의 _scan_directory() 메서드를 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. _validate_directory() 함수 분리:\n   - 디렉토리 존재 여부 및 읽기 권한 검증만 담당\n   - 문제 발생 시 InfrastructureError 발생\n   - 순수한 검증 로직\n\n2. _collect_files() 함수 분리:\n   - 디렉토리에서 파일 목록 수집만 담당\n   - 파일 필터링 로직 포함\n   - 재귀 스캔 로직 분리\n\n3. _queue_files() 함수 분리:\n   - 수집된 파일들을 큐에 추가하는 작업만 담당\n   - 큐 크기 제한 처리\n   - 에러 발생 시 적절한 에러 처리\n\n4. _scan_directory() 메서드 수정:\n   - 오케스트레이션 역할만 담당 (80줄 이하로 제한)\n   - _validate_directory, _collect_files, _queue_files를 순차 호출\n   - 에러 발생 시 적절한 에러 처리\n\n5. 에러 처리 개선:\n   - 디렉토리 접근 권한 오류 시 InfrastructureError 발생\n   - 파일 수집 오류 시 DomainError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n6. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - 디렉토리 권한 오류 시나리오 테스트\n   - 파일 수집 로직 테스트\n   - 큐잉 로직 테스트\n<info added on 2025-10-02T21:01:11.844Z>\n### 구현 참고 사항\n\n`main.py`의 `run_pipeline` 함수 리팩터링에서 성공적으로 도입된 패턴들을 `ParallelDirectoryScanner`에 적용하여 일관성을 유지합니다.\n\n1.  **`_scan_subdirectories` 메서드 SRP 적용:**\n    - 현재 `ThreadPoolExecutor`를 생성하고, 작업을 제출하며, 결과를 처리하는 모든 로직이 혼재되어 있습니다. 이를 아래와 같이 명확한 책임을 가진 작은 메서드들로 분리합니다.\n    - **`_submit_scan_jobs(executor, subdirectories)`**: 주어진 하위 디렉토리 목록에 대한 스캔 작업을 `executor`에 제출하고 `future` 객체 목록을 반환하는 역할만 담당합니다.\n    - **`_await_scan_completion(futures)`**: `future` 목록을 받아 `concurrent.futures.as_completed`를 사용하여 작업 완료를 기다리고, 발생한 예외를 수집하여 반환하는 역할만 담당합니다.\n    - **`_scan_subdirectories` (오케스트레이터)**: `ThreadPoolExecutor`를 생성하고, 위 두 메서드를 순차적으로 호출하며 전체적인 흐름을 관리합니다.\n\n2.  **구조적 에러 처리 적용:**\n    - `main.py`에서 추가된 `ErrorCode`를 적극적으로 활용합니다.\n    - **작업 제출 실패**: `_submit_scan_jobs` 내에서 `executor.submit()` 호출 시 발생할 수 있는 예외(예: `RuntimeError`)를 `try-except`로 처리하고, `InfrastructureError`를 `ErrorCode.WORKER_POOL_ERROR`와 함께 발생시킵니다.\n    - **개별 작업 실패**: `_await_scan_completion` 내에서 `future.exception()`을 통해 작업자 스레드에서 발생한 예외를 확인합니다.\n        - 예외 발생 시, `main.py`의 `log_operation_error`와 유사한 구조적 로깅을 사용하여 에러를 기록합니다. `ErrorContext`에는 실패한 하위 디렉토리 경로를 포함하고, `ErrorCode.SCANNER_ERROR`를 사용합니다.\n\n3.  **테스트 케이스 강화 (`tests/core/pipeline/test_scanner.py`):**\n    - `ThreadPoolExecutor`를 모킹하여 `_submit_scan_jobs`가 각 하위 디렉토리에 대해 `submit`을 올바르게 호출하는지 테스트합니다.\n    - 예외를 발생시키는 모의 `future`를 사용하여, `_await_scan_completion`이 작업 실패를 올바르게 감지하고 로깅하는지 검증하는 테스트를 추가합니다.\n    - `executor.submit`이 예외를 발생시키는 시나리오에서 `InfrastructureError`가 `ErrorCode.WORKER_POOL_ERROR`와 함께 발생하는지 확인하는 테스트를 작성합니다.\n</info added on 2025-10-02T21:01:11.844Z>",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 7
+          },
+          {
+            "id": 2,
+            "title": "ParallelDirectoryScanner 리팩터링 - _scan_subdirectories 메서드 분리",
+            "description": "src/anivault/core/pipeline/parallel_scanner.py의 ParallelDirectoryScanner._scan_subdirectories() 메서드를 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "ParallelDirectoryScanner의 _scan_subdirectories() 메서드를 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. _create_scan_tasks() 함수 분리:\n   - 각 서브디렉토리에 대한 스캔 작업 생성만 담당\n   - 작업 우선순위 설정\n   - 작업 메타데이터 수집\n\n2. _execute_parallel_scans() 함수 분리:\n   - 병렬 스캔 작업 실행만 담당\n   - 동시성 제어 로직 포함\n   - 진행률 추적 로직 분리\n\n3. _collect_scan_results() 함수 분리:\n   - 병렬 스캔 결과 수집만 담당\n   - Future 결과 처리 로직 포함\n   - 에러 결과 처리 로직 분리\n\n4. _scan_subdirectories() 메서드 수정:\n   - 오케스트레이션 역할만 담당 (80줄 이하로 제한)\n   - _create_scan_tasks, _execute_parallel_scans, _collect_scan_results를 순차 호출\n   - 에러 발생 시 적절한 에러 처리\n\n5. 에러 처리 개선:\n   - 동시성 제어 오류 시 ApplicationError 발생\n   - 스캔 작업 실패 시 DomainError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n6. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - 병렬 스캔 로직 테스트\n   - 동시성 제어 테스트\n   - 결과 수집 로직 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 7
+          },
+          {
+            "id": 3,
+            "title": "FileParser 리팩터링 - process_file 메서드 분리",
+            "description": "src/anivault/core/pipeline/parser.py의 FileParser.process_file() 메서드를 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "FileParser의 process_file() 메서드를 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. _validate_file() 함수 분리:\n   - 파일 존재 여부 및 읽기 권한 검증만 담당\n   - 파일 형식 검증 로직 포함\n   - 문제 발생 시 InfrastructureError 발생\n\n2. _parse_metadata() 함수 분리:\n   - 파일 메타데이터 파싱만 담당\n   - 파싱 실패 시 DomainError 발생\n   - 순수한 파싱 로직\n\n3. _handle_parsing_timeout() 함수 분리:\n   - 파싱 타임아웃 처리만 담당\n   - 타임아웃 발생 시 적절한 에러 처리\n   - 리소스 정리 로직 포함\n\n4. process_file() 메서드 수정:\n   - 오케스트레이션 역할만 담당 (80줄 이하로 제한)\n   - _validate_file, _parse_metadata, _handle_parsing_timeout를 순차 호출\n   - 에러 발생 시 적절한 에러 처리\n\n5. 에러 처리 개선:\n   - 파일 접근 권한 오류 시 InfrastructureError 발생\n   - 메타데이터 파싱 오류 시 DomainError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n6. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - 파일 권한 오류 시나리오 테스트\n   - 메타데이터 파싱 로직 테스트\n   - 타임아웃 처리 로직 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 7
+          },
+          {
+            "id": 4,
+            "title": "ResultCollector 리팩터링 - collect 메서드 분리",
+            "description": "src/anivault/core/pipeline/collector.py의 ResultCollector.collect() 메서드를 단일 책임 원칙에 따라 여러 개의 작은 함수로 분리합니다.",
+            "details": "ResultCollector의 collect() 메서드를 리팩터링하여 단일 책임 원칙을 적용합니다:\n\n1. _validate_results() 함수 분리:\n   - 수집된 결과의 유효성 검증만 담당\n   - 결과 형식 검증 로직 포함\n   - 문제 발생 시 DomainError 발생\n\n2. _aggregate_results() 함수 분리:\n   - 여러 결과를 하나로 집계하는 작업만 담당\n   - 중복 제거 로직 포함\n   - 순수한 집계 로직\n\n3. _save_results() 함수 분리:\n   - 집계된 결과를 저장하는 작업만 담당\n   - 저장 실패 시 InfrastructureError 발생\n   - 저장 형식 변환 로직 포함\n\n4. collect() 메서드 수정:\n   - 오케스트레이션 역할만 담당 (80줄 이하로 제한)\n   - _validate_results, _aggregate_results, _save_results를 순차 호출\n   - 에러 발생 시 적절한 에러 처리\n\n5. 에러 처리 개선:\n   - 결과 유효성 검증 실패 시 DomainError 발생\n   - 결과 저장 실패 시 InfrastructureError 발생\n   - 구조적 로깅으로 디버깅 정보 제공\n\n6. 테스트 케이스:\n   - 각 함수의 단일 책임 검증 테스트\n   - 결과 유효성 검증 로직 테스트\n   - 결과 집계 로직 테스트\n   - 결과 저장 로직 테스트",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 7
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "코드 품질 개선 문서화 및 가이드 작성",
+        "description": "프로젝트의 코드 품질 기준, 리팩터링 사례, AI 코드 생성 가이드라인 등을 포함하는 포괄적인 문서를 작성하여 팀의 개발 표준을 정립합니다.",
+        "details": "### 개요\nAniVault 프로젝트의 지속 가능한 코드 품질 유지를 위해 개발 표준과 가이드라인을 문서화합니다. 이 문서들은 기존 리팩터링 작업(Task 1, 2, 3, 5, 6, 7)의 결과물을 바탕으로 작성되며, 향후 모든 팀원과 AI가 일관된 품질의 코드를 생성하도록 돕는 것을 목표로 합니다.\n\n### 1. `docs/code-quality-guide.md` - 코드 품질 가이드 작성\n- **One Source of Truth**: Task 1에서 구축한 `src/anivault/shared/constants/`를 중심으로 매직 값 사용을 금지하고 중앙 상수를 사용하는 원칙을 설명합니다.\n- **함수 단일 책임 원칙(SRP)**: Task 2, 5, 7의 리팩터링 사례를 바탕으로 거대 함수를 분리하는 방법과 그 이점을 설명합니다.\n- **에러 처리 모범 사례**: Task 3에서 정의한 `AniVaultError` 기반의 구조적 에러 처리 시스템 사용법을 설명합니다. 일반 `Exception` 사용을 지양하고 구체적인 에러를 발생시키는 패턴을 안내합니다.\n- **코드 리뷰 체크리스트**: 위 원칙들을 기반으로 PR 리뷰 시 확인해야 할 항목들의 체크리스트를 제공합니다.\n\n### 2. `docs/ai-code-generation-guidelines.md` - AI 코드 생성 가이드라인 작성\n- **AI 코드 생성 시 준수사항**: AI에게 명확한 컨텍스트(예: 'Task 3의 AniVaultError 사용')를 제공하는 프롬프트 작성법을 안내합니다.\n- **품질 검증 체크리스트**: AI가 생성한 코드가 SRP, 상수 사용, 구조적 에러 처리 원칙을 준수하는지 검증하는 체크리스트를 제공합니다.\n- **자동화 도구 사용법**: Task 4에서 개발한 품질 검증 스크립트(`scripts/validate_*.py`)를 실행하고 결과를 해석하는 방법을 설명합니다.\n\n### 3. `docs/refactoring-examples.md` - 리팩터링 예제 작성\n- **Before/After 코드 비교**: Task 2 (`main.py`), Task 5 (`MatchingEngine`), Task 7 (`DirectoryScanner`)의 리팩터링 전후 코드를 비교하여 개선점을 명확히 보여줍니다.\n- **단계별 리팩터링 과정**: 각 예제에 대해 어떤 원칙(SRP, 상수화 등)에 따라 코드가 분리되고 개선되었는지 단계별로 설명합니다.\n- **테스트 작성 방법**: 리팩터링된 작은 함수들에 대한 단위 테스트 작성법을 `unittest.mock`을 사용한 예시와 함께 설명합니다.\n\n### 4. `docs/error-handling-patterns.md` - 에러 처리 패턴 작성\n- **구조적 에러 처리 예제**: Task 3의 `AniVaultError`와 Task 6의 서비스 레이어 적용 사례를 바탕으로, `try...except` 블록에서 저수준 예외를 잡아 `InfrastructureError` 등으로 래핑하는 구체적인 코드 패턴을 제시합니다.\n- **사용자 친화적 메시지**: `error_codes.py`와 `error_messages.py`를 연동하여 사용자에게 의미 있는 에러 메시지를 표시하는 방법을 설명합니다.\n- **로깅 모범 사례**: 에러 발생 시 `logger.error`를 사용하여 컨텍스트(예: 파일 경로, 사용자 입력)를 포함한 구조적 로그를 남기는 방법을 안내합니다.\n\n### 5. `README.md` 및 `CONTRIBUTING.md` 업데이트\n- **`README.md`**: 'Code Quality Standards' 섹션을 추가하여 프로젝트가 추구하는 핵심 품질 원칙을 요약하고, `docs/code-quality-guide.md`로의 링크를 제공합니다.\n- **`CONTRIBUTING.md`**: 신규 기여자를 위한 가이드라인을 작성합니다. 코드 스타일, PR 생성 전 품질 검증 절차(Task 4의 스크립트 실행 포함), PR 템플릿을 포함합니다.",
+        "testStrategy": "### 1. 문서 내용 검증 (Peer Review)\n- 작성된 모든 Markdown 문서(`*.md`)에 대해 동료 리뷰를 진행합니다.\n- **정확성**: 문서에 포함된 코드 예제가 Task 1, 2, 3, 5, 6, 7에서 실제 구현된 내용과 일치하는지 확인합니다. 특히 `refactoring-examples.md`의 'After' 코드가 최종 코드베이스와 동일한지 검증합니다.\n- **명확성**: 가이드라인이 명확하고 이해하기 쉽게 작성되었는지, 기술적 용어에 대한 설명이 충분한지 확인합니다.\n- **완결성**: 요청된 모든 항목(예: 코드 리뷰 체크리스트, PR 템플릿)이 누락 없이 포함되었는지 확인합니다.\n\n### 2. 자동화 도구 연동 검증\n- `CONTRIBUTING.md`와 `ai-code-generation-guidelines.md`에 설명된 대로 Task 4의 검증 스크립트(`scripts/validate_*.py`)를 직접 실행해봅니다. 설명된 명령어와 실제 실행 결과가 일치하는지 확인합니다.\n\n### 3. 포맷 및 링크 검증\n- 모든 Markdown 파일의 렌더링 상태를 확인하여 포맷(예: 코드 블록, 목록)이 깨지지 않는지 검증합니다.\n- 문서 내 다른 문서나 외부 리소스로 연결되는 모든 하이퍼링크가 정상적으로 동작하는지 확인합니다.",
+        "status": "done",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "priority": "low",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "코드 품질 가이드 문서 작성",
+            "description": "docs/code-quality-guide.md를 작성하여 One Source of Truth, 매직 값 제거, 함수 단일 책임 원칙, 에러 처리 모범 사례를 설명합니다.",
+            "details": "코드 품질 가이드 문서를 작성합니다:\n\n1. One Source of Truth 원칙 설명:\n   - 중복 정의 금지 원칙\n   - 중앙 집중식 상수 관리 방법\n   - Import 강제 패턴\n\n2. 매직 값 제거 가이드:\n   - 매직 값 식별 방법\n   - 상수 추출 방법\n   - Enum 사용 패턴\n\n3. 함수 단일 책임 원칙 적용 방법:\n   - 함수 분리 기준\n   - 함수 길이 제한 (80줄 이하)\n   - 계층 분리 방법\n\n4. 에러 처리 모범 사례:\n   - 구조적 에러 처리 패턴\n   - 사용자 친화적 메시지 작성법\n   - 로깅 모범 사례\n\n5. 코드 리뷰 체크리스트:\n   - 품질 검증 항목\n   - 자동화 도구 사용법\n   - 팀 협업 가이드라인",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 2,
+            "title": "AI 코드 생성 가이드라인 문서 작성",
+            "description": "docs/ai-code-generation-guidelines.md를 작성하여 AI 코드 생성 시 준수사항, 품질 검증 체크리스트, 자동화 도구 사용법을 설명합니다.",
+            "details": "AI 코드 생성 가이드라인 문서를 작성합니다:\n\n1. AI 코드 생성 시 준수사항:\n   - 품질 기준 준수 방법\n   - 자동화 도구 활용 방법\n   - 코드 리뷰 프로세스\n\n2. 품질 검증 체크리스트:\n   - One Source of Truth 준수 확인\n   - 매직 값 제거 확인\n   - 함수 단일 책임 원칙 적용 확인\n   - 에러 처리 패턴 확인\n\n3. 자동화 도구 사용법:\n   - Pre-commit 훅 설정 방법\n   - CI/CD 파이프라인 연동 방법\n   - 품질 점수 계산 방법\n\n4. 팀 협업 가이드라인:\n   - 코드 리뷰 프로세스\n   - 품질 기준 통일 방법\n   - 지속적 개선 방법",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 3,
+            "title": "리팩터링 예제 문서 작성",
+            "description": "docs/refactoring-examples.md를 작성하여 Before/After 코드 비교, 단계별 리팩터링 과정, 테스트 작성 방법을 설명합니다.",
+            "details": "리팩터링 예제 문서를 작성합니다:\n\n1. Before/After 코드 비교:\n   - 매직 값 제거 예제\n   - 함수 분리 예제\n   - 에러 처리 개선 예제\n\n2. 단계별 리팩터링 과정:\n   - 리팩터링 계획 수립 방법\n   - 단계별 실행 방법\n   - 검증 방법\n\n3. 테스트 작성 방법:\n   - 단위 테스트 작성 방법\n   - 통합 테스트 작성 방법\n   - 테스트 커버리지 측정 방법\n\n4. 검증 방법:\n   - 리팩터링 후 기능 검증\n   - 성능 검증\n   - 코드 품질 검증",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 8
+          },
+          {
+            "id": 4,
+            "title": "README.md 및 CONTRIBUTING.md 업데이트",
+            "description": "README.md에 코드 품질 기준을 추가하고, CONTRIBUTING.md를 작성하여 기여 가이드라인, 코드 스타일 가이드, 품질 검증 절차를 설명합니다.",
+            "details": "README.md 및 CONTRIBUTING.md를 업데이트합니다:\n\n1. README.md 업데이트:\n   - 코드 품질 기준 추가\n   - 개발 워크플로우 설명\n   - 자동화 도구 사용법\n\n2. CONTRIBUTING.md 작성:\n   - 기여 가이드라인\n   - 코드 스타일 가이드\n   - 품질 검증 절차\n   - PR 템플릿\n\n3. 문서 구조화:\n   - 명확한 섹션 구분\n   - 예제 코드 포함\n   - 링크 및 참조 자료",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 8
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-02T02:16:37.298Z",
+      "updated": "2025-10-02T22:52:32.616Z",
+      "description": "AniVault 코드베이스 품질 개선 - MDC 룰 준수 및 AI 코드 품질 향상"
     }
   }
 }

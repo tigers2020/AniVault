@@ -5,12 +5,13 @@ and worker pool that process files in the pipeline.
 """
 
 import os
-import pytest
 import tempfile
 import threading
 import time
 from pathlib import Path
 from unittest.mock import Mock, patch
+
+import pytest
 
 from anivault.core.pipeline.parser import ParserWorker, ParserWorkerPool
 from anivault.core.pipeline.utils import BoundedQueue, ParserStatistics
@@ -572,8 +573,9 @@ class TestParserWorkerPool:
             # Stop pool
             pool.stop()
             print("Stopped pool")
-            pool.join(timeout=1.0)
-            print("Joined pool")
+            # Note: join() is not needed after stop() in refactored code
+            # pool.join(timeout=1.0)
+            print("Pool stopped successfully")
 
             # Verify results
             assert stats.items_processed == 2
@@ -624,8 +626,9 @@ class TestParserWorkerPool:
         # Stop pool
         pool.stop()
         print("Stopped pool")
-        pool.join(timeout=1.0)
-        print("Joined pool")
+        # Note: join() is not needed after stop() in refactored code
+        # pool.join(timeout=1.0)
+        print("Pool stopped successfully")
 
         # Verify error was handled
         assert stats.items_processed == 1

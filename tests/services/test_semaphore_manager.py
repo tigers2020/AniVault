@@ -204,17 +204,20 @@ class TestSemaphoreManager:
 
     def test_negative_concurrency_limit(self):
         """Test behavior with negative concurrency limit."""
-        # Should handle negative limit gracefully
-        manager = SemaphoreManager(concurrency_limit=-1)
+        from anivault.shared.errors import ApplicationError
 
-        # Should still work (semaphore will have 0 capacity)
-        assert manager.acquire(timeout=0.1) is False
+        # Should raise ApplicationError for negative limit
+        with pytest.raises(
+            ApplicationError, match="Concurrency limit must be positive"
+        ):
+            SemaphoreManager(concurrency_limit=-1)
 
     def test_zero_concurrency_limit(self):
         """Test behavior with zero concurrency limit."""
-        manager = SemaphoreManager(concurrency_limit=0)
+        from anivault.shared.errors import ApplicationError
 
-        # Should not be able to acquire
-        assert manager.acquire(timeout=0.1) is False
-        assert manager.get_active_count() == 0
-        assert manager.get_available_count() == 0
+        # Should raise ApplicationError for zero limit
+        with pytest.raises(
+            ApplicationError, match="Concurrency limit must be positive"
+        ):
+            SemaphoreManager(concurrency_limit=0)

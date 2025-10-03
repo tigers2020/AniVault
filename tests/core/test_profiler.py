@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from anivault.core.profiler import Profiler, MemorySnapshot, ProfilingReport
-from anivault.core.statistics import StatisticsCollector, PerformanceMetrics
+from anivault.core.profiler import MemorySnapshot, Profiler, ProfilingReport
+from anivault.core.statistics import PerformanceMetrics, StatisticsCollector
 
 
 class TestMemorySnapshot:

@@ -1,8 +1,10 @@
 """Tests for ResultCollectorPool class."""
 
-import pytest
 from unittest.mock import Mock, patch
-from anivault.core.pipeline.collector import ResultCollectorPool, ResultCollector
+
+import pytest
+
+from anivault.core.pipeline.collector import ResultCollector, ResultCollectorPool
 
 
 class FakeQueue:

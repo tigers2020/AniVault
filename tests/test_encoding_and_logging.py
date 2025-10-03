@@ -10,30 +10,30 @@ import logging
 import os
 import sys
 import tempfile
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Import the modules we're testing
 from src.anivault.utils.encoding import (
-    setup_utf8_environment,
+    UTF8_ENCODING,
+    ensure_utf8_string,
+    get_file_encoding,
     open_utf8,
     read_text_file,
-    write_text_file,
-    ensure_utf8_string,
     safe_filename,
-    get_file_encoding,
-    UTF8_ENCODING,
+    setup_utf8_environment,
+    write_text_file,
 )
-
 from src.anivault.utils.logging_config import (
-    setup_logging,
-    get_logger,
-    log_startup,
-    log_shutdown,
-    cleanup_logging,
-    LoggingContext,
     AniVaultFormatter,
+    LoggingContext,
+    cleanup_logging,
+    get_logger,
+    log_shutdown,
+    log_startup,
+    setup_logging,
 )
 
 

@@ -7,12 +7,16 @@ process them concurrently.
 
 from __future__ import annotations
 
+import logging
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
 from anivault.core.pipeline.cache import CacheV1
 from anivault.core.pipeline.utils import BoundedQueue, ParserStatistics
+from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.logging import log_operation_error, log_operation_success
 
 
 class ParserWorker(threading.Thread):
@@ -87,47 +91,222 @@ class ParserWorker(threading.Thread):
         Args:
             file_path: Path to the file to process.
         """
+        logger = logging.getLogger(__name__)
+        start_time = time.time()
+
         try:
             # Check cache first
-            cached_result = self.cache.get(str(file_path))
+            cached_result = self._check_cache(file_path)
 
             if cached_result:
                 # Cache hit - use cached data
-                self.stats.increment_cache_hit()
-                self.output_queue.put(cached_result)
-                self.stats.increment_items_processed()
-                if cached_result.get("status") == "success":
-                    self.stats.increment_successes()
-                else:
-                    self.stats.increment_failures()
+                self._handle_cache_hit(cached_result)
             else:
                 # Cache miss - perform parsing
-                self.stats.increment_cache_miss()
-                self.stats.increment_items_processed()
+                self._handle_cache_miss(file_path)
 
-                # Perform placeholder parsing
-                result = self._parse_file(file_path)
-
-                # Store result in cache (24 hours TTL)
-                self.cache.set(str(file_path), result, ttl_seconds=86400)
-
-                # Put result in output queue
-                self.output_queue.put(result)
-
-                # Check if parsing was successful
-                if result.get("status") == "success":
-                    self.stats.increment_successes()
-                else:
-                    self.stats.increment_failures()
+            # Mark processing as successful
+            duration_ms = (time.time() - start_time) * 1000
+            log_operation_success(
+                logger,
+                "process_file",
+                duration_ms,
+                {"file_path": str(file_path), "worker_id": self.worker_id},
+            )
 
         except Exception as e:
             # Update failure statistics
             self.stats.increment_failures()
-            print(f"Worker {self.worker_id} failed to process {file_path}: {e}")
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Create structured error
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="process_file",
+                additional_data={
+                    "worker_id": self.worker_id,
+                    "duration_ms": duration_ms,
+                },
+            )
+            error = InfrastructureError(
+                ErrorCode.PARSER_ERROR,
+                f"Failed to process file: {file_path}",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
 
         finally:
             # Always mark task as done
             self.input_queue.task_done()
+
+    def _check_cache(self, file_path: Path) -> dict[str, Any] | None:
+        """Check cache for file parsing result.
+
+        Args:
+            file_path: Path to the file to check in cache.
+
+        Returns:
+            Cached result if found, None otherwise.
+
+        Raises:
+            InfrastructureError: If cache operation fails.
+        """
+        logger = logging.getLogger(__name__)
+
+        try:
+            return self.cache.get(str(file_path))
+        except Exception as e:
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="check_cache",
+                additional_data={"worker_id": self.worker_id},
+            )
+            error = InfrastructureError(
+                ErrorCode.CACHE_READ_FAILED,
+                f"Failed to check cache for file: {file_path}",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
+            raise error
+
+    def _handle_cache_hit(self, cached_result: dict[str, Any]) -> None:
+        """Handle cache hit scenario.
+
+        Args:
+            cached_result: Cached parsing result.
+
+        Raises:
+            InfrastructureError: If queue operation fails.
+        """
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Cache hit - use cached data
+            self.stats.increment_cache_hit()
+            self.stats.increment_items_processed()
+
+            # Put result in output queue
+            self.output_queue.put(cached_result)
+
+            # Update success/failure statistics
+            if cached_result.get("status") == "success":
+                self.stats.increment_successes()
+            else:
+                self.stats.increment_failures()
+
+            log_operation_success(
+                logger,
+                "handle_cache_hit",
+                0.0,  # Cache hit is instant
+                {"worker_id": self.worker_id},
+            )
+
+        except Exception as e:
+            context = ErrorContext(
+                operation="handle_cache_hit",
+                additional_data={"worker_id": self.worker_id},
+            )
+            error = InfrastructureError(
+                ErrorCode.QUEUE_OPERATION_ERROR,
+                "Failed to handle cache hit result",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
+            raise error
+
+    def _handle_cache_miss(self, file_path: Path) -> None:
+        """Handle cache miss scenario by performing parsing.
+
+        Args:
+            file_path: Path to the file to parse.
+
+        Raises:
+            InfrastructureError: If parsing or cache operations fail.
+        """
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Cache miss - perform parsing
+            self.stats.increment_cache_miss()
+            self.stats.increment_items_processed()
+
+            # Perform placeholder parsing
+            result = self._parse_file(file_path)
+
+            # Store result in cache (24 hours TTL)
+            self._store_in_cache(file_path, result)
+
+            # Put result in output queue
+            self.output_queue.put(result)
+
+            # Check if parsing was successful
+            if result.get("status") == "success":
+                self.stats.increment_successes()
+            else:
+                self.stats.increment_failures()
+
+            log_operation_success(
+                logger,
+                "handle_cache_miss",
+                0.0,  # Duration will be logged by parent
+                {"file_path": str(file_path), "worker_id": self.worker_id},
+            )
+
+        except Exception as e:
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="handle_cache_miss",
+                additional_data={"worker_id": self.worker_id},
+            )
+            error = InfrastructureError(
+                ErrorCode.PARSER_ERROR,
+                f"Failed to handle cache miss for file: {file_path}",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
+            raise error
+
+    def _store_in_cache(self, file_path: Path, result: dict[str, Any]) -> None:
+        """Store parsing result in cache.
+
+        Args:
+            file_path: Path to the file that was parsed.
+            result: Parsing result to store.
+
+        Raises:
+            InfrastructureError: If cache operation fails.
+        """
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Store result in cache (24 hours TTL)
+            self.cache.set(str(file_path), result, ttl_seconds=86400)
+
+            log_operation_success(
+                logger,
+                "store_in_cache",
+                0.0,  # Cache operation is instant
+                {"file_path": str(file_path), "worker_id": self.worker_id},
+            )
+
+        except Exception as e:
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="store_in_cache",
+                additional_data={"worker_id": self.worker_id},
+            )
+            error = InfrastructureError(
+                ErrorCode.CACHE_WRITE_FAILED,
+                f"Failed to store result in cache for file: {file_path}",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
+            raise error
 
     def _parse_file(self, file_path: Path) -> dict[str, Any]:
         """Parse a file and extract basic information.
@@ -141,7 +320,12 @@ class ParserWorker(threading.Thread):
 
         Returns:
             Dictionary containing parsed file information.
+
+        Raises:
+            InfrastructureError: If file parsing fails.
         """
+        logger = logging.getLogger(__name__)
+
         try:
             # Get basic file information
             stat_info = file_path.stat()
@@ -161,10 +345,31 @@ class ParserWorker(threading.Thread):
                 "status": "success",
             }
 
+            log_operation_success(
+                logger,
+                "parse_file",
+                0.0,  # Duration will be logged by parent
+                {"file_path": str(file_path), "worker_id": self.worker_id},
+            )
+
             return result
 
         except Exception as e:
-            # Return error result
+            # Create structured error context
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="parse_file",
+                additional_data={"worker_id": self.worker_id},
+            )
+            error = InfrastructureError(
+                ErrorCode.PARSING_ERROR,
+                f"Failed to parse file: {file_path}",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
+
+            # Return error result (don't raise to allow graceful handling)
             return {
                 "file_path": str(file_path),
                 "file_name": file_path.name if file_path else "unknown",
@@ -252,6 +457,7 @@ class ParserWorkerPool:
         """Stop all worker threads gracefully."""
         for worker in self.workers:
             worker.stop()
+        self._started = False
 
     def is_alive(self) -> bool:
         """Check if any worker threads are still alive.

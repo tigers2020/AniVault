@@ -2,10 +2,12 @@
 Tests for BoundedQueue implementation.
 """
 
-import pytest
 import threading
 import time
 from typing import List
+
+import pytest
+
 from src.anivault.core.bounded_queue import BoundedQueue, QueueStats
 
 

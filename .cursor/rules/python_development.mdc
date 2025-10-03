@@ -1,0 +1,531 @@
+---
+description: Comprehensive Python development standards and best practices
+globs: src/**/*.py, tests/**/*.py, scripts/**/*.py
+alwaysApply: true
+priority: 3
+---
+
+# Python Development Standards
+
+## 핵심 원칙
+
+- **타입 힌트 필수**: 모든 함수, 메서드, 변수에 타입 힌트 적용
+- **Google/NumPy 스타일 독스트링**: 함수 정의 후 독스트링 작성
+- **함수 크기 제한**: 50-80줄 이하, 단일 책임 원칙
+- **입력 검증**: 경계에서 입력값 검증, 구체적 예외 발생
+- **비동기 패턴**: asyncio 기반 비동기 처리
+- **One Source of Truth**: 타입, 상수, 에러 코드는 단일 위치에서만 정의
+- **Magic Values Elimination**: 하드코딩된 값은 상수로 추출
+
+## 타입 힌트 패턴
+
+### **✅ DO: 완전한 타입 힌트**
+```python
+from typing import List, Dict, Optional, Union, Any, Callable
+from pathlib import Path
+from dataclasses import dataclass
+
+@dataclass
+class AnimeFile:
+    """애니메이션 파일 정보."""
+    path: Path
+    series_name: str
+    episode_number: Optional[int]
+    quality: Optional[str]
+
+def process_anime_files(
+    file_paths: List[Path],
+    callback: Optional[Callable[[AnimeFile], None]] = None
+) -> Dict[str, List[AnimeFile]]:
+    """애니메이션 파일들을 처리합니다.
+
+    Args:
+        file_paths: 처리할 파일 경로 목록
+        callback: 각 파일 처리 후 호출할 콜백 함수
+
+    Returns:
+        시리즈별로 그룹화된 파일 정보 딕셔너리
+
+    Raises:
+        FileNotFoundError: 파일이 존재하지 않을 때
+        ValueError: 파일 형식이 지원되지 않을 때
+    """
+    if not file_paths:
+        raise ValueError("파일 경로 목록이 비어있습니다")
+
+    results: Dict[str, List[AnimeFile]] = {}
+    # 구현...
+    return results
+```
+
+### **❌ DON'T: 타입 힌트 누락**
+```python
+# ❌ BAD: 타입 힌트 없음
+def process_files(files, callback=None):
+    results = {}
+    # 구현...
+    return results
+```
+
+## 독스트링 패턴
+
+### **✅ DO: Google 스타일 독스트링**
+```python
+def parse_anime_filename(filename: str) -> Optional[AnimeFile]:
+    """anitopy를 사용하여 애니메이션 파일명을 파싱합니다.
+
+    Args:
+        filename: 파싱할 파일명 (경로 포함 가능)
+
+    Returns:
+        파싱된 애니메이션 파일 정보, 실패시 None
+
+    Example:
+        >>> parse_anime_filename("Attack on Titan S01E01.mkv")
+        AnimeFile(series_name="Attack on Titan", episode=1, ...)
+    """
+    try:
+        import anitopy
+        parsed = anitopy.parse(filename)
+        return AnimeFile(
+            path=Path(filename),
+            series_name=parsed.get('anime_title', ''),
+            episode_number=parsed.get('episode_number'),
+            quality=parsed.get('video_quality')
+        )
+    except Exception:
+        return None
+```
+
+## 비동기 패턴
+
+### **✅ DO: asyncio 기반 비동기 처리**
+```python
+import asyncio
+import aiohttp
+from typing import List, Dict, Any
+
+class TMDBAsyncClient:
+    """TMDB API 비동기 클라이언트."""
+
+    def __init__(self, api_key: str, base_url: str = "https://api.themoviedb.org/3"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.session: Optional[aiohttp.ClientSession] = None
+
+    async def __aenter__(self) -> 'TMDBAsyncClient':
+        """비동기 컨텍스트 매니저 진입."""
+        self.session = aiohttp.ClientSession()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """비동기 컨텍스트 매니저 종료."""
+        if self.session:
+            await self.session.close()
+
+    async def search_anime(self, query: str) -> List[Dict[str, Any]]:
+        """애니메이션 검색."""
+        if not self.session:
+            raise RuntimeError("세션이 초기화되지 않았습니다")
+
+        url = f"{self.base_url}/search/tv"
+        params = {
+            'api_key': self.api_key,
+            'query': query,
+            'language': 'ko-KR'
+        }
+
+        async with self.session.get(url, params=params) as response:
+            response.raise_for_status()
+            data = await response.json()
+            return data.get('results', [])
+```
+
+## One Source of Truth (단일 진실의 원천)
+
+### **✅ DO: 중앙 집중식 정의**
+```python
+# src/shared/constants/__init__.py
+from enum import Enum
+from typing import Dict, List
+
+class FileFormats(str, Enum):
+    """지원되는 파일 형식."""
+    MKV = "mkv"
+    MP4 = "mp4"
+    AVI = "avi"
+    MOV = "mov"
+    WMV = "wmv"
+    FLV = "flv"
+    WEBM = "webm"
+    M4V = "m4v"
+
+class AnimeStatus(str, Enum):
+    """애니메이션 상태."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+class APIConfig:
+    """API 설정 상수."""
+    BASE_URL = "https://api.themoviedb.org/3"
+    TIMEOUT_SECONDS = 30
+    MAX_RETRIES = 3
+    RATE_LIMIT_PER_SECOND = 50
+    CACHE_TTL_HOURS = 24
+
+class FileLimits:
+    """파일 제한 상수."""
+    MAX_FILENAME_LENGTH = 255
+    MAX_FILE_SIZE_MB = 1024 * 1024  # 1GB
+    SUPPORTED_EXTENSIONS = [fmt.value for fmt in FileFormats]
+```
+
+### **✅ DO: Import하여 사용**
+```python
+# src/anivault/core/parser.py
+from anivault.shared.constants import FileFormats, APIConfig, FileLimits
+
+def is_supported_file(file_path: Path) -> bool:
+    """지원되는 파일인지 확인."""
+    return file_path.suffix.lower() in FileLimits.SUPPORTED_EXTENSIONS
+
+def get_api_timeout() -> int:
+    """API 타임아웃 설정 반환."""
+    return APIConfig.TIMEOUT_SECONDS
+```
+
+### **❌ DON'T: 중복 정의**
+```python
+# ❌ BAD: 여러 파일에서 동일한 상수 재정의
+# file1.py
+SUPPORTED_FORMATS = ['.mkv', '.mp4', '.avi']
+
+# file2.py
+SUPPORTED_FORMATS = ['.mkv', '.mp4', '.avi']  # ❌ 중복!
+```
+
+## Single Responsibility Principle (단일 책임 원칙)
+
+### **✅ DO: 책임별 함수 분리**
+```python
+# src/anivault/core/parser.py
+class AnimeParser:
+    """애니메이션 파일 파서 - 단일 책임: 파일명 파싱."""
+
+    def __init__(self):
+        self._anitopy = None
+
+    def _get_anitopy(self):
+        """anitopy 인스턴스 지연 로딩."""
+        if self._anitopy is None:
+            import anitopy
+            self._anitopy = anitopy
+        return self._anitopy
+
+    def parse_filename(self, filename: str) -> Optional[Dict[str, Any]]:
+        """파일명 파싱 - 단일 책임: 파일명 파싱만."""
+        try:
+            anitopy = self._get_anitopy()
+            return anitopy.parse(filename)
+        except Exception as e:
+            logger.error(f"파일명 파싱 실패: {filename}, {e}")
+            return None
+
+# src/anivault/core/validator.py
+class FileValidator:
+    """파일 검증기 - 단일 책임: 파일 검증만."""
+
+    def validate_file_path(self, file_path: Path) -> None:
+        """파일 경로 검증."""
+        if not file_path.exists():
+            raise FileNotFoundError(f"파일이 존재하지 않습니다: {file_path}")
+
+        if not file_path.is_file():
+            raise ValueError(f"파일이 아닙니다: {file_path}")
+
+    def validate_file_size(self, file_path: Path) -> None:
+        """파일 크기 검증."""
+        size_mb = file_path.stat().st_size / (1024 * 1024)
+        if size_mb > FileLimits.MAX_FILE_SIZE_MB / (1024 * 1024):
+            raise ValueError(f"파일이 너무 큽니다: {size_mb:.1f}MB")
+```
+
+### **❌ DON'T: 거대한 함수**
+```python
+# ❌ BAD: 모든 것을 하는 거대한 함수
+def process_anime_directory(directory, api_key, output_dir):
+    """디렉토리 스캔, 파싱, API 호출, 검증, 정리를 모두 처리"""
+    # 200줄 이상의 코드...
+    # 스캔 로직
+    # 파싱 로직
+    # API 호출 로직
+    # 검증 로직
+    # 정리 로직
+    # 에러 처리 로직
+    # 로깅 로직
+```
+
+## Magic Values Elimination (매직 값 제거)
+
+### **✅ DO: 상수화**
+```python
+# src/anivault/shared/constants/matching.py
+class MatchingConfig:
+    """매칭 설정 상수."""
+    MIN_CONFIDENCE_SCORE = 0.7
+    MAX_SEARCH_RESULTS = 10
+    CACHE_EXPIRY_DAYS = 30
+    RETRY_DELAY_SECONDS = 1
+    MAX_RETRY_ATTEMPTS = 3
+
+class LogLevels:
+    """로그 레벨 상수."""
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
+
+# 사용 예시
+def search_anime(query: str, min_confidence: float = MatchingConfig.MIN_CONFIDENCE_SCORE) -> List[Dict]:
+    """애니메이션 검색."""
+    if min_confidence < 0 or min_confidence > 1:
+        raise ValueError(f"신뢰도 점수는 0-1 사이여야 합니다: {min_confidence}")
+
+    # 검색 로직...
+```
+
+### **❌ DON'T: 매직 값 하드코딩**
+```python
+# ❌ BAD: 매직 값 직접 사용
+def search_anime(query):
+    if confidence < 0.7:  # ❌ 매직 넘버
+        return None
+
+    for i in range(3):  # ❌ 매직 넘버
+        try:
+            # API 호출
+            pass
+        except:
+            time.sleep(1)  # ❌ 매직 넘버
+```
+
+## 네이밍 컨벤션
+
+### **금지된 용어**
+- **"unified" 사용 금지**: 메서드명, 변수명, 주석에서 "unified" 사용 금지
+  - ❌ DON'T: `search_unified()`, `unified_strategies`, `unified_search`
+  - ✅ DO: `search()`, `search_strategies`, `search_method`
+
+### **✅ DO: 명확하고 간결한 네이밍**
+```python
+# ✅ GOOD: 명확하고 간결함
+def search(self, query: str) -> Optional[SearchResult]:
+    """재귀적 전략으로 TV와 Movie 검색을 모두 시도하는 검색."""
+    search_strategies = [SearchStrategy.ORIGINAL, SearchStrategy.NORMALIZED]
+    search_result = self.recursive_search(query, strategies=search_strategies)
+    return search_result
+
+# ❌ BAD: 중복적이고 장황함
+def search_unified(self, query: str) -> Optional[SearchResult]:
+    """재귀적 전략으로 TV와 Movie 검색을 모두 시도하는 통합 검색."""
+    unified_search_strategies = [SearchStrategy.ORIGINAL, SearchStrategy.NORMALIZED]
+    unified_search_result = self.recursive_search(query, strategies=unified_search_strategies)
+    return unified_search_result
+```
+
+## 도구 설정
+
+### **Pre-commit 설정**
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.9
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.8
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests, types-PyYAML]
+```
+
+### **pyproject.toml 설정**
+```toml
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+```
+
+## AI 코드 품질 검증
+
+### **자동 검증 체크리스트**
+```python
+# scripts/validate_ai_quality.py
+import ast
+import os
+from typing import List, Dict, Any
+
+class AICodeQualityValidator:
+    """AI 코드 품질 검증기."""
+
+    def validate_project(self, src_dir: str = "src") -> Dict[str, List[str]]:
+        """프로젝트 전체 품질 검증."""
+        issues = {
+            "duplicate_definitions": [],
+            "magic_values": [],
+            "long_functions": [],
+            "missing_type_hints": []
+        }
+
+        for root, dirs, files in os.walk(src_dir):
+            for file in files:
+                if file.endswith(".py"):
+                    file_path = os.path.join(root, file)
+                    self._validate_file(file_path, issues)
+
+        return issues
+
+    def _validate_file(self, file_path: str, issues: Dict[str, List[str]]):
+        """파일 검증."""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        tree = ast.parse(content)
+
+        # 중복 정의 검사
+        self._check_duplicate_definitions(file_path, tree, issues)
+
+        # 매직 값 검사
+        self._check_magic_values(file_path, content, issues)
+
+        # 함수 길이 검사
+        self._check_function_length(file_path, tree, issues)
+
+        # 타입 힌트 검사
+        self._check_type_hints(file_path, tree, issues)
+```
+
+### **Pre-commit 훅**
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+echo "🔍 Running AI Code Quality Validation..."
+
+# 매직 값 탐지
+magic_strings=$(find src -name "*.py" -exec grep -n "\"pending\"\|\"processing\"\|\"completed\"" {} \;)
+if [ ! -z "$magic_strings" ]; then
+    echo "❌ ERROR: Magic strings found! Use constants instead."
+    echo "$magic_strings"
+    exit 1
+fi
+
+# 함수 길이 검사
+python3 -c "
+import ast
+import os
+
+def check_function_length(file_path, max_lines=80):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    tree = ast.parse(content)
+    issues = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            start_line = node.lineno
+            end_line = getattr(node, 'end_lineno', start_line)
+            function_length = end_line - start_line + 1
+
+            if function_length > max_lines:
+                issues.append((node.name, start_line, function_length))
+
+    return issues
+
+# 모든 Python 파일 검사
+for file in \$(find src -name '*.py'); do
+    issues = check_function_length(file)
+    if issues:
+        print(f'❌ Functions too long in {file}:')
+        for func_name, line_num, length in issues:
+            print(f'  {func_name} (line {line_num}): {length} lines')
+        exit(1)
+
+print('✅ AI Code Quality validation passed!')
+"
+
+if [ $? -eq 0 ]; then
+    echo "✅ AI Code Quality validation passed!"
+    exit 0
+else
+    echo "❌ AI Code Quality validation failed!"
+    exit 1
+fi
+```
+
+## 관련 규칙
+
+- **시스템 표준**: [system_standards.mdc](mdc:.cursor/rules/system_standards.mdc)
+- **품질 보증**: [quality_assurance.mdc](mdc:.cursor/rules/quality_assurance.mdc)
+- **파일 처리**: [file_processing.mdc](mdc:.cursor/rules/file_processing.mdc)

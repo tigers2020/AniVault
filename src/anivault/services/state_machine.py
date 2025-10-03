@@ -239,11 +239,20 @@ class RateLimitStateMachine:
                 (recent_errors / total_recent * 100) if total_recent > 0 else 0.0
             )
 
+            # Calculate retry delay directly to avoid nested lock
+            if self._state == RateLimitState.THROTTLE:
+                remaining_delay = self._retry_after_delay - (
+                    current_time - self._last_429_time
+                )
+                retry_delay = max(0.0, remaining_delay)
+            else:
+                retry_delay = 0.0
+
             return {
                 "state": self._state.value,
                 "recent_errors": recent_errors,
                 "recent_successes": recent_successes,
                 "error_rate_percent": error_rate,
-                "retry_delay": self.get_retry_delay(),
+                "retry_delay": retry_delay,
                 "last_429_time": self._last_429_time,
             }

@@ -11,6 +11,14 @@ from pathlib import Path
 
 from pydantic import ValidationError, parse_obj_as
 
+from anivault.shared.constants import (
+    ANIVAULT_HOME_DIR,
+    CLI_INDENT_SIZE,
+    DEFAULT_ENCODING,
+    LOG_FILE_EXTENSION,
+    ORGANIZE_LOG_PREFIX,
+)
+
 from .models import FileOperation
 
 
@@ -48,11 +56,13 @@ class OperationLogManager:
             root_path: Root path of the project where `.anivault` directory resides.
         """
         self.root_path = Path(root_path)
-        self.logs_dir = self.root_path / ".anivault" / "logs"
+        self.logs_dir = self.root_path / ANIVAULT_HOME_DIR / "logs"
 
     def save_plan(self, plan: list[FileOperation]) -> Path:
         """
         Save a list of file operations to a timestamped log file.
+
+        This method orchestrates the saving process by delegating to specialized methods.
 
         Args:
             plan: List of FileOperation objects to save.
@@ -64,33 +74,80 @@ class OperationLogManager:
             OSError: If the log directory cannot be created or file cannot be written.
         """
         # Ensure logs directory exists
+        self._ensure_logs_directory()
+
+        # Generate log file path
+        log_path = self._generate_log_file_path()
+
+        # Serialize plan data
+        plan_data = self._serialize_plan_data(plan)
+
+        # Write to file
+        self._write_log_file(log_path, plan_data)
+
+        return log_path
+
+    def _ensure_logs_directory(self) -> None:
+        """Ensure the logs directory exists.
+
+        Raises:
+            OSError: If directory creation fails
+        """
         self.logs_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate timestamp string in YYYYMMDD-HHMMSS format
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    def _generate_log_file_path(self) -> Path:
+        """Generate a timestamped log file path.
 
-        # Construct log file path
-        log_filename = f"organize-{timestamp}.json"
-        log_path = self.logs_dir / log_filename
+        Returns:
+            Path object for the log file
+        """
+        timestamp = self._get_timestamp()
+        log_filename = f"{ORGANIZE_LOG_PREFIX}{timestamp}{LOG_FILE_EXTENSION}"
+        return self.logs_dir / log_filename
 
-        # Serialize the plan to JSON
+    def _get_timestamp(self) -> str:
+        """Generate timestamp string in YYYYMMDD-HHMMSS format.
+
+        Returns:
+            Timestamp string
+        """
+        return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    def _serialize_plan_data(self, plan: list[FileOperation]) -> list[dict]:
+        """Serialize FileOperation objects to dictionaries.
+
+        Args:
+            plan: List of FileOperation objects to serialize
+
+        Returns:
+            List of dictionaries representing the operations
+
+        Raises:
+            json.JSONEncodeError: If serialization fails
+        """
+        # Convert FileOperation objects to dictionaries
+        plan_data = [operation.model_dump() for operation in plan]
+
+        # Ensure paths are serialized as strings
+        for operation_data in plan_data:
+            operation_data["source_path"] = str(operation_data["source_path"])
+            operation_data["destination_path"] = str(operation_data["destination_path"])
+
+        return plan_data
+
+    def _write_log_file(self, log_path: Path, plan_data: list[dict]) -> None:
+        """Write serialized plan data to log file.
+
+        Args:
+            log_path: Path to the log file
+            plan_data: Serialized plan data to write
+
+        Raises:
+            OSError: If file writing fails
+        """
         try:
-            # Convert FileOperation objects to dictionaries
-            plan_data = [operation.model_dump() for operation in plan]
-
-            # Ensure paths are serialized as strings
-            for operation_data in plan_data:
-                operation_data["source_path"] = str(operation_data["source_path"])
-                operation_data["destination_path"] = str(
-                    operation_data["destination_path"],
-                )
-
-            # Write to file
-            with log_path.open("w", encoding="utf-8") as f:
-                json.dump(plan_data, f, indent=2, ensure_ascii=False)
-
-            return log_path
-
+            with log_path.open("w", encoding=DEFAULT_ENCODING) as f:
+                json.dump(plan_data, f, indent=CLI_INDENT_SIZE, ensure_ascii=False)
         except (OSError, json.JSONEncodeError) as e:
             raise OSError(f"Failed to save operation log to {log_path}: {e}") from e
 
@@ -113,7 +170,7 @@ class OperationLogManager:
 
         try:
             # Read JSON content
-            with log_path.open("r", encoding="utf-8") as f:
+            with log_path.open("r", encoding=DEFAULT_ENCODING) as f:
                 plan_data = json.load(f)
 
             # Deserialize to FileOperation objects
@@ -137,11 +194,38 @@ class OperationLogManager:
 
         # Find all JSON files that match the organize-*.json pattern
         log_files = [
-            path for path in self.logs_dir.glob("organize-*.json") if path.is_file()
+            path
+            for path in self.logs_dir.glob(
+                f"{ORGANIZE_LOG_PREFIX}*{LOG_FILE_EXTENSION}",
+            )
+            if path.is_file()
         ]
 
         # Sort by modification time (newest first)
         return sorted(log_files, key=lambda p: p.stat().st_mtime, reverse=True)
+
+    def get_log_identifiers(self) -> list[str]:
+        """
+        Get a list of log identifiers (timestamps) from available log files.
+
+        Returns:
+            List of log identifiers sorted by creation time (newest first).
+        """
+        log_files = self.list_logs()
+        identifiers = []
+
+        for log_file in log_files:
+            # Extract timestamp from filename (e.g., "organize-20231027-153000.json" -> "20231027-153000")
+            filename = log_file.name
+            if filename.startswith(ORGANIZE_LOG_PREFIX) and filename.endswith(
+                LOG_FILE_EXTENSION,
+            ):
+                timestamp = filename[
+                    len(ORGANIZE_LOG_PREFIX) : -len(LOG_FILE_EXTENSION)
+                ]  # Remove prefix and suffix
+                identifiers.append(timestamp)
+
+        return identifiers
 
     def get_log_by_id(self, log_id: str) -> Path:
         """
@@ -156,7 +240,7 @@ class OperationLogManager:
         Raises:
             LogFileNotFoundError: If no log file with the given ID is found.
         """
-        expected_filename = f"organize-{log_id}.json"
+        expected_filename = f"{ORGANIZE_LOG_PREFIX}{log_id}{LOG_FILE_EXTENSION}"
         log_path = self.logs_dir / expected_filename
 
         if not log_path.exists():

@@ -5,17 +5,18 @@ This module contains comprehensive tests for:
 - Statistics classes: Thread-safe counters for pipeline metrics
 """
 
-import pytest
+import queue
 import threading
 import time
-import queue
 from unittest.mock import patch
+
+import pytest
 
 from anivault.core.pipeline.utils import (
     BoundedQueue,
-    ScanStatistics,
-    QueueStatistics,
     ParserStatistics,
+    QueueStatistics,
+    ScanStatistics,
 )
 
 

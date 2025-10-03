@@ -11,6 +11,7 @@ from anivault.shared.constants.system import (
     CLI_INFO_COMMAND_COMPLETED,
     CLI_INFO_COMMAND_STARTED,
 )
+from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
 
@@ -62,26 +63,37 @@ def handle_scan_command(args: Any) -> int:
             from anivault.cli.utils import validate_directory
 
             directory = validate_directory(args.directory)
+        except ApplicationError as e:
+            console.print(f"[red]Application error: {e.message}[/red]")
+            logger.error(
+                "Directory validation failed",
+                extra={"context": e.context, "error_code": e.code},
+            )
+            return 1
+        except InfrastructureError as e:
+            console.print(f"[red]Infrastructure error: {e.message}[/red]")
+            logger.error(
+                "Directory validation failed",
+                extra={"context": e.context, "error_code": e.code},
+            )
+            return 1
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Unexpected error: {e}[/red]")
+            logger.exception("Unexpected error during directory validation")
             return 1
 
         # Determine if we should enrich metadata
-        enrich_metadata = args.enrich and not args.no_enrich
+        enrich_metadata = (
+            not args.no_enrich
+        )  # Default to enrich unless --no-enrich is specified
 
         console.print(f"[green]Scanning directory: {directory}[/green]")
         console.print(f"[blue]Enriching metadata: {enrich_metadata}[/blue]")
 
-        # Run the file processing pipeline
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Scanning files...", total=None)
+        # Run the file processing pipeline with simple console output
+        console.print("[yellow]Scanning files...[/yellow]")
 
+        try:
             file_results = run_pipeline(
                 root_path=str(directory),
                 extensions=args.extensions,
@@ -89,7 +101,11 @@ def handle_scan_command(args: Any) -> int:
                 max_queue_size=DEFAULT_QUEUE_SIZE,
             )
 
-            progress.update(task, description="File scanning completed")
+            console.print("[green]✅ File scanning completed![/green]")
+
+        except Exception as e:
+            console.print("[red]❌ File scanning failed[/red]")
+            raise
 
         if not file_results:
             console.print(
@@ -189,9 +205,23 @@ def handle_scan_command(args: Any) -> int:
         logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="scan"))
         return 0
 
+    except ApplicationError as e:
+        console.print(f"[red]Application error during scan: {e.message}[/red]")
+        logger.error(
+            "Application error in scan command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
+    except InfrastructureError as e:
+        console.print(f"[red]Infrastructure error during scan: {e.message}[/red]")
+        logger.error(
+            "Infrastructure error in scan command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
     except Exception as e:
         console.print(f"[red]{CLI_ERROR_SCAN_FAILED.format(error=e)}[/red]")
-        logger.exception("Scan error")
+        logger.exception("Unexpected error in scan command")
         return 1
 
 

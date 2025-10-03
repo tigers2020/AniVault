@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from anivault.core.statistics import PerformanceMetrics, StatisticsCollector
 
@@ -216,20 +216,47 @@ class Profiler:
     def generate_recommendations(self) -> list[str]:
         """Generate performance improvement recommendations.
 
+        This method orchestrates the recommendation generation by delegating to specialized methods.
+
         Returns:
             List of performance improvement recommendations
         """
         recommendations = []
         metrics = self.statistics.metrics
 
-        # Cache performance recommendations
+        # Generate cache performance recommendations
+        recommendations.extend(self._generate_cache_recommendations(metrics))
+
+        # Generate API performance recommendations
+        recommendations.extend(self._generate_api_recommendations(metrics))
+
+        # Generate memory usage recommendations
+        recommendations.extend(self._generate_memory_recommendations())
+
+        # Generate processing time recommendations
+        recommendations.extend(self._generate_processing_time_recommendations(metrics))
+
+        # Generate matching accuracy recommendations
+        recommendations.extend(self._generate_accuracy_recommendations(metrics))
+
+        return recommendations
+
+    def _generate_cache_recommendations(self, metrics: PerformanceMetrics) -> list[str]:
+        """Generate cache performance recommendations."""
+        recommendations = []
+
         if metrics.cache_hit_ratio < 50.0:
             recommendations.append(
                 "Low cache hit ratio detected. Consider increasing cache TTL or "
                 "implementing more aggressive caching strategies.",
             )
 
-        # API performance recommendations
+        return recommendations
+
+    def _generate_api_recommendations(self, metrics: PerformanceMetrics) -> list[str]:
+        """Generate API performance recommendations."""
+        recommendations = []
+
         if metrics.api_errors > 0:
             error_rate = (metrics.api_errors / max(metrics.api_calls, 1)) * 100
             if error_rate > 10.0:
@@ -238,7 +265,12 @@ class Profiler:
                     "Consider implementing retry logic or rate limiting.",
                 )
 
-        # Memory usage recommendations
+        return recommendations
+
+    def _generate_memory_recommendations(self) -> list[str]:
+        """Generate memory usage recommendations."""
+        recommendations = []
+
         if self.memory_snapshots:
             peak_memory = max(
                 snapshot.peak_memory_mb for snapshot in self.memory_snapshots
@@ -249,7 +281,14 @@ class Profiler:
                     "Consider implementing memory optimization strategies.",
                 )
 
-        # Processing time recommendations
+        return recommendations
+
+    def _generate_processing_time_recommendations(
+        self, metrics: PerformanceMetrics
+    ) -> list[str]:
+        """Generate processing time recommendations."""
+        recommendations = []
+
         if metrics.average_memory_mb > 0:
             avg_processing_time = metrics.total_time / max(metrics.total_files, 1)
             if avg_processing_time > 5.0:  # 5 seconds per file
@@ -258,7 +297,14 @@ class Profiler:
                     "Consider optimizing matching algorithms or implementing parallel processing.",
                 )
 
-        # Matching accuracy recommendations
+        return recommendations
+
+    def _generate_accuracy_recommendations(
+        self, metrics: PerformanceMetrics
+    ) -> list[str]:
+        """Generate matching accuracy recommendations."""
+        recommendations = []
+
         if metrics.total_files > 0:
             success_rate = (metrics.successful_matches / metrics.total_files) * 100
             if success_rate < 70.0:
@@ -373,9 +419,13 @@ class Profiler:
         print("=" * 80)
 
     def export_detailed_analysis(
-        self, report: ProfilingReport, output_path: Path | str,
+        self,
+        report: ProfilingReport,
+        output_path: Path | str,
     ) -> None:
         """Export detailed analysis to a comprehensive report file.
+
+        This method orchestrates the detailed analysis export by delegating to specialized methods.
 
         Args:
             report: Profiling report to analyze
@@ -384,61 +434,101 @@ class Profiler:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        analysis = {
-            "session_summary": {
-                "session_id": report.session_id,
-                "duration_seconds": report.duration_seconds,
-                "start_time": report.start_time,
-                "end_time": report.end_time,
-            },
-            "performance_analysis": {
-                "throughput": {
-                    "files_per_second": report.performance_metrics.total_files
-                    / max(report.duration_seconds, 1),
-                    "matches_per_second": report.performance_metrics.successful_matches
-                    / max(report.duration_seconds, 1),
-                },
-                "accuracy": {
-                    "success_rate": (
-                        report.performance_metrics.successful_matches
-                        / max(report.performance_metrics.total_files, 1)
-                    )
-                    * 100,
-                    "high_confidence_rate": (
-                        report.performance_metrics.high_confidence_matches
-                        / max(report.performance_metrics.successful_matches, 1)
-                    )
-                    * 100,
-                },
-                "efficiency": {
-                    "cache_efficiency": report.performance_metrics.cache_hit_ratio,
-                    "api_efficiency": (
-                        (
-                            report.performance_metrics.api_calls
-                            - report.performance_metrics.api_errors
-                        )
-                        / max(report.performance_metrics.api_calls, 1)
-                    )
-                    * 100,
-                },
-            },
-            "memory_analysis": {
-                "peak_usage_mb": report.performance_metrics.peak_memory_mb,
-                "average_usage_mb": report.performance_metrics.average_memory_mb,
-                "snapshots_count": len(report.memory_snapshots),
-                "memory_growth": self._calculate_memory_growth(report.memory_snapshots),
-            },
+        # Generate comprehensive analysis
+        analysis = self._generate_comprehensive_analysis(report)
+
+        # Write analysis to file
+        self._write_analysis_to_file(output_path, analysis)
+
+        logger.info("Exported detailed analysis to %s", output_path)
+
+    def _generate_comprehensive_analysis(
+        self, report: ProfilingReport
+    ) -> dict[str, Any]:
+        """Generate comprehensive analysis from profiling report."""
+        return {
+            "session_summary": self._generate_session_summary(report),
+            "performance_analysis": self._generate_performance_analysis(report),
+            "memory_analysis": self._generate_memory_analysis(report),
             "recommendations": report.recommendations,
             "system_info": report.system_info,
         }
 
+    def _generate_session_summary(self, report: ProfilingReport) -> dict[str, Any]:
+        """Generate session summary from profiling report."""
+        return {
+            "session_id": report.session_id,
+            "duration_seconds": report.duration_seconds,
+            "start_time": report.start_time,
+            "end_time": report.end_time,
+        }
+
+    def _generate_performance_analysis(self, report: ProfilingReport) -> dict[str, Any]:
+        """Generate performance analysis from profiling report."""
+        metrics = report.performance_metrics
+
+        return {
+            "throughput": self._calculate_throughput_metrics(report, metrics),
+            "accuracy": self._calculate_accuracy_metrics(metrics),
+            "efficiency": self._calculate_efficiency_metrics(metrics),
+        }
+
+    def _calculate_throughput_metrics(
+        self, report: ProfilingReport, metrics: PerformanceMetrics
+    ) -> dict[str, float]:
+        """Calculate throughput metrics."""
+        duration = max(report.duration_seconds, 1)
+
+        return {
+            "files_per_second": metrics.total_files / duration,
+            "matches_per_second": metrics.successful_matches / duration,
+        }
+
+    def _calculate_accuracy_metrics(
+        self, metrics: PerformanceMetrics
+    ) -> dict[str, float]:
+        """Calculate accuracy metrics."""
+        total_files = max(metrics.total_files, 1)
+        successful_matches = max(metrics.successful_matches, 1)
+
+        return {
+            "success_rate": (metrics.successful_matches / total_files) * 100,
+            "high_confidence_rate": (
+                metrics.high_confidence_matches / successful_matches
+            )
+            * 100,
+        }
+
+    def _calculate_efficiency_metrics(
+        self, metrics: PerformanceMetrics
+    ) -> dict[str, float]:
+        """Calculate efficiency metrics."""
+        api_calls = max(metrics.api_calls, 1)
+
+        return {
+            "cache_efficiency": metrics.cache_hit_ratio,
+            "api_efficiency": ((api_calls - metrics.api_errors) / api_calls) * 100,
+        }
+
+    def _generate_memory_analysis(self, report: ProfilingReport) -> dict[str, Any]:
+        """Generate memory analysis from profiling report."""
+        return {
+            "peak_usage_mb": report.performance_metrics.peak_memory_mb,
+            "average_usage_mb": report.performance_metrics.average_memory_mb,
+            "snapshots_count": len(report.memory_snapshots),
+            "memory_growth": self._calculate_memory_growth(report.memory_snapshots),
+        }
+
+    def _write_analysis_to_file(
+        self, output_path: Path, analysis: dict[str, Any]
+    ) -> None:
+        """Write analysis data to file."""
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(analysis, f, indent=2, ensure_ascii=False)
 
-        logger.info("Exported detailed analysis to %s", output_path)
-
     def _calculate_memory_growth(
-        self, snapshots: list[MemorySnapshot],
+        self,
+        snapshots: list[MemorySnapshot],
     ) -> dict[str, float]:
         """Calculate memory growth patterns from snapshots.
 

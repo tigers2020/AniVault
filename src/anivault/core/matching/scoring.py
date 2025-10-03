@@ -5,7 +5,7 @@ returned by the TMDB API, helping to determine the best match for a given query.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from fuzzywuzzy import fuzz
 
@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_confidence_score(
-    normalized_query: dict[str, Any], tmdb_result: dict[str, Any],
+    normalized_query: dict[str, Any],
+    tmdb_result: dict[str, Any],
 ) -> float:
     """Calculate a confidence score for a TMDB result based on the normalized query.
 
@@ -59,7 +60,8 @@ def calculate_confidence_score(
         # Calculate individual score components
         title_score = _calculate_title_score(query_title, result_title)
         year_score = _calculate_year_score(
-            normalized_query.get("year"), tmdb_result.get("release_date"),
+            normalized_query.get("year"),
+            tmdb_result.get("release_date"),
         )
         media_type_score = _calculate_media_type_score(tmdb_result.get("media_type"))
         popularity_bonus = _calculate_popularity_bonus(tmdb_result.get("popularity", 0))

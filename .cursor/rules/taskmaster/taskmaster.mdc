@@ -2,6 +2,7 @@
 description: Comprehensive reference for Taskmaster MCP tools and CLI commands.
 globs: **/*
 alwaysApply: true
+priority: 11
 ---
 
 # Taskmaster Tool & Command Reference

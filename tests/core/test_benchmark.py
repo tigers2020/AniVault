@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from anivault.core.benchmark import (
-    BenchmarkRunner,
     BenchmarkResult,
+    BenchmarkRunner,
     BenchmarkSummary,
     GroundTruthEntry,
 )
@@ -107,7 +107,7 @@ class TestBenchmarkRunner:
         with patch("anivault.core.benchmark.TMDBClient", return_value=mock_tmdb_client):
             runner = BenchmarkRunner(
                 cache_dir=temp_dir,
-                tmdb_api_key="test_key",
+                tmdb_api_key="test_key",  # pragma: allowlist secret
                 statistics=StatisticsCollector(),
             )
             return runner

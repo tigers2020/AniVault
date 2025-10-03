@@ -2,6 +2,7 @@
 description: TMDB API client and rate limiting handling patterns guide
 globs: src/core/tmdb_client.py, src/services/tmdb_service.py, **/*tmdb*.py
 alwaysApply: false
+priority: 12
 ---
 
 # TMDB API and Rate Limiting Patterns Guide

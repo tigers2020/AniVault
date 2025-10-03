@@ -14,6 +14,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from anivault.shared.constants import (
+    HIGH_CONFIDENCE_THRESHOLD,
+    MEDIUM_CONFIDENCE_THRESHOLD,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -148,9 +153,9 @@ class StatisticsCollector:
             self.metrics.successful_matches += 1
 
             if confidence is not None:
-                if confidence >= 0.8:
+                if confidence >= HIGH_CONFIDENCE_THRESHOLD:
                     self.metrics.high_confidence_matches += 1
-                elif confidence >= 0.6:
+                elif confidence >= MEDIUM_CONFIDENCE_THRESHOLD:
                     self.metrics.medium_confidence_matches += 1
                 else:
                     self.metrics.low_confidence_matches += 1
@@ -290,9 +295,9 @@ class StatisticsCollector:
         self.metrics.successful_matches += 1
 
         # Categorize by confidence level
-        if confidence >= 0.8:
+        if confidence >= HIGH_CONFIDENCE_THRESHOLD:
             self.metrics.high_confidence_matches += 1
-        elif confidence >= 0.6:
+        elif confidence >= MEDIUM_CONFIDENCE_THRESHOLD:
             self.metrics.medium_confidence_matches += 1
         else:
             self.metrics.low_confidence_matches += 1

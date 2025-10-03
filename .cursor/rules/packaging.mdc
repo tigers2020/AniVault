@@ -2,6 +2,7 @@
 description: Single exe packaging and deployment patterns guide
 globs: tools/bundle_poc/*.py, build_scripts/*.py, **/*bundle*.py, **/*packaging*.py
 alwaysApply: false
+priority: 8
 ---
 
 # 단일 exe 패키징 패턴 가이드

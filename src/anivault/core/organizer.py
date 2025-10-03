@@ -5,6 +5,7 @@ This module provides the FileOrganizer class that handles the planning
 and execution of file organization operations based on scanned anime metadata.
 """
 
+import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,8 @@ from pathlib import Path
 from anivault.config.settings import Settings
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
+
+logger = logging.getLogger(__name__)
 
 
 class FileOrganizer:
@@ -172,8 +175,8 @@ class FileOrganizer:
         """
         Execute a plan of file operations.
 
-        This method performs the actual file system operations based on
-        the provided plan, including directory creation and file moves.
+        This method orchestrates the execution of file operations by delegating
+        to specialized methods for validation, execution, and logging.
 
         Args:
             plan: List of FileOperation objects to execute.
@@ -182,49 +185,189 @@ class FileOrganizer:
 
         Returns:
             List of tuples containing (source_path, destination_path) for moved files.
-
-        Raises:
-            OSError: If file operations fail.
         """
         moved_files: list[tuple[str, str]] = []
 
         for operation in plan:
             try:
+                # Validate operation before execution
+                self._validate_operation(operation)
+
                 # Ensure destination directory exists
-                destination_dir = operation.destination_path.parent
-                destination_dir.mkdir(parents=True, exist_ok=True)
+                self._ensure_destination_directory(operation.destination_path)
 
-                # Perform the file move
-                if operation.operation_type == OperationType.MOVE:
-                    shutil.move(
-                        str(operation.source_path), str(operation.destination_path),
-                    )
-                    moved_files.append(
-                        (str(operation.source_path), str(operation.destination_path)),
-                    )
-                elif operation.operation_type == OperationType.COPY:
-                    shutil.copy2(
-                        str(operation.source_path), str(operation.destination_path),
-                    )
-                    moved_files.append(
-                        (str(operation.source_path), str(operation.destination_path)),
-                    )
+                # Execute the file operation
+                result = self._execute_file_operation(operation)
+                if result:
+                    moved_files.append(result)
 
+            except FileNotFoundError as e:
+                self._handle_operation_error(operation, e)
+                continue
+            except FileExistsError as e:
+                self._handle_operation_error(operation, e)
+                continue
+            except IOError as e:
+                self._handle_operation_error(operation, e)
+                continue
             except (OSError, shutil.Error) as e:
-                # Log the error but continue with other operations
-                print(
-                    f"Failed to move {operation.source_path} to {operation.destination_path}: {e}",
-                )
+                self._handle_operation_error(operation, e)
                 continue
 
         # Log the operation if requested
+        self._log_operation_if_needed(plan, moved_files, no_log)
+
+        return moved_files
+
+    def _validate_operation(self, operation: FileOperation) -> None:
+        """Validate a file operation before execution.
+
+        Args:
+            operation: FileOperation to validate
+
+        Raises:
+            OSError: If validation fails
+        """
+        # Check if source file exists
+        if not operation.source_path.exists():
+            raise OSError(f"Source file does not exist: {operation.source_path}")
+
+        # Check if source is a file (not directory)
+        if not operation.source_path.is_file():
+            raise OSError(f"Source path is not a file: {operation.source_path}")
+
+        # Check if destination parent directory is writable
+        destination_parent = operation.destination_path.parent
+        if destination_parent.exists() and not destination_parent.is_dir():
+            raise OSError(
+                f"Destination parent is not a directory: {destination_parent}"
+            )
+
+    def _ensure_destination_directory(self, destination_path: Path) -> None:
+        """Ensure the destination directory exists.
+
+        Args:
+            destination_path: Path to the destination file
+
+        Raises:
+            OSError: If directory creation fails
+        """
+        destination_dir = destination_path.parent
+        destination_dir.mkdir(parents=True, exist_ok=True)
+
+    def _execute_file_operation(
+        self, operation: FileOperation
+    ) -> tuple[str, str] | None:
+        """Execute a single file operation.
+
+        Args:
+            operation: FileOperation to execute
+
+        Returns:
+            Tuple of (source_path, destination_path) if successful, None otherwise
+
+        Raises:
+            FileNotFoundError: If source file is not found
+            FileExistsError: If destination file already exists
+            IOError: If other filesystem-related error occurs
+        """
+        if operation.operation_type == OperationType.MOVE:
+            try:
+                shutil.move(
+                    str(operation.source_path),
+                    str(operation.destination_path),
+                )
+                return (str(operation.source_path), str(operation.destination_path))
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"Source file not found: {operation.source_path}"
+                ) from e
+            except FileExistsError as e:
+                raise FileExistsError(
+                    f"File already exists at destination: {operation.destination_path}"
+                ) from e
+            except IOError as e:
+                raise IOError(
+                    f"IO error occurred for {operation.source_path}: {e}"
+                ) from e
+
+        elif operation.operation_type == OperationType.COPY:
+            try:
+                shutil.copy2(
+                    str(operation.source_path),
+                    str(operation.destination_path),
+                )
+                return (str(operation.source_path), str(operation.destination_path))
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"Source file not found: {operation.source_path}"
+                ) from e
+            except FileExistsError as e:
+                raise FileExistsError(
+                    f"File already exists at destination: {operation.destination_path}"
+                ) from e
+            except IOError as e:
+                raise IOError(
+                    f"IO error occurred for {operation.source_path}: {e}"
+                ) from e
+
+        return None
+
+    def _handle_operation_error(
+        self, operation: FileOperation, error: Exception
+    ) -> None:
+        """Handle errors that occur during file operations.
+
+        Args:
+            operation: FileOperation that failed
+            error: Exception that occurred
+        """
+        if isinstance(error, FileNotFoundError):
+            logger.error(
+                "Source file not found, skipping: '%s'",
+                operation.source_path,
+                exc_info=True,
+            )
+        elif isinstance(error, FileExistsError):
+            logger.error(
+                "File already exists at destination, skipping: '%s'",
+                operation.destination_path,
+                exc_info=True,
+            )
+        elif isinstance(error, IOError):
+            logger.error(
+                "An unexpected IO error occurred for '%s': %s",
+                operation.source_path,
+                error,
+                exc_info=True,
+            )
+        else:
+            logger.error(
+                "Failed to move %s to %s: %s",
+                operation.source_path,
+                operation.destination_path,
+                error,
+                exc_info=True,
+            )
+
+    def _log_operation_if_needed(
+        self,
+        plan: list[FileOperation],
+        moved_files: list[tuple[str, str]],
+        no_log: bool,
+    ) -> None:
+        """Log the operation if logging is enabled and files were moved.
+
+        Args:
+            plan: List of FileOperation objects
+            moved_files: List of successfully moved files
+            no_log: If True, skip logging
+        """
         if not no_log and moved_files:
             try:
                 self.log_manager.save_plan(plan)
             except Exception as e:
                 print(f"Warning: Failed to save operation log: {e}")
-
-        return moved_files
 
     def organize(
         self,

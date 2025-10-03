@@ -1,0 +1,582 @@
+---
+description: System-wide standards for encoding, logging, and environment configuration
+globs: src/**/*.py, main.py, **/*config*.py, **/*log*.py
+alwaysApply: true
+priority: 5
+---
+
+# System Standards
+
+## 핵심 원칙
+
+- **Global UTF-8 Enforcement**: All file I/O MUST use UTF-8 encoding
+- **Environment Variables**: PYTHONIOENCODING=UTF-8 built-in
+- **Source Code**: All Python files MUST be saved in UTF-8
+- **Resource Files**: All resources (JSON, config files) MUST be UTF-8
+- **Log Files**: All log files MUST use UTF-8 encoding
+- **API Communication**: TMDB API requests/responses MUST be UTF-8
+- **구조화된 로깅**: JSON 포맷으로 구조화된 로그 사용
+- **로그 레벨 일관성**: 적절한 로그 레벨 사용
+- **성능 고려**: 로깅이 성능에 미치는 영향 최소화
+- **보안**: 민감한 정보 로깅 방지
+
+## UTF-8 환경 설정
+
+### **Global UTF-8 Environment Configuration**
+```python
+# ✅ DO: AniVault UTF-8 환경 설정
+import os
+import sys
+import locale
+from pathlib import Path
+
+def setup_utf8_environment() -> None:
+    """전역 UTF-8 환경 설정."""
+
+    # 환경변수 설정
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    os.environ['LC_ALL'] = 'ko_KR.UTF-8'
+    os.environ['LANG'] = 'ko_KR.UTF-8'
+
+    # Windows 특화 설정
+    if sys.platform == 'win32':
+        os.environ['PYTHONLEGACYWINDOWSSTDIO'] = '1'
+
+        # Windows 콘솔 UTF-8 설정
+        try:
+            import codecs
+            sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+            sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+        except Exception as e:
+            logger.warning(f"Failed to set UTF-8 console encoding: {e}")
+
+    # 표준 입출력 재설정
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+        except Exception as e:
+            logger.warning(f"Failed to reconfigure stdio: {e}")
+
+    # 로케일 설정
+    try:
+        if sys.platform == 'win32':
+            # Windows에서는 시스템 로케일 사용
+            locale.setlocale(locale.LC_ALL, '')
+        else:
+            # Unix 계열에서는 UTF-8 로케일 설정
+            locale.setlocale(locale.LC_ALL, 'ko_KR.UTF-8')
+    except locale.Error as e:
+        logger.warning(f"Failed to set locale: {e}")
+
+class UTF8Environment:
+    """UTF-8 환경 관리자."""
+
+    def __init__(self):
+        self._original_stdout = None
+        self._original_stderr = None
+        self._setup_complete = False
+
+    def initialize(self) -> None:
+        """UTF-8 환경 초기화."""
+        if self._setup_complete:
+            return
+
+        setup_utf8_environment()
+        self._setup_complete = True
+        logger.info("UTF-8 environment initialized")
+
+    def cleanup(self) -> None:
+        """환경 정리."""
+        if self._original_stdout:
+            sys.stdout = self._original_stdout
+        if self._original_stderr:
+            sys.stderr = self._original_stderr
+```
+
+## 파일 I/O 패턴
+
+### **안전한 파일 읽기/쓰기**
+```python
+# ✅ DO: UTF-8 강제 파일 I/O
+from pathlib import Path
+from typing import Any, Union
+import json
+
+class UTF8FileHandler:
+    """UTF-8 전제 파일 핸들러."""
+
+    @staticmethod
+    def read_text(file_path: Union[str, Path], encoding: str = 'utf-8') -> str:
+        """UTF-8로 텍스트 파일 읽기."""
+        file_path = Path(file_path)
+
+        try:
+            with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+                return f.read()
+        except UnicodeDecodeError as e:
+            logger.error(f"UTF-8 decode error for {file_path}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"File read error for {file_path}: {e}")
+            raise
+
+    @staticmethod
+    def write_text(file_path: Union[str, Path], content: str, encoding: str = 'utf-8') -> None:
+        """UTF-8로 텍스트 파일 쓰기."""
+        file_path = Path(file_path)
+
+        try:
+            # 디렉토리 생성
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, 'w', encoding=encoding, errors='replace') as f:
+                f.write(content)
+        except UnicodeEncodeError as e:
+            logger.error(f"UTF-8 encode error for {file_path}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"File write error for {file_path}: {e}")
+            raise
+
+    @staticmethod
+    def read_json(file_path: Union[str, Path]) -> Any:
+        """UTF-8로 JSON 파일 읽기."""
+        content = UTF8FileHandler.read_text(file_path)
+
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error for {file_path}: {e}")
+            raise
+
+    @staticmethod
+    def write_json(file_path: Union[str, Path], data: Any, indent: int = 2) -> None:
+        """UTF-8로 JSON 파일 쓰기."""
+        try:
+            json_str = json.dumps(data, ensure_ascii=False, indent=indent, separators=(',', ': '))
+            UTF8FileHandler.write_text(file_path, json_str)
+        except (TypeError, ValueError) as e:
+            logger.error(f"JSON encode error for {file_path}: {e}")
+            raise
+```
+
+## API 통신 패턴
+
+### **TMDB API UTF-8 통신**
+```python
+# ✅ DO: TMDB API UTF-8 통신
+import requests
+from typing import Dict, Any, Optional
+
+class UTF8APIClient:
+    """UTF-8 전제 API 클라이언트."""
+
+    def __init__(self, base_url: str, api_key: str):
+        self.base_url = base_url
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json;charset=utf-8',
+            'Accept': 'application/json;charset=utf-8'
+        })
+
+    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """UTF-8 GET 요청."""
+        url = f"{self.base_url}{endpoint}"
+
+        try:
+            response = self.session.get(url, params=params, timeout=10)
+            response.raise_for_status()
+
+            # UTF-8 응답 처리
+            response.encoding = 'utf-8'
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request error: {e}")
+            raise
+        except UnicodeDecodeError as e:
+            logger.error(f"UTF-8 decode error in API response: {e}")
+            raise
+
+    def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """UTF-8 POST 요청."""
+        url = f"{self.base_url}{endpoint}"
+
+        try:
+            # JSON 데이터를 UTF-8로 인코딩
+            json_data = json.dumps(data, ensure_ascii=False) if data else None
+
+            response = self.session.post(
+                url,
+                data=json_data,
+                headers={'Content-Type': 'application/json;charset=utf-8'},
+                timeout=10
+            )
+            response.raise_for_status()
+
+            response.encoding = 'utf-8'
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request error: {e}")
+            raise
+        except UnicodeDecodeError as e:
+            logger.error(f"UTF-8 decode error in API response: {e}")
+            raise
+```
+
+## 로깅 시스템
+
+### **AniVault 특화 로깅 구성**
+```python
+# ✅ DO: AniVault 표준 로깅 설정 (UTF-8 강제, 레벨별 분리)
+import logging
+import logging.handlers
+from pathlib import Path
+from datetime import datetime
+
+def setup_anivault_logging(
+    log_dir: Path = Path("logs"),
+    debug_enabled: bool = False,
+    environment: str = "production"
+) -> None:
+    """AniVault 로깅 시스템 초기화 - UTF-8 강제, 레벨별 파일 분리."""
+
+    # 로그 디렉토리 생성 (UTF-8 환경)
+    log_dir.mkdir(exist_ok=True)
+
+    # 루트 로거 설정
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG if debug_enabled else logging.INFO)
+
+    # 기존 핸들러 제거
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # 콘솔 핸들러 (UTF-8 강제)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
+
+    # AniVault 특화 파일 핸들러들 (개발 계획서 기준)
+    handlers = [
+        # INFO/DEBUG 로그
+        ("app_info.log", logging.INFO, "INFO/DEBUG 로그"),
+        # WARNING 로그
+        ("app_warn.log", logging.WARNING, "WARNING 로그"),
+        # ERROR/CRITICAL 로그
+        ("app_error.log", logging.ERROR, "ERROR/CRITICAL 로그"),
+        # 네트워크 관련 로그
+        ("network.log", logging.INFO, "TMDB API 요청/응답 로그"),
+        # 파이프라인 로그
+        ("pipeline.log", logging.INFO, "스캔/파싱/매칭 단계별 이벤트 로그")
+    ]
+
+    for filename, level, description in handlers:
+        handler = logging.handlers.TimedRotatingFileHandler(
+            log_dir / filename,
+            when='midnight',  # 일단위 회전
+            interval=1,
+            backupCount=7,  # 7일 보존
+            encoding="utf-8",  # UTF-8 강제
+            utc=True  # UTC 기준
+        )
+        handler.setLevel(level)
+
+        # JSON 포맷터 적용
+        json_formatter = AniVaultJSONFormatter()
+        handler.setFormatter(json_formatter)
+
+        # 특정 로거에만 적용
+        if "network" in filename:
+            network_logger = logging.getLogger("network")
+            network_logger.addHandler(handler)
+            network_logger.setLevel(level)
+        elif "pipeline" in filename:
+            pipeline_logger = logging.getLogger("pipeline")
+            pipeline_logger.addHandler(handler)
+            pipeline_logger.setLevel(level)
+        else:
+            root_logger.addHandler(handler)
+```
+
+### **AniVault JSON 포맷터**
+```python
+# ✅ DO: AniVault 구조화된 JSON 로깅 (UTF-8 전제)
+import json
+from datetime import datetime
+from typing import Any, Dict
+import threading
+
+class AniVaultJSONFormatter(logging.Formatter):
+    """AniVault JSON 포맷 로그 포매터 - UTF-8 전제, 스레드 정보 포함."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """로그 레코드를 JSON으로 포맷."""
+        log_entry = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+            "thread": threading.current_thread().name,
+            "thread_id": threading.get_ident(),
+        }
+
+        # 예외 정보 추가
+        if record.exc_info:
+            log_entry["exception"] = self.formatException(record.exc_info)
+
+        # AniVault 특화 컨텍스트 정보
+        if hasattr(record, 'context'):
+            log_entry["context"] = record.context
+
+        # TMDB API 관련 정보
+        if hasattr(record, 'tmdb_request'):
+            log_entry["tmdb_request"] = record.tmdb_request
+
+        # 파일 처리 관련 정보
+        if hasattr(record, 'file_processing'):
+            log_entry["file_processing"] = record.file_processing
+
+        # 파이프라인 단계 정보
+        if hasattr(record, 'pipeline_stage'):
+            log_entry["pipeline_stage"] = record.pipeline_stage
+
+        return json.dumps(log_entry, ensure_ascii=False, separators=(',', ':'))
+```
+
+## 로깅 유틸리티
+
+### **구조화된 로깅 함수**
+```python
+# ✅ DO: 일관된 로깅 유틸리티
+def log_operation_error(
+    operation_name: str,
+    error: Exception,
+    additional_context: str | None = None,
+    *,
+    level: int = logging.ERROR,
+    exc_info: bool = False,
+) -> None:
+    """작업 에러 로깅."""
+    context_msg = f" - {additional_context}" if additional_context else ""
+    logger.log(
+        level,
+        f"Failed to {operation_name}: {error}{context_msg}",
+        exc_info=exc_info,
+        extra={"context": {"operation": operation_name, "error_type": type(error).__name__}}
+    )
+
+def log_database_error(
+    operation_name: str,
+    error: Exception,
+    table_name: str | None = None
+) -> None:
+    """데이터베이스 에러 로깅."""
+    table_info = f" (table: {table_name})" if table_name else ""
+    logger.error(
+        f"Database error in {operation_name}{table_info}: {error}",
+        extra={"context": {"operation": operation_name, "table": table_name}}
+    )
+
+def log_performance_metric(
+    operation_name: str,
+    duration: float,
+    additional_metrics: Dict[str, Any] | None = None
+) -> None:
+    """성능 메트릭 로깅."""
+    metrics = {
+        "operation": operation_name,
+        "duration_seconds": duration,
+        **(additional_metrics or {})
+    }
+    logger.info(
+        f"Performance metric: {operation_name} took {duration:.3f}s",
+        extra={"context": metrics}
+    )
+```
+
+## 로그 레벨 가이드라인
+
+### **로그 레벨 사용법**
+```python
+# ✅ DO: 적절한 로그 레벨 사용
+logger.debug("Detailed debugging information")  # 개발 중 디버깅
+logger.info("General information about program execution")  # 일반 정보
+logger.warning("Something unexpected happened, but program continues")  # 경고
+logger.error("A serious error occurred, but program can continue")  # 에러
+logger.critical("A very serious error occurred, program may stop")  # 치명적 에러
+
+# ✅ DO: 컨텍스트 정보 포함
+logger.info(
+    "File processed successfully",
+    extra={"context": {"file_path": str(file_path), "file_size": file_size}}
+)
+
+logger.warning(
+    "API rate limit approaching",
+    extra={"context": {"current_requests": count, "limit": limit}}
+)
+```
+
+## 성능 최적화
+
+### **조건부 로깅**
+```python
+# ✅ DO: 성능을 고려한 로깅
+def log_debug_if_enabled(message: str, **kwargs: Any) -> None:
+    """디버그 로깅이 활성화된 경우에만 로깅."""
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(message, extra={"context": kwargs})
+
+def log_expensive_operation(operation_name: str, data: Any) -> None:
+    """비용이 큰 로깅 작업 최적화."""
+    if logger.isEnabledFor(logging.DEBUG):
+        # 데이터 크기가 클 경우 요약만 로깅
+        if isinstance(data, (list, dict)) and len(str(data)) > 1000:
+            summary = f"{type(data).__name__} with {len(data)} items"
+            logger.debug(f"{operation_name}: {summary}")
+        else:
+            logger.debug(f"{operation_name}: {data}")
+```
+
+## 보안 고려사항
+
+### **민감한 정보 보호**
+```python
+# ✅ DO: 민감한 정보 마스킹
+def mask_sensitive_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """민감한 정보를 마스킹."""
+    sensitive_keys = {'password', 'api_key', 'token', 'secret'}
+    masked_data = data.copy()
+
+    for key in sensitive_keys:
+        if key in masked_data:
+            masked_data[key] = "***MASKED***"
+
+    return masked_data
+
+def log_with_sensitive_data_protection(message: str, data: Dict[str, Any]) -> None:
+    """민감한 데이터 보호 로깅."""
+    safe_data = mask_sensitive_data(data)
+    logger.info(message, extra={"context": safe_data})
+```
+
+## 안티패턴 및 금지사항
+
+### **❌ DON'T: 잘못된 인코딩 패턴**
+```python
+# ❌ DON'T: 인코딩 미지정
+def bad_file_read():
+    with open("file.txt", "r") as f:  # ❌ 인코딩 미지정
+        content = f.read()
+
+# ❌ DON'T: 시스템 기본 인코딩 사용
+def bad_system_encoding():
+    import locale
+    encoding = locale.getpreferredencoding()  # ❌ 시스템 기본 인코딩
+    with open("file.txt", "r", encoding=encoding) as f:
+        content = f.read()
+
+# ❌ DON'T: ASCII 강제
+def bad_ascii_encoding():
+    with open("file.txt", "w", encoding="ascii") as f:  # ❌ ASCII 인코딩
+        f.write("한글 텍스트")  # 에러 발생
+
+# ❌ DON'T: 에러 무시
+def bad_error_ignore():
+    with open("file.txt", "r", encoding="utf-8", errors="ignore") as f:  # ❌ 에러 무시
+        content = f.read()
+```
+
+### **❌ DON'T: 잘못된 로깅 패턴**
+```python
+# ❌ DON'T: print 사용
+def bad_logging():
+    print("Error occurred")  # ❌ 로깅 시스템 사용하지 않음
+
+# ❌ DON'T: 민감한 정보 로깅
+def bad_sensitive_logging():
+    logger.info(f"User login: {username}, password: {password}")  # ❌
+
+# ❌ DON'T: 과도한 로깅
+def bad_excessive_logging():
+    for item in large_list:
+        logger.debug(f"Processing item: {item}")  # ❌ 성능 저하
+
+# ❌ DON'T: 일관성 없는 로그 포맷
+def bad_inconsistent_logging():
+    logger.info("User %s logged in", username)  # ❌
+    logger.info(f"User {username} logged in")  # ❌
+```
+
+### **✅ DO: 올바른 패턴**
+```python
+# ✅ DO: UTF-8 강제
+def good_file_read():
+    with open("file.txt", "r", encoding="utf-8") as f:  # ✅ UTF-8 강제
+        content = f.read()
+
+# ✅ DO: UTF-8 환경 설정
+def good_environment_setup():
+    os.environ['PYTHONIOENCODING'] = 'utf-8'  # ✅ 환경변수 설정
+    with open("file.txt", "r") as f:  # ✅ 기본 UTF-8 사용
+        content = f.read()
+
+# ✅ DO: 에러 처리
+def good_error_handling():
+    try:
+        with open("file.txt", "r", encoding="utf-8") as f:
+            content = f.read()
+    except UnicodeDecodeError as e:
+        logger.error(f"UTF-8 decode error: {e}")  # ✅ 에러 로깅
+        raise
+
+# ✅ DO: 안전한 파일 처리
+def good_safe_file_handling():
+    UTF8FileHandler.write_text("file.txt", "한글 텍스트")  # ✅ 안전한 파일 처리
+    content = UTF8FileHandler.read_text("file.txt")
+
+# ✅ DO: 적절한 로깅 시스템 사용
+def good_logging():
+    logger.info("Operation completed successfully")
+
+# ✅ DO: 민감한 정보 보호
+def good_sensitive_logging():
+    logger.info(
+        "User login successful",
+        extra={"context": {"username": username, "timestamp": datetime.now()}}
+    )
+
+# ✅ DO: 조건부 디버그 로깅
+def good_conditional_logging():
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"Processing {len(items)} items")
+
+    for item in items:
+        # 중요한 정보만 로깅
+        if item.has_error:
+            logger.warning(f"Item processing failed: {item.id}")
+
+# ✅ DO: 일관된 로그 포맷
+def good_consistent_logging():
+    logger.info("User %s logged in", username)
+    logger.info("Operation %s completed", operation_name)
+```
+
+## 관련 규칙
+
+- **Python 개발**: [python_development.mdc](mdc:.cursor/rules/python_development.mdc)
+- **품질 보증**: [quality_assurance.mdc](mdc:.cursor/rules/quality_assurance.mdc)
+- **파일 처리**: [file_processing.mdc](mdc:.cursor/rules/file_processing.mdc)
+- **TMDB API**: [tmdb_api.mdc](mdc:.cursor/rules/tmdb_api.mdc)

@@ -6,15 +6,16 @@ data from the output queue and stores it for final retrieval.
 
 from __future__ import annotations
 
+import logging
 import queue
 import threading
 import time
 from typing import Any
 
 from anivault.core.pipeline.utils import BoundedQueue
-
-# 명시적 센티넬 상수
-SENTINEL = None
+from anivault.shared.constants import SENTINEL
+from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.logging import log_operation_error, log_operation_success
 
 
 class ResultCollector(threading.Thread):
@@ -55,32 +56,60 @@ class ResultCollector(threading.Thread):
         Returns:
             True if an item was processed, False if queue was empty or sentinel received.
         """
-        try:
-            item = self.output_queue.get(timeout=timeout)
-        except queue.Empty:
-            return False
+        logger = logging.getLogger(__name__)
+        context = ErrorContext(
+            operation="poll_once",
+            additional_data={"collector_id": self.collector_id, "timeout": timeout},
+        )
 
-        if item is SENTINEL:
-            # 센티넬 수신 시 정지
-            try:
-                self.output_queue.task_done()
-            except Exception:
-                pass
-            self.stop()
-            return False
-
-        self._store_result(item)
         try:
-            self.output_queue.task_done()
-        except Exception:
-            pass
-        return True
+            item = self._get_item_from_queue(timeout)
+
+            # Check if we got an item from queue (None means timeout/empty)
+            if item is None:
+                return False
+
+            # Handle sentinel first (even if it's None)
+            if self._handle_sentinel(item):
+                return False
+
+            self._store_result_with_error_handling(item)
+            return True
+
+        except Exception as e:
+            # Convert regular exception to InfrastructureError for logging
+            if not hasattr(e, "context"):
+                infrastructure_error = InfrastructureError(
+                    ErrorCode.COLLECTOR_ERROR,
+                    f"Poll once failed: {e}",
+                    context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=infrastructure_error,
+                    operation="poll_once",
+                    context=context.to_dict(),
+                )
+            else:
+                log_operation_error(
+                    logger=logger,
+                    error=e,
+                    operation="poll_once",
+                    context=context.to_dict(),
+                )
+            raise InfrastructureError(
+                ErrorCode.COLLECTOR_ERROR,
+                f"Poll once failed: {e}",
+                context,
+                original_error=e,
+            ) from e
 
     def run(
         self,
         max_idle_loops: int | None = None,
         idle_sleep: float = 0.05,
-        get_timeout: float = 0.1,
+        get_timeout: float = 1.0,  # Increased timeout for better reliability
     ) -> None:
         """Main collector loop that processes results from the output queue.
 
@@ -89,37 +118,244 @@ class ResultCollector(threading.Thread):
             idle_sleep: Sleep time between idle loops (0.0 = no sleep).
             get_timeout: Timeout for queue.get() calls.
         """
+        logger = logging.getLogger(__name__)
+        context = ErrorContext(
+            operation="collector_run",
+            additional_data={
+                "collector_id": self.collector_id,
+                "max_idle_loops": max_idle_loops,
+                "idle_sleep": idle_sleep,
+                "get_timeout": get_timeout,
+            },
+        )
+
+        start_time = time.time()
         idle = 0
 
-        while not self._stopped.is_set():
-            try:
-                item = self.output_queue.get(timeout=get_timeout)
-            except queue.Empty:
-                idle += 1
-                if max_idle_loops is not None and idle >= max_idle_loops:
-                    break
-                # idle_sleep은 너무 길게 잡지 말 것 (테스트 지연 방지)
-                if idle_sleep:
-                    time.sleep(idle_sleep)
-                continue
-
-            # 성공적으로 아이템을 가져왔으므로 idle 카운트 리셋
-            idle = 0
-
-            if item is SENTINEL:
+        try:
+            while not self._stopped.is_set():
                 try:
-                    self.output_queue.task_done()
-                except Exception:
-                    pass
-                break
+                    item = self._get_item_from_queue(get_timeout)
+                    if item is None:
+                        idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
+                        if idle >= max_idle_loops if max_idle_loops else False:
+                            logger.warning(
+                                f"ResultCollector {self.collector_id}: Max idle loops reached, stopping..."
+                            )
+                            break
+                        continue
 
-            self._store_result(item)
+                    # 성공적으로 아이템을 가져왔으므로 idle 카운트 리셋
+                    idle = 0
+                    logger.debug(
+                        f"ResultCollector {self.collector_id}: Received item: {type(item).__name__}"
+                    )
+
+                    if self._handle_sentinel(item):
+                        break
+
+                    self._store_result_with_error_handling(item)
+
+                except Exception as e:
+                    self._handle_queue_error(e, context)
+                    continue
+
+            duration_ms = (time.time() - start_time) * 1000
+            log_operation_success(
+                logger=logger,
+                operation="collector_run",
+                duration_ms=duration_ms,
+                result_info={
+                    "collector_id": self.collector_id,
+                    "items_processed": len(self._results),
+                },
+                context=context.to_dict(),
+            )
+
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            # Convert regular exception to InfrastructureError for logging
+            if not hasattr(e, "context"):
+                infrastructure_error = InfrastructureError(
+                    ErrorCode.COLLECTOR_ERROR,
+                    f"Collector run failed: {e}",
+                    context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=infrastructure_error,
+                    operation="collector_run",
+                    context=context.to_dict(),
+                )
+            else:
+                log_operation_error(
+                    logger=logger,
+                    error=e,
+                    operation="collector_run",
+                    context=context.to_dict(),
+                )
+            raise InfrastructureError(
+                ErrorCode.COLLECTOR_ERROR,
+                f"Collector run failed: {e}",
+                context,
+                original_error=e,
+            ) from e
+        finally:
+            self.stop()  # 루프 종료 시 정지 플래그 세팅
+
+    def _get_item_from_queue(self, timeout: float) -> Any | None:
+        """Get an item from the output queue.
+
+        Args:
+            timeout: Maximum time to wait for an item.
+
+        Returns:
+            Item from queue or None if queue is empty (timeout).
+        """
+        try:
+            return self.output_queue.get(timeout=timeout)
+        except queue.Empty:
+            return None
+
+    def _handle_idle_state(
+        self, idle_count: int, max_idle_loops: int | None, idle_sleep: float
+    ) -> int:
+        """Handle idle state when no items are available.
+
+        Args:
+            idle_count: Current idle count.
+            max_idle_loops: Maximum number of idle loops.
+            idle_sleep: Sleep time between idle loops.
+
+        Returns:
+            Updated idle count.
+        """
+        idle_count += 1
+        if idle_sleep:
+            time.sleep(idle_sleep)
+        return idle_count
+
+    def _handle_sentinel(self, item: Any) -> bool:
+        """Handle sentinel item.
+
+        Args:
+            item: Item to check for sentinel.
+
+        Returns:
+            True if sentinel was received and processing should stop.
+        """
+        if item is SENTINEL:
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"ResultCollector {self.collector_id}: Received sentinel, stopping..."
+            )
+            try:
+                self.output_queue.task_done()
+            except Exception:
+                pass
+            self.stop()
+            return True
+        return False
+
+    def _store_result_with_error_handling(self, result: dict[str, Any]) -> None:
+        """Store result with error handling.
+
+        Args:
+            result: Result to store.
+        """
+        logger = logging.getLogger(__name__)
+        context = ErrorContext(
+            operation="store_result",
+            additional_data={
+                "collector_id": self.collector_id,
+                "result_status": result.get("status", "unknown"),
+            },
+        )
+
+        try:
+            self._store_result(result)
+            log_operation_success(
+                logger=logger,
+                operation="store_result",
+                duration_ms=0.0,
+                result_info={"result_status": result.get("status", "unknown")},
+                context=context.to_dict(),
+            )
+        except Exception as e:
+            # Convert regular exception to InfrastructureError for logging
+            if not hasattr(e, "context"):
+                infrastructure_error = InfrastructureError(
+                    ErrorCode.COLLECTOR_ERROR,
+                    f"Failed to store result: {e}",
+                    context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=infrastructure_error,
+                    operation="store_result",
+                    context=context.to_dict(),
+                )
+            else:
+                log_operation_error(
+                    logger=logger,
+                    error=e,
+                    operation="store_result",
+                    context=context.to_dict(),
+                )
+            raise InfrastructureError(
+                ErrorCode.COLLECTOR_ERROR,
+                f"Failed to store result: {e}",
+                context,
+                original_error=e,
+            ) from e
+        finally:
             try:
                 self.output_queue.task_done()
             except Exception:
                 pass
 
-        self.stop()  # 루프 종료 시 정지 플래그 세팅
+    def _handle_queue_error(self, error: Exception, context: ErrorContext) -> None:
+        """Handle queue-related errors.
+
+        Args:
+            error: The error that occurred.
+            context: Error context.
+        """
+        logger = logging.getLogger(__name__)
+
+        # Log the error but don't re-raise for non-critical errors
+        # Convert regular exception to InfrastructureError for logging
+        if not hasattr(error, "context"):
+            infrastructure_error = InfrastructureError(
+                ErrorCode.QUEUE_OPERATION_ERROR,
+                f"Queue operation failed: {error}",
+                context,
+                original_error=error,
+            )
+            log_operation_error(
+                logger=logger,
+                error=infrastructure_error,
+                operation="queue_operation",
+                context=context.to_dict(),
+            )
+        else:
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="queue_operation",
+                context=context.to_dict(),
+            )
+
+        # For critical errors, re-raise as InfrastructureError
+        if isinstance(error, (OSError, RuntimeError)):
+            raise InfrastructureError(
+                ErrorCode.QUEUE_OPERATION_ERROR,
+                f"Critical queue error: {error}",
+                context,
+                original_error=error,
+            ) from error
 
     def _store_result(self, result: dict[str, Any]) -> None:
         """Store a processed result.
@@ -390,6 +626,7 @@ class ResultCollectorPool:
         """Stop all collector instances gracefully."""
         for collector in self.collectors:
             collector.stop()
+        self._started = False
 
     def is_alive(self) -> bool:
         """Check if any collector instances are still alive.

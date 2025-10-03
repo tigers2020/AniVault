@@ -187,9 +187,31 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 dev-debug.log
+
 # Dependency directories
 node_modules/
-# Environment variables
+
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+.env.test
+*.env
+secrets.json
+# .secrets.baseline  # 주석 처리 - 이 파일은 버전 관리에 포함되어야 함
+security-report.json
+
+# API Keys and Credentials
+api_keys.txt
+credentials.json
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
 # Editor directories and files
 .idea
 .vscode
@@ -198,8 +220,181 @@ node_modules/
 *.njsproj
 *.sln
 *.sw?
+
 # OS specific
 
 # Task files
 # tasks.json
 # tasks/
+
+# Security and audit files
+# .secrets.baseline  # 주석 처리 - 이 파일은 버전 관리에 포함되어야 함
+security-report.json
+audit-results.json
+vulnerability-report.json
+
+# Pre-commit cache
+.pre-commit-cache/
+
+# Ruff cache
+.ruff_cache/
+
+# Bandit cache
+.bandit_cache/
+
+# MyPy cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.rollback_backup
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+
+# Cache directories
+cache/
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# Scrapy stuff
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# PEP 582
+__pypackages__/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.rollback_backup
+
+# Coverage reports
+coverage.xml
+htmlcov/

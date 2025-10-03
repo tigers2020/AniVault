@@ -1,14 +1,17 @@
 """Integration tests for the complete pipeline."""
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from anivault.core.pipeline.main import run_pipeline, format_statistics
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
+from anivault.core.pipeline.main import format_statistics, run_pipeline
 from anivault.core.pipeline.utils import (
-    ScanStatistics,
-    QueueStatistics,
     ParserStatistics,
+    QueueStatistics,
+    ScanStatistics,
 )
+from anivault.shared.errors import InfrastructureError
 
 
 class TestPipelineIntegration:
@@ -51,7 +54,6 @@ class TestPipelineIntegration:
             patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
             patch("anivault.core.pipeline.main.BoundedQueue") as MockQueue,
         ):
-
             # Setup mock scanner
             mock_scanner = Mock()
             mock_scanner.is_alive.return_value = False
@@ -126,7 +128,6 @@ class TestPipelineIntegration:
             patch("anivault.core.pipeline.main.ParserWorkerPool") as MockParserPool,
             patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
         ):
-
             # Setup mock scanner to raise an error
             mock_scanner = Mock()
             mock_scanner.start.side_effect = RuntimeError("Scanner error")
@@ -142,7 +143,7 @@ class TestPipelineIntegration:
             MockCollector.return_value = mock_collector
 
             # When/Then
-            with pytest.raises(RuntimeError, match="Scanner error"):
+            with pytest.raises(InfrastructureError, match="Pipeline execution failed"):
                 run_pipeline(root_path, extensions)
 
             # Verify cleanup was attempted
@@ -161,7 +162,6 @@ class TestPipelineIntegration:
             patch("anivault.core.pipeline.main.ParserWorkerPool") as MockParserPool,
             patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
         ):
-
             mock_scanner = Mock()
             mock_scanner.is_alive.return_value = False
             MockScanner.return_value = mock_scanner
@@ -201,7 +201,6 @@ class TestPipelineIntegration:
             patch("anivault.core.pipeline.main.ParserWorkerPool") as MockParserPool,
             patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
         ):
-
             # Setup mocks
             mock_scanner = Mock()
             mock_scanner.is_alive.return_value = False

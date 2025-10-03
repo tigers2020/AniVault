@@ -17,13 +17,15 @@ from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
+from anivault.shared.constants import (
+    HIGH_CONFIDENCE_THRESHOLD,
+    LOW_CONFIDENCE_THRESHOLD,
+    MEDIUM_CONFIDENCE_THRESHOLD,
+)
 
 logger = logging.getLogger(__name__)
 
-# Confidence thresholds for fallback strategies
-HIGH_CONFIDENCE_THRESHOLD = 0.8
-MEDIUM_CONFIDENCE_THRESHOLD = 0.6
-LOW_CONFIDENCE_THRESHOLD = 0.4
+# Confidence thresholds for fallback strategies - now imported from shared constants
 
 
 # Genre-based filtering constants
@@ -64,7 +66,8 @@ class MatchingEngine:
         self.statistics = statistics or StatisticsCollector()
 
     async def _search_tmdb(
-        self, normalized_query: dict[str, Any],
+        self,
+        normalized_query: dict[str, Any],
     ) -> list[dict[str, Any]]:
         """Search TMDB with caching support.
 
@@ -221,7 +224,8 @@ class MatchingEngine:
 
             if candidate_year is None:
                 logger.debug(
-                    "No year found for candidate: %s", candidate.get("title", ""),
+                    "No year found for candidate: %s",
+                    candidate.get("title", ""),
                 )
                 # Include candidates without year but with lower priority
                 candidate_with_year = candidate.copy()
@@ -281,7 +285,8 @@ class MatchingEngine:
             try:
                 # Calculate confidence score using the scoring system
                 confidence_score = calculate_confidence_score(
-                    normalized_query, candidate,
+                    normalized_query,
+                    candidate,
                 )
 
                 # Add confidence score to candidate
@@ -311,19 +316,15 @@ class MatchingEngine:
         scored_candidates.sort(key=lambda x: x.get("confidence_score", 0), reverse=True)
 
         logger.debug(
-            "Calculated confidence scores for %d candidates", len(scored_candidates),
+            "Calculated confidence scores for %d candidates",
+            len(scored_candidates),
         )
         return scored_candidates
 
     async def find_match(self, anitopy_result: dict[str, Any]) -> dict[str, Any] | None:
         """Find the best match for an anime title using multi-stage matching with fallback strategies.
 
-        This method orchestrates the entire matching process:
-        1. Normalize the input query
-        2. Search TMDB with caching
-        3. Calculate confidence scores for all candidates
-        4. Apply fallback strategies if needed
-        5. Return the best match with confidence metadata
+        This method orchestrates the entire matching process by delegating to specialized methods.
 
         Args:
             anitopy_result: Result from anitopy.parse() containing anime metadata
@@ -331,115 +332,237 @@ class MatchingEngine:
         Returns:
             Best matching TMDB result with confidence metadata or None if no good match found
         """
-        # Start timing the matching operation
         self.statistics.start_timing("matching_operation")
 
         try:
-            # Step 1: Normalize the query
-            normalized_query = normalize_query_from_anitopy(anitopy_result)
+            # Step 1: Validate and normalize input
+            normalized_query = self._validate_and_normalize_input(anitopy_result)
             if not normalized_query:
-                logger.warning("Failed to normalize query from anitopy result")
                 return None
 
-            title = normalized_query.get("title", "")
-            if not title:
-                logger.warning("No title found in normalized query")
-                return None
-
-            logger.info("Searching for match: %s", title)
-
-            # Step 2: Search TMDB with caching
-            candidates = await self._search_tmdb(normalized_query)
+            # Step 2: Search for candidates
+            candidates = await self._search_for_candidates(normalized_query)
             if not candidates:
-                logger.info("No candidates found for: %s", title)
                 return None
 
-            # Step 3: Calculate confidence scores for all candidates
-            scored_candidates = self._calculate_confidence_scores(
-                candidates, normalized_query,
+            # Step 3: Score and rank candidates
+            scored_candidates = self._score_and_rank_candidates(
+                candidates, normalized_query
             )
             if not scored_candidates:
-                logger.info("No scored candidates for: %s", title)
                 return None
 
-            # Step 4: Check if we have high-confidence matches
-            best_candidate = scored_candidates[0]
-            best_confidence = best_candidate.get("confidence_score", 0.0)
-
-            logger.info(
-                "Best candidate for '%s': '%s' (confidence: %.3f)",
-                title,
-                best_candidate.get("title", ""),
-                best_confidence,
+            # Step 4: Apply fallback strategies if needed
+            best_candidate = self._apply_fallback_if_needed(
+                scored_candidates, normalized_query
             )
 
-            # Step 5: Apply fallback strategies if confidence is too low
-            if best_confidence < HIGH_CONFIDENCE_THRESHOLD:
-                logger.info(
-                    "Low confidence (%.3f < %.3f), applying fallback strategies",
-                    best_confidence,
-                    HIGH_CONFIDENCE_THRESHOLD,
-                )
-
-                # Apply fallback strategies (to be implemented in later subtasks)
-                # For now, we'll use the best candidate we have
-                fallback_candidates = self._apply_fallback_strategies(
-                    scored_candidates, normalized_query,
-                )
-
-                if fallback_candidates:
-                    best_candidate = fallback_candidates[0]
-                    best_confidence = best_candidate.get("confidence_score", 0.0)
-                    logger.info(
-                        "Fallback improved confidence to %.3f",
-                        best_confidence,
-                    )
-
-            # Step 6: Final confidence check
-            if best_confidence < LOW_CONFIDENCE_THRESHOLD:
-                logger.warning(
-                    "Very low confidence (%.3f < %.3f), returning None",
-                    best_confidence,
-                    LOW_CONFIDENCE_THRESHOLD,
-                )
+            # Step 5: Validate final confidence
+            if not self._validate_final_confidence(best_candidate):
                 return None
 
-            # Step 7: Add metadata about the matching process
-            best_candidate["matching_metadata"] = {
-                "original_title": title,
-                "year_hint": normalized_query.get("year"),
-                "language": normalized_query.get("language"),
-                "total_candidates": len(candidates),
-                "scored_candidates": len(scored_candidates),
-                "confidence_score": best_confidence,
-                "confidence_level": self._get_confidence_level(best_confidence),
-                "used_fallback": best_confidence < HIGH_CONFIDENCE_THRESHOLD,
-            }
-
-            logger.info(
-                "Found best match for '%s': '%s' (confidence: %.3f, level: %s)",
-                title,
-                best_candidate.get("title", ""),
-                best_confidence,
-                best_candidate["matching_metadata"]["confidence_level"],
+            # Step 6: Add metadata and return result
+            result = self._add_matching_metadata(
+                best_candidate, normalized_query, candidates, scored_candidates
             )
-
-            # Record successful match statistics
-            self.statistics.record_match_success(
-                confidence=best_confidence,
-                candidates_count=len(candidates),
-                used_fallback=best_candidate["matching_metadata"]["used_fallback"],
-            )
+            self._record_successful_match(result, candidates)
             self.statistics.end_timing("matching_operation")
 
-            return best_candidate
+            return result
 
         except Exception as e:
             logger.error("Error in find_match: %s", str(e))
-            # Record failed match statistics
             self.statistics.record_match_failure()
             self.statistics.end_timing("matching_operation")
             return None
+
+    def _validate_and_normalize_input(
+        self, anitopy_result: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Validate and normalize the input query.
+
+        Args:
+            anitopy_result: Result from anitopy.parse() containing anime metadata
+
+        Returns:
+            Normalized query dictionary or None if validation fails
+        """
+        normalized_query = normalize_query_from_anitopy(anitopy_result)
+        if not normalized_query:
+            logger.warning("Failed to normalize query from anitopy result")
+            return None
+
+        title = normalized_query.get("title", "")
+        if not title:
+            logger.warning("No title found in normalized query")
+            return None
+
+        logger.info("Searching for match: %s", title)
+        return normalized_query
+
+    async def _search_for_candidates(
+        self, normalized_query: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """Search for TMDB candidates.
+
+        Args:
+            normalized_query: Normalized query containing title and metadata
+
+        Returns:
+            List of TMDB candidates or None if no candidates found
+        """
+        title = normalized_query.get("title", "")
+        candidates = await self._search_tmdb(normalized_query)
+
+        if not candidates:
+            logger.info("No candidates found for: %s", title)
+            return None
+
+        return candidates
+
+    def _score_and_rank_candidates(
+        self, candidates: list[dict[str, Any]], normalized_query: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """Score and rank candidates by confidence.
+
+        Args:
+            candidates: List of TMDB candidates
+            normalized_query: Normalized query containing title and metadata
+
+        Returns:
+            List of scored and ranked candidates or None if scoring fails
+        """
+        title = normalized_query.get("title", "")
+        scored_candidates = self._calculate_confidence_scores(
+            candidates, normalized_query
+        )
+
+        if not scored_candidates:
+            logger.info("No scored candidates for: %s", title)
+            return None
+
+        return scored_candidates
+
+    def _apply_fallback_if_needed(
+        self, scored_candidates: list[dict[str, Any]], normalized_query: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Apply fallback strategies if confidence is too low.
+
+        Args:
+            scored_candidates: List of scored candidates
+            normalized_query: Normalized query containing title and metadata
+
+        Returns:
+            Best candidate after applying fallback strategies
+        """
+        best_candidate = scored_candidates[0]
+        best_confidence = best_candidate.get("confidence_score", 0.0)
+
+        logger.info(
+            "Best candidate for '%s': '%s' (confidence: %.3f)",
+            normalized_query.get("title", ""),
+            best_candidate.get("title", ""),
+            best_confidence,
+        )
+
+        if best_confidence < HIGH_CONFIDENCE_THRESHOLD:
+            logger.info(
+                "Low confidence (%.3f < %.3f), applying fallback strategies",
+                best_confidence,
+                HIGH_CONFIDENCE_THRESHOLD,
+            )
+
+            fallback_candidates = self._apply_fallback_strategies(
+                scored_candidates, normalized_query
+            )
+
+            if fallback_candidates:
+                best_candidate = fallback_candidates[0]
+                best_confidence = best_candidate.get("confidence_score", 0.0)
+                logger.info("Fallback improved confidence to %.3f", best_confidence)
+
+        return best_candidate
+
+    def _validate_final_confidence(self, best_candidate: dict[str, Any]) -> bool:
+        """Validate that the final confidence meets minimum threshold.
+
+        Args:
+            best_candidate: The best candidate to validate
+
+        Returns:
+            True if confidence is acceptable, False otherwise
+        """
+        best_confidence = best_candidate.get("confidence_score", 0.0)
+
+        if best_confidence < LOW_CONFIDENCE_THRESHOLD:
+            logger.warning(
+                "Very low confidence (%.3f < %.3f), returning None",
+                best_confidence,
+                LOW_CONFIDENCE_THRESHOLD,
+            )
+            return False
+
+        return True
+
+    def _add_matching_metadata(
+        self,
+        best_candidate: dict[str, Any],
+        normalized_query: dict[str, Any],
+        candidates: list[dict[str, Any]],
+        scored_candidates: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Add metadata about the matching process to the result.
+
+        Args:
+            best_candidate: The best matching candidate
+            normalized_query: Normalized query containing title and metadata
+            candidates: Original list of candidates
+            scored_candidates: List of scored candidates
+
+        Returns:
+            Candidate with added matching metadata
+        """
+        title = normalized_query.get("title", "")
+        best_confidence = best_candidate.get("confidence_score", 0.0)
+
+        best_candidate["matching_metadata"] = {
+            "original_title": title,
+            "year_hint": normalized_query.get("year"),
+            "language": normalized_query.get("language"),
+            "total_candidates": len(candidates),
+            "scored_candidates": len(scored_candidates),
+            "confidence_score": best_confidence,
+            "confidence_level": self._get_confidence_level(best_confidence),
+            "used_fallback": best_confidence < HIGH_CONFIDENCE_THRESHOLD,
+        }
+
+        logger.info(
+            "Found best match for '%s': '%s' (confidence: %.3f, level: %s)",
+            title,
+            best_candidate.get("title", ""),
+            best_confidence,
+            best_candidate["matching_metadata"]["confidence_level"],
+        )
+
+        return best_candidate
+
+    def _record_successful_match(
+        self, result: dict[str, Any], candidates: list[dict[str, Any]]
+    ) -> None:
+        """Record statistics for successful match.
+
+        Args:
+            result: The successful match result
+            candidates: Original list of candidates
+        """
+        best_confidence = result.get("confidence_score", 0.0)
+        used_fallback = result.get("matching_metadata", {}).get("used_fallback", False)
+
+        self.statistics.record_match_success(
+            confidence=best_confidence,
+            candidates_count=len(candidates),
+            used_fallback=used_fallback,
+        )
 
     def _apply_fallback_strategies(
         self,
@@ -476,7 +599,8 @@ class MatchingEngine:
 
         # Stage 2: Apply partial substring matching
         partial_matched_candidates = self._apply_partial_substring_match(
-            genre_filtered_candidates, normalized_query,
+            genre_filtered_candidates,
+            normalized_query,
         )
 
         logger.debug(
@@ -486,7 +610,8 @@ class MatchingEngine:
         return partial_matched_candidates
 
     def _apply_genre_filter(
-        self, candidates: list[dict[str, Any]],
+        self,
+        candidates: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """Apply genre-based filtering to boost animation candidates.
 
@@ -540,7 +665,8 @@ class MatchingEngine:
 
         # Sort by confidence score (highest first)
         boosted_candidates.sort(
-            key=lambda x: x.get("confidence_score", 0), reverse=True,
+            key=lambda x: x.get("confidence_score", 0),
+            reverse=True,
         )
 
         logger.debug("Genre filter applied to %d candidates", len(boosted_candidates))
@@ -622,7 +748,8 @@ class MatchingEngine:
 
         # Sort by confidence score (highest first)
         partial_matched_candidates.sort(
-            key=lambda x: x.get("confidence_score", 0), reverse=True,
+            key=lambda x: x.get("confidence_score", 0),
+            reverse=True,
         )
 
         logger.debug(

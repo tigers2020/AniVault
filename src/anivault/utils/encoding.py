@@ -198,7 +198,6 @@ def get_file_encoding(file_path: str | Path) -> str:
         Detected encoding name
     """
     try:
-
         with Path(file_path).open("rb") as f:
             raw_data = f.read()
             result = chardet.detect(raw_data)

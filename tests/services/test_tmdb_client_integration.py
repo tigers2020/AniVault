@@ -8,17 +8,17 @@ import asyncio
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, Any, List
-from unittest.mock import patch, MagicMock
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_httpserver import HTTPServer
 from werkzeug import Response
 
-from anivault.services.tmdb_client import TMDBClient
 from anivault.services.rate_limiter import TokenBucketRateLimiter
 from anivault.services.semaphore_manager import SemaphoreManager
-from anivault.services.state_machine import RateLimitStateMachine, RateLimitState
+from anivault.services.state_machine import RateLimitState, RateLimitStateMachine
+from anivault.services.tmdb_client import TMDBClient
 
 
 class TestTMDBClientIntegration:
@@ -37,7 +37,9 @@ class TestTMDBClientIntegration:
         """Create a TMDB client configured to use the mock server."""
         # Mock the config to use our test server
         with patch("anivault.services.tmdb_client.get_config") as mock_config:
-            mock_config.return_value.tmdb.api_key = "test_api_key"
+            mock_config.return_value.tmdb.api_key = (
+                "test_api_key"  # pragma: allowlist secret
+            )
             mock_config.return_value.tmdb.base_url = (
                 f"http://{mock_tmdb_server.host}:{mock_tmdb_server.port}"
             )
@@ -107,7 +109,6 @@ class TestTMDBClientIntegration:
             patch.object(tmdb_client._tv, "search") as mock_tv_search,
             patch.object(tmdb_client._movie, "search") as mock_movie_search,
         ):
-
             mock_tv_search.return_value = mock_tv_response["results"]
             mock_movie_search.return_value = mock_movie_response["results"]
 
@@ -145,7 +146,6 @@ class TestTMDBClientIntegration:
             patch.object(tmdb_client._tv, "search", side_effect=mock_tv_search),
             patch.object(tmdb_client._movie, "search", return_value=[]),
         ):
-
             # Mock the 429 exception with Retry-After header
             with patch("anivault.services.tmdb_client.TMDbException") as mock_exception:
                 mock_exception.side_effect = Exception("429 Too Many Requests")
@@ -167,7 +167,7 @@ class TestTMDBClientIntegration:
         """Test high concurrency load with rate limiting."""
         # Setup mock responses
         mock_response = {
-            "results": [{"id": 1, "name": f"Test Show {i}", "overview": "A test show"}]
+            "results": [{"id": 1, "name": "Test Show", "overview": "A test show"}]
         }
 
         # Mock the TMDB API calls
@@ -177,7 +177,6 @@ class TestTMDBClientIntegration:
             ),
             patch.object(tmdb_client._movie, "search", return_value=[]),
         ):
-
             # Run concurrent requests
             async def make_request(i):
                 return await tmdb_client.search_media(f"test {i}")
@@ -210,7 +209,6 @@ class TestTMDBClientIntegration:
                 side_effect=Exception("500 Internal Server Error"),
             ),
         ):
-
             # Generate many errors to trigger circuit breaker
             for i in range(10):
                 try:
@@ -244,7 +242,6 @@ class TestTMDBClientIntegration:
             patch.object(tmdb_client._tv, "search", side_effect=mock_search),
             patch.object(tmdb_client._movie, "search", side_effect=mock_search),
         ):
-
             # Run more requests than concurrency limit
             async def make_request(i):
                 return await tmdb_client.search_media(f"test {i}")
@@ -261,7 +258,6 @@ class TestTMDBClientIntegration:
             patch.object(tmdb_client._tv, "search", return_value=[]),
             patch.object(tmdb_client._movie, "search", return_value=[]),
         ):
-
             # Make many requests quickly
             start_time = time.time()
             for i in range(50):
@@ -289,7 +285,6 @@ class TestTMDBClientIntegration:
             ),
             patch.object(tmdb_client._movie, "search", return_value=[]),
         ):
-
             try:
                 asyncio.run(tmdb_client.search_media("test"))
             except Exception:
@@ -303,7 +298,6 @@ class TestTMDBClientIntegration:
             patch.object(tmdb_client._tv, "search", return_value=[]),
             patch.object(tmdb_client._movie, "search", return_value=[]),
         ):
-
             asyncio.run(tmdb_client.search_media("test"))
 
             # Should transition back to NORMAL
@@ -316,7 +310,6 @@ class TestTMDBClientIntegration:
             patch.object(tmdb_client._tv, "search", return_value=[]),
             patch.object(tmdb_client._movie, "search", return_value=[]),
         ):
-
             # Make some requests
             for i in range(5):
                 asyncio.run(tmdb_client.search_media(f"test {i}"))

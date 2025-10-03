@@ -8,16 +8,26 @@ integrated rate limiting, concurrency control, and error handling.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
+from anivault.shared.errors import (
+    AniVaultError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
+from anivault.shared.logging import log_operation_error, log_operation_success
 
 from .rate_limiter import TokenBucketRateLimiter
 from .semaphore_manager import SemaphoreManager
 from .state_machine import RateLimitState, RateLimitStateMachine
+
+logger = logging.getLogger(__name__)
 
 
 class TMDBClient:
@@ -81,36 +91,86 @@ class TMDBClient:
             List of media results with metadata
 
         Raises:
-            TMDbException: If API request fails after all retries
+            InfrastructureError: If API request fails after all retries
         """
+        context = ErrorContext(
+            operation="search_media",
+            additional_data={"title": title},
+        )
+
         results = []
 
         # Search TV shows
         try:
-            tv_results = await self._make_request(
-                lambda: self._tv.search(title),
-                f"TV search for '{title}'",
-            )
+            tv_results = await self._make_request(lambda: self._tv.search(title))
             for result in tv_results:
                 result["media_type"] = "tv"
                 results.append(result)
-        except TMDbException as e:
-            if self.config.app.debug:
-                print(f"TV search failed for '{title}': {e}")
+        except Exception as e:
+            # Convert to AniVaultError if not already
+            if not isinstance(e, AniVaultError):
+                error = InfrastructureError(
+                    code=ErrorCode.TMDB_API_REQUEST_FAILED,
+                    message=f"TV search failed: {str(e)}",
+                    context=context,
+                    original_error=e,
+                )
+            else:
+                error = e
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="search_tv_shows",
+                additional_context=context.additional_data if context else None,
+            )
+            # Continue with movie search even if TV search fails
 
         # Search movies
         try:
-            movie_results = await self._make_request(
-                lambda: self._movie.search(title),
-                f"Movie search for '{title}'",
-            )
+            movie_results = await self._make_request(lambda: self._movie.search(title))
             for result in movie_results:
                 result["media_type"] = "movie"
                 results.append(result)
-        except TMDbException as e:
-            if self.config.app.debug:
-                print(f"Movie search failed for '{title}': {e}")
+        except Exception as e:
+            # Convert to AniVaultError if not already
+            if not isinstance(e, AniVaultError):
+                error = InfrastructureError(
+                    code=ErrorCode.TMDB_API_REQUEST_FAILED,
+                    message=f"Movie search failed: {str(e)}",
+                    context=context,
+                    original_error=e,
+                )
+            else:
+                error = e
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="search_movies",
+                additional_context=context.additional_data if context else None,
+            )
+            # Continue even if movie search fails
 
+        # If both searches failed, raise an error
+        if not results:
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_MEDIA_NOT_FOUND,
+                message=f"No media found for title: {title}",
+                context=context,
+            )
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="search_media",
+                additional_context=context.additional_data if context else None,
+            )
+            raise error
+
+        log_operation_success(
+            logger=logger,
+            operation="search_media",
+            duration_ms=0,  # Duration would be calculated in _make_request
+            context=context.additional_data if context else None,
+        )
         return results
 
     async def get_media_details(
@@ -128,104 +188,323 @@ class TMDBClient:
             Detailed media information or None if not found
 
         Raises:
-            TMDbException: If API request fails after all retries
+            InfrastructureError: If API request fails after all retries
         """
-        if media_type == "tv":
-            return await self._make_request(
-                lambda: self._tv.details(media_id),
-                f"TV details for ID {media_id}",
+        context = ErrorContext(
+            operation="get_media_details",
+            additional_data={"media_id": media_id, "media_type": media_type},
+        )
+
+        if media_type not in ["tv", "movie"]:
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_INVALID_MEDIA_TYPE,
+                message=f"Unsupported media type: {media_type}",
+                context=context,
             )
-        if media_type == "movie":
-            return await self._make_request(
-                lambda: self._movie.details(media_id),
-                f"Movie details for ID {media_id}",
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="get_media_details",
+                additional_context=context.additional_data if context else None,
             )
-        error_msg = f"Unsupported media type: {media_type}"
-        raise ValueError(error_msg)
+            raise error
+
+        try:
+            if media_type == "tv":
+                result = await self._make_request(lambda: self._tv.details(media_id))
+            else:  # movie
+                result = await self._make_request(lambda: self._movie.details(media_id))
+
+            log_operation_success(
+                logger=logger,
+                operation="get_media_details",
+                duration_ms=0,  # Duration would be calculated in _make_request
+                context=context.additional_data if context else None,
+            )
+            return result
+
+        except Exception as e:
+            # Convert to AniVaultError if not already
+            if not isinstance(e, AniVaultError):
+                error = InfrastructureError(
+                    code=ErrorCode.TMDB_API_REQUEST_FAILED,
+                    message=f"Media details request failed: {str(e)}",
+                    context=context,
+                    original_error=e,
+                )
+            else:
+                error = e
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="get_media_details",
+                additional_context=context.additional_data if context else None,
+            )
+            raise
 
     async def _make_request(self, api_call) -> Any:
         """Make a rate-limited and concurrency-controlled API request.
 
-        This method handles all the complexity of rate limiting, concurrency
-        control, retry logic, and error handling for TMDB API calls.
+        This method orchestrates the API request process by coordinating
+        state machine checks, concurrency control, rate limiting, and retry logic.
 
         Args:
             api_call: Function that makes the actual API call
-            description: Description of the request for logging
 
         Returns:
             API response data
 
         Raises:
-            TMDbException: If API request fails after all retries
+            InfrastructureError: If API request fails after all retries
         """
+        context = ErrorContext(
+            operation="make_tmdb_request",
+            additional_data={"retry_attempts": self.config.tmdb.retry_attempts},
+        )
+
         # Check if we should make the request based on state machine
+        await self._check_request_permissibility(context)
+
+        # Use semaphore for concurrency control
+        async with self.semaphore_manager:
+            # Apply rate limiting
+            await self._apply_rate_limiting()
+
+            # Make the API call with retry logic
+            return await self._execute_with_retry(api_call, context)
+
+    async def _check_request_permissibility(self, context: ErrorContext) -> None:
+        """Check if the request should be made based on state machine.
+
+        Args:
+            context: Error context for logging
+
+        Raises:
+            InfrastructureError: If service is in cache-only mode
+        """
         if not self.state_machine.should_make_request():
             if self.state_machine.state == RateLimitState.CACHE_ONLY:
-                raise TMDbException("Service in cache-only mode due to high error rate")
+                error = InfrastructureError(
+                    code=ErrorCode.TMDB_API_RATE_LIMIT_EXCEEDED,
+                    message="Service in cache-only mode due to high error rate",
+                    context=context,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
+                    operation="make_tmdb_request",
+                    additional_context=context.additional_data if context else None,
+                )
+                raise error
 
             # Wait for retry delay
             retry_delay = self.state_machine.get_retry_delay()
             if retry_delay > 0:
                 await asyncio.sleep(retry_delay)
 
-        # Use semaphore for concurrency control
-        async with self.semaphore_manager:
-            # Apply rate limiting
-            while not self.rate_limiter.try_acquire():
-                await asyncio.sleep(0.1)  # Wait for token availability
+    async def _apply_rate_limiting(self) -> None:
+        """Apply rate limiting by waiting for token availability.
 
-            # Make the API call with retry logic
-            last_exception = None
+        This method blocks until a token is available from the rate limiter.
+        """
+        while not self.rate_limiter.try_acquire():
+            await asyncio.sleep(0.1)  # Wait for token availability
 
-            for attempt in range(self.config.tmdb.retry_attempts + 1):
-                try:
-                    # Make the API call
-                    result = api_call()
+    async def _execute_with_retry(self, api_call, context: ErrorContext) -> Any:
+        """Execute API call with retry logic and error handling.
 
-                    # Handle successful response
-                    self.state_machine.handle_success()
-                    return result
+        Args:
+            api_call: Function that makes the actual API call
+            context: Error context for logging
 
-                except TMDbException as e:
-                    last_exception = e
+        Returns:
+            API response data
 
-                    # Handle different types of errors
-                    if hasattr(e, "response") and e.response is not None:
-                        status_code = getattr(e.response, "status_code", 0)
+        Raises:
+            InfrastructureError: If API request fails after all retries
+        """
+        last_exception = None
 
-                        if status_code == 429:
-                            # Handle rate limiting
-                            retry_after = self._extract_retry_after(e.response)
-                            self.state_machine.handle_429(retry_after)
+        for attempt in range(self.config.tmdb.retry_attempts + 1):
+            try:
+                # Make the API call
+                result = api_call()
 
-                            # Wait for retry delay
-                            retry_delay = self.state_machine.get_retry_delay()
-                            if retry_delay > 0:
-                                await asyncio.sleep(retry_delay)
+                # Handle successful response
+                self.state_machine.handle_success()
+                return result
 
-                            # Reset rate limiter on 429
-                            self.rate_limiter.reset()
+            except TMDbException as e:
+                last_exception = e
+                await self._handle_tmdb_exception(e, attempt, context)
 
-                        elif 500 <= status_code < 600:
-                            # Handle server errors
-                            self.state_machine.handle_error(status_code)
-                        else:
-                            # Handle other client errors
-                            self.state_machine.handle_error(status_code)
-                    else:
-                        # Handle other exceptions
-                        self.state_machine.handle_error(0)
+        # All retries exhausted
+        return await self._handle_retry_exhaustion(last_exception, context)
 
-                    # Apply exponential backoff for retries
-                    if attempt < self.config.tmdb.retry_attempts:
-                        backoff_delay = self.config.tmdb.retry_delay * (2**attempt)
-                        await asyncio.sleep(backoff_delay)
+    async def _handle_tmdb_exception(
+        self, exception: TMDbException, attempt: int, context: ErrorContext
+    ) -> None:
+        """Handle TMDbException with appropriate error processing and retry logic.
 
-            # All retries exhausted
-            raise last_exception or TMDbException(
-                "API request failed after all retries",
+        Args:
+            exception: The TMDbException to handle
+            attempt: Current attempt number
+            context: Error context for logging
+        """
+        # Convert TMDbException to InfrastructureError
+        error_code, error_message = self._convert_tmdb_exception(exception)
+
+        error = InfrastructureError(
+            code=error_code,
+            message=error_message,
+            context=context,
+            original_error=exception,
+        )
+
+        # Handle different types of errors
+        await self._process_error_response(exception, context)
+
+        # Apply exponential backoff for retries
+        if attempt < self.config.tmdb.retry_attempts:
+            backoff_delay = self.config.tmdb.retry_delay * (2**attempt)
+            await asyncio.sleep(backoff_delay)
+
+    async def _process_error_response(
+        self, exception: TMDbException, context: ErrorContext
+    ) -> None:
+        """Process error response and update state machine accordingly.
+
+        Args:
+            exception: The TMDbException to process
+            context: Error context for logging
+        """
+        if hasattr(exception, "response") and exception.response is not None:
+            status_code = getattr(exception.response, "status_code", 0)
+
+            if status_code == 429:
+                # Handle rate limiting
+                retry_after = self._extract_retry_after(exception.response)
+                self.state_machine.handle_429(retry_after)
+
+                # Wait for retry delay
+                retry_delay = self.state_machine.get_retry_delay()
+                if retry_delay > 0:
+                    await asyncio.sleep(retry_delay)
+
+                # Reset rate limiter on 429
+                self.rate_limiter.reset()
+
+            elif 500 <= status_code < 600:
+                # Handle server errors
+                self.state_machine.handle_error(status_code)
+            else:
+                # Handle other client errors
+                self.state_machine.handle_error(status_code)
+        else:
+            # Handle other exceptions
+            self.state_machine.handle_error(0)
+
+    async def _handle_retry_exhaustion(
+        self, last_exception: TMDbException | None, context: ErrorContext
+    ) -> Any:
+        """Handle the case when all retries have been exhausted.
+
+        Args:
+            last_exception: The last exception that occurred
+            context: Error context for logging
+
+        Returns:
+            API response data (never reached due to exception)
+
+        Raises:
+            InfrastructureError: Always raises an error
+        """
+        if last_exception:
+            error_code, error_message = self._convert_tmdb_exception(last_exception)
+            final_error = InfrastructureError(
+                code=error_code,
+                message=f"{error_message} (after {self.config.tmdb.retry_attempts} retries)",
+                context=context,
+                original_error=last_exception,
             )
+            log_operation_error(
+                logger=logger,
+                error=final_error,
+                operation="make_tmdb_request",
+                additional_context=context.additional_data if context else None,
+            )
+            raise final_error
+        else:
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_REQUEST_FAILED,
+                message="API request failed after all retries",
+                context=context,
+            )
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="make_tmdb_request",
+                additional_context=context.additional_data if context else None,
+            )
+            raise error
+
+    def _convert_tmdb_exception(
+        self,
+        exception: TMDbException,
+    ) -> tuple[ErrorCode, str]:
+        """Convert TMDbException to appropriate ErrorCode and message.
+
+        Args:
+            exception: The TMDbException to convert
+
+        Returns:
+            Tuple of (ErrorCode, error_message)
+        """
+        if hasattr(exception, "response") and exception.response is not None:
+            status_code = getattr(exception.response, "status_code", 0)
+
+            if status_code == 401:
+                return (
+                    ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
+                    "TMDB API authentication failed",
+                )
+            elif status_code == 403:
+                return (
+                    ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
+                    "TMDB API access forbidden",
+                )
+            elif status_code == 429:
+                return (
+                    ErrorCode.TMDB_API_RATE_LIMIT_EXCEEDED,
+                    "TMDB API rate limit exceeded",
+                )
+            elif 400 <= status_code < 500:
+                return (
+                    ErrorCode.TMDB_API_REQUEST_FAILED,
+                    f"TMDB API client error: {status_code}",
+                )
+            elif 500 <= status_code < 600:
+                return (
+                    ErrorCode.TMDB_API_SERVER_ERROR,
+                    f"TMDB API server error: {status_code}",
+                )
+            else:
+                return (
+                    ErrorCode.TMDB_API_REQUEST_FAILED,
+                    f"TMDB API request failed: {status_code}",
+                )
+        else:
+            # No response object, check exception message
+            message = str(exception).lower()
+            if "timeout" in message:
+                return ErrorCode.TMDB_API_TIMEOUT, "TMDB API request timeout"
+            elif "connection" in message:
+                return ErrorCode.TMDB_API_CONNECTION_ERROR, "TMDB API connection failed"
+            else:
+                return (
+                    ErrorCode.TMDB_API_REQUEST_FAILED,
+                    f"TMDB API request failed: {exception}",
+                )
 
     def _extract_retry_after(self, response) -> float | None:
         """Extract Retry-After header value from response.

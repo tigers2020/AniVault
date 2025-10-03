@@ -1,7 +1,8 @@
 """Tests for the matching engine module."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from anivault.core.matching.engine import MatchingEngine
 from anivault.services.cache_v2 import JSONCacheV2

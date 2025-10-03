@@ -2,6 +2,7 @@
 description: Guide for using Taskmaster to manage task-driven development workflows
 globs: **/*
 alwaysApply: true
+priority: 10
 ---
 
 # Taskmaster Development Workflow

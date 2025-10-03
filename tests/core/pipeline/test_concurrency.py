@@ -6,17 +6,18 @@ operations using a shared counter to detect race conditions.
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from tests.test_helpers import create_large_test_directory, cleanup_test_directory
+import pytest
+
+from anivault.core.pipeline.main import run_pipeline
+from anivault.core.pipeline.parser import ParserWorker
 from tests.core.pipeline.concurrency_helpers import (
     SharedCounter,
     create_race_condition_test_parser,
 )
-from anivault.core.pipeline.main import run_pipeline
-from anivault.core.pipeline.parser import ParserWorker
+from tests.test_helpers import cleanup_test_directory, create_large_test_directory
 
 
 class TestPipelineConcurrency:

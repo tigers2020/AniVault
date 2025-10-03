@@ -2,15 +2,16 @@
 Tests for the statistics collection module.
 """
 
-import pytest
 import time
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+import pytest
+
 from anivault.core.statistics import (
-    StatisticsCollector,
-    PerformanceMetrics,
     BenchmarkResult,
+    PerformanceMetrics,
+    StatisticsCollector,
     get_statistics_collector,
     reset_statistics,
 )

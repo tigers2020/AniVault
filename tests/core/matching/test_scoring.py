@@ -3,11 +3,11 @@
 import pytest
 
 from anivault.core.matching.scoring import (
-    calculate_confidence_score,
-    _calculate_title_score,
-    _calculate_year_score,
     _calculate_media_type_score,
     _calculate_popularity_bonus,
+    _calculate_title_score,
+    _calculate_year_score,
+    calculate_confidence_score,
 )
 
 

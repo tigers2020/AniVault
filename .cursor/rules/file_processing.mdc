@@ -2,6 +2,7 @@
 description: File scanning, parsing, and grouping patterns guide
 globs: src/core/file_scanner.py, src/core/file_parser.py, src/core/file_grouper.py, **/*file*.py
 alwaysApply: false
+priority: 7
 ---
 
 # File Processing and Parsing Patterns Guide

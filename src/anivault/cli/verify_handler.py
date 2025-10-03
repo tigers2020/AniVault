@@ -11,6 +11,7 @@ from anivault.shared.constants.system import (
     CLI_INFO_COMMAND_COMPLETED,
     CLI_INFO_COMMAND_STARTED,
 )
+from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,32 @@ def handle_verify_command(args: Any) -> int:
             try:
                 asyncio.run(client.search_media("test"))
                 console.print("[green]✓ TMDB API connectivity verified[/green]")
+            except ApplicationError as e:
+                from anivault.shared.constants.system import (
+                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED,
+                )
+
+                console.print(
+                    f"[red]Application error: {e.message}[/red]",
+                )
+                logger.error(
+                    "TMDB API verification failed",
+                    extra={"context": e.context, "error_code": e.code},
+                )
+                return 1
+            except InfrastructureError as e:
+                from anivault.shared.constants.system import (
+                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED,
+                )
+
+                console.print(
+                    f"[red]Infrastructure error: {e.message}[/red]",
+                )
+                logger.error(
+                    "TMDB API verification failed",
+                    extra={"context": e.context, "error_code": e.code},
+                )
+                return 1
             except Exception as e:
                 from anivault.shared.constants.system import (
                     CLI_ERROR_TMDB_CONNECTIVITY_FAILED,
@@ -53,6 +80,7 @@ def handle_verify_command(args: Any) -> int:
                 console.print(
                     f"[red]{CLI_ERROR_TMDB_CONNECTIVITY_FAILED.format(error=e)}[/red]",
                 )
+                logger.exception("Unexpected error during TMDB API verification")
                 return 1
 
         if args.all:
@@ -63,9 +91,27 @@ def handle_verify_command(args: Any) -> int:
         logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="verify"))
         return 0
 
+    except ApplicationError as e:
+        from anivault.shared.constants.system import CLI_ERROR_VERIFICATION_FAILED
+
+        console.print(f"[red]Application error: {e.message}[/red]")
+        logger.error(
+            "Application error in verify command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
+    except InfrastructureError as e:
+        from anivault.shared.constants.system import CLI_ERROR_VERIFICATION_FAILED
+
+        console.print(f"[red]Infrastructure error: {e.message}[/red]")
+        logger.error(
+            "Infrastructure error in verify command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
     except Exception as e:
         from anivault.shared.constants.system import CLI_ERROR_VERIFICATION_FAILED
 
         console.print(f"[red]{CLI_ERROR_VERIFICATION_FAILED.format(error=e)}[/red]")
-        logger.exception("Error in verify command")
+        logger.exception("Unexpected error in verify command")
         return 1

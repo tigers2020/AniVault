@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from anivault.services.state_machine import RateLimitStateMachine, RateLimitState
+from anivault.services.state_machine import RateLimitState, RateLimitStateMachine
 
 
 class TestRateLimitStateMachine:

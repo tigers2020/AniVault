@@ -1,0 +1,218 @@
+---
+description: Project management patterns for Cursor rules, development workflows, and task management
+globs: .cursor/**/*.mdc, .taskmaster/**/*.json, **/*.md
+alwaysApply: true
+priority: 6
+---
+
+# Project Management
+
+## 핵심 원칙
+
+- **Rule Structure Consistency**: 모든 규칙은 일관된 구조를 가져야 함
+- **File References**: 다른 파일을 참조할 때는 명확한 경로 사용
+- **Code Examples**: 실제 코드베이스의 예시를 우선 사용
+- **Rule Maintenance**: 새로운 패턴이 나타나면 규칙 업데이트
+- **AI Code Quality**: AI 생성 코드의 품질 자동 검증
+- **Taskmaster Integration**: 개발 워크플로우에 Taskmaster 통합
+- **Multi-Context Workflows**: 태그 기반 작업 관리
+
+## Cursor Rules 구조
+
+### **Required Rule Structure**
+```markdown
+---
+description: Clear, one-line description of what the rule enforces
+globs: path/to/files/*.ext, other/path/**/*
+alwaysApply: boolean
+---
+
+- **Main Points in Bold**
+  - Sub-points with details
+  - Examples and explanations
+```
+
+### **File References**
+- Use `[filename](mdc:path/to/file)` ([filename](mdc:filename)) to reference files
+- Example: [prisma.mdc](mdc:.cursor/rules/prisma.mdc) for rule references
+- Example: [schema.prisma](mdc:prisma/schema.prisma) for code references
+
+### **Code Examples**
+- Use language-specific code blocks
+```typescript
+// ✅ DO: Show good examples
+const goodExample = true;
+
+// ❌ DON'T: Show anti-patterns
+const badExample = false;
+```
+
+### **Rule Content Guidelines**
+- Start with high-level overview
+- Include specific, actionable requirements
+- Show examples of correct implementation
+- Reference existing code when possible
+- Keep rules DRY by referencing other rules
+- Remove outdated patterns
+
+## AI Code Quality Rules
+
+### **One Source of Truth**
+- **중복 정의 방지**: 타입, 상수, 에러 코드는 단일 위치에서만 정의
+- **Import 강제**: 다른 파일에서는 반드시 정의된 위치에서 import하여 사용
+- **매직 값 금지**: 하드코딩된 문자열, 숫자, 상태값은 상수로 추출
+
+### **Single Responsibility Principle**
+- **단일 책임**: 각 함수는 하나의 명확한 책임만 가져야 함
+- **함수 길이 제한**: 함수는 50-80줄을 초과하지 않아야 함
+- **계층 분리**: UI, 비즈니스 로직, I/O는 분리되어야 함
+
+### **Magic Values Elimination**
+- **상수화**: 하드코딩된 문자열, 숫자, 상태값은 모두 상수로 추출
+- **중앙 집중식 관리**: 모든 상수는 `shared/` 또는 `constants/` 폴더에서 관리
+- **의미 있는 이름**: 상수명은 도메인 개념을 명확히 표현
+
+### **AI Code Quality Validation**
+- **자동 검증**: AI 생성 코드의 품질을 자동으로 검증
+- **Pre-commit 훅**: 코드 커밋 전 품질 검증
+- **지속적 개선**: 품질 메트릭 수집 및 분석
+
+## Taskmaster Development Workflow
+
+### **Basic Loop**
+The fundamental development cycle:
+1. **`list`**: Show the user what needs to be done
+2. **`next`**: Help the user decide what to work on
+3. **`show <id>`**: Provide details for a specific task
+4. **`expand <id>`**: Break down a complex task into smaller, manageable subtasks
+5. **Implement**: The user writes the code and tests
+6. **`update-subtask`**: Log progress and findings
+7. **`set-status`**: Mark tasks and subtasks as `done` as work is completed
+8. **Repeat**
+
+### **Advanced Workflow (Tag-Based & PRD-Driven)**
+
+#### **When to Introduce Tags**
+- **Simple Git Feature Branching**: Create tag that mirrors branch name
+- **Team Collaboration**: Separate task context to prevent conflicts
+- **Experiments or Risky Refactors**: Sandboxed tag for experimental work
+- **Large Feature Initiatives**: PRD-driven workflow with dedicated tag
+- **Version-Based Development**: Different approaches for prototype vs production
+
+#### **Master List Strategy**
+The `master` tag should ideally contain only:
+- **High-level deliverables** that provide significant business value
+- **Major milestones** and epic-level features
+- **Critical infrastructure** work that affects the entire project
+- **Release-blocking** items
+
+#### **PRD-Driven Feature Development**
+1. **Identify the Initiative**: When user describes a significant feature
+2. **Create Dedicated Tag**: `add_tag feature-[name] --description="[Feature description]"`
+3. **Collaborative PRD Creation**: Work with user to create comprehensive PRD
+4. **Parse & Prepare**: Parse PRD into tasks and expand them
+5. **Add Master Reference**: Create high-level task in `master` that references the feature tag
+
+### **Task Structure Fields**
+- **id**: Unique identifier for the task (Example: `1`, `1.1`)
+- **title**: Brief, descriptive title
+- **description**: Concise summary of what the task involves
+- **status**: Current state of the task (pending, done, in-progress, etc.)
+- **dependencies**: IDs of prerequisite tasks
+- **priority**: Importance level (high, medium, low)
+- **details**: In-depth implementation instructions
+- **testStrategy**: Verification approach
+- **subtasks**: List of smaller, more specific tasks
+
+## Task Complexity Analysis
+
+### **Complexity Analysis Process**
+1. Run `analyze_project_complexity` for comprehensive analysis
+2. Review complexity report via `complexity_report`
+3. Focus on tasks with highest complexity scores (8-10)
+4. Use analysis results to determine appropriate subtask allocation
+
+### **Task Breakdown Process**
+1. Use `expand_task` to break down complex tasks
+2. Use `--num=<number>` to specify explicit number of subtasks
+3. Add `--research` flag to leverage AI for research-backed expansion
+4. Add `--force` flag to clear existing subtasks before generating new ones
+5. Use `expand_all` to expand multiple pending tasks at once
+
+## Implementation Drift Handling
+
+### **When to Update Tasks**
+- When implementation differs significantly from planned approach
+- When future tasks need modification due to current implementation choices
+- When new dependencies or requirements emerge
+
+### **Update Strategies**
+- Use `update` to update multiple future tasks
+- Use `update_task` to update a single specific task
+- Use `update_subtask` to log progress during implementation
+
+## Iterative Subtask Implementation
+
+### **Implementation Process**
+1. **Understand the Goal**: Use `get_task` to understand specific goals
+2. **Initial Exploration & Planning**: Explore codebase and identify precise changes
+3. **Log the Plan**: Use `update_subtask` to log detailed findings
+4. **Verify the Plan**: Confirm the plan has been logged
+5. **Begin Implementation**: Set subtask status to in-progress
+6. **Refine and Log Progress**: Regularly update with findings and progress
+7. **Review & Update Rules**: Update rules based on new patterns
+8. **Mark Task Complete**: Set status to done after verification
+9. **Commit Changes**: Stage and commit with comprehensive message
+10. **Proceed to Next Subtask**: Identify and work on next subtask
+
+## Code Analysis & Refactoring Techniques
+
+### **Top-Level Function Search**
+- Useful for understanding module structure or planning refactors
+- Use grep/ripgrep to find exported functions/constants
+- Can help compare functions between files during migrations
+
+### **Symbol Analysis**
+- Use `find_symbol` to locate specific functions or classes
+- Use `find_referencing_symbols` to understand usage patterns
+- Use `get_symbols_overview` for high-level understanding
+
+## Configuration Management
+
+### **Taskmaster Configuration**
+- **`.taskmaster/config.json`**: Primary configuration file
+- **Environment Variables**: Used only for sensitive API keys
+- **`.taskmaster/state.json`**: Tracks current tag context and migration status
+
+### **Rule Management**
+- **Available Profiles**: Claude Code, Cline, Codex, Cursor, Roo Code, Trae, Windsurf
+- **During Initialization**: Use `--rules` flag to specify rule sets
+- **After Initialization**: Use `add`/`remove` commands to manage rule sets
+
+## Best Practices
+
+### **Rule Maintenance**
+- Update rules when new patterns emerge
+- Add examples from actual codebase
+- Remove outdated patterns
+- Cross-reference related rules
+
+### **AI Code Quality**
+- Always validate AI-generated code against quality rules
+- Use pre-commit hooks for automatic validation
+- Collect quality metrics for continuous improvement
+
+### **Task Management**
+- Use MCP tools for AI agents (preferred over CLI)
+- Maintain clear task dependencies
+- Regular status updates and progress logging
+- Strategic use of tags for complex projects
+
+## Related Rules
+
+- **Python 개발**: [python_development.mdc](mdc:.cursor/rules/python_development.mdc)
+- **시스템 표준**: [system_standards.mdc](mdc:.cursor/rules/system_standards.mdc)
+- **품질 보증**: [quality_assurance.mdc](mdc:.cursor/rules/quality_assurance.mdc)
+- **파일 처리**: [file_processing.mdc](mdc:.cursor/rules/file_processing.mdc)
+- **패키징**: [packaging.mdc](mdc:.cursor/rules/packaging.mdc)
+- **TMDB API**: [tmdb_api.mdc](mdc:.cursor/rules/tmdb_api.mdc)

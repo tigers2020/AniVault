@@ -11,7 +11,7 @@ import sys
 
 import anitopy
 from cryptography.fernet import Fernet
-from prompt_toolkit import confirm, prompt
+from prompt_toolkit.shortcuts import confirm, prompt
 from rich import print as rich_print
 from rich.console import Console
 from rich.table import Table
@@ -136,7 +136,6 @@ def _register_all_command_handlers() -> None:
 def _verify_anitopy():
     """Verify anitopy functionality in bundled executable."""
     try:
-
         # Test filename parsing
         test_filename = SAMPLE_TEST_FILENAME
         print(f"Testing anitopy with filename: {test_filename}")
@@ -174,7 +173,6 @@ def _verify_anitopy():
 def _verify_cryptography():
     """Verify cryptography functionality in bundled executable."""
     try:
-
         print("Testing cryptography with Fernet encryption/decryption...")
         print()
 
@@ -214,7 +212,6 @@ def _verify_cryptography():
 def _verify_tmdb():
     """Verify tmdbv3api functionality in bundled executable."""
     try:
-
         print("Testing TMDB API connectivity and search functionality...")
         print()
 
@@ -262,7 +259,6 @@ def _verify_tmdb():
 def _verify_rich():
     """Verify rich console rendering in bundled executable."""
     try:
-
         print("Testing Rich console rendering...")
         print()
 
@@ -308,7 +304,6 @@ def _verify_rich():
 def _verify_prompt_toolkit():
     """Verify prompt_toolkit functionality in bundled executable."""
     try:
-
         print("Testing Prompt Toolkit interactive functionality...")
         print()
 

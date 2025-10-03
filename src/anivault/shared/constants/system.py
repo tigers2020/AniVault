@@ -32,6 +32,9 @@ APPLICATION_DESCRIPTION = "Anime Collection Management System with TMDB Integrat
 DEFAULT_ENCODING = "utf-8"
 FALLBACK_ENCODING = "cp1252"
 
+# Process Configuration
+DEFAULT_PROCESS_PRIORITY = "normal"
+
 # Path Configuration
 MAX_PATH_LENGTH = 4096  # maximum path length
 MAX_FILENAME_LENGTH = 255  # maximum filename length
@@ -82,7 +85,32 @@ DEFAULT_TMDB_RETRY_ATTEMPTS = 3  # TMDB retry attempts
 DEFAULT_TMDB_RETRY_DELAY = 1.0  # TMDB retry delay in seconds
 DEFAULT_TMDB_RATE_LIMIT_DELAY = 0.25  # TMDB rate limit delay in seconds
 DEFAULT_TMDB_RATE_LIMIT_RPS = 35.0  # TMDB rate limit requests per second
+
+# Pipeline timeout values
+PIPELINE_SENTINEL_TIMEOUT = 30.0  # timeout for sentinel value operations
+PIPELINE_SHUTDOWN_TIMEOUT = 1.0  # timeout for graceful shutdown
+PIPELINE_QUEUE_TIMEOUT = 1.0  # timeout for queue operations
+
+# Pipeline sentinel value - unique object to signal end of processing
+SENTINEL = object()
 DEFAULT_CACHE_TTL = 3600  # cache TTL in seconds
 DEFAULT_CACHE_MAX_SIZE = 1000  # maximum cache size
 DEFAULT_CPU_LIMIT = 4  # CPU limit for application
 DEFAULT_MEMORY_LIMIT_MB = 1024  # memory limit in MB
+
+# Pipeline Configuration
+DEFAULT_QUEUE_SIZE = 1000  # default queue size for pipeline processing
+DEFAULT_WORKERS = 4  # default number of worker processes
+
+# CLI Constants
+CLI_INFO_COMMAND_STARTED = "Starting {command} command..."
+CLI_INFO_COMMAND_COMPLETED = "Completed {command} command"
+CLI_ERROR_SCAN_FAILED = "Scan command failed: {error}"
+CLI_ERROR_ORGANIZE_FAILED = "Organize command failed: {error}"
+CLI_ERROR_MATCH_FAILED = "Match command failed: {error}"
+CLI_ERROR_VERIFY_FAILED = "Verify command failed: {error}"
+CLI_ERROR_ROLLBACK_FAILED = "Rollback command failed: {error}"
+CLI_ERROR_TMDB_CONNECTIVITY_FAILED = "TMDB API connectivity failed: {error}"
+CLI_ERROR_VERIFICATION_FAILED = "Verification failed: {error}"
+CLI_SUCCESS_RESULTS_SAVED = "Results saved to: {path}"
+CLI_INDENT_SIZE = 2

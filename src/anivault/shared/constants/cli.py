@@ -66,3 +66,6 @@ CLI_INFO_APPLICATION_INTERRUPTED = "Application interrupted by user"
 CLI_INFO_UNEXPECTED_ERROR = "Unexpected error occurred"
 CLI_INFO_NO_OPERATION_LOGS = "No operation logs found"
 CLI_INFO_TOTAL_LOGS = "Total logs: {count}"
+
+# Log Level
+DEFAULT_LOG_LEVEL = "INFO"

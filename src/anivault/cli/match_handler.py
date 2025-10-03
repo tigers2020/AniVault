@@ -19,6 +19,7 @@ from anivault.shared.constants.system import (
     CLI_INFO_COMMAND_COMPLETED,
     CLI_INFO_COMMAND_STARTED,
 )
+from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,20 @@ def handle_match_command(args: Any) -> int:
 
         return result
 
+    except ApplicationError as e:
+        logger.error(
+            "Application error in match command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
+    except InfrastructureError as e:
+        logger.error(
+            "Infrastructure error in match command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
     except Exception:
-        logger.exception("Error in match command")
+        logger.exception("Unexpected error in match command")
         return 1
 
 
@@ -89,8 +102,23 @@ async def _run_match_command_impl(args: Any) -> int:
             from anivault.cli.utils import validate_directory
 
             directory = validate_directory(args.directory)
+        except ApplicationError as e:
+            console.print(f"[red]Application error: {e.message}[/red]")
+            logger.error(
+                "Directory validation failed",
+                extra={"context": e.context, "error_code": e.code},
+            )
+            return 1
+        except InfrastructureError as e:
+            console.print(f"[red]Infrastructure error: {e.message}[/red]")
+            logger.error(
+                "Directory validation failed",
+                extra={"context": e.context, "error_code": e.code},
+            )
+            return 1
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Unexpected error: {e}[/red]")
+            logger.exception("Unexpected error during directory validation")
             return 1
 
         console.print(f"[green]Matching anime files in: {directory}[/green]")
@@ -185,8 +213,23 @@ async def _run_match_command_impl(args: Any) -> int:
         _display_match_results_impl(results, console)
         return 0
 
+    except ApplicationError as e:
+        console.print(f"[red]Application error during matching: {e.message}[/red]")
+        logger.error(
+            "Application error during matching",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
+    except InfrastructureError as e:
+        console.print(f"[red]Infrastructure error during matching: {e.message}[/red]")
+        logger.error(
+            "Infrastructure error during matching",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        return 1
     except Exception as e:
-        console.print(f"[red]Error during matching: {e}[/red]")
+        console.print(f"[red]Unexpected error during matching: {e}[/red]")
+        logger.exception("Unexpected error during matching")
         return 1
 
 
