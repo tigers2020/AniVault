@@ -1,9 +1,11 @@
+# ===========================================
+# Python Standard Ignores
+# ===========================================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
 
 # Distribution / packaging
@@ -28,8 +30,6 @@ share/python-wheels/
 MANIFEST
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -38,280 +38,6 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# AniVault specific
-data/
-logs/
-*.sqlite
-*.db
-test_data/
-test_data_*/
-test_output/
-test_files/
-test_plan.json
-tmdb_cache.sqlite
-
-# Large test files
-filenames.txt
-large_test_data/
-
-# Benchmark results
-*_parallel.json
-*_sequential.json
-*_results.json
-*_improved.json
-benchmark_*.json
-enhanced_benchmark.json
-parallel_*.json
-sequential_*.json
-integrated_*.json
-adaptive_*.json
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-*.rollback_backup
-
-# Coverage reports
-coverage.xml
-htmlcov/
-
-# Task Master
-.taskmaster/
-
-# Logs
-logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-
-# Dependency directories
-node_modules/
-
-# Environment variables and secrets
-.env
-.env.local
-.env.production
-.env.staging
-.env.development
-.env.test
-*.env
-secrets.json
-# .secrets.baseline  # 주석 처리 - 이 파일은 버전 관리에 포함되어야 함
-security-report.json
-
-# API Keys and Credentials
-api_keys.txt
-credentials.json
-*.pem
-*.key
-*.crt
-*.p12
-*.pfx
-
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# OS specific
-
-# Task files
-# tasks.json
-# tasks/
-
-# Security and audit files
-# .secrets.baseline  # 주석 처리 - 이 파일은 버전 관리에 포함되어야 함
-security-report.json
-audit-results.json
-vulnerability-report.json
-
-# Pre-commit cache
-.pre-commit-cache/
-
-# Ruff cache
-.ruff_cache/
-
-# Bandit cache
-.bandit_cache/
-
-# MyPy cache
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
-# IPython
-profile_default/
-ipython_config.py
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-*.rollback_backup
-
-# Large files
-*.zip
-*.tar.gz
-*.rar
-*.7z
-
-# Database files
-*.sqlite
-*.sqlite3
-*.db
-*.sql
-
-# Cache directories
-cache/
-.cache/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Coverage reports
 htmlcov/
 .tox/
 .nox/
@@ -348,12 +74,37 @@ docs/_build/
 # PyBuilder
 target/
 
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
 # Celery stuff
 celerybeat-schedule
 celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Spyder project settings
 .spyderproject
@@ -365,43 +116,41 @@ celerybeat.pid
 # mkdocs documentation
 /site
 
-# PEP 582
-__pypackages__/
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# Pyre type checker
+.pyre/
 
-# IDE
+# ===========================================
+# Development Tools & IDEs
+# ===========================================
+
+# IDEs and Editors
 .vscode/
 .idea/
+.cursor/
+.serena/
 *.swp
 *.swo
 *~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# OS
-.DS_Store
-Thumbs.db
+# Pre-commit cache
+.pre-commit-cache/
 
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-*.rollback_backup
-
-# Coverage reports
-coverage.xml
-htmlcov/
-
+# Linting and formatting caches
+.ruff_cache/
+.bandit_cache/
 
 # ===========================================
-# AniVault Project Specific Ignores
+# AniVault Project Specific
 # ===========================================
 
 # Test files and directories
@@ -422,15 +171,6 @@ test_*.wmv
 test_*.flv
 test_*.webm
 test_*.m4v
-
-# IDE and Editor configurations
-.cursor/
-.serena/
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
 
 # AniVault specific cache and data directories
 .anivault/
@@ -470,12 +210,11 @@ integrated_*.json
 adaptive_*.json
 filenames.txt
 
-# Security and audit files
-security-report.json
-audit-results.json
-vulnerability-report.json
+# ===========================================
+# Security & Environment
+# ===========================================
 
-# Environment and configuration files
+# Environment variables and secrets
 .env
 .env.local
 .env.production
@@ -486,6 +225,22 @@ vulnerability-report.json
 secrets.json
 api_keys.txt
 credentials.json
+
+# Security and audit files
+security-report.json
+audit-results.json
+vulnerability-report.json
+
+# API Keys and Credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ===========================================
+# Database & Logs
+# ===========================================
 
 # Database files
 *.sqlite
@@ -501,6 +256,10 @@ yarn-debug.log*
 yarn-error.log*
 dev-debug.log
 
+# ===========================================
+# Temporary & Large Files
+# ===========================================
+
 # Temporary files
 *.tmp
 *.temp
@@ -514,6 +273,33 @@ dev-debug.log
 *.rar
 *.7z
 
-# OS specific files
+# ===========================================
+# OS Specific
+# ===========================================
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
