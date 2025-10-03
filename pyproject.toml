@@ -43,6 +43,7 @@ dev = [
 
 [project.scripts]
 anivault = "anivault.cli.main:cli"
+anivault-ng = "anivault.cli.typer_app:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
