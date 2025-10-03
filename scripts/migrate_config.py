@@ -52,7 +52,9 @@ def convert_to_toml(config_data: dict[str, Any]) -> str:
 
 
 def save_toml_config(
-    config_data: dict[str, Any], output_path: Path, force: bool = False
+    config_data: dict[str, Any],
+    output_path: Path,
+    force: bool = False,
 ) -> None:
     """Save configuration to TOML file.
 

@@ -11,7 +11,7 @@ from pathlib import Path
 # Add the src directory to the Python path for absolute imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from anivault.cli.main import main
+from anivault.cli.main import main  # noqa: E402
 
 if __name__ == "__main__":
     sys.exit(main())

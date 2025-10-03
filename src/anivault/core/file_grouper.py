@@ -140,13 +140,13 @@ class FileGrouper:
         merged_groups = {}
         processed_groups = set()
 
-        for base_title, files in file_groups.items():
+        for base_title, files in file_groups.items():  # noqa: B007
             if base_title in processed_groups:
                 continue
 
             # Find similar groups
             similar_groups = [base_title]
-            for other_title in file_groups.keys():
+            for other_title in file_groups:
                 if other_title != base_title and other_title not in processed_groups:
                     similarity = self._calculate_similarity(base_title, other_title)
                     if similarity >= self.similarity_threshold:

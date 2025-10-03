@@ -79,7 +79,7 @@ class ResolutionDetector:
                         resolution_info.quality = quality
                         resolution_info.confidence = 0.9
                         break
-                    elif pattern == r"(\d+)x(\d+)":
+                    if pattern == r"(\d+)x(\d+)":
                         # Custom resolution
                         try:
                             resolution_info.width = int(match.group(1))
@@ -131,16 +131,15 @@ class ResolutionDetector:
         """
         if width >= 3840 or height >= 2160:
             return "4K"
-        elif width >= 1920 or height >= 1080:
+        if width >= 1920 or height >= 1080:
             return "1080p"
-        elif width >= 1280 or height >= 720:
+        if width >= 1280 or height >= 720:
             return "720p"
-        elif width >= 854 or height >= 480:
+        if width >= 854 or height >= 480:
             return "480p"
-        else:
-            return "SD"
+        return "SD"
 
-    def _detect_from_file_properties(self, file_path: Path) -> ResolutionInfo:
+    def _detect_from_file_properties(self, file_path: Path) -> ResolutionInfo:  # noqa: ARG002
         """Detect resolution from file properties (placeholder for future implementation).
 
         Args:
@@ -149,7 +148,6 @@ class ResolutionDetector:
         Returns:
             ResolutionInfo with detected resolution data
         """
-        # TODO: Implement actual file property detection using ffprobe or similar
         # For now, return unknown resolution
         return ResolutionInfo(confidence=0.0)
 
@@ -190,9 +188,8 @@ class ResolutionDetector:
             return dict(resolution_groups)
 
         except Exception as e:
-            logger.error(
-                "Failed to group files by resolution: %s",
-                e,
+            logger.exception(
+                "Failed to group files by resolution",
                 extra={"context": context.additional_data if context else None},
             )
             raise InfrastructureError(

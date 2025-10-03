@@ -13,7 +13,7 @@ with open("filenames.txt", encoding="utf-8") as f:
 
 # 처음 20개 파일명으로 테스트 파일들 생성
 created_count = 0
-for i, line in enumerate(lines[:20]):
+for i, line in enumerate(lines[:20]):  # noqa: B007
     if line.strip() and not line.startswith("collect_filenames.py"):
         filename = line.strip()
         file_path = test_dir / filename

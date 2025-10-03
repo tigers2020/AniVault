@@ -6,13 +6,14 @@ Detects hardcoded magic values that should be replaced with constants.
 
 import re
 import sys
+from typing import ClassVar
 
 
 class MagicValueDetector:
     """Detects magic values in Python code."""
 
     # Patterns for magic values that should be constants
-    MAGIC_PATTERNS = [
+    MAGIC_PATTERNS: ClassVar[list] = [
         # Status strings
         (
             r'["\'](?:pending|processing|completed|failed|error|success|approved|rejected)["\']',
@@ -89,7 +90,7 @@ class MagicValueDetector:
         in_string = False
         escape_next = False
 
-        for i, char in enumerate(before_pos):
+        for i, char in enumerate(before_pos):  # noqa: B007
             if escape_next:
                 escape_next = False
                 continue

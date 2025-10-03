@@ -6,13 +6,14 @@ Detects potential secret exposure in configuration files and documentation.
 
 import re
 import sys
+from typing import ClassVar
 
 
 class SecretChecker:
     """Checks for potential secret exposure."""
 
     # Patterns for potential secrets
-    SECRET_PATTERNS = [
+    SECRET_PATTERNS: ClassVar[list] = [
         # API keys
         (r'(?:api[_-]?key|apikey)\s*[:=]\s*["\']?([^"\'\s\n]{20,})["\']?', "API Key"),
         (
@@ -45,7 +46,7 @@ class SecretChecker:
     ]
 
     # Allowed patterns (false positives)
-    ALLOWED_PATTERNS = [
+    ALLOWED_PATTERNS: ClassVar[list] = [
         r"test[_-]?key",
         r"example[_-]?key",
         r"sample[_-]?key",

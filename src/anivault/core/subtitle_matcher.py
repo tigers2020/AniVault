@@ -72,9 +72,8 @@ class SubtitleMatcher:
             return matching_subtitles
 
         except Exception as e:
-            logger.error(
-                "Failed to find matching subtitles: %s",
-                e,
+            logger.exception(
+                "Failed to find matching subtitles",
                 extra={"context": context.additional_data if context else None},
             )
             raise InfrastructureError(

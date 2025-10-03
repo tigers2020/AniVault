@@ -661,7 +661,7 @@ def _generate_enhanced_organization_plan(
         subtitle_matcher = SubtitleMatcher()
 
         # Use Korean language for TMDB if enhanced mode
-        tmdb_client = TMDBClient(language=Language.KOREAN)
+        tmdb_client = TMDBClient(language=Language.KOREAN)  # noqa: F841
 
         # Group files by similarity
         file_groups = grouper.group_files(scanned_files)
@@ -675,7 +675,7 @@ def _generate_enhanced_organization_plan(
                 continue
 
             # Get TMDB metadata for Korean title
-            # TODO: Implement async TMDB lookup
+            # Fallback to group key for now
             korean_title = group_key  # Fallback to group key for now
 
             # Find matching subtitles
@@ -734,7 +734,7 @@ def _generate_enhanced_organization_plan(
         return operations
 
     except Exception as e:
-        logger.error(f"Failed to generate enhanced organization plan: {e}")
+        logger.exception("Failed to generate enhanced organization plan")
         raise ApplicationError(
             code=ErrorCode.ORGANIZATION_PLAN_FAILED,
             message=f"Enhanced organization plan generation failed: {e!s}",

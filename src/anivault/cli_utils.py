@@ -5,10 +5,12 @@ This module provides utilities for integrating configuration management
 with the CLI system, allowing dynamic default values from configuration files.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from anivault.config import ConfigManager
 
@@ -26,10 +28,10 @@ class ConfigAwareArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
         """Initialize the parser with configuration support."""
         super().__init__(*args, **kwargs)
-        self._config_manager: Optional[ConfigManager] = None
+        self._config_manager: ConfigManager | None = None
         self._config_loaded = False
 
-    def load_config(self, config_path: Optional[Path] = None) -> None:
+    def load_config(self, config_path: Path | None = None) -> None:
         """
         Load configuration from file.
 
@@ -55,8 +57,8 @@ class ConfigAwareArgumentParser(argparse.ArgumentParser):
     def add_argument_with_config_default(
         self,
         *args,
-        config_key: Optional[str] = None,
-        config_section: Optional[str] = None,
+        config_key: str | None = None,
+        config_section: str | None = None,
         **kwargs,
     ) -> argparse.Action:
         """
@@ -78,7 +80,7 @@ class ConfigAwareArgumentParser(argparse.ArgumentParser):
                 if config_value is not None:
                     kwargs["default"] = config_value
                     logger.debug(
-                        f"Using config default for {config_key}: {config_value}"
+                        f"Using config default for {config_key}: {config_value}",
                     )
             except Exception as e:
                 logger.warning(f"Failed to get config value for {config_key}: {e}")
@@ -111,7 +113,7 @@ class ConfigAwareArgumentParser(argparse.ArgumentParser):
 
 def create_config_aware_parser(
     description: str,
-    config_path: Optional[Path] = None,
+    config_path: Path | None = None,
     **kwargs,
 ) -> ConfigAwareArgumentParser:
     """
@@ -169,11 +171,11 @@ def apply_config_defaults(
                             config_value = config[section][key]
                             setattr(args, arg_name, config_value)
                             logger.debug(
-                                f"Applied config default for {arg_name}: {config_value}"
+                                f"Applied config default for {arg_name}: {config_value}",
                             )
                     except Exception as e:
                         logger.warning(
-                            f"Failed to apply config default for {arg_name}: {e}"
+                            f"Failed to apply config default for {arg_name}: {e}",
                         )
 
     except Exception as e:

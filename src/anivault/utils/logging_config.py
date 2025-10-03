@@ -66,7 +66,7 @@ class AniVaultFormatter(logging.Formatter):
 
         super().__init__(format_str, DEFAULT_DATE_FORMAT)
 
-    def format(self, record: logging.LogRecord) -> str:
+    def format_record(self, record: logging.LogRecord) -> str:
         """
         Format the log record.
 

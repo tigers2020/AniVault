@@ -6,7 +6,6 @@ encrypted API keys and other sensitive data using PIN-based encryption.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from anivault.security.encryption import DecryptionError, EncryptionService
@@ -62,8 +61,8 @@ class Keyring:
             self.keys_dir.mkdir(mode=0o700, exist_ok=True)
 
             # Set secure permissions (700 = owner read/write/execute only)
-            os.chmod(self.base_path, 0o700)
-            os.chmod(self.keys_dir, 0o700)
+            self.base_path.chmod(0o700)
+            self.keys_dir.chmod(0o700)
 
         except PermissionError as e:
             raise ApplicationError(
@@ -106,7 +105,7 @@ class Keyring:
                         f.write(salt)
 
                     # Set secure permissions (600 = owner read/write only)
-                    os.chmod(self.salt_file, 0o600)
+                    self.salt_file.chmod(0o600)
 
                 return salt
             # Generate new salt
@@ -117,7 +116,7 @@ class Keyring:
                 f.write(salt)
 
             # Set secure permissions (600 = owner read/write only)
-            os.chmod(self.salt_file, 0o600)
+            self.salt_file.chmod(0o600)
 
             return salt
 
@@ -164,7 +163,7 @@ class Keyring:
                 f.write(encrypted_value)
 
             # Set secure permissions (600 = owner read/write only)
-            os.chmod(key_file, 0o600)
+            key_file.chmod(0o600)
 
         except Exception as e:
             raise ApplicationError(

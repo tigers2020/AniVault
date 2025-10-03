@@ -20,11 +20,13 @@ from memory_profiler import profile
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
-from anivault.config import FilterConfig
-from anivault.core.filter import FilterEngine
-from anivault.core.pipeline.parallel_scanner import ParallelDirectoryScanner
-from anivault.core.pipeline.scanner import DirectoryScanner
-from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
+from anivault.config import FilterConfig  # noqa: E402
+from anivault.core.filter import FilterEngine  # noqa: E402
+from anivault.core.pipeline.parallel_scanner import (
+    ParallelDirectoryScanner,
+)
+from anivault.core.pipeline.scanner import DirectoryScanner  # noqa: E402
+from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics  # noqa: E402
 
 
 def get_memory_usage() -> float:

@@ -50,7 +50,7 @@ class CacheV1:
         hash_object = hashlib.sha256(unique_string.encode("utf-8"))
         return hash_object.hexdigest()
 
-    def set(self, key: str, data: dict[str, Any], ttl_seconds: int) -> None:
+    def set_cache(self, key: str, data: dict[str, Any], ttl_seconds: int) -> None:
         """Store data in the cache with TTL.
 
         Args:

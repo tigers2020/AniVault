@@ -11,6 +11,7 @@ This script performs security checks to prevent AI-generated vulnerabilities:
 import ast
 import re
 import sys
+from typing import ClassVar
 
 
 class SecurityViolation:
@@ -38,7 +39,7 @@ class AISecurityChecker:
     """AI Security Checker for detecting vulnerable patterns."""
 
     # Dangerous patterns that could be exploited via prompt injection
-    DANGEROUS_PATTERNS = [
+    DANGEROUS_PATTERNS: ClassVar[list] = [
         # Code execution patterns
         (
             r"\beval\s*\(",
@@ -123,7 +124,7 @@ class AISecurityChecker:
     ]
 
     # Magic value patterns (hardcoded strings/numbers)
-    MAGIC_PATTERNS = [
+    MAGIC_PATTERNS: ClassVar[list] = [
         # Status strings
         (
             r'["\'](?:pending|processing|completed|failed|error|success)["\']',
@@ -154,7 +155,7 @@ class AISecurityChecker:
     ]
 
     # Secret patterns
-    SECRET_PATTERNS = [
+    SECRET_PATTERNS: ClassVar[list] = [
         (
             r'(?:api[_-]?key|secret|token|password|passwd|pwd)\s*[:=]\s*["\'][^"\']+["\']',
             "CRITICAL",
