@@ -5,45 +5,112 @@ This module contains all constants related to logging configuration,
 log levels, and log formatting.
 """
 
-# Log Levels (using Python logging module constants)
-LOG_LEVEL_DEBUG = 10  # DEBUG level
-LOG_LEVEL_INFO = 20  # INFO level
-LOG_LEVEL_WARNING = 30  # WARNING level
-LOG_LEVEL_ERROR = 40  # ERROR level
-LOG_LEVEL_CRITICAL = 50  # CRITICAL level
+import logging
 
-# Default Log Configuration
-DEFAULT_LOG_LEVEL = LOG_LEVEL_INFO
-DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-DEFAULT_LOG_FILE = "anivault.log"
+from .system import BASE_FILE_SIZE
+from .system import Logging as SystemLogging
 
-# Log File Configuration
-LOG_FILE_MAX_SIZE = 10 * 1024 * 1024  # 10MB in bytes
-LOG_FILE_BACKUP_COUNT = 5  # number of backup log files to keep
-LOG_FILE_ENCODING = "utf-8"
 
-# Console Output Configuration
-DEFAULT_CONSOLE_OUTPUT = True
-DEFAULT_FILE_OUTPUT = True
+class LogLevels:
+    """Log level constants."""
 
-# Log Message Templates
-LOG_STARTUP_MESSAGE = "AniVault v{version} starting up..."
-LOG_SHUTDOWN_MESSAGE = "AniVault shutting down gracefully"
-LOG_OPERATION_START = "Starting operation: {operation}"
-LOG_OPERATION_COMPLETE = "Operation completed: {operation} (took {duration:.2f}s)"
-LOG_OPERATION_ERROR = "Operation failed: {operation} - {error}"
+    # Standard log levels
+    DEBUG = logging.DEBUG  # 10
+    INFO = logging.INFO  # 20
+    WARNING = logging.WARNING  # 30
+    ERROR = logging.ERROR  # 40
+    CRITICAL = logging.CRITICAL  # 50
 
-# Performance Logging
-LOG_PERFORMANCE_THRESHOLD = 1.0  # log operations taking longer than 1 second
-LOG_MEMORY_THRESHOLD = 100 * 1024 * 1024  # log memory usage above 100MB
+    # Default level
+    DEFAULT = INFO
 
-# Error Logging
-LOG_ERROR_STACK_TRACE = True  # include stack traces in error logs
-LOG_ERROR_CONTEXT = True  # include context information in error logs
 
-# Log File Paths and Patterns
-DEFAULT_LOG_FILE_PATH = "logs/anivault.log"  # default log file path
-DEFAULT_PROFILING_FILE_PATH = "logs/profiling.json"  # default profiling file path
-ORGANIZE_LOG_PREFIX = "organize-"  # prefix for organize log files
-ROLLBACK_LOG_PREFIX = "rollback-"  # prefix for rollback log files
-LOG_FILE_EXTENSION = ".json"  # log file extension
+class LogConfig:
+    """Log configuration constants."""
+
+    # Default settings
+    DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    DEFAULT_FILE = "anivault.log"
+    DEFAULT_ENCODING = "utf-8"
+
+    # File configuration (inherited from system)
+    MAX_SIZE = SystemLogging.MAX_BYTES  # 10MB
+    BACKUP_COUNT = SystemLogging.BACKUP_COUNT  # 5
+
+    # Output configuration
+    DEFAULT_CONSOLE_OUTPUT = True
+    DEFAULT_FILE_OUTPUT = True
+
+
+class LogMessages:
+    """Log message templates."""
+
+    # Application lifecycle
+    STARTUP = "AniVault v{version} starting up..."
+    SHUTDOWN = "AniVault shutting down gracefully"
+
+    # Operation messages
+    OPERATION_START = "Starting operation: {operation}"
+    OPERATION_COMPLETE = "Operation completed: {operation} (took {duration:.2f}s)"
+    OPERATION_ERROR = "Operation failed: {operation} - {error}"
+
+
+class PerformanceLogging:
+    """Performance logging configuration."""
+
+    # Thresholds
+    PERFORMANCE_THRESHOLD = 1.0  # seconds
+    MEMORY_THRESHOLD = 100 * BASE_FILE_SIZE**2  # 100MB
+
+
+class ErrorLogging:
+    """Error logging configuration."""
+
+    # Error logging options
+    INCLUDE_STACK_TRACE = True
+    INCLUDE_CONTEXT = True
+
+
+class LogPaths:
+    """Log file paths and patterns."""
+
+    # Default paths
+    DEFAULT_LOG_PATH = "logs/anivault.log"
+    DEFAULT_PROFILING_PATH = "logs/profiling.json"
+
+    # Log prefixes
+    ORGANIZE_PREFIX = "organize-"
+    ROLLBACK_PREFIX = "rollback-"
+
+    # File extensions
+    LOG_EXTENSION = ".json"
+
+
+# Backward compatibility aliases
+LOG_LEVEL_DEBUG = LogLevels.DEBUG
+LOG_LEVEL_INFO = LogLevels.INFO
+LOG_LEVEL_WARNING = LogLevels.WARNING
+LOG_LEVEL_ERROR = LogLevels.ERROR
+LOG_LEVEL_CRITICAL = LogLevels.CRITICAL
+DEFAULT_LOG_LEVEL = LogLevels.DEFAULT
+DEFAULT_LOG_FORMAT = LogConfig.DEFAULT_FORMAT
+DEFAULT_LOG_FILE = LogConfig.DEFAULT_FILE
+LOG_FILE_MAX_SIZE = LogConfig.MAX_SIZE
+LOG_FILE_BACKUP_COUNT = LogConfig.BACKUP_COUNT
+LOG_FILE_ENCODING = LogConfig.DEFAULT_ENCODING
+DEFAULT_CONSOLE_OUTPUT = LogConfig.DEFAULT_CONSOLE_OUTPUT
+DEFAULT_FILE_OUTPUT = LogConfig.DEFAULT_FILE_OUTPUT
+LOG_STARTUP_MESSAGE = LogMessages.STARTUP
+LOG_SHUTDOWN_MESSAGE = LogMessages.SHUTDOWN
+LOG_OPERATION_START = LogMessages.OPERATION_START
+LOG_OPERATION_COMPLETE = LogMessages.OPERATION_COMPLETE
+LOG_OPERATION_ERROR = LogMessages.OPERATION_ERROR
+LOG_PERFORMANCE_THRESHOLD = PerformanceLogging.PERFORMANCE_THRESHOLD
+LOG_MEMORY_THRESHOLD = PerformanceLogging.MEMORY_THRESHOLD
+LOG_ERROR_STACK_TRACE = ErrorLogging.INCLUDE_STACK_TRACE
+LOG_ERROR_CONTEXT = ErrorLogging.INCLUDE_CONTEXT
+DEFAULT_LOG_FILE_PATH = LogPaths.DEFAULT_LOG_PATH
+DEFAULT_PROFILING_FILE_PATH = LogPaths.DEFAULT_PROFILING_PATH
+ORGANIZE_LOG_PREFIX = LogPaths.ORGANIZE_PREFIX
+ROLLBACK_LOG_PREFIX = LogPaths.ROLLBACK_PREFIX
+LOG_FILE_EXTENSION = LogPaths.LOG_EXTENSION

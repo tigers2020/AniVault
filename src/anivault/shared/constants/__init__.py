@@ -4,8 +4,34 @@ AniVault Constants Module
 This module provides centralized constants for the AniVault application.
 All magic values and configuration constants are defined here to ensure
 consistency and maintainability across the codebase.
+
+The constants are organized in a hierarchical structure with parent-child relationships
+to eliminate duplication and provide a single source of truth.
 """
 
+# Import all constant classes for direct access
+from .api import APIConfig, TMDBConfig, CacheConfig
+from .cli import (
+    WorkerConfig, QueueConfig, CacheConfig as CLICacheConfig,
+    ConfidenceConfig, BatchConfig, CLIMessages, CLIFormatting, LogConfig
+)
+from .file_formats import (
+    VideoFormats, SubtitleFormats, MetadataConfig, FileLimits, 
+    TestConfig, ExclusionPatterns
+)
+from .logging import LogLevels, LogConfig as LoggingConfig, LogMessages, PerformanceLogging, ErrorLogging, LogPaths
+from .matching import (
+    ConfidenceThresholds, ValidationConfig, MatchingAlgorithm,
+    TitleNormalization, FallbackStrategy, ScoringWeights
+)
+from .system import (
+    Application, FileSystem, Encoding, Config, Timeout, Batch, Process,
+    Memory, Cache, Status, EnrichmentStatus, MediaType, Language,
+    JsonKeys, Boolean, ErrorHandling, TMDBErrorHandling, Performance,
+    Logging, Pipeline, CLI
+)
+
+# Import backward compatibility aliases
 from .api import (
     DEFAULT_CONCURRENT_REQUESTS,
     DEFAULT_RATE_LIMIT,

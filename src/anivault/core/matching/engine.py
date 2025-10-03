@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.normalization import normalize_query_from_anitopy
@@ -94,7 +94,8 @@ class MatchingEngine:
         if cached_results is not None:
             logger.debug("Cache hit for search query: %s", cache_key)
             self.statistics.record_cache_hit("search")
-            return cached_results
+            # Type assertion for cached results - we expect list from search cache
+            return cached_results  # type: ignore[return-value]
 
         # Cache miss - search TMDB
         logger.debug("Cache miss for search query: %s", cache_key)
@@ -109,7 +110,7 @@ class MatchingEngine:
             # Store results in cache (7 days TTL)
             self.cache.set(
                 key=cache_key,
-                data=results,
+                data=results,  # type: ignore[arg-type]
                 cache_type="search",
                 ttl_seconds=7 * 24 * 60 * 60,  # 7 days
             )
@@ -118,7 +119,7 @@ class MatchingEngine:
             return results
 
         except Exception as e:
-            logger.exception("TMDB search failed for query '%s': %s", title, str(e))
+            logger.exception("TMDB search failed for query '%s'", title)
             self.statistics.record_api_call("tmdb_search", success=False, error=str(e))
             return []
 
@@ -375,8 +376,8 @@ class MatchingEngine:
 
             return result
 
-        except Exception as e:
-            logger.exception("Error in find_match: %s", str(e))
+        except Exception:
+            logger.exception("Error in find_match")
             self.statistics.record_match_failure()
             self.statistics.end_timing("matching_operation")
             return None

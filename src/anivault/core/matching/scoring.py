@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 
 logger = logging.getLogger(__name__)
 
@@ -99,12 +99,11 @@ def calculate_confidence_score(
 
         return confidence_score
 
-    except Exception as e:
+    except Exception:
         logger.exception(
-            "Error calculating confidence score for query '%s' and result '%s': %s",
+            "Error calculating confidence score for query '%s' and result '%s'",
             normalized_query.get("title", ""),
             tmdb_result.get("title", ""),
-            str(e),
         )
         return 0.0
 
@@ -122,10 +121,10 @@ def _calculate_title_score(normalized_title: str, tmdb_title: str) -> float:
     if not normalized_title or not tmdb_title:
         return 0.0
 
-    # Use fuzzywuzzy ratio for title comparison
+    # Use rapidfuzz ratio for title comparison
     # This gives a score from 0-100, so we normalize to 0-1
     similarity_ratio = fuzz.ratio(normalized_title.lower(), tmdb_title.lower())
-    return similarity_ratio / 100.0
+    return float(similarity_ratio) / 100.0
 
 
 def _calculate_year_score(query_year: int | None, release_date: str | None) -> float:
@@ -144,16 +143,12 @@ def _calculate_year_score(query_year: int | None, release_date: str | None) -> f
     try:
         # Extract year from release date
         tmdb_year = int(release_date.split("-")[0])
-
-        # Calculate year difference
         year_diff = abs(query_year - tmdb_year)
 
-        if year_diff == 0:
-            return 1.0  # Perfect year match
-        if year_diff == 1:
-            return 0.8  # Very close year match
-        if year_diff == 2:
-            return 0.6  # Close year match
+        # Year score mapping
+        year_scores = {0: 1.0, 1: 0.8, 2: 0.6}
+        if year_diff in year_scores:
+            return year_scores[year_diff]
         if year_diff <= 5:
             return 0.4  # Reasonable year match
         return 0.1  # Poor year match

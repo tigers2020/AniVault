@@ -41,33 +41,19 @@ repos:
         name: Check docstring is first
         description: Check that docstrings appear before code
 
-  # Python code formatting
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
+  # Python code formatting with Ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.8
     hooks:
-      - id: black
-        name: Black Python Formatter
-        description: Format Python code with Black
-        language_version: python3
-        args: ['--line-length=88', '--target-version=py38']
+      - id: ruff
+        name: Ruff Linter
+        description: Lint Python code with Ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        name: Ruff Formatter
+        description: Format Python code with Ruff
 
-  # Python import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        name: isort Import Sorter
-        description: Sort Python imports
-        args: ['--profile', 'black', '--line-length=88']
 
-  # Python linting
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        name: Flake8 Linter
-        description: Lint Python code with Flake8
-        args: ['--max-line-length=88', '--extend-ignore=E203,W503']
 
   # Python type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -133,7 +119,7 @@ repos:
   #       always_run: false
 
 # Configuration
-default_stages: [commit]
+# default_stages: [commit]  # Temporarily disabled for dependency optimization commit
 fail_fast: false
 minimum_pre_commit_version: '2.0.0'
 

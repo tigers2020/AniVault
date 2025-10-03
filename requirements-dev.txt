@@ -2,9 +2,6 @@
 # These packages are required for code quality checks, testing, and development
 
 # Code formatting and linting
-black==23.7.0
-isort==5.12.0
-flake8==6.0.0
 mypy==1.5.1
 
 # Pre-commit hooks
