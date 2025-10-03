@@ -4,19 +4,18 @@ This module contains the business logic for the rollback command,
 separated for better maintainability and single responsibility principle.
 """
 
+from __future__ import annotations
+
 import logging
+import sys
 from typing import Any
 
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
-from anivault.shared.errors import (
-    ApplicationError,
-    ErrorCode,
-    ErrorContext,
-    InfrastructureError,
-)
+from anivault.cli.common_options import is_json_output_enabled
+from anivault.cli.json_formatter import format_json_output
+from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
+                                              CLI_INFO_COMMAND_STARTED)
+from anivault.shared.errors import (ApplicationError, ErrorCode, ErrorContext,
+                                    InfrastructureError)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +32,103 @@ def handle_rollback_command(args: Any) -> int:
     logger.info(CLI_INFO_COMMAND_STARTED.format(command="rollback"))
 
     try:
+        if is_json_output_enabled(args):
+            return _handle_rollback_command_json(args)
+        return _handle_rollback_command_console(args)
+
+    except ApplicationError as e:
+        logger.exception(
+            "Application error in rollback command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        if is_json_output_enabled(args):
+            error_output = format_json_output(
+                success=False,
+                command="rollback",
+                errors=[f"Application error: {e.message}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+        return 1
+    except InfrastructureError as e:
+        logger.exception(
+            "Infrastructure error in rollback command",
+            extra={"context": e.context, "error_code": e.code},
+        )
+        if is_json_output_enabled(args):
+            error_output = format_json_output(
+                success=False,
+                command="rollback",
+                errors=[f"Infrastructure error: {e.message}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+        return 1
+    except Exception as e:
+        logger.exception("Unexpected error in rollback command")
+        if is_json_output_enabled(args):
+            error_output = format_json_output(
+                success=False,
+                command="rollback",
+                errors=[f"Unexpected error: {e}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+        return 1
+
+
+def _handle_rollback_command_json(args: Any) -> int:
+    """Handle rollback command with JSON output.
+
+    Args:
+        args: Parsed command line arguments
+
+    Returns:
+        Exit code (0 for success, non-zero for error)
+    """
+    try:
+        rollback_data = _collect_rollback_data(args)
+        if rollback_data is None:
+            error_output = format_json_output(
+                success=False,
+                command="rollback",
+                errors=["Failed to collect rollback data"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+            return 1
+
+        output = format_json_output(
+            success=True,
+            command="rollback",
+            data=rollback_data,
+        )
+        sys.stdout.buffer.write(output)
+        sys.stdout.buffer.write(b"\n")
+        return 0
+
+    except Exception as e:
+        error_output = format_json_output(
+            success=False,
+            command="rollback",
+            errors=[f"Error during rollback operation: {e}"],
+        )
+        sys.stdout.buffer.write(error_output)
+        sys.stdout.buffer.write(b"\n")
+        logger.exception("Error in rollback command JSON output")
+        return 1
+
+
+def _handle_rollback_command_console(args: Any) -> int:
+    """Handle rollback command with console output.
+
+    Args:
+        args: Parsed command line arguments
+
+    Returns:
+        Exit code (0 for success, non-zero for error)
+    """
+    try:
         result = _run_rollback_command(args)
 
         if result == 0:
@@ -43,20 +139,156 @@ def handle_rollback_command(args: Any) -> int:
         return result
 
     except ApplicationError as e:
-        logger.error(
-            "Application error in rollback command",
+        from rich.console import Console
+
+        console = Console()
+        console.print(f"[red]Application error during rollback: {e.message}[/red]")
+        logger.exception(
+            "Application error during rollback",
             extra={"context": e.context, "error_code": e.code},
         )
         return 1
     except InfrastructureError as e:
-        logger.error(
-            "Infrastructure error in rollback command",
+        from rich.console import Console
+
+        console = Console()
+        console.print(f"[red]Infrastructure error during rollback: {e.message}[/red]")
+        logger.exception(
+            "Infrastructure error during rollback",
             extra={"context": e.context, "error_code": e.code},
         )
         return 1
-    except Exception:
-        logger.exception("Unexpected error in rollback command")
+    except Exception as e:
+        from rich.console import Console
+
+        console = Console()
+        console.print(f"[red]Unexpected error during rollback: {e}[/red]")
+        logger.exception("Unexpected error during rollback")
         return 1
+
+
+def _collect_rollback_data(args: Any) -> dict | None:
+    """Collect rollback data for JSON output.
+
+    Args:
+        args: Parsed command line arguments
+
+    Returns:
+        Dictionary containing rollback data, or None if error
+    """
+    try:
+        from pathlib import Path
+
+        from anivault.core.log_manager import OperationLogManager
+        from anivault.core.rollback_manager import RollbackManager
+
+        # Get rollback log path
+        log_manager = OperationLogManager(Path.cwd())
+        log_path = log_manager.get_log_by_id(args.log_id)
+
+        if log_path is None:
+            return {
+                "error": f"Log with ID {args.log_id} not found",
+                "rollback_plan": [],
+                "executable_plan": [],
+                "skipped_operations": [],
+            }
+
+        # Generate rollback plan
+        rollback_manager = RollbackManager(log_manager)
+        rollback_plan = rollback_manager.generate_rollback_plan(log_path)
+
+        if rollback_plan is None:
+            return {
+                "error": "Failed to generate rollback plan",
+                "rollback_plan": [],
+                "executable_plan": [],
+                "skipped_operations": [],
+            }
+
+        if not rollback_plan:
+            return {
+                "message": "No rollback operations needed",
+                "rollback_plan": [],
+                "executable_plan": [],
+                "skipped_operations": [],
+            }
+
+        # Validate plan and partition operations
+        executable_plan, skipped_operations = _validate_rollback_plan_for_json(
+            rollback_plan,
+        )
+
+        # Collect operation data
+        rollback_plan_data = []
+        for operation in rollback_plan:
+            rollback_plan_data.append(
+                {
+                    "source_path": str(operation.source_path),
+                    "destination_path": str(operation.destination_path),
+                    "operation_type": "MOVE",
+                },
+            )
+
+        executable_plan_data = []
+        for operation in executable_plan:
+            executable_plan_data.append(
+                {
+                    "source_path": str(operation.source_path),
+                    "destination_path": str(operation.destination_path),
+                    "operation_type": "MOVE",
+                },
+            )
+
+        skipped_operations_data = []
+        for operation in skipped_operations:
+            skipped_operations_data.append(
+                {
+                    "source_path": str(operation.source_path),
+                    "destination_path": str(operation.destination_path),
+                    "operation_type": "MOVE",
+                    "reason": "Source file not found",
+                },
+            )
+
+        return {
+            "log_id": args.log_id,
+            "log_path": str(log_path),
+            "rollback_plan": rollback_plan_data,
+            "executable_plan": executable_plan_data,
+            "skipped_operations": skipped_operations_data,
+            "total_operations": len(rollback_plan),
+            "executable_count": len(executable_plan),
+            "skipped_count": len(skipped_operations),
+            "dry_run": getattr(args, "dry_run", False),
+        }
+
+    except Exception:
+        logger.exception("Error collecting rollback data")
+        return None
+
+
+def _validate_rollback_plan_for_json(rollback_plan):
+    """Validate rollback plan for JSON output.
+
+    Args:
+        rollback_plan: List of FileOperation objects
+
+    Returns:
+        Tuple of (executable_plan, skipped_operations)
+    """
+    import os
+
+    executable_plan = []
+    skipped_operations = []
+
+    for operation in rollback_plan:
+        if os.path.exists(operation.source_path):
+            executable_plan.append(operation)
+        else:
+            skipped_operations.append(operation)
+
+    return executable_plan, skipped_operations
 
 
 def _run_rollback_command(args) -> int:
@@ -89,7 +321,7 @@ def _run_rollback_command(args) -> int:
 
         console = Console()
         console.print(f"[red]Application error during rollback: {e.message}[/red]")
-        logger.error(
+        logger.exception(
             "Application error during rollback",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -99,7 +331,7 @@ def _run_rollback_command(args) -> int:
 
         console = Console()
         console.print(f"[red]Infrastructure error during rollback: {e.message}[/red]")
-        logger.error(
+        logger.exception(
             "Infrastructure error during rollback",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -131,14 +363,14 @@ def _get_rollback_log_path(args, console):
         return log_manager.get_log_by_id(args.log_id)
     except ApplicationError as e:
         console.print(f"[red]Application error: {e.message}[/red]")
-        logger.error(
+        logger.exception(
             "Failed to get rollback log path",
             extra={"context": e.context, "error_code": e.code},
         )
         return None
     except InfrastructureError as e:
         console.print(f"[red]Infrastructure error: {e.message}[/red]")
-        logger.error(
+        logger.exception(
             "Failed to get rollback log path",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -164,7 +396,7 @@ def _generate_rollback_plan(log_path, console):
         console.print(
             f"[red]Application error generating rollback plan: {e.message}[/red]",
         )
-        logger.error(
+        logger.exception(
             "Failed to generate rollback plan",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -173,7 +405,7 @@ def _generate_rollback_plan(log_path, console):
         console.print(
             f"[red]Infrastructure error generating rollback plan: {e.message}[/red]",
         )
-        logger.error(
+        logger.exception(
             "Failed to generate rollback plan",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -192,7 +424,8 @@ def _execute_rollback_plan(rollback_plan, args, console):
 
     # Validate plan and partition operations
     executable_plan, skipped_operations = _validate_rollback_plan(
-        rollback_plan, console
+        rollback_plan,
+        console,
     )
 
     if not executable_plan:
@@ -263,7 +496,7 @@ def _perform_rollback(rollback_plan, args, skipped_operations=None, console=None
         return 0
 
     except ApplicationError as e:
-        logger.error(
+        logger.exception(
             "Rollback execution failed",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -277,7 +510,7 @@ def _perform_rollback(rollback_plan, args, skipped_operations=None, console=None
             original_error=e,
         ) from e
     except InfrastructureError as e:
-        logger.error(
+        logger.exception(
             "Rollback execution failed",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -315,8 +548,6 @@ def _validate_rollback_plan(rollback_plan, console):
     """
     import os
 
-    from anivault.core.organizer import FileOperation
-
     executable_plan = []
     skipped_operations = []
 
@@ -340,11 +571,11 @@ def _print_skipped_operations(skipped_operations, console):
         return
 
     console.print(
-        f"\n[yellow]Skipped {len(skipped_operations)} operations (source files not found):[/yellow]"
+        f"\n[yellow]Skipped {len(skipped_operations)} operations (source files not found):[/yellow]",
     )
     for operation in skipped_operations:
         console.print(
-            f"  [dim]• {operation.source_path} → {operation.destination_path}[/dim]"
+            f"  [dim]• {operation.source_path} → {operation.destination_path}[/dim]",
         )
     console.print()
 

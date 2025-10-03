@@ -7,18 +7,19 @@ separated for better maintainability and single responsibility principle.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from rich.console import Console
 
+from anivault.cli.json_formatter import format_json_output
+from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
+                                              CLI_INFO_COMMAND_STARTED)
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -48,13 +49,13 @@ def handle_match_command(args: Any) -> int:
         return result
 
     except ApplicationError as e:
-        logger.error(
+        logger.exception(
             "Application error in match command",
             extra={"context": e.context, "error_code": e.code},
         )
         return 1
     except InfrastructureError as e:
-        logger.error(
+        logger.exception(
             "Infrastructure error in match command",
             extra={"context": e.context, "error_code": e.code},
         )
@@ -77,23 +78,12 @@ async def _run_match_command_impl(args: Any) -> int:
         import asyncio
 
         from rich.console import Console
-        from rich.progress import (
-            BarColumn,
-            Progress,
-            SpinnerColumn,
-            TaskProgressColumn,
-            TextColumn,
-        )
 
         from anivault.core.matching.engine import MatchingEngine
         from anivault.core.parser.anitopy_parser import AnitopyParser
-        from anivault.services import (
-            JSONCacheV2,
-            RateLimitStateMachine,
-            SemaphoreManager,
-            TMDBClient,
-            TokenBucketRateLimiter,
-        )
+        from anivault.services import (JSONCacheV2, RateLimitStateMachine,
+                                       SemaphoreManager, TMDBClient,
+                                       TokenBucketRateLimiter)
 
         console = Console()
 
@@ -103,25 +93,60 @@ async def _run_match_command_impl(args: Any) -> int:
 
             directory = validate_directory(args.directory)
         except ApplicationError as e:
-            console.print(f"[red]Application error: {e.message}[/red]")
-            logger.error(
+            if hasattr(args, "json") and args.json:
+                json_output = format_json_output(
+                    success=False,
+                    command="match",
+                    errors=[f"Application error: {e.message}"],
+                    data={"error_code": e.code, "context": e.context},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(f"[red]Application error: {e.message}[/red]")
+            logger.exception(
                 "Directory validation failed",
                 extra={"context": e.context, "error_code": e.code},
             )
             return 1
         except InfrastructureError as e:
-            console.print(f"[red]Infrastructure error: {e.message}[/red]")
-            logger.error(
+            if hasattr(args, "json") and args.json:
+                json_output = format_json_output(
+                    success=False,
+                    command="match",
+                    errors=[f"Infrastructure error: {e.message}"],
+                    data={"error_code": e.code, "context": e.context},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(f"[red]Infrastructure error: {e.message}[/red]")
+            logger.exception(
                 "Directory validation failed",
                 extra={"context": e.context, "error_code": e.code},
             )
             return 1
         except Exception as e:
-            console.print(f"[red]Unexpected error: {e}[/red]")
+            if hasattr(args, "json") and args.json:
+                json_output = format_json_output(
+                    success=False,
+                    command="match",
+                    errors=[f"Unexpected error: {e!s}"],
+                    data={"error_type": type(e).__name__},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(f"[red]Unexpected error: {e}[/red]")
             logger.exception("Unexpected error during directory validation")
             return 1
 
-        console.print(f"[green]Matching anime files in: {directory}[/green]")
+        # Only show console output if not in JSON mode
+        if not (hasattr(args, "json") and args.json):
+            console.print(f"[green]Matching anime files in: {directory}[/green]")
 
         # Initialize services
         cache = JSONCacheV2(args.cache_dir)
@@ -152,24 +177,36 @@ async def _run_match_command_impl(args: Any) -> int:
             anime_files.extend(directory.rglob(f"*{ext}"))
 
         if not anime_files:
-            console.print(
-                "[yellow]No anime files found in the specified directory[/yellow]",
-            )
+            if hasattr(args, "json") and args.json:
+                # Return empty results in JSON format
+                match_data = _collect_match_data([], directory)
+                json_output = format_json_output(
+                    success=True,
+                    command="match",
+                    data=match_data,
+                    warnings=["No anime files found in the specified directory"],
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(
+                    "[yellow]No anime files found in the specified directory[/yellow]",
+                )
             return 0
 
-        console.print(f"[blue]Found {len(anime_files)} anime files[/blue]")
+        # Only show console output if not in JSON mode
+        if not (hasattr(args, "json") and args.json):
+            console.print(f"[blue]Found {len(anime_files)} anime files[/blue]")
+
+        # Create progress manager (disabled for JSON output)
+        progress_manager = create_progress_manager(
+            disabled=(hasattr(args, "json") and args.json),
+        )
 
         # Process files with progress bar and concurrent processing
         results = []
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Matching files...", total=len(anime_files))
-
+        with progress_manager.spinner("Matching files..."):
             # Create semaphore for concurrent processing
             semaphore = asyncio.Semaphore(args.workers)
 
@@ -182,7 +219,6 @@ async def _run_match_command_impl(args: Any) -> int:
                         matching_engine=matching_engine,
                         console=console,
                     )
-                    progress.advance(task)
                     return result
 
             # Process all files concurrently
@@ -195,9 +231,10 @@ async def _run_match_command_impl(args: Any) -> int:
             processed_results = []
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
-                    console.print(
-                        f"[red]Error processing {anime_files[i]}: {result}[/red]",
-                    )
+                    if not (hasattr(args, "json") and args.json):
+                        console.print(
+                            f"[red]Error processing {anime_files[i]}: {result}[/red]",
+                        )
                     processed_results.append(
                         {
                             "file_path": str(anime_files[i]),
@@ -209,26 +246,76 @@ async def _run_match_command_impl(args: Any) -> int:
 
             results = processed_results
 
-        # Display results
-        _display_match_results_impl(results, console)
+        # Check if JSON output is requested
+        if hasattr(args, "json") and args.json:
+            # Collect match data for JSON output
+            match_data = _collect_match_data(results, directory)
+
+            # Output JSON to stdout
+            json_output = format_json_output(
+                success=True,
+                command="match",
+                data=match_data,
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            # Display results in human-readable format
+            _display_match_results_impl(results, console)
         return 0
 
     except ApplicationError as e:
-        console.print(f"[red]Application error during matching: {e.message}[/red]")
-        logger.error(
+        if hasattr(args, "json") and args.json:
+            json_output = format_json_output(
+                success=False,
+                command="match",
+                errors=[f"Application error: {e.message}"],
+                data={"error_code": e.code, "context": e.context},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            console.print(f"[red]Application error during matching: {e.message}[/red]")
+        logger.exception(
             "Application error during matching",
             extra={"context": e.context, "error_code": e.code},
         )
         return 1
     except InfrastructureError as e:
-        console.print(f"[red]Infrastructure error during matching: {e.message}[/red]")
-        logger.error(
+        if hasattr(args, "json") and args.json:
+            json_output = format_json_output(
+                success=False,
+                command="match",
+                errors=[f"Infrastructure error: {e.message}"],
+                data={"error_code": e.code, "context": e.context},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            console.print(
+                f"[red]Infrastructure error during matching: {e.message}[/red]",
+            )
+        logger.exception(
             "Infrastructure error during matching",
             extra={"context": e.context, "error_code": e.code},
         )
         return 1
     except Exception as e:
-        console.print(f"[red]Unexpected error during matching: {e}[/red]")
+        if hasattr(args, "json") and args.json:
+            json_output = format_json_output(
+                success=False,
+                command="match",
+                errors=[f"Unexpected error: {e!s}"],
+                data={"error_type": type(e).__name__},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            console.print(f"[red]Unexpected error during matching: {e}[/red]")
         logger.exception("Unexpected error during matching")
         return 1
 
@@ -343,154 +430,147 @@ def _display_match_results_impl(results: list, console: Console) -> None:
     console.print(table)
 
 
-def _display_match_results(results, console):
-    """Display match results in a formatted table.
+def _collect_match_data(results, directory):
+    """Collect match data for JSON output.
 
     Args:
         results: List of match results
-        console: Rich console instance
+        directory: Scanned directory path
+
+    Returns:
+        Dictionary containing match statistics and file data
     """
-    from rich import box
-    from rich.table import Table
+    import os
+    from pathlib import Path
 
-    from anivault.shared.constants.matching import DEFAULT_CONFIDENCE_THRESHOLD
-
-    # Create main results table
-    table = Table(
-        title="🎌 Anime File Matching Results",
-        box=box.ROUNDED,
-        show_header=True,
-        header_style="bold magenta",
-        title_style="bold cyan",
-    )
-
-    # Add columns with better styling
-    table.add_column("📁 File", style="cyan", max_width=40, overflow="fold")
-    table.add_column("🎬 Parsed Title", style="green", max_width=30, overflow="fold")
-    table.add_column("📅 Year", style="yellow", justify="center", width=8)
-    table.add_column("🎯 TMDB Match", style="magenta", max_width=35, overflow="fold")
-    table.add_column("📊 Confidence", style="blue", justify="center", width=12)
-    table.add_column("🏷️ Status", style="bold", justify="center", width=10)
-
-    # Statistics counters
+    # Calculate basic statistics
     total_files = len(results)
     successful_matches = 0
-    high_confidence = 0
-    medium_confidence = 0
-    low_confidence = 0
+    high_confidence_matches = 0
+    medium_confidence_matches = 0
+    low_confidence_matches = 0
     errors = 0
+    total_size = 0
+    file_counts_by_extension = {}
+    scanned_paths = []
 
+    # Process each result
+    file_data = []
     for result in results:
-        if "error" in result:
-            # Handle error cases
-            errors += 1
-            table.add_row(
-                result["file_path"],
-                "❌ ERROR",
-                "",
-                "",
-                "",
-                "ERROR",
-                style="red",
-            )
-            continue
+        file_path = result.get("file_path", "Unknown")
+        parsing_result = result.get("parsing_result")
+        match_result = result.get("match_result")
 
-        file_path = result["file_path"]
-        parse_result = result.get("parse_result", {})
-        match_result = result.get("match_result", {})
-        normalized_query = result.get("normalized_query", {})
+        # Add to scanned paths
+        scanned_paths.append(file_path)
 
-        # Extract parsed title
-        parsed_title = parse_result.get("anime_title", "Unknown")
-        if not parsed_title or parsed_title == "Unknown":
-            parsed_title = normalized_query.get("title", "Unknown")
+        # Calculate file size
+        try:
+            file_size = os.path.getsize(file_path)
+            total_size += file_size
+        except (OSError, TypeError):
+            file_size = 0
 
-        # Extract year from parse result or normalized query
-        year = parse_result.get("year", "")
-        if not year:
-            year = normalized_query.get("year", "")
-        year_str = str(year) if year else "N/A"
+        # Count by extension
+        file_ext = Path(file_path).suffix.lower()
+        file_counts_by_extension[file_ext] = (
+            file_counts_by_extension.get(file_ext, 0) + 1
+        )
 
-        # Extract match information
-        if match_result and "best_match" in match_result:
+        # Prepare file data
+        file_info = {
+            "file_path": file_path,
+            "file_name": Path(file_path).name,
+            "file_size": file_size,
+            "file_extension": file_ext,
+        }
+
+        # Add parsing result if available
+        if parsing_result:
+            file_info["parsing_result"] = {
+                "title": parsing_result.title,
+                "episode": parsing_result.episode,
+                "season": parsing_result.season,
+                "quality": parsing_result.quality,
+                "source": parsing_result.source,
+                "codec": parsing_result.codec,
+                "audio": parsing_result.audio,
+                "release_group": parsing_result.release_group,
+                "confidence": parsing_result.confidence,
+                "parser_used": parsing_result.parser_used,
+                "other_info": parsing_result.other_info,
+            }
+
+        # Add match result if available
+        if match_result:
             successful_matches += 1
-            best_match = match_result["best_match"]
-            match_title = best_match.get("title", "No match")
-            confidence = match_result.get("confidence_score", 0.0)
+            confidence = getattr(match_result, "match_confidence", 0.0)
 
-            # Format confidence with color coding
-            if confidence >= DEFAULT_CONFIDENCE_THRESHOLD:
-                confidence_str = f"[green]{confidence:.2f}[/green]"
-                confidence_level = "HIGH"
-                high_confidence += 1
+            # Categorize confidence levels
+            if confidence >= 0.8:
+                high_confidence_matches += 1
             elif confidence >= 0.6:
-                confidence_str = f"[yellow]{confidence:.2f}[/yellow]"
-                confidence_level = "MED"
-                medium_confidence += 1
+                medium_confidence_matches += 1
             else:
-                confidence_str = f"[red]{confidence:.2f}[/red]"
-                confidence_level = "LOW"
-                low_confidence += 1
+                low_confidence_matches += 1
+
+            file_info["match_result"] = {
+                "match_confidence": confidence,
+                "tmdb_data": (
+                    match_result.tmdb_data
+                    if hasattr(match_result, "tmdb_data")
+                    else None
+                ),
+                "enrichment_status": getattr(
+                    match_result,
+                    "enrichment_status",
+                    "UNKNOWN",
+                ),
+            }
+        elif "error" in result:
+            errors += 1
+            file_info["error"] = result["error"]
+            file_info["match_result"] = {
+                "match_confidence": 0.0,
+                "tmdb_data": None,
+                "enrichment_status": "ERROR",
+            }
         else:
-            match_title = "No match"
-            confidence_str = "N/A"
-            confidence_level = "NONE"
+            file_info["match_result"] = {
+                "match_confidence": 0.0,
+                "tmdb_data": None,
+                "enrichment_status": "NO_MATCH",
+            }
 
-        # Add row to table
-        table.add_row(
-            file_path,
-            parsed_title,
-            year_str,
-            match_title,
-            confidence_str,
-            confidence_level,
-        )
+        file_data.append(file_info)
 
-    # Display the table
-    console.print(table)
+    # Format total size in human-readable format
+    def format_size(size_bytes):
+        """Convert bytes to human-readable format."""
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
 
-    # Display summary statistics
-    console.print("\n")
-    summary_table = Table(
-        title="📈 Matching Summary",
-        box=box.SIMPLE,
-        show_header=True,
-        header_style="bold blue",
-    )
-    summary_table.add_column("Metric", style="cyan")
-    summary_table.add_column("Count", style="green", justify="right")
-    summary_table.add_column("Percentage", style="yellow", justify="right")
-
-    summary_table.add_row("Total Files", str(total_files), "100%")
-    summary_table.add_row(
-        "Successful Matches",
-        str(successful_matches),
-        f"{(successful_matches/total_files*100):.1f}%",
-    )
-    summary_table.add_row(
-        "High Confidence (≥0.8)",
-        str(high_confidence),
-        f"{(high_confidence/total_files*100):.1f}%",
-    )
-    summary_table.add_row(
-        "Medium Confidence (0.6-0.8)",
-        str(medium_confidence),
-        f"{(medium_confidence/total_files*100):.1f}%",
-    )
-    summary_table.add_row(
-        "Low Confidence (<0.6)",
-        str(low_confidence),
-        f"{(low_confidence/total_files*100):.1f}%",
-    )
-    summary_table.add_row("Errors", str(errors), f"{(errors/total_files*100):.1f}%")
-
-    console.print(summary_table)
-
-    # Display additional information if there are high-confidence matches
-    if high_confidence > 0:
-        console.print(
-            f"\n[green]✅ {high_confidence} files matched with high confidence![/green]",
-        )
-
-    if errors > 0:
-        console.print(f"\n[red]⚠️  {errors} files had processing errors[/red]")
+    return {
+        "match_summary": {
+            "total_files": total_files,
+            "successful_matches": successful_matches,
+            "high_confidence_matches": high_confidence_matches,
+            "medium_confidence_matches": medium_confidence_matches,
+            "low_confidence_matches": low_confidence_matches,
+            "errors": errors,
+            "total_size_bytes": total_size,
+            "total_size_formatted": format_size(total_size),
+            "scanned_directory": str(directory),
+            "success_rate": (
+                (successful_matches / total_files * 100) if total_files > 0 else 0
+            ),
+        },
+        "file_statistics": {
+            "counts_by_extension": file_counts_by_extension,
+            "scanned_paths": scanned_paths,
+        },
+        "files": file_data,
+    }

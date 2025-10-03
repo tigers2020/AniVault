@@ -5,6 +5,8 @@ This module defines the fundamental data structures used throughout
 the AniVault system for file operations and organization.
 """
 
+from __future__ import annotations
+
 from enum import Enum
 from pathlib import Path
 from typing import Any

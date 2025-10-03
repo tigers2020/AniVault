@@ -5,12 +5,13 @@ separated for better maintainability and single responsibility principle.
 """
 
 import logging
+import sys
 from typing import Any
 
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.cli.json_formatter import format_json_output
+from anivault.cli.progress import create_progress_manager
+from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
+                                              CLI_INFO_COMMAND_STARTED)
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -32,29 +33,14 @@ def handle_scan_command(args: Any) -> int:
         from pathlib import Path
 
         from rich.console import Console
-        from rich.progress import (
-            BarColumn,
-            Progress,
-            SpinnerColumn,
-            TaskProgressColumn,
-            TextColumn,
-        )
 
         from anivault.core.pipeline.main import run_pipeline
-        from anivault.services import (
-            MetadataEnricher,
-            RateLimitStateMachine,
-            SemaphoreManager,
-            TMDBClient,
-            TokenBucketRateLimiter,
-        )
+        from anivault.services import (MetadataEnricher, RateLimitStateMachine,
+                                       SemaphoreManager, TMDBClient,
+                                       TokenBucketRateLimiter)
         from anivault.shared.constants.system import (
-            CLI_ERROR_SCAN_FAILED,
-            CLI_INDENT_SIZE,
-            CLI_SUCCESS_RESULTS_SAVED,
-            DEFAULT_ENCODING,
-            DEFAULT_QUEUE_SIZE,
-        )
+            CLI_ERROR_SCAN_FAILED, CLI_INDENT_SIZE, CLI_SUCCESS_RESULTS_SAVED,
+            DEFAULT_ENCODING, DEFAULT_QUEUE_SIZE)
 
         console = Console()
 
@@ -64,21 +50,54 @@ def handle_scan_command(args: Any) -> int:
 
             directory = validate_directory(args.directory)
         except ApplicationError as e:
-            console.print(f"[red]Application error: {e.message}[/red]")
-            logger.error(
+            if hasattr(args, "json") and args.json:
+                json_output = format_json_output(
+                    success=False,
+                    command="scan",
+                    errors=[f"Application error: {e.message}"],
+                    data={"error_code": e.code, "context": e.context},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(f"[red]Application error: {e.message}[/red]")
+            logger.exception(
                 "Directory validation failed",
                 extra={"context": e.context, "error_code": e.code},
             )
             return 1
         except InfrastructureError as e:
-            console.print(f"[red]Infrastructure error: {e.message}[/red]")
-            logger.error(
+            if hasattr(args, "json") and args.json:
+                json_output = format_json_output(
+                    success=False,
+                    command="scan",
+                    errors=[f"Infrastructure error: {e.message}"],
+                    data={"error_code": e.code, "context": e.context},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(f"[red]Infrastructure error: {e.message}[/red]")
+            logger.exception(
                 "Directory validation failed",
                 extra={"context": e.context, "error_code": e.code},
             )
             return 1
         except Exception as e:
-            console.print(f"[red]Unexpected error: {e}[/red]")
+            if hasattr(args, "json") and args.json:
+                json_output = format_json_output(
+                    success=False,
+                    command="scan",
+                    errors=[f"Unexpected error: {e!s}"],
+                    data={"error_type": type(e).__name__},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(f"[red]Unexpected error: {e}[/red]")
             logger.exception("Unexpected error during directory validation")
             return 1
 
@@ -87,30 +106,52 @@ def handle_scan_command(args: Any) -> int:
             not args.no_enrich
         )  # Default to enrich unless --no-enrich is specified
 
-        console.print(f"[green]Scanning directory: {directory}[/green]")
-        console.print(f"[blue]Enriching metadata: {enrich_metadata}[/blue]")
+        # Only show console output if not in JSON mode
+        if not (hasattr(args, "json") and args.json):
+            console.print(f"[green]Scanning directory: {directory}[/green]")
+            console.print(f"[blue]Enriching metadata: {enrich_metadata}[/blue]")
 
-        # Run the file processing pipeline with simple console output
-        console.print("[yellow]Scanning files...[/yellow]")
+        # Create progress manager (disabled for JSON output)
+        progress_manager = create_progress_manager(
+            disabled=(hasattr(args, "json") and args.json),
+        )
 
         try:
-            file_results = run_pipeline(
-                root_path=str(directory),
-                extensions=args.extensions,
-                num_workers=args.workers,
-                max_queue_size=DEFAULT_QUEUE_SIZE,
-            )
+            # Run the file processing pipeline with progress display
+            # The spinner will show during file discovery phase
+            with progress_manager.spinner("Scanning files..."):
+                file_results = run_pipeline(
+                    root_path=str(directory),
+                    extensions=args.extensions,
+                    num_workers=args.workers,
+                    max_queue_size=DEFAULT_QUEUE_SIZE,
+                )
 
-            console.print("[green]✅ File scanning completed![/green]")
+            if not (hasattr(args, "json") and args.json):
+                console.print("[green]✅ File scanning completed![/green]")
 
-        except Exception as e:
-            console.print("[red]❌ File scanning failed[/red]")
+        except Exception:
+            if not (hasattr(args, "json") and args.json):
+                console.print("[red]❌ File scanning failed[/red]")
             raise
 
         if not file_results:
-            console.print(
-                "[yellow]No anime files found in the specified directory[/yellow]",
-            )
+            if hasattr(args, "json") and args.json:
+                # Return empty results in JSON format
+                scan_data = _collect_scan_data([], directory, enrich_metadata)
+                json_output = format_json_output(
+                    success=True,
+                    command="scan",
+                    data=scan_data,
+                    warnings=["No anime files found in the specified directory"],
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(
+                    "[yellow]No anime files found in the specified directory[/yellow]",
+                )
             return 0
 
         # Enrich metadata if requested
@@ -142,7 +183,10 @@ def handle_scan_command(args: Any) -> int:
                     return file_results
 
                 enriched_results = []
-                for parsing_result in parsing_results:
+                for parsing_result in progress_manager.track(
+                    parsing_results,
+                    "Enriching metadata...",
+                ):
                     enriched = await enricher.enrich_metadata(parsing_result)
                     enriched_results.append(enriched)
 
@@ -162,8 +206,23 @@ def handle_scan_command(args: Any) -> int:
         else:
             enriched_results = file_results
 
-        # Display results
-        _display_results(enriched_results, show_tmdb=enrich_metadata)
+        # Check if JSON output is requested
+        if hasattr(args, "json") and args.json:
+            # Collect scan statistics for JSON output
+            scan_data = _collect_scan_data(enriched_results, directory, enrich_metadata)
+
+            # Output JSON to stdout
+            json_output = format_json_output(
+                success=True,
+                command="scan",
+                data=scan_data,
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            # Display results in human-readable format
+            _display_results(enriched_results, show_tmdb=enrich_metadata)
 
         # Save results to file if requested
         if args.output:
@@ -198,31 +257,167 @@ def handle_scan_command(args: Any) -> int:
             with open(output_path, "w", encoding=DEFAULT_ENCODING) as f:
                 json.dump(json_results, f, indent=CLI_INDENT_SIZE, ensure_ascii=False)
 
-            console.print(
-                f"[green]{CLI_SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
-            )
+            if not (hasattr(args, "json") and args.json):
+                console.print(
+                    f"[green]{CLI_SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
+                )
 
         logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="scan"))
         return 0
 
     except ApplicationError as e:
-        console.print(f"[red]Application error during scan: {e.message}[/red]")
-        logger.error(
+        if hasattr(args, "json") and args.json:
+            json_output = format_json_output(
+                success=False,
+                command="scan",
+                errors=[f"Application error: {e.message}"],
+                data={"error_code": e.code, "context": e.context},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            console.print(f"[red]Application error during scan: {e.message}[/red]")
+        logger.exception(
             "Application error in scan command",
             extra={"context": e.context, "error_code": e.code},
         )
         return 1
     except InfrastructureError as e:
-        console.print(f"[red]Infrastructure error during scan: {e.message}[/red]")
-        logger.error(
+        if hasattr(args, "json") and args.json:
+            json_output = format_json_output(
+                success=False,
+                command="scan",
+                errors=[f"Infrastructure error: {e.message}"],
+                data={"error_code": e.code, "context": e.context},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            console.print(f"[red]Infrastructure error during scan: {e.message}[/red]")
+        logger.exception(
             "Infrastructure error in scan command",
             extra={"context": e.context, "error_code": e.code},
         )
         return 1
     except Exception as e:
-        console.print(f"[red]{CLI_ERROR_SCAN_FAILED.format(error=e)}[/red]")
+        if hasattr(args, "json") and args.json:
+            json_output = format_json_output(
+                success=False,
+                command="scan",
+                errors=[f"Unexpected error: {e!s}"],
+                data={"error_type": type(e).__name__},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        else:
+            console.print(f"[red]{CLI_ERROR_SCAN_FAILED.format(error=e)}[/red]")
         logger.exception("Unexpected error in scan command")
         return 1
+
+
+def _collect_scan_data(results, directory, show_tmdb=True):
+    """Collect scan data for JSON output.
+
+    Args:
+        results: List of scan results
+        directory: Scanned directory path
+        show_tmdb: Whether TMDB metadata was enriched
+
+    Returns:
+        Dictionary containing scan statistics and file data
+    """
+    import os
+    from pathlib import Path
+
+    # Calculate basic statistics
+    total_files = len(results)
+    total_size = 0
+    file_counts_by_extension = {}
+    scanned_paths = []
+
+    # Process each result
+    file_data = []
+    for result in results:
+        file_path = result.get("file_path", "Unknown")
+        parsing_result = result.get("parsing_result")
+        enriched_metadata = result.get("enriched_metadata")
+
+        # Add to scanned paths
+        scanned_paths.append(file_path)
+
+        # Calculate file size
+        try:
+            file_size = os.path.getsize(file_path)
+            total_size += file_size
+        except (OSError, TypeError):
+            file_size = 0
+
+        # Count by extension
+        file_ext = Path(file_path).suffix.lower()
+        file_counts_by_extension[file_ext] = (
+            file_counts_by_extension.get(file_ext, 0) + 1
+        )
+
+        # Prepare file data
+        file_info = {
+            "file_path": file_path,
+            "file_name": Path(file_path).name,
+            "file_size": file_size,
+            "file_extension": file_ext,
+        }
+
+        # Add parsing result if available
+        if parsing_result:
+            file_info["parsing_result"] = {
+                "title": parsing_result.title,
+                "episode": parsing_result.episode,
+                "season": parsing_result.season,
+                "quality": parsing_result.quality,
+                "source": parsing_result.source,
+                "codec": parsing_result.codec,
+                "audio": parsing_result.audio,
+                "release_group": parsing_result.release_group,
+                "confidence": parsing_result.confidence,
+                "parser_used": parsing_result.parser_used,
+                "other_info": parsing_result.other_info,
+            }
+
+        # Add enriched metadata if available
+        if show_tmdb and enriched_metadata:
+            file_info["enriched_metadata"] = {
+                "enrichment_status": enriched_metadata.enrichment_status,
+                "match_confidence": enriched_metadata.match_confidence,
+                "tmdb_data": enriched_metadata.tmdb_data,
+            }
+
+        file_data.append(file_info)
+
+    # Format total size in human-readable format
+    def format_size(size_bytes):
+        """Convert bytes to human-readable format."""
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
+    return {
+        "scan_summary": {
+            "total_files": total_files,
+            "total_size_bytes": total_size,
+            "total_size_formatted": format_size(total_size),
+            "scanned_directory": str(directory),
+            "metadata_enriched": show_tmdb,
+        },
+        "file_statistics": {
+            "counts_by_extension": file_counts_by_extension,
+            "scanned_paths": scanned_paths,
+        },
+        "files": file_data,
+    }
 
 
 def _display_results(results, show_tmdb=True):

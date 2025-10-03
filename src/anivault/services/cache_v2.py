@@ -21,12 +21,8 @@ except ImportError:
 from pydantic import BaseModel, Field
 
 from anivault.core.statistics import StatisticsCollector
-from anivault.shared.errors import (
-    DomainError,
-    ErrorCode,
-    ErrorContext,
-    InfrastructureError,
-)
+from anivault.shared.errors import (DomainError, ErrorCode, ErrorContext,
+                                    InfrastructureError)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 logger = logging.getLogger(__name__)
@@ -267,7 +263,7 @@ class JSONCacheV2:
             except orjson.JSONEncodeError as e:
                 error = DomainError(
                     code=ErrorCode.CACHE_SERIALIZATION_ERROR,
-                    message=f"Failed to serialize cache data for key '{key}': {str(e)}",
+                    message=f"Failed to serialize cache data for key '{key}': {e!s}",
                     context=ErrorContext(
                         operation="cache_set",
                         additional_data={
@@ -291,10 +287,10 @@ class JSONCacheV2:
             try:
                 with open(cache_file, "wb") as f:
                     f.write(json_data)
-            except (OSError, IOError) as e:
+            except OSError as e:
                 error = InfrastructureError(
                     code=ErrorCode.FILE_WRITE_ERROR,
-                    message=f"Failed to write cache file for key '{key}': {str(e)}",
+                    message=f"Failed to write cache file for key '{key}': {e!s}",
                     context=ErrorContext(
                         operation="cache_set",
                         additional_data={
@@ -381,10 +377,10 @@ class JSONCacheV2:
             try:
                 with open(cache_file, "rb") as f:
                     json_data = f.read()
-            except (OSError, IOError) as e:
+            except OSError as e:
                 error = InfrastructureError(
                     code=ErrorCode.FILE_READ_ERROR,
-                    message=f"Failed to read cache file for key '{key}': {str(e)}",
+                    message=f"Failed to read cache file for key '{key}': {e!s}",
                     context=ErrorContext(
                         operation="cache_get",
                         additional_data={
@@ -512,16 +508,16 @@ class JSONCacheV2:
             # Create domain error for the corruption
             error = DomainError(
                 code=ErrorCode.CACHE_CORRUPTED,
-                message=f"Cache file corrupted for key '{key}': {str(json_error)}",
+                message=f"Cache file corrupted for key '{key}': {json_error!s}",
                 context=ErrorContext(
                     operation="cache_get",
                     additional_data={
                         "key": key,
                         "file_path": str(cache_file),
                         "backup_path": str(backup_file),
-                        "file_size": cache_file.stat().st_size
-                        if cache_file.exists()
-                        else 0,
+                        "file_size": (
+                            cache_file.stat().st_size if cache_file.exists() else 0
+                        ),
                         "json_error": str(json_error),
                     },
                 ),
@@ -537,7 +533,7 @@ class JSONCacheV2:
 
         except OSError as e:
             # If backup fails, just log and continue
-            logger.error(
+            logger.exception(
                 "Failed to backup corrupted cache file %s: %s",
                 cache_file,
                 str(e),

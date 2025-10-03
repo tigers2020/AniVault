@@ -69,7 +69,7 @@ class SemaphoreManager:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message=f"Failed to initialize semaphore manager: {str(e)}",
+                message=f"Failed to initialize semaphore manager: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -135,7 +135,7 @@ class SemaphoreManager:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
-                message=f"Failed to acquire semaphore: {str(e)}",
+                message=f"Failed to acquire semaphore: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -181,7 +181,7 @@ class SemaphoreManager:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
-                message=f"Failed to release semaphore: {str(e)}",
+                message=f"Failed to release semaphore: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -358,7 +358,7 @@ class SemaphoreManager:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
-                message=f"Failed to get active count: {str(e)}",
+                message=f"Failed to get active count: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -390,7 +390,7 @@ class SemaphoreManager:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
-                message=f"Failed to get available count: {str(e)}",
+                message=f"Failed to get available count: {e!s}",
                 context=context,
                 original_error=e,
             )

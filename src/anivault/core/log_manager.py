@@ -5,19 +5,17 @@ This module provides functionality to save and load operation logs,
 which are essential for dry-run previews and rollback capabilities.
 """
 
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
 
 from pydantic import ValidationError, parse_obj_as
 
-from anivault.shared.constants import (
-    ANIVAULT_HOME_DIR,
-    CLI_INDENT_SIZE,
-    DEFAULT_ENCODING,
-    LOG_FILE_EXTENSION,
-    ORGANIZE_LOG_PREFIX,
-)
+from anivault.shared.constants import (ANIVAULT_HOME_DIR, CLI_INDENT_SIZE,
+                                       DEFAULT_ENCODING, LOG_FILE_EXTENSION,
+                                       ORGANIZE_LOG_PREFIX)
 
 from .models import FileOperation
 
@@ -27,7 +25,8 @@ class LogFileNotFoundError(Exception):
 
     def __init__(self, log_path: Path) -> None:
         self.log_path = log_path
-        super().__init__(f"Log file not found: {log_path}")
+        msg = f"Log file not found: {log_path}"
+        super().__init__(msg)
 
 
 class LogFileCorruptedError(Exception):
@@ -36,7 +35,8 @@ class LogFileCorruptedError(Exception):
     def __init__(self, log_path: Path, reason: str) -> None:
         self.log_path = log_path
         self.reason = reason
-        super().__init__(f"Log file corrupted: {log_path} - {reason}")
+        msg = f"Log file corrupted: {log_path} - {reason}"
+        super().__init__(msg)
 
 
 class OperationLogManager:
@@ -149,7 +149,8 @@ class OperationLogManager:
             with log_path.open("w", encoding=DEFAULT_ENCODING) as f:
                 json.dump(plan_data, f, indent=CLI_INDENT_SIZE, ensure_ascii=False)
         except (OSError, json.JSONEncodeError) as e:
-            raise OSError(f"Failed to save operation log to {log_path}: {e}") from e
+            msg = f"Failed to save operation log to {log_path}: {e}"
+            raise OSError(msg) from e
 
     def load_plan(self, log_path: Path) -> list[FileOperation]:
         """

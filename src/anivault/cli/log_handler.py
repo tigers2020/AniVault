@@ -4,13 +4,16 @@ This module contains the business logic for the log command,
 separated for better maintainability and single responsibility principle.
 """
 
+from __future__ import annotations
+
 import logging
+import sys
 from typing import Any
 
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.cli.common_options import is_json_output_enabled
+from anivault.cli.json_formatter import format_json_output
+from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
+                                              CLI_INFO_COMMAND_STARTED)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,82 @@ def handle_log_command(args: Any) -> int:
     """
     logger.info(CLI_INFO_COMMAND_STARTED.format(command="log"))
 
+    try:
+        if is_json_output_enabled(args):
+            return _handle_log_command_json(args)
+        return _handle_log_command_console(args)
+
+    except Exception as e:
+        if is_json_output_enabled(args):
+            error_output = format_json_output(
+                success=False,
+                command="log",
+                errors=[f"Error during log operation: {e}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+        else:
+            from rich.console import Console
+
+            console = Console()
+            console.print(f"[red]Error during log operation: {e}[/red]")
+        logger.exception("Error in log command")
+        return 1
+
+
+def _handle_log_command_json(args: Any) -> int:
+    """Handle log command with JSON output.
+
+    Args:
+        args: Parsed command line arguments
+
+    Returns:
+        Exit code (0 for success, non-zero for error)
+    """
+    try:
+        if args.log_command == "list":
+            log_data = _collect_log_list_data(args)
+            if log_data is None:
+                return 1
+
+            output = format_json_output(
+                success=True,
+                command="log",
+                data=log_data,
+            )
+            sys.stdout.buffer.write(output)
+            sys.stdout.buffer.write(b"\n")
+            return 0
+        error_output = format_json_output(
+            success=False,
+            command="log",
+            errors=["No log command specified"],
+        )
+        sys.stdout.buffer.write(error_output)
+        sys.stdout.buffer.write(b"\n")
+        return 1
+
+    except Exception as e:
+        error_output = format_json_output(
+            success=False,
+            command="log",
+            errors=[f"Error during log operation: {e}"],
+        )
+        sys.stdout.buffer.write(error_output)
+        sys.stdout.buffer.write(b"\n")
+        logger.exception("Error in log command JSON output")
+        return 1
+
+
+def _handle_log_command_console(args: Any) -> int:
+    """Handle log command with console output.
+
+    Args:
+        args: Parsed command line arguments
+
+    Returns:
+        Exit code (0 for success, non-zero for error)
+    """
     try:
         from rich.console import Console
 
@@ -45,9 +124,85 @@ def handle_log_command(args: Any) -> int:
         return result
 
     except Exception as e:
+        from rich.console import Console
+
+        console = Console()
         console.print(f"[red]Error during log operation: {e}[/red]")
         logger.exception("Error in log command")
         return 1
+
+
+def _collect_log_list_data(args: Any) -> dict | None:
+    """Collect log list data for JSON output.
+
+    Args:
+        args: Parsed command line arguments
+
+    Returns:
+        Dictionary containing log list data, or None if error
+    """
+    try:
+        from pathlib import Path
+
+        # Get log directory
+        log_dir = Path(args.log_dir)
+        if not log_dir.exists():
+            return {
+                "error": f"Log directory does not exist: {log_dir}",
+                "log_files": [],
+            }
+
+        # Find log files
+        log_files = list(log_dir.glob("*.log"))
+        if not log_files:
+            return {
+                "message": "No log files found",
+                "log_files": [],
+            }
+
+        # Sort by modification time (newest first)
+        log_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+
+        # Collect file information
+        log_data = []
+        for log_file in log_files:
+            stat = log_file.stat()
+            size = stat.st_size
+            modified = stat.st_mtime
+
+            # Format size
+            if size < 1024:
+                size_str = f"{size} B"
+            elif size < 1024 * 1024:
+                size_str = f"{size / 1024:.1f} KB"
+            else:
+                size_str = f"{size / (1024 * 1024):.1f} MB"
+
+            # Format modification time
+            from datetime import datetime, timezone
+
+            modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S",
+            )
+
+            log_data.append(
+                {
+                    "file": log_file.name,
+                    "size": size_str,
+                    "size_bytes": size,
+                    "modified": modified_str,
+                    "modified_timestamp": modified,
+                },
+            )
+
+        return {
+            "log_files": log_data,
+            "total_files": len(log_data),
+        }
+
+    except Exception:
+        logger.exception("Error collecting log list data")
+        return None
 
 
 def _run_log_list_command_impl(args, console) -> int:

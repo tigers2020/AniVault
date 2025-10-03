@@ -17,27 +17,29 @@ from rich.console import Console
 from rich.table import Table
 from tmdbv3api import Search, TMDb
 
+from anivault.cli.common_options import (get_effective_log_level,
+                                         is_json_output_enabled,
+                                         is_verbose_output_enabled,
+                                         validate_common_options)
 from anivault.cli.log_handler import handle_log_command
 from anivault.cli.match_handler import handle_match_command
 from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.parser import create_argument_parser, parse_arguments
 from anivault.cli.rollback_handler import handle_rollback_command
 from anivault.cli.router import register_command_handler, route_command
+from anivault.cli.run_handler import handle_run_command
 from anivault.cli.scan_handler import handle_scan_command
 from anivault.cli.utils import display_error_message, setup_console
 from anivault.cli.verify_handler import handle_verify_command
-from anivault.shared.constants import (
-    APPLICATION_VERSION,
-    CLI_INFO_APPLICATION_INTERRUPTED,
-    CLI_INFO_UNEXPECTED_ERROR,
-    DEFAULT_LOG_LEVEL,
-    MIN_REQUIRED_KEYS,
-    SAMPLE_TEST_FILENAME,
-)
-
+from anivault.shared.constants import (APPLICATION_VERSION,
+                                       CLI_INFO_APPLICATION_INTERRUPTED,
+                                       CLI_INFO_UNEXPECTED_ERROR,
+                                       DEFAULT_LOG_LEVEL, MIN_REQUIRED_KEYS,
+                                       SAMPLE_TEST_FILENAME)
 # Initialize UTF-8 and logging before any other imports
 from anivault.utils.encoding import setup_utf8_environment
-from anivault.utils.logging_config import log_shutdown, log_startup, setup_logging
+from anivault.utils.logging_config import (log_shutdown, log_startup,
+                                           setup_logging)
 
 # Set up UTF-8 environment first
 setup_utf8_environment()
@@ -69,12 +71,24 @@ def main() -> int:
         # Parse arguments
         args = parse_arguments(parser)
 
-        # Update log level if specified
-        if args.log_level != "INFO":
-            level = getattr(logging, args.log_level)
+        # Validate common options
+        validate_common_options(args)
+
+        # Update log level based on common options
+        effective_log_level = get_effective_log_level(args)
+        if effective_log_level != "INFO":
+            level = getattr(logging, effective_log_level)
             logger.setLevel(level)
             for handler in logger.handlers:
                 handler.setLevel(level)
+
+        # Log verbose mode if enabled
+        if is_verbose_output_enabled(args):
+            logger.debug("Verbose mode enabled - showing detailed debug information")
+
+        # Log JSON output mode if enabled
+        if is_json_output_enabled(args):
+            logger.debug("JSON output mode enabled - suppressing human-readable output")
 
         # Check for legacy verification flags first
         if _handle_legacy_verification_flags(args):
@@ -131,6 +145,7 @@ def _register_all_command_handlers() -> None:
     register_command_handler("organize", handle_organize_command)
     register_command_handler("log", handle_log_command)
     register_command_handler("rollback", handle_rollback_command)
+    register_command_handler("run", handle_run_command)
 
 
 def _verify_anitopy():
@@ -160,9 +175,8 @@ def _verify_anitopy():
 
         print(f"\nExpected keys found: {found_keys}")
         min_required_keys = MIN_REQUIRED_KEYS
-        print(
-            f"Anitopy verification: {'SUCCESS' if len(found_keys) >= min_required_keys else 'PARTIAL'}",
-        )
+        status = "SUCCESS" if len(found_keys) >= min_required_keys else "PARTIAL"
+        print(f"Anitopy verification: {status}")
 
     except ImportError as e:
         print(f"Anitopy verification FAILED - Import error: {e}")
@@ -200,7 +214,8 @@ def _verify_cryptography():
             print("Cryptography verification: SUCCESS")
         else:
             print(
-                "Cryptography verification: FAILED - Decrypted message doesn't match original",
+                "Cryptography verification: FAILED - "
+                "Decrypted message doesn't match original",
             )
 
     except ImportError as e:
@@ -219,7 +234,8 @@ def _verify_tmdb():
         api_key = os.getenv("TMDB_API_KEY")
         if not api_key:
             print(
-                "TMDB verification SKIPPED - No TMDB_API_KEY environment variable found",
+                "TMDB verification SKIPPED - "
+                "No TMDB_API_KEY environment variable found",
             )
             print("To test TMDB functionality, set TMDB_API_KEY environment variable")
             return

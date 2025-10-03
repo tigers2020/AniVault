@@ -4,6 +4,8 @@ This module provides functions to calculate confidence scores for potential matc
 returned by the TMDB API, helping to determine the best match for a given query.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any
 
@@ -98,7 +100,7 @@ def calculate_confidence_score(
         return confidence_score
 
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Error calculating confidence score for query '%s' and result '%s': %s",
             normalized_query.get("title", ""),
             tmdb_result.get("title", ""),

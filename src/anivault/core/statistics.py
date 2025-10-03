@@ -14,10 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from anivault.shared.constants import (
-    HIGH_CONFIDENCE_THRESHOLD,
-    MEDIUM_CONFIDENCE_THRESHOLD,
-)
+from anivault.shared.constants import (HIGH_CONFIDENCE_THRESHOLD,
+                                       MEDIUM_CONFIDENCE_THRESHOLD)
 
 logger = logging.getLogger(__name__)
 

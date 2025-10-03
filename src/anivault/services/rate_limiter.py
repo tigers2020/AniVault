@@ -75,7 +75,7 @@ class TokenBucketRateLimiter:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message=f"Failed to initialize rate limiter: {str(e)}",
+                message=f"Failed to initialize rate limiter: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -118,7 +118,7 @@ class TokenBucketRateLimiter:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
-                message=f"Failed to refill tokens: {str(e)}",
+                message=f"Failed to refill tokens: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -200,7 +200,7 @@ class TokenBucketRateLimiter:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
-                message=f"Failed to acquire tokens: {str(e)}",
+                message=f"Failed to acquire tokens: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -237,7 +237,7 @@ class TokenBucketRateLimiter:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
-                message=f"Failed to get available tokens: {str(e)}",
+                message=f"Failed to get available tokens: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -281,7 +281,7 @@ class TokenBucketRateLimiter:
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
-                message=f"Failed to reset rate limiter: {str(e)}",
+                message=f"Failed to reset rate limiter: {e!s}",
                 context=context,
                 original_error=e,
             )

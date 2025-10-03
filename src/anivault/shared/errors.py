@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ErrorCode(str, Enum):
@@ -140,12 +140,12 @@ class ErrorContext:
     with debugging and user-friendly error reporting.
     """
 
-    file_path: Optional[str] = None
-    operation: Optional[str] = None
-    user_id: Optional[str] = None
-    additional_data: Optional[Dict[str, Any]] = None
+    file_path: str | None = None
+    operation: str | None = None
+    user_id: str | None = None
+    additional_data: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary for logging."""
         return {
             "file_path": self.file_path,
@@ -166,8 +166,8 @@ class AniVaultError(Exception):
         self,
         code: ErrorCode,
         message: str,
-        context: Optional[ErrorContext] = None,
-        original_error: Optional[Exception] = None,
+        context: ErrorContext | None = None,
+        original_error: Exception | None = None,
     ) -> None:
         """Initialize AniVaultError.
 
@@ -190,7 +190,7 @@ class AniVaultError(Exception):
         """Return string representation of the error."""
         return f"{self.code.value}: {self.message}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert error to dictionary for logging."""
         return {
             "code": self.code.value,
@@ -212,8 +212,6 @@ class DomainError(AniVaultError):
     - Business rule violations
     """
 
-    pass
-
 
 class InfrastructureError(AniVaultError):
     """Infrastructure-related errors.
@@ -228,8 +226,6 @@ class InfrastructureError(AniVaultError):
     - Permission denied
     """
 
-    pass
-
 
 class ApplicationError(AniVaultError):
     """Application-level errors.
@@ -243,14 +239,12 @@ class ApplicationError(AniVaultError):
     - Application state errors
     """
 
-    pass
-
 
 # Convenience functions for common error scenarios
 def create_file_not_found_error(
     file_path: str,
-    operation: Optional[str] = None,
-    original_error: Optional[Exception] = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
 ) -> InfrastructureError:
     """Create a file not found error with context."""
     context = ErrorContext(
@@ -267,8 +261,8 @@ def create_file_not_found_error(
 
 def create_permission_denied_error(
     path: str,
-    operation: Optional[str] = None,
-    original_error: Optional[Exception] = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
 ) -> InfrastructureError:
     """Create a permission denied error with context."""
     context = ErrorContext(
@@ -285,9 +279,9 @@ def create_permission_denied_error(
 
 def create_validation_error(
     message: str,
-    field: Optional[str] = None,
-    operation: Optional[str] = None,
-    original_error: Optional[Exception] = None,
+    field: str | None = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
 ) -> DomainError:
     """Create a validation error with context."""
     additional_data = {"field": field} if field else None
@@ -305,8 +299,8 @@ def create_validation_error(
 
 def create_api_error(
     message: str,
-    operation: Optional[str] = None,
-    original_error: Optional[Exception] = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
 ) -> InfrastructureError:
     """Create an API error with context."""
     context = ErrorContext(
@@ -322,9 +316,9 @@ def create_api_error(
 
 def create_parsing_error(
     message: str,
-    file_path: Optional[str] = None,
-    operation: Optional[str] = None,
-    original_error: Optional[Exception] = None,
+    file_path: str | None = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
 ) -> DomainError:
     """Create a parsing error with context."""
     context = ErrorContext(
@@ -341,9 +335,9 @@ def create_parsing_error(
 
 def create_config_error(
     message: str,
-    config_key: Optional[str] = None,
-    operation: Optional[str] = None,
-    original_error: Optional[Exception] = None,
+    config_key: str | None = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
 ) -> ApplicationError:
     """Create a configuration error with context."""
     additional_data = {"config_key": config_key} if config_key else None

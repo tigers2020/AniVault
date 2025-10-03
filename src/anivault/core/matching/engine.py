@@ -17,11 +17,9 @@ from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import (
-    HIGH_CONFIDENCE_THRESHOLD,
-    LOW_CONFIDENCE_THRESHOLD,
-    MEDIUM_CONFIDENCE_THRESHOLD,
-)
+from anivault.shared.constants import (HIGH_CONFIDENCE_THRESHOLD,
+                                       LOW_CONFIDENCE_THRESHOLD,
+                                       MEDIUM_CONFIDENCE_THRESHOLD)
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +116,7 @@ class MatchingEngine:
             return results
 
         except Exception as e:
-            logger.error("TMDB search failed for query '%s': %s", title, str(e))
+            logger.exception("TMDB search failed for query '%s': %s", title, str(e))
             self.statistics.record_api_call("tmdb_search", success=False, error=str(e))
             return []
 
@@ -347,14 +345,16 @@ class MatchingEngine:
 
             # Step 3: Score and rank candidates
             scored_candidates = self._score_and_rank_candidates(
-                candidates, normalized_query
+                candidates,
+                normalized_query,
             )
             if not scored_candidates:
                 return None
 
             # Step 4: Apply fallback strategies if needed
             best_candidate = self._apply_fallback_if_needed(
-                scored_candidates, normalized_query
+                scored_candidates,
+                normalized_query,
             )
 
             # Step 5: Validate final confidence
@@ -363,7 +363,10 @@ class MatchingEngine:
 
             # Step 6: Add metadata and return result
             result = self._add_matching_metadata(
-                best_candidate, normalized_query, candidates, scored_candidates
+                best_candidate,
+                normalized_query,
+                candidates,
+                scored_candidates,
             )
             self._record_successful_match(result, candidates)
             self.statistics.end_timing("matching_operation")
@@ -371,13 +374,14 @@ class MatchingEngine:
             return result
 
         except Exception as e:
-            logger.error("Error in find_match: %s", str(e))
+            logger.exception("Error in find_match: %s", str(e))
             self.statistics.record_match_failure()
             self.statistics.end_timing("matching_operation")
             return None
 
     def _validate_and_normalize_input(
-        self, anitopy_result: dict[str, Any]
+        self,
+        anitopy_result: dict[str, Any],
     ) -> dict[str, Any] | None:
         """Validate and normalize the input query.
 
@@ -401,7 +405,8 @@ class MatchingEngine:
         return normalized_query
 
     async def _search_for_candidates(
-        self, normalized_query: dict[str, Any]
+        self,
+        normalized_query: dict[str, Any],
     ) -> list[dict[str, Any]] | None:
         """Search for TMDB candidates.
 
@@ -421,7 +426,9 @@ class MatchingEngine:
         return candidates
 
     def _score_and_rank_candidates(
-        self, candidates: list[dict[str, Any]], normalized_query: dict[str, Any]
+        self,
+        candidates: list[dict[str, Any]],
+        normalized_query: dict[str, Any],
     ) -> list[dict[str, Any]] | None:
         """Score and rank candidates by confidence.
 
@@ -434,7 +441,8 @@ class MatchingEngine:
         """
         title = normalized_query.get("title", "")
         scored_candidates = self._calculate_confidence_scores(
-            candidates, normalized_query
+            candidates,
+            normalized_query,
         )
 
         if not scored_candidates:
@@ -444,7 +452,9 @@ class MatchingEngine:
         return scored_candidates
 
     def _apply_fallback_if_needed(
-        self, scored_candidates: list[dict[str, Any]], normalized_query: dict[str, Any]
+        self,
+        scored_candidates: list[dict[str, Any]],
+        normalized_query: dict[str, Any],
     ) -> dict[str, Any]:
         """Apply fallback strategies if confidence is too low.
 
@@ -473,7 +483,8 @@ class MatchingEngine:
             )
 
             fallback_candidates = self._apply_fallback_strategies(
-                scored_candidates, normalized_query
+                scored_candidates,
+                normalized_query,
             )
 
             if fallback_candidates:
@@ -547,7 +558,9 @@ class MatchingEngine:
         return best_candidate
 
     def _record_successful_match(
-        self, result: dict[str, Any], candidates: list[dict[str, Any]]
+        self,
+        result: dict[str, Any],
+        candidates: list[dict[str, Any]],
     ) -> None:
         """Record statistics for successful match.
 

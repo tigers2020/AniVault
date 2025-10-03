@@ -15,18 +15,10 @@ from anivault.core.pipeline.cache import CacheV1
 from anivault.core.pipeline.collector import ResultCollector
 from anivault.core.pipeline.parser import ParserWorkerPool
 from anivault.core.pipeline.scanner import DirectoryScanner
-from anivault.core.pipeline.utils import (
-    BoundedQueue,
-    ParserStatistics,
-    QueueStatistics,
-    ScanStatistics,
-)
-from anivault.shared.constants import (
-    PIPELINE_QUEUE_TIMEOUT,
-    PIPELINE_SENTINEL_TIMEOUT,
-    PIPELINE_SHUTDOWN_TIMEOUT,
-    SENTINEL,
-)
+from anivault.core.pipeline.utils import (BoundedQueue, ParserStatistics,
+                                          QueueStatistics, ScanStatistics)
+from anivault.shared.constants import (PIPELINE_SENTINEL_TIMEOUT,
+                                       PIPELINE_SHUTDOWN_TIMEOUT, SENTINEL)
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -347,7 +339,8 @@ def _signal_parser_shutdown(
         InfrastructureError: If sentinel signaling fails.
     """
     context = ErrorContext(
-        operation="signal_parser_shutdown", additional_data={"num_workers": num_workers}
+        operation="signal_parser_shutdown",
+        additional_data={"num_workers": num_workers},
     )
 
     try:
@@ -693,14 +686,18 @@ def run_pipeline(
             scan_stats,
             queue_stats,
             parser_stats,
-            cache,
+            _cache,
             file_queue,
             result_queue,
             scanner,
             parser_pool,
             collector,
         ) = _create_pipeline_components(
-            root_path, extensions, num_workers, max_queue_size, cache_path
+            root_path,
+            extensions,
+            num_workers,
+            max_queue_size,
+            cache_path,
         )
 
         # Start all pipeline components

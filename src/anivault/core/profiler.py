@@ -6,6 +6,8 @@ generation for the AniVault matching system, including performance analysis,
 memory usage tracking, and detailed statistical reporting.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import time
@@ -14,7 +16,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from anivault.core.statistics import PerformanceMetrics, StatisticsCollector
 
@@ -73,7 +75,7 @@ class Profiler:
     for the AniVault matching system.
     """
 
-    def __init__(self, statistics: Optional[StatisticsCollector] = None):
+    def __init__(self, statistics: StatisticsCollector | None = None):
         """Initialize the profiler.
 
         Args:
@@ -284,7 +286,8 @@ class Profiler:
         return recommendations
 
     def _generate_processing_time_recommendations(
-        self, metrics: PerformanceMetrics
+        self,
+        metrics: PerformanceMetrics,
     ) -> list[str]:
         """Generate processing time recommendations."""
         recommendations = []
@@ -300,7 +303,8 @@ class Profiler:
         return recommendations
 
     def _generate_accuracy_recommendations(
-        self, metrics: PerformanceMetrics
+        self,
+        metrics: PerformanceMetrics,
     ) -> list[str]:
         """Generate matching accuracy recommendations."""
         recommendations = []
@@ -443,7 +447,8 @@ class Profiler:
         logger.info("Exported detailed analysis to %s", output_path)
 
     def _generate_comprehensive_analysis(
-        self, report: ProfilingReport
+        self,
+        report: ProfilingReport,
     ) -> dict[str, Any]:
         """Generate comprehensive analysis from profiling report."""
         return {
@@ -474,7 +479,9 @@ class Profiler:
         }
 
     def _calculate_throughput_metrics(
-        self, report: ProfilingReport, metrics: PerformanceMetrics
+        self,
+        report: ProfilingReport,
+        metrics: PerformanceMetrics,
     ) -> dict[str, float]:
         """Calculate throughput metrics."""
         duration = max(report.duration_seconds, 1)
@@ -485,7 +492,8 @@ class Profiler:
         }
 
     def _calculate_accuracy_metrics(
-        self, metrics: PerformanceMetrics
+        self,
+        metrics: PerformanceMetrics,
     ) -> dict[str, float]:
         """Calculate accuracy metrics."""
         total_files = max(metrics.total_files, 1)
@@ -500,7 +508,8 @@ class Profiler:
         }
 
     def _calculate_efficiency_metrics(
-        self, metrics: PerformanceMetrics
+        self,
+        metrics: PerformanceMetrics,
     ) -> dict[str, float]:
         """Calculate efficiency metrics."""
         api_calls = max(metrics.api_calls, 1)
@@ -520,7 +529,9 @@ class Profiler:
         }
 
     def _write_analysis_to_file(
-        self, output_path: Path, analysis: dict[str, Any]
+        self,
+        output_path: Path,
+        analysis: dict[str, Any],
     ) -> None:
         """Write analysis data to file."""
         with open(output_path, "w", encoding="utf-8") as f:

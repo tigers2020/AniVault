@@ -14,7 +14,7 @@ The module follows these principles:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .errors import ErrorCode
 
@@ -22,7 +22,7 @@ from .errors import ErrorCode
 DEFAULT_LANGUAGE = "ko"
 
 # Error messages organized by language
-ERROR_MESSAGES: Dict[str, Dict[ErrorCode, str]] = {
+ERROR_MESSAGES: dict[str, dict[ErrorCode, str]] = {
     "ko": {
         # File System Errors
         ErrorCode.FILE_NOT_FOUND: "파일을 찾을 수 없습니다: {path}",
@@ -165,7 +165,8 @@ def get_available_languages() -> list[str]:
 
 
 def get_error_code_description(
-    error_code: ErrorCode, language: str = DEFAULT_LANGUAGE
+    error_code: ErrorCode,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Get a description of what the error code means.
 
@@ -211,13 +212,14 @@ def get_error_code_description(
         language = DEFAULT_LANGUAGE
 
     return descriptions.get(language, {}).get(
-        error_code, f"Error code: {error_code.value}"
+        error_code,
+        f"Error code: {error_code.value}",
     )
 
 
 def format_error_with_context(
     error_code: ErrorCode,
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
     language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Format error message with context information.
@@ -239,7 +241,7 @@ def format_error_with_context(
     return f"{message}\n\nDetails: {description}"
 
 
-def validate_error_messages() -> Dict[str, list[str]]:
+def validate_error_messages() -> dict[str, list[str]]:
     """Validate that all error codes have messages in all languages.
 
     Returns:

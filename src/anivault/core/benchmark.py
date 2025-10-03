@@ -6,30 +6,29 @@ matching system, including ground truth dataset management and performance
 evaluation against known anime titles.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import (
-    CLI_SEPARATOR_LENGTH,
-    DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD,
-    DEFAULT_ENCODING,
-    HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
-    JSON_DESCRIPTION_KEY,
-    JSON_ENTRIES_KEY,
-    JSON_METADATA_KEY,
-    JSON_TOTAL_ENTRIES_KEY,
-    JSON_VERSION_KEY,
-    MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD,
-)
+from anivault.shared.constants import (CLI_SEPARATOR_LENGTH,
+                                       DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD,
+                                       DEFAULT_ENCODING,
+                                       HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
+                                       JSON_DESCRIPTION_KEY, JSON_ENTRIES_KEY,
+                                       JSON_METADATA_KEY,
+                                       JSON_TOTAL_ENTRIES_KEY,
+                                       JSON_VERSION_KEY,
+                                       MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ class GroundTruthEntry:
     expected_title: str
     expected_media_type: str
     confidence_threshold: float = DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @dataclass
@@ -75,13 +74,13 @@ class BenchmarkResult:
 
     filename: str
     expected_tmdb_id: int
-    actual_tmdb_id: Optional[int]
+    actual_tmdb_id: int | None
     expected_title: str
-    actual_title: Optional[str]
-    confidence_score: Optional[float]
+    actual_title: str | None
+    confidence_score: float | None
     is_correct: bool
     processing_time: float
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -128,7 +127,7 @@ class BenchmarkRunner:
         self,
         cache_dir: Path | str,
         tmdb_api_key: str,
-        statistics: Optional[StatisticsCollector] = None,
+        statistics: StatisticsCollector | None = None,
     ):
         """Initialize the benchmark runner.
 
@@ -164,7 +163,8 @@ class BenchmarkRunner:
         dataset_path = Path(dataset_path)
 
         if not dataset_path.exists():
-            raise FileNotFoundError(f"Ground truth dataset not found: {dataset_path}")
+            msg = f"Ground truth dataset not found: {dataset_path}"
+            raise FileNotFoundError(msg)
 
         with open(dataset_path, encoding=DEFAULT_ENCODING) as f:
             data = json.load(f)
@@ -331,7 +331,7 @@ class BenchmarkRunner:
     async def _run_individual_tests(self) -> list[BenchmarkResult]:
         """Run individual test cases and collect results."""
         results = []
-        start_time = time.time()
+        time.time()
 
         for i, entry in enumerate(self.ground_truth):
             logger.debug(
@@ -347,7 +347,8 @@ class BenchmarkRunner:
         return results
 
     async def _process_single_test_case(
-        self, entry: GroundTruthEntry
+        self,
+        entry: GroundTruthEntry,
     ) -> BenchmarkResult:
         """Process a single test case and return the result."""
         test_start = time.time()
@@ -359,16 +360,17 @@ class BenchmarkRunner:
 
             if match_result is None:
                 return self._create_no_match_result(entry, processing_time)
-            else:
-                return self._create_match_result(entry, match_result, processing_time)
+            return self._create_match_result(entry, match_result, processing_time)
 
         except Exception as e:
             processing_time = time.time() - test_start
-            logger.error("Error processing %s: %s", entry.filename, str(e))
+            logger.exception("Error processing %s: %s", entry.filename, str(e))
             return self._create_error_result(entry, str(e), processing_time)
 
     def _create_no_match_result(
-        self, entry: GroundTruthEntry, processing_time: float
+        self,
+        entry: GroundTruthEntry,
+        processing_time: float,
     ) -> BenchmarkResult:
         """Create a result for when no match was found."""
         return BenchmarkResult(
@@ -411,7 +413,10 @@ class BenchmarkRunner:
         )
 
     def _create_error_result(
-        self, entry: GroundTruthEntry, error_message: str, processing_time: float
+        self,
+        entry: GroundTruthEntry,
+        error_message: str,
+        processing_time: float,
     ) -> BenchmarkResult:
         """Create a result for when an error occurred during processing."""
         return BenchmarkResult(
@@ -427,7 +432,8 @@ class BenchmarkRunner:
         )
 
     def _calculate_benchmark_summary(
-        self, results: list[BenchmarkResult]
+        self,
+        results: list[BenchmarkResult],
     ) -> BenchmarkSummary:
         """Calculate summary statistics from benchmark results."""
         correct_matches = sum(1 for r in results if r.is_correct)
@@ -454,9 +460,9 @@ class BenchmarkRunner:
             failed_matches=failed_matches,
             accuracy=(correct_matches / len(results)) * 100 if results else 0.0,
             average_confidence=average_confidence,
-            average_processing_time=total_processing_time / len(results)
-            if results
-            else 0.0,
+            average_processing_time=(
+                total_processing_time / len(results) if results else 0.0
+            ),
             total_processing_time=total_processing_time,
             cache_hit_ratio=self.statistics.get_cache_hit_ratio(),
             api_calls=self.statistics.metrics.api_calls,

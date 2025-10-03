@@ -5,6 +5,8 @@ This module provides the FileOrganizer class that handles the planning
 and execution of file organization operations based on scanned anime metadata.
 """
 
+from __future__ import annotations
+
 import logging
 import shutil
 from datetime import datetime
@@ -207,7 +209,7 @@ class FileOrganizer:
             except FileExistsError as e:
                 self._handle_operation_error(operation, e)
                 continue
-            except IOError as e:
+            except OSError as e:
                 self._handle_operation_error(operation, e)
                 continue
             except (OSError, shutil.Error) as e:
@@ -230,17 +232,20 @@ class FileOrganizer:
         """
         # Check if source file exists
         if not operation.source_path.exists():
-            raise OSError(f"Source file does not exist: {operation.source_path}")
+            msg = f"Source file does not exist: {operation.source_path}"
+            raise OSError(msg)
 
         # Check if source is a file (not directory)
         if not operation.source_path.is_file():
-            raise OSError(f"Source path is not a file: {operation.source_path}")
+            msg = f"Source path is not a file: {operation.source_path}"
+            raise OSError(msg)
 
         # Check if destination parent directory is writable
         destination_parent = operation.destination_path.parent
         if destination_parent.exists() and not destination_parent.is_dir():
+            msg = f"Destination parent is not a directory: {destination_parent}"
             raise OSError(
-                f"Destination parent is not a directory: {destination_parent}"
+                msg,
             )
 
     def _ensure_destination_directory(self, destination_path: Path) -> None:
@@ -256,7 +261,8 @@ class FileOrganizer:
         destination_dir.mkdir(parents=True, exist_ok=True)
 
     def _execute_file_operation(
-        self, operation: FileOperation
+        self,
+        operation: FileOperation,
     ) -> tuple[str, str] | None:
         """Execute a single file operation.
 
@@ -279,16 +285,21 @@ class FileOrganizer:
                 )
                 return (str(operation.source_path), str(operation.destination_path))
             except FileNotFoundError as e:
+                msg = f"Source file not found: {operation.source_path}"
                 raise FileNotFoundError(
-                    f"Source file not found: {operation.source_path}"
+                    msg,
                 ) from e
             except FileExistsError as e:
-                raise FileExistsError(
+                msg = (
                     f"File already exists at destination: {operation.destination_path}"
+                )
+                raise FileExistsError(
+                    msg,
                 ) from e
-            except IOError as e:
-                raise IOError(
-                    f"IO error occurred for {operation.source_path}: {e}"
+            except OSError as e:
+                msg = f"IO error occurred for {operation.source_path}: {e}"
+                raise OSError(
+                    msg,
                 ) from e
 
         elif operation.operation_type == OperationType.COPY:
@@ -299,22 +310,29 @@ class FileOrganizer:
                 )
                 return (str(operation.source_path), str(operation.destination_path))
             except FileNotFoundError as e:
+                msg = f"Source file not found: {operation.source_path}"
                 raise FileNotFoundError(
-                    f"Source file not found: {operation.source_path}"
+                    msg,
                 ) from e
             except FileExistsError as e:
-                raise FileExistsError(
+                msg = (
                     f"File already exists at destination: {operation.destination_path}"
+                )
+                raise FileExistsError(
+                    msg,
                 ) from e
-            except IOError as e:
-                raise IOError(
-                    f"IO error occurred for {operation.source_path}: {e}"
+            except OSError as e:
+                msg = f"IO error occurred for {operation.source_path}: {e}"
+                raise OSError(
+                    msg,
                 ) from e
 
         return None
 
     def _handle_operation_error(
-        self, operation: FileOperation, error: Exception
+        self,
+        operation: FileOperation,
+        error: Exception,
     ) -> None:
         """Handle errors that occur during file operations.
 
@@ -326,20 +344,17 @@ class FileOrganizer:
             logger.error(
                 "Source file not found, skipping: '%s'",
                 operation.source_path,
-                exc_info=True,
             )
         elif isinstance(error, FileExistsError):
             logger.error(
                 "File already exists at destination, skipping: '%s'",
                 operation.destination_path,
-                exc_info=True,
             )
         elif isinstance(error, IOError):
             logger.error(
                 "An unexpected IO error occurred for '%s': %s",
                 operation.source_path,
                 error,
-                exc_info=True,
             )
         else:
             logger.error(
@@ -347,7 +362,6 @@ class FileOrganizer:
                 operation.source_path,
                 operation.destination_path,
                 error,
-                exc_info=True,
             )
 
     def _log_operation_if_needed(

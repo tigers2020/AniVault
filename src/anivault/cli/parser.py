@@ -10,20 +10,19 @@ import argparse
 import os
 from pathlib import Path
 
-from anivault.shared.constants import (
-    APPLICATION_VERSION,
-    CLI_DEFAULT_RATE_LIMIT_EXAMPLE,
-    CLI_DEFAULT_RATE_LIMIT_HELP,
-    CLI_DEFAULT_WORKERS_EXAMPLE,
-    DEFAULT_CACHE_DIR,
-    DEFAULT_CONCURRENT_REQUESTS,
-    DEFAULT_RATE_LIMIT,
-    DEFAULT_TMDB_RATE_LIMIT_RPS,
-    DEFAULT_WORKERS,
-    SUPPORTED_VIDEO_EXTENSIONS,
-    SUPPORTED_VIDEO_EXTENSIONS_MATCH,
-    SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE,
-)
+from anivault.cli.common_options import (get_common_options_parser,
+                                         get_version_argument)
+from anivault.shared.constants import (CLI_DEFAULT_RATE_LIMIT_EXAMPLE,
+                                       CLI_DEFAULT_RATE_LIMIT_HELP,
+                                       CLI_DEFAULT_WORKERS_EXAMPLE,
+                                       DEFAULT_CACHE_DIR,
+                                       DEFAULT_CONCURRENT_REQUESTS,
+                                       DEFAULT_RATE_LIMIT,
+                                       DEFAULT_TMDB_RATE_LIMIT_RPS,
+                                       DEFAULT_WORKERS,
+                                       SUPPORTED_VIDEO_EXTENSIONS,
+                                       SUPPORTED_VIDEO_EXTENSIONS_MATCH,
+                                       SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE)
 from anivault.shared.errors import ApplicationError, ErrorCode
 
 
@@ -38,15 +37,22 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ApplicationError: If parser configuration fails
     """
     try:
+        # Get common options parser for reuse across all commands
+        common_options_parser = get_common_options_parser()
+
         parser = argparse.ArgumentParser(
-            description="AniVault - Anime Collection Management System with TMDB Integration",
+            description=(
+                "AniVault - Anime Collection Management System with TMDB Integration"
+            ),
             prog="anivault",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog=_get_help_epilog(),
+            parents=[common_options_parser],  # Integrate common options
         )
 
-        # Global arguments
-        _add_global_arguments(parser)
+        # Add version argument to main parser only
+        version_config = get_version_argument()
+        parser.add_argument("--version", **version_config)
 
         # Subcommands
         subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -58,6 +64,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         _add_organize_parser(subparsers)
         _add_log_parser(subparsers)
         _add_rollback_parser(subparsers)
+        _add_run_parser(subparsers)
         _add_legacy_verification_flags(parser)
 
         return parser
@@ -145,7 +152,8 @@ def validate_parsed_args(args: argparse.Namespace) -> None:
         if hasattr(args, "extensions") and args.extensions:
             validate_file_extensions(args.extensions)
 
-        # Note: enrich/no-enrich mutual exclusivity is handled by argparse mutually_exclusive_group
+        # Note: enrich/no-enrich mutual exclusivity is handled by
+        # argparse mutually_exclusive_group
 
     except ApplicationError:
         raise
@@ -238,41 +246,31 @@ Examples:
   anivault scan /path/to/anime --enrich
 
   # Scan with custom settings
-  anivault scan /path/to/anime --enrich --workers {CLI_DEFAULT_WORKERS_EXAMPLE} --rate-limit {CLI_DEFAULT_RATE_LIMIT_EXAMPLE}
+  anivault scan /path/to/anime --enrich --workers {CLI_DEFAULT_WORKERS_EXAMPLE} \\
+    --rate-limit {CLI_DEFAULT_RATE_LIMIT_EXAMPLE}
 
   # Scan without TMDB enrichment (faster)
   anivault scan /path/to/anime --no-enrich
 """
 
 
+# Global arguments are now handled by common_options.py
+# This function is kept for backward compatibility but is no longer used
 def _add_global_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add global arguments to the parser."""
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"AniVault {APPLICATION_VERSION}",
-    )
+    """Add global arguments to the parser.
 
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose output",
-    )
-
-    parser.add_argument(
-        "--log-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="INFO",
-        help="Set the logging level",
-    )
+    DEPRECATED: This function is no longer used. Global arguments are now
+    handled by the common_options.py module through parent parsers.
+    """
 
 
 def _add_scan_parser(subparsers) -> None:
     """Add scan command parser."""
+    common_options_parser = get_common_options_parser()
     scan_parser = subparsers.add_parser(
         "scan",
         help="Scan directory for anime files",
+        parents=[common_options_parser],
     )
 
     scan_parser.add_argument(
@@ -305,21 +303,30 @@ def _add_scan_parser(subparsers) -> None:
         "--rate-limit",
         type=float,
         default=DEFAULT_TMDB_RATE_LIMIT_RPS,
-        help=f"TMDB API rate limit in requests per second (default: {CLI_DEFAULT_RATE_LIMIT_HELP})",
+        help=(
+            f"TMDB API rate limit in requests per second "
+            f"(default: {CLI_DEFAULT_RATE_LIMIT_HELP})"
+        ),
     )
 
     scan_parser.add_argument(
         "--concurrent",
         type=int,
         default=DEFAULT_CONCURRENT_REQUESTS,
-        help=f"Maximum concurrent TMDB requests (default: {DEFAULT_CONCURRENT_REQUESTS})",
+        help=(
+            f"Maximum concurrent TMDB requests "
+            f"(default: {DEFAULT_CONCURRENT_REQUESTS})"
+        ),
     )
 
     scan_parser.add_argument(
         "--extensions",
         nargs="+",
         default=list(SUPPORTED_VIDEO_EXTENSIONS),
-        help=f"File extensions to scan for (default: {', '.join(SUPPORTED_VIDEO_EXTENSIONS)})",
+        help=(
+            f"File extensions to scan for "
+            f"(default: {', '.join(SUPPORTED_VIDEO_EXTENSIONS)})"
+        ),
     )
 
     scan_parser.add_argument(
@@ -331,7 +338,12 @@ def _add_scan_parser(subparsers) -> None:
 
 def _add_verify_parser(subparsers) -> None:
     """Add verify command parser."""
-    verify_parser = subparsers.add_parser("verify", help="Verify system components")
+    common_options_parser = get_common_options_parser()
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="Verify system components",
+        parents=[common_options_parser],
+    )
 
     verify_parser.add_argument(
         "--tmdb",
@@ -348,9 +360,11 @@ def _add_verify_parser(subparsers) -> None:
 
 def _add_match_parser(subparsers) -> None:
     """Add match command parser."""
+    common_options_parser = get_common_options_parser()
     match_parser = subparsers.add_parser(
         "match",
         help="Match anime files with TMDB metadata using advanced matching engine",
+        parents=[common_options_parser],
     )
 
     match_parser.add_argument(
@@ -397,9 +411,11 @@ def _add_match_parser(subparsers) -> None:
 
 def _add_organize_parser(subparsers) -> None:
     """Add organize command parser."""
+    common_options_parser = get_common_options_parser()
     organize_parser = subparsers.add_parser(
         "organize",
         help="Organize anime files into structured directories with TMDB metadata",
+        parents=[common_options_parser],
     )
 
     organize_parser.add_argument(
@@ -437,9 +453,11 @@ def _add_organize_parser(subparsers) -> None:
 
 def _add_log_parser(subparsers) -> None:
     """Add log command parser."""
+    common_options_parser = get_common_options_parser()
     log_parser = subparsers.add_parser(
         "log",
         help="Manage operation logs for tracking and rollback purposes",
+        parents=[common_options_parser],
     )
 
     log_subparsers = log_parser.add_subparsers(
@@ -448,17 +466,26 @@ def _add_log_parser(subparsers) -> None:
     )
 
     # Log list command
-    log_subparsers.add_parser(
+    log_list_parser = log_subparsers.add_parser(
         "list",
         help="Display all available operation logs from previous organize commands",
+        parents=[common_options_parser],
+    )
+    log_list_parser.add_argument(
+        "--log-dir",
+        type=str,
+        default="logs",
+        help="Directory containing log files (default: logs)",
     )
 
 
 def _add_rollback_parser(subparsers) -> None:
     """Add rollback command parser."""
+    common_options_parser = get_common_options_parser()
     rollback_parser = subparsers.add_parser(
         "rollback",
         help="Revert a previous organization operation using an operation log",
+        parents=[common_options_parser],
     )
 
     rollback_parser.add_argument(
@@ -478,6 +505,74 @@ def _add_rollback_parser(subparsers) -> None:
         "-y",
         action="store_true",
         help="Skip the confirmation prompt and execute the rollback immediately",
+    )
+
+
+def _add_run_parser(subparsers) -> None:
+    """Add run command parser."""
+    common_options_parser = get_common_options_parser()
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run the complete anime organization workflow (scan, match, organize) in sequence",
+        parents=[common_options_parser],
+    )
+
+    run_parser.add_argument(
+        "directory",
+        type=str,
+        help="Directory to scan for anime files",
+    )
+
+    run_parser.add_argument(
+        "--extensions",
+        nargs="+",
+        default=[".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"],
+        help="File extensions to include in the scan (default: .mkv .mp4 .avi .mov .wmv .flv .webm .m4v)",
+    )
+
+    run_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview planned operations without making any changes to the filesystem",
+    )
+
+    run_parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip confirmation prompts and execute operations immediately",
+    )
+
+    run_parser.add_argument(
+        "--skip-scan",
+        action="store_true",
+        help="Skip the scan step and use existing scan results",
+    )
+
+    run_parser.add_argument(
+        "--skip-match",
+        action="store_true",
+        help="Skip the match step and use existing match results",
+    )
+
+    run_parser.add_argument(
+        "--skip-organize",
+        action="store_true",
+        help="Skip the organize step and only perform scan and match",
+    )
+
+    run_parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=4,
+        help="Maximum number of worker threads for parallel processing (default: 4)",
+    )
+
+    run_parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=100,
+        help="Number of files to process in each batch (default: 100)",
     )
 
 

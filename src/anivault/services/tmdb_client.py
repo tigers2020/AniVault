@@ -15,12 +15,8 @@ from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
-from anivault.shared.errors import (
-    AniVaultError,
-    ErrorCode,
-    ErrorContext,
-    InfrastructureError,
-)
+from anivault.shared.errors import (AniVaultError, ErrorCode, ErrorContext,
+                                    InfrastructureError)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 from .rate_limiter import TokenBucketRateLimiter
@@ -111,7 +107,7 @@ class TMDBClient:
             if not isinstance(e, AniVaultError):
                 error = InfrastructureError(
                     code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                    message=f"TV search failed: {str(e)}",
+                    message=f"TV search failed: {e!s}",
                     context=context,
                     original_error=e,
                 )
@@ -136,7 +132,7 @@ class TMDBClient:
             if not isinstance(e, AniVaultError):
                 error = InfrastructureError(
                     code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                    message=f"Movie search failed: {str(e)}",
+                    message=f"Movie search failed: {e!s}",
                     context=context,
                     original_error=e,
                 )
@@ -228,7 +224,7 @@ class TMDBClient:
             if not isinstance(e, AniVaultError):
                 error = InfrastructureError(
                     code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                    message=f"Media details request failed: {str(e)}",
+                    message=f"Media details request failed: {e!s}",
                     context=context,
                     original_error=e,
                 )
@@ -342,7 +338,10 @@ class TMDBClient:
         return await self._handle_retry_exhaustion(last_exception, context)
 
     async def _handle_tmdb_exception(
-        self, exception: TMDbException, attempt: int, context: ErrorContext
+        self,
+        exception: TMDbException,
+        attempt: int,
+        context: ErrorContext,
     ) -> None:
         """Handle TMDbException with appropriate error processing and retry logic.
 
@@ -354,7 +353,7 @@ class TMDBClient:
         # Convert TMDbException to InfrastructureError
         error_code, error_message = self._convert_tmdb_exception(exception)
 
-        error = InfrastructureError(
+        InfrastructureError(
             code=error_code,
             message=error_message,
             context=context,
@@ -370,7 +369,9 @@ class TMDBClient:
             await asyncio.sleep(backoff_delay)
 
     async def _process_error_response(
-        self, exception: TMDbException, context: ErrorContext
+        self,
+        exception: TMDbException,
+        context: ErrorContext,
     ) -> None:
         """Process error response and update state machine accordingly.
 
@@ -405,7 +406,9 @@ class TMDBClient:
             self.state_machine.handle_error(0)
 
     async def _handle_retry_exhaustion(
-        self, last_exception: TMDbException | None, context: ErrorContext
+        self,
+        last_exception: TMDbException | None,
+        context: ErrorContext,
     ) -> Any:
         """Handle the case when all retries have been exhausted.
 
@@ -434,19 +437,18 @@ class TMDBClient:
                 additional_context=context.additional_data if context else None,
             )
             raise final_error
-        else:
-            error = InfrastructureError(
-                code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                message="API request failed after all retries",
-                context=context,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="make_tmdb_request",
-                additional_context=context.additional_data if context else None,
-            )
-            raise error
+        error = InfrastructureError(
+            code=ErrorCode.TMDB_API_REQUEST_FAILED,
+            message="API request failed after all retries",
+            context=context,
+        )
+        log_operation_error(
+            logger=logger,
+            error=error,
+            operation="make_tmdb_request",
+            additional_context=context.additional_data if context else None,
+        )
+        raise error
 
     def _convert_tmdb_exception(
         self,
@@ -468,43 +470,40 @@ class TMDBClient:
                     ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
                     "TMDB API authentication failed",
                 )
-            elif status_code == 403:
+            if status_code == 403:
                 return (
                     ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
                     "TMDB API access forbidden",
                 )
-            elif status_code == 429:
+            if status_code == 429:
                 return (
                     ErrorCode.TMDB_API_RATE_LIMIT_EXCEEDED,
                     "TMDB API rate limit exceeded",
                 )
-            elif 400 <= status_code < 500:
+            if 400 <= status_code < 500:
                 return (
                     ErrorCode.TMDB_API_REQUEST_FAILED,
                     f"TMDB API client error: {status_code}",
                 )
-            elif 500 <= status_code < 600:
+            if 500 <= status_code < 600:
                 return (
                     ErrorCode.TMDB_API_SERVER_ERROR,
                     f"TMDB API server error: {status_code}",
                 )
-            else:
-                return (
-                    ErrorCode.TMDB_API_REQUEST_FAILED,
-                    f"TMDB API request failed: {status_code}",
-                )
-        else:
-            # No response object, check exception message
-            message = str(exception).lower()
-            if "timeout" in message:
-                return ErrorCode.TMDB_API_TIMEOUT, "TMDB API request timeout"
-            elif "connection" in message:
-                return ErrorCode.TMDB_API_CONNECTION_ERROR, "TMDB API connection failed"
-            else:
-                return (
-                    ErrorCode.TMDB_API_REQUEST_FAILED,
-                    f"TMDB API request failed: {exception}",
-                )
+            return (
+                ErrorCode.TMDB_API_REQUEST_FAILED,
+                f"TMDB API request failed: {status_code}",
+            )
+        # No response object, check exception message
+        message = str(exception).lower()
+        if "timeout" in message:
+            return ErrorCode.TMDB_API_TIMEOUT, "TMDB API request timeout"
+        if "connection" in message:
+            return ErrorCode.TMDB_API_CONNECTION_ERROR, "TMDB API connection failed"
+        return (
+            ErrorCode.TMDB_API_REQUEST_FAILED,
+            f"TMDB API request failed: {exception}",
+        )
 
     def _extract_retry_after(self, response) -> float | None:
         """Extract Retry-After header value from response.

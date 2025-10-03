@@ -5,13 +5,15 @@
 헬퍼 함수들을 제공합니다.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import logging.config
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
-from anivault.shared.errors import AniVaultError, ErrorContext
+from anivault.shared.errors import AniVaultError
 
 
 class StructuredFormatter(logging.Formatter):
@@ -31,7 +33,9 @@ class StructuredFormatter(logging.Formatter):
         """
         # 기본 로그 정보
         log_entry = {
-            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+            "timestamp": datetime.fromtimestamp(
+                record.created, tz=datetime.timezone.utc
+            ).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -63,7 +67,7 @@ class StructuredFormatter(logging.Formatter):
 def setup_structured_logger(
     name: str = "anivault",
     level: str = "INFO",
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
 ) -> logging.Logger:
     """
     구조화된 로깅을 위한 로거를 설정합니다.
@@ -109,8 +113,8 @@ def setup_structured_logger(
 def log_operation_error(
     logger: logging.Logger,
     error: AniVaultError,
-    operation: Optional[str] = None,
-    context: Optional[Dict[str, Any]] = None,
+    operation: str | None = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     """
     AniVaultError 객체를 받아 구조화된 에러 로그를 기록합니다.
@@ -141,9 +145,9 @@ def log_operation_error(
         extra={
             "error_code": error.code.name,
             "context": context_dict,
-            "operation": operation or error.context.operation
-            if error.context
-            else None,
+            "operation": (
+                operation or error.context.operation if error.context else None
+            ),
         },
         exc_info=error.original_error is not None,
     )
@@ -153,8 +157,8 @@ def log_operation_success(
     logger: logging.Logger,
     operation: str,
     duration_ms: float,
-    result_info: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    result_info: dict[str, Any] | None = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     """
     성공적인 작업에 대한 정보 로그를 기록합니다.
@@ -169,13 +173,11 @@ def log_operation_success(
     # 컨텍스트를 딕셔너리로 변환
     context_dict = {}
     if context:
-        if hasattr(context, "to_dict"):
-            context_dict = context.to_dict()
-        else:
-            context_dict = context
+        context_dict = context.to_dict() if hasattr(context, "to_dict") else context
 
     logger.info(
-        f"Operation '{operation}' completed successfully",
+        "Operation '%s' completed successfully",
+        operation,
         extra={
             "operation": operation,
             "duration_ms": duration_ms,
@@ -188,7 +190,7 @@ def log_operation_success(
 def log_operation_start(
     logger: logging.Logger,
     operation: str,
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     """
     작업 시작 시점 로그를 기록합니다.
@@ -199,7 +201,8 @@ def log_operation_start(
         context: 컨텍스트 정보 (선택사항)
     """
     logger.info(
-        f"Starting operation '{operation}'",
+        "Starting operation '%s'",
+        operation,
         extra={
             "operation": operation,
             "context": context or {},
@@ -212,7 +215,7 @@ def log_validation_error(
     field: str,
     value: Any,
     reason: str,
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     """
     데이터 검증 실패에 대한 로그를 기록합니다.
@@ -234,7 +237,9 @@ def log_validation_error(
         validation_context.update(context)
 
     logger.warning(
-        f"Validation failed for field '{field}': {reason}",
+        "Validation failed for field '%s': %s",
+        field,
+        reason,
         extra={
             "error_code": "VALIDATION_ERROR",
             "context": validation_context,
@@ -247,9 +252,9 @@ def log_api_call(
     logger: logging.Logger,
     endpoint: str,
     method: str = "GET",
-    status_code: Optional[int] = None,
-    duration_ms: Optional[float] = None,
-    context: Optional[Dict[str, Any]] = None,
+    status_code: int | None = None,
+    duration_ms: float | None = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     """
     API 호출에 대한 로그를 기록합니다.
@@ -298,10 +303,10 @@ def log_file_operation(
     logger: logging.Logger,
     operation: str,
     source_path: str,
-    destination_path: Optional[str] = None,
+    destination_path: str | None = None,
     success: bool = True,
-    error_message: Optional[str] = None,
-    context: Optional[Dict[str, Any]] = None,
+    error_message: str | None = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     """
     파일 작업에 대한 로그를 기록합니다.
@@ -327,7 +332,8 @@ def log_file_operation(
 
     if success:
         logger.info(
-            f"File operation '{operation}' completed successfully",
+            "File operation '%s' completed successfully",
+            operation,
             extra={
                 "operation": "file_operation",
                 "context": file_context,
@@ -335,7 +341,9 @@ def log_file_operation(
         )
     else:
         logger.error(
-            f"File operation '{operation}' failed: {error_message}",
+            "File operation '%s' failed: %s",
+            operation,
+            error_message,
             extra={
                 "error_code": "FILE_OPERATION_FAILED",
                 "operation": "file_operation",
@@ -359,18 +367,20 @@ def get_default_logger() -> logging.Logger:
 
 
 # 편의 함수들 (기본 로거 사용)
-def log_error(error: AniVaultError, operation: Optional[str] = None) -> None:
+def log_error(error: AniVaultError, operation: str | None = None) -> None:
     """기본 로거를 사용하여 에러를 기록합니다."""
     log_operation_error(_default_logger, error, operation)
 
 
 def log_success(
-    operation: str, duration_ms: float, result_info: Optional[Dict[str, Any]] = None
+    operation: str,
+    duration_ms: float,
+    result_info: dict[str, Any] | None = None,
 ) -> None:
     """기본 로거를 사용하여 성공 로그를 기록합니다."""
     log_operation_success(_default_logger, operation, duration_ms, result_info)
 
 
-def log_start(operation: str, context: Optional[Dict[str, Any]] = None) -> None:
+def log_start(operation: str, context: dict[str, Any] | None = None) -> None:
     """기본 로거를 사용하여 시작 로그를 기록합니다."""
     log_operation_start(_default_logger, operation, context)

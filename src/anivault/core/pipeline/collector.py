@@ -140,7 +140,7 @@ class ResultCollector(threading.Thread):
                         idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
                         if idle >= max_idle_loops if max_idle_loops else False:
                             logger.warning(
-                                f"ResultCollector {self.collector_id}: Max idle loops reached, stopping..."
+                                f"ResultCollector {self.collector_id}: Max idle loops reached, stopping...",
                             )
                             break
                         continue
@@ -148,7 +148,7 @@ class ResultCollector(threading.Thread):
                     # 성공적으로 아이템을 가져왔으므로 idle 카운트 리셋
                     idle = 0
                     logger.debug(
-                        f"ResultCollector {self.collector_id}: Received item: {type(item).__name__}"
+                        f"ResultCollector {self.collector_id}: Received item: {type(item).__name__}",
                     )
 
                     if self._handle_sentinel(item):
@@ -219,7 +219,10 @@ class ResultCollector(threading.Thread):
             return None
 
     def _handle_idle_state(
-        self, idle_count: int, max_idle_loops: int | None, idle_sleep: float
+        self,
+        idle_count: int,
+        max_idle_loops: int | None,
+        idle_sleep: float,
     ) -> int:
         """Handle idle state when no items are available.
 
@@ -248,7 +251,7 @@ class ResultCollector(threading.Thread):
         if item is SENTINEL:
             logger = logging.getLogger(__name__)
             logger.info(
-                f"ResultCollector {self.collector_id}: Received sentinel, stopping..."
+                f"ResultCollector {self.collector_id}: Received sentinel, stopping...",
             )
             try:
                 self.output_queue.task_done()

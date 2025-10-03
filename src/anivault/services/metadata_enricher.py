@@ -13,14 +13,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from anivault.core.parser.models import ParsingResult
-from anivault.shared.errors import (
-    AniVaultError,
-    ApplicationError,
-    DomainError,
-    ErrorCode,
-    ErrorContext,
-    InfrastructureError,
-)
+from anivault.shared.errors import (AniVaultError, DomainError, ErrorCode,
+                                    ErrorContext, InfrastructureError)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 from .tmdb_client import TMDBClient
@@ -146,7 +140,7 @@ class MetadataEnricher:
                     # Handle unexpected errors
                     error = InfrastructureError(
                         code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                        message=f"Unexpected error during media details retrieval: {str(e)}",
+                        message=f"Unexpected error during media details retrieval: {e!s}",
                         context=ErrorContext(
                             operation="get_media_details",
                             additional_data={
@@ -190,7 +184,7 @@ class MetadataEnricher:
             # Handle unexpected errors
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                message=f"Unexpected error during metadata enrichment: {str(e)}",
+                message=f"Unexpected error during metadata enrichment: {e!s}",
                 context=ErrorContext(
                     operation="enrich_metadata",
                     additional_data={
@@ -271,7 +265,7 @@ class MetadataEnricher:
                         # Convert unexpected exceptions to InfrastructureError
                         error = InfrastructureError(
                             code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                            message=f"Unexpected error during batch enrichment item {i}: {str(result)}",
+                            message=f"Unexpected error during batch enrichment item {i}: {result!s}",
                             context=ErrorContext(
                                 operation="enrich_batch_item",
                                 additional_data={
@@ -312,7 +306,7 @@ class MetadataEnricher:
             # Handle unexpected errors in batch processing
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                message=f"Unexpected error during batch enrichment: {str(e)}",
+                message=f"Unexpected error during batch enrichment: {e!s}",
                 context=ErrorContext(
                     operation="enrich_batch",
                     additional_data={
@@ -399,7 +393,7 @@ class MetadataEnricher:
                     # Log error for individual result scoring but continue processing
                     error = DomainError(
                         code=ErrorCode.VALIDATION_ERROR,
-                        message=f"Error calculating match score for result: {str(e)}",
+                        message=f"Error calculating match score for result: {e!s}",
                         context=ErrorContext(
                             operation="calculate_match_score",
                             additional_data={
@@ -426,14 +420,14 @@ class MetadataEnricher:
             # Handle unexpected errors in match finding
             error = DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message=f"Unexpected error during best match finding: {str(e)}",
+                message=f"Unexpected error during best match finding: {e!s}",
                 context=ErrorContext(
                     operation="find_best_match",
                     additional_data={
                         "title": file_info.title,
-                        "search_results_count": len(search_results)
-                        if search_results
-                        else 0,
+                        "search_results_count": (
+                            len(search_results) if search_results else 0
+                        ),
                         "min_confidence": self.min_confidence,
                         "original_error": str(e),
                     },
@@ -535,7 +529,7 @@ class MetadataEnricher:
 
         except Exception as e:
             # If the entire scoring process fails, return 0
-            logger.error(
+            logger.exception(
                 "Error calculating match score: %s. File info: %s, TMDB result: %s",
                 str(e),
                 file_info,
@@ -596,7 +590,7 @@ class MetadataEnricher:
                 return 0.0
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Error calculating title similarity for '%s' and '%s': %s",
                 title1,
                 title2,

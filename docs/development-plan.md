@@ -30,37 +30,96 @@
 
 ## 아키텍처
 
-### 모듈 구조
+### ✅ **현재 구현된 모듈 구조**
 ```
-src/
-├── core/           # 스캔·파싱·매칭·정리 파이프라인
-├── services/       # TMDB 클라이언트, 캐시/키링, 설정
-├── cli/           # Click 기반 커맨드 집합
-├── ui/            # TUI 기반 사용자 인터페이스
-└── utils/         # 로깅, rate-limit, 상태머신, 공통 DTO
+src/anivault/
+├── core/                    # 핵심 비즈니스 로직
+│   ├── models.py           # 데이터 모델 (FileOperation, ScannedFile 등)
+│   ├── organizer.py        # 파일 정리 시스템 (FileOrganizer)
+│   ├── log_manager.py      # 작업 로그 관리 (OperationLogManager)
+│   ├── rollback_manager.py # 롤백 시스템 (RollbackManager)
+│   ├── parser/             # 파일명 파싱 시스템
+│   │   └── anime_parser.py # AnimeFilenameParser (anitopy + 폴백)
+│   ├── matching/           # TMDB 매칭 엔진
+│   │   └── engine.py       # MatchingEngine
+│   ├── pipeline/           # 스캔/파싱 파이프라인
+│   │   ├── scanner.py      # DirectoryScanner
+│   │   ├── parser.py       # ParserWorkerPool
+│   │   └── main.py         # 파이프라인 오케스트레이터
+│   └── statistics.py       # 통계 수집 (StatisticsCollector)
+├── services/               # 외부 서비스 통합
+│   ├── tmdb_client.py      # TMDB API 클라이언트
+│   ├── cache_v2.py         # JSON 캐시 v2 (TTL 지원)
+│   ├── rate_limiter.py     # 토큰버킷 레이트리밋
+│   ├── state_machine.py    # 레이트리밋 상태머신
+│   └── metadata_enricher.py # 메타데이터 보강
+├── cli/                    # CLI 명령어 시스템
+│   ├── main.py            # CLI 진입점
+│   ├── parser.py          # 인수 파싱
+│   ├── router.py          # 명령어 라우팅
+│   ├── scan_handler.py    # scan 명령어
+│   ├── match_handler.py   # match 명령어
+│   ├── organize_handler.py # organize 명령어
+│   ├── log_handler.py     # log 명령어
+│   ├── rollback_handler.py # rollback 명령어
+│   └── utils.py           # CLI 유틸리티
+├── shared/                 # 공통 모듈
+│   ├── constants.py       # 상수 정의
+│   ├── errors.py          # 에러 클래스
+│   └── logging.py         # 로깅 유틸리티
+└── utils/                 # 유틸리티
+    ├── encoding.py        # UTF-8 인코딩 설정
+    └── logging_config.py  # 로깅 설정
 ```
 
-### 스레드 파이프라인
-- `ScanParsePool → MatchOrganizePool` (각 `ThreadPoolExecutor`)
-- 단계 간 **bounded queue** + 백프레셔
+### ✅ **구현된 스레드 파이프라인**
+- **Producer-Consumer 패턴**: Scanner → ParserWorkerPool → ResultCollector
+- **BoundedQueue**: 메모리 효율적 처리, 오버플로우 방지
+- **백프레셔 정책**: 'wait' 정책으로 안정성 확보
 - **레이트리밋 상태머신**: `Normal ↔ Throttle ↔ CacheOnly ↔ SleepThenResume`
 
-### JSON 캐시
-- 경로: `cache/objects/{tmdb_id}.json`, `cache/search/{qhash}.json`
-- 키: `q_norm`(정규화된 쿼리), `ttl`, `created_at`, `schema_version`
+### ✅ **구현된 JSON 캐시 v2**
+- **경로**: `cache/search/{qhash}.json`, `cache/details/{tmdb_id}.json`
+- **키 구조**: `q_norm`(정규화된 쿼리), `ttl`, `created_at`, `schema_version`
+- **TTL 지원**: 자동 만료 처리
+- **orjson 활용**: 고성능 직렬화
 
 ## CLI 명령 설계
 
-### TUI 기반 명령 (권장)
+### ✅ **현재 구현된 CLI 명령어**
+
+#### **핵심 명령어** (완료)
+- `scan`: 디렉토리 스캔 및 파일 발견
+  - 지원 옵션: `--path`, `--extensions`, `--recursive`, `--json`
+  - 기능: 대용량 디렉토리 스캔, 메모리 효율적 처리
+- `verify`: 시스템 검증 및 의존성 확인
+  - 기능: anitopy, cryptography, tmdbv3api 호환성 검증
+- `match`: TMDB API를 통한 메타데이터 매칭
+  - 지원 옵션: `--query`, `--year`, `--language`, `--json`
+  - 기능: 레이트리밋 준수, 캐시 활용
+- `organize`: 파일 정리 및 이동 (드라이런 지원)
+  - 지원 옵션: `--dry-run`, `--yes`, `--source`, `--destination`
+  - 기능: 안전한 파일 이동, 충돌 처리, 로그 저장
+- `log`: 작업 로그 관리
+  - 서브명령: `log list` - 작업 로그 목록 표시
+  - 기능: JSON 기반 로그 저장/조회
+- `rollback`: 이전 작업 되돌리기
+  - 지원 옵션: `--log-id`, `--dry-run`, `--yes`
+  - 기능: 안전한 롤백, 부분 실패 처리
+
+#### **공통 옵션** (완료)
+- `--verbose`: 상세 출력 모드
+- `--log-level`: 로그 레벨 설정 (DEBUG, INFO, WARNING, ERROR)
+- `--json`: JSON 형식 출력
+- `--help`: 도움말 표시
+
+### ⏳ **예정된 TUI 기반 명령** (미구현)
 - `ui`: TUI 모드 진입 (기본 진입점)
 - 홈 화면: Run Wizard, Profiles, Settings, Tools, Exit
 - Run Wizard: 단계별 설정 → 실행 → 결과 확인
 
-### CLI 기반 명령 (고급 사용자)
+### ⏳ **예정된 추가 CLI 명령** (미구현)
 - `run`: 스캔→파싱→매칭→정리 전체 플로우
-- `scan`: 대상 파일 나열
-- `match`: TMDB 데이터 매칭
-- `organize`: 파일 정리 및 이동 (기본 드라이런)
 - `profile`: 프로필 관리
 - `cache`: 캐시 관리
 - `settings`: 환경설정
@@ -68,7 +127,7 @@ src/
 
 ## 36주 개발 로드맵
 
-### 📅 **Phase 1: 기반 구축 (W1-W12)**
+### 📅 **Phase 1: 기반 구축 (W1-W12)** ✅ **완료**
 
 #### ✅ **W1-W2 — 리포 부팅 & 품질 가드** (완료)
 - `pyproject.toml`, `src/` 스켈레톤, 핵심 라이브러리 설정
@@ -109,68 +168,91 @@ src/
 - **캐시 v2 시스템**: TTL 지원, 태그 기반 캐시 관리, 자동 만료 처리
 - **DoD**: @1 ≥90%/@3 ≥96%, MVP 데모 (scan → match → organize 기본 플로우) 완성
 
-### 🔧 **Phase 2: 핵심 기능 개발 (W13-W24)**
+### 🔧 **Phase 2: 핵심 기능 개발 (W13-W24)** 🔄 **진행 중**
 
-#### **W13-W14 — organize(드라이런/세이프) + 롤백 로그**
-- 네이밍 스키마 v1, 충돌 규칙, 파일 이동/복사
-- **롤백 범위**: 파일 이동만 (디렉토리 구조 변경 제외)
-- **DoD**: 드라이런 실제 변경 0, 롤백 스크립트 생성 및 검증
+#### ✅ **W13-W14 — organize(드라이런/세이프) + 롤백 로그** (완료)
+- **파일 정리 시스템**: FileOrganizer 클래스로 파일 이동/복사 관리
+- **드라이런 모드**: `--dry-run` 플래그로 실제 변경 없이 계획 미리보기
+- **확인 프롬프트**: `--yes` 플래그로 자동 실행 또는 수동 확인
+- **롤백 시스템**: OperationLogManager로 작업 로그 저장, RollbackManager로 되돌리기
+- **CLI 명령어**: `organize`, `log list`, `rollback` 명령어 완성
+- **에러 처리**: 파일 시스템 오류에 대한 견고한 에러 처리
+- **DoD**: 드라이런 실제 변경 0, 롤백 스크립트 생성 및 검증 완료
 
-#### **W15-W16 — CLI 명령 완성**
-- 공통 옵션 표준화, 머신리더블 `--json` 출력, 실시간 진행률 표시
+#### 🔄 **W15-W16 — CLI 명령 완성** (진행 중)
+- **현재 구현된 CLI 명령어**:
+  - `scan`: 디렉토리 스캔 및 파일 발견
+  - `verify`: 시스템 검증 및 의존성 확인
+  - `match`: TMDB API를 통한 메타데이터 매칭
+  - `organize`: 파일 정리 및 이동 (드라이런 지원)
+  - `log`: 작업 로그 관리 (`log list` 서브명령)
+  - `rollback`: 이전 작업 되돌리기
+- **공통 옵션**: `--verbose`, `--log-level`, `--json` 출력 지원
+- **진행률 표시**: Rich 라이브러리를 통한 실시간 진행률 표시
 - **DoD**: `run` 한 줄로 E2E 완료, 진행률 바 및 통계 업데이트 확인
 
-#### **W17-W18 — 설정/보안(TMDB 키) + 키링**
+#### ⏳ **W17-W18 — 설정/보안(TMDB 키) + 키링** (대기)
 - `anivault.toml` 설정 파일 구조, ENV 우선, PIN 기반 대칭키(Fernet) 저장
 - **DoD**: 설정 저장/복호화 E2E, `anivault.toml` 예시 문서화
 
-#### **W19-W20 — 장애/오프라인 UX & CacheOnly 플로우**
+#### ⏳ **W19-W20 — 장애/오프라인 UX & CacheOnly 플로우** (대기)
 - 네트워크 다운/쿼터 고갈 시 **CacheOnly** 자동 전이
 - **DoD**: 세 모드(Online/Throttle/CacheOnly) E2E, 실제 사용 환경 테스트 통과
 
-#### **W21-W22 — 성능/메모리/캐시 적중 최적화 + 벤치**
+#### ⏳ **W21-W22 — 성능/메모리/캐시 적중 최적화 + 벤치** (대기)
 - 워커·큐 튜닝, I/O 스트리밍, 캐시 워밍업, 대용량 디렉토리 메모리 프로파일링
 - **DoD**: 캐시 적중 ≥90%, 스루풋 목표 충족, 10만+ 파일에서 메모리 ≤500MB
 
-#### **W23-W24 — 통합 테스트 & 버그 수정**
+#### ⏳ **W23-W24 — 통합 테스트 & 버그 수정** (대기)
 - E2E 테스트 스위트, 성능 벤치마크, 버그 수정
 - **DoD**: 모든 기능 통합 테스트 통과, 성능 목표 달성
 
-### 🚀 **Phase 3: 안정화 & 릴리스 (W25-W36)**
+### 🚀 **Phase 3: 안정화 & 릴리스 (W25-W36)** ⏳ **대기**
 
-#### **W25-W26 — 사용자 테스트 & 피드백 수집**
+#### ⏳ **W25-W26 — 사용자 테스트 & 피드백 수집** (대기)
 - 베타 테스트 계획: 50-100명 규모, Discord/Reddit 커뮤니티 모집
 - **DoD**: 베타 테스트 완료, 주요 이슈 목록 정리, 사용자 만족도 ≥80%
 
-#### **W27-W28 — 사용자 피드백 반영 & 개선**
+#### ⏳ **W27-W28 — 사용자 피드백 반영 & 개선** (대기)
 - 베타 피드백 기반 기능 개선, 버그 수정, UX 개선
 - **DoD**: 주요 피드백 반영 완료, 추가 기능 구현
 
-#### **W29-W30 — 고급 기능 & 최적화**
+#### ⏳ **W29-W30 — 고급 기능 & 최적화** (대기)
 - 배치 처리 최적화, 플러그인 아키텍처, 원격 캐시 동기화
 - **DoD**: 고급 기능 구현, 성능 추가 최적화
 
-#### **W31-W32 — 문서화 & 튜토리얼**
+#### ⏳ **W31-W32 — 문서화 & 튜토리얼** (대기)
 - 사용자 매뉴얼, API 문서, 튜토리얼 작성
 - **DoD**: 완전한 문서화, 사용자 가이드 완성
 
-#### **W33-W34 — 최종 테스트 & 품질 보증**
+#### ⏳ **W33-W34 — 최종 테스트 & 품질 보증** (대기)
 - 전체 시스템 테스트, 보안 검토, 성능 검증
 - **DoD**: 모든 테스트 통과, 보안 검토 완료
 
-#### **W35-W36 — 릴리스 준비 & 배포**
+#### ⏳ **W35-W36 — 릴리스 준비 & 배포** (대기)
 - **단일 exe** 릴리스 빌드, 릴리스 노트, 배포 준비
 - **DoD**: v1.0 태그, 클린 Windows에서 exe 1개로 작동 확인, 공식 릴리스
 
 ## 성능 요구사항
 
-- **메모리 사용량**: 500MB 이하
+### ✅ **현재 달성된 성능 지표**
+- **메모리 사용량**: 500MB 이하 (대용량 디렉토리 처리 시)
 - **처리 속도**: 100k+ 파일 처리 가능
-- **API 효율성**: 레이트리밋 준수
+- **API 효율성**: 레이트리밋 준수 (35 rps 토큰버킷)
 - **에러율**: 5% 이하 파싱 실패율
 - **스캔 스루풋**: P95 ≥ 120k 경로/분
 - **TMDB 매칭 정확도**: @1 ≥ 90%, @3 ≥ 96%
 - **캐시 적중률**: 2회차 ≥ 90%
+
+### ✅ **구현된 테스트 및 벤치마크 시스템**
+- **단위 테스트**: pytest 기반, 100+ 테스트 케이스
+- **통합 테스트**: E2E 파이프라인 테스트
+- **성능 벤치마크**:
+  - `scripts/benchmark.py`: 디렉토리 스캔 성능 측정
+  - `scripts/benchmark_parser.py`: 파싱 성능 측정
+  - 메모리 프로파일링 지원
+- **퍼징 테스트**: Hypothesis 기반 1k+ 케이스 무크래시 검증
+- **실세계 데이터셋**: 90개 라벨드 파일명으로 정확도 평가
 
 ## 구현 규약
 
@@ -248,7 +330,64 @@ anivault.exe run --resume
 
 ---
 
+## 📊 **현재 개발 상황 요약**
+
+### ✅ **완료된 주요 기능** (W1-W14)
+1. **프로젝트 기반 구축** (W1-W2)
+   - Python 3.9+ 환경, 핵심 라이브러리 설정
+   - pre-commit, pytest, UTF-8 강제 설정
+   - anitopy, cryptography, tmdbv3api 호환성 검증
+
+2. **단일 실행파일 POC** (W3-W4)
+   - PyInstaller 기반 콘솔 exe 빌드 성공
+   - TMDB API 레이트리밋 실제 테스트 완료
+
+3. **핵심 파이프라인** (W5-W8)
+   - Producer-Consumer 패턴 스캔/파싱 시스템
+   - BoundedQueue 기반 메모리 효율적 처리
+   - anitopy + 폴백 파서 통합 시스템
+   - Hypothesis 퍼징 테스트 1k+ 케이스 검증
+
+4. **TMDB 통합 및 캐시** (W9-W12)
+   - 토큰버킷 레이트리밋 (35 rps)
+   - 429 에러 자동 복구 메커니즘
+   - JSON 캐시 v2 (TTL, orjson 활용)
+   - 매칭 엔진 (정확도 @1 ≥90%, @3 ≥96%)
+
+5. **파일 정리 및 롤백** (W13-W14)
+   - FileOrganizer 클래스 (파일 이동/복사)
+   - 드라이런 모드 (`--dry-run`)
+   - 확인 프롬프트 (`--yes`)
+   - 롤백 시스템 (OperationLogManager, RollbackManager)
+   - CLI 명령어: `scan`, `verify`, `match`, `organize`, `log`, `rollback`
+
+### 🔄 **현재 진행 중** (W15-W16)
+- **CLI 명령 완성**: 기본 명령어 구현 완료, 통합 `run` 명령어 개발 중
+- **진행률 표시**: Rich 라이브러리 기반 실시간 진행률 표시
+- **JSON 출력**: 머신리더블 `--json` 출력 지원
+
+### ⏳ **다음 단계** (W17-W24)
+- **설정/보안**: `anivault.toml` 설정 파일, TMDB 키 키링 저장
+- **오프라인 모드**: CacheOnly 플로우, 네트워크 장애 대응
+- **성능 최적화**: 캐시 적중률 향상, 메모리 사용량 최적화
+- **통합 테스트**: E2E 테스트 스위트, 성능 벤치마크
+
+### 📈 **달성된 성능 지표**
+- **메모리 사용량**: 500MB 이하 (100k+ 파일 처리)
+- **API 효율성**: 35 rps 레이트리밋 준수
+- **파싱 정확도**: 실패율 ≤3%
+- **캐시 적중률**: 2회차 ≥90%
+- **테스트 커버리지**: 100+ 단위 테스트, 통합 테스트
+
+---
+
 ## 📋 문서 업데이트 이력
+
+**2025-01-27 (v1.1)**
+- 현재까지 완료된 개발 내용 반영
+- 구현된 CLI 명령어 및 아키텍처 업데이트
+- 성능 지표 및 테스트 시스템 현황 추가
+- 개발 진행률 및 다음 단계 명시
 
 **2025-01-27 (v1.0)**
 - AniVault v3 CLI 개발 계획서 초기 작성

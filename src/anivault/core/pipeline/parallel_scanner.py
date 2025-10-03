@@ -12,7 +12,6 @@ import os
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict
 
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
@@ -184,8 +183,10 @@ class ParallelDirectoryScanner(threading.Thread):
                 self.stats.increment_directories_scanned()
 
     def _submit_scan_jobs(
-        self, executor: ThreadPoolExecutor, subdirectories: list[Path]
-    ) -> Dict[Future, Path]:
+        self,
+        executor: ThreadPoolExecutor,
+        subdirectories: list[Path],
+    ) -> dict[Future, Path]:
         """Submit scan jobs for given subdirectories to the executor.
 
         Args:
@@ -255,7 +256,7 @@ class ParallelDirectoryScanner(threading.Thread):
             )
             raise error from e
 
-    def _await_scan_completion(self, future_to_dir: Dict[Future, Path]) -> None:
+    def _await_scan_completion(self, future_to_dir: dict[Future, Path]) -> None:
         """Wait for scan completion and process results.
 
         Args:
