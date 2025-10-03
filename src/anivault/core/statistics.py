@@ -88,7 +88,7 @@ class BenchmarkResult:
 class StatisticsCollector:
     """Central aggregator for all performance and accuracy metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the statistics collector."""
         self.metrics = PerformanceMetrics()
         self.benchmark_results: list[BenchmarkResult] = []
@@ -109,7 +109,7 @@ class StatisticsCollector:
             operation: Name of the operation being timed
         """
         self.timing_stack.append(time.time())
-        logger.debug(f"Started timing operation: {operation}")
+        logger.debug("Started timing operation: %s", operation)
 
     def end_timing(self, operation: str) -> float:
         """End timing an operation and return duration.
@@ -121,13 +121,13 @@ class StatisticsCollector:
             Duration in seconds
         """
         if not self.timing_stack:
-            logger.warning(f"No timing started for operation: {operation}")
+            logger.warning("No timing started for operation: %s", operation)
             return 0.0
 
         start_time = self.timing_stack.pop()
         duration = time.time() - start_time
 
-        logger.debug(f"Ended timing operation: {operation}, duration: {duration:.3f}s")
+        logger.debug("Ended timing operation: %s, duration: %.3fs", operation, duration)
         return duration
 
     def record_matching_operation(
@@ -172,7 +172,8 @@ class StatisticsCollector:
         }
 
         logger.debug(
-            f"Recorded matching operation for {file_path}: success={success}, confidence={confidence}",
+            "Recorded matching operation for %s: success=%s, confidence=%s",
+            file_path, success, confidence,
         )
 
     def record_cache_operation(
@@ -207,14 +208,14 @@ class StatisticsCollector:
             },
         )
 
-        logger.debug(f"Recorded cache operation: {operation}, hit={hit}")
+        logger.debug("Recorded cache operation: %s, hit=%s", operation, hit)
 
     def record_api_call(
         self,
         endpoint: str,
         success: bool,
         duration: float | None = None,
-        error: str | None = None,
+        error: str | None = None,  # noqa: ARG002
     ) -> None:
         """Record an API call.
 
@@ -234,7 +235,10 @@ class StatisticsCollector:
             self.metrics.api_time += duration
 
         logger.debug(
-            f"Recorded API call: {endpoint}, success={success}, duration={duration}",
+            "Recorded API call: %s, success=%s, duration=%s",
+            endpoint,
+            success,
+            duration,
         )
 
     def record_rate_limit_hit(self) -> None:
@@ -259,7 +263,7 @@ class StatisticsCollector:
         self._memory_sum += memory_mb
         self.metrics.average_memory_mb = self._memory_sum / self._memory_samples
 
-        logger.debug(f"Recorded memory usage: {memory_mb:.2f} MB")
+        logger.debug("Recorded memory usage: %.2f MB", memory_mb)
 
     def record_cache_hit(self, cache_type: str) -> None:
         """Record a cache hit.
@@ -340,8 +344,8 @@ class StatisticsCollector:
         Args:
             test_name: Name of the benchmark test
         """
-        self.start_timing(f"benchmark_{test_name}")
-        logger.info(f"Started benchmark: {test_name}")
+        self.start_timing("benchmark_" + test_name)
+        logger.info("Started benchmark: %s", test_name)
 
     def end_benchmark(
         self,
@@ -359,7 +363,7 @@ class StatisticsCollector:
         Returns:
             BenchmarkResult object
         """
-        duration = self.end_timing(f"benchmark_{test_name}")
+        duration = self.end_timing("benchmark_" + test_name)
 
         result = BenchmarkResult(
             test_name=test_name,
@@ -373,7 +377,10 @@ class StatisticsCollector:
 
         self.benchmark_results.append(result)
         logger.info(
-            f"Ended benchmark: {test_name}, success={success}, duration={duration:.3f}s",
+            "Ended benchmark: %s, success=%s, duration=%.3fs",
+            test_name,
+            success,
+            duration,
         )
 
         return result
@@ -482,6 +489,6 @@ def get_statistics_collector() -> StatisticsCollector:
 
 def reset_statistics() -> None:
     """Reset the global statistics collector."""
-    global _global_collector
+    global _global_collector  # noqa: PLW0602
     if _global_collector is not None:
         _global_collector.reset()

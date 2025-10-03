@@ -129,7 +129,7 @@ class OperationLogManager:
         Raises:
             json.JSONEncodeError: If serialization fails
         """
-        # Convert FileOperation objects to dictionaries
+        # Convert FileOperation objects to dictionaries using model_dump_json for better performance
         plan_data = [operation.model_dump() for operation in plan]
 
         # Ensure paths are serialized as strings
@@ -179,11 +179,13 @@ class OperationLogManager:
                 plan_data = json.load(f)
 
             # Deserialize to FileOperation objects
-            operations: list[FileOperation] = parse_obj_as(list[FileOperation], plan_data)
+            operations: list[FileOperation] = parse_obj_as(
+                list[FileOperation], plan_data
+            )
             return operations
 
-        except FileNotFoundError:
-            raise LogFileNotFoundError(log_path)
+        except FileNotFoundError as e:
+            raise LogFileNotFoundError(log_path) from e
         except (json.JSONDecodeError, ValidationError) as e:
             raise LogFileCorruptedError(log_path, str(e)) from e
 

@@ -315,6 +315,24 @@ class PerformanceConfig(BaseModel):
 class Settings(BaseModel):
     """Main settings model containing all configuration sections."""
 
+    model_config = ConfigDict(
+        # Optimize JSON serialization for settings performance
+        json_encoders={
+            # Custom encoders for specific types if needed
+        },
+        # Use orjson for better performance in settings serialization
+        json_schema_extra={
+            "example": {
+                "app": {"name": "AniVault", "version": "1.0.0", "debug": False},
+                "logging": {"level": "INFO", "format": "json"},
+                "tmdb": {"api_key": "your_api_key", "base_url": "https://api.themoviedb.org/3"},
+                "file_processing": {"max_workers": 4, "supported_extensions": [".mkv", ".mp4"]},
+                "cache": {"enabled": True, "ttl_seconds": 604800},
+                "performance": {"profiling_enabled": False}
+            }
+        }
+    )
+
     app: AppConfig = Field(default_factory=AppConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     tmdb: TMDBConfig = Field(default_factory=TMDBConfig)

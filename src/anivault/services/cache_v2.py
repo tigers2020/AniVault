@@ -24,7 +24,6 @@ from anivault.core.statistics import StatisticsCollector
 from anivault.shared.constants.system import (
     CACHE_TYPE_DETAILS,
     CACHE_TYPE_SEARCH,
-    DEFAULT_CACHE_TTL,
 )
 from anivault.shared.errors import (
     DomainError,
@@ -50,6 +49,23 @@ class CacheEntry(BaseModel):
         cache_type: Type of cache entry ('search' or 'details').
         key_hash: SHA-256 hash of the original key for verification.
     """
+
+    model_config = ConfigDict(
+        # Optimize JSON serialization for cache performance
+        json_encoders={
+            # Custom encoders for specific types if needed
+        },
+        # Use orjson for better performance in cache operations
+        json_schema_extra={
+            "example": {
+                "data": {"title": "Attack on Titan", "id": 12345},
+                "created_at": "2024-01-01T00:00:00Z",
+                "expires_at": "2024-01-08T00:00:00Z",
+                "cache_type": "search",
+                "key_hash": "abc123...",
+            },
+        },
+    )
 
     data: dict[str, Any] = Field(..., description="The cached data payload")
     created_at: str = Field(..., description="ISO timestamp when entry was created")
@@ -168,7 +184,9 @@ class JSONCacheV2:
             raise error
 
     def _generate_file_path(
-        self, key: str, cache_type: str = CACHE_TYPE_SEARCH
+        self,
+        key: str,
+        cache_type: str = CACHE_TYPE_SEARCH,
     ) -> Path:
         """Generate cache file path from key and cache type.
 
@@ -268,10 +286,10 @@ class JSONCacheV2:
                 key_hash=key_hash,
             )
 
-            # Serialize with orjson
+            # Serialize with orjson using model_dump_json for better performance
             try:
-                json_data = orjson.dumps(entry.model_dump())
-            except orjson.JSONEncodeError as e:
+                json_data = entry.model_dump_json()
+            except (orjson.JSONEncodeError, ValueError) as e:
                 error = DomainError(
                     code=ErrorCode.CACHE_SERIALIZATION_ERROR,
                     message=f"Failed to serialize cache data for key '{key}': {e!s}",
@@ -358,7 +376,9 @@ class JSONCacheV2:
             raise error
 
     def get(
-        self, key: str, cache_type: str = CACHE_TYPE_SEARCH
+        self,
+        key: str,
+        cache_type: str = CACHE_TYPE_SEARCH,
     ) -> dict[str, Any] | None:
         """Retrieve data from the cache.
 

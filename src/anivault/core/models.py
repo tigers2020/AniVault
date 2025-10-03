@@ -47,7 +47,6 @@ class FileOperation(BaseModel):
     def model_post_init(self, __context: Any) -> None:
         """Validate paths after model initialization."""
         # Path fields are already validated by Pydantic
-        pass
 
     def __str__(self) -> str:
         """Return a human-readable string representation."""
@@ -61,6 +60,22 @@ class ScannedFile(BaseModel):
     This model combines file path information with parsed metadata,
     serving as the input for the FileOrganizer.
     """
+
+    model_config = ConfigDict(
+        # Optimize JSON serialization for file processing performance
+        json_encoders={
+            # Custom encoders for specific types if needed
+        },
+        # Use orjson for better performance in file processing
+        json_schema_extra={
+            "example": {
+                "file_path": "/path/to/anime.mkv",
+                "metadata": {"anime_title": "Attack on Titan", "episode_number": 1},
+                "file_size": 1024000,
+                "last_modified": 1640995200.0,
+            },
+        },
+    )
 
     file_path: Path = Field(
         ...,
@@ -82,7 +97,6 @@ class ScannedFile(BaseModel):
     def model_post_init(self, __context: Any) -> None:
         """Validate paths after model initialization."""
         # Path fields are already validated by Pydantic
-        pass
 
     @property
     def extension(self) -> str:

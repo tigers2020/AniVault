@@ -171,7 +171,7 @@ class FileOrganizer:
     def execute_plan(
         self,
         plan: list[FileOperation],
-        operation_id: str,
+        operation_id: str,  # noqa: ARG002
         no_log: bool = False,
     ) -> list[tuple[str, str]]:
         """
@@ -207,9 +207,6 @@ class FileOrganizer:
                 self._handle_operation_error(operation, e)
                 continue
             except FileExistsError as e:
-                self._handle_operation_error(operation, e)
-                continue
-            except OSError as e:
                 self._handle_operation_error(operation, e)
                 continue
             except (OSError, shutil.Error) as e:
