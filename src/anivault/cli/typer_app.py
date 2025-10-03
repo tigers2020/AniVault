@@ -26,6 +26,7 @@ from anivault.cli.organize_handler import organize_command
 from anivault.cli.rollback_handler import rollback_command
 from anivault.cli.run_handler import run_command
 from anivault.cli.scan_handler import scan_command
+from anivault.cli.verify_handler import verify_command
 
 # Version information
 __version__ = "0.1.0"
@@ -416,6 +417,39 @@ def rollback_command_typer(
     """
     # Call the rollback command
     rollback_command(log_id, dry_run, yes)
+
+
+@app.command("verify")
+def verify_command_typer(
+    tmdb: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--tmdb",
+        help="Verify TMDB API connectivity",
+    ),
+    all: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--all",
+        help="Verify all components",
+    ),
+) -> None:
+    """
+    Verify system components and connectivity.
+
+    This command allows you to verify that various system components are working
+    correctly, including TMDB API connectivity and other system dependencies.
+
+    Examples:
+        # Verify TMDB API connectivity
+        anivault verify --tmdb
+
+        # Verify all components
+        anivault verify --all
+
+        # Verify with JSON output
+        anivault verify --tmdb --json-output
+    """
+    # Call the verify command
+    verify_command(tmdb, all)
 
 
 if __name__ == "__main__":

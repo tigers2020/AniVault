@@ -281,3 +281,54 @@ def _collect_verify_data(args: Any) -> dict | None:
     except Exception:
         logger.exception("Error collecting verify data")
         return None
+
+import typer
+from anivault.cli.common.context import get_cli_context
+
+
+def verify_command(
+    tmdb: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--tmdb",
+        help="Verify TMDB API connectivity",
+    ),
+    all: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--all",
+        help="Verify all components",
+    ),
+) -> None:
+    """
+    Verify system components and connectivity.
+
+    This command allows you to verify that various system components are working
+    correctly, including TMDB API connectivity and other system dependencies.
+
+    Examples:
+        # Verify TMDB API connectivity
+        anivault verify --tmdb
+
+        # Verify all components
+        anivault verify --all
+
+        # Verify with JSON output
+        anivault verify --tmdb --json-output
+    """
+    # Create a mock args object to maintain compatibility with existing handler
+    class MockArgs:
+        def __init__(self):
+            self.tmdb = tmdb
+            self.all = all
+
+            # Get CLI context for JSON output
+            context = get_cli_context()
+            self.json = context.json_output if context else False
+            self.verbose = context.verbose if context else 0
+
+    args = MockArgs()
+
+    # Call the existing handler
+    exit_code = handle_verify_command(args)
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
