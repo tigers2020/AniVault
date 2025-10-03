@@ -646,3 +646,61 @@ def _print_rollback_execution_plan(plan: Any, console: Any) -> None:
 
     console.print()
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
+
+import typer
+from anivault.cli.common.context import get_cli_context
+
+
+def rollback_command(
+    log_id: str = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="ID of the operation log to rollback",
+    ),
+    dry_run: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--dry-run",
+        help="Show what would be rolled back without actually moving files",
+    ),
+    yes: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts and proceed with rollback",
+    ),
+) -> None:
+    """
+    Rollback file organization operations from a previous session.
+
+    This command allows you to undo file organization operations by rolling back
+    files to their original locations based on operation logs. It can show what
+    would be rolled back without making changes using --dry-run.
+
+    Examples:
+        # Rollback operations from log ID "2024-01-15_143022"
+        anivault rollback 2024-01-15_143022
+
+        # Preview what would be rolled back without making changes
+        anivault rollback 2024-01-15_143022 --dry-run
+
+        # Rollback without confirmation prompts
+        anivault rollback 2024-01-15_143022 --yes
+    """
+    # Create a mock args object to maintain compatibility with existing handler
+    class MockArgs:
+        def __init__(self):
+            self.log_id = log_id
+            self.dry_run = dry_run
+            self.yes = yes
+
+            # Get CLI context for JSON output
+            context = get_cli_context()
+            self.json = context.json_output if context else False
+            self.verbose = context.verbose if context else 0
+
+    args = MockArgs()
+
+    # Call the existing handler
+    exit_code = handle_rollback_command(args)
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)

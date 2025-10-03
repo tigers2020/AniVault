@@ -23,6 +23,7 @@ from anivault.cli.common.options import (
 from anivault.cli.log_handler import log_command
 from anivault.cli.match_handler import match_command
 from anivault.cli.organize_handler import organize_command
+from anivault.cli.rollback_handler import rollback_command
 from anivault.cli.run_handler import run_command
 from anivault.cli.scan_handler import scan_command
 
@@ -376,6 +377,45 @@ def log_command_typer(
     """
     # Call the log command
     log_command(command, log_dir)
+
+
+@app.command("rollback")
+def rollback_command_typer(
+    log_id: str = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="ID of the operation log to rollback",
+    ),
+    dry_run: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--dry-run",
+        help="Show what would be rolled back without actually moving files",
+    ),
+    yes: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts and proceed with rollback",
+    ),
+) -> None:
+    """
+    Rollback file organization operations from a previous session.
+
+    This command allows you to undo file organization operations by rolling back
+    files to their original locations based on operation logs. It can show what
+    would be rolled back without making changes using --dry-run.
+
+    Examples:
+        # Rollback operations from log ID "2024-01-15_143022"
+        anivault rollback 2024-01-15_143022
+
+        # Preview what would be rolled back without making changes
+        anivault rollback 2024-01-15_143022 --dry-run
+
+        # Rollback without confirmation prompts
+        anivault rollback 2024-01-15_143022 --yes
+    """
+    # Call the rollback command
+    rollback_command(log_id, dry_run, yes)
 
 
 if __name__ == "__main__":
