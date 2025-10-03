@@ -15,8 +15,7 @@ from typing import Any
 from rich.console import Console
 from rich.theme import Theme
 
-from anivault.shared.errors import (ApplicationError, ErrorCode,
-                                    InfrastructureError)
+from anivault.shared.errors import ApplicationError, ErrorCode, InfrastructureError
 
 
 def setup_console(theme: Theme | None = None) -> Console:

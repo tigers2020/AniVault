@@ -15,8 +15,12 @@ from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
-from anivault.shared.errors import (AniVaultError, ErrorCode, ErrorContext,
-                                    InfrastructureError)
+from anivault.shared.errors import (
+    AniVaultError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 from .rate_limiter import TokenBucketRateLimiter

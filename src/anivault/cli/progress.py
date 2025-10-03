@@ -16,9 +16,15 @@ from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from typing import Any
 
-from rich.progress import (BarColumn, MofNCompleteColumn, Progress,
-                           SpinnerColumn, TaskProgressColumn, TextColumn,
-                           TimeRemainingColumn)
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 
 
 class ProgressManager:

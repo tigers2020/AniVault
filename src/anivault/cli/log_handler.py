@@ -12,8 +12,10 @@ from typing import Any
 
 from anivault.cli.common_options import is_json_output_enabled
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
-                                              CLI_INFO_COMMAND_STARTED)
+from anivault.shared.constants.system import (
+    CLI_INFO_COMMAND_COMPLETED,
+    CLI_INFO_COMMAND_STARTED,
+)
 
 logger = logging.getLogger(__name__)
 

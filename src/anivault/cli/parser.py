@@ -10,19 +10,20 @@ import argparse
 import os
 from pathlib import Path
 
-from anivault.cli.common_options import (get_common_options_parser,
-                                         get_version_argument)
-from anivault.shared.constants import (CLI_DEFAULT_RATE_LIMIT_EXAMPLE,
-                                       CLI_DEFAULT_RATE_LIMIT_HELP,
-                                       CLI_DEFAULT_WORKERS_EXAMPLE,
-                                       DEFAULT_CACHE_DIR,
-                                       DEFAULT_CONCURRENT_REQUESTS,
-                                       DEFAULT_RATE_LIMIT,
-                                       DEFAULT_TMDB_RATE_LIMIT_RPS,
-                                       DEFAULT_WORKERS,
-                                       SUPPORTED_VIDEO_EXTENSIONS,
-                                       SUPPORTED_VIDEO_EXTENSIONS_MATCH,
-                                       SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE)
+from anivault.cli.common_options import get_common_options_parser, get_version_argument
+from anivault.shared.constants import (
+    CLI_DEFAULT_RATE_LIMIT_EXAMPLE,
+    CLI_DEFAULT_RATE_LIMIT_HELP,
+    CLI_DEFAULT_WORKERS_EXAMPLE,
+    DEFAULT_CACHE_DIR,
+    DEFAULT_CONCURRENT_REQUESTS,
+    DEFAULT_RATE_LIMIT,
+    DEFAULT_TMDB_RATE_LIMIT_RPS,
+    DEFAULT_WORKERS,
+    SUPPORTED_VIDEO_EXTENSIONS,
+    SUPPORTED_VIDEO_EXTENSIONS_MATCH,
+    SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE,
+)
 from anivault.shared.errors import ApplicationError, ErrorCode
 
 

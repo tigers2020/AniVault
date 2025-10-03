@@ -10,10 +10,16 @@ from typing import Any
 
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
-from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
-                                              CLI_INFO_COMMAND_STARTED)
-from anivault.shared.errors import (ApplicationError, ErrorCode, ErrorContext,
-                                    InfrastructureError)
+from anivault.shared.constants.system import (
+    CLI_INFO_COMMAND_COMPLETED,
+    CLI_INFO_COMMAND_STARTED,
+)
+from anivault.shared.errors import (
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -193,8 +199,7 @@ def _get_scanned_files(args, directory, console):
     """Get scanned files for organization."""
     try:
         from anivault.core.pipeline.main import run_pipeline
-        from anivault.shared.constants.system import (DEFAULT_QUEUE_SIZE,
-                                                      DEFAULT_WORKERS)
+        from anivault.shared.constants.system import DEFAULT_QUEUE_SIZE, DEFAULT_WORKERS
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(

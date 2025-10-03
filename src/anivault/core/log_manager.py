@@ -13,9 +13,13 @@ from pathlib import Path
 
 from pydantic import ValidationError, parse_obj_as
 
-from anivault.shared.constants import (ANIVAULT_HOME_DIR, CLI_INDENT_SIZE,
-                                       DEFAULT_ENCODING, LOG_FILE_EXTENSION,
-                                       ORGANIZE_LOG_PREFIX)
+from anivault.shared.constants import (
+    ANIVAULT_HOME_DIR,
+    CLI_INDENT_SIZE,
+    DEFAULT_ENCODING,
+    LOG_FILE_EXTENSION,
+    ORGANIZE_LOG_PREFIX,
+)
 
 from .models import FileOperation
 

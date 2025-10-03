@@ -10,8 +10,10 @@ from typing import Any
 
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
-from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
-                                              CLI_INFO_COMMAND_STARTED)
+from anivault.shared.constants.system import (
+    CLI_INFO_COMMAND_COMPLETED,
+    CLI_INFO_COMMAND_STARTED,
+)
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -35,12 +37,20 @@ def handle_scan_command(args: Any) -> int:
         from rich.console import Console
 
         from anivault.core.pipeline.main import run_pipeline
-        from anivault.services import (MetadataEnricher, RateLimitStateMachine,
-                                       SemaphoreManager, TMDBClient,
-                                       TokenBucketRateLimiter)
+        from anivault.services import (
+            MetadataEnricher,
+            RateLimitStateMachine,
+            SemaphoreManager,
+            TMDBClient,
+            TokenBucketRateLimiter,
+        )
         from anivault.shared.constants.system import (
-            CLI_ERROR_SCAN_FAILED, CLI_INDENT_SIZE, CLI_SUCCESS_RESULTS_SAVED,
-            DEFAULT_ENCODING, DEFAULT_QUEUE_SIZE)
+            CLI_ERROR_SCAN_FAILED,
+            CLI_INDENT_SIZE,
+            CLI_SUCCESS_RESULTS_SAVED,
+            DEFAULT_ENCODING,
+            DEFAULT_QUEUE_SIZE,
+        )
 
         console = Console()
 

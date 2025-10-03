@@ -17,9 +17,11 @@ from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import (HIGH_CONFIDENCE_THRESHOLD,
-                                       LOW_CONFIDENCE_THRESHOLD,
-                                       MEDIUM_CONFIDENCE_THRESHOLD)
+from anivault.shared.constants import (
+    HIGH_CONFIDENCE_THRESHOLD,
+    LOW_CONFIDENCE_THRESHOLD,
+    MEDIUM_CONFIDENCE_THRESHOLD,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -21,8 +21,12 @@ except ImportError:
 from pydantic import BaseModel, Field
 
 from anivault.core.statistics import StatisticsCollector
-from anivault.shared.errors import (DomainError, ErrorCode, ErrorContext,
-                                    InfrastructureError)
+from anivault.shared.errors import (
+    DomainError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 logger = logging.getLogger(__name__)

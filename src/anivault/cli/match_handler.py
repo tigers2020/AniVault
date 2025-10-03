@@ -18,8 +18,10 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
-                                              CLI_INFO_COMMAND_STARTED)
+from anivault.shared.constants.system import (
+    CLI_INFO_COMMAND_COMPLETED,
+    CLI_INFO_COMMAND_STARTED,
+)
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -81,9 +83,13 @@ async def _run_match_command_impl(args: Any) -> int:
 
         from anivault.core.matching.engine import MatchingEngine
         from anivault.core.parser.anitopy_parser import AnitopyParser
-        from anivault.services import (JSONCacheV2, RateLimitStateMachine,
-                                       SemaphoreManager, TMDBClient,
-                                       TokenBucketRateLimiter)
+        from anivault.services import (
+            JSONCacheV2,
+            RateLimitStateMachine,
+            SemaphoreManager,
+            TMDBClient,
+            TokenBucketRateLimiter,
+        )
 
         console = Console()
 

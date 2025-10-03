@@ -20,15 +20,18 @@ from anivault.core.matching.engine import MatchingEngine
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import (CLI_SEPARATOR_LENGTH,
-                                       DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD,
-                                       DEFAULT_ENCODING,
-                                       HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
-                                       JSON_DESCRIPTION_KEY, JSON_ENTRIES_KEY,
-                                       JSON_METADATA_KEY,
-                                       JSON_TOTAL_ENTRIES_KEY,
-                                       JSON_VERSION_KEY,
-                                       MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD)
+from anivault.shared.constants import (
+    CLI_SEPARATOR_LENGTH,
+    DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD,
+    DEFAULT_ENCODING,
+    HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
+    JSON_DESCRIPTION_KEY,
+    JSON_ENTRIES_KEY,
+    JSON_METADATA_KEY,
+    JSON_TOTAL_ENTRIES_KEY,
+    JSON_VERSION_KEY,
+    MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD,
+)
 
 logger = logging.getLogger(__name__)
 

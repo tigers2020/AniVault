@@ -12,8 +12,10 @@ from typing import Any
 
 from anivault.cli.common_options import is_json_output_enabled
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants.system import (CLI_INFO_COMMAND_COMPLETED,
-                                              CLI_INFO_COMMAND_STARTED)
+from anivault.shared.constants.system import (
+    CLI_INFO_COMMAND_COMPLETED,
+    CLI_INFO_COMMAND_STARTED,
+)
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -140,8 +142,9 @@ def _handle_verify_command_console(args: Any) -> int:
                 asyncio.run(client.search_media("test"))
                 console.print("[green]✓ TMDB API connectivity verified[/green]")
             except ApplicationError as e:
-                from anivault.shared.constants.system import \
-                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED
+                from anivault.shared.constants.system import (
+                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED,
+                )
 
                 console.print(
                     f"[red]Application error: {e.message}[/red]",
@@ -152,8 +155,9 @@ def _handle_verify_command_console(args: Any) -> int:
                 )
                 return 1
             except InfrastructureError as e:
-                from anivault.shared.constants.system import \
-                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED
+                from anivault.shared.constants.system import (
+                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED,
+                )
 
                 console.print(
                     f"[red]Infrastructure error: {e.message}[/red]",
@@ -164,8 +168,9 @@ def _handle_verify_command_console(args: Any) -> int:
                 )
                 return 1
             except Exception as e:
-                from anivault.shared.constants.system import \
-                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED
+                from anivault.shared.constants.system import (
+                    CLI_ERROR_TMDB_CONNECTIVITY_FAILED,
+                )
 
                 console.print(
                     f"[red]{CLI_ERROR_TMDB_CONNECTIVITY_FAILED.format(error=e)}[/red]",
@@ -182,8 +187,7 @@ def _handle_verify_command_console(args: Any) -> int:
         return 0
 
     except ApplicationError as e:
-        from anivault.shared.constants.system import \
-            CLI_ERROR_VERIFICATION_FAILED
+        from anivault.shared.constants.system import CLI_ERROR_VERIFICATION_FAILED
 
         console.print(f"[red]Application error: {e.message}[/red]")
         logger.exception(
@@ -192,8 +196,7 @@ def _handle_verify_command_console(args: Any) -> int:
         )
         return 1
     except InfrastructureError as e:
-        from anivault.shared.constants.system import \
-            CLI_ERROR_VERIFICATION_FAILED
+        from anivault.shared.constants.system import CLI_ERROR_VERIFICATION_FAILED
 
         console.print(f"[red]Infrastructure error: {e.message}[/red]")
         logger.exception(
@@ -202,8 +205,7 @@ def _handle_verify_command_console(args: Any) -> int:
         )
         return 1
     except Exception as e:
-        from anivault.shared.constants.system import \
-            CLI_ERROR_VERIFICATION_FAILED
+        from anivault.shared.constants.system import CLI_ERROR_VERIFICATION_FAILED
 
         console.print(f"[red]{CLI_ERROR_VERIFICATION_FAILED.format(error=e)}[/red]")
         logger.exception("Unexpected error in verify command")

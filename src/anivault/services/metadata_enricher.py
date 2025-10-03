@@ -13,8 +13,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from anivault.core.parser.models import ParsingResult
-from anivault.shared.errors import (AniVaultError, DomainError, ErrorCode,
-                                    ErrorContext, InfrastructureError)
+from anivault.shared.errors import (
+    AniVaultError,
+    DomainError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 from .tmdb_client import TMDBClient

@@ -17,10 +17,12 @@ from rich.console import Console
 from rich.table import Table
 from tmdbv3api import Search, TMDb
 
-from anivault.cli.common_options import (get_effective_log_level,
-                                         is_json_output_enabled,
-                                         is_verbose_output_enabled,
-                                         validate_common_options)
+from anivault.cli.common_options import (
+    get_effective_log_level,
+    is_json_output_enabled,
+    is_verbose_output_enabled,
+    validate_common_options,
+)
 from anivault.cli.log_handler import handle_log_command
 from anivault.cli.match_handler import handle_match_command
 from anivault.cli.organize_handler import handle_organize_command
@@ -31,15 +33,18 @@ from anivault.cli.run_handler import handle_run_command
 from anivault.cli.scan_handler import handle_scan_command
 from anivault.cli.utils import display_error_message, setup_console
 from anivault.cli.verify_handler import handle_verify_command
-from anivault.shared.constants import (APPLICATION_VERSION,
-                                       CLI_INFO_APPLICATION_INTERRUPTED,
-                                       CLI_INFO_UNEXPECTED_ERROR,
-                                       DEFAULT_LOG_LEVEL, MIN_REQUIRED_KEYS,
-                                       SAMPLE_TEST_FILENAME)
+from anivault.shared.constants import (
+    APPLICATION_VERSION,
+    CLI_INFO_APPLICATION_INTERRUPTED,
+    CLI_INFO_UNEXPECTED_ERROR,
+    DEFAULT_LOG_LEVEL,
+    MIN_REQUIRED_KEYS,
+    SAMPLE_TEST_FILENAME,
+)
+
 # Initialize UTF-8 and logging before any other imports
 from anivault.utils.encoding import setup_utf8_environment
-from anivault.utils.logging_config import (log_shutdown, log_startup,
-                                           setup_logging)
+from anivault.utils.logging_config import log_shutdown, log_startup, setup_logging
 
 # Set up UTF-8 environment first
 setup_utf8_environment()
