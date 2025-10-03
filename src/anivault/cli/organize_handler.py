@@ -9,6 +9,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import typer
+
+from anivault.cli.common.context import get_cli_context
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.shared.constants import CLI
@@ -741,3 +744,62 @@ def _generate_enhanced_organization_plan(
             context=ErrorContext(operation="generate_enhanced_organization_plan"),
             original_error=e,
         ) from e
+
+
+def organize_command(
+    directory: Path = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Directory containing scanned and matched anime files to organize",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    dry_run: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--dry-run",
+        help="Show what would be organized without actually moving files",
+    ),
+    yes: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts and proceed with organization",
+    ),
+) -> None:
+    """
+    Organize anime files into a structured directory layout.
+
+    This command takes scanned and matched anime files and organizes them
+    into a clean directory structure based on the TMDB metadata. It can
+    create series folders, season subfolders, and rename files consistently.
+
+    Examples:
+        # Organize files in current directory (with confirmation)
+        anivault organize .
+
+        # Preview what would be organized without making changes
+        anivault organize . --dry-run
+
+        # Organize without confirmation prompts
+        anivault organize . --yes
+    """
+    # Create a mock args object to maintain compatibility with existing handler
+    class MockArgs:
+        def __init__(self):
+            self.directory = directory
+            self.dry_run = dry_run
+            self.yes = yes
+            
+            # Get CLI context for JSON output
+            context = get_cli_context()
+            self.json = context.json_output if context else False
+            self.verbose = context.verbose if context else 0
+
+    args = MockArgs()
+    
+    # Call the existing handler
+    exit_code = handle_organize_command(args)
+    
+    if exit_code != 0:
+        raise typer.Exit(exit_code)

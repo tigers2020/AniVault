@@ -9,13 +9,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import typer
 from rich.console import Console
 
+from anivault.cli.common.context import get_cli_context
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.match_handler import handle_match_command
 from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.progress import create_progress_manager
-from anivault.cli.scan_handler import handle_scan_command
+from anivault.cli.scan_handler import _handle_scan_command
 from anivault.shared.errors import ApplicationError, ErrorCode
 from anivault.utils.logging_config import get_logger
 
@@ -194,7 +196,7 @@ def _run_scan_step(args: Any, directory: Path, console: Console) -> dict[str, An
         scan_args = _create_scan_args(args, directory)
 
         # Run scan command
-        scan_exit_code = handle_scan_command(scan_args)
+        scan_exit_code = _handle_scan_command(scan_args)
 
         if scan_exit_code == 0:
             return {
@@ -426,3 +428,93 @@ def _print_run_summary(run_data: dict[str, Any], console: Console) -> None:
             f"  {status_icon} {step['step'].title()}: "
             f"[{status_color}]{step['status']}[/{status_color}] - {step['message']}",
         )
+
+
+def run_command(
+    directory: Path = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Directory containing anime files to process",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    recursive: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--recursive/--no-recursive",
+        "-r",
+        help="Process files recursively in subdirectories",
+    ),
+    include_subtitles: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-subtitles/--no-include-subtitles",
+        help="Include subtitle files in processing",
+    ),
+    include_metadata: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-metadata/--no-include-metadata",
+        help="Include metadata files in processing",
+    ),
+    output_file: Path | None = typer.Option(  # type: ignore[misc]
+        None,
+        "--output",
+        "-o",
+        help="Output file for processing results (JSON format)",
+        writable=True,
+    ),
+    dry_run: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--dry-run",
+        help="Show what would be processed without actually processing files",
+    ),
+    yes: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts and proceed with processing",
+    ),
+) -> None:
+    """
+    Run the complete anime organization workflow (scan, match, organize).
+
+    This command orchestrates the entire AniVault workflow in sequence:
+    1. Scan directory for anime files
+    2. Match files against TMDB database
+    3. Organize files into structured layout
+
+    Examples:
+        # Run complete workflow on current directory
+        anivault run .
+
+        # Run with specific options
+        anivault run /path/to/anime --recursive --output results.json
+
+        # Preview what would be processed without making changes
+        anivault run . --dry-run
+
+        # Run without confirmation prompts
+        anivault run . --yes
+    """
+    # Create a mock args object to maintain compatibility with existing handler
+    class MockArgs:
+        def __init__(self):
+            self.directory = directory
+            self.recursive = recursive
+            self.include_subtitles = include_subtitles
+            self.include_metadata = include_metadata
+            self.output = output_file
+            self.dry_run = dry_run
+            self.yes = yes
+            
+            # Get CLI context for JSON output
+            context = get_cli_context()
+            self.json = context.json_output if context else False
+            self.verbose = context.verbose if context else 0
+
+    args = MockArgs()
+    
+    # Call the existing handler
+    exit_code = handle_run_command(args)
+    
+    if exit_code != 0:
+        raise typer.Exit(exit_code)

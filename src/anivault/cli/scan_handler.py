@@ -14,7 +14,6 @@ import typer
 from anivault.cli.common.context import get_cli_context, validate_directory
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
-from anivault.shared.constants import CLI
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -71,14 +70,18 @@ def scan_command(
         anivault scan /path/to/anime --no-include-subtitles
     """
     # Create args-like object for compatibility
-    args = type('Args', (), {
-        'directory': str(directory),
-        'recursive': recursive,
-        'include_subtitles': include_subtitles,
-        'include_metadata': include_metadata,
-        'output_file': str(output_file) if output_file else None,
-    })()
-    
+    args = type(
+        "Args",
+        (),
+        {
+            "directory": str(directory),
+            "recursive": recursive,
+            "include_subtitles": include_subtitles,
+            "include_metadata": include_metadata,
+            "output_file": str(output_file) if output_file else None,
+        },
+    )()
+
     exit_code = _handle_scan_command(args)
     if exit_code != 0:
         raise typer.Exit(exit_code)
@@ -94,6 +97,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         Exit code (0 for success, non-zero for error)
     """
     from anivault.shared.constants import CLI
+
     logger.info(CLI.INFO_COMMAND_STARTED.format(command="scan"))
 
     try:
@@ -114,9 +118,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             CLI,
             QueueConfig,
         )
-        from anivault.shared.constants.system import (
-            DEFAULT_ENCODING,
-        )
+        from anivault.shared.constants.logging import LogConfig
 
         console = Console()
 
@@ -306,44 +308,46 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             # Display results in human-readable format
             _display_results(enriched_results, show_tmdb=enrich_metadata)
 
-        # Save results to file if requested
-        if args.output:
-            import json
+            # Save results to file if requested
+            if args.output:
+                import json
 
-            output_path = Path(args.output)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path = Path(args.output)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Convert results to JSON-serializable format
-            json_results = []
-            for result in enriched_results:
-                json_result = result.copy()
-                if "parsing_result" in json_result:
-                    # Convert ParsingResult to dict
-                    parsing_result = json_result["parsing_result"]
-                    json_result["parsing_result"] = {
-                        "title": parsing_result.title,
-                        "episode": parsing_result.episode,
-                        "season": parsing_result.season,
-                        "quality": parsing_result.quality,
-                        "source": parsing_result.source,
-                        "codec": parsing_result.codec,
-                        "audio": parsing_result.audio,
-                        "release_group": parsing_result.release_group,
-                        "confidence": parsing_result.confidence,
-                        "parser_used": parsing_result.parser_used,
-                        "other_info": parsing_result.other_info,
-                    }
+                # Convert results to JSON-serializable format
+                json_results = []
+                for result in enriched_results:
+                    json_result = result.copy()
+                    if "parsing_result" in json_result:
+                        # Convert ParsingResult to dict
+                        parsing_result = json_result["parsing_result"]
+                        json_result["parsing_result"] = {
+                            "title": parsing_result.title,
+                            "episode": parsing_result.episode,
+                            "season": parsing_result.season,
+                            "quality": parsing_result.quality,
+                            "source": parsing_result.source,
+                            "codec": parsing_result.codec,
+                            "audio": parsing_result.audio,
+                            "release_group": parsing_result.release_group,
+                            "confidence": parsing_result.confidence,
+                            "parser_used": parsing_result.parser_used,
+                            "other_info": parsing_result.other_info,
+                        }
 
-                json_results.append(json_result)
+                    json_results.append(json_result)
 
-                with open(output_path, "w", encoding=DEFAULT_ENCODING) as f:
-                    json.dump(json_results, f, indent=CLI.INDENT_SIZE, ensure_ascii=False)
+                with open(output_path, "w", encoding=LogConfig.DEFAULT_ENCODING) as f:
+                    json.dump(
+                        json_results, f, indent=CLI.INDENT_SIZE, ensure_ascii=False
+                    )
 
-            context = get_cli_context()
-        if not (context and context.is_json_output_enabled()):
-                console.print(
-                    f"[green]{CLI.SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
-                )
+                context = get_cli_context()
+                if not (context and context.is_json_output_enabled()):
+                    console.print(
+                        f"[green]{CLI.SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
+                    )
 
         logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="scan"))
         return 0
@@ -400,6 +404,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             sys.stdout.buffer.flush()
         else:
             from rich.console import Console
+
             console = Console()
             console.print(f"[red]{CLI.ERROR_SCAN_FAILED.format(error=e)}[/red]")
         logger.exception("Unexpected error in scan command")

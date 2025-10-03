@@ -21,6 +21,8 @@ from anivault.cli.common.options import (
     version_option,
 )
 from anivault.cli.match_handler import match_command
+from anivault.cli.organize_handler import organize_command
+from anivault.cli.run_handler import run_command
 from anivault.cli.scan_handler import scan_command
 
 # Version information
@@ -212,6 +214,127 @@ def match_command_typer(
         include_subtitles,
         include_metadata,
         output_file,
+    )
+
+
+@app.command("organize")
+def organize_command_typer(
+    directory: Path = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Directory containing scanned and matched anime files to organize",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    dry_run: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--dry-run",
+        help="Show what would be organized without actually moving files",
+    ),
+    yes: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts and proceed with organization",
+    ),
+) -> None:
+    """
+    Organize anime files into a structured directory layout.
+
+    This command takes scanned and matched anime files and organizes them
+    into a clean directory structure based on the TMDB metadata. It can
+    create series folders, season subfolders, and rename files consistently.
+
+    Examples:
+        # Organize files in current directory (with confirmation)
+        anivault organize .
+
+        # Preview what would be organized without making changes
+        anivault organize . --dry-run
+
+        # Organize without confirmation prompts
+        anivault organize . --yes
+    """
+    # Call the organize command
+    organize_command(directory, dry_run, yes)
+
+
+@app.command("run")
+def run_command_typer(
+    directory: Path = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Directory containing anime files to process",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    recursive: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--recursive/--no-recursive",
+        "-r",
+        help="Process files recursively in subdirectories",
+    ),
+    include_subtitles: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-subtitles/--no-include-subtitles",
+        help="Include subtitle files in processing",
+    ),
+    include_metadata: bool = typer.Option(  # type: ignore[misc]
+        True,
+        "--include-metadata/--no-include-metadata",
+        help="Include metadata files in processing",
+    ),
+    output_file: Path | None = typer.Option(  # type: ignore[misc]
+        None,
+        "--output",
+        "-o",
+        help="Output file for processing results (JSON format)",
+        writable=True,
+    ),
+    dry_run: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--dry-run",
+        help="Show what would be processed without actually processing files",
+    ),
+    yes: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompts and proceed with processing",
+    ),
+) -> None:
+    """
+    Run the complete anime organization workflow (scan, match, organize).
+
+    This command orchestrates the entire AniVault workflow in sequence:
+    1. Scan directory for anime files
+    2. Match files against TMDB database
+    3. Organize files into structured layout
+
+    Examples:
+        # Run complete workflow on current directory
+        anivault run .
+
+        # Run with specific options
+        anivault run /path/to/anime --recursive --output results.json
+
+        # Preview what would be processed without making changes
+        anivault run . --dry-run
+
+        # Run without confirmation prompts
+        anivault run . --yes
+    """
+    # Call the run command
+    run_command(
+        directory,
+        recursive,
+        include_subtitles,
+        include_metadata,
+        output_file,
+        dry_run,
+        yes,
     )
 
 
