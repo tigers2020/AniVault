@@ -12,10 +12,7 @@ from typing import Any
 
 from anivault.cli.common_options import is_json_output_enabled
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.shared.constants import CLI
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -30,7 +27,7 @@ def handle_verify_command(args: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI_INFO_COMMAND_STARTED.format(command="verify"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command="verify"))
 
     try:
         if is_json_output_enabled(args):
@@ -113,7 +110,7 @@ def _handle_verify_command_json(args: Any) -> int:
         return 1
 
 
-def _handle_verify_command_console(args: Any) -> int:
+def _handle_verify_command_console(args: Any) -> int:  # noqa: PLR0911
     """Handle verify command with console output.
 
     Args:
@@ -183,7 +180,7 @@ def _handle_verify_command_console(args: Any) -> int:
             # Add more verification checks here
             console.print("[green]✓ All components verified[/green]")
 
-        logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="verify"))
+        logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="verify"))
         return 0
 
     except ApplicationError as e:

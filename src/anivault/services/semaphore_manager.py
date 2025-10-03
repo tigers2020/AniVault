@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import types
 
 from typing_extensions import Self
 
@@ -79,7 +80,7 @@ class SemaphoreManager:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def acquire(self, timeout: float | None = 30.0) -> bool:
         """Acquire the semaphore with optional timeout.
@@ -145,7 +146,7 @@ class SemaphoreManager:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def release(self) -> None:
         """Release the semaphore.
@@ -191,7 +192,7 @@ class SemaphoreManager:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def __enter__(self) -> Self:
         """Enter the context manager.
@@ -229,7 +230,12 @@ class SemaphoreManager:
         )
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         """Exit the context manager.
 
         Args:
@@ -301,7 +307,12 @@ class SemaphoreManager:
         )
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         """Exit the async context manager.
 
         Args:
@@ -368,7 +379,7 @@ class SemaphoreManager:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def get_available_count(self) -> int:
         """Get the number of available semaphore slots.
@@ -400,4 +411,4 @@ class SemaphoreManager:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e

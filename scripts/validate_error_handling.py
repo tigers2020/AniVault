@@ -16,7 +16,7 @@ import ast
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 
 class ErrorHandlingDetector(ast.NodeVisitor):
@@ -24,7 +24,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
 
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.violations: List[Dict[str, Any]] = []
+        self.violations: list[dict[str, Any]] = []
 
         # 안티패턴 패턴들
         self.bare_except_patterns = [
@@ -97,7 +97,10 @@ class ErrorHandlingDetector(ast.NodeVisitor):
         self._check_magic_strings(node, function_name, start_line)
 
     def _analyze_try_except(
-        self, node: ast.Try, function_name: str, function_line: int
+        self,
+        node: ast.Try,
+        function_name: str,
+        function_line: int,
     ) -> None:
         """try-except 블록 분석"""
         # bare except 검사
@@ -112,7 +115,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                         "type": "bare_except",
                         "context": "Bare except clause",
                         "severity": "high",
-                    }
+                    },
                 )
 
             # Exception만 처리하는 경우 검사 (단, 마지막 except 블록이 아닌 경우만)
@@ -130,20 +133,25 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                         "type": "generic_exception",
                         "context": "Catching generic Exception (not as final catch-all)",
                         "severity": "medium",
-                    }
+                    },
                 )
 
             # except 블록 내용 분석
             self._analyze_except_block(handler, function_name, function_line)
 
     def _is_last_except_handler(
-        self, handler: ast.ExceptHandler, handlers: List[ast.ExceptHandler]
+        self,
+        handler: ast.ExceptHandler,
+        handlers: list[ast.ExceptHandler],
     ) -> bool:
         """마지막 except 핸들러인지 확인"""
         return handler == handlers[-1]
 
     def _analyze_except_block(
-        self, handler: ast.ExceptHandler, function_name: str, function_line: int
+        self,
+        handler: ast.ExceptHandler,
+        function_name: str,
+        function_line: int,
     ) -> None:
         """except 블록 내용 분석"""
         for stmt in handler.body:
@@ -158,7 +166,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                         "type": "exception_swallowing",
                         "context": "Exception swallowed with pass",
                         "severity": "high",
-                    }
+                    },
                 )
 
             # return None 또는 return False 검사
@@ -176,7 +184,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                             "type": "silent_failure",
                             "context": "Silent failure with return None/False",
                             "severity": "high",
-                        }
+                        },
                     )
 
             # print 사용 검사
@@ -194,7 +202,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                             "type": "print_in_except",
                             "context": "Using print instead of logging in except block",
                             "severity": "medium",
-                        }
+                        },
                     )
 
             # 에러 재전파 검사 (bare_raise는 올바른 패턴이므로 제거)
@@ -203,7 +211,10 @@ class ErrorHandlingDetector(ast.NodeVisitor):
             #     pass
 
     def _check_print_usage(
-        self, node: ast.FunctionDef, function_name: str, function_line: int
+        self,
+        node: ast.FunctionDef,
+        function_name: str,
+        function_line: int,
     ) -> None:
         """print 사용 검사"""
         for child in ast.walk(node):
@@ -221,11 +232,14 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                             "type": "print_usage",
                             "context": "Using print instead of logging",
                             "severity": "medium",
-                        }
+                        },
                     )
 
     def _check_magic_strings(
-        self, node: ast.FunctionDef, function_name: str, function_line: int
+        self,
+        node: ast.FunctionDef,
+        function_name: str,
+        function_line: int,
     ) -> None:
         """매직 문자열 검사"""
         for child in ast.walk(node):
@@ -244,7 +258,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                                 "type": "magic_string",
                                 "context": f'Magic string: "{string_value}"',
                                 "severity": "medium",
-                            }
+                            },
                         )
                         break
 
@@ -260,7 +274,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                                 "type": "unfriendly_error",
                                 "context": f'Unfriendly error message: "{string_value}"',
                                 "severity": "low",
-                            }
+                            },
                         )
                         break
 
@@ -290,11 +304,13 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                         "type": "no_logging",
                         "context": "No logging in function with error handling",
                         "severity": "medium",
-                    }
+                    },
                 )
 
     def _check_error_propagation(
-        self, node: ast.FunctionDef, function_name: str
+        self,
+        node: ast.FunctionDef,
+        function_name: str,
     ) -> None:
         """에러 전파 검사"""
         # 함수가 에러를 발생시키는지 확인
@@ -319,14 +335,14 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                                 "type": "no_error_context",
                                 "context": "Raising new error without preserving original context",
                                 "severity": "medium",
-                            }
+                            },
                         )
 
 
-def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
+def analyze_file(file_path: Path) -> list[dict[str, Any]]:
     """파일을 분석하여 에러 처리 패턴 위반을 탐지"""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content, filename=str(file_path))
@@ -349,7 +365,7 @@ def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
         return []
 
 
-def format_violations(violations: List[Dict[str, Any]]) -> str:
+def format_violations(violations: list[dict[str, Any]]) -> str:
     """위반 사항을 포맷팅하여 출력"""
     if not violations:
         return "✅ No error handling violations found!"
@@ -375,10 +391,10 @@ def format_violations(violations: List[Dict[str, Any]]) -> str:
 
             for violation in type_violations:
                 output.append(
-                    f"    {violation['file']}:{violation['line']}:{violation['column']}"
+                    f"    {violation['file']}:{violation['line']}:{violation['column']}",
                 )
                 output.append(
-                    f"      Function '{violation['function']}' - {violation['type']}"
+                    f"      Function '{violation['function']}' - {violation['type']}",
                 )
                 output.append(f"      {violation['context']}")
                 output.append("")
@@ -402,7 +418,10 @@ Examples:
     parser.add_argument("paths", nargs="+", help="File or directory paths to analyze")
 
     parser.add_argument(
-        "--exclude", nargs="*", default=[], help="Patterns to exclude from analysis"
+        "--exclude",
+        nargs="*",
+        default=[],
+        help="Patterns to exclude from analysis",
     )
 
     parser.add_argument(

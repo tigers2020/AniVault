@@ -8,14 +8,12 @@ from __future__ import annotations
 
 import logging
 import sys
+from pathlib import Path
 from typing import Any
 
 from anivault.cli.common_options import is_json_output_enabled
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.shared.constants import CLI
 from anivault.shared.errors import (
     ApplicationError,
     ErrorCode,
@@ -35,7 +33,7 @@ def handle_rollback_command(args: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI_INFO_COMMAND_STARTED.format(command="rollback"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command="rollback"))
 
     try:
         if is_json_output_enabled(args):
@@ -138,7 +136,7 @@ def _handle_rollback_command_console(args: Any) -> int:
         result = _run_rollback_command(args)
 
         if result == 0:
-            logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="rollback"))
+            logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="rollback"))
         else:
             logger.error("Rollback command failed with exit code %s", result)
 
@@ -202,7 +200,7 @@ def _collect_rollback_data(args: Any) -> dict | None:
 
         # Generate rollback plan
         rollback_manager = RollbackManager(log_manager)
-        rollback_plan = rollback_manager.generate_rollback_plan(log_path)
+        rollback_plan = rollback_manager.generate_rollback_plan(str(log_path))
 
         if rollback_plan is None:
             return {
@@ -274,7 +272,9 @@ def _collect_rollback_data(args: Any) -> dict | None:
         return None
 
 
-def _validate_rollback_plan_for_json(rollback_plan):
+def _validate_rollback_plan_for_json(
+    rollback_plan: list[Any],
+) -> tuple[list[Any], list[Any]]:
     """Validate rollback plan for JSON output.
 
     Args:
@@ -283,13 +283,12 @@ def _validate_rollback_plan_for_json(rollback_plan):
     Returns:
         Tuple of (executable_plan, skipped_operations)
     """
-    import os
 
     executable_plan = []
     skipped_operations = []
 
     for operation in rollback_plan:
-        if os.path.exists(operation.source_path):
+        if Path(operation.source_path).exists():
             executable_plan.append(operation)
         else:
             skipped_operations.append(operation)
@@ -297,7 +296,7 @@ def _validate_rollback_plan_for_json(rollback_plan):
     return executable_plan, skipped_operations
 
 
-def _run_rollback_command(args) -> int:
+def _run_rollback_command(args: Any) -> int:  # noqa: PLR0911
     """Run the rollback command.
 
     Args:
@@ -351,14 +350,14 @@ def _run_rollback_command(args) -> int:
         return 1
 
 
-def _setup_rollback_console():
+def _setup_rollback_console() -> Any:
     """Setup console for rollback command."""
     from rich.console import Console
 
     return Console()
 
 
-def _get_rollback_log_path(args, console):
+def _get_rollback_log_path(args: Any, console: Any) -> Any:
     """Get rollback log path."""
     try:
         from pathlib import Path
@@ -387,7 +386,7 @@ def _get_rollback_log_path(args, console):
         return None
 
 
-def _generate_rollback_plan(log_path, console):
+def _generate_rollback_plan(log_path: Any, console: Any) -> Any:
     """Generate rollback plan."""
     try:
         from pathlib import Path
@@ -422,7 +421,7 @@ def _generate_rollback_plan(log_path, console):
         return None
 
 
-def _execute_rollback_plan(rollback_plan, args, console):
+def _execute_rollback_plan(rollback_plan: Any, args: Any, console: Any) -> int:
     """Execute rollback plan with file existence validation."""
     if args.dry_run:
         _print_rollback_dry_run_plan(rollback_plan, console)
@@ -449,7 +448,7 @@ def _execute_rollback_plan(rollback_plan, args, console):
     return _perform_rollback(executable_plan, args, skipped_operations, console)
 
 
-def _confirm_rollback(console):
+def _confirm_rollback(console: Any) -> bool:
     """Ask for rollback confirmation."""
     try:
         from prompt_toolkit.shortcuts import confirm
@@ -463,7 +462,12 @@ def _confirm_rollback(console):
         return False
 
 
-def _perform_rollback(rollback_plan, args, skipped_operations=None, console=None):
+def _perform_rollback(
+    rollback_plan: Any,
+    args: Any,
+    skipped_operations: Any = None,
+    console: Any = None,
+) -> int:
     """Perform the actual rollback.
 
     Args:
@@ -542,7 +546,10 @@ def _perform_rollback(rollback_plan, args, skipped_operations=None, console=None
         ) from e
 
 
-def _validate_rollback_plan(rollback_plan, console):
+def _validate_rollback_plan(
+    rollback_plan: Any,
+    console: Any,
+) -> tuple[list[Any], list[Any]]:
     """Validate rollback plan and partition operations based on file existence.
 
     Args:
@@ -552,13 +559,12 @@ def _validate_rollback_plan(rollback_plan, console):
     Returns:
         Tuple of (executable_plan, skipped_operations)
     """
-    import os
 
     executable_plan = []
     skipped_operations = []
 
     for operation in rollback_plan:
-        if os.path.exists(operation.source_path):
+        if Path(operation.source_path).exists():
             executable_plan.append(operation)
         else:
             skipped_operations.append(operation)
@@ -566,7 +572,7 @@ def _validate_rollback_plan(rollback_plan, console):
     return executable_plan, skipped_operations
 
 
-def _print_skipped_operations(skipped_operations, console):
+def _print_skipped_operations(skipped_operations: Any, console: Any) -> None:
     """Print information about skipped operations to the console.
 
     Args:
@@ -586,7 +592,7 @@ def _print_skipped_operations(skipped_operations, console):
     console.print()
 
 
-def _print_rollback_dry_run_plan(plan, console):
+def _print_rollback_dry_run_plan(plan: Any, console: Any) -> None:
     """Print the rollback dry run plan in a formatted way.
 
     Args:
@@ -611,7 +617,7 @@ def _print_rollback_dry_run_plan(plan, console):
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
 
 
-def _print_rollback_execution_plan(plan, console):
+def _print_rollback_execution_plan(plan: Any, console: Any) -> None:
     """Print the rollback execution plan in a formatted way.
 
     Args:

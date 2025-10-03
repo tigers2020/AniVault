@@ -6,7 +6,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from anivault.core.pipeline.collector import SENTINEL, ResultCollector
+from anivault.core.pipeline.collector import ResultCollector
+from anivault.shared.constants import Pipeline
 from anivault.core.pipeline.utils import BoundedQueue
 
 
@@ -350,7 +351,7 @@ class TestResultCollector:
         fake_queue = FakeQueue(
             [
                 {"file_path": "/test1.mp4", "status": "success"},
-                SENTINEL,  # sentinel
+                Pipeline.SENTINEL,  # sentinel
             ]
         )
         collector = ResultCollector(output_queue=fake_queue, collector_id="c0")
@@ -384,7 +385,7 @@ class TestResultCollector:
                 {"file_path": "/test1.mp4", "status": "success"},
                 {"file_path": "/test2.mkv", "status": "success"},
                 {"file_path": "/test3.avi", "status": "error"},
-                SENTINEL,  # sentinel
+                Pipeline.SENTINEL,  # sentinel
             ]
         )
         collector = ResultCollector(output_queue=fake_queue)
@@ -403,7 +404,7 @@ class TestResultCollector:
     def test_run_directly_without_start(self) -> None:
         """Test run method directly without start method."""
         # Given
-        fake_queue = FakeQueue([SENTINEL])  # 즉시 종료
+        fake_queue = FakeQueue([Pipeline.SENTINEL])  # 즉시 종료
         collector = ResultCollector(output_queue=fake_queue)
 
         # When - run을 직접 호출
@@ -419,7 +420,7 @@ class TestResultCollector:
             [
                 {"file_path": "/test1.mp4", "status": "success"},
                 {"file_path": "/test2.mkv", "status": "success"},
-                SENTINEL,  # sentinel
+                Pipeline.SENTINEL,  # sentinel
             ]
         )
         collector = ResultCollector(output_queue=fake_queue)

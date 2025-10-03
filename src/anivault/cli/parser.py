@@ -9,20 +9,18 @@ the Single Responsibility Principle.
 import argparse
 import os
 from pathlib import Path
+from typing import Any
 
 from anivault.cli.common_options import get_common_options_parser, get_version_argument
 from anivault.shared.constants import (
-    CLI_DEFAULT_RATE_LIMIT_EXAMPLE,
-    CLI_DEFAULT_RATE_LIMIT_HELP,
-    CLI_DEFAULT_WORKERS_EXAMPLE,
-    DEFAULT_CACHE_DIR,
-    DEFAULT_CONCURRENT_REQUESTS,
-    DEFAULT_RATE_LIMIT,
-    DEFAULT_TMDB_RATE_LIMIT_RPS,
-    DEFAULT_WORKERS,
-    SUPPORTED_VIDEO_EXTENSIONS,
-    SUPPORTED_VIDEO_EXTENSIONS_MATCH,
-    SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE,
+    APIConfig,
+    CLIFormatting,
+    TMDBConfig,
+    VideoFormats,
+    WorkerConfig,
+)
+from anivault.shared.constants import (
+    CLICacheConfig as CacheConfig,
 )
 from anivault.shared.errors import ApplicationError, ErrorCode
 
@@ -255,8 +253,8 @@ Examples:
   anivault scan /path/to/anime --enrich
 
   # Scan with custom performance settings
-  anivault scan /path/to/anime --enrich --workers {CLI_DEFAULT_WORKERS_EXAMPLE} \\
-    --rate-limit {CLI_DEFAULT_RATE_LIMIT_EXAMPLE}
+  anivault scan /path/to/anime --enrich --workers {CLIFormatting.DEFAULT_WORKERS_EXAMPLE} \\
+    --rate-limit {CLIFormatting.DEFAULT_RATE_LIMIT_EXAMPLE}
 
   # Match files with TMDB metadata
   anivault match /path/to/anime --workers 4
@@ -291,7 +289,7 @@ def _add_global_arguments(parser: argparse.ArgumentParser) -> None:
     """
 
 
-def _add_scan_parser(subparsers) -> None:
+def _add_scan_parser(subparsers: Any) -> None:
     """Add scan command parser."""
     common_options_parser = get_common_options_parser()
     scan_parser = subparsers.add_parser(
@@ -349,37 +347,37 @@ Examples:
     scan_parser.add_argument(
         "--workers",
         type=int,
-        default=DEFAULT_WORKERS,
-        help=f"Number of worker threads for parallel processing (default: {DEFAULT_WORKERS})",
+        default=WorkerConfig.DEFAULT,
+        help=f"Number of worker threads for parallel processing (default: {WorkerConfig.DEFAULT})",
     )
 
     scan_parser.add_argument(
         "--rate-limit",
         type=float,
-        default=DEFAULT_TMDB_RATE_LIMIT_RPS,
+        default=TMDBConfig.RATE_LIMIT_RPS,
         help=(
             f"TMDB API rate limit in requests per second "
-            f"(default: {CLI_DEFAULT_RATE_LIMIT_HELP})"
+            f"(default: {CLIFormatting.DEFAULT_RATE_LIMIT_HELP})"
         ),
     )
 
     scan_parser.add_argument(
         "--concurrent",
         type=int,
-        default=DEFAULT_CONCURRENT_REQUESTS,
+        default=APIConfig.DEFAULT_CONCURRENT_REQUESTS,
         help=(
             f"Maximum concurrent TMDB API requests "
-            f"(default: {DEFAULT_CONCURRENT_REQUESTS})"
+            f"(default: {APIConfig.DEFAULT_CONCURRENT_REQUESTS})"
         ),
     )
 
     scan_parser.add_argument(
         "--extensions",
         nargs="+",
-        default=list(SUPPORTED_VIDEO_EXTENSIONS),
+        default=list(VideoFormats.ALL_EXTENSIONS),
         help=(
             f"File extensions to scan for "
-            f"(default: {', '.join(SUPPORTED_VIDEO_EXTENSIONS)})"
+            f"(default: {', '.join(VideoFormats.ALL_EXTENSIONS)})"
         ),
     )
 
@@ -390,7 +388,7 @@ Examples:
     )
 
 
-def _add_verify_parser(subparsers) -> None:
+def _add_verify_parser(subparsers: Any) -> None:
     """Add verify command parser."""
     common_options_parser = get_common_options_parser()
     verify_parser = subparsers.add_parser(
@@ -432,7 +430,7 @@ Examples:
     )
 
 
-def _add_match_parser(subparsers) -> None:
+def _add_match_parser(subparsers: Any) -> None:
     """Add match command parser."""
     common_options_parser = get_common_options_parser()
     match_parser = subparsers.add_parser(
@@ -477,40 +475,40 @@ Examples:
     match_parser.add_argument(
         "--extensions",
         nargs="+",
-        default=list(SUPPORTED_VIDEO_EXTENSIONS_MATCH),
-        help=f"File extensions to process (default: {', '.join(SUPPORTED_VIDEO_EXTENSIONS_MATCH)})",
+        default=list(VideoFormats.MATCH_EXTENSIONS),
+        help=f"File extensions to process (default: {', '.join(VideoFormats.MATCH_EXTENSIONS)})",
     )
 
     match_parser.add_argument(
         "--workers",
         type=int,
-        default=DEFAULT_WORKERS,
-        help=f"Number of concurrent workers for parallel processing (default: {DEFAULT_WORKERS})",
+        default=WorkerConfig.DEFAULT,
+        help=f"Number of concurrent workers for parallel processing (default: {WorkerConfig.DEFAULT})",
     )
 
     match_parser.add_argument(
         "--rate-limit",
         type=int,
-        default=DEFAULT_RATE_LIMIT,
-        help=f"TMDB API rate limit per minute (default: {DEFAULT_RATE_LIMIT})",
+        default=APIConfig.DEFAULT_RATE_LIMIT,
+        help=f"TMDB API rate limit per minute (default: {APIConfig.DEFAULT_RATE_LIMIT})",
     )
 
     match_parser.add_argument(
         "--concurrent",
         type=int,
-        default=DEFAULT_CONCURRENT_REQUESTS,
-        help=f"Maximum concurrent TMDB API calls (default: {DEFAULT_CONCURRENT_REQUESTS})",
+        default=APIConfig.DEFAULT_CONCURRENT_REQUESTS,
+        help=f"Maximum concurrent TMDB API calls (default: {APIConfig.DEFAULT_CONCURRENT_REQUESTS})",
     )
 
     match_parser.add_argument(
         "--cache-dir",
         type=str,
-        default=DEFAULT_CACHE_DIR,
-        help=f"Cache directory for TMDB responses (default: {DEFAULT_CACHE_DIR})",
+        default=CacheConfig.DEFAULT_DIR,
+        help=f"Cache directory for TMDB responses (default: {CacheConfig.DEFAULT_DIR})",
     )
 
 
-def _add_organize_parser(subparsers) -> None:
+def _add_organize_parser(subparsers: Any) -> None:
     """Add organize command parser."""
     common_options_parser = get_common_options_parser()
     organize_parser = subparsers.add_parser(
@@ -564,8 +562,8 @@ Examples:
     organize_parser.add_argument(
         "--extensions",
         nargs="+",
-        default=list(SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE),
-        help=f"File extensions to process (default: {', '.join(SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE)})",
+        default=list(VideoFormats.ORGANIZE_EXTENSIONS),
+        help=f"File extensions to process (default: {', '.join(VideoFormats.ORGANIZE_EXTENSIONS)})",
     )
 
     organize_parser.add_argument(
@@ -581,8 +579,29 @@ Examples:
         help="Skip the confirmation prompt and execute the organization plan immediately",
     )
 
+    # Enhanced organization options
+    organize_parser.add_argument(
+        "--enhanced",
+        action="store_true",
+        help="Enable enhanced organization with file grouping, Korean titles, and resolution-based sorting",
+    )
 
-def _add_log_parser(subparsers) -> None:
+    organize_parser.add_argument(
+        "--destination",
+        type=str,
+        default="Anime",
+        help="Base destination directory for organized files (default: Anime)",
+    )
+
+    organize_parser.add_argument(
+        "--similarity-threshold",
+        type=float,
+        default=0.7,
+        help="Similarity threshold for file grouping (0.0 to 1.0, default: 0.7)",
+    )
+
+
+def _add_log_parser(subparsers: Any) -> None:
     """Add log command parser."""
     common_options_parser = get_common_options_parser()
     log_parser = subparsers.add_parser(
@@ -633,7 +652,7 @@ For more information about rollback operations, use:
     )
 
 
-def _add_rollback_parser(subparsers) -> None:
+def _add_rollback_parser(subparsers: Any) -> None:
     """Add rollback command parser."""
     common_options_parser = get_common_options_parser()
     rollback_parser = subparsers.add_parser(
@@ -697,7 +716,7 @@ For more information about available logs, use:
     )
 
 
-def _add_run_parser(subparsers) -> None:
+def _add_run_parser(subparsers: Any) -> None:
     """Add run command parser."""
     common_options_parser = get_common_options_parser()
     run_parser = subparsers.add_parser(
@@ -717,7 +736,7 @@ Use --dry-run to preview operations before making any changes.
         help="Execute complete anime organization workflow (scan, match, organize)",
         parents=[common_options_parser],
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
+        epilog="""
 Examples:
   # Complete workflow with dry-run preview (recommended first step)
   anivault run /path/to/anime --dry-run

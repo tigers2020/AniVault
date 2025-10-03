@@ -5,12 +5,10 @@ This script validates that all security measures are properly configured
 and working correctly in the AniVault project.
 """
 
-import json
 import os
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
 class SecurityValidator:
@@ -20,7 +18,7 @@ class SecurityValidator:
         self.project_root = project_root
         self.results = {"passed": [], "failed": [], "warnings": []}
 
-    def validate_all(self) -> Dict[str, Any]:
+    def validate_all(self) -> dict[str, Any]:
         """Run all security validations."""
         print("🔍 Starting AniVault Security Validation...")
         print("=" * 50)
@@ -64,11 +62,11 @@ class SecurityValidator:
 
             if missing_patterns:
                 self.results["failed"].append(
-                    f"Cursor rules missing patterns: {missing_patterns}"
+                    f"Cursor rules missing patterns: {missing_patterns}",
                 )
             else:
                 self.results["passed"].append(
-                    "Cursor security rules properly configured"
+                    "Cursor security rules properly configured",
                 )
         else:
             self.results["failed"].append("AI security rules file not found")
@@ -100,7 +98,7 @@ class SecurityValidator:
 
             if missing_tools:
                 self.results["warnings"].append(
-                    f"Pre-commit missing security tools: {missing_tools}"
+                    f"Pre-commit missing security tools: {missing_tools}",
                 )
             else:
                 self.results["passed"].append("Pre-commit hooks properly configured")
@@ -131,11 +129,11 @@ class SecurityValidator:
 
             if missing_jobs:
                 self.results["warnings"].append(
-                    f"CI pipeline missing security jobs: {missing_jobs}"
+                    f"CI pipeline missing security jobs: {missing_jobs}",
                 )
             else:
                 self.results["passed"].append(
-                    "CI/CD security pipeline properly configured"
+                    "CI/CD security pipeline properly configured",
                 )
         else:
             self.results["failed"].append("Security CI pipeline not found")
@@ -167,11 +165,11 @@ class SecurityValidator:
 
             if missing_patterns:
                 self.results["warnings"].append(
-                    f".gitignore missing security patterns: {missing_patterns}"
+                    f".gitignore missing security patterns: {missing_patterns}",
                 )
             else:
                 self.results["passed"].append(
-                    ".gitignore properly configured for security"
+                    ".gitignore properly configured for security",
                 )
         else:
             self.results["failed"].append(".gitignore file not found")
@@ -191,7 +189,7 @@ class SecurityValidator:
         env_file = self.project_root / ".env"
         if env_file.exists():
             self.results["warnings"].append(
-                ".env file found in repository (should be in .gitignore)"
+                ".env file found in repository (should be in .gitignore)",
             )
         else:
             self.results["passed"].append("No .env file in repository")
@@ -202,11 +200,11 @@ class SecurityValidator:
             content = mcp_file.read_text(encoding="utf-8")
             if "YOUR_" in content and "${" not in content:
                 self.results["warnings"].append(
-                    "MCP configuration may contain placeholder API keys"
+                    "MCP configuration may contain placeholder API keys",
                 )
             else:
                 self.results["passed"].append(
-                    "MCP configuration uses environment variables"
+                    "MCP configuration uses environment variables",
                 )
 
     def _validate_dependencies(self) -> None:
@@ -228,7 +226,7 @@ class SecurityValidator:
 
             if found_vulnerable:
                 self.results["warnings"].append(
-                    f"Potentially vulnerable packages found: {found_vulnerable}"
+                    f"Potentially vulnerable packages found: {found_vulnerable}",
                 )
             else:
                 self.results["passed"].append("No obviously vulnerable packages found")
@@ -239,11 +237,11 @@ class SecurityValidator:
             content = pyproject_file.read_text(encoding="utf-8")
             if "[tool.anivault.security]" in content:
                 self.results["passed"].append(
-                    "Security configuration found in pyproject.toml"
+                    "Security configuration found in pyproject.toml",
                 )
             else:
                 self.results["warnings"].append(
-                    "Security configuration missing in pyproject.toml"
+                    "Security configuration missing in pyproject.toml",
                 )
 
     def _validate_secrets_baseline(self) -> None:
@@ -256,7 +254,7 @@ class SecurityValidator:
             self.results["passed"].append("Secrets baseline file exists")
         else:
             self.results["warnings"].append(
-                "Secrets baseline file not found - run 'detect-secrets scan --baseline .secrets.baseline'"
+                "Secrets baseline file not found - run 'detect-secrets scan --baseline .secrets.baseline'",
             )
 
     def _validate_security_scripts(self) -> None:
@@ -278,12 +276,12 @@ class SecurityValidator:
                 missing_scripts.append(script)
             elif not os.access(script_path, os.X_OK):
                 self.results["warnings"].append(
-                    f"Security script not executable: {script}"
+                    f"Security script not executable: {script}",
                 )
 
         if missing_scripts:
             self.results["failed"].append(
-                f"Missing security scripts: {missing_scripts}"
+                f"Missing security scripts: {missing_scripts}",
             )
         else:
             self.results["passed"].append("All required security scripts present")

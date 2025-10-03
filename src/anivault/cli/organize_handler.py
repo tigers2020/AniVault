@@ -6,14 +6,12 @@ separated for better maintainability and single responsibility principle.
 
 import logging
 import sys
+from pathlib import Path
 from typing import Any
 
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.shared.constants import CLI
 from anivault.shared.errors import (
     ApplicationError,
     ErrorCode,
@@ -33,7 +31,7 @@ def handle_organize_command(args: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI_INFO_COMMAND_STARTED.format(command="organize"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command="organize"))
 
     try:
         console = _setup_organize_console()
@@ -57,7 +55,11 @@ def handle_organize_command(args: Any) -> int:
                 sys.stdout.buffer.flush()
             return 0
 
-        plan = _generate_organization_plan(scanned_files)
+        # Check if enhanced organization is requested
+        if hasattr(args, "enhanced") and args.enhanced:
+            plan = _generate_enhanced_organization_plan(scanned_files, args)
+        else:
+            plan = _generate_organization_plan(scanned_files)
         return _execute_organization_plan(plan, args, console)
 
     except ApplicationError as e:
@@ -126,14 +128,14 @@ def handle_organize_command(args: Any) -> int:
         return 1
 
 
-def _setup_organize_console():
+def _setup_organize_console() -> Any:
     """Setup console for organize command."""
     from rich.console import Console
 
     return Console()
 
 
-def _validate_organize_directory(args, console):
+def _validate_organize_directory(args: Any, console: Any) -> Any:
     """Validate directory for organize command."""
     try:
         from anivault.cli.utils import validate_directory
@@ -195,11 +197,11 @@ def _validate_organize_directory(args, console):
         return None
 
 
-def _get_scanned_files(args, directory, console):
+def _get_scanned_files(args: Any, directory: Any, console: Any) -> Any:
     """Get scanned files for organization."""
     try:
         from anivault.core.pipeline.main import run_pipeline
-        from anivault.shared.constants.system import DEFAULT_QUEUE_SIZE, DEFAULT_WORKERS
+        from anivault.shared.constants import QueueConfig, WorkerConfig
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
@@ -211,8 +213,8 @@ def _get_scanned_files(args, directory, console):
             file_results = run_pipeline(
                 root_path=str(directory),
                 extensions=args.extensions,
-                num_workers=DEFAULT_WORKERS,
-                max_queue_size=DEFAULT_QUEUE_SIZE,
+                num_workers=WorkerConfig.DEFAULT,
+                max_queue_size=QueueConfig.DEFAULT_SIZE,
             )
 
         if not file_results:
@@ -232,7 +234,7 @@ def _get_scanned_files(args, directory, console):
             if "parsing_result" in result:
                 scanned_file = ScannedFile(
                     file_path=Path(result["file_path"]),
-                    parsing_result=result["parsing_result"],
+                    metadata=result["parsing_result"],
                 )
                 scanned_files.append(scanned_file)
 
@@ -294,7 +296,7 @@ def _get_scanned_files(args, directory, console):
         ) from e
 
 
-def _generate_organization_plan(scanned_files):
+def _generate_organization_plan(scanned_files: Any) -> Any:
     """Generate organization plan."""
     try:
         from pathlib import Path
@@ -347,7 +349,7 @@ def _generate_organization_plan(scanned_files):
         ) from e
 
 
-def _execute_organization_plan(plan, args, console):
+def _execute_organization_plan(plan: Any, args: Any, console: Any) -> int:
     """Execute organization plan."""
     if args.dry_run:
         if hasattr(args, "json") and args.json:
@@ -363,7 +365,7 @@ def _execute_organization_plan(plan, args, console):
             sys.stdout.buffer.flush()
         else:
             _print_dry_run_plan_impl(plan, console)
-        logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="organize"))
+        logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="organize"))
         return 0
 
     if not (hasattr(args, "json") and args.json):
@@ -376,7 +378,7 @@ def _execute_organization_plan(plan, args, console):
     return _perform_organization(plan, args)
 
 
-def _confirm_organization(console):
+def _confirm_organization(console: Any) -> bool:
     """Ask for confirmation."""
     try:
         from rich.prompt import Confirm
@@ -390,7 +392,7 @@ def _confirm_organization(console):
         return False
 
 
-def _perform_organization(plan, args):
+def _perform_organization(plan: Any, args: Any) -> int:
     """Perform the actual organization."""
     try:
         from datetime import datetime
@@ -437,7 +439,7 @@ def _perform_organization(plan, args):
                 f"[green]Successfully organized {len(moved_files)} files[/green]",
             )
             try:
-                saved_log_path = log_manager.save_plan(plan, operation_id)
+                saved_log_path = log_manager.save_plan(plan)
                 console.print(
                     f"[grey62]Operation logged to: {saved_log_path}[/grey62]",
                 )
@@ -449,7 +451,7 @@ def _perform_organization(plan, args):
         else:
             console.print("[yellow]No files were moved[/yellow]")
 
-        logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="organize"))
+        logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="organize"))
         return 0
 
     except ApplicationError as e:
@@ -494,12 +496,12 @@ def _perform_organization(plan, args):
 
 
 def _collect_organize_data(
-    plan,
-    args,
-    is_dry_run=False,
-    moved_files=None,
-    operation_id=None,
-):
+    plan: Any,
+    args: Any,
+    is_dry_run: bool = False,
+    moved_files: Any = None,
+    operation_id: Any = None,
+) -> dict[str, Any]:
     """Collect organize data for JSON output.
 
     Args:
@@ -512,7 +514,6 @@ def _collect_organize_data(
     Returns:
         Dictionary containing organize statistics and plan data
     """
-    import os
     from pathlib import Path
 
     # Calculate basic statistics
@@ -527,7 +528,7 @@ def _collect_organize_data(
 
         # Calculate file size
         try:
-            file_size = os.path.getsize(source_path)
+            file_size = Path(source_path).stat().st_size
         except (OSError, TypeError):
             file_size = 0
 
@@ -562,7 +563,7 @@ def _collect_organize_data(
         operations_data.append(operation_info)
 
     # Format total size in human-readable format
-    def format_size(size_bytes):
+    def format_size(size_bytes: float) -> str:
         """Convert bytes to human-readable format."""
         for unit in ["B", "KB", "MB", "GB", "TB"]:
             if size_bytes < 1024.0:
@@ -570,8 +571,20 @@ def _collect_organize_data(
             size_bytes /= 1024.0
         return f"{size_bytes:.1f} PB"
 
-    # Calculate total size
-    total_size = sum(op.get("file_size", 0) for op in operations_data)
+    # Calculate total size - boundary conversion from Any to int
+    total_size = 0
+    for op in operations_data:
+        # Boundary: Accept Any from dict.get(), immediately convert to safe types
+        raw_file_size: Any = op.get("file_size", 0)
+
+        if isinstance(raw_file_size, int):
+            total_size += raw_file_size
+        elif isinstance(raw_file_size, str):
+            try:
+                total_size += int(raw_file_size)
+            except (ValueError, TypeError):
+                pass
+        # Skip other types silently - boundary Any properly handled
 
     return {
         "organize_summary": {
@@ -591,7 +604,7 @@ def _collect_organize_data(
     }
 
 
-def _print_dry_run_plan_impl(plan, console):
+def _print_dry_run_plan_impl(plan: Any, console: Any) -> None:
     """Print dry run plan."""
     console.print("[bold blue]Dry Run - Organization Plan:[/bold blue]")
     console.print()
@@ -606,7 +619,7 @@ def _print_dry_run_plan_impl(plan, console):
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
 
 
-def _print_execution_plan_impl(plan, console):
+def _print_execution_plan_impl(plan: Any, console: Any) -> None:
     """Print execution plan."""
     console.print("[bold blue]Organization Plan:[/bold blue]")
     console.print()
@@ -618,4 +631,113 @@ def _print_execution_plan_impl(plan, console):
         console.print(f"[green]To:[/green] {destination}")
         console.print()
 
-    console.print(f"[bold]Total operations: {len(plan)}[/bold]")
+
+def _generate_enhanced_organization_plan(
+    scanned_files: list[Any],
+    args: Any,
+) -> list[Any]:
+    """Generate enhanced organization plan with grouping, Korean titles, and resolution-based sorting.
+
+    Args:
+        scanned_files: List of scanned files to organize
+        args: Command line arguments
+
+    Returns:
+        List of file operations for enhanced organization
+
+    Raises:
+        ApplicationError: If plan generation fails
+    """
+    try:
+        from anivault.core.file_grouper import FileGrouper
+        from anivault.core.resolution_detector import ResolutionDetector
+        from anivault.core.subtitle_matcher import SubtitleMatcher
+        from anivault.services.tmdb_client import TMDBClient
+        from anivault.shared.constants import Language
+
+        # Initialize components
+        grouper = FileGrouper(similarity_threshold=0.7)
+        resolution_detector = ResolutionDetector()
+        subtitle_matcher = SubtitleMatcher()
+
+        # Use Korean language for TMDB if enhanced mode
+        tmdb_client = TMDBClient(language=Language.KOREAN)
+
+        # Group files by similarity
+        file_groups = grouper.group_files(scanned_files)
+
+        operations = []
+
+        for group_key, group_files in file_groups.items():
+            # Find highest resolution file in group
+            best_file = resolution_detector.find_highest_resolution(group_files)
+            if not best_file:
+                continue
+
+            # Get TMDB metadata for Korean title
+            # TODO: Implement async TMDB lookup
+            korean_title = group_key  # Fallback to group key for now
+
+            # Find matching subtitles
+            subtitles = subtitle_matcher.find_matching_subtitles(
+                best_file,
+                best_file.file_path.parent,
+            )
+
+            # Generate destination paths
+            destination_base = getattr(args, "destination", "Anime")
+            high_res_path = (
+                Path(destination_base)
+                / korean_title
+                / f"Season {best_file.metadata.season or 1:02d}"
+            )
+            low_res_path = (
+                Path(destination_base)
+                / "low_res"
+                / korean_title
+                / f"Season {best_file.metadata.season or 1:02d}"
+            )
+
+            # Create operations for highest resolution file + subtitles
+            operations.append(
+                {
+                    "source": best_file.file_path,
+                    "destination": high_res_path / best_file.file_path.name,
+                    "type": "move",
+                    "is_highest_resolution": True,
+                },
+            )
+
+            # Add subtitle operations
+            for subtitle in subtitles:
+                operations.append(
+                    {
+                        "source": subtitle,
+                        "destination": high_res_path / subtitle.name,
+                        "type": "move",
+                        "is_subtitle": True,
+                    },
+                )
+
+            # Create operations for lower resolution files
+            for file in group_files:
+                if file != best_file:
+                    operations.append(
+                        {
+                            "source": file.file_path,
+                            "destination": low_res_path / file.file_path.name,
+                            "type": "move",
+                            "is_highest_resolution": False,
+                        },
+                    )
+
+        return operations
+
+    except Exception as e:
+        logger.error(f"Failed to generate enhanced organization plan: {e}")
+        raise ApplicationError(
+            code=ErrorCode.ORGANIZATION_PLAN_FAILED,
+            message=f"Enhanced organization plan generation failed: {e!s}",
+            context=ErrorContext(operation="generate_enhanced_organization_plan"),
+            original_error=e,
+        ) from e

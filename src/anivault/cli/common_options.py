@@ -15,7 +15,7 @@ The common options include:
 import argparse
 from typing import Any
 
-from anivault.shared.constants import APPLICATION_VERSION
+from anivault.shared.constants import Application
 
 
 def get_common_options_parser() -> argparse.ArgumentParser:
@@ -72,7 +72,7 @@ def get_version_argument() -> dict[str, Any]:
     """
     return {
         "action": "version",
-        "version": f"AniVault {APPLICATION_VERSION}",
+        "version": f"AniVault {Application.VERSION}",
         "help": "Show version information and exit",
     }
 

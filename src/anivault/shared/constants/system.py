@@ -5,6 +5,8 @@ This module contains all constants related to system configuration,
 timeouts, limits, and general application settings.
 """
 
+from typing import ClassVar
+
 # =============================================================================
 # BASE CONSTANTS (Foundation values used by other constants)
 # =============================================================================
@@ -52,6 +54,97 @@ class FileSystem:
     CACHE_BACKEND = "memory"
     HOME_DIR = ".anivault"
 
+    # Exclusion patterns
+    EXCLUDED_DIRECTORY_PATTERNS: ClassVar[list[str]] = [
+        "__pycache__",
+        ".git",
+        ".svn",
+        ".hg",
+        "node_modules",
+        ".vscode",
+        ".idea",
+        "venv",
+        "env",
+        ".env",
+    ]
+    EXCLUDED_FILENAME_PATTERNS: ClassVar[list[str]] = [
+        "*.tmp",
+        "*.temp",
+        "*.log",
+        "*.cache",
+        "*.bak",
+        "*.swp",
+        "*.swo",
+        "*.orig",
+        "*.rej",
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        "*.so",
+        "*.dll",
+        "*.exe",
+    ]
+
+    # Media file extensions
+    VIDEO_EXTENSIONS: ClassVar[list[str]] = [
+        ".mkv",
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".flv",
+        ".m4v",
+        ".webm",
+        ".m2ts",
+        ".ts",
+    ]
+    SUBTITLE_EXTENSIONS: ClassVar[list[str]] = [
+        ".srt",
+        ".ass",
+        ".ssa",
+        ".sub",
+        ".idx",
+        ".vtt",
+        ".smi",
+        ".sami",
+        ".mks",
+        ".sup",
+        ".pgs",
+        ".dvb",
+    ]
+    SUPPORTED_VIDEO_EXTENSIONS: ClassVar[list[str]] = (
+        VIDEO_EXTENSIONS + SUBTITLE_EXTENSIONS
+    )
+    SUPPORTED_VIDEO_EXTENSIONS_MATCH: ClassVar[list[str]] = (
+        VIDEO_EXTENSIONS + SUBTITLE_EXTENSIONS
+    )
+    SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE: ClassVar[list[str]] = (
+        VIDEO_EXTENSIONS + SUBTITLE_EXTENSIONS
+    )
+    ADDITIONAL_VIDEO_FORMATS: ClassVar[list[str]] = [
+        ".m2ts",
+        ".ts",
+        ".mts",
+        ".m2v",
+        ".m1v",
+        ".mpg",
+        ".mpeg",
+        ".mpe",
+        ".mpv",
+        ".mp2",
+        ".mp3",
+        ".mpa",
+        ".mpe",
+        ".mpg",
+        ".mpeg",
+        ".m1v",
+        ".m2v",
+        ".mpv",
+        ".mp2",
+        ".mp3",
+        ".mpa",
+    ]
+
 
 class Encoding:
     """Text encoding constants."""
@@ -92,6 +185,7 @@ class Timeout:
     PIPELINE_SENTINEL = 30.0  # Pipeline sentinel timeout
     PIPELINE_SHUTDOWN = 1.0  # Pipeline shutdown timeout
     PIPELINE_QUEUE = 1.0  # Pipeline queue timeout
+    DEFAULT_REQUEST_TIMEOUT = 30 * BASE_SECOND  # 30 seconds
 
 
 # =============================================================================
@@ -147,6 +241,10 @@ class Cache:
     MAX_SIZE = 1000
     TYPE_SEARCH = "search"
     TYPE_DETAILS = "details"
+
+    # Legacy constants for backward compatibility
+    CACHE_TYPE_DETAILS = TYPE_DETAILS
+    CACHE_TYPE_SEARCH = TYPE_SEARCH
 
 
 # =============================================================================
@@ -229,6 +327,7 @@ class ErrorHandling:
     MAX_RETRY_ATTEMPTS = 3
     DEFAULT_RETRY_DELAY = 1.0
     MAX_RETRY_DELAY = 60.0
+    DEFAULT_RETRY_ATTEMPTS = 3
 
 
 class TMDBErrorHandling:
@@ -238,6 +337,16 @@ class TMDBErrorHandling:
     RETRY_DELAY = 1.0
     RATE_LIMIT_DELAY = 0.25
     RATE_LIMIT_RPS = 35.0
+    DEFAULT_RATE_LIMIT = 35.0
+
+
+class TMDB:
+    """TMDB API configuration constants."""
+
+    API_BASE_URL = "https://api.themoviedb.org/3"
+    API_KEY_ENV = "TMDB_API_KEY"
+    DEFAULT_LANGUAGE = "en-US"
+    DEFAULT_REGION = "US"
 
 
 # =============================================================================
@@ -263,6 +372,10 @@ class Logging:
     MAX_BYTES = 10485760  # 10MB
     BACKUP_COUNT = 5
     MIN_FILE_SIZE_MB = 50
+    DEFAULT_FILE_PATH = "logs/anivault.log"
+    DEFAULT_PROFILING_FILE_PATH = "logs/profiling.prof"
+    FILE_EXTENSION = ".log"
+    ORGANIZE_LOG_PREFIX = "organize"
 
 
 # =============================================================================
@@ -300,129 +413,3 @@ class CLI:
     ERROR_ROLLBACK_FAILED = "Rollback command failed: {error}"
     ERROR_TMDB_CONNECTIVITY_FAILED = "TMDB API connectivity failed: {error}"
     ERROR_VERIFICATION_FAILED = "Verification failed: {error}"
-
-
-# =============================================================================
-# BACKWARD COMPATIBILITY ALIASES
-# =============================================================================
-
-# Application aliases
-APPLICATION_NAME = Application.NAME
-APPLICATION_VERSION = Application.VERSION
-APPLICATION_DESCRIPTION = Application.DESCRIPTION
-DEFAULT_VERSION_STRING = Application.VERSION
-
-# Configuration aliases
-CONFIG_ENV_PREFIX = Config.ENV_PREFIX
-CONFIG_ENV_DELIMITER = Config.ENV_DELIMITER
-CONFIG_DEFAULT_DIR = Config.DEFAULT_DIR
-CONFIG_DEFAULT_FILENAME = Config.DEFAULT_FILENAME
-
-# Encoding aliases
-DEFAULT_ENCODING = Encoding.DEFAULT
-FALLBACK_ENCODING = Encoding.FALLBACK
-
-# Timeout aliases
-DEFAULT_TIMEOUT = Timeout.DEFAULT
-SHORT_TIMEOUT = Timeout.SHORT
-LONG_TIMEOUT = Timeout.LONG
-DEFAULT_TMDB_TIMEOUT = Timeout.TMDB
-PIPELINE_SENTINEL_TIMEOUT = Timeout.PIPELINE_SENTINEL
-PIPELINE_SHUTDOWN_TIMEOUT = Timeout.PIPELINE_SHUTDOWN
-PIPELINE_QUEUE_TIMEOUT = Timeout.PIPELINE_QUEUE
-
-# File system aliases
-MIN_FILE_SIZE = FileSystem.MIN_FILE_SIZE
-MAX_FILE_SIZE = FileSystem.MAX_FILE_SIZE
-MAX_PATH_LENGTH = FileSystem.MAX_PATH_LENGTH
-MAX_FILENAME_LENGTH = FileSystem.MAX_FILENAME_LENGTH
-DEFAULT_LOG_DIRECTORY = FileSystem.LOG_DIRECTORY
-DEFAULT_PROFILING_DIRECTORY = FileSystem.LOG_DIRECTORY
-DEFAULT_CONFIG_DIRECTORY = FileSystem.CONFIG_DIRECTORY
-DEFAULT_CACHE_BACKEND = FileSystem.CACHE_BACKEND
-ANIVAULT_HOME_DIR = FileSystem.HOME_DIR
-
-# JSON keys aliases
-JSON_ENTRIES_KEY = JsonKeys.ENTRIES
-JSON_METADATA_KEY = JsonKeys.METADATA
-JSON_VERSION_KEY = JsonKeys.VERSION
-JSON_DESCRIPTION_KEY = JsonKeys.DESCRIPTION
-JSON_TOTAL_ENTRIES_KEY = JsonKeys.TOTAL_ENTRIES
-
-# Boolean aliases
-BOOLEAN_TRUE_STRING = Boolean.TRUE
-BOOLEAN_FALSE_STRING = Boolean.FALSE
-
-# Memory aliases
-DEFAULT_MEMORY_LIMIT = Memory.DEFAULT_LIMIT
-MEMORY_WARNING_THRESHOLD = Memory.WARNING_THRESHOLD
-DEFAULT_MEMORY_LIMIT_STRING = Memory.DEFAULT_LIMIT_STRING
-DEFAULT_MEMORY_LIMIT_MB = Memory.DEFAULT_LIMIT_MB
-DEFAULT_CPU_LIMIT = Memory.DEFAULT_CPU_LIMIT
-
-# Batch aliases
-DEFAULT_BATCH_SIZE = Batch.DEFAULT_SIZE
-MIN_BATCH_SIZE = Batch.MIN_SIZE
-MAX_BATCH_SIZE = Batch.MAX_SIZE
-DEFAULT_BATCH_SIZE_LARGE = Batch.LARGE_SIZE
-DEFAULT_PARALLEL_THRESHOLD = Batch.PARALLEL_THRESHOLD
-
-# Process aliases
-DEFAULT_PROCESS_PRIORITY = Process.DEFAULT_PRIORITY
-MAX_CONCURRENT_PROCESSES = Process.MAX_CONCURRENT
-DEFAULT_WORKERS = Process.DEFAULT_WORKERS
-
-# Error handling aliases
-MAX_RETRY_ATTEMPTS = ErrorHandling.MAX_RETRY_ATTEMPTS
-DEFAULT_RETRY_DELAY = ErrorHandling.DEFAULT_RETRY_DELAY
-MAX_RETRY_DELAY = ErrorHandling.MAX_RETRY_DELAY
-DEFAULT_TMDB_RETRY_ATTEMPTS = TMDBErrorHandling.RETRY_ATTEMPTS
-DEFAULT_TMDB_RETRY_DELAY = TMDBErrorHandling.RETRY_DELAY
-DEFAULT_TMDB_RATE_LIMIT_DELAY = TMDBErrorHandling.RATE_LIMIT_DELAY
-DEFAULT_TMDB_RATE_LIMIT_RPS = TMDBErrorHandling.RATE_LIMIT_RPS
-
-# Performance aliases
-PERFORMANCE_SAMPLE_RATE = Performance.SAMPLE_RATE
-PERFORMANCE_REPORT_INTERVAL = Performance.REPORT_INTERVAL
-
-# Logging aliases
-DEFAULT_LOG_MAX_BYTES = Logging.MAX_BYTES
-DEFAULT_LOG_BACKUP_COUNT = Logging.BACKUP_COUNT
-DEFAULT_MIN_FILE_SIZE_MB = Logging.MIN_FILE_SIZE_MB
-
-# Pipeline aliases
-DEFAULT_QUEUE_SIZE = Pipeline.QUEUE_SIZE
-SENTINEL = Pipeline.SENTINEL
-
-# Cache aliases
-DEFAULT_CACHE_TTL = Cache.TTL
-DEFAULT_CACHE_MAX_SIZE = Cache.MAX_SIZE
-CACHE_TYPE_SEARCH = Cache.TYPE_SEARCH
-CACHE_TYPE_DETAILS = Cache.TYPE_DETAILS
-
-# Status aliases
-ENRICHMENT_STATUS_PENDING = EnrichmentStatus.PENDING
-ENRICHMENT_STATUS_SUCCESS = EnrichmentStatus.SUCCESS
-ENRICHMENT_STATUS_FAILED = EnrichmentStatus.FAILED
-ENRICHMENT_STATUS_SKIPPED = EnrichmentStatus.SKIPPED
-
-# Media type aliases
-MEDIA_TYPE_TV = MediaType.TV
-MEDIA_TYPE_MOVIE = MediaType.MOVIE
-
-# Language aliases
-LANGUAGE_ENGLISH = Language.ENGLISH
-LANGUAGE_KOREAN = Language.KOREAN
-
-# CLI aliases
-CLI_INDENT_SIZE = CLI.INDENT_SIZE
-CLI_INFO_COMMAND_STARTED = CLI.INFO_COMMAND_STARTED
-CLI_INFO_COMMAND_COMPLETED = CLI.INFO_COMMAND_COMPLETED
-CLI_ERROR_SCAN_FAILED = CLI.ERROR_SCAN_FAILED
-CLI_ERROR_ORGANIZE_FAILED = CLI.ERROR_ORGANIZE_FAILED
-CLI_ERROR_MATCH_FAILED = CLI.ERROR_MATCH_FAILED
-CLI_ERROR_VERIFY_FAILED = CLI.ERROR_VERIFY_FAILED
-CLI_ERROR_ROLLBACK_FAILED = CLI.ERROR_ROLLBACK_FAILED
-CLI_ERROR_TMDB_CONNECTIVITY_FAILED = CLI.ERROR_TMDB_CONNECTIVITY_FAILED
-CLI_ERROR_VERIFICATION_FAILED = CLI.ERROR_VERIFICATION_FAILED
-CLI_SUCCESS_RESULTS_SAVED = CLI.SUCCESS_RESULTS_SAVED

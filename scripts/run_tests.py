@@ -10,17 +10,16 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 
-def run_command(cmd: List[str], description: str) -> int:
+def run_command(cmd: list[str], description: str) -> int:
     """Run a command and return its exit code."""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
     print(f"{'='*60}")
 
-    result = subprocess.run(cmd, cwd=Path(__file__).parent.parent)
+    result = subprocess.run(cmd, cwd=Path(__file__).parent.parent, check=False)
     return result.returncode
 
 
@@ -33,7 +32,7 @@ def run_unit_tests(verbose: bool = False, coverage: bool = False) -> int:
 
     if coverage:
         cmd.extend(
-            ["--cov=src/anivault", "--cov-report=html", "--cov-report=term-missing"]
+            ["--cov=src/anivault", "--cov-report=html", "--cov-report=term-missing"],
         )
 
     return run_command(cmd, "Unit Tests")
@@ -60,7 +59,9 @@ def run_benchmark_tests(verbose: bool = False) -> int:
 
 
 def run_all_tests(
-    verbose: bool = False, coverage: bool = False, exclude_slow: bool = False
+    verbose: bool = False,
+    coverage: bool = False,
+    exclude_slow: bool = False,
 ) -> int:
     """Run all tests."""
     cmd = ["python", "-m", "pytest", "tests/"]
@@ -70,7 +71,7 @@ def run_all_tests(
 
     if coverage:
         cmd.extend(
-            ["--cov=src/anivault", "--cov-report=html", "--cov-report=term-missing"]
+            ["--cov=src/anivault", "--cov-report=html", "--cov-report=term-missing"],
         )
 
     if exclude_slow:
@@ -127,7 +128,10 @@ def main():
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument(
-        "--coverage", "-c", action="store_true", help="Generate coverage report"
+        "--coverage",
+        "-c",
+        action="store_true",
+        help="Generate coverage report",
     )
     parser.add_argument(
         "--exclude-slow",
@@ -142,7 +146,8 @@ def main():
         help="Number of parallel workers (for parallel mode)",
     )
     parser.add_argument(
-        "--test-path", help="Specific test file or function to run (for specific mode)"
+        "--test-path",
+        help="Specific test file or function to run (for specific mode)",
     )
 
     args = parser.parse_args()

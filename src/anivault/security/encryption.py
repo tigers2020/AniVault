@@ -6,9 +6,10 @@ for the secure keyring system. It implements PIN-based key derivation using
 PBKDF2-HMAC-SHA256 for strong security.
 """
 
+from __future__ import annotations
+
 import base64
 import os
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.backends import default_backend
@@ -24,8 +25,8 @@ class DecryptionError(ApplicationError):
     def __init__(
         self,
         message: str = "Decryption failed",
-        context: Optional[ErrorContext] = None,
-        original_error: Optional[Exception] = None,
+        context: ErrorContext | None = None,
+        original_error: Exception | None = None,
     ):
         super().__init__(
             code=ErrorCode.VALIDATION_ERROR,
@@ -183,7 +184,8 @@ class EncryptionService:
         """
         if not token or not isinstance(token, str):
             raise DecryptionError(
-                "Token must be a non-empty string", ErrorContext(operation="decrypt")
+                "Token must be a non-empty string",
+                ErrorContext(operation="decrypt"),
             )
 
         try:

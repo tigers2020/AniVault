@@ -34,12 +34,11 @@ from anivault.cli.scan_handler import handle_scan_command
 from anivault.cli.utils import display_error_message, setup_console
 from anivault.cli.verify_handler import handle_verify_command
 from anivault.shared.constants import (
-    APPLICATION_VERSION,
-    CLI_INFO_APPLICATION_INTERRUPTED,
-    CLI_INFO_UNEXPECTED_ERROR,
-    DEFAULT_LOG_LEVEL,
-    MIN_REQUIRED_KEYS,
-    SAMPLE_TEST_FILENAME,
+    CLI,
+    Application,
+    LogLevels,
+    TestConfig,
+    ValidationConfig,
 )
 
 # Initialize UTF-8 and logging before any other imports
@@ -51,13 +50,13 @@ setup_utf8_environment()
 
 # Set up logging
 logger = setup_logging(
-    log_level=DEFAULT_LOG_LEVEL,  # INFO level
+    log_level=LogLevels.DEFAULT,  # INFO level
     console_output=True,
     file_output=True,
 )
 
 # Log application startup
-log_startup(logger, APPLICATION_VERSION)
+log_startup(logger, Application.VERSION)
 
 
 def main() -> int:
@@ -106,11 +105,11 @@ def main() -> int:
         return route_command(args)
 
     except KeyboardInterrupt:
-        logger.info(CLI_INFO_APPLICATION_INTERRUPTED)
+        logger.info(CLI.INFO_COMMAND_STARTED.format(command="application interrupted"))
         return 1
     except Exception as e:
         display_error_message(console, e)
-        logger.exception(CLI_INFO_UNEXPECTED_ERROR)
+        logger.exception(CLI.ERROR_SCAN_FAILED.format(error=""))
         return 1
     finally:
         log_shutdown(logger)
@@ -157,7 +156,7 @@ def _verify_anitopy():
     """Verify anitopy functionality in bundled executable."""
     try:
         # Test filename parsing
-        test_filename = SAMPLE_TEST_FILENAME
+        test_filename = TestConfig.SAMPLE_FILENAME
         print(f"Testing anitopy with filename: {test_filename}")
         print()
 
@@ -179,7 +178,7 @@ def _verify_anitopy():
         found_keys = [key for key in expected_keys if key in result]
 
         print(f"\nExpected keys found: {found_keys}")
-        min_required_keys = MIN_REQUIRED_KEYS
+        min_required_keys = ValidationConfig.MIN_REQUIRED_KEYS
         status = "SUCCESS" if len(found_keys) >= min_required_keys else "PARTIAL"
         print(f"Anitopy verification: {status}")
 

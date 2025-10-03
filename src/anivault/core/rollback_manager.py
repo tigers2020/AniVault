@@ -72,4 +72,4 @@ class RollbackManager:
 
         except FileNotFoundError:
             # Re-raise as LogFileNotFoundError for consistent error handling
-            raise LogFileNotFoundError(Path(log_path))
+            raise LogFileNotFoundError(Path(log_path)) from None

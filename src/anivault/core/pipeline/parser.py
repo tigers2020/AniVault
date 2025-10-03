@@ -169,7 +169,7 @@ class ParserWorker(threading.Thread):
                 original_error=e,
             )
             log_operation_error(logger, error)
-            raise error
+            raise error from e
 
     def _handle_cache_hit(self, cached_result: dict[str, Any]) -> None:
         """Handle cache hit scenario.
@@ -215,7 +215,7 @@ class ParserWorker(threading.Thread):
                 original_error=e,
             )
             log_operation_error(logger, error)
-            raise error
+            raise error from e
 
     def _handle_cache_miss(self, file_path: Path) -> None:
         """Handle cache miss scenario by performing parsing.
@@ -268,7 +268,7 @@ class ParserWorker(threading.Thread):
                 original_error=e,
             )
             log_operation_error(logger, error)
-            raise error
+            raise error from e
 
     def _store_in_cache(self, file_path: Path, result: dict[str, Any]) -> None:
         """Store parsing result in cache.
@@ -306,7 +306,7 @@ class ParserWorker(threading.Thread):
                 original_error=e,
             )
             log_operation_error(logger, error)
-            raise error
+            raise error from e
 
     def _parse_file(self, file_path: Path) -> dict[str, Any]:
         """Parse a file and extract basic information.

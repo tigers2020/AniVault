@@ -250,8 +250,8 @@ def validate_error_messages() -> dict[str, list[str]]:
     results = {}
     all_error_codes = set(ErrorCode)
 
-    for language in ERROR_MESSAGES:
-        missing_codes = all_error_codes - set(ERROR_MESSAGES[language])
+    for language, messages in ERROR_MESSAGES.items():
+        missing_codes = all_error_codes - set(messages)
         results[language] = [code.value for code in missing_codes]
 
     return results

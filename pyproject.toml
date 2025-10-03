@@ -128,19 +128,46 @@ extend-exclude = '''
 '''
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = ["src"]
+
+# 핵심 엄격 규칙만 유지 (서드파티 영향 최소화)
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-disallow_untyped_decorators = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+
+# 서드파티 라이브러리 예외 처리 (타입 스텁 부재)
+[[tool.mypy.overrides]]
+module = [
+    "tmdbv3api.*",
+    "anitopy.*",
+    "requests_cache.*",
+    "toml.*",
+    "tomli.*",
+    "tomli_w.*",
+    "yaml.*",
+]
+ignore_missing_imports = true
+
+# CLI 관련 모듈 (동적 패턴 허용)
+[[tool.mypy.overrides]]
+module = [
+    "click.*",
+    "rich.*",
+    "prompt_toolkit.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

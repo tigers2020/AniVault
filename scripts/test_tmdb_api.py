@@ -84,7 +84,9 @@ def test_multi_search(tmdb: TMDb) -> bool:
             rich_print("[red]❌ 검색 결과가 없습니다.[/red]")
             return False
 
-        rich_print(f"[green]✅ 검색 완료! {len(results)}개의 결과를 찾았습니다.[/green]")
+        rich_print(
+            f"[green]✅ 검색 완료! {len(results)}개의 결과를 찾았습니다.[/green]"
+        )
 
         # 결과를 테이블로 표시
         table = Table(title="TMDB 검색 결과")
@@ -124,7 +126,9 @@ def test_rate_limit(tmdb: TMDb) -> bool:
         test_queries = ["test", "anime", "movie", "tv", "drama"]
 
         rich_print("[yellow]연속 API 호출을 시작합니다...[/yellow]")
-        rich_print("[yellow]속도 제한에 도달하면 HTTP 429 오류가 발생할 것입니다.[/yellow]")
+        rich_print(
+            "[yellow]속도 제한에 도달하면 HTTP 429 오류가 발생할 것입니다.[/yellow]"
+        )
 
         success_count = 0
         error_count = 0
@@ -163,7 +167,9 @@ def test_rate_limit(tmdb: TMDb) -> bool:
 
                 progress.advance(task)
 
-        rich_print(f"\n[yellow]⚠️ 50회 요청 완료했지만 속도 제한에 도달하지 않았습니다.[/yellow]")
+        rich_print(
+            f"\n[yellow]⚠️ 50회 요청 완료했지만 속도 제한에 도달하지 않았습니다.[/yellow]"
+        )
         rich_print(f"[blue]성공한 요청: {success_count}개[/blue]")
         rich_print(f"[blue]실패한 요청: {error_count}개[/blue]")
         return True
@@ -210,7 +216,9 @@ def main():
 
     results_table.add_row("TMDB API 초기화", "✅ 성공" if tmdb else "❌ 실패")
     results_table.add_row("다중 검색 API", "✅ 성공" if search_success else "❌ 실패")
-    results_table.add_row("속도 제한 테스트", "✅ 성공" if rate_limit_success else "❌ 실패")
+    results_table.add_row(
+        "속도 제한 테스트", "✅ 성공" if rate_limit_success else "❌ 실패"
+    )
 
     rich_print(results_table)
 
@@ -229,7 +237,8 @@ def main():
     else:
         console.print(
             Panel.fit(
-                "[bold red]❌ 일부 테스트가 실패했습니다.[/bold red]\n" "위의 오류 메시지를 확인하고 문제를 해결하세요.",
+                "[bold red]❌ 일부 테스트가 실패했습니다.[/bold red]\n"
+                "위의 오류 메시지를 확인하고 문제를 해결하세요.",
                 title="⚠️ 실패",
                 border_style="red",
             )

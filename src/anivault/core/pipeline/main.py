@@ -21,11 +21,7 @@ from anivault.core.pipeline.utils import (
     QueueStatistics,
     ScanStatistics,
 )
-from anivault.shared.constants import (
-    PIPELINE_SENTINEL_TIMEOUT,
-    PIPELINE_SHUTDOWN_TIMEOUT,
-    SENTINEL,
-)
+from anivault.shared.constants import Pipeline, Timeout
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -353,7 +349,10 @@ def _signal_parser_shutdown(
     try:
         logger.info("Sending %s sentinel values to parser workers...", num_workers)
         for _ in range(num_workers):
-            file_queue.put(SENTINEL, timeout=PIPELINE_SENTINEL_TIMEOUT)
+            file_queue.put(
+                Pipeline.SENTINEL,
+                timeout=Timeout.PIPELINE_Pipeline.SENTINEL,
+            )
 
         log_operation_success(
             logger=logger,
@@ -452,7 +451,7 @@ def _signal_collector_shutdown(
 
     try:
         logger.info("Sending sentinel value to result collector...")
-        result_queue.put(SENTINEL, timeout=PIPELINE_SENTINEL_TIMEOUT)
+        result_queue.put(Pipeline.SENTINEL, timeout=Timeout.PIPELINE_Pipeline.SENTINEL)
 
         log_operation_success(
             logger=logger,
@@ -500,7 +499,7 @@ def _wait_for_collector_completion(
 
     try:
         logger.info("Waiting for result collector to complete...")
-        collector.join(timeout=PIPELINE_SHUTDOWN_TIMEOUT)
+        collector.join(timeout=Timeout.PIPELINE_SHUTDOWN)
 
         # Check if collector is still alive after timeout
         if collector.is_alive():

@@ -94,10 +94,10 @@ def format_json_output(
         )
 
 
-def safe_json_serialize(obj: Any) -> Any:
+def safe_json_serialize(obj: Any) -> Any:  # noqa: PLR0911
     """
     Safely serialize an object to JSON-serializable format.
-    
+
     Optimized for Pydantic models using model_dump_json() for better performance.
 
     Args:
@@ -123,16 +123,17 @@ def safe_json_serialize(obj: Any) -> Any:
         return [safe_json_serialize(item) for item in obj]
     if isinstance(obj, dict):
         return {str(k): safe_json_serialize(v) for k, v in obj.items()}
-    
+
     # Optimize for Pydantic models - use model_dump_json() for better performance
     if hasattr(obj, "model_dump_json"):
         try:
             import orjson
+
             return orjson.loads(obj.model_dump_json())
         except (ImportError, ValueError):
             # Fallback to model_dump() if orjson not available or fails
             return obj.model_dump()
-    
+
     if hasattr(obj, "__dict__"):
         return safe_json_serialize(obj.__dict__)
     if hasattr(obj, "__str__"):

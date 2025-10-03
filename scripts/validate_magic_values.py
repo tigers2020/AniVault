@@ -11,7 +11,7 @@ import ast
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 
 class MagicValueDetector(ast.NodeVisitor):
@@ -19,10 +19,10 @@ class MagicValueDetector(ast.NodeVisitor):
 
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.violations: List[Dict[str, Any]] = []
-        self.imported_constants: Set[str] = set()
-        self.module_constants: Set[str] = set()
-        self.function_defaults: Set[Tuple[int, int]] = set()  # (line, col)
+        self.violations: list[dict[str, Any]] = []
+        self.imported_constants: set[str] = set()
+        self.module_constants: set[str] = set()
+        self.function_defaults: set[tuple[int, int]] = set()  # (line, col)
 
         # 허용되는 패턴들
         self.allowed_strings = {
@@ -143,7 +143,11 @@ class MagicValueDetector(ast.NodeVisitor):
         self.generic_visit(node)
 
     def _check_constant(
-        self, node: ast.AST, value: Any, lineno: int, col_offset: int
+        self,
+        node: ast.AST,
+        value: Any,
+        lineno: int,
+        col_offset: int,
     ) -> None:
         """상수 값 검사"""
         # 함수 기본값인지 확인
@@ -168,7 +172,7 @@ class MagicValueDetector(ast.NodeVisitor):
                     "value": repr(value),
                     "type": type(value).__name__,
                     "context": self._get_context(node),
-                }
+                },
             )
 
     def _is_constant_assignment(self, node: ast.AST) -> bool:
@@ -286,7 +290,7 @@ class MagicValueDetector(ast.NodeVisitor):
                     "High",
                     "Low",
                     "Medium",
-                )
+                ),
             ):
                 return False
 
@@ -506,10 +510,10 @@ class MagicValueDetector(ast.NodeVisitor):
         return "unknown"
 
 
-def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
+def analyze_file(file_path: Path) -> list[dict[str, Any]]:
     """파일을 분석하여 매직 값을 탐지"""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content, filename=str(file_path))
@@ -532,7 +536,7 @@ def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
         return []
 
 
-def format_violations(violations: List[Dict[str, Any]]) -> str:
+def format_violations(violations: list[dict[str, Any]]) -> str:
     """위반 사항을 포맷팅하여 출력"""
     if not violations:
         return "✅ No magic values found!"
@@ -543,10 +547,10 @@ def format_violations(violations: List[Dict[str, Any]]) -> str:
 
     for violation in violations:
         output.append(
-            f"  {violation['file']}:{violation['line']}:{violation['column']}"
+            f"  {violation['file']}:{violation['line']}:{violation['column']}",
         )
         output.append(
-            f"    {violation['type']}: {violation['value']} ({violation['context']})"
+            f"    {violation['type']}: {violation['value']} ({violation['context']})",
         )
         output.append("")
 
@@ -569,7 +573,10 @@ Examples:
     parser.add_argument("paths", nargs="+", help="File or directory paths to analyze")
 
     parser.add_argument(
-        "--exclude", nargs="*", default=[], help="Patterns to exclude from analysis"
+        "--exclude",
+        nargs="*",
+        default=[],
+        help="Patterns to exclude from analysis",
     )
 
     parser.add_argument(

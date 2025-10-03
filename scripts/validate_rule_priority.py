@@ -15,14 +15,11 @@ AI 보안 룰 우선순위 검증 스크립트
 4. 우선순위 순서가 올바름
 """
 
-import json
-import os
-import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 
-def find_rule_files() -> List[Path]:
+def find_rule_files() -> list[Path]:
     """룰 파일들을 찾습니다."""
     rules_dir = Path(".cursor/rules")
     if not rules_dir.exists():
@@ -36,7 +33,7 @@ def find_rule_files() -> List[Path]:
     return sorted(rule_files)
 
 
-def extract_rule_metadata(file_path: Path) -> Dict[str, Optional[str]]:
+def extract_rule_metadata(file_path: Path) -> dict[str, Optional[str]]:
     """룰 파일에서 메타데이터를 추출합니다."""
     metadata = {
         "file": str(file_path),
@@ -48,7 +45,7 @@ def extract_rule_metadata(file_path: Path) -> Dict[str, Optional[str]]:
     }
 
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         # YAML frontmatter 추출
@@ -80,7 +77,7 @@ def extract_rule_metadata(file_path: Path) -> Dict[str, Optional[str]]:
     return metadata
 
 
-def validate_rule_priority() -> Dict[str, List[str]]:
+def validate_rule_priority() -> dict[str, list[str]]:
     """룰 우선순위를 검증합니다."""
     rule_files = find_rule_files()
 
@@ -109,7 +106,9 @@ def validate_rule_priority() -> Dict[str, List[str]]:
     else:
         info.append(f"✅ 최상위 우선권 룰 발견: {priority_rule['file']}")
         if priority_rule["priority"] != "1":
-            warnings.append(f"최상위 우선권 룰의 우선순위가 1이 아닙니다: {priority_rule['priority']}")
+            warnings.append(
+                f"최상위 우선권 룰의 우선순위가 1이 아닙니다: {priority_rule['priority']}",
+            )
 
     # 2. 우선순위 중복 확인
     priorities = {}
@@ -118,7 +117,7 @@ def validate_rule_priority() -> Dict[str, List[str]]:
             priority = rule["priority"]
             if priority in priorities:
                 errors.append(
-                    f"우선순위 {priority} 중복: {priorities[priority]}과 {rule['file']}"
+                    f"우선순위 {priority} 중복: {priorities[priority]}과 {rule['file']}",
                 )
             else:
                 priorities[priority] = rule["file"]
@@ -153,13 +152,15 @@ def validate_rule_priority() -> Dict[str, List[str]]:
         if x["priority"] and x["priority"].isdigit()
         else 999,
     ):
-        priority_info = f"우선순위 {rule['priority']}" if rule["priority"] else "우선순위 없음"
+        priority_info = (
+            f"우선순위 {rule['priority']}" if rule["priority"] else "우선순위 없음"
+        )
         info.append(f"  - {rule['name']}: {priority_info}")
 
     return {"errors": errors, "warnings": warnings, "info": info}
 
 
-def print_validation_results(results: Dict[str, List[str]]) -> None:
+def print_validation_results(results: dict[str, list[str]]) -> None:
     """검증 결과를 출력합니다."""
     print("🔍 AI 보안 룰 우선순위 검증 결과")
     print("=" * 50)

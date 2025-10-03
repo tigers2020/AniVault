@@ -11,7 +11,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from anivault.core.parser.models import ParsingResult
 
@@ -44,7 +44,7 @@ class FileOperation(BaseModel):
         description="Destination path for the file or directory",
     )
 
-    def model_post_init(self, __context: Any) -> None:
+    def model_post_init(self, __context: Any, /) -> None:
         """Validate paths after model initialization."""
         # Path fields are already validated by Pydantic
 
@@ -94,7 +94,7 @@ class ScannedFile(BaseModel):
         description="Last modification time as Unix timestamp",
     )
 
-    def model_post_init(self, __context: Any) -> None:
+    def model_post_init(self, __context: Any, /) -> None:
         """Validate paths after model initialization."""
         # Path fields are already validated by Pydantic
 

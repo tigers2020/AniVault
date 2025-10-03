@@ -11,41 +11,25 @@ import os
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from anivault.shared.constants import (
-    ADDITIONAL_VIDEO_FORMATS,
-    ANIVAULT_HOME_DIR,
-    APPLICATION_NAME,
-    APPLICATION_VERSION,
-    BOOLEAN_TRUE_STRING,
-    DEFAULT_BATCH_SIZE_LARGE,
-    DEFAULT_CACHE_BACKEND,
-    DEFAULT_CACHE_MAX_SIZE,
-    DEFAULT_CACHE_TTL,
-    DEFAULT_CONCURRENT_REQUESTS,
-    DEFAULT_CPU_LIMIT,
-    DEFAULT_ENCODING,
-    DEFAULT_LOG_BACKUP_COUNT,
-    DEFAULT_LOG_FILE_PATH,
-    DEFAULT_LOG_MAX_BYTES,
-    DEFAULT_MEMORY_LIMIT_STRING,
-    DEFAULT_MIN_FILE_SIZE_MB,
-    DEFAULT_PARALLEL_THRESHOLD,
-    DEFAULT_PROFILING_FILE_PATH,
-    DEFAULT_TIMEOUT,
-    DEFAULT_TMDB_RATE_LIMIT_DELAY,
-    DEFAULT_TMDB_RATE_LIMIT_RPS,
-    DEFAULT_TMDB_RETRY_ATTEMPTS,
-    DEFAULT_TMDB_RETRY_DELAY,
-    DEFAULT_TMDB_TIMEOUT,
-    DEFAULT_VERSION_STRING,
-    DEFAULT_WORKERS,
-    EXCLUDED_DIRECTORY_PATTERNS,
-    EXCLUDED_FILENAME_PATTERNS,
-    SUBTITLE_EXTENSIONS,
-    SUPPORTED_VIDEO_EXTENSIONS,
-    TMDB_API_BASE_URL,
+    TMDB,
+    APIConfig,
+    Application,
+    Batch,
+    Cache,
+    Encoding,
+    ExclusionPatterns,
+    FileSystem,
+    Logging,
+    Memory,
+    SubtitleFormats,
+    Timeout,
+    TMDBConfig,
+    TMDBErrorHandling,
+    VideoFormats,
+    WorkerConfig,
 )
 
 
@@ -54,28 +38,28 @@ class FilterConfig(BaseModel):
 
     # File extension filtering
     allowed_extensions: list[str] = Field(
-        default=list(SUPPORTED_VIDEO_EXTENSIONS)
-        + ADDITIONAL_VIDEO_FORMATS
-        + SUBTITLE_EXTENSIONS,
+        default=list(VideoFormats.ALL_EXTENSIONS)
+        + FileSystem.ADDITIONAL_VIDEO_FORMATS
+        + SubtitleFormats.EXTENSIONS,
         description="List of allowed file extensions including video and subtitle files",
     )
 
     # File size filtering
     min_file_size_mb: int = Field(
-        default=DEFAULT_MIN_FILE_SIZE_MB,
+        default=Logging.MIN_FILE_SIZE_MB,
         ge=0,
         description="Minimum file size in MB to include in scan",
     )
 
     # Filename pattern exclusion
     excluded_filename_patterns: list[str] = Field(
-        default=EXCLUDED_FILENAME_PATTERNS,
+        default=ExclusionPatterns.FILENAME_PATTERNS,
         description="Filename patterns to exclude from scanning",
     )
 
     # Directory pattern exclusion
     excluded_dir_patterns: list[str] = Field(
-        default=EXCLUDED_DIRECTORY_PATTERNS,
+        default=ExclusionPatterns.DIRECTORY_PATTERNS,
         description="Directory patterns to exclude from scanning",
     )
 
@@ -147,21 +131,21 @@ class ScanConfig(BaseModel):
 
     # Batch processing settings
     batch_size: int = Field(
-        default=DEFAULT_BATCH_SIZE_LARGE,
+        default=Batch.LARGE_SIZE,
         gt=0,
         description="Number of files to process in each batch",
     )
 
     # Worker settings
     max_workers: int = Field(
-        default=DEFAULT_WORKERS,
+        default=WorkerConfig.DEFAULT,
         gt=0,
         description="Maximum number of worker threads",
     )
 
     # Timeout settings
     timeout: int = Field(
-        default=DEFAULT_TIMEOUT,
+        default=Timeout.DEFAULT,
         gt=0,
         description="Timeout in seconds for file processing",
     )
@@ -173,15 +157,16 @@ class ScanConfig(BaseModel):
     )
 
     parallel_threshold: int = Field(
-        default=DEFAULT_PARALLEL_THRESHOLD,
+        default=Batch.PARALLEL_THRESHOLD,
         gt=0,
         description="Minimum file count to use parallel scanning",
     )
 
     # Filter configuration
-    filter: FilterConfig = Field(
+    filter_config: FilterConfig = Field(
         default_factory=FilterConfig,
         description="Smart filtering configuration",
+        alias="filter",
     )
 
     @field_validator("supported_extensions")
@@ -198,8 +183,8 @@ class ScanConfig(BaseModel):
 class AppConfig(BaseModel):
     """Application configuration."""
 
-    name: str = Field(default=APPLICATION_NAME, description="Application name")
-    version: str = Field(default=APPLICATION_VERSION, description="Application version")
+    name: str = Field(default=Application.NAME, description="Application name")
+    version: str = Field(default=Application.VERSION, description="Application version")
     description: str = Field(
         default="Anime Collection Management System",
         description="Application description",
@@ -211,17 +196,18 @@ class LoggingConfig(BaseModel):
     """Logging configuration."""
 
     level: str = Field(default="INFO", description="Logging level")
-    format: str = Field(
+    format_string: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         description="Log format string",
+        alias="format",
     )
-    file: str = Field(default=DEFAULT_LOG_FILE_PATH, description="Log file path")
+    file: str = Field(default=Logging.DEFAULT_FILE_PATH, description="Log file path")
     max_bytes: int = Field(
-        default=DEFAULT_LOG_MAX_BYTES,
+        default=Logging.MAX_BYTES,
         description="Maximum log file size in bytes",  # 10MB
     )
     backup_count: int = Field(
-        default=DEFAULT_LOG_BACKUP_COUNT,
+        default=Logging.BACKUP_COUNT,
         description="Number of backup log files to keep",
     )
     console_output: bool = Field(default=True, description="Enable console logging")
@@ -231,7 +217,7 @@ class TMDBConfig(BaseModel):
     """TMDB API configuration."""
 
     base_url: str = Field(
-        default=TMDB_API_BASE_URL,
+        default=TMDB.API_BASE_URL,
         description="TMDB API base URL",
     )
     api_key: str = Field(
@@ -239,32 +225,32 @@ class TMDBConfig(BaseModel):
         description="TMDB API key (required for API access)",
     )
     timeout: int = Field(
-        default=DEFAULT_TMDB_TIMEOUT,
+        default=Timeout.TMDB,
         gt=0,
         description="Request timeout in seconds",
     )
     retry_attempts: int = Field(
-        default=DEFAULT_TMDB_RETRY_ATTEMPTS,
+        default=TMDBErrorHandling.RETRY_ATTEMPTS,
         ge=0,
         description="Number of retry attempts",
     )
     retry_delay: float = Field(
-        default=DEFAULT_TMDB_RETRY_DELAY,
+        default=TMDBErrorHandling.RETRY_DELAY,
         ge=0,
         description="Delay between retries in seconds",
     )
     rate_limit_delay: float = Field(
-        default=DEFAULT_TMDB_RATE_LIMIT_DELAY,
+        default=TMDBErrorHandling.RATE_LIMIT_DELAY,
         ge=0,
         description="Delay between requests in seconds",
     )
     rate_limit_rps: float = Field(
-        default=DEFAULT_TMDB_RATE_LIMIT_RPS,
+        default=TMDBConfig.RATE_LIMIT_RPS,
         gt=0,
         description="Rate limit in requests per second",
     )
     concurrent_requests: int = Field(
-        default=DEFAULT_CONCURRENT_REQUESTS,
+        default=APIConfig.DEFAULT_CONCURRENT_REQUESTS,
         gt=0,
         description="Maximum number of concurrent requests",
     )
@@ -275,17 +261,17 @@ class CacheConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="Enable caching")
     ttl: int = Field(
-        default=DEFAULT_CACHE_TTL,
+        default=Cache.TTL,
         gt=0,
         description="Cache time-to-live in seconds",
     )
     max_size: int = Field(
-        default=DEFAULT_CACHE_MAX_SIZE,
+        default=Cache.MAX_SIZE,
         gt=0,
         description="Maximum cache size",
     )
     backend: str = Field(
-        default=DEFAULT_CACHE_BACKEND,
+        default=FileSystem.CACHE_BACKEND,
         description="Cache backend (memory, redis, sqlite)",
     )
 
@@ -294,11 +280,11 @@ class PerformanceConfig(BaseModel):
     """Performance configuration."""
 
     memory_limit: str = Field(
-        default=DEFAULT_MEMORY_LIMIT_STRING,
+        default=Memory.DEFAULT_LIMIT_STRING,
         description="Memory limit for the application",
     )
     cpu_limit: int = Field(
-        default=DEFAULT_CPU_LIMIT,
+        default=Memory.DEFAULT_CPU_LIMIT,
         gt=0,
         description="CPU limit for the application",
     )
@@ -307,7 +293,7 @@ class PerformanceConfig(BaseModel):
         description="Enable performance profiling",
     )
     profile_output: str = Field(
-        default=DEFAULT_PROFILING_FILE_PATH,
+        default=Logging.DEFAULT_PROFILING_FILE_PATH,
         description="Profiling output file path",
     )
 
@@ -325,12 +311,18 @@ class Settings(BaseModel):
             "example": {
                 "app": {"name": "AniVault", "version": "1.0.0", "debug": False},
                 "logging": {"level": "INFO", "format": "json"},
-                "tmdb": {"api_key": "your_api_key", "base_url": "https://api.themoviedb.org/3"},
-                "file_processing": {"max_workers": 4, "supported_extensions": [".mkv", ".mp4"]},
+                "tmdb": {
+                    "api_key": "your_api_key",
+                    "base_url": "https://api.themoviedb.org/3",
+                },
+                "file_processing": {
+                    "max_workers": 4,
+                    "supported_extensions": [".mkv", ".mp4"],
+                },
                 "cache": {"enabled": True, "ttl_seconds": 604800},
-                "performance": {"profiling_enabled": False}
-            }
-        }
+                "performance": {"profiling_enabled": False},
+            },
+        },
     )
 
     app: AppConfig = Field(default_factory=AppConfig)
@@ -361,7 +353,7 @@ class Settings(BaseModel):
             msg = f"Configuration file not found: {file_path}"
             raise FileNotFoundError(msg)
 
-        with open(file_path, encoding=DEFAULT_ENCODING) as f:
+        with open(file_path, encoding=Encoding.DEFAULT) as f:
             data = yaml.safe_load(f)
 
         return cls.model_validate(data)
@@ -377,7 +369,7 @@ class Settings(BaseModel):
             {
                 "app": {
                     "name": os.getenv("ANIVAULT_NAME", "AniVault"),
-                    "version": os.getenv("ANIVAULT_VERSION", DEFAULT_VERSION_STRING),
+                    "version": os.getenv("ANIVAULT_VERSION", "0.1.0"),
                     "debug": os.getenv("ANIVAULT_DEBUG", "false").lower() == "true",
                 },
                 "logging": {
@@ -388,43 +380,46 @@ class Settings(BaseModel):
                 "tmdb": {
                     "base_url": os.getenv(
                         "TMDB_BASE_URL",
-                        TMDB_API_BASE_URL,
+                        TMDB.API_BASE_URL,
                     ),
                     "api_key": os.getenv("TMDB_API_KEY", ""),
                     "timeout": int(
-                        os.getenv("TMDB_TIMEOUT", str(DEFAULT_TMDB_TIMEOUT)),
+                        os.getenv("TMDB_TIMEOUT", str(Timeout.TMDB)),
                     ),
                     "retry_attempts": int(
                         os.getenv(
                             "TMDB_RETRY_ATTEMPTS",
-                            str(DEFAULT_TMDB_RETRY_ATTEMPTS),
+                            str(TMDBErrorHandling.RETRY_ATTEMPTS),
                         ),
                     ),
                     "retry_delay": float(
-                        os.getenv("TMDB_RETRY_DELAY", str(DEFAULT_TMDB_RETRY_DELAY)),
+                        os.getenv(
+                            "TMDB_RETRY_DELAY",
+                            str(TMDBErrorHandling.RETRY_DELAY),
+                        ),
                     ),
                     "rate_limit_delay": float(
                         os.getenv(
                             "TMDB_RATE_LIMIT_DELAY",
-                            str(DEFAULT_TMDB_RATE_LIMIT_DELAY),
+                            str(TMDBErrorHandling.RATE_LIMIT_DELAY),
                         ),
                     ),
                     "rate_limit_rps": float(
                         os.getenv(
                             "TMDB_RATE_LIMIT_RPS",
-                            str(DEFAULT_TMDB_RATE_LIMIT_RPS),
+                            str(TMDBConfig.RATE_LIMIT_RPS),
                         ),
                     ),
                     "concurrent_requests": int(
                         os.getenv(
                             "TMDB_CONCURRENT_REQUESTS",
-                            str(DEFAULT_CONCURRENT_REQUESTS),
+                            str(APIConfig.DEFAULT_CONCURRENT_REQUESTS),
                         ),
                     ),
                 },
                 "file_processing": {
                     "max_workers": int(
-                        os.getenv("ANIVAULT_MAX_WORKERS", str(DEFAULT_WORKERS)),
+                        os.getenv("ANIVAULT_MAX_WORKERS", str(WorkerConfig.DEFAULT)),
                     ),
                     "enable_parallel_scanning": os.getenv(
                         "ANIVAULT_PARALLEL_SCAN",
@@ -434,17 +429,17 @@ class Settings(BaseModel):
                     "parallel_threshold": int(
                         os.getenv(
                             "ANIVAULT_PARALLEL_THRESHOLD",
-                            str(DEFAULT_PARALLEL_THRESHOLD),
+                            str(Batch.PARALLEL_THRESHOLD),
                         ),
                     ),
                 },
                 "cache": {
                     "enabled": os.getenv(
                         "ANIVAULT_CACHE_ENABLED",
-                        BOOLEAN_TRUE_STRING,
+                        "true",
                     ).lower()
-                    == BOOLEAN_TRUE_STRING,
-                    "ttl": int(os.getenv("ANIVAULT_CACHE_TTL", str(DEFAULT_CACHE_TTL))),
+                    == "true",
+                    "ttl": int(os.getenv("ANIVAULT_CACHE_TTL", str(Cache.TTL))),
                 },
             },
         )
@@ -458,7 +453,7 @@ class Settings(BaseModel):
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(file_path, "w", encoding=DEFAULT_ENCODING) as f:
+        with open(file_path, "w", encoding=Encoding.DEFAULT) as f:
             yaml.dump(
                 self.model_dump(exclude_defaults=True),
                 f,
@@ -485,7 +480,7 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     default_config_paths = [
         Path("config/settings.yaml"),
         Path("settings.yaml"),
-        Path.home() / ANIVAULT_HOME_DIR / "settings.yaml",
+        Path.home() / FileSystem.HOME_DIR / "settings.yaml",
     ]
 
     for config_path in default_config_paths:

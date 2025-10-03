@@ -15,8 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from anivault.shared.constants import (
-    HIGH_CONFIDENCE_THRESHOLD,
-    MEDIUM_CONFIDENCE_THRESHOLD,
+    ConfidenceThresholds,
 )
 
 logger = logging.getLogger(__name__)
@@ -153,9 +152,9 @@ class StatisticsCollector:
             self.metrics.successful_matches += 1
 
             if confidence is not None:
-                if confidence >= HIGH_CONFIDENCE_THRESHOLD:
+                if confidence >= ConfidenceThresholds.HIGH:
                     self.metrics.high_confidence_matches += 1
-                elif confidence >= MEDIUM_CONFIDENCE_THRESHOLD:
+                elif confidence >= ConfidenceThresholds.MEDIUM:
                     self.metrics.medium_confidence_matches += 1
                 else:
                     self.metrics.low_confidence_matches += 1
@@ -173,7 +172,9 @@ class StatisticsCollector:
 
         logger.debug(
             "Recorded matching operation for %s: success=%s, confidence=%s",
-            file_path, success, confidence,
+            file_path,
+            success,
+            confidence,
         )
 
     def record_cache_operation(
@@ -299,9 +300,9 @@ class StatisticsCollector:
         self.metrics.successful_matches += 1
 
         # Categorize by confidence level
-        if confidence >= HIGH_CONFIDENCE_THRESHOLD:
+        if confidence >= ConfidenceThresholds.HIGH:
             self.metrics.high_confidence_matches += 1
-        elif confidence >= MEDIUM_CONFIDENCE_THRESHOLD:
+        elif confidence >= ConfidenceThresholds.MEDIUM:
             self.metrics.medium_confidence_matches += 1
         else:
             self.metrics.low_confidence_matches += 1

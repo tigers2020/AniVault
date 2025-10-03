@@ -22,7 +22,7 @@ from anivault.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def handle_run_command(args: Any) -> int:
+def handle_run_command(args: Any) -> int:  # noqa: PLR0911  # noqa: PLR0911
     """
     Handle the run command which orchestrates scan, match, and organize.
 
@@ -149,7 +149,7 @@ def handle_run_command(args: Any) -> int:
         return 0
 
     except ApplicationError as e:
-        logger.error(f"Application error in run command: {e.message}", exc_info=True)
+        logger.exception("Application error in run command: %s", e.message)
         if hasattr(args, "json") and args.json:
             json_output = format_json_output(
                 success=False,
@@ -163,7 +163,7 @@ def handle_run_command(args: Any) -> int:
         return 1
 
     except Exception as e:
-        logger.error(f"Unexpected error in run command: {e}", exc_info=True)
+        logger.exception("Unexpected error in run command")
         if hasattr(args, "json") and args.json:
             json_output = format_json_output(
                 success=False,
@@ -210,7 +210,7 @@ def _run_scan_step(args: Any, directory: Path, console: Console) -> dict[str, An
         }
 
     except Exception as e:
-        logger.error(f"Error in scan step: {e}", exc_info=True)
+        logger.exception("Error in scan step")
         return {
             "step": "scan",
             "status": "error",
@@ -251,7 +251,7 @@ def _run_match_step(args: Any, directory: Path, console: Console) -> dict[str, A
         }
 
     except Exception as e:
-        logger.error(f"Error in match step: {e}", exc_info=True)
+        logger.exception("Error in match step")
         return {
             "step": "match",
             "status": "error",
@@ -292,7 +292,7 @@ def _run_organize_step(args: Any, directory: Path, console: Console) -> dict[str
         }
 
     except Exception as e:
-        logger.error(f"Error in organize step: {e}", exc_info=True)
+        logger.exception("Error in organize step")
         return {
             "step": "organize",
             "status": "error",

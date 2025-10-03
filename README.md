@@ -5,8 +5,9 @@ AniVault는 TMDB API를 활용한 애니메이션 파일 자동 정리 시스템
 ## 기능
 
 - 애니메이션 파일 자동 인식 및 파싱
-- TMDB API를 통한 메타데이터 수집
+- TMDB API를 통한 메타데이터 수집 (한국어 제목 지원)
 - 자동 파일 정리 및 이름 변경
+- **Enhanced Organize**: 파일명 유사성 기반 그룹핑, 해상도별 분류, 자막 파일 자동 매칭
 - Windows 단일 실행파일(.exe) 지원
 
 ## 설치
@@ -88,6 +89,29 @@ anivault rollback 20241201_143022 --dry-run
 anivault rollback 20241201_143022
 ```
 
+### Enhanced Organize 워크플로우
+
+새로운 Enhanced Organize 기능을 사용한 고급 파일 정리:
+
+```bash
+# 1. Enhanced Organize 미리보기
+anivault organize ./anime_files --enhanced --dry-run --destination ./organized
+
+# 2. 실제 Enhanced Organize 실행
+anivault organize ./anime_files --enhanced --destination ./organized
+
+# 3. 유사성 임계값 조정하여 재실행
+anivault organize ./anime_files --enhanced --similarity-threshold 0.8 --destination ./organized
+```
+
+#### Enhanced Organize 기능
+
+- **파일명 유사성 기반 그룹핑**: 비슷한 파일명을 가진 파일들을 자동으로 그룹화
+- **해상도별 분류**: 최고 해상도 파일과 저해상도 파일을 자동으로 분리
+- **자막 파일 자동 매칭**: 비디오 파일과 연관된 자막 파일을 자동으로 찾아서 함께 이동
+- **한국어 제목 지원**: TMDB API를 통해 한국어 제목으로 폴더 구조 생성
+- **지능형 경로 생성**: `destination/한국어제목/Season ##/` 구조로 자동 정리
+
 ### 상세 명령어 예시
 
 #### 파일 정리 명령어
@@ -107,6 +131,15 @@ anivault organize /path/to/anime --extensions .mkv .mp4
 
 # 출력 디렉토리 지정
 anivault organize /path/to/anime --output-dir /organized/anime
+
+# Enhanced Organize (새로운 기능)
+anivault organize /path/to/anime --enhanced --destination /organized/anime
+
+# Enhanced Organize 미리보기
+anivault organize /path/to/anime --enhanced --dry-run --destination /organized/anime
+
+# 유사성 임계값 조정 (0.0-1.0, 기본값: 0.7)
+anivault organize /path/to/anime --enhanced --similarity-threshold 0.8
 ```
 
 #### 로그 관리 명령어

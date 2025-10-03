@@ -8,16 +8,15 @@ across all test modules in the project.
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
+from anivault.shared.constants import FileSystem
 
-from anivault.shared.constants import SUPPORTED_VIDEO_EXTENSIONS
 
-
-@pytest.fixture
+@pytest.fixture()
 def temp_dir() -> Generator[Path, None, None]:
     """Create a temporary directory for test files.
 
@@ -28,7 +27,7 @@ def temp_dir() -> Generator[Path, None, None]:
         yield Path(temp_path)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_anime_files(temp_dir: Path) -> list[Path]:
     """Create sample anime files for testing.
 
@@ -48,7 +47,7 @@ def sample_anime_files(temp_dir: Path) -> list[Path]:
     ]
 
     for i, title in enumerate(anime_titles):
-        for ext in SUPPORTED_VIDEO_EXTENSIONS[:3]:  # Use first 3 extensions
+        for ext in FileSystem.SUPPORTED_VIDEO_EXTENSIONS[:3]:  # Use first 3 extensions
             filename = f"{title}_S01E{i+1:02d}_1080p{ext}"
             file_path = temp_dir / filename
             file_path.touch()
@@ -57,7 +56,7 @@ def sample_anime_files(temp_dir: Path) -> list[Path]:
     return files
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_tmdb_client():
     """Create a mock TMDB client for testing.
 
@@ -74,8 +73,8 @@ def mock_tmdb_client():
                 "overview": "Humanity fights for survival...",
                 "popularity": 85.5,
                 "vote_average": 8.5,
-            }
-        ]
+            },
+        ],
     }
     mock_client.get_tv_details.return_value = {
         "id": 12345,
@@ -92,7 +91,7 @@ def mock_tmdb_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_cache():
     """Create a mock cache for testing.
 
@@ -107,7 +106,7 @@ def mock_cache():
     return mock_cache
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_logger():
     """Create a mock logger for testing.
 
@@ -131,11 +130,11 @@ def reset_global_state():
     clean state between tests.
     """
     # Reset any global state here if needed
-    yield
+    return
     # Cleanup after test if needed
 
 
-@pytest.fixture
+@pytest.fixture()
 def benchmark_data_dir(temp_dir: Path) -> Path:
     """Create a directory for benchmark test data.
 

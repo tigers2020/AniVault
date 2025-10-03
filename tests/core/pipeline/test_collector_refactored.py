@@ -11,10 +11,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from anivault.core.pipeline.collector import (
-    SENTINEL,
     ResultCollector,
     ResultCollectorPool,
 )
+from anivault.shared.constants import Pipeline
 from anivault.core.pipeline.utils import BoundedQueue
 from anivault.shared.errors import ErrorCode, InfrastructureError
 
@@ -61,7 +61,7 @@ class TestResultCollectorRefactored(unittest.TestCase):
     def test_handle_sentinel_true(self) -> None:
         """Test sentinel handling when sentinel is received."""
         # When
-        result = self.collector._handle_sentinel(SENTINEL)
+        result = self.collector._handle_sentinel(Pipeline.SENTINEL)
 
         # Then
         assert result is True
@@ -161,7 +161,7 @@ class TestResultCollectorRefactored(unittest.TestCase):
     def test_poll_once_sentinel(self) -> None:
         """Test poll_once when sentinel is received."""
         # Given
-        self.output_queue.put(SENTINEL)
+        self.output_queue.put(Pipeline.SENTINEL)
 
         # When
         result = self.collector.poll_once(1.0)
@@ -194,7 +194,7 @@ class TestResultCollectorRefactored(unittest.TestCase):
         test_results = [
             {"status": "success", "data": "test1"},
             {"status": "success", "data": "test2"},
-            SENTINEL,
+            Pipeline.SENTINEL,
         ]
 
         for result in test_results:
@@ -255,7 +255,7 @@ class TestResultCollectorRefactored(unittest.TestCase):
             elif call_count == 2:
                 raise ValueError("Non-critical error")
             else:
-                return SENTINEL
+                return Pipeline.SENTINEL
 
         self.output_queue.get = mock_get
 

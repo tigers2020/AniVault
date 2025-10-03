@@ -12,10 +12,7 @@ from typing import Any
 
 from anivault.cli.common_options import is_json_output_enabled
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.shared.constants import CLI
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +26,7 @@ def handle_log_command(args: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI_INFO_COMMAND_STARTED.format(command="log"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command="log"))
 
     try:
         if is_json_output_enabled(args):
@@ -119,7 +116,7 @@ def _handle_log_command_console(args: Any) -> int:
             result = 1
 
         if result == 0:
-            logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="log"))
+            logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="log"))
         else:
             logger.error("Log command failed with exit code %s", result)
 

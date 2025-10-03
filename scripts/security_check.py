@@ -11,15 +11,18 @@ This script performs security checks to prevent AI-generated vulnerabilities:
 import ast
 import re
 import sys
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
 
 
 class SecurityViolation:
     """Represents a security violation found in code."""
 
     def __init__(
-        self, file_path: str, line: int, severity: str, message: str, pattern: str = ""
+        self,
+        file_path: str,
+        line: int,
+        severity: str,
+        message: str,
+        pattern: str = "",
     ):
         self.file_path = file_path
         self.line = line
@@ -171,14 +174,14 @@ class AISecurityChecker:
     ]
 
     def __init__(self):
-        self.violations: List[SecurityViolation] = []
+        self.violations: list[SecurityViolation] = []
 
-    def check_file(self, file_path: str) -> List[SecurityViolation]:
+    def check_file(self, file_path: str) -> list[SecurityViolation]:
         """Check a single file for security violations."""
         violations = []
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
                 lines = content.splitlines()
 
@@ -196,14 +199,22 @@ class AISecurityChecker:
 
         except Exception as e:
             violations.append(
-                SecurityViolation(file_path, 0, "ERROR", f"Failed to analyze file: {e}")
+                SecurityViolation(
+                    file_path,
+                    0,
+                    "ERROR",
+                    f"Failed to analyze file: {e}",
+                ),
             )
 
         return violations
 
     def _check_dangerous_patterns(
-        self, file_path: str, content: str, lines: List[str]
-    ) -> List[SecurityViolation]:
+        self,
+        file_path: str,
+        content: str,
+        lines: list[str],
+    ) -> list[SecurityViolation]:
         """Check for dangerous code patterns."""
         violations = []
 
@@ -211,14 +222,17 @@ class AISecurityChecker:
             for match in re.finditer(pattern, content, re.IGNORECASE):
                 line_num = content[: match.start()].count("\n") + 1
                 violations.append(
-                    SecurityViolation(file_path, line_num, severity, message, pattern)
+                    SecurityViolation(file_path, line_num, severity, message, pattern),
                 )
 
         return violations
 
     def _check_magic_values(
-        self, file_path: str, content: str, lines: List[str]
-    ) -> List[SecurityViolation]:
+        self,
+        file_path: str,
+        content: str,
+        lines: list[str],
+    ) -> list[SecurityViolation]:
         """Check for magic values that should be constants."""
         violations = []
 
@@ -226,14 +240,17 @@ class AISecurityChecker:
             for match in re.finditer(pattern, content, re.IGNORECASE):
                 line_num = content[: match.start()].count("\n") + 1
                 violations.append(
-                    SecurityViolation(file_path, line_num, severity, message, pattern)
+                    SecurityViolation(file_path, line_num, severity, message, pattern),
                 )
 
         return violations
 
     def _check_secrets(
-        self, file_path: str, content: str, lines: List[str]
-    ) -> List[SecurityViolation]:
+        self,
+        file_path: str,
+        content: str,
+        lines: list[str],
+    ) -> list[SecurityViolation]:
         """Check for potential hardcoded secrets."""
         violations = []
 
@@ -241,12 +258,12 @@ class AISecurityChecker:
             for match in re.finditer(pattern, content, re.IGNORECASE):
                 line_num = content[: match.start()].count("\n") + 1
                 violations.append(
-                    SecurityViolation(file_path, line_num, severity, message, pattern)
+                    SecurityViolation(file_path, line_num, severity, message, pattern),
                 )
 
         return violations
 
-    def _check_ast(self, file_path: str, content: str) -> List[SecurityViolation]:
+    def _check_ast(self, file_path: str, content: str) -> list[SecurityViolation]:
         """Check AST for unsafe constructs."""
         violations = []
 
@@ -269,7 +286,7 @@ class AISecurityChecker:
                                     node.lineno,
                                     "CRITICAL",
                                     f"Unsafe function call: {func_name}()",
-                                )
+                                ),
                             )
 
                         elif func_name in ["system", "popen"]:
@@ -279,7 +296,7 @@ class AISecurityChecker:
                                     node.lineno,
                                     "HIGH",
                                     f"Unsafe os function: os.{func_name}()",
-                                )
+                                ),
                             )
 
                 # Check for bare except clauses
@@ -290,7 +307,7 @@ class AISecurityChecker:
                             node.lineno,
                             "MEDIUM",
                             "Bare except clause - specify exception types",
-                        )
+                        ),
                     )
 
         except SyntaxError:
@@ -299,7 +316,7 @@ class AISecurityChecker:
 
         return violations
 
-    def check_files(self, file_paths: List[str]) -> List[SecurityViolation]:
+    def check_files(self, file_paths: list[str]) -> list[SecurityViolation]:
         """Check multiple files for security violations."""
         all_violations = []
 
@@ -343,13 +360,14 @@ def main():
 
     # Print violations
     for violation in sorted(
-        violations, key=lambda v: (v.severity, v.file_path, v.line)
+        violations,
+        key=lambda v: (v.severity, v.file_path, v.line),
     ):
         print(violation)
 
     # Exit with error code if critical violations found
     if critical_violations or high_violations:
-        print(f"\n🚨 Security violations found:")
+        print("\n🚨 Security violations found:")
         print(f"   Critical: {len(critical_violations)}")
         print(f"   High: {len(high_violations)}")
         print(f"   Total: {len(violations)}")

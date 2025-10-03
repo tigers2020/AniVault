@@ -85,7 +85,7 @@ class TokenBucketRateLimiter:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def _refill(self) -> None:
         """Refill tokens based on elapsed time since last refill.
@@ -128,7 +128,7 @@ class TokenBucketRateLimiter:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def try_acquire(self, tokens: int = 1) -> bool:
         """Try to acquire tokens from the bucket.
@@ -210,7 +210,7 @@ class TokenBucketRateLimiter:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def get_tokens_available(self) -> int:
         """Get the current number of tokens available in the bucket.
@@ -247,7 +247,7 @@ class TokenBucketRateLimiter:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e
 
     def reset(self) -> None:
         """Reset the bucket to its full capacity.
@@ -291,4 +291,4 @@ class TokenBucketRateLimiter:
                 error=error,
                 additional_context=context.additional_data,
             )
-            raise error
+            raise error from e

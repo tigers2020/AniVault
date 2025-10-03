@@ -13,7 +13,7 @@ from typing import Generator
 
 import pytest
 
-from anivault.shared.constants import SUPPORTED_VIDEO_EXTENSIONS
+from anivault.shared.constants import FileSystem
 
 # Constants for test data generation
 ANIME_TITLES = [
@@ -64,7 +64,7 @@ def create_large_test_directory(
         List of Path objects for the created files.
     """
     if extensions is None:
-        extensions = SUPPORTED_VIDEO_EXTENSIONS[:3]  # Use first 3 extensions
+        extensions = FileSystem.SUPPORTED_VIDEO_EXTENSIONS[:3]  # Use first 3 extensions
 
     # Ensure the base directory exists
     base_path.mkdir(parents=True, exist_ok=True)

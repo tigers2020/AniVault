@@ -30,7 +30,7 @@ class BoundedQueue:
             maxsize: Maximum number of items the queue can hold.
                     0 means unlimited size.
         """
-        self._queue = queue.Queue(maxsize=maxsize)
+        self._queue: queue.Queue[Any] = queue.Queue(maxsize=maxsize)
         self._maxsize = maxsize
 
     def put(

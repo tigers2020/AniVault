@@ -37,6 +37,10 @@ class AnimeFilenameParser:
         'anitopy'
     """
 
+    anitopy_parser: AnitopyParser | None
+    fallback_parser: FallbackParser
+    _has_anitopy: bool
+
     def __init__(self) -> None:
         """Initialize the anime filename parser with both strategies."""
         try:
@@ -67,7 +71,7 @@ class AnimeFilenameParser:
             5
         """
         # Try anitopy first if available
-        if self._has_anitopy:
+        if self._has_anitopy and self.anitopy_parser is not None:
             result = self.anitopy_parser.parse(filename)
 
             # Check if result is valid and sufficient

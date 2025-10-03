@@ -6,8 +6,6 @@ Detects potential secret exposure in configuration files and documentation.
 
 import re
 import sys
-from pathlib import Path
-from typing import List, Tuple
 
 
 class SecretChecker:
@@ -64,12 +62,12 @@ class SecretChecker:
     def __init__(self):
         self.violations = []
 
-    def check_file(self, file_path: str) -> List[Tuple[int, str, str]]:
+    def check_file(self, file_path: str) -> list[tuple[int, str, str]]:
         """Check a file for potential secret exposure."""
         violations = []
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
                 lines = content.splitlines()
 
@@ -123,8 +121,9 @@ class SecretChecker:
         return False
 
     def check_files(
-        self, file_paths: List[str]
-    ) -> List[Tuple[str, List[Tuple[int, str, str]]]]:
+        self,
+        file_paths: list[str],
+    ) -> list[tuple[str, list[tuple[int, str, str]]]]:
         """Check multiple files for secret exposure."""
         all_violations = []
 

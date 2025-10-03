@@ -10,16 +10,13 @@ from typing import Any
 
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.shared.constants import CLI
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
 
 
-def handle_scan_command(args: Any) -> int:
+def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
     """Handle the scan command.
 
     Args:
@@ -28,7 +25,7 @@ def handle_scan_command(args: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI_INFO_COMMAND_STARTED.format(command="scan"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command="scan"))
 
     try:
         import asyncio
@@ -49,7 +46,7 @@ def handle_scan_command(args: Any) -> int:
             CLI_INDENT_SIZE,
             CLI_SUCCESS_RESULTS_SAVED,
             DEFAULT_ENCODING,
-            DEFAULT_QUEUE_SIZE,
+            QueueConfig,
         )
 
         console = Console()
@@ -134,7 +131,7 @@ def handle_scan_command(args: Any) -> int:
                     root_path=str(directory),
                     extensions=args.extensions,
                     num_workers=args.workers,
-                    max_queue_size=DEFAULT_QUEUE_SIZE,
+                    max_queue_size=QueueConfig.DEFAULT_SIZE,
                 )
 
             if not (hasattr(args, "json") and args.json):
@@ -272,7 +269,7 @@ def handle_scan_command(args: Any) -> int:
                     f"[green]{CLI_SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
                 )
 
-        logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="scan"))
+        logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="scan"))
         return 0
 
     except ApplicationError as e:
@@ -339,7 +336,6 @@ def _collect_scan_data(results, directory, show_tmdb=True):
     Returns:
         Dictionary containing scan statistics and file data
     """
-    import os
     from pathlib import Path
 
     # Calculate basic statistics
@@ -360,7 +356,7 @@ def _collect_scan_data(results, directory, show_tmdb=True):
 
         # Calculate file size
         try:
-            file_size = os.path.getsize(file_path)
+            file_size = Path(file_path).stat().st_size
             total_size += file_size
         except (OSError, TypeError):
             file_size = 0

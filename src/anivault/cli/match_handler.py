@@ -18,10 +18,7 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.shared.constants.system import (
-    CLI_INFO_COMMAND_COMPLETED,
-    CLI_INFO_COMMAND_STARTED,
-)
+from anivault.shared.constants import CLI
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -36,7 +33,7 @@ def handle_match_command(args: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI_INFO_COMMAND_STARTED.format(command="match"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command="match"))
 
     try:
         import asyncio
@@ -44,7 +41,7 @@ def handle_match_command(args: Any) -> int:
         result = asyncio.run(_run_match_command_impl(args))
 
         if result == 0:
-            logger.info(CLI_INFO_COMMAND_COMPLETED.format(command="match"))
+            logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="match"))
         else:
             logger.error("Match command failed with exit code %s", result)
 
@@ -67,7 +64,7 @@ def handle_match_command(args: Any) -> int:
         return 1
 
 
-async def _run_match_command_impl(args: Any) -> int:
+async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
     """Run the match command with advanced matching engine.
 
     Args:
@@ -446,7 +443,6 @@ def _collect_match_data(results, directory):
     Returns:
         Dictionary containing match statistics and file data
     """
-    import os
     from pathlib import Path
 
     # Calculate basic statistics
@@ -472,7 +468,7 @@ def _collect_match_data(results, directory):
 
         # Calculate file size
         try:
-            file_size = os.path.getsize(file_path)
+            file_size = Path(file_path).stat().st_size
             total_size += file_size
         except (OSError, TypeError):
             file_size = 0

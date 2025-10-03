@@ -13,6 +13,7 @@ import logging.handlers
 import os
 import platform
 import sys
+import types
 from pathlib import Path
 from typing import ClassVar
 
@@ -288,7 +289,7 @@ class LoggingContext:
         self.logger_name = logger_name
         self.original_level = None
 
-    def __enter__(self):
+    def __enter__(self) -> logging.Logger:
         """Enter the context and set the log level."""
         logger = (
             logging.getLogger(self.logger_name)
@@ -299,7 +300,12 @@ class LoggingContext:
         logger.setLevel(self.level)
         return logger
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         """Exit the context and restore the original log level."""
         logger = (
             logging.getLogger(self.logger_name)

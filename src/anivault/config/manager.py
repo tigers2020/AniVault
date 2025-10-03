@@ -6,21 +6,20 @@ configuration from multiple sources with proper priority handling:
 Environment Variables > TOML File > Default Values
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import toml
 from pydantic import ValidationError
 
 from anivault.config.validation import TomlConfig
-from anivault.shared.constants.system import (
-    CONFIG_DEFAULT_DIR,
-    CONFIG_DEFAULT_FILENAME,
-    CONFIG_ENV_DELIMITER,
-    CONFIG_ENV_PREFIX,
-    DEFAULT_ENCODING,
+from anivault.shared.constants import (
+    Config,
+    Encoding,
 )
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
@@ -30,7 +29,7 @@ logger = logging.getLogger(__name__)
 class SettingsManager:
     """Manages hierarchical configuration loading and merging."""
 
-    def __init__(self, config_path: Optional[Path] = None) -> None:
+    def __init__(self, config_path: Path | None = None) -> None:
         """Initialize the SettingsManager.
 
         Args:
@@ -39,7 +38,7 @@ class SettingsManager:
         """
         if config_path is None:
             self.config_path = (
-                Path.home() / CONFIG_DEFAULT_DIR / CONFIG_DEFAULT_FILENAME
+                Path.home() / Config.DEFAULT_DIR / Config.DEFAULT_FILENAME
             )
         else:
             self.config_path = Path(config_path)
@@ -48,10 +47,11 @@ class SettingsManager:
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
         logger.debug(
-            f"SettingsManager initialized with config path: {self.config_path}"
+            "SettingsManager initialized with config path: %s",
+            self.config_path,
         )
 
-    def _load_toml_config(self) -> Dict[str, Any]:
+    def _load_toml_config(self) -> dict[str, Any]:
         """Load configuration from TOML file.
 
         Returns:
@@ -62,24 +62,24 @@ class SettingsManager:
         """
         try:
             if not self.config_path.exists():
-                logger.debug(f"TOML config file not found: {self.config_path}")
+                logger.debug("TOML config file not found: %s", self.config_path)
                 return {}
 
-            with open(self.config_path, "r", encoding=DEFAULT_ENCODING) as f:
+            with open(self.config_path, encoding=Encoding.DEFAULT) as f:
                 config_data = toml.load(f)
 
-            logger.debug(f"Successfully loaded TOML config from: {self.config_path}")
+            logger.debug("Successfully loaded TOML config from: %s", self.config_path)
             return config_data
 
         except toml.TomlDecodeError as e:
-            logger.warning(f"Malformed TOML file {self.config_path}: {e}")
+            logger.warning("Malformed TOML file %s: %s", self.config_path, e)
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 f"Malformed TOML configuration file: {self.config_path}",
                 ErrorContext(file_path=str(self.config_path)),
             ) from e
         except Exception as e:
-            logger.error(f"Unexpected error loading TOML config: {e}", exc_info=True)
+            logger.exception("Unexpected error loading TOML config")
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 f"Failed to load TOML configuration: {self.config_path}",
@@ -88,8 +88,9 @@ class SettingsManager:
 
     @staticmethod
     def _deep_merge_dicts(
-        base: Dict[str, Any], override: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        base: dict[str, Any],
+        override: dict[str, Any],
+    ) -> dict[str, Any]:
         """Deep merge two dictionaries recursively.
 
         Args:
@@ -115,7 +116,7 @@ class SettingsManager:
 
         return result
 
-    def _get_merged_config(self) -> Dict[str, Any]:
+    def _get_merged_config(self) -> dict[str, Any]:
         """Get merged configuration from defaults and TOML file.
 
         Returns:
@@ -125,7 +126,7 @@ class SettingsManager:
         try:
             default_config = TomlConfig.model_validate({}).model_dump()
         except ValidationError as e:
-            logger.error(f"Failed to create default configuration: {e}")
+            logger.exception("Failed to create default configuration")
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 "Failed to create default configuration",
@@ -181,11 +182,12 @@ class SettingsManager:
 
                     # Apply each field from TOML only if no environment variable exists
                     for field_name, field_value in section_data.items():
-                        env_var_name = f"{CONFIG_ENV_PREFIX}{section_name.upper()}{CONFIG_ENV_DELIMITER}{field_name.upper()}"
+                        env_var_name = f"{Config.ENV_PREFIX}{section_name.upper()}{Config.ENV_DELIMITER}{field_name.upper()}"
 
                         # Only apply TOML value if environment variable doesn't exist
                         if not os.getenv(env_var_name) and hasattr(
-                            section_obj, field_name
+                            section_obj,
+                            field_name,
                         ):
                             setattr(section_obj, field_name, field_value)
 
@@ -193,14 +195,14 @@ class SettingsManager:
             return settings
 
         except ValidationError as e:
-            logger.error(f"Configuration validation failed: {e}")
+            logger.exception("Configuration validation failed")
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Configuration validation failed: {e}",
                 ErrorContext(file_path=str(self.config_path)),
             ) from e
         except Exception as e:
-            logger.error(f"Unexpected error loading settings: {e}", exc_info=True)
+            logger.exception("Unexpected error loading settings")
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 f"Failed to load settings: {e}",
@@ -220,13 +222,13 @@ class SettingsManager:
             config_dict = default_config.model_dump()
 
             # Write to TOML file
-            with open(self.config_path, "w", encoding=DEFAULT_ENCODING) as f:
+            with open(self.config_path, "w", encoding=Encoding.DEFAULT) as f:
                 toml.dump(config_dict, f)
 
-            logger.info(f"Default configuration saved to: {self.config_path}")
+            logger.info("Default configuration saved to: %s", self.config_path)
 
         except Exception as e:
-            logger.error(f"Failed to save default configuration: {e}", exc_info=True)
+            logger.exception("Failed to save default configuration")
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 f"Failed to save default configuration: {e}",

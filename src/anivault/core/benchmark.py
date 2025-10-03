@@ -20,18 +20,7 @@ from anivault.core.matching.engine import MatchingEngine
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import (
-    CLI_SEPARATOR_LENGTH,
-    DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD,
-    DEFAULT_ENCODING,
-    HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
-    JSON_DESCRIPTION_KEY,
-    JSON_ENTRIES_KEY,
-    JSON_METADATA_KEY,
-    JSON_TOTAL_ENTRIES_KEY,
-    JSON_VERSION_KEY,
-    MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD,
-)
+from anivault.shared.constants import CLI, ConfidenceThresholds, Config, JsonKeys
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +44,7 @@ class GroundTruthEntry:
     expected_tmdb_id: int
     expected_title: str
     expected_media_type: str
-    confidence_threshold: float = DEFAULT_BENCHMARK_CONFIDENCE_THRESHOLD
+    confidence_threshold: float = ConfidenceThresholds.BENCHMARK_DEFAULT
     notes: str | None = None
 
 
@@ -169,11 +158,11 @@ class BenchmarkRunner:
             msg = f"Ground truth dataset not found: {dataset_path}"
             raise FileNotFoundError(msg)
 
-        with open(dataset_path, encoding=DEFAULT_ENCODING) as f:
+        with open(dataset_path, encoding=Config.DEFAULT_ENCODING) as f:
             data = json.load(f)
 
         self.ground_truth = [
-            GroundTruthEntry(**entry) for entry in data.get(JSON_ENTRIES_KEY, [])
+            GroundTruthEntry(**entry) for entry in data.get(JsonKeys.ENTRIES, [])
         ]
 
         logger.info(
@@ -203,7 +192,7 @@ class BenchmarkRunner:
                 expected_tmdb_id=1399,
                 expected_title="Attack on Titan",
                 expected_media_type="tv",
-                confidence_threshold=MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD,
+                confidence_threshold=ConfidenceThresholds.BENCHMARK_MEDIUM,
                 notes="Popular anime series",
             ),
             GroundTruthEntry(
@@ -218,7 +207,7 @@ class BenchmarkRunner:
                 expected_tmdb_id=129,
                 expected_title="Spirited Away",
                 expected_media_type="movie",
-                confidence_threshold=HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
+                confidence_threshold=ConfidenceThresholds.BENCHMARK_HIGH,
                 notes="Studio Ghibli masterpiece",
             ),
             GroundTruthEntry(
@@ -233,7 +222,7 @@ class BenchmarkRunner:
                 expected_tmdb_id=8392,
                 expected_title="My Neighbor Totoro",
                 expected_media_type="movie",
-                confidence_threshold=HIGH_BENCHMARK_CONFIDENCE_THRESHOLD,
+                confidence_threshold=ConfidenceThresholds.BENCHMARK_HIGH,
                 notes="Classic Studio Ghibli film",
             ),
             GroundTruthEntry(
@@ -250,7 +239,7 @@ class BenchmarkRunner:
                 expected_tmdb_id=37854,
                 expected_title="One Piece",
                 expected_media_type="tv",
-                confidence_threshold=MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD,
+                confidence_threshold=ConfidenceThresholds.BENCHMARK_MEDIUM,
                 notes="Long-running shonen series",
             ),
             GroundTruthEntry(
@@ -267,25 +256,25 @@ class BenchmarkRunner:
                 expected_tmdb_id=101922,
                 expected_title="Demon Slayer: Kimetsu no Yaiba",
                 expected_media_type="tv",
-                confidence_threshold=MEDIUM_BENCHMARK_CONFIDENCE_THRESHOLD,
+                confidence_threshold=ConfidenceThresholds.BENCHMARK_MEDIUM,
                 notes="Popular modern shonen anime",
             ),
         ]
 
         dataset = {
-            JSON_METADATA_KEY: {
+            JsonKeys.METADATA: {
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                JSON_VERSION_KEY: "1.0",
-                JSON_DESCRIPTION_KEY: "Sample ground truth dataset for AniVault matching system",
-                JSON_TOTAL_ENTRIES_KEY: len(sample_entries),
+                JsonKeys.VERSION: "1.0",
+                JsonKeys.DESCRIPTION: "Sample ground truth dataset for AniVault matching system",
+                JsonKeys.TOTAL_ENTRIES: len(sample_entries),
             },
-            JSON_ENTRIES_KEY: [asdict(entry) for entry in sample_entries],
+            JsonKeys.ENTRIES: [asdict(entry) for entry in sample_entries],
         }
 
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w", encoding=DEFAULT_ENCODING) as f:
+        with open(output_path, "w", encoding=Config.DEFAULT_ENCODING) as f:
             json.dump(dataset, f, indent=2, ensure_ascii=False)
 
         logger.info(
@@ -367,7 +356,7 @@ class BenchmarkRunner:
 
         except Exception as e:
             processing_time = time.time() - test_start
-            logger.exception("Error processing %s: %s", entry.filename, str(e))
+            logger.exception("Error processing %s", entry.filename)
             return self._create_error_result(entry, str(e), processing_time)
 
     def _create_no_match_result(
@@ -504,7 +493,7 @@ class BenchmarkRunner:
             "statistics": self.statistics.get_summary(),
         }
 
-        with open(output_path, "w", encoding=DEFAULT_ENCODING) as f:
+        with open(output_path, "w", encoding=Config.DEFAULT_ENCODING) as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
         logger.info("Saved benchmark results to %s", output_path)
@@ -515,9 +504,9 @@ class BenchmarkRunner:
         Args:
             summary: Summary statistics to print
         """
-        print("\n" + "=" * CLI_SEPARATOR_LENGTH)
+        print("\n" + "=" * CLI.SEPARATOR_LENGTH)
         print("BENCHMARK RESULTS SUMMARY")
-        print("=" * CLI_SEPARATOR_LENGTH)
+        print("=" * CLI.SEPARATOR_LENGTH)
         print(f"Total Tests:           {summary.total_tests}")
         print(f"Correct Matches:       {summary.correct_matches}")
         print(f"Incorrect Matches:     {summary.incorrect_matches}")
@@ -529,4 +518,4 @@ class BenchmarkRunner:
         print(f"Cache Hit Ratio:       {summary.cache_hit_ratio:.1f}%")
         print(f"API Calls:             {summary.api_calls}")
         print(f"API Errors:            {summary.api_errors}")
-        print("=" * CLI_SEPARATOR_LENGTH)
+        print("=" * CLI.SEPARATOR_LENGTH)

@@ -13,18 +13,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict, Field
+
 try:
     import orjson
 except ImportError:
     orjson = None  # type: ignore[assignment]
 
-from pydantic import BaseModel, Field
-
 from anivault.core.statistics import StatisticsCollector
-from anivault.shared.constants.system import (
-    CACHE_TYPE_DETAILS,
-    CACHE_TYPE_SEARCH,
-)
+from anivault.shared.constants import Cache
 from anivault.shared.errors import (
     DomainError,
     ErrorCode,
@@ -111,7 +108,7 @@ class JSONCacheV2:
 
         if orjson is None:
             error = InfrastructureError(
-                code=ErrorCode.DEPENDENCY_MISSING,
+                code=ErrorCode.DEPENDENCY_MISSING,  # noqa: F823
                 message="orjson library is not installed. Install it with: pip install orjson",
                 context=context,
             )
@@ -121,7 +118,7 @@ class JSONCacheV2:
                 error=error,
                 additional_context={"cache_dir": str(cache_dir)},
             )
-            raise error
+            raise error from error
 
         try:
             self.cache_dir = Path(cache_dir)
@@ -143,10 +140,20 @@ class JSONCacheV2:
                         purged_count,
                     )
             except Exception as e:
+                # Boundary: Accept any Exception, convert to safe logging
+                from anivault.shared.errors import AniVaultError, ErrorCode
+
+                # Convert generic exception to AniVaultError for type safety
+                anivault_error = AniVaultError(
+                    ErrorCode.CACHE_ERROR,
+                    f"Cleanup failed: {e!s}",
+                    context,
+                )
+
                 log_operation_error(
                     logger=logger,
                     operation="cleanup_expired_on_startup",
-                    error=e,
+                    error=anivault_error,
                     additional_context=context,
                 )
                 logger.warning(
@@ -181,12 +188,12 @@ class JSONCacheV2:
                 error=error,
                 additional_context=context,
             )
-            raise error
+            raise error from error
 
     def _generate_file_path(
         self,
         key: str,
-        cache_type: str = CACHE_TYPE_SEARCH,
+        cache_type: str = Cache.TYPE_SEARCH,
     ) -> Path:
         """Generate cache file path from key and cache type.
 
@@ -212,9 +219,9 @@ class JSONCacheV2:
         key_hash = hashlib.sha256(normalized_key.encode("utf-8")).hexdigest()
 
         # Select appropriate directory
-        if cache_type == CACHE_TYPE_SEARCH:
+        if cache_type == Cache.TYPE_SEARCH:
             cache_dir = self.search_dir
-        elif cache_type == CACHE_TYPE_DETAILS:
+        elif cache_type == Cache.TYPE_DETAILS:
             cache_dir = self.details_dir
         else:
             error = DomainError(
@@ -228,16 +235,16 @@ class JSONCacheV2:
                 error=error,
                 additional_context=context,
             )
-            raise error
+            raise error from error
 
         # Return file path with .json extension
         return cache_dir / f"{key_hash}.json"
 
-    def set(
+    def set_cache(
         self,
         key: str,
         data: dict[str, Any],
-        cache_type: str = CACHE_TYPE_SEARCH,
+        cache_type: str = Cache.TYPE_SEARCH,
         ttl_seconds: int | None = None,
     ) -> None:
         """Store data in the cache with optional TTL.
@@ -272,7 +279,9 @@ class JSONCacheV2:
 
             if ttl_seconds is not None and ttl_seconds >= 0:
                 expires_at = now + timedelta(seconds=ttl_seconds)
-                expires_at = expires_at.isoformat()
+                expires_at_str = expires_at.isoformat()
+            else:
+                expires_at_str = None
 
             # Generate key hash for verification
             key_hash = hashlib.sha256(key.lower().strip().encode("utf-8")).hexdigest()
@@ -281,7 +290,7 @@ class JSONCacheV2:
             entry = CacheEntry(
                 data=data,
                 created_at=created_at,
-                expires_at=expires_at,
+                expires_at=expires_at_str,
                 cache_type=cache_type,
                 key_hash=key_hash,
             )
@@ -290,7 +299,7 @@ class JSONCacheV2:
             try:
                 json_data = entry.model_dump_json()
             except (orjson.JSONEncodeError, ValueError) as e:
-                error = DomainError(
+                error = DomainError(  # noqa: F823
                     code=ErrorCode.CACHE_SERIALIZATION_ERROR,
                     message=f"Failed to serialize cache data for key '{key}': {e!s}",
                     context=ErrorContext(
@@ -310,14 +319,19 @@ class JSONCacheV2:
                     operation="cache_set",
                     additional_context=context.additional_data if context else None,
                 )
-                raise error
+                raise error from error
 
             # Write to cache file
             try:
                 with open(cache_file, "wb") as f:
-                    f.write(json_data)
+                    # Boundary: Convert str to bytes for binary write
+                    json_bytes = json_data.encode("utf-8")
+                    f.write(json_bytes)
             except OSError as e:
-                error = InfrastructureError(
+                # Boundary: Accept any exception, convert to safe type
+                from anivault.shared.errors import DomainError
+
+                error = DomainError(
                     code=ErrorCode.FILE_WRITE_ERROR,
                     message=f"Failed to write cache file for key '{key}': {e!s}",
                     context=ErrorContext(
@@ -338,7 +352,7 @@ class JSONCacheV2:
                     operation="cache_set",
                     additional_context=context.additional_data if context else None,
                 )
-                raise error
+                raise error from error
 
             # Record cache operation
             self.statistics.record_cache_operation("set", hit=False, key=key)
@@ -373,12 +387,12 @@ class JSONCacheV2:
                 error=error,
                 additional_context=context,
             )
-            raise error
+            raise error from error
 
-    def get(
+    def get(  # noqa: PLR0911
         self,
         key: str,
-        cache_type: str = CACHE_TYPE_SEARCH,
+        cache_type: str = Cache.TYPE_SEARCH,
     ) -> dict[str, Any] | None:
         """Retrieve data from the cache.
 
@@ -564,15 +578,14 @@ class JSONCacheV2:
                 additional_context=context.additional_data if context else None,
             )
 
-        except OSError as e:
+        except OSError:
             # If backup fails, just log and continue
             logger.exception(
-                "Failed to backup corrupted cache file %s: %s",
+                "Failed to backup corrupted cache file %s",
                 cache_file,
-                str(e),
             )
 
-    def delete(self, key: str, cache_type: str = CACHE_TYPE_SEARCH) -> bool:
+    def delete(self, key: str, cache_type: str = Cache.TYPE_SEARCH) -> bool:
         """Delete a specific cache entry.
 
         Args:
@@ -647,7 +660,7 @@ class JSONCacheV2:
                 # Clear specific cache type
                 cache_dir = (
                     self.search_dir
-                    if cache_type == CACHE_TYPE_SEARCH
+                    if cache_type == Cache.TYPE_SEARCH
                     else self.details_dir
                 )
                 for cache_file in cache_dir.glob("*.json"):
@@ -665,7 +678,7 @@ class JSONCacheV2:
                     error=error,
                     additional_context=context,
                 )
-                raise error
+                raise error from error
 
             log_operation_success(
                 logger=logger,
@@ -696,7 +709,7 @@ class JSONCacheV2:
                 error=error,
                 additional_context=context,
             )
-            raise error
+            raise error from error
 
         return deleted_count
 
@@ -729,7 +742,7 @@ class JSONCacheV2:
             elif cache_type in ["search", "details"]:
                 cache_dirs = [
                     self.search_dir
-                    if cache_type == CACHE_TYPE_SEARCH
+                    if cache_type == Cache.TYPE_SEARCH
                     else self.details_dir,
                 ]
             else:
@@ -744,7 +757,7 @@ class JSONCacheV2:
                     error=error,
                     additional_context=context,
                 )
-                raise error
+                raise error from error
 
             for cache_dir in cache_dirs:
                 for cache_file in cache_dir.glob("*.json"):
@@ -798,7 +811,7 @@ class JSONCacheV2:
                 error=error,
                 additional_context=context,
             )
-            raise error
+            raise error from error
 
         return {
             "total_files": total_files,
@@ -835,7 +848,7 @@ class JSONCacheV2:
             elif cache_type in ["search", "details"]:
                 cache_dirs = [
                     self.search_dir
-                    if cache_type == CACHE_TYPE_SEARCH
+                    if cache_type == Cache.TYPE_SEARCH
                     else self.details_dir,
                 ]
             else:
@@ -850,7 +863,7 @@ class JSONCacheV2:
                     error=error,
                     additional_context=context,
                 )
-                raise error
+                raise error from error
 
             for cache_dir in cache_dirs:
                 for cache_file in cache_dir.glob("*.json"):
@@ -905,6 +918,6 @@ class JSONCacheV2:
                 error=error,
                 additional_context=context,
             )
-            raise error
+            raise error from error
 
         return purged_count

@@ -14,11 +14,7 @@ from typing import Any
 
 from anivault.core.parser.models import ParsingResult
 from anivault.shared.constants.system import (
-    ENRICHMENT_STATUS_FAILED,
-    ENRICHMENT_STATUS_PENDING,
-    ENRICHMENT_STATUS_SKIPPED,
-    ENRICHMENT_STATUS_SUCCESS,
-    MEDIA_TYPE_TV,
+    MediaType,
 )
 from anivault.shared.errors import (
     AniVaultError,
@@ -496,7 +492,7 @@ class MetadataEnricher:
             try:
                 if (
                     file_info.has_episode_info()
-                    and tmdb_result.get("media_type") == MEDIA_TYPE_TV
+                    and tmdb_result.get("media_type") == MediaType.TV
                 ):
                     # For TV shows, episode info is relevant
                     score += 0.2
@@ -511,7 +507,7 @@ class MetadataEnricher:
             try:
                 if (
                     file_info.has_season_info()
-                    and tmdb_result.get("media_type") == MEDIA_TYPE_TV
+                    and tmdb_result.get("media_type") == MediaType.TV
                 ):
                     # For TV shows, season info is relevant
                     score += 0.1
@@ -525,7 +521,7 @@ class MetadataEnricher:
             # Media type bonus
             try:
                 if (
-                    tmdb_result.get("media_type") == MEDIA_TYPE_TV
+                    tmdb_result.get("media_type") == MediaType.TV
                     and file_info.has_episode_info()
                 ):
                     score += 0.1
@@ -539,17 +535,16 @@ class MetadataEnricher:
 
             return min(score, 1.0)
 
-        except Exception as e:
+        except Exception:
             # If the entire scoring process fails, return 0
             logger.exception(
-                "Error calculating match score: %s. File info: %s, TMDB result: %s",
-                str(e),
+                "Error calculating match score. File info: %s, TMDB result: %s",
                 file_info,
                 tmdb_result,
             )
             return 0.0
 
-    def _calculate_title_similarity(self, title1: str, title2: str) -> float:
+    def _calculate_title_similarity(self, title1: str, title2: str) -> float:  # noqa: PLR0911
         """Calculate similarity between two titles.
 
         This method implements a simple similarity algorithm that considers:
@@ -601,12 +596,11 @@ class MetadataEnricher:
                 )
                 return 0.0
 
-        except Exception as e:
+        except Exception:
             logger.exception(
-                "Error calculating title similarity for '%s' and '%s': %s",
+                "Error calculating title similarity for '%s' and '%s'",
                 title1,
                 title2,
-                str(e),
             )
             return 0.0
 

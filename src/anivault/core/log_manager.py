@@ -14,11 +14,10 @@ from pathlib import Path
 from pydantic import ValidationError, parse_obj_as
 
 from anivault.shared.constants import (
-    ANIVAULT_HOME_DIR,
-    CLI_INDENT_SIZE,
-    DEFAULT_ENCODING,
-    LOG_FILE_EXTENSION,
-    ORGANIZE_LOG_PREFIX,
+    CLI,
+    Encoding,
+    FileSystem,
+    Logging,
 )
 
 from .models import FileOperation
@@ -60,7 +59,7 @@ class OperationLogManager:
             root_path: Root path of the project where `.anivault` directory resides.
         """
         self.root_path = Path(root_path)
-        self.logs_dir = self.root_path / ANIVAULT_HOME_DIR / "logs"
+        self.logs_dir = self.root_path / FileSystem.HOME_DIR / "logs"
 
     def save_plan(self, plan: list[FileOperation]) -> Path:
         """
@@ -106,7 +105,9 @@ class OperationLogManager:
             Path object for the log file
         """
         timestamp = self._get_timestamp()
-        log_filename = f"{ORGANIZE_LOG_PREFIX}{timestamp}{LOG_FILE_EXTENSION}"
+        log_filename = (
+            f"{Logging.ORGANIZE_LOG_PREFIX}{timestamp}{Logging.FILE_EXTENSION}"
+        )
         return self.logs_dir / log_filename
 
     def _get_timestamp(self) -> str:
@@ -150,8 +151,8 @@ class OperationLogManager:
             OSError: If file writing fails
         """
         try:
-            with log_path.open("w", encoding=DEFAULT_ENCODING) as f:
-                json.dump(plan_data, f, indent=CLI_INDENT_SIZE, ensure_ascii=False)
+            with log_path.open("w", encoding=Encoding.DEFAULT) as f:
+                json.dump(plan_data, f, indent=CLI.INDENT_SIZE, ensure_ascii=False)
         except (OSError, json.JSONDecodeError) as e:
             msg = f"Failed to save operation log to {log_path}: {e}"
             raise OSError(msg) from e
@@ -175,12 +176,13 @@ class OperationLogManager:
 
         try:
             # Read JSON content
-            with log_path.open("r", encoding=DEFAULT_ENCODING) as f:
+            with log_path.open("r", encoding=Encoding.DEFAULT) as f:
                 plan_data = json.load(f)
 
             # Deserialize to FileOperation objects
             operations: list[FileOperation] = parse_obj_as(
-                list[FileOperation], plan_data
+                list[FileOperation],
+                plan_data,
             )
             return operations
 
@@ -203,7 +205,7 @@ class OperationLogManager:
         log_files = [
             path
             for path in self.logs_dir.glob(
-                f"{ORGANIZE_LOG_PREFIX}*{LOG_FILE_EXTENSION}",
+                f"{Logging.ORGANIZE_LOG_PREFIX}*{Logging.FILE_EXTENSION}",
             )
             if path.is_file()
         ]
@@ -224,11 +226,11 @@ class OperationLogManager:
         for log_file in log_files:
             # Extract timestamp from filename (e.g., "organize-20231027-153000.json" -> "20231027-153000")
             filename = log_file.name
-            if filename.startswith(ORGANIZE_LOG_PREFIX) and filename.endswith(
-                LOG_FILE_EXTENSION,
+            if filename.startswith(Logging.ORGANIZE_LOG_PREFIX) and filename.endswith(
+                Logging.FILE_EXTENSION,
             ):
                 timestamp = filename[
-                    len(ORGANIZE_LOG_PREFIX) : -len(LOG_FILE_EXTENSION)
+                    len(Logging.ORGANIZE_LOG_PREFIX) : -len(Logging.FILE_EXTENSION)
                 ]  # Remove prefix and suffix
                 identifiers.append(timestamp)
 
@@ -247,7 +249,9 @@ class OperationLogManager:
         Raises:
             LogFileNotFoundError: If no log file with the given ID is found.
         """
-        expected_filename = f"{ORGANIZE_LOG_PREFIX}{log_id}{LOG_FILE_EXTENSION}"
+        expected_filename = (
+            f"{Logging.ORGANIZE_LOG_PREFIX}{log_id}{Logging.FILE_EXTENSION}"
+        )
         log_path = self.logs_dir / expected_filename
 
         if not log_path.exists():

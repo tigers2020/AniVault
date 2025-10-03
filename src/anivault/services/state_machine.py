@@ -54,8 +54,8 @@ class RateLimitStateMachine:
 
         self._state = RateLimitState.NORMAL
         self._lock = threading.Lock()
-        self._error_timestamps = deque()
-        self._success_timestamps = deque()
+        self._error_timestamps: deque[float] = deque()
+        self._success_timestamps: deque[float] = deque()
         self._last_429_time = 0.0
         self._retry_after_delay = 0.0
 

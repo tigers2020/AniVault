@@ -18,9 +18,7 @@ from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
 from anivault.shared.constants import (
-    HIGH_CONFIDENCE_THRESHOLD,
-    LOW_CONFIDENCE_THRESHOLD,
-    MEDIUM_CONFIDENCE_THRESHOLD,
+    ConfidenceThresholds,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,7 +106,7 @@ class MatchingEngine:
             results = await self.tmdb_client.search_media(title)
 
             # Store results in cache (7 days TTL)
-            self.cache.set(
+            self.cache.set_cache(
                 key=cache_key,
                 data=results,  # type: ignore[arg-type]
                 cache_type="search",
@@ -478,11 +476,11 @@ class MatchingEngine:
             best_confidence,
         )
 
-        if best_confidence < HIGH_CONFIDENCE_THRESHOLD:
+        if best_confidence < ConfidenceThresholds.HIGH:
             logger.info(
                 "Low confidence (%.3f < %.3f), applying fallback strategies",
                 best_confidence,
-                HIGH_CONFIDENCE_THRESHOLD,
+                ConfidenceThresholds.HIGH,
             )
 
             fallback_candidates = self._apply_fallback_strategies(
@@ -508,11 +506,11 @@ class MatchingEngine:
         """
         best_confidence = best_candidate.get("confidence_score", 0.0)
 
-        if best_confidence < LOW_CONFIDENCE_THRESHOLD:
+        if best_confidence < ConfidenceThresholds.LOW:
             logger.warning(
                 "Very low confidence (%.3f < %.3f), returning None",
                 best_confidence,
-                LOW_CONFIDENCE_THRESHOLD,
+                ConfidenceThresholds.LOW,
             )
             return False
 
@@ -547,7 +545,7 @@ class MatchingEngine:
             "scored_candidates": len(scored_candidates),
             "confidence_score": best_confidence,
             "confidence_level": self._get_confidence_level(best_confidence),
-            "used_fallback": best_confidence < HIGH_CONFIDENCE_THRESHOLD,
+            "used_fallback": best_confidence < ConfidenceThresholds.HIGH,
         }
 
         logger.info(
@@ -606,7 +604,7 @@ class MatchingEngine:
         # Check if genre filtering improved confidence
         if genre_filtered_candidates:
             best_confidence = genre_filtered_candidates[0].get("confidence_score", 0.0)
-            if best_confidence >= HIGH_CONFIDENCE_THRESHOLD:
+            if best_confidence >= ConfidenceThresholds.HIGH:
                 logger.debug(
                     "Genre filtering produced high confidence match: %.3f",
                     best_confidence,
@@ -783,10 +781,10 @@ class MatchingEngine:
         Returns:
             Confidence level description
         """
-        if confidence_score >= HIGH_CONFIDENCE_THRESHOLD:
+        if confidence_score >= ConfidenceThresholds.HIGH:
             return "high"
-        if confidence_score >= MEDIUM_CONFIDENCE_THRESHOLD:
+        if confidence_score >= ConfidenceThresholds.MEDIUM:
             return "medium"
-        if confidence_score >= LOW_CONFIDENCE_THRESHOLD:
+        if confidence_score >= ConfidenceThresholds.LOW:
             return "low"
         return "very_low"

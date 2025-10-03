@@ -13,7 +13,7 @@ import time
 from typing import Any
 
 from anivault.core.pipeline.utils import BoundedQueue
-from anivault.shared.constants import SENTINEL
+from anivault.shared.constants import Pipeline
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -140,7 +140,8 @@ class ResultCollector(threading.Thread):
                         idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
                         if idle >= max_idle_loops if max_idle_loops else False:
                             logger.warning(
-                                f"ResultCollector {self.collector_id}: Max idle loops reached, stopping...",
+                                "ResultCollector %s: Max idle loops reached, stopping...",
+                                self.collector_id,
                             )
                             break
                         continue
@@ -148,7 +149,9 @@ class ResultCollector(threading.Thread):
                     # 성공적으로 아이템을 가져왔으므로 idle 카운트 리셋
                     idle = 0
                     logger.debug(
-                        f"ResultCollector {self.collector_id}: Received item: {type(item).__name__}",
+                        "ResultCollector %s: Received item: %s",
+                        self.collector_id,
+                        type(item).__name__,
                     )
 
                     if self._handle_sentinel(item):
@@ -221,7 +224,7 @@ class ResultCollector(threading.Thread):
     def _handle_idle_state(
         self,
         idle_count: int,
-        max_idle_loops: int | None,
+        max_idle_loops: int | None,  # noqa: ARG002
         idle_sleep: float,
     ) -> int:
         """Handle idle state when no items are available.
@@ -248,10 +251,11 @@ class ResultCollector(threading.Thread):
         Returns:
             True if sentinel was received and processing should stop.
         """
-        if item is SENTINEL:
+        if item is Pipeline.SENTINEL:
             logger = logging.getLogger(__name__)
             logger.info(
-                f"ResultCollector {self.collector_id}: Received sentinel, stopping...",
+                "ResultCollector %s: Received sentinel, stopping...",
+                self.collector_id,
             )
             try:
                 self.output_queue.task_done()

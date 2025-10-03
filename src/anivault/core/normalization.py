@@ -260,6 +260,7 @@ def _normalize_characters(title: str) -> str:
     normalized = unicodedata.normalize("NFC", title)
 
     # Replace full-width characters with half-width equivalents
+    # ruff: noqa: RUF001 (Full-width characters are intentional for normalization)
     fullwidth_to_halfwidth = {
         "（": "(",
         "）": ")",
@@ -305,7 +306,7 @@ def _normalize_characters(title: str) -> str:
     return normalized
 
 
-def _detect_language(title: str) -> str:
+def _detect_language(title: str) -> str:  # noqa: PLR0911
     """Detect the language of a title string.
 
     This function performs basic language detection based on character

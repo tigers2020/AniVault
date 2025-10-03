@@ -6,5 +6,6 @@ PIN-based encryption, key derivation, and secure data handling.
 """
 
 from .encryption import DecryptionError, EncryptionService
+from .keyring import Keyring
 
-__all__ = ["EncryptionService", "DecryptionError"]
+__all__ = ["DecryptionError", "EncryptionService", "Keyring"]

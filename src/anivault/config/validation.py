@@ -6,25 +6,28 @@ This module defines Pydantic models for validating the structure of the
 configuration file and provides type validation and default values.
 """
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic_settings import BaseSettings
+from __future__ import annotations
 
-from anivault.shared.constants.logging import DEFAULT_LOG_LEVEL
-from anivault.shared.constants.system import (
-    APPLICATION_NAME,
-    APPLICATION_VERSION,
-    CONFIG_ENV_DELIMITER,
-    CONFIG_ENV_PREFIX,
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from anivault.shared.constants import (
+    Application,
+    Config,
+    LogLevels,
 )
 
 
 class AppSettings(BaseModel):
     """Application-level settings."""
 
-    name: str = Field(default=APPLICATION_NAME, description="Application name")
-    version: str = Field(default=APPLICATION_VERSION, description="Application version")
+    name: str = Field(default=Application.NAME, description="Application name")
+    version: str = Field(default=Application.VERSION, description="Application version")
     debug: bool = Field(default=False, description="Enable debug mode")
-    log_level: str = Field(default=DEFAULT_LOG_LEVEL, description="Logging level")
+    log_level: str | int = Field(
+        default=LogLevels.DEFAULT,
+        description="Logging level",
+    )
     max_workers: int = Field(
         default=4,
         ge=1,
@@ -168,14 +171,13 @@ class TomlConfig(BaseSettings):
         description="Performance settings",
     )
 
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         extra="forbid",  # Reject extra fields
         validate_assignment=True,  # Validate on assignment
         use_enum_values=True,  # Use enum values in serialization
-        env_prefix=CONFIG_ENV_PREFIX,  # Environment variable prefix
-        env_nested_delimiter=CONFIG_ENV_DELIMITER,  # Nested field delimiter for env vars
+        env_prefix=Config.ENV_PREFIX,  # Environment variable prefix
+        env_nested_delimiter=Config.ENV_DELIMITER,  # Nested field delimiter for env vars
         env_ignore_empty=True,  # Ignore empty environment variables
-        env_override=True,  # Allow environment variables to override field values
         # JSON serialization optimization with orjson
         json_encoders={
             # Custom encoders for specific types if needed

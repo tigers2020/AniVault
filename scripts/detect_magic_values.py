@@ -6,8 +6,6 @@ Detects hardcoded magic values that should be replaced with constants.
 
 import re
 import sys
-from pathlib import Path
-from typing import List, Tuple
 
 
 class MagicValueDetector:
@@ -47,7 +45,7 @@ class MagicValueDetector:
     def __init__(self):
         self.violations = []
 
-    def check_file(self, file_path: str) -> List[Tuple[int, str, str]]:
+    def check_file(self, file_path: str) -> list[tuple[int, str, str]]:
         """Check a file for magic values."""
         violations = []
 
@@ -55,7 +53,7 @@ class MagicValueDetector:
             return violations
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
                 lines = content.splitlines()
 

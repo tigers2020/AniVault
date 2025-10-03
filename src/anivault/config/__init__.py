@@ -12,7 +12,7 @@ __all__ = [
     "FilterConfig",
     "ScanConfig",
     "Settings",
-    "load_settings",
     "SettingsManager",
     "TomlConfig",
+    "load_settings",
 ]

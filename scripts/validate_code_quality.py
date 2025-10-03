@@ -10,12 +10,11 @@
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 
 class CodeQualityValidator:
@@ -49,8 +48,10 @@ class CodeQualityValidator:
         }
 
     def run_validation(
-        self, paths: List[str], exclude_patterns: List[str] = None
-    ) -> Dict[str, Any]:
+        self,
+        paths: list[str],
+        exclude_patterns: list[str] = None,
+    ) -> dict[str, Any]:
         """통합 검증 실행"""
         if exclude_patterns is None:
             exclude_patterns = []
@@ -81,13 +82,19 @@ class CodeQualityValidator:
         return self.results
 
     def _run_magic_values_validation(
-        self, paths: List[str], exclude_patterns: List[str]
+        self,
+        paths: list[str],
+        exclude_patterns: list[str],
     ) -> None:
         """매직 값 검증 실행"""
         try:
             cmd = [sys.executable, str(self.magic_values_script)] + paths
             result = subprocess.run(
-                cmd, capture_output=True, text=True, cwd=self.project_root
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
+                check=False,
             )
 
             if result.returncode == 0:
@@ -105,7 +112,9 @@ class CodeQualityValidator:
             print(f"   ⚠️ Error running magic values validation: {e}")
 
     def _run_function_length_validation(
-        self, paths: List[str], exclude_patterns: List[str]
+        self,
+        paths: list[str],
+        exclude_patterns: list[str],
     ) -> None:
         """함수 길이 및 복잡도 검증 실행"""
         try:
@@ -113,7 +122,11 @@ class CodeQualityValidator:
             if exclude_patterns:
                 cmd.extend(["--exclude"] + exclude_patterns)
             result = subprocess.run(
-                cmd, capture_output=True, text=True, cwd=self.project_root
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
+                check=False,
             )
 
             if result.returncode == 0:
@@ -131,7 +144,9 @@ class CodeQualityValidator:
             print(f"   ⚠️ Error running function length validation: {e}")
 
     def _run_error_handling_validation(
-        self, paths: List[str], exclude_patterns: List[str]
+        self,
+        paths: list[str],
+        exclude_patterns: list[str],
     ) -> None:
         """에러 처리 패턴 검증 실행"""
         try:
@@ -139,7 +154,11 @@ class CodeQualityValidator:
             if exclude_patterns:
                 cmd.extend(["--exclude"] + exclude_patterns)
             result = subprocess.run(
-                cmd, capture_output=True, text=True, cwd=self.project_root
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
+                check=False,
             )
 
             if result.returncode == 0:
@@ -217,7 +236,9 @@ class CodeQualityValidator:
         self.results["summary"]["total_files_analyzed"] = analyzed_files
 
     def generate_report(
-        self, output_format: str = "text", output_file: Optional[str] = None
+        self,
+        output_format: str = "text",
+        output_file: Optional[str] = None,
     ) -> str:
         """검증 결과 리포트 생성"""
         if output_format == "json":
@@ -243,7 +264,7 @@ class CodeQualityValidator:
         lines.append(f"📅 Timestamp: {self.results['timestamp']}")
         lines.append(f"📁 Project: {self.results['project_root']}")
         lines.append(
-            f"📊 Overall Status: {self.results['summary']['overall_status'].upper()}"
+            f"📊 Overall Status: {self.results['summary']['overall_status'].upper()}",
         )
         lines.append("")
 
@@ -251,7 +272,7 @@ class CodeQualityValidator:
         lines.append("📈 SUMMARY")
         lines.append("-" * 40)
         lines.append(
-            f"Files Analyzed: {self.results['summary']['total_files_analyzed']}"
+            f"Files Analyzed: {self.results['summary']['total_files_analyzed']}",
         )
         lines.append(f"Total Violations: {self.results['summary']['total_violations']}")
         lines.append("")
@@ -269,7 +290,7 @@ class CodeQualityValidator:
             }.get(validation["status"], "❓")
 
             lines.append(
-                f"{status_emoji} {validation_name.replace('_', ' ').title()}: {validation['status'].upper()}"
+                f"{status_emoji} {validation_name.replace('_', ' ').title()}: {validation['status'].upper()}",
             )
 
             if validation["status"] == "failed" and "output" in validation:
@@ -303,18 +324,18 @@ class CodeQualityValidator:
                 if validation["status"] == "failed":
                     if validation_name == "magic_values":
                         lines.append(
-                            "   • Replace hardcoded strings/numbers with constants"
+                            "   • Replace hardcoded strings/numbers with constants",
                         )
                     elif validation_name == "function_length":
                         lines.append(
-                            "   • Break down long functions into smaller units"
+                            "   • Break down long functions into smaller units",
                         )
                         lines.append("   • Reduce function complexity")
                     elif validation_name == "error_handling":
                         lines.append("   • Improve error handling patterns")
                         lines.append("   • Use structured logging instead of print")
                         lines.append(
-                            "   • Add proper error context and user-friendly messages"
+                            "   • Add proper error context and user-friendly messages",
                         )
 
         lines.append("")
@@ -340,7 +361,10 @@ Examples:
     parser.add_argument("paths", nargs="+", help="File or directory paths to analyze")
 
     parser.add_argument(
-        "--exclude", nargs="*", default=[], help="Patterns to exclude from analysis"
+        "--exclude",
+        nargs="*",
+        default=[],
+        help="Patterns to exclude from analysis",
     )
 
     parser.add_argument(

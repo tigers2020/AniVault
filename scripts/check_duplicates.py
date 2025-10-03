@@ -6,16 +6,15 @@ Ensures One Source of Truth principle - no duplicate type/constant definitions.
 
 import ast
 import sys
-from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 
 class DuplicateChecker:
     """Checks for duplicate definitions across files."""
 
     def __init__(self):
-        self.definitions: Dict[
-            str, List[Tuple[str, int]]
+        self.definitions: dict[
+            str,
+            list[tuple[str, int]],
         ] = {}  # name -> [(file, line)]
         self.violations = []
 
@@ -25,7 +24,7 @@ class DuplicateChecker:
             return
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
             tree = ast.parse(content)
@@ -35,7 +34,10 @@ class DuplicateChecker:
                     self._record_definition(node.name, file_path, node.lineno, "class")
                 elif isinstance(node, ast.FunctionDef):
                     self._record_definition(
-                        node.name, file_path, node.lineno, "function"
+                        node.name,
+                        file_path,
+                        node.lineno,
+                        "function",
                     )
                 elif isinstance(node, ast.Assign):
                     for target in node.targets:
@@ -43,7 +45,10 @@ class DuplicateChecker:
                             # Only check uppercase constants
                             if target.id.isupper():
                                 self._record_definition(
-                                    target.id, file_path, node.lineno, "constant"
+                                    target.id,
+                                    file_path,
+                                    node.lineno,
+                                    "constant",
                                 )
 
         except SyntaxError:
@@ -53,7 +58,11 @@ class DuplicateChecker:
             print(f"Error checking {file_path}: {e}")
 
     def _record_definition(
-        self, name: str, file_path: str, line: int, kind: str
+        self,
+        name: str,
+        file_path: str,
+        line: int,
+        kind: str,
     ) -> None:
         """Record a definition."""
         if name not in self.definitions:
@@ -61,7 +70,7 @@ class DuplicateChecker:
 
         self.definitions[name].append((file_path, line, kind))
 
-    def find_duplicates(self) -> List[Tuple[str, List[Tuple[str, int, str]]]]:
+    def find_duplicates(self) -> list[tuple[str, list[tuple[str, int, str]]]]:
         """Find duplicate definitions."""
         duplicates = []
 
@@ -74,7 +83,7 @@ class DuplicateChecker:
 
         return duplicates
 
-    def check_duplicates(self, file_paths: List[str]) -> List[str]:
+    def check_duplicates(self, file_paths: list[str]) -> list[str]:
         """Check files for duplicate definitions."""
         # Clear previous results
         self.definitions.clear()
@@ -115,7 +124,7 @@ def main():
 
         print("\n💡 Solution:")
         print(
-            "   Move definitions to anivault.shared.constants or anivault.shared.types"
+            "   Move definitions to anivault.shared.constants or anivault.shared.types",
         )
         print("   Import from the centralized location instead of redefining")
 

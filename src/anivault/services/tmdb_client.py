@@ -15,11 +15,7 @@ from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
-from anivault.shared.constants.system import (
-    LANGUAGE_ENGLISH,
-    MEDIA_TYPE_MOVIE,
-    MEDIA_TYPE_TV,
-)
+from anivault.shared.constants import Language, MediaType
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
@@ -53,6 +49,7 @@ class TMDBClient:
         rate_limiter: TokenBucketRateLimiter | None = None,
         semaphore_manager: SemaphoreManager | None = None,
         state_machine: RateLimitStateMachine | None = None,
+        language: str = Language.ENGLISH,
     ):
         """Initialize the TMDB client.
 
@@ -60,6 +57,7 @@ class TMDBClient:
             rate_limiter: Token bucket rate limiter instance
             semaphore_manager: Semaphore manager for concurrency control
             state_machine: Rate limiting state machine
+            language: Language code for TMDB API requests (default: English)
         """
         self.config = get_config()
 
@@ -76,7 +74,7 @@ class TMDBClient:
         # Initialize TMDB API client
         self._tmdb = TMDb()
         self._tmdb.api_key = self.config.tmdb.api_key
-        self._tmdb.language = LANGUAGE_ENGLISH
+        self._tmdb.language = language
         self._tmdb.debug = self.config.app.debug
 
         # Initialize API objects
@@ -109,7 +107,7 @@ class TMDBClient:
         try:
             tv_results = await self._make_request(lambda: self._tv.search(title))
             for result in tv_results:
-                result["media_type"] = MEDIA_TYPE_TV
+                result["media_type"] = MediaType.TV
                 results.append(result)
         except Exception as e:
             # Convert to AniVaultError if not already
@@ -134,7 +132,7 @@ class TMDBClient:
         try:
             movie_results = await self._make_request(lambda: self._movie.search(title))
             for result in movie_results:
-                result["media_type"] = MEDIA_TYPE_MOVIE
+                result["media_type"] = MediaType.MOVIE
                 results.append(result)
         except Exception as e:
             # Convert to AniVaultError if not already
@@ -215,7 +213,7 @@ class TMDBClient:
             raise error
 
         try:
-            if media_type == MEDIA_TYPE_TV:
+            if media_type == MediaType.TV:
                 result = await self._make_request(lambda: self._tv.details(media_id))
             else:  # movie
                 result = await self._make_request(lambda: self._movie.details(media_id))
@@ -380,7 +378,7 @@ class TMDBClient:
     async def _process_error_response(
         self,
         exception: TMDbException,
-        context: ErrorContext,
+        context: ErrorContext,  # noqa: ARG002
     ) -> None:
         """Process error response and update state machine accordingly.
 
@@ -459,7 +457,7 @@ class TMDBClient:
         )
         raise error
 
-    def _convert_tmdb_exception(
+    def _convert_tmdb_exception(  # noqa: PLR0911
         self,
         exception: TMDbException,
     ) -> tuple[ErrorCode, str]:

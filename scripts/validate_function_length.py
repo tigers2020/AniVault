@@ -7,10 +7,9 @@ Python AST를 사용하여 80줄을 초과하는 함수와 높은 복잡도를 �
 
 import argparse
 import ast
-import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 
 class FunctionComplexityDetector(ast.NodeVisitor):
@@ -18,7 +17,7 @@ class FunctionComplexityDetector(ast.NodeVisitor):
 
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.violations: List[Dict[str, Any]] = []
+        self.violations: list[dict[str, Any]] = []
 
         # 설정값
         self.max_function_length = 80
@@ -70,7 +69,7 @@ class FunctionComplexityDetector(ast.NodeVisitor):
                     "value": function_length,
                     "threshold": self.max_function_length,
                     "context": self._get_function_context(node),
-                }
+                },
             )
 
         # 매개변수 개수 검사
@@ -86,7 +85,7 @@ class FunctionComplexityDetector(ast.NodeVisitor):
                     "value": param_count,
                     "threshold": self.max_parameters,
                     "context": self._get_function_context(node),
-                }
+                },
             )
 
         # 복잡도 계산
@@ -102,7 +101,7 @@ class FunctionComplexityDetector(ast.NodeVisitor):
                     "value": complexity,
                     "threshold": self.max_complexity,
                     "context": self._get_function_context(node),
-                }
+                },
             )
 
         # 혼재 책임 탐지
@@ -118,7 +117,7 @@ class FunctionComplexityDetector(ast.NodeVisitor):
                     "value": responsibilities,
                     "threshold": 1,
                     "context": self._get_function_context(node),
-                }
+                },
             )
 
     def _calculate_complexity(self, node: ast.FunctionDef) -> int:
@@ -135,7 +134,7 @@ class FunctionComplexityDetector(ast.NodeVisitor):
 
         return complexity
 
-    def _detect_mixed_responsibilities(self, node: ast.FunctionDef) -> Set[str]:
+    def _detect_mixed_responsibilities(self, node: ast.FunctionDef) -> set[str]:
         """혼재된 책임 탐지"""
         responsibilities = set()
 
@@ -312,10 +311,10 @@ class FunctionComplexityDetector(ast.NodeVisitor):
         return f"{node.name}({', '.join(args)})"
 
 
-def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
+def analyze_file(file_path: Path) -> list[dict[str, Any]]:
     """파일을 분석하여 함수 길이 및 복잡도 위반을 탐지"""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content, filename=str(file_path))
@@ -338,7 +337,7 @@ def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
         return []
 
 
-def format_violations(violations: List[Dict[str, Any]]) -> str:
+def format_violations(violations: list[dict[str, Any]]) -> str:
     """위반 사항을 포맷팅하여 출력"""
     if not violations:
         return "✅ No function length/complexity violations found!"
@@ -357,37 +356,37 @@ def format_violations(violations: List[Dict[str, Any]]) -> str:
 
     for violation_type, type_violations in violations_by_type.items():
         output.append(
-            f"  {violation_type.upper()} VIOLATIONS ({len(type_violations)}):"
+            f"  {violation_type.upper()} VIOLATIONS ({len(type_violations)}):",
         )
 
         for violation in type_violations:
             if violation_type == "length":
                 output.append(
-                    f"    {violation['file']}:{violation['line']}:{violation['column']}"
+                    f"    {violation['file']}:{violation['line']}:{violation['column']}",
                 )
                 output.append(
-                    f"      Function '{violation['function']}' is {violation['value']} lines long (max: {violation['threshold']})"
+                    f"      Function '{violation['function']}' is {violation['value']} lines long (max: {violation['threshold']})",
                 )
             elif violation_type == "complexity":
                 output.append(
-                    f"    {violation['file']}:{violation['line']}:{violation['column']}"
+                    f"    {violation['file']}:{violation['line']}:{violation['column']}",
                 )
                 output.append(
-                    f"      Function '{violation['function']}' has complexity {violation['value']} (max: {violation['threshold']})"
+                    f"      Function '{violation['function']}' has complexity {violation['value']} (max: {violation['threshold']})",
                 )
             elif violation_type == "parameters":
                 output.append(
-                    f"    {violation['file']}:{violation['line']}:{violation['column']}"
+                    f"    {violation['file']}:{violation['line']}:{violation['column']}",
                 )
                 output.append(
-                    f"      Function '{violation['function']}' has {violation['value']} parameters (max: {violation['threshold']})"
+                    f"      Function '{violation['function']}' has {violation['value']} parameters (max: {violation['threshold']})",
                 )
             elif violation_type == "mixed_responsibilities":
                 output.append(
-                    f"    {violation['file']}:{violation['line']}:{violation['column']}"
+                    f"    {violation['file']}:{violation['line']}:{violation['column']}",
                 )
                 output.append(
-                    f"      Function '{violation['function']}' mixes responsibilities: {', '.join(violation['value'])}"
+                    f"      Function '{violation['function']}' mixes responsibilities: {', '.join(violation['value'])}",
                 )
 
             output.append(f"      Context: {violation['context']}")
@@ -412,7 +411,10 @@ Examples:
     parser.add_argument("paths", nargs="+", help="File or directory paths to analyze")
 
     parser.add_argument(
-        "--exclude", nargs="*", default=[], help="Patterns to exclude from analysis"
+        "--exclude",
+        nargs="*",
+        default=[],
+        help="Patterns to exclude from analysis",
     )
 
     parser.add_argument(

@@ -10,10 +10,10 @@ from __future__ import annotations
 import json
 import logging
 import logging.config
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
-from anivault.shared.errors import AniVaultError
+from anivault.shared.errors import AniVaultError, ErrorContext
 
 
 class StructuredFormatter(logging.Formatter):
@@ -31,10 +31,35 @@ class StructuredFormatter(logging.Formatter):
         Returns:
             JSON 형태로 포맷팅된 로그 문자열
         """
+        return self.format_log(record)
+
+    def format_log(self, record: logging.LogRecord) -> str:
+        """
+        로그 레코드를 JSON 형태로 포맷팅합니다.
+
+        Args:
+            record: 로깅 레코드
+
+        Returns:
+            JSON 형태로 포맷팅된 로그 문자열
+        """
+        return self.format_record(record)
+
+    def format_record(self, record: logging.LogRecord) -> str:
+        """
+        로그 레코드를 JSON 형태로 포맷팅합니다.
+
+        Args:
+            record: 로깅 레코드
+
+        Returns:
+            JSON 형태로 포맷팅된 로그 문자열
+        """
         # 기본 로그 정보
         log_entry = {
             "timestamp": datetime.fromtimestamp(
-                record.created, tz=datetime.timezone.utc
+                record.created,
+                tz=timezone.utc,
             ).isoformat(),
             "level": record.levelname,
             "logger": record.name,
@@ -114,7 +139,8 @@ def log_operation_error(
     logger: logging.Logger,
     error: AniVaultError,
     operation: str | None = None,
-    context: dict[str, Any] | None = None,
+    context: (dict[str, Any] | ErrorContext) | None = None,
+    additional_context: (dict[str, Any] | ErrorContext) | None = None,
 ) -> None:
     """
     AniVaultError 객체를 받아 구조화된 에러 로그를 기록합니다.
@@ -126,7 +152,7 @@ def log_operation_error(
         context: 추가 컨텍스트 정보 (선택사항)
     """
     # 컨텍스트 정보 준비
-    context_dict = {}
+    context_dict: dict[str, Any] = {}
 
     # 에러의 기본 컨텍스트 정보 추가
     if error.context:
@@ -138,6 +164,13 @@ def log_operation_error(
             context_dict.update(context.to_dict())
         else:
             context_dict.update(context)
+
+    # additional_context 정보 병합
+    if additional_context:
+        if isinstance(additional_context, ErrorContext):
+            context_dict.update(additional_context.to_dict())
+        else:
+            context_dict.update(additional_context)
 
     # 로그 레코드 생성
     logger.error(
@@ -158,7 +191,8 @@ def log_operation_success(
     operation: str,
     duration_ms: float,
     result_info: dict[str, Any] | None = None,
-    context: dict[str, Any] | None = None,
+    context: (dict[str, Any] | ErrorContext) | None = None,
+    additional_context: (dict[str, Any] | ErrorContext) | None = None,
 ) -> None:
     """
     성공적인 작업에 대한 정보 로그를 기록합니다.
@@ -171,9 +205,16 @@ def log_operation_success(
         context: 컨텍스트 정보 (선택사항)
     """
     # 컨텍스트를 딕셔너리로 변환
-    context_dict = {}
+    context_dict: dict[str, Any] = {}
     if context:
         context_dict = context.to_dict() if hasattr(context, "to_dict") else context
+
+    # additional_context 정보 병합
+    if additional_context:
+        if isinstance(additional_context, ErrorContext):
+            context_dict.update(additional_context.to_dict())
+        else:
+            context_dict.update(additional_context)
 
     logger.info(
         "Operation '%s' completed successfully",
@@ -267,7 +308,7 @@ def log_api_call(
         duration_ms: 소요 시간 (밀리초, 선택사항)
         context: 컨텍스트 정보 (선택사항)
     """
-    api_context = {
+    api_context: dict[str, Any] = {
         "endpoint": endpoint,
         "method": method,
     }

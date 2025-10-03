@@ -11,7 +11,9 @@ The ProgressManager class offers:
 - Conditional disabling for non-interactive modes or JSON output
 - Consistent styling and formatting across all commands
 """
+from __future__ import annotations
 
+import types
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from typing import Any
@@ -25,6 +27,7 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
+from typing_extensions import Self
 
 
 class ProgressManager:
@@ -162,7 +165,7 @@ class ProgressManager:
         if not self.disabled:
             self._progress.stop()
 
-    def __enter__(self) -> "ProgressManager":
+    def __enter__(self) -> Self:
         """
         Context manager entry.
 
@@ -172,7 +175,12 @@ class ProgressManager:
         self.start()
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         """
         Context manager exit.
 
