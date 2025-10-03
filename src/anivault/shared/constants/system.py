@@ -5,137 +5,350 @@ This module contains all constants related to system configuration,
 timeouts, limits, and general application settings.
 """
 
-# Timeout Configuration
-DEFAULT_TIMEOUT = 300  # default timeout in seconds (5 minutes)
-SHORT_TIMEOUT = 30  # short timeout in seconds
-LONG_TIMEOUT = 600  # long timeout in seconds (10 minutes)
+# =============================================================================
+# BASE CONSTANTS (Foundation values used by other constants)
+# =============================================================================
 
-# File Size Limits
-MIN_FILE_SIZE = 1024  # 1KB in bytes
-MAX_FILE_SIZE = MIN_FILE_SIZE**3  # 1GB in bytes
+# Base file size unit (1KB)
+BASE_FILE_SIZE = 1024  # 1KB in bytes
 
+# Base time units
+BASE_SECOND = 1
+BASE_MINUTE = 60 * BASE_SECOND
+BASE_HOUR = 60 * BASE_MINUTE
 
-# Batch Processing
-DEFAULT_BATCH_SIZE = 50  # default batch size for processing
-MIN_BATCH_SIZE = 1  # minimum batch size
-MAX_BATCH_SIZE = 1000  # maximum batch size
+# =============================================================================
+# APPLICATION METADATA
+# =============================================================================
 
-# Memory Configuration
-DEFAULT_MEMORY_LIMIT = MIN_FILE_SIZE**3  # 1GB in bytes
-MEMORY_WARNING_THRESHOLD = 512 * MIN_FILE_SIZE**2  # 512MB in bytes
+class Application:
+    """Application metadata constants."""
+    NAME = "AniVault"
+    VERSION = "0.1.0"
+    DESCRIPTION = "Anime Collection Management System with TMDB Integration"
 
-# Application Version
-APPLICATION_VERSION = "0.1.0"
-APPLICATION_NAME = "AniVault"
-APPLICATION_DESCRIPTION = "Anime Collection Management System with TMDB Integration"
+# =============================================================================
+# FILE AND PATH CONFIGURATION
+# =============================================================================
 
-# Configuration Constants
-CONFIG_ENV_PREFIX = "ANIVAULT_"
-CONFIG_ENV_DELIMITER = "__"
-CONFIG_DEFAULT_DIR = ".anivault"
-CONFIG_DEFAULT_FILENAME = "anivault.toml"
+class FileSystem:
+    """File system related constants."""
+    # Base file sizes
+    MIN_FILE_SIZE = BASE_FILE_SIZE  # 1KB
+    MAX_FILE_SIZE = BASE_FILE_SIZE**3  # 1GB
+    
+    # Path limits
+    MAX_PATH_LENGTH = 4096
+    MAX_FILENAME_LENGTH = 255
+    
+    # Directory names
+    LOG_DIRECTORY = "logs"
+    CONFIG_DIRECTORY = "config"
+    CACHE_BACKEND = "memory"
+    HOME_DIR = ".anivault"
 
-# Encoding Configuration
-DEFAULT_ENCODING = "utf-8"
-FALLBACK_ENCODING = "cp1252"
+class Encoding:
+    """Text encoding constants."""
+    DEFAULT = "utf-8"
+    FALLBACK = "cp1252"
 
-# Process Configuration
-DEFAULT_PROCESS_PRIORITY = "normal"
+# =============================================================================
+# CONFIGURATION SYSTEM
+# =============================================================================
 
-# Path Configuration
-MAX_PATH_LENGTH = 4096  # maximum path length
-MAX_FILENAME_LENGTH = 255  # maximum filename length
+class Config:
+    """Configuration system constants."""
+    ENV_PREFIX = "ANIVAULT_"
+    ENV_DELIMITER = "__"
+    DEFAULT_DIR = FileSystem.HOME_DIR
+    DEFAULT_FILENAME = "anivault.toml"
 
-# Process Configuration
-DEFAULT_PROCESS_PRIORITY = "normal"  # process priority
-MAX_CONCURRENT_PROCESSES = 16  # maximum concurrent processes
+# =============================================================================
+# TIMEOUT CONFIGURATION
+# =============================================================================
 
-# Directory and File Paths
-DEFAULT_LOG_DIRECTORY = "logs"  # default log directory
-DEFAULT_PROFILING_DIRECTORY = "logs"  # default profiling directory
-DEFAULT_CONFIG_DIRECTORY = "config"  # default config directory
-DEFAULT_CACHE_BACKEND = "memory"  # default cache backend
-ANIVAULT_HOME_DIR = ".anivault"  # AniVault home directory
+class Timeout:
+    """Timeout configuration constants."""
+    # Base timeouts
+    SHORT = 30 * BASE_SECOND  # 30 seconds
+    DEFAULT = 5 * BASE_MINUTE  # 5 minutes
+    LONG = 10 * BASE_MINUTE  # 10 minutes
+    
+    # Specific service timeouts
+    TMDB = 30 * BASE_SECOND  # TMDB API timeout
+    PIPELINE_SENTINEL = 30.0  # Pipeline sentinel timeout
+    PIPELINE_SHUTDOWN = 1.0  # Pipeline shutdown timeout
+    PIPELINE_QUEUE = 1.0  # Pipeline queue timeout
 
-# JSON and Data Keys
-JSON_ENTRIES_KEY = "entries"  # key for entries in JSON data
-JSON_METADATA_KEY = "metadata"  # key for metadata in JSON data
-JSON_VERSION_KEY = "version"  # key for version in JSON data
-JSON_DESCRIPTION_KEY = "description"  # key for description in JSON data
-JSON_TOTAL_ENTRIES_KEY = "total_entries"  # key for total entries count
+# =============================================================================
+# BATCH AND PROCESSING
+# =============================================================================
 
-# Boolean String Values
-BOOLEAN_TRUE_STRING = "true"  # string representation of true
-BOOLEAN_FALSE_STRING = "false"  # string representation of false
+class Batch:
+    """Batch processing constants."""
+    DEFAULT_SIZE = 50
+    MIN_SIZE = 1
+    MAX_SIZE = 1000
+    LARGE_SIZE = 100
+    PARALLEL_THRESHOLD = 1000
 
-# Memory and Version Configuration
-DEFAULT_MEMORY_LIMIT_STRING = "2GB"  # default memory limit string
-DEFAULT_VERSION_STRING = "0.1.0"  # default version string
+class Process:
+    """Process configuration constants."""
+    DEFAULT_PRIORITY = "normal"
+    MAX_CONCURRENT = 16
+    DEFAULT_WORKERS = 4
 
-# Error Handling
-MAX_RETRY_ATTEMPTS = 3  # maximum retry attempts for failed operations
-DEFAULT_RETRY_DELAY = 1.0  # default delay between retries in seconds
-MAX_RETRY_DELAY = 60.0  # maximum delay between retries in seconds
+# =============================================================================
+# MEMORY CONFIGURATION
+# =============================================================================
 
-# Performance Monitoring
-PERFORMANCE_SAMPLE_RATE = 0.1  # 10% of operations sampled for performance monitoring
-PERFORMANCE_REPORT_INTERVAL = 60  # performance report interval in seconds
+class Memory:
+    """Memory configuration constants."""
+    # Base memory limits
+    DEFAULT_LIMIT = FileSystem.MAX_FILE_SIZE  # 1GB
+    WARNING_THRESHOLD = 512 * BASE_FILE_SIZE**2  # 512MB
+    DEFAULT_LIMIT_MB = 1024  # 1GB in MB
+    DEFAULT_LIMIT_STRING = "2GB"
+    
+    # CPU limits
+    DEFAULT_CPU_LIMIT = 4
 
-# Configuration Defaults
-DEFAULT_MIN_FILE_SIZE_MB = 50  # minimum file size in MB
-DEFAULT_BATCH_SIZE_LARGE = 100  # large batch size for processing
-DEFAULT_PARALLEL_THRESHOLD = 1000  # minimum file count for parallel processing
-DEFAULT_LOG_MAX_BYTES = 10485760  # 10MB in bytes
-DEFAULT_LOG_BACKUP_COUNT = 5  # number of backup log files
-DEFAULT_TMDB_TIMEOUT = 30  # TMDB API timeout in seconds
-DEFAULT_TMDB_RETRY_ATTEMPTS = 3  # TMDB retry attempts
-DEFAULT_TMDB_RETRY_DELAY = 1.0  # TMDB retry delay in seconds
-DEFAULT_TMDB_RATE_LIMIT_DELAY = 0.25  # TMDB rate limit delay in seconds
-DEFAULT_TMDB_RATE_LIMIT_RPS = 35.0  # TMDB rate limit requests per second
+# =============================================================================
+# CACHE CONFIGURATION
+# =============================================================================
 
-# Pipeline timeout values
-PIPELINE_SENTINEL_TIMEOUT = 30.0  # timeout for sentinel value operations
-PIPELINE_SHUTDOWN_TIMEOUT = 1.0  # timeout for graceful shutdown
-PIPELINE_QUEUE_TIMEOUT = 1.0  # timeout for queue operations
+class Cache:
+    """Cache configuration constants."""
+    TTL = 3600  # 1 hour in seconds
+    MAX_SIZE = 1000
+    TYPE_SEARCH = "search"
+    TYPE_DETAILS = "details"
 
-# Pipeline sentinel value - unique object to signal end of processing
-SENTINEL = object()
-DEFAULT_CACHE_TTL = 3600  # cache TTL in seconds
-DEFAULT_CACHE_MAX_SIZE = 1000  # maximum cache size
-DEFAULT_CPU_LIMIT = 4  # CPU limit for application
-DEFAULT_MEMORY_LIMIT_MB = 1024
+# =============================================================================
+# STATUS CONSTANTS
+# =============================================================================
 
-# Cache Type Constants
-CACHE_TYPE_SEARCH = "search"  # cache type for search results
-CACHE_TYPE_DETAILS = "details"  # cache type for detailed results
+class Status:
+    """Status constants for various operations."""
+    PENDING = "pending"
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
 
-# Enrichment Status Constants
-ENRICHMENT_STATUS_PENDING = "pending"  # enrichment pending
-ENRICHMENT_STATUS_SUCCESS = "success"  # enrichment success
-ENRICHMENT_STATUS_FAILED = "failed"  # enrichment failed
-ENRICHMENT_STATUS_SKIPPED = "skipped"  # enrichment skipped
+class EnrichmentStatus:
+    """Enrichment status constants."""
+    PENDING = Status.PENDING
+    SUCCESS = Status.SUCCESS
+    FAILED = Status.FAILED
+    SKIPPED = Status.SKIPPED
 
-# Media Type Constants
-MEDIA_TYPE_TV = "tv"  # TV media type
-MEDIA_TYPE_MOVIE = "movie"  # movie media type
+# =============================================================================
+# MEDIA AND LANGUAGE
+# =============================================================================
 
-# Language Constants
-LANGUAGE_ENGLISH = "en"  # English language code
-LANGUAGE_KOREAN = "ko"  # Korean language code  # memory limit in MB
+class MediaType:
+    """Media type constants."""
+    TV = "tv"
+    MOVIE = "movie"
 
-# Pipeline Configuration
-DEFAULT_QUEUE_SIZE = 1000  # default queue size for pipeline processing
-DEFAULT_WORKERS = 4  # default number of worker processes
+class Language:
+    """Language code constants."""
+    ENGLISH = "en"
+    KOREAN = "ko"
 
-# CLI Constants
-CLI_INFO_COMMAND_STARTED = "Starting {command} command..."
-CLI_INFO_COMMAND_COMPLETED = "Completed {command} command"
-CLI_ERROR_SCAN_FAILED = "Scan command failed: {error}"
-CLI_ERROR_ORGANIZE_FAILED = "Organize command failed: {error}"
-CLI_ERROR_MATCH_FAILED = "Match command failed: {error}"
-CLI_ERROR_VERIFY_FAILED = "Verify command failed: {error}"
-CLI_ERROR_ROLLBACK_FAILED = "Rollback command failed: {error}"
-CLI_ERROR_TMDB_CONNECTIVITY_FAILED = "TMDB API connectivity failed: {error}"
-CLI_ERROR_VERIFICATION_FAILED = "Verification failed: {error}"
-CLI_SUCCESS_RESULTS_SAVED = "Results saved to: {path}"
-CLI_INDENT_SIZE = 2
+# =============================================================================
+# JSON DATA KEYS
+# =============================================================================
+
+class JsonKeys:
+    """JSON data structure keys."""
+    ENTRIES = "entries"
+    METADATA = "metadata"
+    VERSION = "version"
+    DESCRIPTION = "description"
+    TOTAL_ENTRIES = "total_entries"
+
+# =============================================================================
+# BOOLEAN VALUES
+# =============================================================================
+
+class Boolean:
+    """Boolean string representations."""
+    TRUE = "true"
+    FALSE = "false"
+
+# =============================================================================
+# ERROR HANDLING
+# =============================================================================
+
+class ErrorHandling:
+    """Error handling configuration."""
+    MAX_RETRY_ATTEMPTS = 3
+    DEFAULT_RETRY_DELAY = 1.0
+    MAX_RETRY_DELAY = 60.0
+
+class TMDBErrorHandling:
+    """TMDB specific error handling."""
+    RETRY_ATTEMPTS = 3
+    RETRY_DELAY = 1.0
+    RATE_LIMIT_DELAY = 0.25
+    RATE_LIMIT_RPS = 35.0
+
+# =============================================================================
+# PERFORMANCE MONITORING
+# =============================================================================
+
+class Performance:
+    """Performance monitoring constants."""
+    SAMPLE_RATE = 0.1  # 10% sampling
+    REPORT_INTERVAL = 60  # 60 seconds
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+
+class Logging:
+    """Logging configuration constants."""
+    MAX_BYTES = 10485760  # 10MB
+    BACKUP_COUNT = 5
+    MIN_FILE_SIZE_MB = 50
+
+# =============================================================================
+# PIPELINE CONFIGURATION
+# =============================================================================
+
+class Pipeline:
+    """Pipeline configuration constants."""
+    QUEUE_SIZE = 1000
+    SENTINEL = object()  # Unique sentinel object
+
+# =============================================================================
+# CLI CONSTANTS
+# =============================================================================
+
+class CLI:
+    """CLI related constants."""
+    INDENT_SIZE = 2
+    
+    # Message templates
+    INFO_COMMAND_STARTED = "Starting {command} command..."
+    INFO_COMMAND_COMPLETED = "Completed {command} command"
+    SUCCESS_RESULTS_SAVED = "Results saved to: {path}"
+    
+    # Error messages
+    ERROR_SCAN_FAILED = "Scan command failed: {error}"
+    ERROR_ORGANIZE_FAILED = "Organize command failed: {error}"
+    ERROR_MATCH_FAILED = "Match command failed: {error}"
+    ERROR_VERIFY_FAILED = "Verify command failed: {error}"
+    ERROR_ROLLBACK_FAILED = "Rollback command failed: {error}"
+    ERROR_TMDB_CONNECTIVITY_FAILED = "TMDB API connectivity failed: {error}"
+    ERROR_VERIFICATION_FAILED = "Verification failed: {error}"
+
+# =============================================================================
+# BACKWARD COMPATIBILITY ALIASES
+# =============================================================================
+
+# Legacy aliases for backward compatibility
+APPLICATION_NAME = Application.NAME
+APPLICATION_VERSION = Application.VERSION
+APPLICATION_DESCRIPTION = Application.DESCRIPTION
+
+CONFIG_ENV_PREFIX = Config.ENV_PREFIX
+CONFIG_ENV_DELIMITER = Config.ENV_DELIMITER
+CONFIG_DEFAULT_DIR = Config.DEFAULT_DIR
+CONFIG_DEFAULT_FILENAME = Config.DEFAULT_FILENAME
+
+DEFAULT_ENCODING = Encoding.DEFAULT
+FALLBACK_ENCODING = Encoding.FALLBACK
+
+DEFAULT_TIMEOUT = Timeout.DEFAULT
+SHORT_TIMEOUT = Timeout.SHORT
+LONG_TIMEOUT = Timeout.LONG
+
+MIN_FILE_SIZE = FileSystem.MIN_FILE_SIZE
+MAX_FILE_SIZE = FileSystem.MAX_FILE_SIZE
+MAX_PATH_LENGTH = FileSystem.MAX_PATH_LENGTH
+MAX_FILENAME_LENGTH = FileSystem.MAX_FILENAME_LENGTH
+
+DEFAULT_LOG_DIRECTORY = FileSystem.LOG_DIRECTORY
+DEFAULT_PROFILING_DIRECTORY = FileSystem.LOG_DIRECTORY
+DEFAULT_CONFIG_DIRECTORY = FileSystem.CONFIG_DIRECTORY
+DEFAULT_CACHE_BACKEND = FileSystem.CACHE_BACKEND
+ANIVAULT_HOME_DIR = FileSystem.HOME_DIR
+
+JSON_ENTRIES_KEY = JsonKeys.ENTRIES
+JSON_METADATA_KEY = JsonKeys.METADATA
+JSON_VERSION_KEY = JsonKeys.VERSION
+JSON_DESCRIPTION_KEY = JsonKeys.DESCRIPTION
+JSON_TOTAL_ENTRIES_KEY = JsonKeys.TOTAL_ENTRIES
+
+BOOLEAN_TRUE_STRING = Boolean.TRUE
+BOOLEAN_FALSE_STRING = Boolean.FALSE
+
+DEFAULT_MEMORY_LIMIT = Memory.DEFAULT_LIMIT
+MEMORY_WARNING_THRESHOLD = Memory.WARNING_THRESHOLD
+DEFAULT_MEMORY_LIMIT_STRING = Memory.DEFAULT_LIMIT_STRING
+DEFAULT_MEMORY_LIMIT_MB = Memory.DEFAULT_LIMIT_MB
+DEFAULT_CPU_LIMIT = Memory.DEFAULT_CPU_LIMIT
+DEFAULT_VERSION_STRING = Application.VERSION
+
+DEFAULT_BATCH_SIZE = Batch.DEFAULT_SIZE
+MIN_BATCH_SIZE = Batch.MIN_SIZE
+MAX_BATCH_SIZE = Batch.MAX_SIZE
+DEFAULT_BATCH_SIZE_LARGE = Batch.LARGE_SIZE
+DEFAULT_PARALLEL_THRESHOLD = Batch.PARALLEL_THRESHOLD
+
+DEFAULT_PROCESS_PRIORITY = Process.DEFAULT_PRIORITY
+MAX_CONCURRENT_PROCESSES = Process.MAX_CONCURRENT
+DEFAULT_WORKERS = Process.DEFAULT_WORKERS
+
+MAX_RETRY_ATTEMPTS = ErrorHandling.MAX_RETRY_ATTEMPTS
+DEFAULT_RETRY_DELAY = ErrorHandling.DEFAULT_RETRY_DELAY
+MAX_RETRY_DELAY = ErrorHandling.MAX_RETRY_DELAY
+
+DEFAULT_TMDB_TIMEOUT = Timeout.TMDB
+DEFAULT_TMDB_RETRY_ATTEMPTS = TMDBErrorHandling.RETRY_ATTEMPTS
+DEFAULT_TMDB_RETRY_DELAY = TMDBErrorHandling.RETRY_DELAY
+DEFAULT_TMDB_RATE_LIMIT_DELAY = TMDBErrorHandling.RATE_LIMIT_DELAY
+DEFAULT_TMDB_RATE_LIMIT_RPS = TMDBErrorHandling.RATE_LIMIT_RPS
+
+PERFORMANCE_SAMPLE_RATE = Performance.SAMPLE_RATE
+PERFORMANCE_REPORT_INTERVAL = Performance.REPORT_INTERVAL
+
+DEFAULT_LOG_MAX_BYTES = Logging.MAX_BYTES
+DEFAULT_LOG_BACKUP_COUNT = Logging.BACKUP_COUNT
+DEFAULT_MIN_FILE_SIZE_MB = Logging.MIN_FILE_SIZE_MB
+
+PIPELINE_SENTINEL_TIMEOUT = Timeout.PIPELINE_SENTINEL
+PIPELINE_SHUTDOWN_TIMEOUT = Timeout.PIPELINE_SHUTDOWN
+PIPELINE_QUEUE_TIMEOUT = Timeout.PIPELINE_QUEUE
+DEFAULT_QUEUE_SIZE = Pipeline.QUEUE_SIZE
+SENTINEL = Pipeline.SENTINEL
+
+DEFAULT_CACHE_TTL = Cache.TTL
+DEFAULT_CACHE_MAX_SIZE = Cache.MAX_SIZE
+CACHE_TYPE_SEARCH = Cache.TYPE_SEARCH
+CACHE_TYPE_DETAILS = Cache.TYPE_DETAILS
+
+ENRICHMENT_STATUS_PENDING = EnrichmentStatus.PENDING
+ENRICHMENT_STATUS_SUCCESS = EnrichmentStatus.SUCCESS
+ENRICHMENT_STATUS_FAILED = EnrichmentStatus.FAILED
+ENRICHMENT_STATUS_SKIPPED = EnrichmentStatus.SKIPPED
+
+MEDIA_TYPE_TV = MediaType.TV
+MEDIA_TYPE_MOVIE = MediaType.MOVIE
+
+LANGUAGE_ENGLISH = Language.ENGLISH
+LANGUAGE_KOREAN = Language.KOREAN
+
+CLI_INDENT_SIZE = CLI.INDENT_SIZE
+CLI_INFO_COMMAND_STARTED = CLI.INFO_COMMAND_STARTED
+CLI_INFO_COMMAND_COMPLETED = CLI.INFO_COMMAND_COMPLETED
+CLI_ERROR_SCAN_FAILED = CLI.ERROR_SCAN_FAILED
+CLI_ERROR_ORGANIZE_FAILED = CLI.ERROR_ORGANIZE_FAILED
+CLI_ERROR_MATCH_FAILED = CLI.ERROR_MATCH_FAILED
+CLI_ERROR_VERIFY_FAILED = CLI.ERROR_VERIFY_FAILED
+CLI_ERROR_ROLLBACK_FAILED = CLI.ERROR_ROLLBACK_FAILED
+CLI_ERROR_TMDB_CONNECTIVITY_FAILED = CLI.ERROR_TMDB_CONNECTIVITY_FAILED
+CLI_ERROR_VERIFICATION_FAILED = CLI.ERROR_VERIFICATION_FAILED
+CLI_SUCCESS_RESULTS_SAVED = CLI.SUCCESS_RESULTS_SAVED
