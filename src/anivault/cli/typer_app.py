@@ -20,6 +20,7 @@ from anivault.cli.common.options import (
     verbose_option,
     version_option,
 )
+from anivault.cli.log_handler import log_command
 from anivault.cli.match_handler import match_command
 from anivault.cli.organize_handler import organize_command
 from anivault.cli.run_handler import run_command
@@ -336,6 +337,45 @@ def run_command_typer(
         dry_run,
         yes,
     )
+
+
+@app.command("log")
+def log_command_typer(
+    command: str = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Log command to execute (list, show, tail)",
+    ),
+    log_dir: Path = typer.Option(  # type: ignore[misc]
+        Path("logs"),
+        "--log-dir",
+        help="Directory containing log files",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+) -> None:
+    """
+    Manage and view log files.
+
+    This command provides utilities for viewing and managing AniVault log files.
+    It can list available log files, show log contents, and tail log files in real-time.
+
+    Examples:
+        # List all log files
+        anivault log list
+
+        # List log files in custom directory
+        anivault log list --log-dir /custom/logs
+
+        # Show log file contents
+        anivault log show app.log
+
+        # Tail log file in real-time
+        anivault log tail app.log --follow
+    """
+    # Call the log command
+    log_command(command, log_dir)
 
 
 if __name__ == "__main__":

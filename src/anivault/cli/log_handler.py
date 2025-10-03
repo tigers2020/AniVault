@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import logging
 import sys
+from pathlib import Path
 from typing import Any
+
+import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.json_formatter import format_json_output
@@ -276,3 +279,57 @@ def _run_log_list_command_impl(args, console) -> int:
         console.print(f"[red]Error listing log files: {e}[/red]")
         logger.exception("Log list error")
         return 1
+
+
+def log_command(
+    command: str = typer.Argument(  # type: ignore[misc]
+        ...,
+        help="Log command to execute (list, show, tail)",
+    ),
+    log_dir: Path = typer.Option(  # type: ignore[misc]
+        Path("logs"),
+        "--log-dir",
+        help="Directory containing log files",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+) -> None:
+    """
+    Manage and view log files.
+
+    This command provides utilities for viewing and managing AniVault log files.
+    It can list available log files, show log contents, and tail log files in real-time.
+
+    Examples:
+        # List all log files
+        anivault log list
+
+        # List log files in custom directory
+        anivault log list --log-dir /custom/logs
+
+        # Show log file contents
+        anivault log show app.log
+
+        # Tail log file in real-time
+        anivault log tail app.log --follow
+    """
+    # Create a mock args object to maintain compatibility with existing handler
+    class MockArgs:
+        def __init__(self):
+            self.log_command = command
+            self.log_dir = str(log_dir)
+            
+            # Get CLI context for JSON output
+            context = get_cli_context()
+            self.json = context.json_output if context else False
+            self.verbose = context.verbose if context else 0
+
+    args = MockArgs()
+    
+    # Call the existing handler
+    exit_code = handle_log_command(args)
+    
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
