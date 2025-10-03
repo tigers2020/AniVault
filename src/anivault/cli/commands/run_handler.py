@@ -15,7 +15,7 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.cli.match_handler import handle_match_command
 from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.progress import create_progress_manager
-from anivault.cli.scan_handler import handle_scan_command
+from anivault.cli.scan_handler import _handle_scan_command
 from anivault.shared.errors import ApplicationError
 from anivault.shared.logging import get_logger
 
@@ -176,7 +176,7 @@ def _run_scan_step(args: Any, directory: Path, console: Console) -> dict[str, An
         scan_args = _create_scan_args(args, directory)
 
         # Run scan command
-        scan_exit_code = handle_scan_command(scan_args)
+        scan_exit_code = _handle_scan_command(scan_args)
 
         if scan_exit_code == 0:
             return {

@@ -6,8 +6,12 @@ separated for better maintainability and single responsibility principle.
 
 import logging
 import sys
+from pathlib import Path
 from typing import Any
 
+import typer
+
+from anivault.cli.common.context import get_cli_context, validate_directory
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.shared.constants import CLI
@@ -16,7 +20,71 @@ from anivault.shared.errors import ApplicationError, InfrastructureError
 logger = logging.getLogger(__name__)
 
 
-def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
+def scan_command(
+    directory: Path = typer.Argument(
+        ...,
+        help="Directory to scan for anime files",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+    ),
+    recursive: bool = typer.Option(
+        True,
+        "--recursive",
+        "-r",
+        help="Scan directories recursively",
+    ),
+    include_subtitles: bool = typer.Option(
+        True,
+        "--include-subtitles",
+        help="Include subtitle files in scan",
+    ),
+    include_metadata: bool = typer.Option(
+        True,
+        "--include-metadata",
+        help="Include metadata files in scan",
+    ),
+    output_file: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file for scan results (JSON format)",
+        writable=True,
+    ),
+) -> None:
+    """
+    Scan directories for anime files and extract metadata.
+
+    This command recursively scans the specified directory for anime files
+    and extracts metadata using anitopy. It can optionally include subtitle
+    and metadata files in the scan results.
+
+    Examples:
+        # Scan current directory
+        anivault scan .
+
+        # Scan with custom options
+        anivault scan /path/to/anime --recursive --output results.json
+
+        # Scan without subtitles
+        anivault scan /path/to/anime --no-include-subtitles
+    """
+    # Create args-like object for compatibility
+    args = type('Args', (), {
+        'directory': str(directory),
+        'recursive': recursive,
+        'include_subtitles': include_subtitles,
+        'include_metadata': include_metadata,
+        'output_file': str(output_file) if output_file else None,
+    })()
+    
+    exit_code = _handle_scan_command(args)
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
+
+
+def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
     """Handle the scan command.
 
     Args:
@@ -25,6 +93,7 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
     Returns:
         Exit code (0 for success, non-zero for error)
     """
+    from anivault.shared.constants import CLI
     logger.info(CLI.INFO_COMMAND_STARTED.format(command="scan"))
 
     try:
@@ -41,23 +110,22 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             TMDBClient,
             TokenBucketRateLimiter,
         )
-        from anivault.shared.constants.system import (
-            CLI_ERROR_SCAN_FAILED,
-            CLI_INDENT_SIZE,
-            CLI_SUCCESS_RESULTS_SAVED,
-            DEFAULT_ENCODING,
+        from anivault.shared.constants import (
+            CLI,
             QueueConfig,
+        )
+        from anivault.shared.constants.system import (
+            DEFAULT_ENCODING,
         )
 
         console = Console()
 
         # Validate directory
         try:
-            from anivault.cli.common.context import validate_directory
-
             directory = validate_directory(args.directory)
         except ApplicationError as e:
-            if hasattr(args, "json") and args.json:
+            context = get_cli_context()
+            if context and context.is_json_output_enabled():
                 json_output = format_json_output(
                     success=False,
                     command="scan",
@@ -75,7 +143,8 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             )
             return 1
         except InfrastructureError as e:
-            if hasattr(args, "json") and args.json:
+            context = get_cli_context()
+            if context and context.is_json_output_enabled():
                 json_output = format_json_output(
                     success=False,
                     command="scan",
@@ -93,7 +162,8 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             )
             return 1
         except Exception as e:
-            if hasattr(args, "json") and args.json:
+            context = get_cli_context()
+            if context and context.is_json_output_enabled():
                 json_output = format_json_output(
                     success=False,
                     command="scan",
@@ -114,13 +184,14 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         )  # Default to enrich unless --no-enrich is specified
 
         # Only show console output if not in JSON mode
-        if not (hasattr(args, "json") and args.json):
+        context = get_cli_context()
+        if not (context and context.is_json_output_enabled()):
             console.print(f"[green]Scanning directory: {directory}[/green]")
             console.print(f"[blue]Enriching metadata: {enrich_metadata}[/blue]")
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=(hasattr(args, "json") and args.json),
+            disabled=(context and context.is_json_output_enabled()),
         )
 
         try:
@@ -134,16 +205,19 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                     max_queue_size=QueueConfig.DEFAULT_SIZE,
                 )
 
-            if not (hasattr(args, "json") and args.json):
+            context = get_cli_context()
+            if not (context and context.is_json_output_enabled()):
                 console.print("[green]✅ File scanning completed![/green]")
 
         except Exception:
-            if not (hasattr(args, "json") and args.json):
+            context = get_cli_context()
+            if not (context and context.is_json_output_enabled()):
                 console.print("[red]❌ File scanning failed[/red]")
             raise
 
         if not file_results:
-            if hasattr(args, "json") and args.json:
+            context = get_cli_context()
+            if context and context.is_json_output_enabled():
                 # Return empty results in JSON format
                 scan_data = _collect_scan_data([], directory, enrich_metadata)
                 json_output = format_json_output(
@@ -214,7 +288,8 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             enriched_results = file_results
 
         # Check if JSON output is requested
-        if hasattr(args, "json") and args.json:
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             # Collect scan statistics for JSON output
             scan_data = _collect_scan_data(enriched_results, directory, enrich_metadata)
 
@@ -261,19 +336,21 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
 
                 json_results.append(json_result)
 
-            with open(output_path, "w", encoding=DEFAULT_ENCODING) as f:
-                json.dump(json_results, f, indent=CLI_INDENT_SIZE, ensure_ascii=False)
+                with open(output_path, "w", encoding=DEFAULT_ENCODING) as f:
+                    json.dump(json_results, f, indent=CLI.INDENT_SIZE, ensure_ascii=False)
 
-            if not (hasattr(args, "json") and args.json):
+            context = get_cli_context()
+        if not (context and context.is_json_output_enabled()):
                 console.print(
-                    f"[green]{CLI_SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
+                    f"[green]{CLI.SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
                 )
 
         logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="scan"))
         return 0
 
     except ApplicationError as e:
-        if hasattr(args, "json") and args.json:
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
                 command="scan",
@@ -291,7 +368,8 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         )
         return 1
     except InfrastructureError as e:
-        if hasattr(args, "json") and args.json:
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
                 command="scan",
@@ -309,7 +387,8 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         )
         return 1
     except Exception as e:
-        if hasattr(args, "json") and args.json:
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
                 command="scan",
@@ -320,7 +399,9 @@ def handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            console.print(f"[red]{CLI_ERROR_SCAN_FAILED.format(error=e)}[/red]")
+            from rich.console import Console
+            console = Console()
+            console.print(f"[red]{CLI.ERROR_SCAN_FAILED.format(error=e)}[/red]")
         logger.exception("Unexpected error in scan command")
         return 1
 

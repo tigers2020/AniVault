@@ -110,7 +110,8 @@ def validate_directory(directory_path: str) -> Path:
             ErrorCode.FILE_NOT_FOUND,
             f"Directory does not exist: {path}",
             ErrorContext(
-                operation="validate_directory", additional_data={"path": str(path)}
+                operation="validate_directory",
+                additional_data={"path": str(path)},
             ),
         )
 
@@ -119,7 +120,8 @@ def validate_directory(directory_path: str) -> Path:
             ErrorCode.VALIDATION_ERROR,
             f"Path is not a directory: {path}",
             ErrorContext(
-                operation="validate_directory", additional_data={"path": str(path)}
+                operation="validate_directory",
+                additional_data={"path": str(path)},
             ),
         )
 

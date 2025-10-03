@@ -8,11 +8,12 @@ help generation, shell completion, and better error handling.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from anivault.cli.adapters import create_scan_command
+from anivault.cli.scan_handler import scan_command
 from anivault.cli.common.context import CliContext, LogLevel, set_cli_context
 from anivault.cli.common.options import (
     json_output_option,
@@ -30,9 +31,6 @@ app = typer.Typer(
     no_args_is_help=True,
     invoke_without_command=True,  # Allow running without subcommands
 )
-
-# Register command adapters
-app.add_typer(create_scan_command(), name="scan")
 
 # Version information
 __version__ = "0.1.0"
@@ -76,21 +74,72 @@ def main_callback(
     set_cli_context(context)
 
 
-@app.callback()
-def main(
-    verbose: Annotated[int, verbose_option],
-    log_level: Annotated[LogLevel, log_level_option],
-    json_output: Annotated[bool, json_output_option],
-    version: Annotated[bool, version_option],
-) -> None:
-    """
-    AniVault - Advanced Anime Collection Management System.
+# Create scan command with common options
+def create_scan_command_with_options():
+    """Create scan command with common options."""
+    @app.command("scan")
+    def scan_with_options(
+        directory: Path = typer.Argument(
+            ...,
+            help="Directory to scan for anime files",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+        recursive: bool = typer.Option(
+            True,
+            "--recursive",
+            "-r",
+            help="Scan directories recursively",
+        ),
+        include_subtitles: bool = typer.Option(
+            True,
+            "--include-subtitles",
+            help="Include subtitle files in scan",
+        ),
+        include_metadata: bool = typer.Option(
+            True,
+            "--include-metadata",
+            help="Include metadata files in scan",
+        ),
+        output_file: Path | None = typer.Option(
+            None,
+            "--output",
+            "-o",
+            help="Output file for scan results (JSON format)",
+            writable=True,
+        ),
+        verbose: Annotated[int, verbose_option] = 0,
+        log_level: Annotated[LogLevel, log_level_option] = LogLevel.INFO,
+        json_output: Annotated[bool, json_output_option] = False,
+        version: Annotated[bool, version_option] = False,
+    ) -> None:
+        """
+        Scan directories for anime files and extract metadata.
 
-    A comprehensive tool for organizing anime collections with TMDB integration,
-    intelligent file matching, and automated organization capabilities.
-    """
-    # Process the common options
-    main_callback(verbose, log_level, json_output, version)
+        This command recursively scans the specified directory for anime files
+        and extracts metadata using anitopy. It can optionally include subtitle
+        and metadata files in the scan results.
+
+        Examples:
+            # Scan current directory
+            anivault scan .
+
+            # Scan with custom options
+            anivault scan /path/to/anime --recursive --output results.json
+
+            # Scan without subtitles
+            anivault scan /path/to/anime --no-include-subtitles
+        """
+        # Process common options
+        main_callback(verbose, log_level, json_output, version)
+        
+        # Call the scan command
+        scan_command(directory, recursive, include_subtitles, include_metadata, output_file)
+
+# Register the scan command
+create_scan_command_with_options()
 
 
 if __name__ == "__main__":
