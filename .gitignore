@@ -142,6 +142,9 @@ dmypy.json
 *.sln
 *.sw?
 
+# GitHub specific (keep workflows, ignore instructions)
+.github/instructions/
+
 # Pre-commit cache
 .pre-commit-cache/
 
@@ -172,6 +175,9 @@ test_*.flv
 test_*.webm
 test_*.m4v
 
+# Test fixtures and data
+tests/fixtures/
+
 # AniVault specific cache and data directories
 .anivault/
 .benchmarks/
@@ -181,9 +187,7 @@ logs/
 large_test_data/
 
 # Task Master files (keep config but ignore state)
-.taskmaster/state.json
-.taskmaster/tasks/
-.taskmaster/reports/
+.taskmaster/
 
 # MCP server configurations (keep template, ignore actual)
 .cursor/mcp.json
