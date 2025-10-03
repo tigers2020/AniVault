@@ -43,7 +43,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
         parser = argparse.ArgumentParser(
             description=(
-                "AniVault - Anime Collection Management System with TMDB Integration"
+                "AniVault - Advanced Anime Collection Management System\n"
+                "\n"
+                "A comprehensive tool for organizing anime collections with TMDB integration, "
+                "intelligent file matching, and automated organization capabilities. "
+                "AniVault helps you scan, identify, and organize your anime files into "
+                "structured directories with proper metadata enrichment."
             ),
             prog="anivault",
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -243,15 +248,36 @@ def _get_help_epilog() -> str:
     """Get the help epilog text with examples."""
     return f"""
 Examples:
+  # Basic workflow - scan, match, and organize in one command
+  anivault run /path/to/anime --dry-run
+
   # Scan directory and enrich with TMDB metadata
   anivault scan /path/to/anime --enrich
 
-  # Scan with custom settings
+  # Scan with custom performance settings
   anivault scan /path/to/anime --enrich --workers {CLI_DEFAULT_WORKERS_EXAMPLE} \\
     --rate-limit {CLI_DEFAULT_RATE_LIMIT_EXAMPLE}
 
-  # Scan without TMDB enrichment (faster)
-  anivault scan /path/to/anime --no-enrich
+  # Match files with TMDB metadata
+  anivault match /path/to/anime --workers 4
+
+  # Organize files with dry-run preview
+  anivault organize /path/to/anime --dry-run
+
+  # View operation logs
+  anivault log list
+
+  # Rollback a previous organization
+  anivault rollback 2024-01-15_14-30-25
+
+  # Verify system components
+  anivault verify --all
+
+  # Use JSON output for scripting
+  anivault scan /path/to/anime --json > results.json
+
+For more information about a specific command, use:
+  anivault <command> --help
 """
 
 
@@ -270,7 +296,34 @@ def _add_scan_parser(subparsers) -> None:
     common_options_parser = get_common_options_parser()
     scan_parser = subparsers.add_parser(
         "scan",
-        help="Scan directory for anime files",
+        help="Scan directory for anime files and optionally enrich with TMDB metadata",
+        description=(
+            "Scan a directory for anime files and extract metadata from filenames. "
+            "Optionally enrich the metadata by querying TMDB API for additional "
+            "information like series titles, episode numbers, and air dates. "
+            "This is the first step in the anime organization workflow."
+        ),
+        epilog="""
+Examples:
+  # Basic scan with TMDB enrichment (recommended)
+  anivault scan /path/to/anime --enrich
+
+  # Fast scan without TMDB API calls
+  anivault scan /path/to/anime --no-enrich
+
+  # High-performance scan with custom settings
+  anivault scan /path/to/anime --enrich --workers 8 --rate-limit 20
+
+  # Scan specific file types only
+  anivault scan /path/to/anime --extensions .mkv .mp4 --enrich
+
+  # Save results to file
+  anivault scan /path/to/anime --enrich --output results.json
+
+  # Use JSON output for scripting
+  anivault scan /path/to/anime --json --enrich > scan_results.json
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         parents=[common_options_parser],
     )
 
@@ -290,14 +343,14 @@ def _add_scan_parser(subparsers) -> None:
     enrich_group.add_argument(
         "--no-enrich",
         action="store_true",
-        help="Skip TMDB metadata enrichment",
+        help="Skip TMDB metadata enrichment for faster scanning",
     )
 
     scan_parser.add_argument(
         "--workers",
         type=int,
         default=DEFAULT_WORKERS,
-        help=f"Number of worker threads (default: {DEFAULT_WORKERS})",
+        help=f"Number of worker threads for parallel processing (default: {DEFAULT_WORKERS})",
     )
 
     scan_parser.add_argument(
@@ -315,7 +368,7 @@ def _add_scan_parser(subparsers) -> None:
         type=int,
         default=DEFAULT_CONCURRENT_REQUESTS,
         help=(
-            f"Maximum concurrent TMDB requests "
+            f"Maximum concurrent TMDB API requests "
             f"(default: {DEFAULT_CONCURRENT_REQUESTS})"
         ),
     )
@@ -333,7 +386,7 @@ def _add_scan_parser(subparsers) -> None:
     scan_parser.add_argument(
         "--output",
         type=str,
-        help="Output file for results (JSON format)",
+        help="Output file for scan results (JSON format)",
     )
 
 
@@ -342,20 +395,40 @@ def _add_verify_parser(subparsers) -> None:
     common_options_parser = get_common_options_parser()
     verify_parser = subparsers.add_parser(
         "verify",
-        help="Verify system components",
+        help="Verify system components and dependencies",
+        description=(
+            "Verify that all system components and dependencies are working correctly. "
+            "This includes checking TMDB API connectivity, validating required libraries, "
+            "and ensuring the system is properly configured for anime file processing."
+        ),
+        epilog="""
+Examples:
+  # Verify all system components
+  anivault verify --all
+
+  # Check only TMDB API connectivity
+  anivault verify --tmdb
+
+  # Basic verification (checks core components)
+  anivault verify
+
+  # Use JSON output for automated testing
+  anivault verify --all --json
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         parents=[common_options_parser],
     )
 
     verify_parser.add_argument(
         "--tmdb",
         action="store_true",
-        help="Verify TMDB API connectivity",
+        help="Verify TMDB API connectivity and authentication",
     )
 
     verify_parser.add_argument(
         "--all",
         action="store_true",
-        help="Verify all components",
+        help="Verify all system components including dependencies and API connectivity",
     )
 
 
@@ -365,6 +438,33 @@ def _add_match_parser(subparsers) -> None:
     match_parser = subparsers.add_parser(
         "match",
         help="Match anime files with TMDB metadata using advanced matching engine",
+        description=(
+            "Match anime files with TMDB metadata using intelligent filename parsing "
+            "and fuzzy matching algorithms. This command analyzes anime filenames, "
+            "extracts series information, and matches them against TMDB database to "
+            "provide accurate metadata for organization."
+        ),
+        epilog="""
+Examples:
+  # Basic matching with default settings
+  anivault match /path/to/anime
+
+  # High-performance matching with custom workers
+  anivault match /path/to/anime --workers 8 --concurrent 6
+
+  # Match specific file types only
+  anivault match /path/to/anime --extensions .mkv .mp4
+
+  # Use custom cache directory
+  anivault match /path/to/anime --cache-dir /custom/cache
+
+  # Adjust API rate limiting for slower connections
+  anivault match /path/to/anime --rate-limit 10
+
+  # Use JSON output for scripting
+  anivault match /path/to/anime --json > match_results.json
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         parents=[common_options_parser],
     )
 
@@ -385,7 +485,7 @@ def _add_match_parser(subparsers) -> None:
         "--workers",
         type=int,
         default=DEFAULT_WORKERS,
-        help=f"Number of concurrent workers (default: {DEFAULT_WORKERS})",
+        help=f"Number of concurrent workers for parallel processing (default: {DEFAULT_WORKERS})",
     )
 
     match_parser.add_argument(
@@ -416,6 +516,36 @@ def _add_organize_parser(subparsers) -> None:
     organize_parser = subparsers.add_parser(
         "organize",
         help="Organize anime files into structured directories with TMDB metadata",
+        description=(
+            "Organize anime files into structured directories based on TMDB metadata. "
+            "This command creates organized folder structures using series names, "
+            "seasons, and episode information. It supports dry-run mode for safe "
+            "previewing and includes rollback capabilities for easy recovery."
+        ),
+        epilog="""
+Examples:
+  # Preview organization plan (recommended first step)
+  anivault organize /path/to/anime --dry-run
+
+  # Execute organization with confirmation
+  anivault organize /path/to/anime
+
+  # Skip confirmation and organize immediately
+  anivault organize /path/to/anime --yes
+
+  # Organize specific file types only
+  anivault organize /path/to/anime --extensions .mkv .mp4 --dry-run
+
+  # Organize to a different output directory
+  anivault organize /path/to/anime --output-dir /organized/anime --dry-run
+
+  # Use JSON output for automation
+  anivault organize /path/to/anime --json --dry-run > organize_plan.json
+
+  # Combine with other options
+  anivault organize /path/to/anime --extensions .mkv --output-dir /organized --yes
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         parents=[common_options_parser],
     )
 
@@ -457,8 +587,31 @@ def _add_log_parser(subparsers) -> None:
     common_options_parser = get_common_options_parser()
     log_parser = subparsers.add_parser(
         "log",
+        description="""Manage operation logs for tracking and rollback purposes.
+AniVault automatically creates detailed logs for each organization operation,
+including file movements, directory creation, and metadata changes. These logs
+enable you to track what was done and easily rollback changes if needed.
+""",
         help="Manage operation logs for tracking and rollback purposes",
         parents=[common_options_parser],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # List all available operation logs
+  anivault log list
+
+  # List logs from a specific directory
+  anivault log list --log-dir /custom/logs
+
+  # Use JSON output for scripting
+  anivault log list --json
+
+  # View logs with verbose output
+  anivault log list --verbose
+
+For more information about rollback operations, use:
+  anivault rollback --help
+""",
     )
 
     log_subparsers = log_parser.add_subparsers(
@@ -485,8 +638,43 @@ def _add_rollback_parser(subparsers) -> None:
     common_options_parser = get_common_options_parser()
     rollback_parser = subparsers.add_parser(
         "rollback",
+        description="""Revert a previous organization operation using an operation log.
+This command allows you to undo file movements and directory changes made during
+a previous organization operation. It uses the detailed logs created by AniVault
+to restore your files to their original locations and remove created directories.
+
+Use 'anivault log list' to see available operation logs and their timestamps.
+Always use --dry-run first to preview what will be reverted.
+""",
         help="Revert a previous organization operation using an operation log",
         parents=[common_options_parser],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Preview rollback operations (recommended first step)
+  anivault rollback 2024-01-15_14-30-25 --dry-run
+
+  # Execute rollback with confirmation
+  anivault rollback 2024-01-15_14-30-25
+
+  # Skip confirmation and rollback immediately
+  anivault rollback 2024-01-15_14-30-25 --yes
+
+  # Use JSON output for automation
+  anivault rollback 2024-01-15_14-30-25 --json --dry-run
+
+  # View available logs first
+  anivault log list
+
+Workflow:
+  1. Use 'anivault log list' to see available operation logs
+  2. Copy the timestamp (log ID) from the desired operation
+  3. Use 'anivault rollback <log_id> --dry-run' to preview changes
+  4. Use 'anivault rollback <log_id>' to execute the rollback
+
+For more information about available logs, use:
+  anivault log --help
+""",
     )
 
     rollback_parser.add_argument(
@@ -514,8 +702,56 @@ def _add_run_parser(subparsers) -> None:
     common_options_parser = get_common_options_parser()
     run_parser = subparsers.add_parser(
         "run",
-        help="Run the complete anime organization workflow (scan, match, organize) in sequence",
+        description="""Execute the complete anime organization workflow in a single command.
+This is the most convenient way to process anime files, combining scan, match,
+and organize operations into one streamlined process. Perfect for users who
+want to organize their entire anime collection with minimal interaction.
+
+The run command performs these steps in sequence:
+1. Scan: Discover anime files and extract metadata from filenames
+2. Match: Query TMDB API to enrich metadata with series information
+3. Organize: Create structured directories and move files accordingly
+
+Use --dry-run to preview operations before making any changes.
+""",
+        help="Execute complete anime organization workflow (scan, match, organize)",
         parents=[common_options_parser],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"""
+Examples:
+  # Complete workflow with dry-run preview (recommended first step)
+  anivault run /path/to/anime --dry-run
+
+  # Execute complete organization workflow
+  anivault run /path/to/anime
+
+  # Skip confirmation prompts for automation
+  anivault run /path/to/anime --yes
+
+  # Process only specific file types
+  anivault run /path/to/anime --extensions .mkv .mp4 --dry-run
+
+  # Skip certain steps (useful for debugging or partial runs)
+  anivault run /path/to/anime --skip-scan --skip-match  # Only organize
+  anivault run /path/to/anime --skip-organize           # Only scan and match
+
+  # High-performance processing with custom settings
+  anivault run /path/to/anime --max-workers 8 --batch-size 200
+
+  # Use JSON output for automation and scripting
+  anivault run /path/to/anime --json --yes > organization_results.json
+
+  # Combine multiple options for advanced workflows
+  anivault run /path/to/anime --extensions .mkv --max-workers 6 --batch-size 150 --dry-run
+
+Workflow Steps:
+  The run command combines three individual commands:
+  • anivault scan    - Discover and parse anime files
+  • anivault match   - Enrich with TMDB metadata
+  • anivault organize - Create organized directory structure
+
+For more control over individual steps, use the separate scan, match, and organize commands.
+""",
     )
 
     run_parser.add_argument(
@@ -547,33 +783,33 @@ def _add_run_parser(subparsers) -> None:
     run_parser.add_argument(
         "--skip-scan",
         action="store_true",
-        help="Skip the scan step and use existing scan results",
+        help="Skip the scan step and use existing scan results (useful for resuming interrupted workflows)",
     )
 
     run_parser.add_argument(
         "--skip-match",
         action="store_true",
-        help="Skip the match step and use existing match results",
+        help="Skip the match step and use existing match results (useful for resuming interrupted workflows)",
     )
 
     run_parser.add_argument(
         "--skip-organize",
         action="store_true",
-        help="Skip the organize step and only perform scan and match",
+        help="Skip the organize step and only perform scan and match (useful for testing or partial workflows)",
     )
 
     run_parser.add_argument(
         "--max-workers",
         type=int,
         default=4,
-        help="Maximum number of worker threads for parallel processing (default: 4)",
+        help="Maximum number of worker threads for parallel processing (default: 4, recommended: 4-8)",
     )
 
     run_parser.add_argument(
         "--batch-size",
         type=int,
         default=100,
-        help="Number of files to process in each batch (default: 100)",
+        help="Number of files to process in each batch (default: 100, larger batches = more memory usage)",
     )
 
 

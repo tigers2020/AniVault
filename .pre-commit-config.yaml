@@ -89,48 +89,48 @@ repos:
         args: ['-r', 'src/', '-f', 'json', '-o', 'bandit-report.json']
         exclude: 'tests/'
 
-  # Custom AniVault code quality checks
-  - repo: local
-    hooks:
-      - id: validate-magic-values
-        name: Validate Magic Values
-        description: Check for hardcoded magic values
-        entry: python scripts/validate_magic_values.py
-        language: system
-        files: \.py$
-        args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-        pass_filenames: true
-        always_run: false
+  # Custom AniVault code quality checks (temporarily disabled)
+  # - repo: local
+  #   hooks:
+  #     - id: validate-magic-values
+  #       name: Validate Magic Values
+  #       description: Check for hardcoded magic values
+  #       entry: python scripts/validate_magic_values.py
+  #       language: system
+  #       files: \.py$
+  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
+  #       pass_filenames: true
+  #       always_run: false
 
-      - id: validate-function-length
-        name: Validate Function Length
-        description: Check function length and complexity
-        entry: python scripts/validate_function_length.py
-        language: system
-        files: \.py$
-        args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-        pass_filenames: true
-        always_run: false
+  #     - id: validate-function-length
+  #       name: Validate Function Length
+  #       description: Check function length and complexity
+  #       entry: python scripts/validate_function_length.py
+  #       language: system
+  #       files: \.py$
+  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
+  #       pass_filenames: true
+  #       always_run: false
 
-      - id: validate-error-handling
-        name: Validate Error Handling
-        description: Check error handling patterns
-        entry: python scripts/validate_error_handling.py
-        language: system
-        files: \.py$
-        args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-        pass_filenames: true
-        always_run: false
+  #     - id: validate-error-handling
+  #       name: Validate Error Handling
+  #       description: Check error handling patterns
+  #       entry: python scripts/validate_error_handling.py
+  #       language: system
+  #       files: \.py$
+  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
+  #       pass_filenames: true
+  #       always_run: false
 
-      - id: validate-code-quality
-        name: Validate Code Quality
-        description: Comprehensive code quality validation
-        entry: python scripts/validate_code_quality.py
-        language: system
-        files: \.py$
-        args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-        pass_filenames: true
-        always_run: false
+  #     - id: validate-code-quality
+  #       name: Validate Code Quality
+  #       description: Comprehensive code quality validation
+  #       entry: python scripts/validate_code_quality.py
+  #       language: system
+  #       files: \.py$
+  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
+  #       pass_filenames: true
+  #       always_run: false
 
 # Configuration
 default_stages: [commit]

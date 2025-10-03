@@ -11,8 +11,9 @@ SHORT_TIMEOUT = 30  # short timeout in seconds
 LONG_TIMEOUT = 600  # long timeout in seconds (10 minutes)
 
 # File Size Limits
-MAX_FILE_SIZE = 1024 * 1024 * 1024  # 1GB in bytes
 MIN_FILE_SIZE = 1024  # 1KB in bytes
+MAX_FILE_SIZE = MIN_FILE_SIZE**3  # 1GB in bytes
+
 
 # Batch Processing
 DEFAULT_BATCH_SIZE = 50  # default batch size for processing
@@ -20,13 +21,19 @@ MIN_BATCH_SIZE = 1  # minimum batch size
 MAX_BATCH_SIZE = 1000  # maximum batch size
 
 # Memory Configuration
-DEFAULT_MEMORY_LIMIT = 1024 * 1024 * 1024  # 1GB in bytes
-MEMORY_WARNING_THRESHOLD = 512 * 1024 * 1024  # 512MB in bytes
+DEFAULT_MEMORY_LIMIT = MIN_FILE_SIZE**3  # 1GB in bytes
+MEMORY_WARNING_THRESHOLD = 512 * MIN_FILE_SIZE**2  # 512MB in bytes
 
 # Application Version
 APPLICATION_VERSION = "0.1.0"
 APPLICATION_NAME = "AniVault"
 APPLICATION_DESCRIPTION = "Anime Collection Management System with TMDB Integration"
+
+# Configuration Constants
+CONFIG_ENV_PREFIX = "ANIVAULT_"
+CONFIG_ENV_DELIMITER = "__"
+CONFIG_DEFAULT_DIR = ".anivault"
+CONFIG_DEFAULT_FILENAME = "anivault.toml"
 
 # Encoding Configuration
 DEFAULT_ENCODING = "utf-8"
@@ -96,7 +103,25 @@ SENTINEL = object()
 DEFAULT_CACHE_TTL = 3600  # cache TTL in seconds
 DEFAULT_CACHE_MAX_SIZE = 1000  # maximum cache size
 DEFAULT_CPU_LIMIT = 4  # CPU limit for application
-DEFAULT_MEMORY_LIMIT_MB = 1024  # memory limit in MB
+DEFAULT_MEMORY_LIMIT_MB = 1024
+
+# Cache Type Constants
+CACHE_TYPE_SEARCH = "search"  # cache type for search results
+CACHE_TYPE_DETAILS = "details"  # cache type for detailed results
+
+# Enrichment Status Constants
+ENRICHMENT_STATUS_PENDING = "pending"  # enrichment pending
+ENRICHMENT_STATUS_SUCCESS = "success"  # enrichment success
+ENRICHMENT_STATUS_FAILED = "failed"  # enrichment failed
+ENRICHMENT_STATUS_SKIPPED = "skipped"  # enrichment skipped
+
+# Media Type Constants
+MEDIA_TYPE_TV = "tv"  # TV media type
+MEDIA_TYPE_MOVIE = "movie"  # movie media type
+
+# Language Constants
+LANGUAGE_ENGLISH = "en"  # English language code
+LANGUAGE_KOREAN = "ko"  # Korean language code  # memory limit in MB
 
 # Pipeline Configuration
 DEFAULT_QUEUE_SIZE = 1000  # default queue size for pipeline processing

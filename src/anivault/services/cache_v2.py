@@ -21,6 +21,11 @@ except ImportError:
 from pydantic import BaseModel, Field
 
 from anivault.core.statistics import StatisticsCollector
+from anivault.shared.constants.system import (
+    CACHE_TYPE_DETAILS,
+    CACHE_TYPE_SEARCH,
+    DEFAULT_CACHE_TTL,
+)
 from anivault.shared.errors import (
     DomainError,
     ErrorCode,
@@ -162,7 +167,9 @@ class JSONCacheV2:
             )
             raise error
 
-    def _generate_file_path(self, key: str, cache_type: str = "search") -> Path:
+    def _generate_file_path(
+        self, key: str, cache_type: str = CACHE_TYPE_SEARCH
+    ) -> Path:
         """Generate cache file path from key and cache type.
 
         Args:
@@ -187,9 +194,9 @@ class JSONCacheV2:
         key_hash = hashlib.sha256(normalized_key.encode("utf-8")).hexdigest()
 
         # Select appropriate directory
-        if cache_type == "search":
+        if cache_type == CACHE_TYPE_SEARCH:
             cache_dir = self.search_dir
-        elif cache_type == "details":
+        elif cache_type == CACHE_TYPE_DETAILS:
             cache_dir = self.details_dir
         else:
             error = DomainError(
@@ -212,7 +219,7 @@ class JSONCacheV2:
         self,
         key: str,
         data: dict[str, Any],
-        cache_type: str = "search",
+        cache_type: str = CACHE_TYPE_SEARCH,
         ttl_seconds: int | None = None,
     ) -> None:
         """Store data in the cache with optional TTL.
@@ -350,7 +357,9 @@ class JSONCacheV2:
             )
             raise error
 
-    def get(self, key: str, cache_type: str = "search") -> dict[str, Any] | None:
+    def get(
+        self, key: str, cache_type: str = CACHE_TYPE_SEARCH
+    ) -> dict[str, Any] | None:
         """Retrieve data from the cache.
 
         Args:
@@ -543,7 +552,7 @@ class JSONCacheV2:
                 str(e),
             )
 
-    def delete(self, key: str, cache_type: str = "search") -> bool:
+    def delete(self, key: str, cache_type: str = CACHE_TYPE_SEARCH) -> bool:
         """Delete a specific cache entry.
 
         Args:
@@ -617,7 +626,9 @@ class JSONCacheV2:
             elif cache_type in ["search", "details"]:
                 # Clear specific cache type
                 cache_dir = (
-                    self.search_dir if cache_type == "search" else self.details_dir
+                    self.search_dir
+                    if cache_type == CACHE_TYPE_SEARCH
+                    else self.details_dir
                 )
                 for cache_file in cache_dir.glob("*.json"):
                     cache_file.unlink()
@@ -697,7 +708,9 @@ class JSONCacheV2:
                 cache_dirs = [self.search_dir, self.details_dir]
             elif cache_type in ["search", "details"]:
                 cache_dirs = [
-                    self.search_dir if cache_type == "search" else self.details_dir,
+                    self.search_dir
+                    if cache_type == CACHE_TYPE_SEARCH
+                    else self.details_dir,
                 ]
             else:
                 error = DomainError(
@@ -801,7 +814,9 @@ class JSONCacheV2:
                 cache_dirs = [self.search_dir, self.details_dir]
             elif cache_type in ["search", "details"]:
                 cache_dirs = [
-                    self.search_dir if cache_type == "search" else self.details_dir,
+                    self.search_dir
+                    if cache_type == CACHE_TYPE_SEARCH
+                    else self.details_dir,
                 ]
             else:
                 error = DomainError(

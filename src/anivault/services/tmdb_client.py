@@ -15,6 +15,11 @@ from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
+from anivault.shared.constants.system import (
+    LANGUAGE_ENGLISH,
+    MEDIA_TYPE_MOVIE,
+    MEDIA_TYPE_TV,
+)
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
@@ -71,7 +76,7 @@ class TMDBClient:
         # Initialize TMDB API client
         self._tmdb = TMDb()
         self._tmdb.api_key = self.config.tmdb.api_key
-        self._tmdb.language = "en"
+        self._tmdb.language = LANGUAGE_ENGLISH
         self._tmdb.debug = self.config.app.debug
 
         # Initialize API objects
@@ -104,7 +109,7 @@ class TMDBClient:
         try:
             tv_results = await self._make_request(lambda: self._tv.search(title))
             for result in tv_results:
-                result["media_type"] = "tv"
+                result["media_type"] = MEDIA_TYPE_TV
                 results.append(result)
         except Exception as e:
             # Convert to AniVaultError if not already
@@ -129,7 +134,7 @@ class TMDBClient:
         try:
             movie_results = await self._make_request(lambda: self._movie.search(title))
             for result in movie_results:
-                result["media_type"] = "movie"
+                result["media_type"] = MEDIA_TYPE_MOVIE
                 results.append(result)
         except Exception as e:
             # Convert to AniVaultError if not already
@@ -210,7 +215,7 @@ class TMDBClient:
             raise error
 
         try:
-            if media_type == "tv":
+            if media_type == MEDIA_TYPE_TV:
                 result = await self._make_request(lambda: self._tv.details(media_id))
             else:  # movie
                 result = await self._make_request(lambda: self._movie.details(media_id))

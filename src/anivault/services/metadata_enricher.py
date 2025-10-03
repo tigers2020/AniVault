@@ -13,6 +13,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from anivault.core.parser.models import ParsingResult
+from anivault.shared.constants.system import (
+    ENRICHMENT_STATUS_FAILED,
+    ENRICHMENT_STATUS_PENDING,
+    ENRICHMENT_STATUS_SKIPPED,
+    ENRICHMENT_STATUS_SUCCESS,
+    MEDIA_TYPE_TV,
+)
 from anivault.shared.errors import (
     AniVaultError,
     DomainError,
@@ -489,7 +496,7 @@ class MetadataEnricher:
             try:
                 if (
                     file_info.has_episode_info()
-                    and tmdb_result.get("media_type") == "tv"
+                    and tmdb_result.get("media_type") == MEDIA_TYPE_TV
                 ):
                     # For TV shows, episode info is relevant
                     score += 0.2
@@ -504,7 +511,7 @@ class MetadataEnricher:
             try:
                 if (
                     file_info.has_season_info()
-                    and tmdb_result.get("media_type") == "tv"
+                    and tmdb_result.get("media_type") == MEDIA_TYPE_TV
                 ):
                     # For TV shows, season info is relevant
                     score += 0.1
@@ -518,7 +525,7 @@ class MetadataEnricher:
             # Media type bonus
             try:
                 if (
-                    tmdb_result.get("media_type") == "tv"
+                    tmdb_result.get("media_type") == MEDIA_TYPE_TV
                     and file_info.has_episode_info()
                 ):
                     score += 0.1
