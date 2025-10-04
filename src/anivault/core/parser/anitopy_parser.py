@@ -75,12 +75,25 @@ class AnitopyParser:
 
             return result
 
-        except Exception as e:
-            # If anitopy fails, return a minimal result
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
+            # Handle specific data processing errors
             logger.warning(
-                "Anitopy failed to parse filename '%s': %s",
+                "Anitopy failed to parse filename '%s' due to data processing error: %s",
                 filename,
                 str(e),
+            )
+
+            return ParsingResult(
+                title=filename,
+                confidence=0.1,
+                parser_used="anitopy",
+                other_info={"error": str(e), "raw_filename": filename},
+            )
+        except Exception as e:
+            # Handle unexpected errors
+            logger.exception(
+                "Anitopy failed to parse filename '%s' due to unexpected error",
+                filename,
             )
 
             return ParsingResult(

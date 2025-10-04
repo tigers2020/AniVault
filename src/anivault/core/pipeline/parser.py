@@ -80,10 +80,23 @@ class ParserWorker(threading.Thread):
                 # Process the file
                 self._process_file(file_path)
 
+            except (KeyError, ValueError, TypeError, AttributeError) as e:
+                # Handle data processing errors
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    "Worker %d data processing error: %s",
+                    self.worker_id,
+                    str(e),
+                )
+                continue
             except Exception as e:
                 # Handle timeout and other exceptions
+                logger = logging.getLogger(__name__)
                 if "timeout" not in str(e).lower():
-                    print(f"Worker {self.worker_id} error: {e}")
+                    logger.exception(
+                        "Worker %d unexpected error",
+                        self.worker_id,
+                    )
                 continue
 
     def _process_file(self, file_path: Path) -> None:
@@ -115,8 +128,8 @@ class ParserWorker(threading.Thread):
                 {"file_path": str(file_path), "worker_id": self.worker_id},
             )
 
-        except Exception as e:
-            # Update failure statistics
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
+            # Handle data processing errors
             self.stats.increment_failures()
             duration_ms = (time.time() - start_time) * 1000
 
@@ -127,11 +140,35 @@ class ParserWorker(threading.Thread):
                 additional_data={
                     "worker_id": self.worker_id,
                     "duration_ms": duration_ms,
+                    "error_type": "data_processing",
                 },
             )
             error = InfrastructureError(
                 ErrorCode.PARSER_ERROR,
-                f"Failed to process file: {file_path}",
+                f"Failed to process file due to data processing error: {file_path}",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
+
+        except Exception as e:
+            # Handle unexpected errors
+            self.stats.increment_failures()
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Create structured error
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="process_file",
+                additional_data={
+                    "worker_id": self.worker_id,
+                    "duration_ms": duration_ms,
+                    "error_type": "unexpected",
+                },
+            )
+            error = InfrastructureError(
+                ErrorCode.PARSER_ERROR,
+                f"Failed to process file due to unexpected error: {file_path}",
                 context,
                 original_error=e,
             )

@@ -122,6 +122,7 @@ class ErrorCode(str, Enum):
 
     # Business Logic Errors
     BUSINESS_LOGIC_ERROR = "BUSINESS_LOGIC_ERROR"
+    DATA_PROCESSING_ERROR = "DATA_PROCESSING_ERROR"
     DUPLICATE_ENTRY = "DUPLICATE_ENTRY"
     CONSTRAINT_VIOLATION = "CONSTRAINT_VIOLATION"
 
@@ -251,6 +252,20 @@ class ApplicationError(AniVaultError):
     """
 
 
+class DataProcessingError(AniVaultError):
+    """Data processing errors.
+
+    These errors occur during data manipulation, parsing,
+    or business logic processing.
+
+    Examples:
+    - Data parsing failures
+    - Business rule violations
+    - Data validation errors
+    - KeyError, ValueError, TypeError during data processing
+    """
+
+
 # Convenience functions for common error scenarios
 def create_file_not_found_error(
     file_path: str,
@@ -358,6 +373,26 @@ def create_config_error(
     )
     return ApplicationError(
         ErrorCode.CONFIG_ERROR,
+        message,
+        context,
+        original_error,
+    )
+
+
+def create_data_processing_error(
+    message: str,
+    field: str | None = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
+) -> DataProcessingError:
+    """Create a data processing error with context."""
+    additional_data = {"field": field} if field else None
+    context = ErrorContext(
+        operation=operation,
+        additional_data=additional_data,
+    )
+    return DataProcessingError(
+        ErrorCode.DATA_PROCESSING_ERROR,
         message,
         context,
         original_error,
