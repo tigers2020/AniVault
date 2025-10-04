@@ -28,26 +28,34 @@ python scripts/validate_dependencies.py
 
 ## 사용법
 
-AniVault는 새로운 Typer 기반 CLI를 사용합니다:
+AniVault는 **Typer 기반의 현대적인 CLI**를 사용합니다. 타입 안전성, 자동 도움말 생성, 셸 완성 지원을 제공합니다:
 
 ```bash
 anivault --help
 ```
 
+### CLI 특징
+
+- **타입 안전성**: 모든 옵션과 인수에 타입 힌트 적용
+- **자동 도움말**: 명령어와 옵션에 대한 상세한 도움말 자동 생성
+- **셸 완성 지원**: Bash, Zsh, Fish, PowerShell에서 명령어 완성 지원
+- **JSON 출력**: `--json-output` 옵션으로 머신 리더블한 출력
+- **구조화된 로깅**: 여러 로그 레벨과 상세한 디버깅 정보
+
 ### 주요 명령어
 
-- `anivault scan <directory>` - 애니메이션 파일 스캔
-- `anivault match <directory>` - TMDB와 매칭
-- `anivault organize <directory>` - 파일 정리
-- `anivault run <directory>` - 전체 워크플로우 실행
-- `anivault log list` - 작업 로그 확인
-- `anivault rollback <timestamp>` - 작업 되돌리기
+- `python -m anivault scan <directory>` - 애니메이션 파일 스캔
+- `python -m anivault match <directory>` - TMDB와 매칭
+- `python -m anivault organize <directory>` - 파일 정리
+- `python -m anivault run <directory>` - 전체 워크플로우 실행
+- `python -m anivault log list` - 작업 로그 확인
+- `python -m anivault rollback <timestamp>` - 작업 되돌리기
 
 ### 공통 옵션
 
-- `--verbose, -v` - 상세 출력 (여러 번 사용 가능)
+- `--verbose` - 상세 출력 (여러 번 사용 가능)
 - `--log-level <level>` - 로그 레벨 설정 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- `--json` - JSON 형식으로 출력
+- `--json-output` - JSON 형식으로 출력
 - `--version` - 버전 정보 표시
 
 ## Workflow and Recovery
@@ -102,19 +110,19 @@ anivault rollback YYYYMMDD_HHMMSS
 
 ```bash
 # 1. 먼저 미리보기로 확인
-anivault organize ./anime_files --dry-run
+python -m anivault organize ./anime_files --dry-run
 
 # 2. 문제없으면 실제 정리 실행
-anivault organize ./anime_files
+python -m anivault organize ./anime_files
 
 # 3. 나중에 작업 기록 확인
-anivault log list
+python -m anivault log list
 
 # 4. 필요시 되돌리기 (먼저 미리보기)
-anivault rollback 20241201_143022 --dry-run
+python -m anivault rollback 20241201_143022 --dry-run
 
 # 5. 실제 되돌리기 실행
-anivault rollback 20241201_143022
+python -m anivault rollback 20241201_143022
 ```
 
 ### Enhanced Organize 워크플로우
@@ -123,13 +131,13 @@ anivault rollback 20241201_143022
 
 ```bash
 # 1. Enhanced Organize 미리보기
-anivault organize ./anime_files --enhanced --dry-run --destination ./organized
+python -m anivault organize ./anime_files --enhanced --dry-run --destination ./organized
 
 # 2. 실제 Enhanced Organize 실행
-anivault organize ./anime_files --enhanced --destination ./organized
+python -m anivault organize ./anime_files --enhanced --destination ./organized
 
 # 3. 유사성 임계값 조정하여 재실행
-anivault organize ./anime_files --enhanced --similarity-threshold 0.8 --destination ./organized
+python -m anivault organize ./anime_files --enhanced --similarity-threshold 0.8 --destination ./organized
 ```
 
 #### Enhanced Organize 기능
@@ -146,35 +154,32 @@ anivault organize ./anime_files --enhanced --similarity-threshold 0.8 --destinat
 
 ```bash
 # 기본 정리 (확인 프롬프트 포함)
-anivault organize /path/to/anime
+python -m anivault organize /path/to/anime
 
 # 미리보기만 실행 (실제 변경 없음)
-anivault organize /path/to/anime --dry-run
+python -m anivault organize /path/to/anime --dry-run
 
 # 확인 프롬프트 없이 바로 실행
-anivault organize /path/to/anime --yes
-
-# 특정 확장자만 처리
-anivault organize /path/to/anime --extensions .mkv .mp4
+python -m anivault organize /path/to/anime --yes
 
 # 출력 디렉토리 지정
-anivault organize /path/to/anime --output-dir /organized/anime
+python -m anivault organize /path/to/anime --destination /organized/anime
 
 # Enhanced Organize (새로운 기능)
-anivault organize /path/to/anime --enhanced --destination /organized/anime
+python -m anivault organize /path/to/anime --enhanced --destination /organized/anime
 
 # Enhanced Organize 미리보기
-anivault organize /path/to/anime --enhanced --dry-run --destination /organized/anime
+python -m anivault organize /path/to/anime --enhanced --dry-run --destination /organized/anime
 
 # 유사성 임계값 조정 (0.0-1.0, 기본값: 0.7)
-anivault organize /path/to/anime --enhanced --similarity-threshold 0.8
+python -m anivault organize /path/to/anime --enhanced --similarity-threshold 0.8
 ```
 
 #### 로그 관리 명령어
 
 ```bash
 # 모든 작업 로그 목록 보기
-anivault log list
+python -m anivault log list
 ```
 
 예상 출력:
@@ -189,28 +194,146 @@ Available operation logs:
 
 ```bash
 # 되돌리기 미리보기 (실제 변경 없음)
-anivault rollback 20241201_143022 --dry-run
+python -m anivault rollback 20241201_143022 --dry-run
 
 # 되돌리기 실행 (확인 프롬프트 포함)
-anivault rollback 20241201_143022
+python -m anivault rollback 20241201_143022
 
 # 확인 프롬프트 없이 바로 되돌리기
-anivault rollback 20241201_143022 --yes
+python -m anivault rollback 20241201_143022 --yes
+```
+
+#### 스캔 명령어
+
+```bash
+# 현재 디렉토리 스캔 (기본 설정)
+python -m anivault scan .
+
+# 특정 디렉토리 스캔 (사용자 정의 옵션)
+python -m anivault scan /path/to/anime --recursive --output results.json
+
+# 자막 파일 제외하고 스캔 (빠른 처리)
+python -m anivault scan /path/to/anime --no-include-subtitles
+
+# 디버깅을 위한 상세 출력
+python -m anivault scan /path/to/anime --verbose
+
+# JSON 형식으로 결과 저장
+python -m anivault scan /path/to/anime --output scan_results.json
+
+# JSON 형식으로 콘솔 출력
+python -m anivault scan /path/to/anime --json
 ```
 
 #### 다른 유용한 명령어
 
 ```bash
 # 전체 도움말 보기
-anivault --help
+python -m anivault --help
 
 # 특정 명령어 도움말 보기
-anivault organize --help
-anivault log --help
-anivault rollback --help
+python -m anivault scan --help
+python -m anivault organize --help
+python -m anivault log --help
+python -m anivault rollback --help
 
 # 시스템 구성 요소 검증
-anivault verify --all
+python -m anivault verify --all
+```
+
+## 설정
+
+AniVault는 TOML 설정 파일과 환경 변수를 통해 구성할 수 있습니다.
+
+### 설정 파일
+
+기본 설정 파일은 `config/config.toml`에 위치합니다:
+
+```toml
+[tmdb]
+api_key = "your_tmdb_api_key_here"
+base_url = "https://api.themoviedb.org/3"
+timeout = 30
+retry_attempts = 3
+retry_delay = 1.0
+rate_limit_delay = 0.25
+
+[logging]
+level = "INFO"
+format = "json"
+
+[cache]
+enabled = true
+ttl_hours = 24
+max_size_mb = 100
+```
+
+### 환경 변수
+
+`.env` 파일을 사용하여 환경 변수를 설정할 수 있습니다:
+
+```bash
+# .env 파일
+TMDB_API_KEY=your_tmdb_api_key_here
+TMDB_BASE_URL=https://api.themoviedb.org/3
+LOG_LEVEL=DEBUG
+```
+
+### 설정 우선순위
+
+1. **명령줄 인수** (최우선)
+2. **환경 변수**
+3. **TOML 설정 파일**
+4. **기본값**
+
+### 시스템 검증
+
+설정이 올바르게 되었는지 확인하려면:
+
+```bash
+# TMDB API 연결 테스트
+python -m anivault verify --tmdb
+
+# 모든 시스템 구성 요소 검증
+python -m anivault verify --all
+```
+
+### 셸 완성 설정
+
+AniVault는 Typer의 자동 완성 기능을 통해 다양한 셸에서 명령어 완성을 지원합니다:
+
+#### 자동 설치 (권장)
+```bash
+# 현재 셸에 자동으로 완성 설정
+python -m anivault --install-completion
+```
+
+#### 수동 설치
+
+**Bash/Zsh:**
+```bash
+# Bash 완성 스크립트 생성 및 설치
+python -m anivault --show-completion bash > ~/.bash_completion.d/anivault
+echo "source ~/.bash_completion.d/anivault" >> ~/.bashrc
+
+# Zsh 완성 스크립트 생성 및 설치
+python -m anivault --show-completion zsh > ~/.zsh_completion.d/_anivault
+echo "source ~/.zsh_completion.d/_anivault" >> ~/.zshrc
+```
+
+**PowerShell (Windows):**
+```powershell
+# PowerShell 완성 스크립트 생성
+python -m anivault --show-completion powershell > anivault-completion.ps1
+
+# PowerShell 프로필에 추가
+echo "Invoke-Expression (Get-Content anivault-completion.ps1 -Raw)" >> $PROFILE
+```
+
+**Fish:**
+```bash
+# Fish 완성 스크립트 생성
+python -m anivault --show-completion fish > ~/.config/fish/completions/anivault.fish
 ```
 
 ## 개발
@@ -229,6 +352,75 @@ scripts\setup-pre-commit.bat
 # Linux/macOS
 chmod +x scripts/setup-pre-commit.sh
 ./scripts/setup-pre-commit.sh
+```
+
+### CLI 아키텍처
+
+AniVault는 **Typer 기반의 현대적인 CLI**를 사용합니다:
+
+- **메인 앱**: `src/anivault/cli/typer_app.py`
+- **진입점**: `pyproject.toml`의 `[project.scripts]` 섹션
+- **핸들러**: 각 명령어별로 분리된 핸들러 모듈
+- **공통 옵션**: `src/anivault/cli/common/options.py`
+- **컨텍스트**: `src/anivault/cli/common/context.py`
+
+#### CLI 명령어 구조
+
+```
+src/anivault/cli/
+├── typer_app.py          # 메인 Typer 앱
+├── scan_handler.py       # scan 명령어 핸들러
+├── match_handler.py      # match 명령어 핸들러
+├── organize_handler.py   # organize 명령어 핸들러
+├── run_handler.py        # run 명령어 핸들러
+├── verify_handler.py     # verify 명령어 핸들러
+├── log_handler.py        # log 명령어 핸들러
+├── rollback_handler.py   # rollback 명령어 핸들러
+└── common/
+    ├── options.py        # 공통 옵션 정의
+    ├── context.py        # CLI 컨텍스트 관리
+    ├── models.py         # Pydantic 모델 정의
+    └── validation.py     # 입력 검증 로직
+```
+
+#### 통합 테스트
+
+CLI 기능은 `tests/integration/test_typer_cli.py`에서 포괄적으로 테스트됩니다:
+
+- 기본 CLI 명령어 동작
+- 성능 벤치마크
+- 설정 로딩 및 검증
+- 에러 처리 및 복구
+
+#### 새로운 CLI 명령어 추가하기
+
+새로운 Typer 명령어를 추가하려면:
+
+1. **핸들러 파일 생성**: `src/anivault/cli/new_command_handler.py`
+2. **명령어 함수 구현**: 핸들러에서 실제 비즈니스 로직 처리
+3. **Typer 앱에 등록**: `src/anivault/cli/typer_app.py`에 명령어 추가
+4. **공통 옵션 활용**: `src/anivault/cli/common/options.py`의 옵션 재사용
+5. **테스트 작성**: `tests/cli/`에 테스트 추가
+
+예시:
+```python
+# new_command_handler.py
+def new_command(
+    directory: Path = typer.Argument(..., help="Directory to process"),
+    option: bool = typer.Option(False, "--option", help="Some option"),
+) -> None:
+    """새로운 명령어 설명."""
+    # 비즈니스 로직 구현
+    pass
+
+# typer_app.py에 추가
+@app.command("new-command")
+def new_command_typer(
+    directory: Path = typer.Argument(...),
+    option: bool = typer.Option(False, "--option"),
+) -> None:
+    """새로운 명령어 설명."""
+    new_command(directory, option)
 ```
 
 ### 코드 품질 기준
@@ -301,6 +493,23 @@ GitHub Actions를 통한 자동 검증:
 - 테스트 커버리지 측정
 - 의존성 취약점 검사
 
+### Shell Completion 사용법
+
+설치 후 탭 키를 사용하여 명령어와 옵션을 자동 완성할 수 있습니다:
+
+```bash
+# 명령어 자동 완성
+python -m anivault <TAB>
+# scan, match, organize, run, log, rollback, verify
+
+# 옵션 자동 완성
+python -m anivault scan --<TAB>
+# --recursive, --include-subtitles, --include-metadata, --output, --json, --help
+
+# 파일 경로 자동 완성
+python -m anivault scan /path/to/<TAB>
+```
+
 ### Task Master 사용
 
 프로젝트 초기화 후 개발을 시작하려면:
@@ -314,6 +523,12 @@ task-master parse-prd .taskmaster/docs/prd.txt
 
 # 다음 작업 확인
 task-master next
+
+# 현재 태스크 목록 보기
+task-master list
+
+# 특정 태스크 상세 보기
+task-master show <task-id>
 ```
 
 ## 라이선스
