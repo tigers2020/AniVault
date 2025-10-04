@@ -109,20 +109,27 @@ class TMDBClient:
             for result in tv_results:
                 result["media_type"] = MediaType.TV
                 results.append(result)
-        except Exception as e:
-            # Convert to AniVaultError if not already
-            if not isinstance(e, AniVaultError):
-                error = InfrastructureError(
-                    code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                    message=f"TV search failed: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-            else:
-                tv_error: AniVaultError = e
+        except AniVaultError as e:
+            # Re-raise AniVaultError as-is
+            tv_error = e
             log_operation_error(
                 logger=logger,
-                error=tv_error if "tv_error" in locals() else error,
+                error=tv_error,
+                operation="search_tv_shows",
+                additional_context=context.additional_data if context else None,
+            )
+            # Continue with movie search even if TV search fails
+        except Exception as e:
+            # Convert generic exceptions to InfrastructureError
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_REQUEST_FAILED,
+                message=f"TV search failed: {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                error=error,
                 operation="search_tv_shows",
                 additional_context=context.additional_data if context else None,
             )
@@ -134,20 +141,27 @@ class TMDBClient:
             for result in movie_results:
                 result["media_type"] = MediaType.MOVIE
                 results.append(result)
-        except Exception as e:
-            # Convert to AniVaultError if not already
-            if not isinstance(e, AniVaultError):
-                error = InfrastructureError(
-                    code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                    message=f"Movie search failed: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-            else:
-                movie_error: AniVaultError = e
+        except AniVaultError as e:
+            # Re-raise AniVaultError as-is
+            movie_error = e
             log_operation_error(
                 logger=logger,
-                error=movie_error if "movie_error" in locals() else error,
+                error=movie_error,
+                operation="search_movies",
+                additional_context=context.additional_data if context else None,
+            )
+            # Continue even if movie search fails
+        except Exception as e:
+            # Convert generic exceptions to InfrastructureError
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_REQUEST_FAILED,
+                message=f"Movie search failed: {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                error=error,
                 operation="search_movies",
                 additional_context=context.additional_data if context else None,
             )
@@ -226,24 +240,31 @@ class TMDBClient:
             )
             return result if isinstance(result, dict) else None
 
-        except Exception as e:
-            # Convert to AniVaultError if not already
-            if not isinstance(e, AniVaultError):
-                error = InfrastructureError(
-                    code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                    message=f"Media details request failed: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-            else:
-                details_error: AniVaultError = e
+        except AniVaultError as e:
+            # Re-raise AniVaultError as-is
+            details_error = e
             log_operation_error(
                 logger=logger,
-                error=details_error if "details_error" in locals() else error,
+                error=details_error,
                 operation="get_media_details",
                 additional_context=context.additional_data if context else None,
             )
             raise
+        except Exception as e:
+            # Convert generic exceptions to InfrastructureError
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_REQUEST_FAILED,
+                message=f"Media details request failed: {e!s}",
+                context=context,
+                original_error=e,
+            )
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="get_media_details",
+                additional_context=context.additional_data if context else None,
+            )
+            raise error from e
 
     async def _make_request(self, api_call: Callable[[], Any]) -> Any:
         """Make a rate-limited and concurrency-controlled API request.
