@@ -284,7 +284,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 refill_rate=10,  # Default refill rate
             )
             semaphore_manager = SemaphoreManager(
-                concurrency_limit=5
+                concurrency_limit=5,
             )  # Default concurrency
             state_machine = RateLimitStateMachine()
 

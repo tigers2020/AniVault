@@ -285,7 +285,8 @@ class ParserWorker(threading.Thread):
         try:
             # Store result in cache (24 hours TTL)
             cache_key = self.cache._generate_key(
-                str(file_path), file_path.stat().st_mtime
+                str(file_path),
+                file_path.stat().st_mtime,
             )
             self.cache.set_cache(cache_key, result, ttl_seconds=86400)
 

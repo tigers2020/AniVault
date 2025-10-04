@@ -430,7 +430,9 @@ def _generate_rollback_plan(log_path: Any, console: Any) -> Any:
 
 
 def _execute_rollback_plan(
-    rollback_plan: Any, options: RollbackOptions, console: Any
+    rollback_plan: Any,
+    options: RollbackOptions,
+    console: Any,
 ) -> int:
     """Execute rollback plan with file existence validation."""
     if options.dry_run:
@@ -501,7 +503,8 @@ def _perform_rollback(
 
         console.print("[blue]Executing rollback...[/blue]")
         moved_files = organizer.execute_plan(
-            rollback_plan, f"rollback-{options.log_id}"
+            rollback_plan,
+            f"rollback-{options.log_id}",
         )
 
         if moved_files:

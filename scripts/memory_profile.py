@@ -17,7 +17,10 @@ def run_command_and_profile(name: str, command: list[str]) -> dict:
     """Runs a command, profiles its memory and time, and returns results."""
     print(f"Profiling {name}...")
     process = subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
 
     max_memory_rss = 0
@@ -138,7 +141,7 @@ def main():
         if current_version and typer_version:
             print("Version Command Comparison:")
             print(
-                f"  Current: {current_version['max_memory_rss'] / 1024 / 1024:.2f} MB"
+                f"  Current: {current_version['max_memory_rss'] / 1024 / 1024:.2f} MB",
             )
             print(f"  Typer:   {typer_version['max_memory_rss'] / 1024 / 1024:.2f} MB")
 
@@ -150,7 +153,7 @@ def main():
             ) * 100
 
             print(
-                f"  Difference: {memory_diff / 1024 / 1024:.2f} MB ({memory_diff_percent:+.1f}%)"
+                f"  Difference: {memory_diff / 1024 / 1024:.2f} MB ({memory_diff_percent:+.1f}%)",
             )
 
             if memory_diff_percent > 10:
@@ -161,10 +164,12 @@ def main():
 
         # Compare help commands
         current_help = next(
-            (r for r in results if "Current" in r["name"] and "help" in r["name"]), None
+            (r for r in results if "Current" in r["name"] and "help" in r["name"]),
+            None,
         )
         typer_help = next(
-            (r for r in results if "Typer" in r["name"] and "help" in r["name"]), None
+            (r for r in results if "Typer" in r["name"] and "help" in r["name"]),
+            None,
         )
 
         if current_help and typer_help:
@@ -176,7 +181,7 @@ def main():
             memory_diff_percent = (memory_diff / current_help["max_memory_rss"]) * 100
 
             print(
-                f"  Difference: {memory_diff / 1024 / 1024:.2f} MB ({memory_diff_percent:+.1f}%)"
+                f"  Difference: {memory_diff / 1024 / 1024:.2f} MB ({memory_diff_percent:+.1f}%)",
             )
 
             if memory_diff_percent > 10:

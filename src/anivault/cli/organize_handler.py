@@ -354,7 +354,9 @@ def _generate_organization_plan(scanned_files: Any) -> Any:
 
 
 def _execute_organization_plan(
-    plan: Any, options: OrganizeOptions, console: Any
+    plan: Any,
+    options: OrganizeOptions,
+    console: Any,
 ) -> int:
     """Execute organization plan."""
     if options.dry_run:

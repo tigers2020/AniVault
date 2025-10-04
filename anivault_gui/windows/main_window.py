@@ -4,12 +4,14 @@ This module contains the MainWindow class that serves as the root container
 for all UI elements using PySide6 QMainWindow.
 """
 
+from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QDockWidget,
+    QFileDialog,
     QLabel,
     QMainWindow,
     QTextEdit,
@@ -29,7 +31,9 @@ class MainWindow(QMainWindow):
     """
 
     def __init__(
-        self, state_model: StateModel, parent: Optional[QWidget] = None
+        self,
+        state_model: StateModel,
+        parent: Optional[QWidget] = None,
     ) -> None:
         """Initialize the main application window.
 
@@ -89,18 +93,20 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(settings_action)
 
         # Match Files action
-        match_action = QAction("&Match Files", self)
-        match_action.setShortcut("Ctrl+M")
-        match_action.setStatusTip("Match files with TMDB")
-        match_action.triggered.connect(self._on_match_files)
-        tools_menu.addAction(match_action)
-
+        self.match_action = QAction("&Match Files", self)
+        self.match_action.setShortcut("Ctrl+M")
+        self.match_action.setStatusTip("Match files with TMDB")
+        self.match_action.triggered.connect(self._on_match_files)
+        self.match_action.setEnabled(False)  # Disabled until directory selected
+        tools_menu.addAction(self.match_action)
+        
         # Organize Files action
-        organize_action = QAction("&Organize Files", self)
-        organize_action.setShortcut("Ctrl+G")
-        organize_action.setStatusTip("Organize files")
-        organize_action.triggered.connect(self._on_organize_files)
-        tools_menu.addAction(organize_action)
+        self.organize_action = QAction("&Organize Files", self)
+        self.organize_action.setShortcut("Ctrl+G")
+        self.organize_action.setStatusTip("Organize files")
+        self.organize_action.triggered.connect(self._on_organize_files)
+        self.organize_action.setEnabled(False)  # Disabled until directory selected
+        tools_menu.addAction(self.organize_action)
 
         # Rollback action
         rollback_action = QAction("&Rollback", self)
@@ -138,16 +144,18 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
 
         # Match Files action
-        match_action = QAction("🔍 Match Files", self)
-        match_action.setStatusTip("Match files with TMDB")
-        match_action.triggered.connect(self._on_match_files)
-        toolbar.addAction(match_action)
-
+        self.toolbar_match_action = QAction("🔍 Match Files", self)
+        self.toolbar_match_action.setStatusTip("Match files with TMDB")
+        self.toolbar_match_action.triggered.connect(self._on_match_files)
+        self.toolbar_match_action.setEnabled(False)  # Disabled until directory selected
+        toolbar.addAction(self.toolbar_match_action)
+        
         # Organize Files action
-        organize_action = QAction("📋 Organize Files", self)
-        organize_action.setStatusTip("Organize files")
-        organize_action.triggered.connect(self._on_organize_files)
-        toolbar.addAction(organize_action)
+        self.toolbar_organize_action = QAction("📋 Organize Files", self)
+        self.toolbar_organize_action.setStatusTip("Organize files")
+        self.toolbar_organize_action.triggered.connect(self._on_organize_files)
+        self.toolbar_organize_action.setEnabled(False)  # Disabled until directory selected
+        toolbar.addAction(self.toolbar_organize_action)
 
         # Rollback action
         rollback_action = QAction("↶ Rollback", self)
@@ -178,7 +186,7 @@ class MainWindow(QMainWindow):
 
         # Add placeholder label
         placeholder_label = QLabel(
-            "File Explorer\n\nSelect a directory to scan for anime files."
+            "File Explorer\n\nSelect a directory to scan for anime files.",
         )
         placeholder_label.setAlignment(Qt.AlignCenter)
         placeholder_label.setStyleSheet("color: #666; font-style: italic;")
@@ -211,7 +219,7 @@ class MainWindow(QMainWindow):
 
         # Add placeholder content
         main_label = QLabel(
-            "Main Work Area\n\nThis area will display scanned files and their details."
+            "Main Work Area\n\nThis area will display scanned files and their details.",
         )
         main_label.setAlignment(Qt.AlignCenter)
         main_label.setStyleSheet("color: #666; font-size: 14px; font-style: italic;")
@@ -231,11 +239,54 @@ class MainWindow(QMainWindow):
             | QDockWidget.DockWidgetClosable,
         )
 
-    # Event handlers (placeholder implementations)
+    # Event handlers
     def _on_select_directory(self) -> None:
         """Handle directory selection."""
-        self.status_bar.showMessage("Directory selection not yet implemented")
-        self.log_text.append("Directory selection clicked")
+        # Open directory selection dialog
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "Select Directory to Scan",
+            "",  # Start from current directory
+            QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
+        )
+        
+        if directory:
+            selected_path = Path(directory)
+            
+            # Update state model
+            self.state_model.set_selected_directory(selected_path)
+            
+            # Update UI
+            self.status_bar.showMessage(f"Selected directory: {selected_path}")
+            self.log_text.append(f"Directory selected: {selected_path}")
+            
+            # Update file explorer placeholder
+            self._update_file_explorer_placeholder(selected_path)
+            
+            # Enable scanning functionality
+            self._enable_scanning_actions()
+        else:
+            self.status_bar.showMessage("No directory selected")
+            self.log_text.append("Directory selection cancelled")
+    
+    def _update_file_explorer_placeholder(self, directory_path: Path) -> None:
+        """Update the file explorer placeholder with selected directory info."""
+        # Find the placeholder label and update it
+        for widget in self.file_explorer_dock.widget().findChildren(QLabel):
+            if "Select a directory" in widget.text():
+                widget.setText(f"Selected Directory:\n{directory_path}\n\nReady to scan for anime files.")
+                widget.setStyleSheet("color: #2E8B57; font-weight: bold;")
+                break
+    
+    def _enable_scanning_actions(self) -> None:
+        """Enable scanning-related actions when directory is selected."""
+        # Enable menu actions
+        self.match_action.setEnabled(True)
+        self.organize_action.setEnabled(True)
+        
+        # Enable toolbar actions
+        self.toolbar_match_action.setEnabled(True)
+        self.toolbar_organize_action.setEnabled(True)
 
     def _on_settings(self) -> None:
         """Handle settings dialog."""

@@ -65,7 +65,8 @@ class ScanOptions(BaseModel):
     include_metadata: bool = Field(default=True, description="Include metadata files")
     output: Optional[Path] = Field(default=None, description="Output file path")
     json_output: bool = Field(
-        default=False, description="Output results in JSON format"
+        default=False,
+        description="Output results in JSON format",
     )
 
     @field_validator("output")

@@ -53,6 +53,8 @@ anivault --help
 
 #### GUI 사용법
 - `python -m anivault_gui.main` - PySide6 기반 GUI 애플리케이션 실행
+- **디렉토리 선택**: 툴바의 "📁 Select Directory" 버튼 또는 메뉴바 File > Select Directory 사용
+- **파일 스캔**: 디렉토리 선택 후 Match Files 및 Organize Files 기능 활성화
 - `python -m anivault log list` - 작업 로그 확인
 - `python -m anivault rollback <timestamp>` - 작업 되돌리기
 

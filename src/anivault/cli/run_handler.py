@@ -181,7 +181,9 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
 
 
 def _run_scan_step(
-    options: RunOptions, directory: Path, console: Console
+    options: RunOptions,
+    directory: Path,
+    console: Console,
 ) -> dict[str, Any]:
     """
     Run the scan step of the workflow.
@@ -224,7 +226,9 @@ def _run_scan_step(
 
 
 def _run_match_step(
-    options: RunOptions, directory: Path, console: Console
+    options: RunOptions,
+    directory: Path,
+    console: Console,
 ) -> dict[str, Any]:
     """
     Run the match step of the workflow.
@@ -267,7 +271,9 @@ def _run_match_step(
 
 
 def _run_organize_step(
-    options: RunOptions, directory: Path, console: Console
+    options: RunOptions,
+    directory: Path,
+    console: Console,
 ) -> dict[str, Any]:
     """
     Run the organize step of the workflow.
@@ -322,7 +328,9 @@ def _create_scan_args(options: RunOptions, directory: Path) -> Any:
             self.json = getattr(run_options, "json_output", False)
             self.no_enrich = False  # Default to enrich metadata
             self.workers = getattr(
-                run_options, "max_workers", 4
+                run_options,
+                "max_workers",
+                4,
             )  # Default to 4 workers
             self.rate_limit = getattr(
                 run_options,
@@ -364,7 +372,9 @@ def _create_match_args(options: RunOptions, directory: Path) -> Any:
                 4,
             )  # Default to 4 concurrent operations
             self.workers = getattr(
-                run_options, "max_workers", 4
+                run_options,
+                "max_workers",
+                4,
             )  # Default to 4 workers
 
     return MatchArgs(options, directory)
@@ -387,7 +397,9 @@ def _create_organize_args(options: RunOptions, directory: Path) -> Any:
 
 
 def _handle_run_error(
-    error_message: str, run_data: dict[str, Any], options: RunOptions
+    error_message: str,
+    run_data: dict[str, Any],
+    options: RunOptions,
 ) -> int:
     """
     Handle run workflow errors.
