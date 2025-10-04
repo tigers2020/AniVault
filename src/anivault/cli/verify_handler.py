@@ -168,12 +168,15 @@ def _handle_verify_command_console(options: VerifyOptions) -> int:  # noqa: PLR0
             # Add more verification checks here
             console.print("[green]✓ All components verified[/green]")
 
+        from anivault.shared.constants.system import CLI
+
         logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="verify"))
         return 0
 
     except ApplicationError as e:
-        from anivault.shared.constants.system import CLI
+        from rich.console import Console
 
+        console = Console()
         console.print(f"[red]Application error: {e.message}[/red]")
         logger.exception(
             "Application error in verify command",
