@@ -106,9 +106,11 @@ class TestEnhancedOrganize:
             mock_subtitle.return_value.find_matching_subtitles.return_value = [
                 subtitle_file
             ]
-            
+
             # Mock the resolution detector's find_highest_resolution method
-            mock_resolution.return_value.find_highest_resolution.return_value = video_file
+            mock_resolution.return_value.find_highest_resolution.return_value = (
+                video_file
+            )
 
             result = _generate_enhanced_organization_plan([video_file], args)
             assert len(result) == 2  # Video + subtitle
@@ -175,7 +177,7 @@ class TestEnhancedOrganize:
                 "1080p": [file]
             }
             mock_subtitle.return_value.find_matching_subtitles.return_value = []
-            
+
             # Mock the resolution detector's find_highest_resolution method
             mock_resolution.return_value.find_highest_resolution.return_value = file
 
