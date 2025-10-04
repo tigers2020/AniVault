@@ -12,6 +12,7 @@ from typing import Any
 import typer
 
 from anivault.cli.common.context import get_cli_context
+from anivault.cli.common.models import OrganizeOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.shared.constants import CLI
@@ -25,11 +26,11 @@ from anivault.shared.errors import (
 logger = logging.getLogger(__name__)
 
 
-def handle_organize_command(args: Any) -> int:
+def handle_organize_command(options: OrganizeOptions) -> int:
     """Handle the organize command.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated organize command options
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -38,15 +39,15 @@ def handle_organize_command(args: Any) -> int:
 
     try:
         console = _setup_organize_console()
-        directory = _validate_organize_directory(args, console)
+        directory = _validate_organize_directory(options, console)
         if directory is None:
             return 1
 
-        scanned_files = _get_scanned_files(args, directory, console)
+        scanned_files = _get_scanned_files(options, directory, console)
         if not scanned_files:
-            if hasattr(args, "json") and args.json:
+            if options.json:
                 # Return empty results in JSON format
-                organize_data = _collect_organize_data([], args, is_dry_run=False)
+                organize_data = _collect_organize_data([], options, is_dry_run=False)
                 json_output = format_json_output(
                     success=True,
                     command="organize",
@@ -59,14 +60,14 @@ def handle_organize_command(args: Any) -> int:
             return 0
 
         # Check if enhanced organization is requested
-        if hasattr(args, "enhanced") and args.enhanced:
-            plan = _generate_enhanced_organization_plan(scanned_files, args)
+        if options.enhanced:
+            plan = _generate_enhanced_organization_plan(scanned_files, options)
         else:
             plan = _generate_organization_plan(scanned_files)
-        return _execute_organization_plan(plan, args, console)
+        return _execute_organization_plan(plan, options, console)
 
     except ApplicationError as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="organize",
@@ -89,7 +90,7 @@ def handle_organize_command(args: Any) -> int:
         )
         return 1
     except InfrastructureError as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="organize",
@@ -112,7 +113,7 @@ def handle_organize_command(args: Any) -> int:
         )
         return 1
     except Exception as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="organize",
@@ -138,17 +139,17 @@ def _setup_organize_console() -> Any:
     return Console()
 
 
-def _validate_organize_directory(args: Any, console: Any) -> Any:
+def _validate_organize_directory(options: OrganizeOptions, console: Any) -> Any:
     """Validate directory for organize command."""
     try:
         from anivault.cli.common.context import validate_directory
 
-        directory = validate_directory(args.directory)
-        if not (hasattr(args, "json") and args.json):
+        directory = validate_directory(options.directory)
+        if not options.json:
             console.print(f"[green]Organizing files in: {directory}[/green]")
         return directory
     except ApplicationError as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="organize",
@@ -166,7 +167,7 @@ def _validate_organize_directory(args: Any, console: Any) -> Any:
         )
         return None
     except InfrastructureError as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="organize",
@@ -184,7 +185,7 @@ def _validate_organize_directory(args: Any, console: Any) -> Any:
         )
         return None
     except Exception as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="organize",
@@ -200,7 +201,7 @@ def _validate_organize_directory(args: Any, console: Any) -> Any:
         return None
 
 
-def _get_scanned_files(args: Any, directory: Any, console: Any) -> Any:
+def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -> Any:
     """Get scanned files for organization."""
     try:
         from anivault.core.pipeline.main import run_pipeline
@@ -208,20 +209,20 @@ def _get_scanned_files(args: Any, directory: Any, console: Any) -> Any:
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=(hasattr(args, "json") and args.json),
+            disabled=options.json,
         )
 
         # Scan files with progress indication
         with progress_manager.spinner("Scanning files..."):
             file_results = run_pipeline(
                 root_path=str(directory),
-                extensions=args.extensions,
+                extensions=options.extensions,
                 num_workers=WorkerConfig.DEFAULT,
                 max_queue_size=QueueConfig.DEFAULT_SIZE,
             )
 
         if not file_results:
-            if not (hasattr(args, "json") and args.json):
+            if not options.json:
                 console.print(
                     "[yellow]No anime files found in the specified directory[/yellow]",
                 )
@@ -242,14 +243,14 @@ def _get_scanned_files(args: Any, directory: Any, console: Any) -> Any:
                 scanned_files.append(scanned_file)
 
         if not scanned_files:
-            if not (hasattr(args, "json") and args.json):
+            if not options.json:
                 console.print("[yellow]No valid anime files found to organize[/yellow]")
             return []
 
         return scanned_files
 
     except ApplicationError as e:
-        if not (hasattr(args, "json") and args.json):
+        if not options.json:
             console.print(
                 f"[red]Application error during file scanning: {e.message}[/red]",
             )
@@ -267,7 +268,7 @@ def _get_scanned_files(args: Any, directory: Any, console: Any) -> Any:
             original_error=e,
         ) from e
     except InfrastructureError as e:
-        if not (hasattr(args, "json") and args.json):
+        if not options.json:
             console.print(
                 f"[red]Infrastructure error during file scanning: {e.message}[/red]",
             )
@@ -285,7 +286,7 @@ def _get_scanned_files(args: Any, directory: Any, console: Any) -> Any:
             original_error=e,
         ) from e
     except Exception as e:
-        if not (hasattr(args, "json") and args.json):
+        if not options.json:
             console.print(f"[red]Unexpected error during file scanning: {e}[/red]")
         logger.exception("Unexpected error during file scanning")
         raise ApplicationError(
@@ -352,12 +353,14 @@ def _generate_organization_plan(scanned_files: Any) -> Any:
         ) from e
 
 
-def _execute_organization_plan(plan: Any, args: Any, console: Any) -> int:
+def _execute_organization_plan(
+    plan: Any, options: OrganizeOptions, console: Any
+) -> int:
     """Execute organization plan."""
-    if args.dry_run:
-        if hasattr(args, "json") and args.json:
+    if options.dry_run:
+        if options.json:
             # Output dry run plan in JSON format
-            organize_data = _collect_organize_data(plan, args, is_dry_run=True)
+            organize_data = _collect_organize_data(plan, options, is_dry_run=True)
             json_output = format_json_output(
                 success=True,
                 command="organize",
@@ -371,14 +374,14 @@ def _execute_organization_plan(plan: Any, args: Any, console: Any) -> int:
         logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="organize"))
         return 0
 
-    if not (hasattr(args, "json") and args.json):
+    if not options.json:
         _print_execution_plan_impl(plan, console)
 
-    if not args.yes and not (hasattr(args, "json") and args.json):
+    if not options.yes and not options.json:
         if not _confirm_organization(console):
             return 0
 
-    return _perform_organization(plan, args)
+    return _perform_organization(plan, options)
 
 
 def _confirm_organization(console: Any) -> bool:
@@ -395,7 +398,7 @@ def _confirm_organization(console: Any) -> bool:
         return False
 
 
-def _perform_organization(plan: Any, args: Any) -> int:
+def _perform_organization(plan: Any, options: OrganizeOptions) -> int:
     """Perform the actual organization."""
     try:
         from datetime import datetime
@@ -414,18 +417,18 @@ def _perform_organization(plan: Any, args: Any) -> int:
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=(hasattr(args, "json") and args.json),
+            disabled=options.json,
         )
 
         # Execute organization with progress indication
         with progress_manager.spinner("Organizing files..."):
             moved_files = organizer.execute_plan(plan, operation_id)
 
-        if hasattr(args, "json") and args.json:
+        if options.json:
             # Output results in JSON format
             organize_data = _collect_organize_data(
                 plan,
-                args,
+                options,
                 moved_files=moved_files,
                 operation_id=operation_id,
             )
@@ -500,7 +503,7 @@ def _perform_organization(plan: Any, args: Any) -> int:
 
 def _collect_organize_data(
     plan: Any,
-    args: Any,
+    options: OrganizeOptions,
     is_dry_run: bool = False,
     moved_files: Any = None,
     operation_id: Any = None,
@@ -509,7 +512,7 @@ def _collect_organize_data(
 
     Args:
         plan: Organization plan
-        args: Command line arguments
+        options: Organize command options
         is_dry_run: Whether this is a dry run
         moved_files: List of moved files (for actual execution)
         operation_id: Operation ID (for actual execution)
@@ -637,13 +640,13 @@ def _print_execution_plan_impl(plan: Any, console: Any) -> None:
 
 def _generate_enhanced_organization_plan(
     scanned_files: list[Any],
-    args: Any,
+    options: OrganizeOptions,
 ) -> list[Any]:
     """Generate enhanced organization plan with grouping, Korean titles, and resolution-based sorting.
 
     Args:
         scanned_files: List of scanned files to organize
-        args: Command line arguments
+        options: Organize command options
 
     Returns:
         List of file operations for enhanced organization
@@ -688,7 +691,7 @@ def _generate_enhanced_organization_plan(
             )
 
             # Generate destination paths
-            destination_base = getattr(args, "destination", "Anime")
+            destination_base = options.destination if options.destination else "Anime"
             high_res_path = (
                 Path(destination_base)
                 / korean_title
@@ -766,6 +769,27 @@ def organize_command(
         "-y",
         help="Skip confirmation prompts and proceed with organization",
     ),
+    enhanced: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--enhanced",
+        help="Use enhanced organization with grouping and Korean titles",
+    ),
+    destination: str = typer.Option(  # type: ignore[misc]
+        "Anime",
+        "--destination",
+        "-d",
+        help="Destination directory for organized files",
+    ),
+    extensions: str = typer.Option(  # type: ignore[misc]
+        "mkv,mp4,avi,mov,wmv,flv,webm,m4v",
+        "--extensions",
+        help="Comma-separated list of video file extensions to process",
+    ),
+    json: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--json",
+        help="Output results in JSON format",
+    ),
 ) -> None:
     """
     Organize anime files into a structured directory layout.
@@ -773,6 +797,24 @@ def organize_command(
     This command takes scanned and matched anime files and organizes them
     into a clean directory structure based on the TMDB metadata. It can
     create series folders, season subfolders, and rename files consistently.
+
+    Organization features:
+    - Creates hierarchical directory structure (Series/Season/Episodes)
+    - Renames files with consistent naming convention
+    - Preserves original files or creates hard links/copies
+    - Supports enhanced organization with Korean titles
+    - Handles multiple file formats and extensions
+    - Provides dry-run mode for safe preview
+
+    Directory structure example:
+        Anime/
+        └── Attack on Titan/
+            ├── Season 1/
+            │   ├── Attack on Titan - S01E01.mkv
+            │   └── Attack on Titan - S01E02.mkv
+            └── Season 2/
+                ├── Attack on Titan - S02E01.mkv
+                └── Attack on Titan - S02E02.mkv
 
     Examples:
         # Organize files in current directory (with confirmation)
@@ -783,23 +825,47 @@ def organize_command(
 
         # Organize without confirmation prompts
         anivault organize . --yes
-    """
-    # Create a mock args object to maintain compatibility with existing handler
-    class MockArgs:
-        def __init__(self):
-            self.directory = directory
-            self.dry_run = dry_run
-            self.yes = yes
-            
-            # Get CLI context for JSON output
-            context = get_cli_context()
-            self.json = context.json_output if context else False
-            self.verbose = context.verbose if context else 0
 
-    args = MockArgs()
-    
-    # Call the existing handler
-    exit_code = handle_organize_command(args)
-    
-    if exit_code != 0:
-        raise typer.Exit(exit_code)
+        # Use enhanced organization with Korean titles
+        anivault organize . --enhanced
+
+        # Organize to custom destination directory
+        anivault organize . --destination "My Anime Collection"
+
+        # Process only specific file extensions
+        anivault organize . --extensions "mkv,mp4"
+
+        # Combine multiple options
+        anivault organize . --enhanced --destination "Anime" --yes
+    """
+    try:
+        # Get CLI context for global options
+        context = get_cli_context()
+
+        # Parse extensions string
+        extensions_list = [ext.strip() for ext in extensions.split(",")]
+
+        # Validate arguments using Pydantic model
+        from anivault.cli.common.models import DirectoryPath
+
+        organize_options = OrganizeOptions(
+            directory=DirectoryPath(path=directory),
+            dry_run=dry_run,
+            yes=yes,
+            enhanced=enhanced,
+            destination=destination,
+            extensions=extensions_list,
+            json_output=bool(json),
+            verbose=context.verbose if context else 0,
+        )
+
+        # Call the handler with Pydantic model
+        exit_code = handle_organize_command(organize_options)
+
+        if exit_code != 0:
+            raise typer.Exit(exit_code)
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)

@@ -14,12 +14,14 @@ from typing import Annotated
 import typer
 
 from anivault.cli.common.context import CliContext, LogLevel, set_cli_context
+from anivault.cli.common.models import DirectoryPath
 from anivault.cli.common.options import (
     json_output_option,
     log_level_option,
     verbose_option,
     version_option,
 )
+from anivault.cli.common.validation import create_validator
 from anivault.cli.log_handler import log_command
 from anivault.cli.match_handler import match_command
 from anivault.cli.organize_handler import organize_command
@@ -131,6 +133,11 @@ def scan_command_typer(
         help="Output file for scan results (JSON format)",
         writable=True,
     ),
+    json: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--json",
+        help="Output results in JSON format",
+    ),
 ) -> None:
     """
     Scan directories for anime files and extract metadata.
@@ -139,15 +146,30 @@ def scan_command_typer(
     and extracts metadata using anitopy. It can optionally include subtitle
     and metadata files in the scan results.
 
+    The scan process includes:
+    - File discovery based on supported extensions
+    - Metadata extraction using anitopy parser
+    - TMDB API enrichment for additional metadata
+    - Progress tracking and error handling
+
+    Supported file extensions: mkv, mp4, avi, mov, wmv, flv, webm, m4v
+    Supported subtitle formats: srt, ass, ssa, vtt, smi, sub
+
     Examples:
-        # Scan current directory
+        # Scan current directory with default settings
         anivault scan .
 
-        # Scan with custom options
+        # Scan specific directory with custom options
         anivault scan /path/to/anime --recursive --output results.json
 
-        # Scan without subtitles
+        # Scan without subtitles (faster processing)
         anivault scan /path/to/anime --no-include-subtitles
+
+        # Scan with verbose output for debugging
+        anivault scan /path/to/anime --verbose
+
+        # Save results to JSON file
+        anivault scan /path/to/anime --output scan_results.json
     """
     # Call the scan command
     scan_command(
@@ -192,6 +214,11 @@ def match_command_typer(
         help="Output file for match results (JSON format)",
         writable=True,
     ),
+    json: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--json",
+        help="Output results in JSON format",
+    ),
 ) -> None:
     """
     Match anime files against TMDB database.
@@ -200,15 +227,33 @@ def match_command_typer(
     to find corresponding TV shows and movies. It uses intelligent matching algorithms
     to handle various naming conventions and provides detailed matching results.
 
+    The matching process includes:
+    - Fuzzy string matching for anime titles
+    - Episode and season number correlation
+    - Quality and release group matching
+    - Confidence scoring for match accuracy
+    - Fallback strategies for difficult cases
+
+    Matching algorithms:
+    - Primary: Exact title and episode matching
+    - Secondary: Fuzzy matching with confidence thresholds
+    - Fallback: Manual review suggestions
+
     Examples:
         # Match files in current directory
         anivault match .
 
-        # Match with custom options
-        anivault match /path/to/anime --recursive --output results.json
+        # Match with custom options and save results
+        anivault match /path/to/anime --recursive --output match_results.json
 
-        # Match without subtitles
+        # Match without subtitles (focus on video files only)
         anivault match /path/to/anime --no-include-subtitles
+
+        # Match with verbose output to see matching details
+        anivault match /path/to/anime --verbose
+
+        # Match and output results in JSON format
+        anivault match /path/to/anime --json
     """
     # Call the match command
     match_command(
@@ -225,10 +270,7 @@ def organize_command_typer(
     directory: Path = typer.Argument(  # type: ignore[misc]
         ...,
         help="Directory containing scanned and matched anime files to organize",
-        exists=True,
-        file_okay=False,
-        dir_okay=True,
-        readable=True,
+        callback=create_validator(DirectoryPath),
     ),
     dry_run: bool = typer.Option(  # type: ignore[misc]
         False,
@@ -240,6 +282,17 @@ def organize_command_typer(
         "--yes",
         "-y",
         help="Skip confirmation prompts and proceed with organization",
+    ),
+    json: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--json",
+        help="Output results in JSON format",
+    ),
+    destination: str = typer.Option(  # type: ignore[misc]
+        "Anime",
+        "--destination",
+        "-d",
+        help="Destination directory for organized files",
     ),
 ) -> None:
     """
@@ -260,7 +313,7 @@ def organize_command_typer(
         anivault organize . --yes
     """
     # Call the organize command
-    organize_command(directory, dry_run, yes)
+    organize_command(directory, dry_run, yes, json, destination)
 
 
 @app.command("run")
@@ -307,27 +360,52 @@ def run_command_typer(
         "-y",
         help="Skip confirmation prompts and proceed with processing",
     ),
+    json: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--json",
+        help="Output results in JSON format",
+    ),
 ) -> None:
     """
     Run the complete anime organization workflow (scan, match, organize).
 
     This command orchestrates the entire AniVault workflow in sequence:
-    1. Scan directory for anime files
-    2. Match files against TMDB database
-    3. Organize files into structured layout
+    1. Scan directory for anime files and extract metadata
+    2. Match files against TMDB database for accurate identification
+    3. Organize files into structured directory layout
+
+    Workflow phases:
+    - Phase 1 (Scan): Discover and parse anime files using anitopy
+    - Phase 2 (Match): Correlate parsed data with TMDB database
+    - Phase 3 (Organize): Create organized directory structure
+
+    Benefits of using 'run' vs individual commands:
+    - Single command for complete workflow
+    - Consistent options across all phases
+    - Unified error handling and progress tracking
+    - Atomic operation with rollback support
 
     Examples:
         # Run complete workflow on current directory
         anivault run .
 
-        # Run with specific options
-        anivault run /path/to/anime --recursive --output results.json
+        # Run with specific options and save results
+        anivault run /path/to/anime --recursive --output workflow_results.json
 
         # Preview what would be processed without making changes
         anivault run . --dry-run
 
-        # Run without confirmation prompts
+        # Run without confirmation prompts (automated mode)
         anivault run . --yes
+
+        # Run with verbose output to see each phase
+        anivault run /path/to/anime --verbose
+
+        # Run with custom file extensions
+        anivault run /path/to/anime --extensions "mkv,mp4"
+
+        # Run and output results in JSON format
+        anivault run /path/to/anime --json
     """
     # Call the run command
     run_command(

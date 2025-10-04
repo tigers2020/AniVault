@@ -25,10 +25,12 @@ from anivault.shared.constants import (
     Memory,
     SubtitleFormats,
     Timeout,
-    TMDBConfig,
     TMDBErrorHandling,
     VideoFormats,
     WorkerConfig,
+)
+from anivault.shared.constants import (
+    TMDBConfig as TMDBConstants,
 )
 
 
@@ -244,7 +246,7 @@ class TMDBConfig(BaseModel):
         description="Delay between requests in seconds",
     )
     rate_limit_rps: float = Field(
-        default=TMDBConfig.RATE_LIMIT_RPS,
+        default=TMDBConstants.RATE_LIMIT_RPS,
         gt=0,
         description="Rate limit in requests per second",
     )
@@ -408,7 +410,7 @@ class Settings(BaseModel):
                     "rate_limit_rps": float(
                         os.getenv(
                             "TMDB_RATE_LIMIT_RPS",
-                            str(TMDBConfig.RATE_LIMIT_RPS),
+                            str(TMDBConstants.RATE_LIMIT_RPS),
                         ),
                     ),
                     "concurrent_requests": int(
@@ -463,6 +465,37 @@ class Settings(BaseModel):
             )
 
 
+def _load_env_file() -> None:
+    """Load environment variables from .env file if it exists."""
+    try:
+        from dotenv import load_dotenv
+
+        # Try to load .env file from current directory
+        env_path = Path(".env")
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            # Ensure environment variables are available in current process
+            import os
+
+            if not os.getenv("TMDB_API_KEY"):
+                # Fallback: read .env file manually if load_dotenv didn't work
+                with open(env_path, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            key, value = line.split("=", 1)
+                            key = key.strip()
+                            value = value.strip().strip("\"'")
+                            if key == "TMDB_API_KEY" and not os.getenv(key):
+                                os.environ[key] = value
+    except ImportError:
+        # python-dotenv not installed, skip .env loading
+        pass
+    except Exception:
+        # Ignore errors loading .env file
+        pass
+
+
 def load_settings(config_path: str | Path | None = None) -> Settings:
     """Load settings from TOML configuration file or environment.
 
@@ -473,6 +506,9 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     Returns:
         Settings instance loaded from the specified source
     """
+    # Load .env file if it exists
+    _load_env_file()
+
     if config_path:
         return Settings.from_toml_file(config_path)
 
@@ -487,7 +523,9 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         if config_path.exists():
             return Settings.from_toml_file(config_path)
 
-    # Fall back to environment variables
+    # Fall back to environment variables (after .env file has been loaded)
+    # Ensure .env file is loaded again before reading environment variables
+    _load_env_file()
     return Settings.from_environment()
 
 
@@ -502,6 +540,19 @@ def get_config() -> Settings:
         The global Settings instance, loading it if necessary.
     """
     global _settings
+    # Always ensure .env file is loaded before getting settings
+    _load_env_file()
     if _settings is None:
         _settings = load_settings()
+    return _settings
+
+
+def reload_config() -> Settings:
+    """Reload the global settings instance from configuration files.
+
+    Returns:
+        The reloaded Settings instance.
+    """
+    global _settings
+    _settings = load_settings()
     return _settings

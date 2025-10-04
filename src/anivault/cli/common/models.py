@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,11 +24,14 @@ class DirectoryPath(BaseModel):
     def validate_directory(cls, v: Path) -> Path:
         """Validate that the path exists and is a directory."""
         if not v.exists():
-            raise ValueError(f"Directory does not exist: {v}")
+            msg = f"Directory does not exist: {v}"
+            raise ValueError(msg)
         if not v.is_dir():
-            raise ValueError(f"Path is not a directory: {v}")
+            msg = f"Path is not a directory: {v}"
+            raise ValueError(msg)
         if not os.access(v, os.R_OK):
-            raise ValueError(f"Directory is not readable: {v}")
+            msg = f"Directory is not readable: {v}"
+            raise ValueError(msg)
         return v
 
 
@@ -42,11 +45,14 @@ class FilePath(BaseModel):
     def validate_file(cls, v: Path) -> Path:
         """Validate that the path exists and is a file."""
         if not v.exists():
-            raise ValueError(f"File does not exist: {v}")
+            msg = f"File does not exist: {v}"
+            raise ValueError(msg)
         if not v.is_file():
-            raise ValueError(f"Path is not a file: {v}")
+            msg = f"Path is not a file: {v}"
+            raise ValueError(msg)
         if not os.access(v, os.R_OK):
-            raise ValueError(f"File is not readable: {v}")
+            msg = f"File is not readable: {v}"
+            raise ValueError(msg)
         return v
 
 
@@ -58,6 +64,9 @@ class ScanOptions(BaseModel):
     include_subtitles: bool = Field(default=True, description="Include subtitle files")
     include_metadata: bool = Field(default=True, description="Include metadata files")
     output: Optional[Path] = Field(default=None, description="Output file path")
+    json_output: bool = Field(
+        default=False, description="Output results in JSON format"
+    )
 
     @field_validator("output")
     @classmethod
@@ -65,14 +74,14 @@ class ScanOptions(BaseModel):
         """Validate output path if provided."""
         if v is None:
             return v
-        
+
         # Ensure parent directory exists
         v.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Check if parent directory is writable
         if not os.access(v.parent, os.W_OK):
             raise ValueError(f"Output directory is not writable: {v.parent}")
-        
+
         return v
 
 
@@ -89,7 +98,10 @@ class MatchOptions(BaseModel):
 
     directory: DirectoryPath = Field(..., description="Directory to match")
     output: Optional[Path] = Field(default=None, description="Output file path")
-    force: bool = Field(default=False, description="Force re-matching of existing files")
+    force: bool = Field(
+        default=False,
+        description="Force re-matching of existing files",
+    )
 
     @field_validator("output")
     @classmethod
@@ -97,22 +109,28 @@ class MatchOptions(BaseModel):
         """Validate output path if provided."""
         if v is None:
             return v
-        
+
         # Ensure parent directory exists
         v.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Check if parent directory is writable
         if not os.access(v.parent, os.W_OK):
             raise ValueError(f"Output directory is not writable: {v.parent}")
-        
+
         return v
 
 
 class LogOptions(BaseModel):
     """Log command options validation model."""
 
-    log_command: str = Field(..., description="Log command to execute (list, show, tail)")
-    log_dir: DirectoryPath = Field(default_factory=lambda: DirectoryPath(path=Path("logs")), description="Directory containing log files")
+    log_command: str = Field(
+        ...,
+        description="Log command to execute (list, show, tail)",
+    )
+    log_dir: DirectoryPath = Field(
+        default_factory=lambda: DirectoryPath(path=Path("logs")),
+        description="Directory containing log files",
+    )
 
     @field_validator("log_command")
     @classmethod
@@ -120,29 +138,33 @@ class LogOptions(BaseModel):
         """Validate log command."""
         valid_commands = ["list", "show", "tail"]
         if v not in valid_commands:
-            raise ValueError(f"Invalid log command '{v}'. Must be one of: {', '.join(valid_commands)}")
+            raise ValueError(
+                f"Invalid log command '{v}'. Must be one of: {', '.join(valid_commands)}",
+            )
         return v
 
 
 class RollbackOptions(BaseModel):
     """Rollback command options validation model."""
 
-    timestamp: str = Field(..., description="Timestamp to rollback to")
-    dry_run: bool = Field(default=False, description="Preview rollback without applying")
+    log_id: str = Field(..., description="ID of the operation log to rollback")
+    dry_run: bool = Field(
+        default=False,
+        description="Preview rollback without applying",
+    )
     yes: bool = Field(default=False, description="Skip confirmation prompts")
 
-    @field_validator("timestamp")
+    @field_validator("log_id")
     @classmethod
-    def validate_timestamp(cls, v: str) -> str:
-        """Validate timestamp format."""
-        if len(v) != 15:
-            raise ValueError("Timestamp must be in format YYYYMMDD_HHMMSS")
-        
-        try:
-            int(v)
-        except ValueError:
-            raise ValueError("Timestamp must contain only digits and underscore")
-        
+    def validate_log_id(cls, v: str) -> str:
+        """Validate log ID format."""
+        if not v:
+            raise ValueError("Log ID cannot be empty")
+
+        # Basic validation for log ID format (timestamp-like)
+        if len(v) < 10:
+            raise ValueError("Log ID must be at least 10 characters long")
+
         return v
 
 
@@ -169,12 +191,30 @@ class RunOptions(BaseModel):
     dry_run: bool = Field(default=False, description="Preview changes without applying")
     yes: bool = Field(default=False, description="Skip confirmation prompts")
     enhanced: bool = Field(default=False, description="Use enhanced organization")
-    destination: str = Field(default="Anime", description="Destination directory for organized files")
-    extensions: list[str] = Field(default_factory=lambda: ["mkv", "mp4", "avi", "mov", "wmv", "flv", "webm", "m4v"], description="Video file extensions to process")
+    destination: str = Field(
+        default="Anime",
+        description="Destination directory for organized files",
+    )
+    extensions: list[str] = Field(
+        default_factory=lambda: [
+            "mkv",
+            "mp4",
+            "avi",
+            "mov",
+            "wmv",
+            "flv",
+            "webm",
+            "m4v",
+        ],
+        description="Video file extensions to process",
+    )
     skip_scan: bool = Field(default=False, description="Skip scanning step")
     skip_match: bool = Field(default=False, description="Skip matching step")
     skip_organize: bool = Field(default=False, description="Skip organization step")
     max_workers: int = Field(default=4, description="Maximum number of worker threads")
     batch_size: int = Field(default=10, description="Batch size for processing")
-    json_output: bool = Field(default=False, description="Output results in JSON format")
+    json_output: bool = Field(
+        default=False,
+        description="Output results in JSON format",
+    )
     verbose: int = Field(default=0, description="Verbosity level")

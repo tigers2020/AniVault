@@ -351,7 +351,7 @@ def _signal_parser_shutdown(
         for _ in range(num_workers):
             file_queue.put(
                 Pipeline.SENTINEL,
-                timeout=Timeout.PIPELINE_Pipeline.SENTINEL,
+                timeout=Timeout.PIPELINE_SENTINEL,
             )
 
         log_operation_success(
@@ -451,7 +451,7 @@ def _signal_collector_shutdown(
 
     try:
         logger.info("Sending sentinel value to result collector...")
-        result_queue.put(Pipeline.SENTINEL, timeout=Timeout.PIPELINE_Pipeline.SENTINEL)
+        result_queue.put(Pipeline.SENTINEL, timeout=Timeout.PIPELINE_SENTINEL)
 
         log_operation_success(
             logger=logger,

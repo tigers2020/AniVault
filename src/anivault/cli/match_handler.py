@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 from anivault.cli.common.context import get_cli_context
+from anivault.cli.common.models import MatchOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
@@ -27,11 +28,11 @@ from anivault.shared.errors import ApplicationError, InfrastructureError
 logger = logging.getLogger(__name__)
 
 
-def handle_match_command(args: Any) -> int:
+def handle_match_command(options: MatchOptions) -> int:
     """Handle the match command.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated match command options
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -41,7 +42,7 @@ def handle_match_command(args: Any) -> int:
     try:
         import asyncio
 
-        result = asyncio.run(_run_match_command_impl(args))
+        result = asyncio.run(_run_match_command_impl(options))
 
         if result == 0:
             logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="match"))
@@ -67,11 +68,11 @@ def handle_match_command(args: Any) -> int:
         return 1
 
 
-async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
+async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR0911
     """Run the match command with advanced matching engine.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated match command options
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -97,9 +98,9 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
         try:
             from anivault.cli.common.context import validate_directory
 
-            directory = validate_directory(args.directory)
+            directory = validate_directory(options.directory)
         except ApplicationError as e:
-            if hasattr(args, "json") and args.json:
+            if options.json:
                 json_output = format_json_output(
                     success=False,
                     command="match",
@@ -117,7 +118,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
             )
             return 1
         except InfrastructureError as e:
-            if hasattr(args, "json") and args.json:
+            if options.json:
                 json_output = format_json_output(
                     success=False,
                     command="match",
@@ -135,7 +136,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
             )
             return 1
         except Exception as e:
-            if hasattr(args, "json") and args.json:
+            if options.json:
                 json_output = format_json_output(
                     success=False,
                     command="match",
@@ -151,16 +152,16 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
             return 1
 
         # Only show console output if not in JSON mode
-        if not (hasattr(args, "json") and args.json):
+        if not options.json:
             console.print(f"[green]Matching anime files in: {directory}[/green]")
 
         # Initialize services
-        cache = JSONCacheV2(args.cache_dir)
+        cache = JSONCacheV2("cache")  # Default cache directory
         rate_limiter = TokenBucketRateLimiter(
-            capacity=args.rate_limit,
-            refill_rate=args.rate_limit,
+            capacity=50,  # Default rate limit
+            refill_rate=50,
         )
-        semaphore_manager = SemaphoreManager(concurrency_limit=args.concurrent)
+        semaphore_manager = SemaphoreManager(concurrency_limit=4)  # Default concurrency
         state_machine = RateLimitStateMachine()
 
         tmdb_client = TMDBClient(
@@ -179,11 +180,20 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
 
         # Find anime files
         anime_files = []
-        for ext in args.extensions:
+        for ext in [
+            ".mkv",
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".wmv",
+            ".flv",
+            ".webm",
+            ".m4v",
+        ]:  # Default extensions
             anime_files.extend(directory.rglob(f"*{ext}"))
 
         if not anime_files:
-            if hasattr(args, "json") and args.json:
+            if options.json:
                 # Return empty results in JSON format
                 match_data = _collect_match_data([], directory)
                 json_output = format_json_output(
@@ -202,19 +212,19 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
             return 0
 
         # Only show console output if not in JSON mode
-        if not (hasattr(args, "json") and args.json):
+        if not options.json:
             console.print(f"[blue]Found {len(anime_files)} anime files[/blue]")
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=(hasattr(args, "json") and args.json),
+            disabled=options.json,
         )
 
         # Process files with progress bar and concurrent processing
         results = []
         with progress_manager.spinner("Matching files..."):
             # Create semaphore for concurrent processing
-            semaphore = asyncio.Semaphore(args.workers)
+            semaphore = asyncio.Semaphore(4)  # Default workers
 
             async def process_with_semaphore(file_path: Path) -> dict:
                 """Process a file with semaphore control."""
@@ -237,7 +247,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
             processed_results = []
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
-                    if not (hasattr(args, "json") and args.json):
+                    if not options.json:
                         console.print(
                             f"[red]Error processing {anime_files[i]}: {result}[/red]",
                         )
@@ -253,7 +263,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
             results = processed_results
 
         # Check if JSON output is requested
-        if hasattr(args, "json") and args.json:
+        if options.json:
             # Collect match data for JSON output
             match_data = _collect_match_data(results, directory)
 
@@ -272,7 +282,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
         return 0
 
     except ApplicationError as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="match",
@@ -290,7 +300,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
         )
         return 1
     except InfrastructureError as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="match",
@@ -310,7 +320,7 @@ async def _run_match_command_impl(args: Any) -> int:  # noqa: PLR0911
         )
         return 1
     except Exception as e:
-        if hasattr(args, "json") and args.json:
+        if options.json:
             json_output = format_json_output(
                 success=False,
                 command="match",
@@ -613,6 +623,11 @@ def match_command(
         help="Output file for match results (JSON format)",
         writable=True,
     ),
+    json: bool = typer.Option(  # type: ignore[misc]
+        False,
+        "--json",
+        help="Output results in JSON format",
+    ),
 ) -> None:
     """
     Match anime files against TMDB database.
@@ -621,35 +636,59 @@ def match_command(
     to find corresponding TV shows and movies. It uses intelligent matching algorithms
     to handle various naming conventions and provides detailed matching results.
 
+    The matching process includes:
+    - Fuzzy string matching for anime titles
+    - Episode and season number correlation
+    - Quality and release group matching
+    - Confidence scoring for match accuracy
+    - Fallback strategies for difficult cases
+
+    Matching algorithms:
+    - Primary: Exact title and episode matching
+    - Secondary: Fuzzy matching with confidence thresholds
+    - Fallback: Manual review suggestions
+
     Examples:
         # Match files in current directory
         anivault match .
 
-        # Match with custom options
-        anivault match /path/to/anime --recursive --output results.json
+        # Match with custom options and save results
+        anivault match /path/to/anime --recursive --output match_results.json
 
-        # Match without subtitles
+        # Match without subtitles (focus on video files only)
         anivault match /path/to/anime --no-include-subtitles
+
+        # Match with verbose output to see matching details
+        anivault match /path/to/anime --verbose
+
+        # Match and output results in JSON format
+        anivault match /path/to/anime --json
     """
 
-    # Create a mock args object to maintain compatibility with existing handler
-    class MockArgs:
-        def __init__(self):
-            self.directory = directory
-            self.recursive = recursive
-            self.include_subtitles = include_subtitles
-            self.include_metadata = include_metadata
-            self.output = output_file
+    try:
+        # Get CLI context for global options
+        context = get_cli_context()
 
-            # Get CLI context for JSON output
-            context = get_cli_context()
-            self.json = context.json_output if context else False
-            self.verbose = context.verbose if context else 0
+        # Validate arguments using Pydantic model
+        from anivault.cli.common.models import DirectoryPath
 
-    args = MockArgs()
+        match_options = MatchOptions(
+            directory=DirectoryPath(path=directory),
+            recursive=recursive,
+            include_subtitles=include_subtitles,
+            include_metadata=include_metadata,
+            output=output_file,
+            json_output=bool(json),
+            verbose=context.verbose if context else 0,
+        )
 
-    # Call the existing handler
-    exit_code = handle_match_command(args)
+        # Call the handler with Pydantic model
+        exit_code = handle_match_command(match_options)
 
-    if exit_code != 0:
-        raise typer.Exit(exit_code)
+        if exit_code != 0:
+            raise typer.Exit(exit_code)
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)

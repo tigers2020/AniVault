@@ -103,6 +103,10 @@ def validate_directory(directory_path: str) -> Path:
 
     from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
+    # Handle DirectoryPath objects
+    if hasattr(directory_path, "path"):
+        directory_path = directory_path.path
+
     path = Path(directory_path)
 
     if not path.exists():

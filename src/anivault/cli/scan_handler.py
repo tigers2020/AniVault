@@ -12,8 +12,10 @@ from typing import Any
 import typer
 
 from anivault.cli.common.context import get_cli_context, validate_directory
+from anivault.cli.common.models import DirectoryPath, ScanOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
+from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,11 @@ def scan_command(
         help="Output file for scan results (JSON format)",
         writable=True,
     ),
+    json: bool = typer.Option(
+        False,
+        "--json",
+        help="Output results in JSON format",
+    ),
 ) -> None:
     """
     Scan directories for anime files and extract metadata.
@@ -59,32 +66,66 @@ def scan_command(
     and extracts metadata using anitopy. It can optionally include subtitle
     and metadata files in the scan results.
 
+    The scan process includes:
+    - File discovery based on supported extensions
+    - Metadata extraction using anitopy parser
+    - TMDB API enrichment for additional metadata
+    - Progress tracking and error handling
+
+    Supported file extensions: mkv, mp4, avi, mov, wmv, flv, webm, m4v
+    Supported subtitle formats: srt, ass, ssa, vtt, smi, sub
+
     Examples:
-        # Scan current directory
+        # Scan current directory with default settings
         anivault scan .
 
-        # Scan with custom options
+        # Scan specific directory with custom options
         anivault scan /path/to/anime --recursive --output results.json
 
-        # Scan without subtitles
+        # Scan without subtitles (faster processing)
         anivault scan /path/to/anime --no-include-subtitles
-    """
-    # Create args-like object for compatibility
-    args = type(
-        "Args",
-        (),
-        {
-            "directory": str(directory),
-            "recursive": recursive,
-            "include_subtitles": include_subtitles,
-            "include_metadata": include_metadata,
-            "output_file": str(output_file) if output_file else None,
-        },
-    )()
 
-    exit_code = _handle_scan_command(args)
-    if exit_code != 0:
-        raise typer.Exit(exit_code)
+        # Scan with verbose output for debugging
+        anivault scan /path/to/anime --verbose
+
+        # Save results to JSON file
+        anivault scan /path/to/anime --output scan_results.json
+    """
+    try:
+        # Validate arguments using Pydantic model
+        scan_options = ScanOptions(
+            directory=DirectoryPath(path=directory),
+            recursive=recursive,
+            include_subtitles=include_subtitles,
+            include_metadata=include_metadata,
+            output=output_file,
+            json_output=bool(json),
+        )
+
+        # Create args-like object for compatibility
+        args = type(
+            "Args",
+            (),
+            {
+                "directory": str(scan_options.directory.path),
+                "recursive": scan_options.recursive,
+                "include_subtitles": scan_options.include_subtitles,
+                "include_metadata": scan_options.include_metadata,
+                "output_file": str(scan_options.output)
+                if scan_options.output
+                else None,
+                "json": scan_options.json_output,
+            },
+        )()
+
+        exit_code = _handle_scan_command(args)
+        if exit_code != 0:
+            raise typer.Exit(exit_code)
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
 
 
 def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
@@ -181,9 +222,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             return 1
 
         # Determine if we should enrich metadata
-        enrich_metadata = (
-            not args.no_enrich
-        )  # Default to enrich unless --no-enrich is specified
+        enrich_metadata = True  # Default to enrich metadata
 
         # Only show console output if not in JSON mode
         context = get_cli_context()
@@ -202,8 +241,8 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             with progress_manager.spinner("Scanning files..."):
                 file_results = run_pipeline(
                     root_path=str(directory),
-                    extensions=args.extensions,
-                    num_workers=args.workers,
+                    extensions=list(VideoFormats.ALL_EXTENSIONS),
+                    num_workers=4,  # Default worker count
                     max_queue_size=QueueConfig.DEFAULT_SIZE,
                 )
 
@@ -241,10 +280,12 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         if enrich_metadata:
             # Initialize TMDB client and enricher
             rate_limiter = TokenBucketRateLimiter(
-                capacity=args.rate_limit,
-                refill_rate=args.rate_limit,
+                capacity=10,  # Default rate limit
+                refill_rate=10,  # Default refill rate
             )
-            semaphore_manager = SemaphoreManager(concurrency_limit=args.concurrent)
+            semaphore_manager = SemaphoreManager(
+                concurrency_limit=5
+            )  # Default concurrency
             state_machine = RateLimitStateMachine()
 
             tmdb_client = TMDBClient(
@@ -290,8 +331,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             enriched_results = file_results
 
         # Check if JSON output is requested
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
+        if args.json:
             # Collect scan statistics for JSON output
             scan_data = _collect_scan_data(enriched_results, directory, enrich_metadata)
 
@@ -309,10 +349,10 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             _display_results(enriched_results, show_tmdb=enrich_metadata)
 
             # Save results to file if requested
-            if args.output:
+            if args.output_file:
                 import json
 
-                output_path = Path(args.output)
+                output_path = Path(args.output_file)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
 
                 # Convert results to JSON-serializable format
@@ -340,7 +380,10 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
 
                 with open(output_path, "w", encoding=LogConfig.DEFAULT_ENCODING) as f:
                     json.dump(
-                        json_results, f, indent=CLI.INDENT_SIZE, ensure_ascii=False
+                        json_results,
+                        f,
+                        indent=CLI.INDENT_SIZE,
+                        ensure_ascii=False,
                     )
 
                 context = get_cli_context()

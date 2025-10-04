@@ -9,12 +9,11 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any
 
 import typer
 
 from anivault.cli.common.context import get_cli_context
-from anivault.cli.common.models import LogOptions, DirectoryPath
+from anivault.cli.common.models import DirectoryPath, LogOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI
 
@@ -147,8 +146,6 @@ def _collect_log_list_data(options: LogOptions) -> dict | None:
         Dictionary containing log list data, or None if error
     """
     try:
-        from pathlib import Path
-
         # Get log directory
         log_dir = options.log_dir.path
         if not log_dir.exists():
@@ -221,8 +218,6 @@ def _run_log_list_command_impl(options: LogOptions, console) -> int:
         Exit code (0 for success, non-zero for error)
     """
     try:
-        from pathlib import Path
-
         from rich.table import Table
 
         # Get log directory
@@ -320,18 +315,19 @@ def log_command(
         # Create and validate options using Pydantic
         options = LogOptions(
             log_command=command,
-            log_dir=DirectoryPath(path=log_dir)
+            log_dir=DirectoryPath(path=log_dir),
         )
-        
+
         # Call the handler with validated options
         exit_code = handle_log_command(options)
-        
+
         if exit_code != 0:
             raise typer.Exit(exit_code)
-            
+
     except Exception as e:
         # Handle validation errors
         from rich.console import Console
+
         console = Console()
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)

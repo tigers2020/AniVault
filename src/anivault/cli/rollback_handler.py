@@ -11,7 +11,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import typer
+from pydantic import ValidationError
+
 from anivault.cli.common.context import get_cli_context
+from anivault.cli.common.models import RollbackOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI
 from anivault.shared.errors import (
@@ -24,11 +28,11 @@ from anivault.shared.errors import (
 logger = logging.getLogger(__name__)
 
 
-def handle_rollback_command(args: Any) -> int:
+def handle_rollback_command(options: RollbackOptions) -> int:
     """Handle the rollback command.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated rollback options
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -38,8 +42,8 @@ def handle_rollback_command(args: Any) -> int:
     try:
         context = get_cli_context()
         if context and context.is_json_output_enabled():
-            return _handle_rollback_command_json(args)
-        return _handle_rollback_command_console(args)
+            return _handle_rollback_command_json(options)
+        return _handle_rollback_command_console(options)
 
     except ApplicationError as e:
         logger.exception(
@@ -85,17 +89,17 @@ def handle_rollback_command(args: Any) -> int:
         return 1
 
 
-def _handle_rollback_command_json(args: Any) -> int:
+def _handle_rollback_command_json(options: RollbackOptions) -> int:
     """Handle rollback command with JSON output.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated rollback options
 
     Returns:
         Exit code (0 for success, non-zero for error)
     """
     try:
-        rollback_data = _collect_rollback_data(args)
+        rollback_data = _collect_rollback_data(options)
         if rollback_data is None:
             error_output = format_json_output(
                 success=False,
@@ -127,17 +131,17 @@ def _handle_rollback_command_json(args: Any) -> int:
         return 1
 
 
-def _handle_rollback_command_console(args: Any) -> int:
+def _handle_rollback_command_console(options: RollbackOptions) -> int:
     """Handle rollback command with console output.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated rollback options
 
     Returns:
         Exit code (0 for success, non-zero for error)
     """
     try:
-        result = _run_rollback_command(args)
+        result = _run_rollback_command(options)
 
         if result == 0:
             logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="rollback"))
@@ -175,11 +179,11 @@ def _handle_rollback_command_console(args: Any) -> int:
         return 1
 
 
-def _collect_rollback_data(args: Any) -> dict | None:
+def _collect_rollback_data(options: RollbackOptions) -> dict | None:
     """Collect rollback data for JSON output.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated rollback options
 
     Returns:
         Dictionary containing rollback data, or None if error
@@ -192,11 +196,11 @@ def _collect_rollback_data(args: Any) -> dict | None:
 
         # Get rollback log path
         log_manager = OperationLogManager(Path.cwd())
-        log_path = log_manager.get_log_by_id(args.log_id)
+        log_path = log_manager.get_log_by_id(options.log_id)
 
         if log_path is None:
             return {
-                "error": f"Log with ID {args.log_id} not found",
+                "error": f"Log with ID {options.log_id} not found",
                 "rollback_plan": [],
                 "executable_plan": [],
                 "skipped_operations": [],
@@ -260,7 +264,7 @@ def _collect_rollback_data(args: Any) -> dict | None:
             )
 
         return {
-            "log_id": args.log_id,
+            "log_id": options.log_id,
             "log_path": str(log_path),
             "rollback_plan": rollback_plan_data,
             "executable_plan": executable_plan_data,
@@ -268,7 +272,7 @@ def _collect_rollback_data(args: Any) -> dict | None:
             "total_operations": len(rollback_plan),
             "executable_count": len(executable_plan),
             "skipped_count": len(skipped_operations),
-            "dry_run": getattr(args, "dry_run", False),
+            "dry_run": options.dry_run,
         }
 
     except Exception:
@@ -300,18 +304,18 @@ def _validate_rollback_plan_for_json(
     return executable_plan, skipped_operations
 
 
-def _run_rollback_command(args: Any) -> int:  # noqa: PLR0911
+def _run_rollback_command(options: RollbackOptions) -> int:  # noqa: PLR0911
     """Run the rollback command.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated rollback options
 
     Returns:
         Exit code (0 for success, non-zero for error)
     """
     try:
         console = _setup_rollback_console()
-        log_path = _get_rollback_log_path(args, console)
+        log_path = _get_rollback_log_path(options, console)
         if log_path is None:
             return 1
 
@@ -323,7 +327,7 @@ def _run_rollback_command(args: Any) -> int:  # noqa: PLR0911
             console.print("[yellow]No rollback operations needed[/yellow]")
             return 0
 
-        return _execute_rollback_plan(rollback_plan, args, console)
+        return _execute_rollback_plan(rollback_plan, options, console)
 
     except ApplicationError as e:
         from rich.console import Console
@@ -361,7 +365,7 @@ def _setup_rollback_console() -> Any:
     return Console()
 
 
-def _get_rollback_log_path(args: Any, console: Any) -> Any:
+def _get_rollback_log_path(options: RollbackOptions, console: Any) -> Any:
     """Get rollback log path."""
     try:
         from pathlib import Path
@@ -369,7 +373,7 @@ def _get_rollback_log_path(args: Any, console: Any) -> Any:
         from anivault.core.log_manager import OperationLogManager
 
         log_manager = OperationLogManager(Path.cwd())
-        return log_manager.get_log_by_id(args.log_id)
+        return log_manager.get_log_by_id(options.log_id)
     except ApplicationError as e:
         console.print(f"[red]Application error: {e.message}[/red]")
         logger.exception(
@@ -425,9 +429,11 @@ def _generate_rollback_plan(log_path: Any, console: Any) -> Any:
         return None
 
 
-def _execute_rollback_plan(rollback_plan: Any, args: Any, console: Any) -> int:
+def _execute_rollback_plan(
+    rollback_plan: Any, options: RollbackOptions, console: Any
+) -> int:
     """Execute rollback plan with file existence validation."""
-    if args.dry_run:
+    if options.dry_run:
         _print_rollback_dry_run_plan(rollback_plan, console)
         return 0
 
@@ -445,11 +451,11 @@ def _execute_rollback_plan(rollback_plan: Any, args: Any, console: Any) -> int:
 
     _print_rollback_execution_plan(executable_plan, console)
 
-    if not args.yes:
+    if not options.yes:
         if not _confirm_rollback(console):
             return 0
 
-    return _perform_rollback(executable_plan, args, skipped_operations, console)
+    return _perform_rollback(executable_plan, options, skipped_operations, console)
 
 
 def _confirm_rollback(console: Any) -> bool:
@@ -468,7 +474,7 @@ def _confirm_rollback(console: Any) -> bool:
 
 def _perform_rollback(
     rollback_plan: Any,
-    args: Any,
+    options: RollbackOptions,
     skipped_operations: Any = None,
     console: Any = None,
 ) -> int:
@@ -476,7 +482,7 @@ def _perform_rollback(
 
     Args:
         rollback_plan: List of executable FileOperation objects
-        args: Command line arguments
+        options: Validated rollback options
         skipped_operations: List of skipped FileOperation objects (optional)
         console: Rich console instance (optional)
     """
@@ -494,7 +500,9 @@ def _perform_rollback(
         organizer = FileOrganizer(log_manager=log_manager)
 
         console.print("[blue]Executing rollback...[/blue]")
-        moved_files = organizer.execute_plan(rollback_plan, f"rollback-{args.log_id}")
+        moved_files = organizer.execute_plan(
+            rollback_plan, f"rollback-{options.log_id}"
+        )
 
         if moved_files:
             console.print(
@@ -647,21 +655,18 @@ def _print_rollback_execution_plan(plan: Any, console: Any) -> None:
     console.print()
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
 
-import typer
-from anivault.cli.common.context import get_cli_context
-
 
 def rollback_command(
-    log_id: str = typer.Argument(  # type: ignore[misc]
+    log_id: str = typer.Argument(
         ...,
         help="ID of the operation log to rollback",
     ),
-    dry_run: bool = typer.Option(  # type: ignore[misc]
+    dry_run: bool = typer.Option(
         False,
         "--dry-run",
         help="Show what would be rolled back without actually moving files",
     ),
-    yes: bool = typer.Option(  # type: ignore[misc]
+    yes: bool = typer.Option(
         False,
         "--yes",
         "-y",
@@ -685,22 +690,30 @@ def rollback_command(
         # Rollback without confirmation prompts
         anivault rollback 2024-01-15_143022 --yes
     """
-    # Create a mock args object to maintain compatibility with existing handler
-    class MockArgs:
-        def __init__(self):
-            self.log_id = log_id
-            self.dry_run = dry_run
-            self.yes = yes
+    try:
+        # Create and validate options using Pydantic model
+        options = RollbackOptions(
+            log_id=log_id,
+            dry_run=dry_run,
+            yes=yes,
+        )
 
-            # Get CLI context for JSON output
-            context = get_cli_context()
-            self.json = context.json_output if context else False
-            self.verbose = context.verbose if context else 0
+        # Call the handler with validated options
+        exit_code = handle_rollback_command(options)
 
-    args = MockArgs()
+        if exit_code != 0:
+            raise typer.Exit(exit_code)
 
-    # Call the existing handler
-    exit_code = handle_rollback_command(args)
+    except (ValueError, ValidationError) as e:
+        from rich.console import Console
 
-    if exit_code != 0:
-        raise typer.Exit(exit_code)
+        console = Console()
+        console.print(f"[red]Validation error: {e}[/red]")
+        raise typer.Exit(1) from e
+    except Exception as e:
+        from rich.console import Console
+
+        console = Console()
+        console.print(f"[red]Unexpected error: {e}[/red]")
+        logger.exception("Unexpected error in rollback command")
+        raise typer.Exit(1) from e
