@@ -8,7 +8,6 @@ AniVault는 TMDB API를 활용한 애니메이션 파일 자동 정리 시스템
 - TMDB API를 통한 메타데이터 수집 (한국어 제목 지원)
 - 자동 파일 정리 및 이름 변경
 - **Enhanced Organize**: 파일명 유사성 기반 그룹핑, 해상도별 분류, 자막 파일 자동 매칭
-- **PySide6 GUI**: 현대적인 데스크톱 GUI 인터페이스
 - Windows 단일 실행파일(.exe) 지원
 
 ## 설치
@@ -51,10 +50,6 @@ anivault --help
 - `python -m anivault organize <directory>` - 파일 정리
 - `python -m anivault run <directory>` - 전체 워크플로우 실행
 
-#### GUI 사용법
-- `python -m anivault_gui.main` - PySide6 기반 GUI 애플리케이션 실행
-- **디렉토리 선택**: 툴바의 "📁 Select Directory" 버튼 또는 메뉴바 File > Select Directory 사용
-- **파일 스캔**: 디렉토리 선택 후 Match Files 및 Organize Files 기능 활성화
 - `python -m anivault log list` - 작업 로그 확인
 - `python -m anivault rollback <timestamp>` - 작업 되돌리기
 
