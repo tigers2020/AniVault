@@ -138,13 +138,15 @@ extend-exclude = '''
 python_version = "3.9"
 # plugins = ["pydantic.mypy"]  # Temporarily disabled due to dependency issues
 namespace_packages = true
-# explicit_package_bases = true  # Temporarily disabled due to module path conflicts
+explicit_package_bases = true  # Enable to fix module path conflicts
 mypy_path = ["src"]
 
 # 단계적 엄격화 - 기본 설정
 strict = false
 warn_return_any = true
 warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_any_generics = true
 check_untyped_defs = true
@@ -159,9 +161,7 @@ exclude = [
 
 # 런타임 코어는 조금 더 엄격
 [[tool.mypy.overrides]]
-module = "src.anivault.*"
-warn_redundant_casts = true
-warn_unused_configs = true
+module = "anivault.*"
 
 # 서드파티 라이브러리 예외 처리 (타입 스텁 부재)
 [[tool.mypy.overrides]]

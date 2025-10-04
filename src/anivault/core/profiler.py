@@ -12,11 +12,12 @@ import json
 import logging
 import time
 import tracemalloc
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 from anivault.core.statistics import PerformanceMetrics, StatisticsCollector
 

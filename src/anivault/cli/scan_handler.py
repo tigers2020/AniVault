@@ -494,7 +494,8 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 ),
             )
             logger.exception(
-                "%sin scan command", CLIMessages.Error.INFRASTRUCTURE_ERROR,
+                "%sin scan command",
+                CLIMessages.Error.INFRASTRUCTURE_ERROR,
                 extra={
                     CLIMessages.StatusKeys.CONTEXT: e.context,
                     CLIMessages.StatusKeys.ERROR_CODE: e.code,
@@ -527,7 +528,11 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         return 1
 
 
-def _collect_scan_data(results: list[dict[str, Any]], directory: Path, show_tmdb: bool = True) -> dict[str, Any]:
+def _collect_scan_data(
+    results: list[dict[str, Any]],
+    directory: Path,
+    show_tmdb: bool = True,
+) -> dict[str, Any]:
     """Collect scan data for JSON output.
 
     Args:

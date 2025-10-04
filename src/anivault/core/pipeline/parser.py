@@ -289,7 +289,11 @@ class ParserWorker(threading.Thread):
                 str(file_path),
                 file_path.stat().st_mtime,
             )
-            self.cache.set_cache(cache_key, result, ttl_seconds=CoreCacheConfig.DEFAULT_TTL)
+            self.cache.set_cache(
+                cache_key,
+                result,
+                ttl_seconds=CoreCacheConfig.DEFAULT_TTL,
+            )
 
             log_operation_success(
                 logger,

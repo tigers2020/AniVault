@@ -313,7 +313,11 @@ class TMDBClient:
         while not self.rate_limiter.try_acquire():
             await asyncio.sleep(0.1)  # Wait for token availability
 
-    async def _execute_with_retry(self, api_call: Callable[[], Any], context: ErrorContext) -> Any:
+    async def _execute_with_retry(
+        self,
+        api_call: Callable[[], Any],
+        context: ErrorContext,
+    ) -> Any:
         """Execute API call with retry logic and error handling.
 
         Args:

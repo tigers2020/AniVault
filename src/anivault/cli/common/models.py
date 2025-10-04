@@ -96,7 +96,10 @@ class OrganizeOptions(BaseModel):
     yes: bool = Field(default=False, description="Skip confirmation prompts")
     enhanced: bool = Field(default=False, description="Use enhanced organization")
     destination: str = Field(default="Anime", description="Destination directory")
-    extensions: str = Field(default="mkv,mp4,avi,mov,wmv,flv,webm,m4v", description="File extensions")
+    extensions: str = Field(
+        default="mkv,mp4,avi,mov,wmv,flv,webm,m4v",
+        description="File extensions",
+    )
     json_output: bool = Field(default=False, description="JSON output format")
     verbose: bool = Field(default=False, description="Verbose output")
 
@@ -187,9 +190,13 @@ class VerifyOptions(BaseModel):
     """Verify command options validation model."""
 
     tmdb: bool = Field(default=False, description="Verify TMDB API connectivity")
-    all: bool = Field(default=False, description="Verify all components")
+    all_components: bool = Field(
+        default=False,
+        description="Verify all components",
+        alias="all",
+    )
 
-    @field_validator("tmdb", "all", mode="before")
+    @field_validator("tmdb", "all_components", mode="before")
     @classmethod
     def validate_verify_options(cls, v: bool) -> bool:
         """Validate verify options."""
@@ -217,8 +224,14 @@ class RunOptions(BaseModel):
     skip_scan: bool = Field(default=False, description="Skip scanning step")
     skip_match: bool = Field(default=False, description="Skip matching step")
     skip_organize: bool = Field(default=False, description="Skip organization step")
-    max_workers: int = Field(default=RunDefaults.DEFAULT_MAX_WORKERS, description="Maximum number of worker threads")
-    batch_size: int = Field(default=RunDefaults.DEFAULT_BATCH_SIZE, description="Batch size for processing")
+    max_workers: int = Field(
+        default=RunDefaults.DEFAULT_MAX_WORKERS,
+        description="Maximum number of worker threads",
+    )
+    batch_size: int = Field(
+        default=RunDefaults.DEFAULT_BATCH_SIZE,
+        description="Batch size for processing",
+    )
     json_output: bool = Field(
         default=False,
         description="Output results in JSON format",

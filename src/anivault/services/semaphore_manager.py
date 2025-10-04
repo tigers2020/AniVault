@@ -31,7 +31,10 @@ class SemaphoreManager:
         concurrency_limit: Maximum number of concurrent requests allowed (default: 4)
     """
 
-    def __init__(self, concurrency_limit: int = NetworkConfig.DEFAULT_CONCURRENT_REQUESTS):
+    def __init__(
+        self,
+        concurrency_limit: int = NetworkConfig.DEFAULT_CONCURRENT_REQUESTS,
+    ):
         """Initialize the semaphore manager.
 
         Args:

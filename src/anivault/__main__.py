@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 # Import after path setup
-from anivault.cli.typer_app import app
+from anivault.cli.typer_app import app  # noqa: E402
 
 if __name__ == "__main__":
     app()

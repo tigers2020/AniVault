@@ -139,7 +139,11 @@ class BenchmarkRunner:
 
         # Initialize components
         self.cache = JSONCacheV2(self.cache_dir, self.statistics)
-        self.tmdb_client = TMDBClient(rate_limiter=None, semaphore_manager=None, state_machine=None)
+        self.tmdb_client = TMDBClient(
+            rate_limiter=None,
+            semaphore_manager=None,
+            state_machine=None,
+        )
         self.matching_engine = MatchingEngine(
             cache=self.cache,
             tmdb_client=self.tmdb_client,

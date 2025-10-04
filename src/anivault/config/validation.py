@@ -12,13 +12,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from anivault.shared.constants import (
+    TMDB,
     Application,
     Config,
     LogLevels,
     RunDefaults,
-    TMDB,
-    TMDBConfig,
     Timeout,
+    TMDBConfig,
 )
 
 

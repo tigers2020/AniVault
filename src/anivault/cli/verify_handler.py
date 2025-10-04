@@ -120,7 +120,7 @@ def _handle_verify_command_console(options: VerifyOptions) -> int:  # noqa: PLR0
 
         console = Console()
 
-        if options.tmdb or options.all:
+        if options.tmdb or options.all_components:
             console.print("[blue]Verifying TMDB API connectivity...[/blue]")
 
             # Test TMDB client
@@ -163,7 +163,7 @@ def _handle_verify_command_console(options: VerifyOptions) -> int:  # noqa: PLR0
                 logger.exception("Unexpected error during TMDB API verification")
                 return 1
 
-        if options.all:
+        if options.all_components:
             console.print("[blue]Verifying all components...[/blue]")
             # Add more verification checks here
             console.print("[green]✓ All components verified[/green]")
@@ -213,7 +213,7 @@ def _collect_verify_data(options: VerifyOptions) -> dict[str, Any] | None:
             "verification_status": "PENDING",
         }
 
-        if options.tmdb or options.all:
+        if options.tmdb or options.all_components:
             # Test TMDB client
             from anivault.services import TMDBClient
 
@@ -249,7 +249,7 @@ def _collect_verify_data(options: VerifyOptions) -> dict[str, Any] | None:
                 }
                 verify_results["verification_status"] = "FAILED"
 
-        if options.all:
+        if options.all_components:
             # Add more verification checks here
             verify_results["all_components"] = {
                 "status": "SUCCESS",

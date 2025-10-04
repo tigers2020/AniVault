@@ -50,7 +50,8 @@ def handle_rollback_command(options: RollbackOptions) -> int:
 
     except ApplicationError as e:
         logger.exception(
-            "%sin rollback command", CLIMessages.Error.APPLICATION_ERROR,
+            "%sin rollback command",
+            CLIMessages.Error.APPLICATION_ERROR,
             extra={
                 CLIMessages.StatusKeys.CONTEXT: e.context,
                 CLIMessages.StatusKeys.ERROR_CODE: e.code,
@@ -68,7 +69,8 @@ def handle_rollback_command(options: RollbackOptions) -> int:
         return 1
     except InfrastructureError as e:
         logger.exception(
-            "%sin rollback command", CLIMessages.Error.INFRASTRUCTURE_ERROR,
+            "%sin rollback command",
+            CLIMessages.Error.INFRASTRUCTURE_ERROR,
             extra={
                 CLIMessages.StatusKeys.CONTEXT: e.context,
                 CLIMessages.StatusKeys.ERROR_CODE: e.code,

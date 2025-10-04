@@ -17,8 +17,6 @@ import types
 from pathlib import Path
 from typing import ClassVar
 
-from anivault.shared.constants import LoggingConfig
-
 # Default logging configuration
 DEFAULT_LOG_LEVEL = logging.INFO
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -145,7 +143,7 @@ def setup_logging(
 
         # Set up log file
         if log_file is None:
-            log_file = LogConfig.DEFAULT_FILENAME
+            log_file = "anivault.log"
 
         log_path = log_dir / log_file
 

@@ -85,7 +85,7 @@ class CodeQualityValidator:
     def _run_magic_values_validation(
         self,
         paths: list[str],
-        exclude_patterns: list[str],
+        exclude_patterns: list[str],  # noqa: ARG002
     ) -> None:
         """매직 값 검증 실행"""
         try:

@@ -12,7 +12,6 @@ import threading
 import time
 from typing import Any
 
-from anivault.core.models import ScannedFile as ProcessedFile
 from anivault.core.pipeline.utils import BoundedQueue
 from anivault.shared.constants import NetworkConfig, Pipeline
 from anivault.shared.errors import (
@@ -527,7 +526,9 @@ class ResultCollector(threading.Thread):
             return 0.0
 
         total_size = sum(
-            result.get("file_size", 0) if isinstance(result.get("file_size"), (int, float)) else 0
+            result.get("file_size", 0)
+            if isinstance(result.get("file_size"), (int, float))
+            else 0
             for result in successful_results
         )
         return total_size / len(successful_results)
@@ -588,11 +589,13 @@ class ResultCollector(threading.Thread):
                 if (ext := r.get("file_extension")) is not None
             },
         )
-        worker_ids = sorted({
-            worker_id
-            for r in results
-            if (worker_id := r.get("worker_id")) is not None
-        })
+        worker_ids = sorted(
+            {
+                worker_id
+                for r in results
+                if (worker_id := r.get("worker_id")) is not None
+            },
+        )
 
         return {
             "total_results": total_results,
@@ -780,11 +783,13 @@ class ResultCollectorPool:
                     if (ext := r.get("file_extension")) is not None
                 },
             ),
-            "worker_ids": sorted({
-                worker_id
-                for r in all_results
-                if (worker_id := r.get("worker_id")) is not None
-            }),
+            "worker_ids": sorted(
+                {
+                    worker_id
+                    for r in all_results
+                    if (worker_id := r.get("worker_id")) is not None
+                },
+            ),
         }
 
     def clear_all_results(self) -> None:

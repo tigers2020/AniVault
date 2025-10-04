@@ -29,7 +29,10 @@ logger = logging.getLogger(__name__)
 class FileGrouper:
     """Groups similar anime files based on filename patterns and similarity."""
 
-    def __init__(self, similarity_threshold: float = BusinessRules.FUZZY_MATCH_THRESHOLD) -> None:
+    def __init__(
+        self,
+        similarity_threshold: float = BusinessRules.FUZZY_MATCH_THRESHOLD,
+    ) -> None:
         """Initialize the file grouper.
 
         Args:

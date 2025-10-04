@@ -436,7 +436,16 @@ class CLIDefaults:
     DEFAULT_DESTINATION = "Anime"
 
     # Default extensions
-    DEFAULT_VIDEO_EXTENSIONS: ClassVar[list[str]] = ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v"]
+    DEFAULT_VIDEO_EXTENSIONS: ClassVar[list[str]] = [
+        "mp4",
+        "mkv",
+        "avi",
+        "mov",
+        "wmv",
+        "flv",
+        "webm",
+        "m4v",
+    ]
 
     # Default thresholds
     DEFAULT_SIMILARITY_THRESHOLD = 0.8
@@ -483,7 +492,7 @@ class RunDefaults:
     DEFAULT_DESTINATION = "Anime"
 
     # Default extensions
-    DEFAULT_EXTENSIONS = [
+    DEFAULT_EXTENSIONS: ClassVar[list[str]] = [
         "mkv",
         "mp4",
         "avi",

@@ -103,33 +103,39 @@ def main(
 
 @app.command(CLICommands.SCAN)
 def scan_command_typer(
-    directory: Path = typer.Argument(        ...,
+    directory: Path = typer.Argument(
+        ...,
         help=CLIHelp.SCAN_DIRECTORY_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(        True,
+    recursive: bool = typer.Option(
+        True,
         CLIOptions.RECURSIVE,
         CLIOptions.RECURSIVE_SHORT,
         help=CLIHelp.SCAN_RECURSIVE_HELP,
     ),
-    include_subtitles: bool = typer.Option(        True,
+    include_subtitles: bool = typer.Option(
+        True,
         CLIOptions.INCLUDE_SUBTITLES,
         help=CLIHelp.SCAN_INCLUDE_SUBTITLES_HELP,
     ),
-    include_metadata: bool = typer.Option(        True,
+    include_metadata: bool = typer.Option(
+        True,
         CLIOptions.INCLUDE_METADATA,
         help=CLIHelp.SCAN_INCLUDE_METADATA_HELP,
     ),
-    output_file: Path | None = typer.Option(        None,
+    output_file: Path | None = typer.Option(
+        None,
         CLIOptions.OUTPUT,
         CLIOptions.OUTPUT_SHORT,
         help=CLIHelp.SCAN_OUTPUT_HELP,
         writable=True,
     ),
-    json_output: bool = typer.Option(        False,
+    json_output: bool = typer.Option(
+        False,
         CLIOptions.JSON,
         help="Output results in JSON format",
     ),
@@ -178,33 +184,39 @@ def scan_command_typer(
 
 @app.command(CLICommands.MATCH)
 def match_command_typer(
-    directory: Path = typer.Argument(        ...,
+    directory: Path = typer.Argument(
+        ...,
         help=CLIHelp.MATCH_DIRECTORY_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(        True,
+    recursive: bool = typer.Option(
+        True,
         "--recursive/--no-recursive",
         CLIOptions.RECURSIVE_SHORT,
         help=CLIHelp.MATCH_RECURSIVE_HELP,
     ),
-    include_subtitles: bool = typer.Option(        True,
+    include_subtitles: bool = typer.Option(
+        True,
         "--include-subtitles/--no-include-subtitles",
         help=CLIHelp.MATCH_INCLUDE_SUBTITLES_HELP,
     ),
-    include_metadata: bool = typer.Option(        True,
+    include_metadata: bool = typer.Option(
+        True,
         "--include-metadata/--no-include-metadata",
         help=CLIHelp.MATCH_INCLUDE_METADATA_HELP,
     ),
-    output_file: Path | None = typer.Option(        None,
+    output_file: Path | None = typer.Option(
+        None,
         "--output",
         CLIOptions.OUTPUT_SHORT,
         help="Output file for match results (JSON format)",
         writable=True,
     ),
-    json_output: bool = typer.Option(        False,
+    json_output: bool = typer.Option(
+        False,
         CLIOptions.JSON,
         help="Output results in JSON format",
     ),
@@ -257,79 +269,102 @@ def match_command_typer(
 
 @app.command(CLICommands.ORGANIZE)
 def organize_command_typer(
-    directory: Path = typer.Argument(        ...,
+    directory: Path = typer.Argument(
+        ...,
         help=CLIHelp.ORGANIZE_DIRECTORY_HELP,
         callback=create_validator(DirectoryPath),
     ),
-    dry_run: bool = typer.Option(        CLIDefaults.DEFAULT_DRY_RUN,
+    dry_run: bool = typer.Option(
+        CLIDefaults.DEFAULT_DRY_RUN,
         CLIOptions.DRY_RUN,
         help=CLIHelp.ORGANIZE_DRY_RUN_HELP,
     ),
-    yes: bool = typer.Option(        CLIDefaults.DEFAULT_YES,
+    yes: bool = typer.Option(
+        CLIDefaults.DEFAULT_YES,
         CLIOptions.YES,
         CLIOptions.YES_SHORT,
         help=CLIHelp.ORGANIZE_YES_HELP,
     ),
-    enhanced: bool = typer.Option(        False,
+    enhanced: bool = typer.Option(
+        False,
         "--enhanced",
         help="Use enhanced organization with grouping and Korean titles",
     ),
-    destination: str = typer.Option(        CLIDefaults.DEFAULT_DESTINATION,
+    destination: str = typer.Option(
+        CLIDefaults.DEFAULT_DESTINATION,
         CLIOptions.DESTINATION,
         CLIOptions.DESTINATION_SHORT,
         help=CLIHelp.ORGANIZE_DESTINATION_HELP,
     ),
-    extensions: str = typer.Option(        "mkv,mp4,avi,mov,wmv,flv,webm,m4v",
+    extensions: str = typer.Option(
+        "mkv,mp4,avi,mov,wmv,flv,webm,m4v",
         "--extensions",
         help="Comma-separated list of video file extensions to process",
     ),
-    json_output: bool = typer.Option(        CLIDefaults.DEFAULT_JSON,
+    json_output: bool = typer.Option(
+        CLIDefaults.DEFAULT_JSON,
         CLIOptions.JSON,
         help=CLIHelp.ORGANIZE_JSON_HELP,
     ),
 ) -> None:
     # Call the organize command
-    organize_command(directory, dry_run, yes, enhanced, destination, extensions, json_output)
+    organize_command(
+        directory,
+        dry_run,
+        yes,
+        enhanced,
+        destination,
+        extensions,
+        json_output,
+    )
 
 
 @app.command(CLICommands.RUN)
 def run_command_typer(
-    directory: Path = typer.Argument(        ...,
+    directory: Path = typer.Argument(
+        ...,
         help=CLIHelp.RUN_DIRECTORY_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(        True,
+    recursive: bool = typer.Option(
+        True,
         "--recursive/--no-recursive",
         CLIOptions.RECURSIVE_SHORT,
         help=CLIHelp.RUN_RECURSIVE_HELP,
     ),
-    include_subtitles: bool = typer.Option(        True,
+    include_subtitles: bool = typer.Option(
+        True,
         "--include-subtitles/--no-include-subtitles",
         help=CLIHelp.RUN_INCLUDE_SUBTITLES_HELP,
     ),
-    include_metadata: bool = typer.Option(        True,
+    include_metadata: bool = typer.Option(
+        True,
         "--include-metadata/--no-include-metadata",
         help=CLIHelp.RUN_INCLUDE_METADATA_HELP,
     ),
-    output_file: Path | None = typer.Option(        None,
+    output_file: Path | None = typer.Option(
+        None,
         "--output",
         CLIOptions.OUTPUT_SHORT,
         help=CLIHelp.RUN_OUTPUT_HELP,
         writable=True,
     ),
-    dry_run: bool = typer.Option(        False,
+    dry_run: bool = typer.Option(
+        False,
         "--dry-run",
         help=CLIHelp.RUN_DRY_RUN_HELP,
     ),
-    yes: bool = typer.Option(        False,
+    yes: bool = typer.Option(
+        False,
         "--yes",
         CLIOptions.YES_SHORT,
         help=CLIHelp.RUN_YES_HELP,
     ),
-    json_output: bool = typer.Option(        False,
+    json_output: bool = typer.Option(
+        False,
         CLIOptions.JSON,
         help=CLIHelp.RUN_JSON_HELP,
     ),
@@ -389,10 +424,12 @@ def run_command_typer(
 
 @app.command(CLICommands.LOG)
 def log_command_typer(
-    command: str = typer.Argument(        ...,
+    command: str = typer.Argument(
+        ...,
         help=CLIHelp.LOG_HELP,
     ),
-    log_dir: Path = typer.Option(        Path(FileSystem.LOG_DIRECTORY),
+    log_dir: Path = typer.Option(
+        Path(FileSystem.LOG_DIRECTORY),
         CLIOptions.LOG_DIR,
         help=CLIHelp.LOG_DIR_HELP,
         exists=True,
@@ -426,14 +463,17 @@ def log_command_typer(
 
 @app.command(CLICommands.ROLLBACK)
 def rollback_command_typer(
-    log_id: str = typer.Argument(        ...,
+    log_id: str = typer.Argument(
+        ...,
         help=CLIHelp.ROLLBACK_LOG_ID_HELP,
     ),
-    dry_run: bool = typer.Option(        False,
+    dry_run: bool = typer.Option(
+        False,
         "--dry-run",
         help=CLIHelp.ROLLBACK_DRY_RUN_HELP,
     ),
-    yes: bool = typer.Option(        False,
+    yes: bool = typer.Option(
+        False,
         "--yes",
         CLIOptions.YES_SHORT,
         help=CLIHelp.ROLLBACK_YES_HELP,
@@ -462,11 +502,13 @@ def rollback_command_typer(
 
 @app.command(CLICommands.VERIFY)
 def verify_command_typer(
-    tmdb: bool = typer.Option(        False,
+    tmdb: bool = typer.Option(
+        False,
         "--tmdb",
         help=CLIHelp.VERIFY_TMDB_HELP,
     ),
-    all_components: bool = typer.Option(        False,
+    all_components: bool = typer.Option(
+        False,
         "--all",
         help=CLIHelp.VERIFY_ALL_HELP,
     ),

@@ -28,9 +28,9 @@ class TokenBucketRateLimiter:
     """
 
     def __init__(
-        self, 
-        capacity: int = NetworkConfig.DEFAULT_TOKEN_BUCKET_CAPACITY, 
-        refill_rate: float = NetworkConfig.DEFAULT_TOKEN_REFILL_RATE
+        self,
+        capacity: int = NetworkConfig.DEFAULT_TOKEN_BUCKET_CAPACITY,
+        refill_rate: float = NetworkConfig.DEFAULT_TOKEN_REFILL_RATE,
     ):
         """Initialize the token bucket rate limiter.
 

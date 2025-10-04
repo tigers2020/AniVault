@@ -214,7 +214,7 @@ class AISecurityChecker:
         self,
         file_path: str,
         content: str,
-        lines: list[str],
+        lines: list[str],  # noqa: ARG002
     ) -> list[SecurityViolation]:
         """Check for dangerous code patterns."""
         violations = []
@@ -232,7 +232,7 @@ class AISecurityChecker:
         self,
         file_path: str,
         content: str,
-        lines: list[str],
+        lines: list[str],  # noqa: ARG002
     ) -> list[SecurityViolation]:
         """Check for magic values that should be constants."""
         violations = []
@@ -250,7 +250,7 @@ class AISecurityChecker:
         self,
         file_path: str,
         content: str,
-        lines: list[str],
+        lines: list[str],  # noqa: ARG002
     ) -> list[SecurityViolation]:
         """Check for potential hardcoded secrets."""
         violations = []

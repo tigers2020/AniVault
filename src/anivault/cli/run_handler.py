@@ -175,7 +175,9 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
 
     except ApplicationError as e:
         logger.exception(
-            "%sin run command: %s", CLIMessages.Error.APPLICATION_ERROR, e.message,
+            "%sin run command: %s",
+            CLIMessages.Error.APPLICATION_ERROR,
+            e.message,
         )
         if options.json_output:
             json_output = format_json_output(
@@ -483,42 +485,50 @@ def _print_run_summary(run_data: dict[str, Any], console: Console) -> None:
 
 
 def run_command(
-    directory: Path = typer.Argument(        ...,
+    directory: Path = typer.Argument(
+        ...,
         help="Directory containing anime files to process",
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(        True,
+    recursive: bool = typer.Option(
+        True,
         "--recursive/--no-recursive",
         "-r",
         help="Process files recursively in subdirectories",
     ),
-    include_subtitles: bool = typer.Option(        True,
+    include_subtitles: bool = typer.Option(
+        True,
         "--include-subtitles/--no-include-subtitles",
         help="Include subtitle files in processing",
     ),
-    include_metadata: bool = typer.Option(        True,
+    include_metadata: bool = typer.Option(
+        True,
         "--include-metadata/--no-include-metadata",
         help="Include metadata files in processing",
     ),
-    output_file: Path | None = typer.Option(        None,
+    output_file: Path | None = typer.Option(
+        None,
         "--output",
         "-o",
         help="Output file for processing results (JSON format)",
         writable=True,
     ),
-    dry_run: bool = typer.Option(        False,
+    dry_run: bool = typer.Option(
+        False,
         "--dry-run",
         help="Show what would be processed without actually processing files",
     ),
-    yes: bool = typer.Option(        False,
+    yes: bool = typer.Option(
+        False,
         "--yes",
         "-y",
         help="Skip confirmation prompts and proceed with processing",
     ),
-    json: bool = typer.Option(        False,
+    json: bool = typer.Option(
+        False,
         "--json",
         help="Output results in JSON format",
     ),

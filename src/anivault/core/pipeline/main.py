@@ -506,7 +506,9 @@ def _wait_for_collector_completion(
         if collector.is_alive():
             logger.warning("Collector did not complete within timeout, forcing stop...")
             collector.stop()
-            collector.join(timeout=NetworkConfig.DEFAULT_TIMEOUT)  # Give it 1 more second to stop gracefully
+            collector.join(
+                timeout=NetworkConfig.DEFAULT_TIMEOUT,
+            )  # Give it 1 more second to stop gracefully
 
         result_count = collector.get_result_count()
         logger.info(

@@ -265,7 +265,10 @@ class ParallelDirectoryScanner(threading.Thread):
             )
             raise error from e
 
-    def _await_scan_completion(self, future_to_dir: dict[Future[ProcessedFile], Path]) -> None:
+    def _await_scan_completion(
+        self,
+        future_to_dir: dict[Future[ProcessedFile], Path],
+    ) -> None:
         """Wait for scan completion and process results.
 
         Args:
@@ -299,7 +302,9 @@ class ParallelDirectoryScanner(threading.Thread):
                             ErrorCode.SCANNER_ERROR,
                             f"Individual scan job failed for directory {subdir}: {exception}",
                             error_context,
-                            original_error=exception if isinstance(exception, Exception) else None,
+                            original_error=exception
+                            if isinstance(exception, Exception)
+                            else None,
                         )
                         log_operation_error(
                             logger=logger,

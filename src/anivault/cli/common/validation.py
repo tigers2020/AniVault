@@ -35,9 +35,9 @@ def create_validator(model: type[BaseModel]) -> Callable[[Any], Any]:
             # Create model instance with the value
             if hasattr(model, "model_fields") and "path" in model.model_fields:
                 instance = model(path=value)
-                return getattr(instance, "path")
+                return instance.path
             instance = model(value=value)
-            return getattr(instance, "value")
+            return instance.value
         except ValidationError as e:
             # Convert Pydantic validation error to Typer BadParameter
             error_messages = []

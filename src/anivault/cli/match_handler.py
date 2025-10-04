@@ -58,7 +58,8 @@ def handle_match_command(options: MatchOptions) -> int:
 
     except ApplicationError as e:
         logger.exception(
-            "%sin match command", CLIMessages.Error.APPLICATION_ERROR,
+            "%sin match command",
+            CLIMessages.Error.APPLICATION_ERROR,
             extra={
                 CLIMessages.StatusKeys.CONTEXT: e.context,
                 CLIMessages.StatusKeys.ERROR_CODE: e.code,
@@ -67,7 +68,8 @@ def handle_match_command(options: MatchOptions) -> int:
         return 1
     except InfrastructureError as e:
         logger.exception(
-            "%sin match command", CLIMessages.Error.INFRASTRUCTURE_ERROR,
+            "%sin match command",
+            CLIMessages.Error.INFRASTRUCTURE_ERROR,
             extra={
                 CLIMessages.StatusKeys.CONTEXT: e.context,
                 CLIMessages.StatusKeys.ERROR_CODE: e.code,
@@ -300,10 +302,12 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
                     processed_results.append(result)
                 else:
                     # Handle unexpected result type
-                    processed_results.append({
-                        CLIMessages.StatusKeys.FILE_PATH: str(anime_files[i]),
-                        "error": "Unexpected result type",
-                    })
+                    processed_results.append(
+                        {
+                            CLIMessages.StatusKeys.FILE_PATH: str(anime_files[i]),
+                            "error": "Unexpected result type",
+                        },
+                    )
 
             processed_results_final: list[dict[str, str]] = processed_results
 

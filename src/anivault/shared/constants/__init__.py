@@ -29,13 +29,23 @@ from .cli import (
     CLIMessages,
     CLIOptions,
     ConfidenceConfig,
-    LogConfig as CLILogConfig,
     QueueConfig,
     RunDefaults,
     WorkerConfig,
 )
 from .cli import (
     CacheConfig as CLICacheConfig,
+)
+from .cli import (
+    LogConfig as CLILogConfig,
+)
+from .core import (
+    BusinessRules,
+    NormalizationConfig,
+    ProcessingConfig,
+)
+from .core import (
+    CacheConfig as CoreCacheConfig,
 )
 from .file_formats import (
     ExclusionPatterns,
@@ -62,12 +72,6 @@ from .matching import (
     ScoringWeights,
     TitleNormalization,
     ValidationConfig,
-)
-from .core import (
-    BusinessRules,
-    CacheConfig as CoreCacheConfig,
-    NormalizationConfig,
-    ProcessingConfig,
 )
 from .network import (
     DownloadConfig,

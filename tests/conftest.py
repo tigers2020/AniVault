@@ -123,7 +123,7 @@ def mock_logger():
 
 
 @pytest.fixture(autouse=True)
-def reset_global_state():
+def _reset_global_state():
     """Reset global state before each test.
 
     This fixture runs automatically before each test to ensure

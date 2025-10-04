@@ -66,17 +66,17 @@ class ErrorHandlingDetector(ast.NodeVisitor):
             r'"[^"]*Stack\s+trace[^"]*"',
         ]
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
         """일반 함수 정의 방문"""
         self._analyze_function(node)
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
         """비동기 함수 정의 방문"""
         self._analyze_function(node)
         self.generic_visit(node)
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         """클래스 정의 방문"""
         self.generic_visit(node)
 
@@ -151,7 +151,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
         self,
         handler: ast.ExceptHandler,
         function_name: str,
-        function_line: int,
+        function_line: int,  # noqa: ARG002
     ) -> None:
         """except 블록 내용 분석"""
         for stmt in handler.body:
@@ -206,15 +206,12 @@ class ErrorHandlingDetector(ast.NodeVisitor):
                     )
 
             # 에러 재전파 검사 (bare_raise는 올바른 패턴이므로 제거)
-            # elif isinstance(stmt, ast.Raise):
-            #     # raise만 있고 원본 에러 정보가 없는 경우는 올바른 패턴
-            #     pass
 
     def _check_print_usage(
         self,
         node: ast.FunctionDef,
         function_name: str,
-        function_line: int,
+        function_line: int,  # noqa: ARG002
     ) -> None:
         """print 사용 검사"""
         for child in ast.walk(node):
@@ -239,7 +236,7 @@ class ErrorHandlingDetector(ast.NodeVisitor):
         self,
         node: ast.FunctionDef,
         function_name: str,
-        function_line: int,
+        function_line: int,  # noqa: ARG002
     ) -> None:
         """매직 문자열 검사"""
         for child in ast.walk(node):

@@ -1,13 +1,3 @@
-import sys
-import tempfile
-from pathlib import Path
-
-# Add src directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-# AniVault 모듈 import
-from anivault.core.file_grouper import FileGrouper
-from anivault.core.models import ScannedFile
 #!/usr/bin/env python3
 """
 AniVault Enhanced Organize 데모 스크립트
@@ -17,15 +7,20 @@ AniVault Enhanced Organize 데모 스크립트
 - 해상도 자동 감지 및 분류
 - 자막 파일 자동 매칭
 - 한국어 제목 지원 (TMDB)
-- 해상도별 파일 분리 저장
-
-사용법:
-    python demo_enhanced_organize.py
 """
+import sys
+import tempfile
+from pathlib import Path
 
-from anivault.core.parser.models import ParsingResult
-from anivault.core.resolution_detector import ResolutionDetector
-from anivault.core.subtitle_matcher import SubtitleMatcher
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+# AniVault 모듈 import
+from anivault.core.file_grouper import FileGrouper  # noqa: E402
+from anivault.core.models import ScannedFile  # noqa: E402
+from anivault.core.parser.models import ParsingResult  # noqa: E402
+from anivault.core.resolution_detector import ResolutionDetector  # noqa: E402
+from anivault.core.subtitle_matcher import SubtitleMatcher  # noqa: E402
 
 
 def create_demo_files() -> Path:

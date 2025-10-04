@@ -27,9 +27,7 @@ def find_rule_files() -> list[Path]:
         print("❌ .cursor/rules 디렉토리가 존재하지 않습니다.")
         return []
 
-    rule_files = []
-    for file_path in rules_dir.rglob("*.mdc"):
-        rule_files.append(file_path)
+    rule_files = list(rules_dir.rglob("*.mdc"))
 
     return sorted(rule_files)
 
@@ -112,7 +110,7 @@ def validate_rule_priority() -> dict[str, list[str]]:
             )
 
     # 2. 우선순위 중복 확인
-    priorities = {}
+    priorities: dict[str, str] = {}
     for rule in rules:
         if rule["priority"]:
             priority = rule["priority"]
