@@ -22,7 +22,8 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.shared.constants import CLI
+from anivault.shared.constants import CLI, FileSystem
+from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ def handle_match_command(options: MatchOptions) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI.INFO_COMMAND_STARTED.format(command="match"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.MATCH))
 
     try:
         import asyncio
@@ -45,7 +46,11 @@ def handle_match_command(options: MatchOptions) -> int:
         result = asyncio.run(_run_match_command_impl(options))
 
         if result == 0:
-            logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="match"))
+            logger.info(
+                CLI.INFO_COMMAND_COMPLETED.format(
+                    command=CLIMessages.CommandNames.MATCH,
+                ),
+            )
         else:
             logger.error("Match command failed with exit code %s", result)
 
@@ -53,18 +58,24 @@ def handle_match_command(options: MatchOptions) -> int:
 
     except ApplicationError as e:
         logger.exception(
-            "Application error in match command",
-            extra={"context": e.context, "error_code": e.code},
+            "%sin match command", CLIMessages.Error.APPLICATION_ERROR,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         return 1
     except InfrastructureError as e:
         logger.exception(
-            "Infrastructure error in match command",
-            extra={"context": e.context, "error_code": e.code},
+            "%sin match command", CLIMessages.Error.INFRASTRUCTURE_ERROR,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         return 1
     except Exception:
-        logger.exception("Unexpected error in match command")
+        logger.exception("%sin match command", CLIMessages.Error.UNEXPECTED_ERROR)
         return 1
 
 
@@ -98,12 +109,12 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         try:
             from anivault.cli.common.context import validate_directory
 
-            directory = validate_directory(options.directory)
+            directory = validate_directory(str(options.directory))
         except ApplicationError as e:
-            if options.json:
+            if options.json_output is not None:
                 json_output = format_json_output(
                     success=False,
-                    command="match",
+                    command=CLIMessages.CommandNames.MATCH,
                     errors=[f"Application error: {e.message}"],
                     data={"error_code": e.code, "context": e.context},
                 )
@@ -111,17 +122,25 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
-                console.print(f"[red]Application error: {e.message}[/red]")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Application error: {e.message}",
+                        "error",
+                    ),
+                )
             logger.exception(
-                "Directory validation failed",
-                extra={"context": e.context, "error_code": e.code},
+                CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
+                extra={
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                },
             )
             return 1
         except InfrastructureError as e:
-            if options.json:
+            if options.json_output is not None:
                 json_output = format_json_output(
                     success=False,
-                    command="match",
+                    command=CLIMessages.CommandNames.MATCH,
                     errors=[f"Infrastructure error: {e.message}"],
                     data={"error_code": e.code, "context": e.context},
                 )
@@ -129,17 +148,25 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
-                console.print(f"[red]Infrastructure error: {e.message}[/red]")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Infrastructure error: {e.message}",
+                        "error",
+                    ),
+                )
             logger.exception(
-                "Directory validation failed",
-                extra={"context": e.context, "error_code": e.code},
+                CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
+                extra={
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                },
             )
             return 1
         except Exception as e:
-            if options.json:
+            if options.json_output is not None:
                 json_output = format_json_output(
                     success=False,
-                    command="match",
+                    command=CLIMessages.CommandNames.MATCH,
                     errors=[f"Unexpected error: {e!s}"],
                     data={"error_type": type(e).__name__},
                 )
@@ -147,16 +174,26 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
-                console.print(f"[red]Unexpected error: {e}[/red]")
-            logger.exception("Unexpected error during directory validation")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Unexpected error: {e}",
+                        "error",
+                    ),
+                )
+            logger.exception(CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION)
             return 1
 
         # Only show console output if not in JSON mode
-        if not options.json:
-            console.print(f"[green]Matching anime files in: {directory}[/green]")
+        if not options.json_output:
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Matching anime files in: {directory}",
+                    "success",
+                ),
+            )
 
         # Initialize services
-        cache = JSONCacheV2("cache")  # Default cache directory
+        cache = JSONCacheV2(FileSystem.CACHE_DIRECTORY)  # Default cache directory
         rate_limiter = TokenBucketRateLimiter(
             capacity=50,  # Default rate limit
             refill_rate=50,
@@ -179,50 +216,49 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         parser = AnitopyParser()
 
         # Find anime files
-        anime_files = []
-        for ext in [
-            ".mkv",
-            ".mp4",
-            ".avi",
-            ".mov",
-            ".wmv",
-            ".flv",
-            ".webm",
-            ".m4v",
-        ]:  # Default extensions
+        anime_files: list[Path] = []
+        for ext in FileSystem.CLI_VIDEO_EXTENSIONS:
             anime_files.extend(directory.rglob(f"*{ext}"))
 
         if not anime_files:
-            if options.json:
+            if options.json_output is not None:
                 # Return empty results in JSON format
                 match_data = _collect_match_data([], directory)
                 json_output = format_json_output(
                     success=True,
-                    command="match",
+                    command=CLIMessages.CommandNames.MATCH,
                     data=match_data,
-                    warnings=["No anime files found in the specified directory"],
+                    warnings=[CLIMessages.Info.NO_ANIME_FILES_FOUND],
                 )
                 sys.stdout.buffer.write(json_output)
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
                 console.print(
-                    "[yellow]No anime files found in the specified directory[/yellow]",
+                    CLIFormatting.format_colored_message(
+                        CLIMessages.Info.NO_ANIME_FILES_FOUND,
+                        "warning",
+                    ),
                 )
             return 0
 
         # Only show console output if not in JSON mode
-        if not options.json:
-            console.print(f"[blue]Found {len(anime_files)} anime files[/blue]")
+        if not options.json_output:
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Found {len(anime_files)} anime files",
+                    "info",
+                ),
+            )
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=options.json,
+            disabled=options.json_output,
         )
 
         # Process files with progress bar and concurrent processing
         results = []
-        with progress_manager.spinner("Matching files..."):
+        with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
             # Create semaphore for concurrent processing
             semaphore = asyncio.Semaphore(4)  # Default workers
 
@@ -247,30 +283,39 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
             processed_results = []
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
-                    if not options.json:
+                    if not options.json_output:
                         console.print(
-                            f"[red]Error processing {anime_files[i]}: {result}[/red]",
+                            CLIFormatting.format_colored_message(
+                                f"Error processing {anime_files[i]}: {result}",
+                                "error",
+                            ),
                         )
                     processed_results.append(
                         {
-                            "file_path": str(anime_files[i]),
+                            CLIMessages.StatusKeys.FILE_PATH: str(anime_files[i]),
                             "error": str(result),
                         },
                     )
-                else:
+                elif isinstance(result, dict):
                     processed_results.append(result)
+                else:
+                    # Handle unexpected result type
+                    processed_results.append({
+                        CLIMessages.StatusKeys.FILE_PATH: str(anime_files[i]),
+                        "error": "Unexpected result type",
+                    })
 
-            results = processed_results
+            processed_results_final: list[dict[str, str]] = processed_results
 
         # Check if JSON output is requested
-        if options.json:
+        if options.json_output is not None:
             # Collect match data for JSON output
-            match_data = _collect_match_data(results, directory)
+            match_data = _collect_match_data(processed_results_final, directory)
 
             # Output JSON to stdout
             json_output = format_json_output(
                 success=True,
-                command="match",
+                command=CLIMessages.CommandNames.MATCH,
                 data=match_data,
             )
             sys.stdout.buffer.write(json_output)
@@ -278,16 +323,19 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
             sys.stdout.buffer.flush()
         else:
             # Display results in human-readable format
-            _display_match_results_impl(results, console)
+            _display_match_results_impl(processed_results_final, console)
         return 0
 
     except ApplicationError as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="match",
-                errors=[f"Application error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.MATCH,
+                errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
@@ -300,12 +348,15 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         )
         return 1
     except InfrastructureError as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="match",
-                errors=[f"Infrastructure error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.MATCH,
+                errors=[f"{CLIMessages.Error.INFRASTRUCTURE_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
@@ -320,11 +371,11 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         )
         return 1
     except Exception as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="match",
-                errors=[f"Unexpected error: {e!s}"],
+                command=CLIMessages.CommandNames.MATCH,
+                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e!s}"],
                 data={"error_type": type(e).__name__},
             )
             sys.stdout.buffer.write(json_output)
@@ -364,7 +415,19 @@ async def _process_file_impl(
             }
 
         # Match against TMDB
-        match_result = await matching_engine.match(parsing_result)
+        if hasattr(parsing_result, "to_dict"):
+            parsing_dict = parsing_result.to_dict()
+        elif isinstance(parsing_result, dict):
+            parsing_dict = parsing_result
+        else:
+            # Convert ParsingResult to dict if needed
+            parsing_dict = {
+                "anime_title": getattr(parsing_result, "title", ""),
+                "episode_number": getattr(parsing_result, "episode", ""),
+                "release_group": getattr(parsing_result, "release_group", ""),
+                "video_resolution": getattr(parsing_result, "quality", ""),
+            }
+        match_result = await matching_engine.find_match(parsing_dict)
 
         return {
             "file_path": str(file_path),
@@ -592,7 +655,7 @@ def _collect_match_data(results, directory):
 
 
 def match_command(
-    directory: Path = typer.Argument(  # type: ignore[misc]
+    directory: Path = typer.Argument(
         ...,
         help="Directory to match anime files against TMDB database",
         exists=True,
@@ -600,30 +663,30 @@ def match_command(
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(  # type: ignore[misc]
+    recursive: bool = typer.Option(
         True,
         "--recursive/--no-recursive",
         "-r",
         help="Match files recursively in subdirectories",
     ),
-    include_subtitles: bool = typer.Option(  # type: ignore[misc]
+    include_subtitles: bool = typer.Option(
         True,
         "--include-subtitles/--no-include-subtitles",
         help="Include subtitle files in matching",
     ),
-    include_metadata: bool = typer.Option(  # type: ignore[misc]
+    include_metadata: bool = typer.Option(
         True,
         "--include-metadata/--no-include-metadata",
         help="Include metadata files in matching",
     ),
-    output_file: Path | None = typer.Option(  # type: ignore[misc]
+    output_file: Path | None = typer.Option(
         None,
         "--output",
         "-o",
         help="Output file for match results (JSON format)",
         writable=True,
     ),
-    json: bool = typer.Option(  # type: ignore[misc]
+    json_output: bool = typer.Option(
         False,
         "--json",
         help="Output results in JSON format",
@@ -678,8 +741,8 @@ def match_command(
             include_subtitles=include_subtitles,
             include_metadata=include_metadata,
             output=output_file,
-            json_output=bool(json),
-            verbose=context.verbose if context else 0,
+            json_output=json_output,
+            verbose=bool(context.verbose) if context else False,
         )
 
         # Call the handler with Pydantic model
@@ -689,6 +752,6 @@ def match_command(
             raise typer.Exit(exit_code)
 
     except ValueError as e:
-        logger.error(f"Validation error: {e}")
+        logger.exception("Validation error")
         typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e

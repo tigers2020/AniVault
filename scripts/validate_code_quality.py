@@ -7,6 +7,7 @@
 - 함수 길이 및 복잡도 검증 (validate_function_length.py)
 - 에러 처리 패턴 검증 (validate_error_handling.py)
 """
+from __future__ import annotations
 
 import argparse
 import json
@@ -14,7 +15,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class CodeQualityValidator:
@@ -50,7 +51,7 @@ class CodeQualityValidator:
     def run_validation(
         self,
         paths: list[str],
-        exclude_patterns: list[str] = None,
+        exclude_patterns: list[str] | None = None,
     ) -> dict[str, Any]:
         """통합 검증 실행"""
         if exclude_patterns is None:
@@ -88,7 +89,7 @@ class CodeQualityValidator:
     ) -> None:
         """매직 값 검증 실행"""
         try:
-            cmd = [sys.executable, str(self.magic_values_script)] + paths
+            cmd = [sys.executable, str(self.magic_values_script), *paths]
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -118,9 +119,9 @@ class CodeQualityValidator:
     ) -> None:
         """함수 길이 및 복잡도 검증 실행"""
         try:
-            cmd = [sys.executable, str(self.function_length_script)] + paths
+            cmd = [sys.executable, str(self.function_length_script), *paths]
             if exclude_patterns:
-                cmd.extend(["--exclude"] + exclude_patterns)
+                cmd.extend(["--exclude", *exclude_patterns])
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -150,9 +151,9 @@ class CodeQualityValidator:
     ) -> None:
         """에러 처리 패턴 검증 실행"""
         try:
-            cmd = [sys.executable, str(self.error_handling_script)] + paths
+            cmd = [sys.executable, str(self.error_handling_script), *paths]
             if exclude_patterns:
-                cmd.extend(["--exclude"] + exclude_patterns)
+                cmd.extend(["--exclude", *exclude_patterns])
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -198,7 +199,6 @@ class CodeQualityValidator:
         # 위반 사항 통계
         total_violations = 0
         violations_by_type = {}
-        violations_by_severity = {}
 
         for validation_name, validation in self.results["validations"].items():
             if validation["status"] == "failed":
@@ -238,7 +238,7 @@ class CodeQualityValidator:
     def generate_report(
         self,
         output_format: str = "text",
-        output_file: Optional[str] = None,
+        output_file: str | None = None,
     ) -> str:
         """검증 결과 리포트 생성"""
         if output_format == "json":
@@ -405,10 +405,9 @@ Examples:
     # 종료 코드 결정
     if results["summary"]["overall_status"] == "passed":
         return 0
-    elif results["summary"]["overall_status"] == "error":
+    if results["summary"]["overall_status"] == "error":
         return 2
-    else:
-        return 1
+    return 1
 
 
 if __name__ == "__main__":

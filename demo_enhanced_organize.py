@@ -1,3 +1,13 @@
+import sys
+import tempfile
+from pathlib import Path
+
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+# AniVault 모듈 import
+from anivault.core.file_grouper import FileGrouper
+from anivault.core.models import ScannedFile
 #!/usr/bin/env python3
 """
 AniVault Enhanced Organize 데모 스크립트
@@ -13,18 +23,9 @@ AniVault Enhanced Organize 데모 스크립트
     python demo_enhanced_organize.py
 """
 
-import sys
-import tempfile
-from pathlib import Path
-
-# AniVault 모듈 import
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from anivault.core.file_grouper import FileGrouper  # noqa: E402
-from anivault.core.models import ScannedFile  # noqa: E402
-from anivault.core.parser.models import ParsingResult  # noqa: E402
-from anivault.core.resolution_detector import ResolutionDetector  # noqa: E402
-from anivault.core.subtitle_matcher import SubtitleMatcher  # noqa: E402
+from anivault.core.parser.models import ParsingResult
+from anivault.core.resolution_detector import ResolutionDetector
+from anivault.core.subtitle_matcher import SubtitleMatcher
 
 
 def create_demo_files() -> Path:

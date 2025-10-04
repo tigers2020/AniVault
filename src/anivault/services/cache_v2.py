@@ -21,8 +21,10 @@ except ImportError:
     orjson = None  # type: ignore[assignment]
 
 from anivault.core.statistics import StatisticsCollector
-from anivault.shared.constants import Cache
+from anivault.shared.constants import APIFields, Cache
+from anivault.shared.constants.core import CacheConfig
 from anivault.shared.errors import (
+    AniVaultError,
     DomainError,
     ErrorCode,
     ErrorContext,
@@ -58,7 +60,7 @@ class CacheEntry(BaseModel):
                 "data": {"title": "Attack on Titan", "id": 12345},
                 "created_at": "2024-01-01T00:00:00Z",
                 "expires_at": "2024-01-08T00:00:00Z",
-                "cache_type": "search",
+                "cache_type": APIFields.CACHE_TYPE_SEARCH,
                 "key_hash": "abc123...",
             },
         },
@@ -280,6 +282,10 @@ class JSONCacheV2:
             if ttl_seconds is not None and ttl_seconds >= 0:
                 expires_at = now + timedelta(seconds=ttl_seconds)
                 expires_at_str = expires_at.isoformat()
+            elif ttl_seconds is None:
+                # Use default TTL if not specified
+                expires_at = now + timedelta(seconds=CacheConfig.DEFAULT_TTL)
+                expires_at_str = expires_at.isoformat()
             else:
                 expires_at_str = None
 
@@ -375,7 +381,7 @@ class JSONCacheV2:
             # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
         except Exception as e:
-            error = InfrastructureError(
+            cache_error: AniVaultError = InfrastructureError(
                 code=ErrorCode.FILE_WRITE_ERROR,
                 message=f"Failed to cache data for key '{key}': {e!s}",
                 context=context,
@@ -384,10 +390,10 @@ class JSONCacheV2:
             log_operation_error(
                 logger=logger,
                 operation="cache_set",
-                error=error,
+                error=cache_error,
                 additional_context=context,
             )
-            raise error from error
+            raise cache_error from e
 
     def get(  # noqa: PLR0911
         self,
@@ -697,7 +703,7 @@ class JSONCacheV2:
             # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
         except Exception as e:
-            error = InfrastructureError(
+            clear_error: AniVaultError = InfrastructureError(
                 code=ErrorCode.FILE_DELETE_ERROR,
                 message=f"Error clearing cache: {e!s}",
                 context=context,
@@ -706,10 +712,10 @@ class JSONCacheV2:
             log_operation_error(
                 logger=logger,
                 operation="cache_clear",
-                error=error,
+                error=clear_error,
                 additional_context=context,
             )
-            raise error from error
+            raise clear_error from e
 
         return deleted_count
 
@@ -799,7 +805,7 @@ class JSONCacheV2:
             # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
         except Exception as e:
-            error = InfrastructureError(
+            info_error: AniVaultError = InfrastructureError(
                 code=ErrorCode.FILE_READ_ERROR,
                 message=f"Error getting cache info: {e!s}",
                 context=context,
@@ -808,10 +814,10 @@ class JSONCacheV2:
             log_operation_error(
                 logger=logger,
                 operation="get_cache_info",
-                error=error,
+                error=info_error,
                 additional_context=context,
             )
-            raise error from error
+            raise info_error from e
 
         return {
             "total_files": total_files,
@@ -906,7 +912,7 @@ class JSONCacheV2:
             # Re-raise domain errors (like invalid cache_type) as they are validation errors
             raise
         except Exception as e:
-            error = InfrastructureError(
+            purge_error: AniVaultError = InfrastructureError(
                 code=ErrorCode.FILE_DELETE_ERROR,
                 message=f"Error purging expired cache entries: {e!s}",
                 context=context,
@@ -915,9 +921,9 @@ class JSONCacheV2:
             log_operation_error(
                 logger=logger,
                 operation="purge_expired",
-                error=error,
+                error=purge_error,
                 additional_context=context,
             )
-            raise error from error
+            raise purge_error from e
 
         return purged_count

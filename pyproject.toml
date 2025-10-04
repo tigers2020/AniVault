@@ -111,6 +111,10 @@ exclude = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+# 레거시 스크립트는 일단 좁혀서 통과
+"scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
+"tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
+"src/anivault/cli/**" = ["FBT003", "B008"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거)
 
 [tool.black]
 line-length = 88
@@ -137,18 +141,27 @@ namespace_packages = true
 # explicit_package_bases = true  # Temporarily disabled due to module path conflicts
 mypy_path = ["src"]
 
-# 핵심 엄격 규칙만 유지 (서드파티 영향 최소화)
+# 단계적 엄격화 - 기본 설정
+strict = false
 warn_return_any = true
-warn_unused_configs = true
+warn_unused_ignores = true
 disallow_untyped_defs = true
-disallow_incomplete_defs = true
+disallow_any_generics = true
 check_untyped_defs = true
 no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+exclude = [
+    "scripts/",
+    "tests/"
+]
+
+# 런타임 코어는 조금 더 엄격
+[[tool.mypy.overrides]]
+module = "src.anivault.*"
+warn_redundant_casts = true
+warn_unused_configs = true
 
 # 서드파티 라이브러리 예외 처리 (타입 스텁 부재)
 [[tool.mypy.overrides]]

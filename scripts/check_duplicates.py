@@ -77,7 +77,7 @@ class DuplicateChecker:
         for name, locations in self.definitions.items():
             if len(locations) > 1:
                 # Check if they're in different files
-                files = set(loc[0] for loc in locations)
+                files = {loc[0] for loc in locations}
                 if len(files) > 1:
                     duplicates.append((name, locations))
 

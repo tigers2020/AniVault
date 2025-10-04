@@ -4,6 +4,8 @@ This module contains the business logic for the scan command,
 separated for better maintainability and single responsibility principle.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 from pathlib import Path
@@ -15,6 +17,13 @@ from anivault.cli.common.context import get_cli_context, validate_directory
 from anivault.cli.common.models import DirectoryPath, ScanOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
+from anivault.shared.constants import (
+    CLIDefaults,
+    CLIFormatting,
+    CLIHelp,
+    CLIMessages,
+    CLIOptions,
+)
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.errors import ApplicationError, InfrastructureError
 
@@ -24,7 +33,7 @@ logger = logging.getLogger(__name__)
 def scan_command(
     directory: Path = typer.Argument(
         ...,
-        help="Directory to scan for anime files",
+        help=CLIHelp.SCAN_DIRECTORY_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
@@ -32,31 +41,31 @@ def scan_command(
     ),
     recursive: bool = typer.Option(
         True,
-        "--recursive",
-        "-r",
-        help="Scan directories recursively",
+        CLIOptions.RECURSIVE,
+        CLIOptions.RECURSIVE_SHORT,
+        help=CLIHelp.SCAN_RECURSIVE_HELP,
     ),
     include_subtitles: bool = typer.Option(
         True,
-        "--include-subtitles",
-        help="Include subtitle files in scan",
+        CLIOptions.INCLUDE_SUBTITLES,
+        help=CLIHelp.SCAN_INCLUDE_SUBTITLES_HELP,
     ),
     include_metadata: bool = typer.Option(
         True,
-        "--include-metadata",
-        help="Include metadata files in scan",
+        CLIOptions.INCLUDE_METADATA,
+        help=CLIHelp.SCAN_INCLUDE_METADATA_HELP,
     ),
     output_file: Path | None = typer.Option(
         None,
-        "--output",
-        "-o",
-        help="Output file for scan results (JSON format)",
+        CLIOptions.OUTPUT,
+        CLIOptions.OUTPUT_SHORT,
+        help=CLIHelp.SCAN_OUTPUT_HELP,
         writable=True,
     ),
     json: bool = typer.Option(
         False,
-        "--json",
-        help="Output results in JSON format",
+        CLIOptions.JSON,
+        help=CLIHelp.SCAN_JSON_HELP,
     ),
 ) -> None:
     """
@@ -119,13 +128,13 @@ def scan_command(
         )()
 
         exit_code = _handle_scan_command(args)
-        if exit_code != 0:
+        if exit_code != CLIDefaults.EXIT_SUCCESS:
             raise typer.Exit(exit_code)
 
     except ValueError as e:
-        logger.error(f"Validation error: {e}")
+        logger.exception("Validation error")
         typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(CLIDefaults.EXIT_ERROR) from e
 
 
 def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
@@ -135,11 +144,11 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         args: Parsed command line arguments
 
     Returns:
-        Exit code (0 for success, non-zero for error)
+        Exit code (CLIDefaults.EXIT_SUCCESS for success, non-zero for error)
     """
     from anivault.shared.constants import CLI
 
-    logger.info(CLI.INFO_COMMAND_STARTED.format(command="scan"))
+    logger.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.SCAN))
 
     try:
         import asyncio
@@ -179,12 +188,20 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
-                console.print(f"[red]Application error: {e.message}[/red]")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Application error: {e.message}",
+                        "error",
+                    ),
+                )
             logger.exception(
-                "Directory validation failed",
-                extra={"context": e.context, "error_code": e.code},
+                CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
+                extra={
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                },
             )
-            return 1
+            return CLIDefaults.EXIT_ERROR
         except InfrastructureError as e:
             context = get_cli_context()
             if context and context.is_json_output_enabled():
@@ -198,12 +215,20 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
-                console.print(f"[red]Infrastructure error: {e.message}[/red]")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Infrastructure error: {e.message}",
+                        "error",
+                    ),
+                )
             logger.exception(
-                "Directory validation failed",
-                extra={"context": e.context, "error_code": e.code},
+                CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
+                extra={
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                },
             )
-            return 1
+            return CLIDefaults.EXIT_ERROR
         except Exception as e:
             context = get_cli_context()
             if context and context.is_json_output_enabled():
@@ -217,9 +242,14 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 sys.stdout.buffer.write(b"\n")
                 sys.stdout.buffer.flush()
             else:
-                console.print(f"[red]Unexpected error: {e}[/red]")
-            logger.exception("Unexpected error during directory validation")
-            return 1
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Unexpected error: {e}",
+                        "error",
+                    ),
+                )
+            logger.exception(CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION)
+            return CLIDefaults.EXIT_ERROR
 
         # Determine if we should enrich metadata
         enrich_metadata = True  # Default to enrich metadata
@@ -227,12 +257,22 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         # Only show console output if not in JSON mode
         context = get_cli_context()
         if not (context and context.is_json_output_enabled()):
-            console.print(f"[green]Scanning directory: {directory}[/green]")
-            console.print(f"[blue]Enriching metadata: {enrich_metadata}[/blue]")
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Scanning directory: {directory}",
+                    "info",
+                ),
+            )
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Enriching metadata: {enrich_metadata}",
+                    "info",
+                ),
+            )
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=(context and context.is_json_output_enabled()),
+            disabled=bool(context and context.is_json_output_enabled()),
         )
 
         try:
@@ -242,18 +282,28 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 file_results = run_pipeline(
                     root_path=str(directory),
                     extensions=list(VideoFormats.ALL_EXTENSIONS),
-                    num_workers=4,  # Default worker count
+                    num_workers=CLIDefaults.DEFAULT_WORKER_COUNT,
                     max_queue_size=QueueConfig.DEFAULT_SIZE,
                 )
 
             context = get_cli_context()
             if not (context and context.is_json_output_enabled()):
-                console.print("[green]✅ File scanning completed![/green]")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        "✅ File scanning completed!",
+                        "success",
+                    ),
+                )
 
         except Exception:
             context = get_cli_context()
             if not (context and context.is_json_output_enabled()):
-                console.print("[red]❌ File scanning failed[/red]")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        "❌ File scanning failed",
+                        "error",
+                    ),
+                )
             raise
 
         if not file_results:
@@ -274,7 +324,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 console.print(
                     "[yellow]No anime files found in the specified directory[/yellow]",
                 )
-            return 0
+            return CLIDefaults.EXIT_SUCCESS
 
         # Enrich metadata if requested
         if enrich_metadata:
@@ -284,7 +334,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 refill_rate=10,  # Default refill rate
             )
             semaphore_manager = SemaphoreManager(
-                concurrency_limit=5,
+                concurrency_limit=CLIDefaults.DEFAULT_SCAN_CONCURRENCY,
             )  # Default concurrency
             state_machine = RateLimitStateMachine()
 
@@ -297,7 +347,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             enricher = MetadataEnricher(tmdb_client=tmdb_client)
 
             # Enrich metadata
-            async def enrich_metadata_with_progress():
+            async def enrich_metadata_with_progress() -> list[dict[str, Any]]:
                 parsing_results = []
                 for result in file_results:
                     if "parsing_result" in result:
@@ -389,7 +439,10 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 context = get_cli_context()
                 if not (context and context.is_json_output_enabled()):
                     console.print(
-                        f"[green]{CLI.SUCCESS_RESULTS_SAVED.format(path=output_path)}[/green]",
+                        CLIFormatting.format_colored_message(
+                            CLI.SUCCESS_RESULTS_SAVED.format(path=output_path),
+                            "success",
+                        ),
                     )
 
         logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="scan"))
@@ -400,15 +453,20 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
-                command="scan",
-                errors=[f"Application error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.SCAN,
+                errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            console.print(f"[red]Application error during scan: {e.message}[/red]")
+            console.print(
+                CLIMessages.Error.APPLICATION_ERROR_DURING_SCAN.format(error=e.message),
+            )
         logger.exception(
             "Application error in scan command",
             extra={"context": e.context, "error_code": e.code},
@@ -419,27 +477,37 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
         if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
-                command="scan",
-                errors=[f"Infrastructure error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.SCAN,
+                errors=[f"{CLIMessages.Error.INFRASTRUCTURE_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            console.print(f"[red]Infrastructure error during scan: {e.message}[/red]")
-        logger.exception(
-            "Infrastructure error in scan command",
-            extra={"context": e.context, "error_code": e.code},
-        )
+            console.print(
+                CLIMessages.Error.INFRASTRUCTURE_ERROR_DURING_SCAN.format(
+                    error=e.message,
+                ),
+            )
+            logger.exception(
+                "%sin scan command", CLIMessages.Error.INFRASTRUCTURE_ERROR,
+                extra={
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                },
+            )
         return 1
     except Exception as e:
         context = get_cli_context()
         if context and context.is_json_output_enabled():
             json_output = format_json_output(
                 success=False,
-                command="scan",
-                errors=[f"Unexpected error: {e!s}"],
+                command=CLIMessages.CommandNames.SCAN,
+                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e!s}"],
                 data={"error_type": type(e).__name__},
             )
             sys.stdout.buffer.write(json_output)
@@ -449,12 +517,17 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             from rich.console import Console
 
             console = Console()
-            console.print(f"[red]{CLI.ERROR_SCAN_FAILED.format(error=e)}[/red]")
-        logger.exception("Unexpected error in scan command")
+            console.print(
+                CLIFormatting.format_colored_message(
+                    CLI.ERROR_SCAN_FAILED.format(error=e),
+                    "error",
+                ),
+            )
+        logger.exception(CLIMessages.Error.APPLICATION_ERROR_IN_SCAN)
         return 1
 
 
-def _collect_scan_data(results, directory, show_tmdb=True):
+def _collect_scan_data(results: list[dict[str, Any]], directory: Path, show_tmdb: bool = True) -> dict[str, Any]:
     """Collect scan data for JSON output.
 
     Args:
@@ -469,14 +542,17 @@ def _collect_scan_data(results, directory, show_tmdb=True):
 
     # Calculate basic statistics
     total_files = len(results)
-    total_size = 0
-    file_counts_by_extension = {}
+    total_size = CLIDefaults.DEFAULT_FILE_SIZE
+    file_counts_by_extension: dict[str, int] = {}
     scanned_paths = []
 
     # Process each result
     file_data = []
     for result in results:
-        file_path = result.get("file_path", "Unknown")
+        file_path = result.get(
+            CLIMessages.Output.FILE_PATH_KEY,
+            CLIMessages.Output.UNKNOWN_VALUE,
+        )
         parsing_result = result.get("parsing_result")
         enriched_metadata = result.get("enriched_metadata")
 
@@ -488,7 +564,7 @@ def _collect_scan_data(results, directory, show_tmdb=True):
             file_size = Path(file_path).stat().st_size
             total_size += file_size
         except (OSError, TypeError):
-            file_size = 0
+            file_size = CLIDefaults.DEFAULT_FILE_SIZE
 
         # Count by extension
         file_ext = Path(file_path).suffix.lower()
@@ -531,12 +607,12 @@ def _collect_scan_data(results, directory, show_tmdb=True):
         file_data.append(file_info)
 
     # Format total size in human-readable format
-    def format_size(size_bytes):
+    def format_size(size_bytes: float) -> str:
         """Convert bytes to human-readable format."""
         for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if size_bytes < 1024.0:
+            if size_bytes < CLIDefaults.BYTES_PER_KB:
                 return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
+            size_bytes /= CLIDefaults.BYTES_PER_KB
         return f"{size_bytes:.1f} PB"
 
     return {
@@ -555,7 +631,7 @@ def _collect_scan_data(results, directory, show_tmdb=True):
     }
 
 
-def _display_results(results, show_tmdb=True):
+def _display_results(results: list[dict[str, Any]], show_tmdb: bool = True) -> None:
     """Display scan results in a formatted table.
 
     Args:
@@ -586,7 +662,10 @@ def _display_results(results, show_tmdb=True):
         table.add_column("Status", style="green")
 
     for result in results:
-        file_path = result.get("file_path", "Unknown")
+        file_path = result.get(
+            CLIMessages.Output.FILE_PATH_KEY,
+            CLIMessages.Output.UNKNOWN_VALUE,
+        )
         parsing_result = result.get("parsing_result")
         enriched_metadata = result.get("enriched_metadata")
 

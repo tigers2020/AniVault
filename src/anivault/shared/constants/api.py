@@ -5,6 +5,8 @@ This module contains all constants related to API configuration,
 rate limiting, and external service interactions.
 """
 
+from typing import ClassVar
+
 from .system import BASE_SECOND
 
 
@@ -34,6 +36,10 @@ class TMDBConfig(APIConfig):
 
     # TMDB API endpoints
     BASE_URL = "https://api.themoviedb.org/3"
+    SEARCH_TV_ENDPOINT = "/search/tv"
+    SEARCH_MOVIE_ENDPOINT = "/search/movie"
+    TV_DETAILS_ENDPOINT = "/tv/{tv_id}"
+    MOVIE_DETAILS_ENDPOINT = "/movie/{movie_id}"
 
     # TMDB specific rate limits
     RATE_LIMIT_RPS = 35.0  # requests per second
@@ -43,6 +49,17 @@ class TMDBConfig(APIConfig):
     REQUEST_TIMEOUT = 30 * BASE_SECOND  # 30 seconds
     RETRY_ATTEMPTS = 3
     RETRY_DELAY = 1.0 * BASE_SECOND
+
+    # TMDB request headers
+    HEADERS: ClassVar[dict[str, str]] = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    # TMDB query parameters
+    DEFAULT_LANGUAGE = "en-US"
+    DEFAULT_PAGE = 1
+    DEFAULT_INCLUDE_ADULT = False
 
 
 class CacheConfig:

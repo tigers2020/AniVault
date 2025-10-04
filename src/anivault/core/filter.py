@@ -10,12 +10,9 @@ from __future__ import annotations
 import fnmatch
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 
 from anivault.config.settings import FilterConfig
-
-if TYPE_CHECKING:
-    import os.stat_result
 
 
 class FilterEngine:
@@ -192,7 +189,7 @@ class FilterEngine:
 
         return extension.lower() in self._allowed_extensions_set
 
-    def get_excluded_patterns_summary(self) -> dict[str, list[str]]:
+    def get_excluded_patterns_summary(self) -> dict[str, Any]:
         """
         Get a summary of all exclusion patterns for debugging/logging.
 

@@ -19,10 +19,10 @@ from memory_profiler import profile
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-
+# Import AniVault modules after path setup
 from anivault.config import FilterConfig  # noqa: E402
 from anivault.core.filter import FilterEngine  # noqa: E402
-from anivault.core.pipeline.parallel_scanner import (
+from anivault.core.pipeline.parallel_scanner import (  # noqa: E402
     ParallelDirectoryScanner,
 )
 from anivault.core.pipeline.scanner import DirectoryScanner  # noqa: E402

@@ -94,7 +94,10 @@ class ProgressManager:
         # Add a new task to track progress
         # Handle both sequences and generators
         try:
-            total = len(sequence)
+            if hasattr(sequence, "__len__") and hasattr(sequence, "__getitem__"):
+                total = len(sequence)  # type: ignore[arg-type]
+            else:
+                total = None
         except TypeError:
             # For generators and other non-length objects, use None for indeterminate progress
             total = None

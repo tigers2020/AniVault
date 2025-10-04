@@ -15,6 +15,7 @@ from typing import Any
 
 from anivault.core.pipeline.cache import CacheV1
 from anivault.core.pipeline.utils import BoundedQueue, ParserStatistics
+from anivault.shared.constants import CoreCacheConfig, NetworkConfig
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -64,7 +65,7 @@ class ParserWorker(threading.Thread):
         while not self._stop_event.is_set():
             try:
                 # Get file path from input queue
-                file_path = self.input_queue.get(timeout=1.0)
+                file_path = self.input_queue.get(timeout=NetworkConfig.DEFAULT_TIMEOUT)
 
                 # Check for sentinel value (end of input)
                 # Sentinel can be None or a special Sentinel object
@@ -288,7 +289,7 @@ class ParserWorker(threading.Thread):
                 str(file_path),
                 file_path.stat().st_mtime,
             )
-            self.cache.set_cache(cache_key, result, ttl_seconds=86400)
+            self.cache.set_cache(cache_key, result, ttl_seconds=CoreCacheConfig.DEFAULT_TTL)
 
             log_operation_success(
                 logger,

@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Import modules after path setup
 from anivault.core.pipeline.main import run_pipeline  # noqa: E402
 
 from tests.test_helpers import (  # noqa: E402

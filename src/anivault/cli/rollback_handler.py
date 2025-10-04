@@ -18,6 +18,7 @@ from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.models import RollbackOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI
+from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.errors import (
     ApplicationError,
     ErrorCode,
@@ -37,7 +38,9 @@ def handle_rollback_command(options: RollbackOptions) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI.INFO_COMMAND_STARTED.format(command="rollback"))
+    logger.info(
+        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.ROLLBACK),
+    )
 
     try:
         context = get_cli_context()
@@ -47,42 +50,48 @@ def handle_rollback_command(options: RollbackOptions) -> int:
 
     except ApplicationError as e:
         logger.exception(
-            "Application error in rollback command",
-            extra={"context": e.context, "error_code": e.code},
+            "%sin rollback command", CLIMessages.Error.APPLICATION_ERROR,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         context = get_cli_context()
         if context and context.is_json_output_enabled():
             error_output = format_json_output(
                 success=False,
-                command="rollback",
-                errors=[f"Application error: {e.message}"],
+                command=CLIMessages.CommandNames.ROLLBACK,
+                errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{e.message}"],
             )
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
         return 1
     except InfrastructureError as e:
         logger.exception(
-            "Infrastructure error in rollback command",
-            extra={"context": e.context, "error_code": e.code},
+            "%sin rollback command", CLIMessages.Error.INFRASTRUCTURE_ERROR,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         context = get_cli_context()
         if context and context.is_json_output_enabled():
             error_output = format_json_output(
                 success=False,
-                command="rollback",
-                errors=[f"Infrastructure error: {e.message}"],
+                command=CLIMessages.CommandNames.ROLLBACK,
+                errors=[f"{CLIMessages.Error.INFRASTRUCTURE_ERROR}{e.message}"],
             )
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
         return 1
     except Exception as e:
-        logger.exception("Unexpected error in rollback command")
+        logger.exception("%sin rollback command", CLIMessages.Error.UNEXPECTED_ERROR)
         context = get_cli_context()
         if context and context.is_json_output_enabled():
             error_output = format_json_output(
                 success=False,
-                command="rollback",
-                errors=[f"Unexpected error: {e}"],
+                command=CLIMessages.CommandNames.ROLLBACK,
+                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e}"],
             )
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
@@ -103,7 +112,7 @@ def _handle_rollback_command_json(options: RollbackOptions) -> int:
         if rollback_data is None:
             error_output = format_json_output(
                 success=False,
-                command="rollback",
+                command=CLIMessages.CommandNames.ROLLBACK,
                 errors=["Failed to collect rollback data"],
             )
             sys.stdout.buffer.write(error_output)
@@ -112,7 +121,7 @@ def _handle_rollback_command_json(options: RollbackOptions) -> int:
 
         output = format_json_output(
             success=True,
-            command="rollback",
+            command=CLIMessages.CommandNames.ROLLBACK,
             data=rollback_data,
         )
         sys.stdout.buffer.write(output)
@@ -122,7 +131,7 @@ def _handle_rollback_command_json(options: RollbackOptions) -> int:
     except Exception as e:
         error_output = format_json_output(
             success=False,
-            command="rollback",
+            command=CLIMessages.CommandNames.ROLLBACK,
             errors=[f"Error during rollback operation: {e}"],
         )
         sys.stdout.buffer.write(error_output)
@@ -179,7 +188,7 @@ def _handle_rollback_command_console(options: RollbackOptions) -> int:
         return 1
 
 
-def _collect_rollback_data(options: RollbackOptions) -> dict | None:
+def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
     """Collect rollback data for JSON output.
 
     Args:
@@ -718,5 +727,5 @@ def rollback_command(
 
         console = Console()
         console.print(f"[red]Unexpected error: {e}[/red]")
-        logger.exception("Unexpected error in rollback command")
+        logger.exception("%sin rollback command", CLIMessages.Error.UNEXPECTED_ERROR)
         raise typer.Exit(1) from e

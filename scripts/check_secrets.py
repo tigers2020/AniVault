@@ -116,10 +116,9 @@ class SecretChecker:
             return True
 
         # Check for documentation markers
-        if any(marker in before_pos for marker in ["<!--", "```", '"""', "'''"]):
-            return True
-
-        return False
+        return bool(
+            any(marker in before_pos for marker in ["<!--", "```", '"""', "'''"]),
+        )
 
     def check_files(
         self,

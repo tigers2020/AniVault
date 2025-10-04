@@ -13,7 +13,14 @@ from collections import defaultdict
 from pathlib import Path
 
 from anivault.core.models import ScannedFile
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.constants import BusinessRules
+from anivault.shared.constants.core import SimilarityConfig
+from anivault.shared.errors import (
+    AniVaultError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error
 
 logger = logging.getLogger(__name__)
@@ -22,7 +29,7 @@ logger = logging.getLogger(__name__)
 class FileGrouper:
     """Groups similar anime files based on filename patterns and similarity."""
 
-    def __init__(self, similarity_threshold: float = 0.7) -> None:
+    def __init__(self, similarity_threshold: float = BusinessRules.FUZZY_MATCH_THRESHOLD) -> None:
         """Initialize the file grouper.
 
         Args:
@@ -74,12 +81,26 @@ class FileGrouper:
             return merged_groups
 
         except Exception as e:
-            log_operation_error(
-                logger=logger,
-                operation="group_files",
-                error=e,
-                additional_context=context.additional_data if context else None,
-            )
+            if isinstance(e, AniVaultError):
+                log_operation_error(
+                    logger=logger,
+                    operation="group_files",
+                    error=e,
+                    additional_context=context.additional_data if context else None,
+                )
+            else:
+                error = InfrastructureError(
+                    code=ErrorCode.FILE_GROUPING_FAILED,
+                    message=f"Failed to group files: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    operation="group_files",
+                    error=error,
+                    additional_context=context.additional_data if context else None,
+                )
             raise InfrastructureError(
                 code=ErrorCode.FILE_GROUPING_FAILED,
                 message=f"Failed to group files: {e!s}",
@@ -140,7 +161,7 @@ class FileGrouper:
         merged_groups = {}
         processed_groups = set()
 
-        for base_title, files in file_groups.items():  # noqa: B007
+        for base_title in file_groups:
             if base_title in processed_groups:
                 continue
 
@@ -201,7 +222,7 @@ class FileGrouper:
 
 def group_similar_files(
     scanned_files: list[ScannedFile],
-    similarity_threshold: float = 0.7,
+    similarity_threshold: float = SimilarityConfig.DEFAULT_SIMILARITY_THRESHOLD,
 ) -> dict[str, list[ScannedFile]]:
     """Convenience function to group similar files.
 

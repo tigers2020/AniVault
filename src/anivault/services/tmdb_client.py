@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
@@ -63,8 +63,8 @@ class TMDBClient:
 
         # Initialize components
         self.rate_limiter = rate_limiter or TokenBucketRateLimiter(
-            capacity=self.config.tmdb.rate_limit_rps,
-            refill_rate=self.config.tmdb.rate_limit_rps,
+            capacity=int(self.config.tmdb.rate_limit_rps),
+            refill_rate=int(self.config.tmdb.rate_limit_rps),
         )
         self.semaphore_manager = semaphore_manager or SemaphoreManager(
             concurrency_limit=self.config.tmdb.concurrent_requests,
@@ -119,10 +119,10 @@ class TMDBClient:
                     original_error=e,
                 )
             else:
-                error = e
+                tv_error: AniVaultError = e
             log_operation_error(
                 logger=logger,
-                error=error,
+                error=tv_error if "tv_error" in locals() else error,
                 operation="search_tv_shows",
                 additional_context=context.additional_data if context else None,
             )
@@ -144,10 +144,10 @@ class TMDBClient:
                     original_error=e,
                 )
             else:
-                error = e
+                movie_error: AniVaultError = e
             log_operation_error(
                 logger=logger,
-                error=error,
+                error=movie_error if "movie_error" in locals() else error,
                 operation="search_movies",
                 additional_context=context.additional_data if context else None,
             )
@@ -224,7 +224,7 @@ class TMDBClient:
                 duration_ms=0,  # Duration would be calculated in _make_request
                 context=context.additional_data if context else None,
             )
-            return result
+            return result if isinstance(result, dict) else None
 
         except Exception as e:
             # Convert to AniVaultError if not already
@@ -236,16 +236,16 @@ class TMDBClient:
                     original_error=e,
                 )
             else:
-                error = e
+                details_error: AniVaultError = e
             log_operation_error(
                 logger=logger,
-                error=error,
+                error=details_error if "details_error" in locals() else error,
                 operation="get_media_details",
                 additional_context=context.additional_data if context else None,
             )
             raise
 
-    async def _make_request(self, api_call) -> Any:
+    async def _make_request(self, api_call: Callable[[], Any]) -> Any:
         """Make a rate-limited and concurrency-controlled API request.
 
         This method orchestrates the API request process by coordinating
@@ -313,7 +313,7 @@ class TMDBClient:
         while not self.rate_limiter.try_acquire():
             await asyncio.sleep(0.1)  # Wait for token availability
 
-    async def _execute_with_retry(self, api_call, context: ErrorContext) -> Any:
+    async def _execute_with_retry(self, api_call: Callable[[], Any], context: ErrorContext) -> Any:
         """Execute API call with retry logic and error handling.
 
         Args:
@@ -512,7 +512,7 @@ class TMDBClient:
             f"TMDB API request failed: {exception}",
         )
 
-    def _extract_retry_after(self, response) -> float | None:
+    def _extract_retry_after(self, response: Any) -> float | None:
         """Extract Retry-After header value from response.
 
         Args:

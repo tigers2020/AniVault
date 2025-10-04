@@ -12,7 +12,7 @@ from typing import Generator
 import pytest
 
 from anivault.core.pipeline.main import run_pipeline
-from tests.test_helpers import cleanup_test_directory, create_large_test_directory
+from tests.conftest import temp_dir, benchmark_data_dir
 
 # Mark all tests in this module as benchmarks
 pytestmark = pytest.mark.benchmark
@@ -32,34 +32,42 @@ class TestPipelineThroughput:
     @pytest.fixture
     def small_test_data(self, benchmark_data_dir: Path) -> list[Path]:
         """Create small test dataset for quick benchmarks."""
-        return create_large_test_directory(
-            benchmark_data_dir,
-            num_files=100,
-            extensions=[".mp4", ".mkv", ".avi"],
-            create_subdirs=False,
-        )
+        files = []
+        for i in range(100):
+            ext = [".mp4", ".mkv", ".avi"][i % 3]
+            file_path = benchmark_data_dir / f"anime_episode_{i:03d}{ext}"
+            file_path.touch()
+            files.append(file_path)
+        return files
 
     @pytest.fixture
     def medium_test_data(self, benchmark_data_dir: Path) -> list[Path]:
         """Create medium test dataset for moderate benchmarks."""
-        return create_large_test_directory(
-            benchmark_data_dir,
-            num_files=1_000,
-            extensions=[".mp4", ".mkv", ".avi"],
-            create_subdirs=True,
-            subdir_count=5,
-        )
+        files = []
+        for i in range(1000):
+            ext = [".mp4", ".mkv", ".avi"][i % 3]
+            # Create subdirectories
+            subdir = benchmark_data_dir / f"season_{i // 200 + 1}"
+            subdir.mkdir(exist_ok=True)
+            file_path = subdir / f"episode_{i:04d}{ext}"
+            file_path.touch()
+            files.append(file_path)
+        return files
 
     @pytest.fixture
     def large_test_data(self, benchmark_data_dir: Path) -> list[Path]:
         """Create large test dataset for comprehensive benchmarks."""
-        return create_large_test_directory(
-            benchmark_data_dir,
-            num_files=10_000,
-            extensions=[".mp4", ".mkv", ".avi", ".mov", ".wmv"],
-            create_subdirs=True,
-            subdir_count=10,
-        )
+        files = []
+        extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv"]
+        for i in range(10000):
+            ext = extensions[i % len(extensions)]
+            # Create subdirectories
+            subdir = benchmark_data_dir / f"season_{i // 1000 + 1}"
+            subdir.mkdir(exist_ok=True)
+            file_path = subdir / f"episode_{i:05d}{ext}"
+            file_path.touch()
+            files.append(file_path)
+        return files
 
     def test_scan_throughput_small_dataset(
         self,

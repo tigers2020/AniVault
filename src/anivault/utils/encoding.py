@@ -16,9 +16,11 @@ from typing import Any, BinaryIO, TextIO
 
 import chardet
 
+from anivault.shared.constants import Encoding
+
 # Constants for encoding
-UTF8_ENCODING = "utf-8"
-UTF8_BOM = "\ufeff"
+UTF8_ENCODING = Encoding.DEFAULT
+UTF8_BOM = Encoding.UTF8_BOM
 
 
 def setup_utf8_environment() -> None:
@@ -85,7 +87,8 @@ def open_utf8(
     if "b" not in mode and "errors" not in kwargs:
         kwargs["errors"] = "replace"
 
-    return Path(file_path).open(mode, **kwargs)
+    file_handle = Path(file_path).open(mode, **kwargs)
+    return file_handle  # type: ignore[return-value]
 
 
 def read_text_file(file_path: str | Path, encoding: str = UTF8_ENCODING) -> str:
@@ -103,7 +106,8 @@ def read_text_file(file_path: str | Path, encoding: str = UTF8_ENCODING) -> str:
         UnicodeDecodeError: If the file contains invalid UTF-8 sequences
     """
     with open_utf8(file_path, "r", encoding=encoding) as f:
-        return f.read()
+        content = f.read()
+        return content if isinstance(content, str) else content.decode(encoding)
 
 
 def write_text_file(
@@ -126,7 +130,7 @@ def write_text_file(
         content = UTF8_BOM + content
 
     with open_utf8(file_path, "w", encoding=encoding) as f:
-        f.write(content)
+        f.write(content)  # type: ignore[call-overload]
 
 
 def ensure_utf8_string(text: str | bytes, encoding: str = UTF8_ENCODING) -> str:
@@ -201,7 +205,8 @@ def get_file_encoding(file_path: str | Path) -> str:
         with Path(file_path).open("rb") as f:
             raw_data = f.read()
             result = chardet.detect(raw_data)
-            return result.get("encoding", UTF8_ENCODING)
+            encoding = result.get("encoding", UTF8_ENCODING)
+            return encoding if encoding is not None else UTF8_ENCODING
     except ImportError:
         # Fallback to UTF-8 if chardet is not available
         return UTF8_ENCODING

@@ -53,6 +53,9 @@ class FileSystem:
     CONFIG_DIRECTORY = "config"
     CACHE_BACKEND = "memory"
     HOME_DIR = ".anivault"
+    CACHE_DIRECTORY = "cache"
+    OUTPUT_DIRECTORY = "output"
+    RESULTS_DIRECTORY = "results"
 
     # Exclusion patterns
     EXCLUDED_DIRECTORY_PATTERNS: ClassVar[list[str]] = [
@@ -98,6 +101,18 @@ class FileSystem:
         ".m2ts",
         ".ts",
     ]
+
+    # CLI default video extensions (subset for CLI commands)
+    CLI_VIDEO_EXTENSIONS: ClassVar[list[str]] = [
+        ".mkv",
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".flv",
+        ".webm",
+        ".m4v",
+    ]
     SUBTITLE_EXTENSIONS: ClassVar[list[str]] = [
         ".srt",
         ".ass",
@@ -121,6 +136,12 @@ class FileSystem:
     SUPPORTED_VIDEO_EXTENSIONS_ORGANIZE: ClassVar[list[str]] = (
         VIDEO_EXTENSIONS + SUBTITLE_EXTENSIONS
     )
+
+    # File patterns
+    LOG_FILE_PATTERN = "*.log"
+    CACHE_FILE_PATTERN = "*.cache"
+    CONFIG_FILE_PATTERN = "*.toml"
+    JSON_FILE_PATTERN = "*.json"
     ADDITIONAL_VIDEO_FORMATS: ClassVar[list[str]] = [
         ".m2ts",
         ".ts",
@@ -151,6 +172,7 @@ class Encoding:
 
     DEFAULT = "utf-8"
     FALLBACK = "cp1252"
+    UTF8_BOM = "utf-8-sig"
 
 
 # =============================================================================
@@ -241,6 +263,12 @@ class Cache:
     MAX_SIZE = 1000
     TYPE_SEARCH = "search"
     TYPE_DETAILS = "details"
+
+    # Cache TTL values (in seconds)
+    DEFAULT_TTL = 3600  # 1 hour
+    SEARCH_TTL = 1800  # 30 minutes
+    DETAILS_TTL = 3600  # 1 hour
+    PARSER_CACHE_TTL = 86400  # 24 hours
 
     # Legacy constants for backward compatibility
     CACHE_TYPE_DETAILS = TYPE_DETAILS

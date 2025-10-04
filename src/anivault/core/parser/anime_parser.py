@@ -11,6 +11,7 @@ import logging
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.fallback_parser import FallbackParser
 from anivault.core.parser.models import ParsingResult
+from anivault.shared.constants.core import BusinessRules
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ class AnimeFilenameParser:
             return False
 
         # Must have reasonable confidence
-        return not result.confidence < 0.5
+        return not result.confidence < BusinessRules.LOW_CONFIDENCE_THRESHOLD
 
     @property
     def has_anitopy(self) -> bool:

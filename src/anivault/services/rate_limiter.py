@@ -8,6 +8,7 @@ import logging
 import threading
 import time
 
+from anivault.shared.constants import NetworkConfig
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -26,7 +27,11 @@ class TokenBucketRateLimiter:
         refill_rate: Number of tokens to add per second (default: 35)
     """
 
-    def __init__(self, capacity: int = 35, refill_rate: float = 35.0):
+    def __init__(
+        self, 
+        capacity: int = NetworkConfig.DEFAULT_TOKEN_BUCKET_CAPACITY, 
+        refill_rate: float = NetworkConfig.DEFAULT_TOKEN_REFILL_RATE
+    ):
         """Initialize the token bucket rate limiter.
 
         Args:
@@ -58,7 +63,7 @@ class TokenBucketRateLimiter:
 
             self.capacity = capacity
             self.refill_rate = refill_rate
-            self.tokens = capacity
+            self.tokens = float(capacity)
             self.last_refill = time.time()
             self._lock = threading.Lock()
 
@@ -188,7 +193,7 @@ class TokenBucketRateLimiter:
                     operation="rate_limiter_acquire",
                     duration_ms=0,
                     context={
-                        **context.additional_data,
+                        **(context.additional_data or {}),
                         "result": "insufficient_tokens",
                     },
                 )

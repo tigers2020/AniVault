@@ -13,7 +13,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from anivault.core.models import ScannedFile
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.errors import (
+    AniVaultError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error
 
 logger = logging.getLogger(__name__)
@@ -106,12 +111,26 @@ class ResolutionDetector:
             return resolution_info
 
         except Exception as e:
-            log_operation_error(
-                logger=logger,
-                operation="detect_resolution",
-                error=e,
-                additional_context=context.additional_data if context else None,
-            )
+            if isinstance(e, AniVaultError):
+                log_operation_error(
+                    logger=logger,
+                    operation="detect_resolution",
+                    error=e,
+                    additional_context=context.additional_data if context else None,
+                )
+            else:
+                error = InfrastructureError(
+                    code=ErrorCode.RESOLUTION_DETECTION_FAILED,
+                    message=f"Failed to detect resolution for {file_path}: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    operation="detect_resolution",
+                    error=error,
+                    additional_context=context.additional_data if context else None,
+                )
             raise InfrastructureError(
                 code=ErrorCode.RESOLUTION_DETECTION_FAILED,
                 message=f"Failed to detect resolution for {file_path}: {e!s}",
@@ -238,12 +257,26 @@ class ResolutionDetector:
             return best_file
 
         except Exception as e:
-            log_operation_error(
-                logger=logger,
-                operation="find_highest_resolution",
-                error=e,
-                additional_context=context.additional_data if context else None,
-            )
+            if isinstance(e, AniVaultError):
+                log_operation_error(
+                    logger=logger,
+                    operation="find_highest_resolution",
+                    error=e,
+                    additional_context=context.additional_data if context else None,
+                )
+            else:
+                error = InfrastructureError(
+                    code=ErrorCode.RESOLUTION_COMPARISON_FAILED,
+                    message=f"Failed to find highest resolution file: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    operation="find_highest_resolution",
+                    error=error,
+                    additional_context=context.additional_data if context else None,
+                )
             raise InfrastructureError(
                 code=ErrorCode.RESOLUTION_COMPARISON_FAILED,
                 message=f"Failed to find highest resolution file: {e!s}",

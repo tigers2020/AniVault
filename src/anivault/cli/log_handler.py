@@ -9,13 +9,14 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.models import DirectoryPath, LogOptions
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants import CLI
+from anivault.shared.constants import CLI, FileSystem
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,7 @@ def _handle_log_command_console(options: LogOptions) -> int:
         return 1
 
 
-def _collect_log_list_data(options: LogOptions) -> dict | None:
+def _collect_log_list_data(options: LogOptions) -> dict[str, Any] | None:
     """Collect log list data for JSON output.
 
     Args:
@@ -155,7 +156,7 @@ def _collect_log_list_data(options: LogOptions) -> dict | None:
             }
 
         # Find log files
-        log_files = list(log_dir.glob("*.log"))
+        log_files = list(log_dir.glob(FileSystem.LOG_FILE_PATTERN))
         if not log_files:
             return {
                 "message": "No log files found",
@@ -207,7 +208,7 @@ def _collect_log_list_data(options: LogOptions) -> dict | None:
         return None
 
 
-def _run_log_list_command_impl(options: LogOptions, console) -> int:
+def _run_log_list_command_impl(options: LogOptions, console: Any) -> int:
     """Run the log list command.
 
     Args:
@@ -227,7 +228,7 @@ def _run_log_list_command_impl(options: LogOptions, console) -> int:
             return 1
 
         # Find log files
-        log_files = list(log_dir.glob("*.log"))
+        log_files = list(log_dir.glob(FileSystem.LOG_FILE_PATTERN))
         if not log_files:
             console.print("[yellow]No log files found[/yellow]")
             return 0
@@ -278,12 +279,12 @@ def _run_log_list_command_impl(options: LogOptions, console) -> int:
 
 
 def log_command(
-    command: str = typer.Argument(  # type: ignore[misc]
+    command: str = typer.Argument(
         ...,
         help="Log command to execute (list, show, tail)",
     ),
-    log_dir: Path = typer.Option(  # type: ignore[misc]
-        Path("logs"),
+    log_dir: Path = typer.Option(
+        Path(FileSystem.LOG_DIRECTORY),
         "--log-dir",
         help="Directory containing log files",
         exists=True,
@@ -330,4 +331,4 @@ def log_command(
 
         console = Console()
         console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e

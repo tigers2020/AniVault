@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 import typer
 
@@ -196,7 +197,7 @@ def _handle_verify_command_console(options: VerifyOptions) -> int:  # noqa: PLR0
         return 1
 
 
-def _collect_verify_data(options: VerifyOptions) -> dict | None:
+def _collect_verify_data(options: VerifyOptions) -> dict[str, Any] | None:
     """Collect verify data for JSON output.
 
     Args:

@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
+
+from anivault.shared.constants import FileSystem, RunDefaults
 
 
 class DirectoryPath(BaseModel):
@@ -63,7 +64,7 @@ class ScanOptions(BaseModel):
     recursive: bool = Field(default=True, description="Scan recursively")
     include_subtitles: bool = Field(default=True, description="Include subtitle files")
     include_metadata: bool = Field(default=True, description="Include metadata files")
-    output: Optional[Path] = Field(default=None, description="Output file path")
+    output: Path | None = Field(default=None, description="Output file path")
     json_output: bool = Field(
         default=False,
         description="Output results in JSON format",
@@ -71,7 +72,7 @@ class ScanOptions(BaseModel):
 
     @field_validator("output")
     @classmethod
-    def validate_output_path(cls, v: Optional[Path]) -> Optional[Path]:
+    def validate_output_path(cls, v: Path | None) -> Path | None:
         """Validate output path if provided."""
         if v is None:
             return v
@@ -81,7 +82,8 @@ class ScanOptions(BaseModel):
 
         # Check if parent directory is writable
         if not os.access(v.parent, os.W_OK):
-            raise ValueError(f"Output directory is not writable: {v.parent}")
+            msg = f"Output directory is not writable: {v.parent}"
+            raise ValueError(msg)
 
         return v
 
@@ -92,21 +94,31 @@ class OrganizeOptions(BaseModel):
     directory: DirectoryPath = Field(..., description="Directory to organize")
     dry_run: bool = Field(default=False, description="Preview changes without applying")
     yes: bool = Field(default=False, description="Skip confirmation prompts")
+    enhanced: bool = Field(default=False, description="Use enhanced organization")
+    destination: str = Field(default="Anime", description="Destination directory")
+    extensions: str = Field(default="mkv,mp4,avi,mov,wmv,flv,webm,m4v", description="File extensions")
+    json_output: bool = Field(default=False, description="JSON output format")
+    verbose: bool = Field(default=False, description="Verbose output")
 
 
 class MatchOptions(BaseModel):
     """Match command options validation model."""
 
     directory: DirectoryPath = Field(..., description="Directory to match")
-    output: Optional[Path] = Field(default=None, description="Output file path")
+    output: Path | None = Field(default=None, description="Output file path")
     force: bool = Field(
         default=False,
         description="Force re-matching of existing files",
     )
+    recursive: bool = Field(default=True, description="Recursive matching")
+    include_subtitles: bool = Field(default=True, description="Include subtitles")
+    include_metadata: bool = Field(default=True, description="Include metadata")
+    json_output: bool = Field(default=False, description="JSON output format")
+    verbose: bool = Field(default=False, description="Verbose output")
 
     @field_validator("output")
     @classmethod
-    def validate_output_path(cls, v: Optional[Path]) -> Optional[Path]:
+    def validate_output_path(cls, v: Path | None) -> Path | None:
         """Validate output path if provided."""
         if v is None:
             return v
@@ -116,7 +128,8 @@ class MatchOptions(BaseModel):
 
         # Check if parent directory is writable
         if not os.access(v.parent, os.W_OK):
-            raise ValueError(f"Output directory is not writable: {v.parent}")
+            msg = f"Output directory is not writable: {v.parent}"
+            raise ValueError(msg)
 
         return v
 
@@ -129,7 +142,7 @@ class LogOptions(BaseModel):
         description="Log command to execute (list, show, tail)",
     )
     log_dir: DirectoryPath = Field(
-        default_factory=lambda: DirectoryPath(path=Path("logs")),
+        default_factory=lambda: DirectoryPath(path=Path(FileSystem.LOG_DIRECTORY)),
         description="Directory containing log files",
     )
 
@@ -139,8 +152,9 @@ class LogOptions(BaseModel):
         """Validate log command."""
         valid_commands = ["list", "show", "tail"]
         if v not in valid_commands:
+            msg = f"Invalid log command '{v}'. Must be one of: {', '.join(valid_commands)}"
             raise ValueError(
-                f"Invalid log command '{v}'. Must be one of: {', '.join(valid_commands)}",
+                msg,
             )
         return v
 
@@ -193,27 +207,18 @@ class RunOptions(BaseModel):
     yes: bool = Field(default=False, description="Skip confirmation prompts")
     enhanced: bool = Field(default=False, description="Use enhanced organization")
     destination: str = Field(
-        default="Anime",
+        default=RunDefaults.DEFAULT_DESTINATION,
         description="Destination directory for organized files",
     )
     extensions: list[str] = Field(
-        default_factory=lambda: [
-            "mkv",
-            "mp4",
-            "avi",
-            "mov",
-            "wmv",
-            "flv",
-            "webm",
-            "m4v",
-        ],
+        default_factory=lambda: RunDefaults.DEFAULT_EXTENSIONS,
         description="Video file extensions to process",
     )
     skip_scan: bool = Field(default=False, description="Skip scanning step")
     skip_match: bool = Field(default=False, description="Skip matching step")
     skip_organize: bool = Field(default=False, description="Skip organization step")
-    max_workers: int = Field(default=4, description="Maximum number of worker threads")
-    batch_size: int = Field(default=10, description="Batch size for processing")
+    max_workers: int = Field(default=RunDefaults.DEFAULT_MAX_WORKERS, description="Maximum number of worker threads")
+    batch_size: int = Field(default=RunDefaults.DEFAULT_BATCH_SIZE, description="Batch size for processing")
     json_output: bool = Field(
         default=False,
         description="Output results in JSON format",

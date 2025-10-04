@@ -105,7 +105,8 @@ class CacheV1:
                     return None  # Cache entry has expired
 
             # Return the cached data
-            return payload.get("data")
+            data = payload.get("data")
+            return data if isinstance(data, dict) else None
 
         except FileNotFoundError:
             # Cache miss - file doesn't exist

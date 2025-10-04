@@ -17,19 +17,25 @@ from .api import (
 from .api import (
     CacheConfig as APICacheConfig,
 )
+from .api_fields import (
+    APIFields,
+)
 from .cli import (
     BatchConfig,
+    CLICommands,
+    CLIDefaults,
     CLIFormatting,
+    CLIHelp,
     CLIMessages,
+    CLIOptions,
     ConfidenceConfig,
+    LogConfig as CLILogConfig,
     QueueConfig,
+    RunDefaults,
     WorkerConfig,
 )
 from .cli import (
     CacheConfig as CLICacheConfig,
-)
-from .cli import (
-    LogConfig as CLILogConfig,
 )
 from .file_formats import (
     ExclusionPatterns,
@@ -56,6 +62,16 @@ from .matching import (
     ScoringWeights,
     TitleNormalization,
     ValidationConfig,
+)
+from .core import (
+    BusinessRules,
+    CacheConfig as CoreCacheConfig,
+    NormalizationConfig,
+    ProcessingConfig,
+)
+from .network import (
+    DownloadConfig,
+    NetworkConfig,
 )
 
 # Import system classes for direct access
@@ -89,18 +105,26 @@ __all__ = [
     "CLI",
     "TMDB",
     "APIConfig",
+    "APIFields",
     "Application",
     "Batch",
     "BatchConfig",
     "Boolean",
+    "BusinessRules",
     "CLICacheConfig",
+    "CLICommands",
+    "CLIDefaults",
     "CLIFormatting",
+    "CLIHelp",
     "CLILogConfig",
     "CLIMessages",
+    "CLIOptions",
     "Cache",
+    "CoreCacheConfig",
     "ConfidenceConfig",
     "ConfidenceThresholds",
     "Config",
+    "DownloadConfig",
     "Encoding",
     "EnrichmentStatus",
     "ErrorHandling",
@@ -120,11 +144,15 @@ __all__ = [
     "MediaType",
     "Memory",
     "MetadataConfig",
+    "NetworkConfig",
+    "NormalizationConfig",
     "Performance",
     "PerformanceLogging",
     "Pipeline",
     "Process",
+    "ProcessingConfig",
     "QueueConfig",
+    "RunDefaults",
     "ScoringWeights",
     "Status",
     "SubtitleFormats",

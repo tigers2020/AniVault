@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 from anivault.core.statistics import PerformanceMetrics, StatisticsCollector
 
@@ -83,8 +83,8 @@ class Profiler:
         """
         self.statistics = statistics or StatisticsCollector()
         self.session_id = f"profiler_{int(time.time())}"
-        self.start_time = None
-        self.end_time = None
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
         self.memory_snapshots: list[MemorySnapshot] = []
         self.tracemalloc_started = False
 
@@ -163,7 +163,7 @@ class Profiler:
         return snapshot_data
 
     @contextmanager
-    def profile_section(self, section_name: str):
+    def profile_section(self, section_name: str) -> Generator[None, None, None]:
         """Context manager for profiling a specific code section.
 
         Args:

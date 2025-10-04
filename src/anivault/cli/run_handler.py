@@ -5,6 +5,8 @@ This module provides the implementation for the 'run' command, which orchestrate
 the complete anime organization workflow (scan, match, organize) in sequence.
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,6 +21,8 @@ from anivault.cli.match_handler import handle_match_command
 from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.progress import create_progress_manager
 from anivault.cli.scan_handler import _handle_scan_command
+from anivault.shared.constants import FileSystem, RunDefaults
+from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.errors import ApplicationError, ErrorCode
 from anivault.utils.logging_config import get_logger
 
@@ -43,11 +47,11 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
             if options.json_output:
                 json_output = format_json_output(
                     success=False,
-                    command="run",
+                    command=CLIMessages.CommandNames.RUN,
                     errors=[error_msg],
                     data={
-                        "error_code": ErrorCode.FILE_NOT_FOUND,
-                        "directory": str(directory),
+                        CLIMessages.StatusKeys.ERROR_CODE: ErrorCode.FILE_NOT_FOUND,
+                        CLIMessages.StatusKeys.DIRECTORY: str(directory),
                     },
                 )
                 sys.stdout.buffer.write(json_output)
@@ -62,11 +66,11 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
             if options.json_output:
                 json_output = format_json_output(
                     success=False,
-                    command="run",
+                    command=CLIMessages.CommandNames.RUN,
                     errors=[error_msg],
                     data={
-                        "error_code": ErrorCode.VALIDATION_ERROR,
-                        "directory": str(directory),
+                        CLIMessages.StatusKeys.ERROR_CODE: ErrorCode.VALIDATION_ERROR,
+                        CLIMessages.StatusKeys.DIRECTORY: str(directory),
                     },
                 )
                 sys.stdout.buffer.write(json_output)
@@ -83,9 +87,9 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
         )
 
         # Collect run data for JSON output
-        run_data = {
+        run_data: dict[str, Any] = {
             "workflow_summary": {
-                "directory": str(directory),
+                CLIMessages.StatusKeys.DIRECTORY: str(directory),
                 "extensions": options.extensions,
                 "dry_run": options.dry_run,
                 "skip_scan": options.skip_scan,
@@ -101,64 +105,87 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
         if not options.skip_scan:
             if not options.json_output:
                 console.print(
-                    "\n[bold blue]Step 1: Scanning for anime files...[/bold blue]",
+                    CLIFormatting.format_colored_message(
+                        "\nStep 1: Scanning for anime files...",
+                        "info",
+                    ),
                 )
 
-            with progress_manager.spinner("Scanning files..."):
+            with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
                 scan_result = _run_scan_step(options, directory, console)
                 run_data["steps"].append(scan_result)
 
-                if scan_result["status"] != "success":
+                if scan_result[CLIMessages.StatusKeys.STATUS] != "success":
                     return _handle_run_error("Scan step failed", run_data, options)
 
         # Step 2: Match (if not skipped)
         if not options.skip_match:
             if not options.json_output:
                 console.print(
-                    "\n[bold blue]Step 2: Matching files with TMDB...[/bold blue]",
+                    CLIFormatting.format_colored_message(
+                        "\nStep 2: Matching files with TMDB...",
+                        "info",
+                    ),
                 )
 
-            with progress_manager.spinner("Matching files..."):
+            with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
                 match_result = _run_match_step(options, directory, console)
                 run_data["steps"].append(match_result)
 
-                if match_result["status"] != "success":
+                if match_result[CLIMessages.StatusKeys.STATUS] != "success":
                     return _handle_run_error("Match step failed", run_data, options)
 
         # Step 3: Organize (if not skipped)
         if not options.skip_organize:
             if not options.json_output:
-                console.print("\n[bold blue]Step 3: Organizing files...[/bold blue]")
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        "\nStep 3: Organizing files...",
+                        "info",
+                    ),
+                )
 
-            with progress_manager.spinner("Organizing files..."):
+            with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
                 organize_result = _run_organize_step(options, directory, console)
                 run_data["steps"].append(organize_result)
 
-                if organize_result["status"] != "success":
+                if organize_result[CLIMessages.StatusKeys.STATUS] != "success":
                     return _handle_run_error("Organize step failed", run_data, options)
 
         # Success - output results
         if options.json_output:
-            json_output = format_json_output(success=True, command="run", data=run_data)
+            json_output = format_json_output(
+                success=True,
+                command=CLIMessages.CommandNames.RUN,
+                data=run_data,
+            )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
             console.print(
-                "\n[bold green]✓ Run workflow completed successfully![/bold green]",
+                CLIFormatting.format_colored_message(
+                    "\n✓ Run workflow completed successfully!",
+                    "success",
+                ),
             )
             _print_run_summary(run_data, console)
 
         return 0
 
     except ApplicationError as e:
-        logger.exception("Application error in run command: %s", e.message)
+        logger.exception(
+            "%sin run command: %s", CLIMessages.Error.APPLICATION_ERROR, e.message,
+        )
         if options.json_output:
             json_output = format_json_output(
                 success=False,
-                command="run",
-                errors=[f"Application error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.RUN,
+                errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
@@ -166,12 +193,12 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
         return 1
 
     except Exception as e:
-        logger.exception("Unexpected error in run command")
+        logger.exception("%sin run command", CLIMessages.Error.UNEXPECTED_ERROR)
         if options.json_output:
             json_output = format_json_output(
                 success=False,
-                command="run",
-                errors=[f"Unexpected error: {e!s}"],
+                command=CLIMessages.CommandNames.RUN,
+                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e!s}"],
                 data={"error_type": type(e).__name__},
             )
             sys.stdout.buffer.write(json_output)
@@ -205,13 +232,13 @@ def _run_scan_step(
 
         if scan_exit_code == 0:
             return {
-                "step": "scan",
-                "status": "success",
+                CLIMessages.StatusKeys.STEP: "scan",
+                CLIMessages.StatusKeys.STATUS: "success",
                 "message": "Files scanned successfully",
             }
         return {
-            "step": "scan",
-            "status": "error",
+            CLIMessages.StatusKeys.STEP: "scan",
+            CLIMessages.StatusKeys.STATUS: "error",
             "message": "Scan command failed",
             "exit_code": scan_exit_code,
         }
@@ -330,18 +357,18 @@ def _create_scan_args(options: RunOptions, directory: Path) -> Any:
             self.workers = getattr(
                 run_options,
                 "max_workers",
-                4,
-            )  # Default to 4 workers
+                RunDefaults.DEFAULT_MAX_WORKERS,
+            )
             self.rate_limit = getattr(
                 run_options,
                 "rate_limit",
-                50,
-            )  # Default to 50 requests per second
+                RunDefaults.DEFAULT_RATE_LIMIT,
+            )
             self.concurrent = getattr(
                 run_options,
                 "max_workers",
-                4,
-            )  # Default to 4 concurrent operations
+                RunDefaults.DEFAULT_CONCURRENT,
+            )
             self.output = None  # Default to no output file
 
     return ScanArgs(options, directory)
@@ -360,22 +387,22 @@ def _create_match_args(options: RunOptions, directory: Path) -> Any:
             self.verbose = getattr(run_options, "verbose", False)
             self.log_level = getattr(run_options, "log_level", "INFO")
             self.json = getattr(run_options, "json_output", False)
-            self.cache_dir = "cache"  # Default cache directory
+            self.cache_dir = FileSystem.CACHE_DIRECTORY  # Default cache directory
             self.rate_limit = getattr(
                 run_options,
                 "rate_limit",
-                50,
-            )  # Default to 50 requests per second
+                RunDefaults.DEFAULT_RATE_LIMIT,
+            )
             self.concurrent = getattr(
                 run_options,
                 "max_workers",
-                4,
-            )  # Default to 4 concurrent operations
+                RunDefaults.DEFAULT_CONCURRENT,
+            )
             self.workers = getattr(
                 run_options,
                 "max_workers",
-                4,
-            )  # Default to 4 workers
+                RunDefaults.DEFAULT_MAX_WORKERS,
+            )
 
     return MatchArgs(options, directory)
 
@@ -456,50 +483,42 @@ def _print_run_summary(run_data: dict[str, Any], console: Console) -> None:
 
 
 def run_command(
-    directory: Path = typer.Argument(  # type: ignore[misc]
-        ...,
+    directory: Path = typer.Argument(        ...,
         help="Directory containing anime files to process",
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(  # type: ignore[misc]
-        True,
+    recursive: bool = typer.Option(        True,
         "--recursive/--no-recursive",
         "-r",
         help="Process files recursively in subdirectories",
     ),
-    include_subtitles: bool = typer.Option(  # type: ignore[misc]
-        True,
+    include_subtitles: bool = typer.Option(        True,
         "--include-subtitles/--no-include-subtitles",
         help="Include subtitle files in processing",
     ),
-    include_metadata: bool = typer.Option(  # type: ignore[misc]
-        True,
+    include_metadata: bool = typer.Option(        True,
         "--include-metadata/--no-include-metadata",
         help="Include metadata files in processing",
     ),
-    output_file: Path | None = typer.Option(  # type: ignore[misc]
-        None,
+    output_file: Path | None = typer.Option(        None,
         "--output",
         "-o",
         help="Output file for processing results (JSON format)",
         writable=True,
     ),
-    dry_run: bool = typer.Option(  # type: ignore[misc]
-        False,
+    dry_run: bool = typer.Option(        False,
         "--dry-run",
         help="Show what would be processed without actually processing files",
     ),
-    yes: bool = typer.Option(  # type: ignore[misc]
-        False,
+    yes: bool = typer.Option(        False,
         "--yes",
         "-y",
         help="Skip confirmation prompts and proceed with processing",
     ),
-    json: bool = typer.Option(  # type: ignore[misc]
-        False,
+    json: bool = typer.Option(        False,
         "--json",
         help="Output results in JSON format",
     ),
@@ -570,6 +589,6 @@ def run_command(
             raise typer.Exit(exit_code)
 
     except ValueError as e:
-        logger.error(f"Validation error: {e}")
+        logger.exception("Validation error")
         typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e

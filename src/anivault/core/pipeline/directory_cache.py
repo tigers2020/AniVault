@@ -152,4 +152,6 @@ class DirectoryCacheManager:
 
         # Compare modification times (with small epsilon for float comparison)
         cached_mtime = cached_data.get("mtime", 0.0)
+        if not isinstance(cached_mtime, (int, float)):
+            return False
         return abs(cached_mtime - current_mtime) < 0.001

@@ -160,21 +160,20 @@ def main():
     # Run appropriate test suite
     if args.test_type == "unit":
         return run_unit_tests(args.verbose, args.coverage)
-    elif args.test_type == "integration":
+    if args.test_type == "integration":
         return run_integration_tests(args.verbose)
-    elif args.test_type == "benchmark":
+    if args.test_type == "benchmark":
         return run_benchmark_tests(args.verbose)
-    elif args.test_type == "all":
+    if args.test_type == "all":
         return run_all_tests(args.verbose, args.coverage, args.exclude_slow)
-    elif args.test_type == "fast":
+    if args.test_type == "fast":
         return run_fast_tests(args.verbose)
-    elif args.test_type == "parallel":
+    if args.test_type == "parallel":
         return run_with_parallel(args.workers, args.verbose)
-    elif args.test_type == "specific":
+    if args.test_type == "specific":
         return run_specific_test(args.test_path, args.verbose)
-    else:
-        print(f"Unknown test type: {args.test_type}")
-        return 1
+    print(f"Unknown test type: {args.test_type}")
+    return 1
 
 
 if __name__ == "__main__":

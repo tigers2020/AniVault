@@ -21,7 +21,8 @@ from anivault.core.pipeline.utils import (
     QueueStatistics,
     ScanStatistics,
 )
-from anivault.shared.constants import Pipeline, Timeout
+from anivault.shared.constants import Pipeline, ProcessingConfig, Timeout
+from anivault.shared.constants.network import NetworkConfig
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -505,7 +506,7 @@ def _wait_for_collector_completion(
         if collector.is_alive():
             logger.warning("Collector did not complete within timeout, forcing stop...")
             collector.stop()
-            collector.join(timeout=1.0)  # Give it 1 more second to stop gracefully
+            collector.join(timeout=NetworkConfig.DEFAULT_TIMEOUT)  # Give it 1 more second to stop gracefully
 
         result_count = collector.get_result_count()
         logger.info(
@@ -638,8 +639,8 @@ def _force_shutdown_if_needed(
 def run_pipeline(
     root_path: str,
     extensions: list[str],
-    num_workers: int = 4,
-    max_queue_size: int = 100,
+    num_workers: int = ProcessingConfig.MAX_PROCESSING_WORKERS,
+    max_queue_size: int = ProcessingConfig.DEFAULT_QUEUE_SIZE,
     cache_path: str | None = None,
 ) -> list[dict[str, Any]]:
     """Run the complete file processing pipeline.

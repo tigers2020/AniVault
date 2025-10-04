@@ -13,6 +13,7 @@ import types
 
 from typing_extensions import Self
 
+from anivault.shared.constants import NetworkConfig
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -30,7 +31,7 @@ class SemaphoreManager:
         concurrency_limit: Maximum number of concurrent requests allowed (default: 4)
     """
 
-    def __init__(self, concurrency_limit: int = 4):
+    def __init__(self, concurrency_limit: int = NetworkConfig.DEFAULT_CONCURRENT_REQUESTS):
         """Initialize the semaphore manager.
 
         Args:
@@ -125,7 +126,7 @@ class SemaphoreManager:
                 logger=logger,
                 operation="semaphore_acquire",
                 duration_ms=0,
-                context={**context.additional_data, "acquired": acquired},
+                context={**(context.additional_data or {}), "acquired": acquired},
             )
 
             return acquired

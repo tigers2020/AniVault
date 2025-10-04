@@ -16,6 +16,7 @@ from anivault.cli.common.models import OrganizeOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.shared.constants import CLI
+from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.errors import (
     ApplicationError,
     ErrorCode,
@@ -35,7 +36,9 @@ def handle_organize_command(options: OrganizeOptions) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI.INFO_COMMAND_STARTED.format(command="organize"))
+    logger.info(
+        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.ORGANIZE),
+    )
 
     try:
         console = _setup_organize_console()
@@ -45,12 +48,12 @@ def handle_organize_command(options: OrganizeOptions) -> int:
 
         scanned_files = _get_scanned_files(options, directory, console)
         if not scanned_files:
-            if options.json:
+            if options.json_output is not None:
                 # Return empty results in JSON format
                 organize_data = _collect_organize_data([], options, is_dry_run=False)
                 json_output = format_json_output(
                     success=True,
-                    command="organize",
+                    command=CLIMessages.CommandNames.ORGANIZE,
                     data=organize_data,
                     warnings=["No anime files found to organize"],
                 )
@@ -67,12 +70,15 @@ def handle_organize_command(options: OrganizeOptions) -> int:
         return _execute_organization_plan(plan, options, console)
 
     except ApplicationError as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="organize",
-                errors=[f"Application error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.ORGANIZE,
+                errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
@@ -82,20 +88,29 @@ def handle_organize_command(options: OrganizeOptions) -> int:
 
             console = Console()
             console.print(
-                f"[red]Application error during organization: {e.message}[/red]",
+                CLIFormatting.format_colored_message(
+                    f"Application error during organization: {e.message}",
+                    "error",
+                ),
             )
         logger.exception(
-            "Application error in organize command",
-            extra={"context": e.context, "error_code": e.code},
+            "%sin organize command", CLIMessages.Error.APPLICATION_ERROR,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         return 1
     except InfrastructureError as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="organize",
-                errors=[f"Infrastructure error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.ORGANIZE,
+                errors=[f"{CLIMessages.Error.INFRASTRUCTURE_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
@@ -105,19 +120,25 @@ def handle_organize_command(options: OrganizeOptions) -> int:
 
             console = Console()
             console.print(
-                f"[red]Infrastructure error during organization: {e.message}[/red]",
+                CLIFormatting.format_colored_message(
+                    f"Infrastructure error during organization: {e.message}",
+                    "error",
+                ),
             )
         logger.exception(
-            "Infrastructure error in organize command",
-            extra={"context": e.context, "error_code": e.code},
+            "%sin organize command", CLIMessages.Error.INFRASTRUCTURE_ERROR,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         return 1
     except Exception as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="organize",
-                errors=[f"Unexpected error: {e!s}"],
+                command=CLIMessages.CommandNames.ORGANIZE,
+                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e!s}"],
                 data={"error_type": type(e).__name__},
             )
             sys.stdout.buffer.write(json_output)
@@ -127,8 +148,13 @@ def handle_organize_command(options: OrganizeOptions) -> int:
             from rich.console import Console
 
             console = Console()
-            console.print(f"[red]Unexpected error during organization: {e}[/red]")
-        logger.exception("Unexpected error in organize command")
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Unexpected error during organization: {e}",
+                    "error",
+                ),
+            )
+        logger.exception("%sin organize command", CLIMessages.Error.UNEXPECTED_ERROR)
         return 1
 
 
@@ -144,60 +170,89 @@ def _validate_organize_directory(options: OrganizeOptions, console: Any) -> Any:
     try:
         from anivault.cli.common.context import validate_directory
 
-        directory = validate_directory(options.directory)
-        if not options.json:
-            console.print(f"[green]Organizing files in: {directory}[/green]")
+        directory = validate_directory(str(options.directory))
+        if options.json_output is None:
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Organizing files in: {directory}",
+                    "success",
+                ),
+            )
         return directory
     except ApplicationError as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="organize",
-                errors=[f"Application error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.ORGANIZE,
+                errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            console.print(f"[red]Application error: {e.message}[/red]")
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Application error: {e.message}",
+                    "error",
+                ),
+            )
         logger.exception(
-            "Directory validation failed",
-            extra={"context": e.context, "error_code": e.code},
+            CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         return None
     except InfrastructureError as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="organize",
-                errors=[f"Infrastructure error: {e.message}"],
-                data={"error_code": e.code, "context": e.context},
+                command=CLIMessages.CommandNames.ORGANIZE,
+                errors=[f"{CLIMessages.Error.INFRASTRUCTURE_ERROR}{e.message}"],
+                data={
+                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
+                    CLIMessages.StatusKeys.CONTEXT: e.context,
+                },
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            console.print(f"[red]Infrastructure error: {e.message}[/red]")
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Infrastructure error: {e.message}",
+                    "error",
+                ),
+            )
         logger.exception(
-            "Directory validation failed",
-            extra={"context": e.context, "error_code": e.code},
+            CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         return None
     except Exception as e:
-        if options.json:
+        if options.json_output is not None:
             json_output = format_json_output(
                 success=False,
-                command="organize",
-                errors=[f"Unexpected error: {e!s}"],
+                command=CLIMessages.CommandNames.ORGANIZE,
+                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e!s}"],
                 data={"error_type": type(e).__name__},
             )
             sys.stdout.buffer.write(json_output)
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            console.print(f"[red]Unexpected error: {e}[/red]")
-        logger.exception("Unexpected error during directory validation")
+            console.print(
+                CLIFormatting.format_colored_message(f"Unexpected error: {e}", "error"),
+            )
+        logger.exception(CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION)
         return None
 
 
@@ -209,22 +264,25 @@ def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=options.json,
+            disabled=options.json_output,
         )
 
         # Scan files with progress indication
-        with progress_manager.spinner("Scanning files..."):
+        with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
             file_results = run_pipeline(
                 root_path=str(directory),
-                extensions=options.extensions,
+                extensions=options.extensions.split(","),
                 num_workers=WorkerConfig.DEFAULT,
                 max_queue_size=QueueConfig.DEFAULT_SIZE,
             )
 
         if not file_results:
-            if not options.json:
+            if options.json_output is None:
                 console.print(
-                    "[yellow]No anime files found in the specified directory[/yellow]",
+                    CLIFormatting.format_colored_message(
+                        CLIMessages.Info.NO_ANIME_FILES_FOUND,
+                        "warning",
+                    ),
                 )
             return []
 
@@ -235,28 +293,39 @@ def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -
 
         scanned_files = []
         for result in file_results:
-            if "parsing_result" in result:
+            if CLIMessages.StatusKeys.PARSING_RESULT in result:
                 scanned_file = ScannedFile(
-                    file_path=Path(result["file_path"]),
-                    metadata=result["parsing_result"],
+                    file_path=Path(result[CLIMessages.StatusKeys.FILE_PATH]),
+                    metadata=result[CLIMessages.StatusKeys.PARSING_RESULT],
                 )
                 scanned_files.append(scanned_file)
 
         if not scanned_files:
-            if not options.json:
-                console.print("[yellow]No valid anime files found to organize[/yellow]")
+            if options.json_output is None:
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        "No valid anime files found to organize",
+                        "warning",
+                    ),
+                )
             return []
 
         return scanned_files
 
     except ApplicationError as e:
-        if not options.json:
+        if options.json_output is None:
             console.print(
-                f"[red]Application error during file scanning: {e.message}[/red]",
+                CLIFormatting.format_colored_message(
+                    f"Application error during file scanning: {e.message}",
+                    "error",
+                ),
             )
         logger.exception(
             "File scanning failed",
-            extra={"context": e.context, "error_code": e.code},
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         raise ApplicationError(
             ErrorCode.CLI_PIPELINE_EXECUTION_FAILED,
@@ -268,13 +337,19 @@ def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -
             original_error=e,
         ) from e
     except InfrastructureError as e:
-        if not options.json:
+        if options.json_output is None:
             console.print(
-                f"[red]Infrastructure error during file scanning: {e.message}[/red]",
+                CLIFormatting.format_colored_message(
+                    f"Infrastructure error during file scanning: {e.message}",
+                    "error",
+                ),
             )
         logger.exception(
             "File scanning failed",
-            extra={"context": e.context, "error_code": e.code},
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
         )
         raise InfrastructureError(
             ErrorCode.CLI_PIPELINE_EXECUTION_FAILED,
@@ -286,9 +361,14 @@ def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -
             original_error=e,
         ) from e
     except Exception as e:
-        if not options.json:
-            console.print(f"[red]Unexpected error during file scanning: {e}[/red]")
-        logger.exception("Unexpected error during file scanning")
+        if options.json_output is None:
+            console.print(
+                CLIFormatting.format_colored_message(
+                    f"Unexpected error during file scanning: {e}",
+                    "error",
+                ),
+            )
+        logger.exception(CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION)
         raise ApplicationError(
             ErrorCode.CLI_PIPELINE_EXECUTION_FAILED,
             "Failed to scan files for organization",
@@ -360,7 +440,7 @@ def _execute_organization_plan(
 ) -> int:
     """Execute organization plan."""
     if options.dry_run:
-        if options.json:
+        if options.json_output is not None:
             # Output dry run plan in JSON format
             organize_data = _collect_organize_data(plan, options, is_dry_run=True)
             json_output = format_json_output(
@@ -376,10 +456,10 @@ def _execute_organization_plan(
         logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="organize"))
         return 0
 
-    if not options.json:
+    if options.json_output is None:
         _print_execution_plan_impl(plan, console)
 
-    if not options.yes and not options.json:
+    if not options.yes and options.json_output is None:
         if not _confirm_organization(console):
             return 0
 
@@ -419,14 +499,14 @@ def _perform_organization(plan: Any, options: OrganizeOptions) -> int:
 
         # Create progress manager (disabled for JSON output)
         progress_manager = create_progress_manager(
-            disabled=options.json,
+            disabled=options.json_output,
         )
 
         # Execute organization with progress indication
         with progress_manager.spinner("Organizing files..."):
             moved_files = organizer.execute_plan(plan, operation_id)
 
-        if options.json:
+        if options.json_output is not None:
             # Output results in JSON format
             organize_data = _collect_organize_data(
                 plan,
@@ -752,7 +832,7 @@ def _generate_enhanced_organization_plan(
 
 
 def organize_command(
-    directory: Path = typer.Argument(  # type: ignore[misc]
+    directory: Path = typer.Argument(
         ...,
         help="Directory containing scanned and matched anime files to organize",
         exists=True,
@@ -760,34 +840,34 @@ def organize_command(
         dir_okay=True,
         readable=True,
     ),
-    dry_run: bool = typer.Option(  # type: ignore[misc]
+    dry_run: bool = typer.Option(
         False,
         "--dry-run",
         help="Show what would be organized without actually moving files",
     ),
-    yes: bool = typer.Option(  # type: ignore[misc]
+    yes: bool = typer.Option(
         False,
         "--yes",
         "-y",
         help="Skip confirmation prompts and proceed with organization",
     ),
-    enhanced: bool = typer.Option(  # type: ignore[misc]
+    enhanced: bool = typer.Option(
         False,
         "--enhanced",
         help="Use enhanced organization with grouping and Korean titles",
     ),
-    destination: str = typer.Option(  # type: ignore[misc]
+    destination: str = typer.Option(
         "Anime",
         "--destination",
         "-d",
         help="Destination directory for organized files",
     ),
-    extensions: str = typer.Option(  # type: ignore[misc]
+    extensions: str = typer.Option(
         "mkv,mp4,avi,mov,wmv,flv,webm,m4v",
         "--extensions",
         help="Comma-separated list of video file extensions to process",
     ),
-    json: bool = typer.Option(  # type: ignore[misc]
+    json_output: bool = typer.Option(
         False,
         "--json",
         help="Output results in JSON format",
@@ -856,9 +936,9 @@ def organize_command(
             yes=yes,
             enhanced=enhanced,
             destination=destination,
-            extensions=extensions_list,
-            json_output=bool(json),
-            verbose=context.verbose if context else 0,
+            extensions=",".join(extensions_list),
+            json_output=json_output,
+            verbose=bool(context.verbose) if context else False,
         )
 
         # Call the handler with Pydantic model
@@ -868,6 +948,6 @@ def organize_command(
             raise typer.Exit(exit_code)
 
     except ValueError as e:
-        logger.error(f"Validation error: {e}")
+        logger.exception("Validation error")
         typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e

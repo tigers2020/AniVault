@@ -7,6 +7,7 @@ encrypted API keys and other sensitive data using PIN-based encryption.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from anivault.security.encryption import DecryptionError, EncryptionService
 from anivault.shared.constants.system import FileSystem
@@ -319,7 +320,7 @@ class Keyring:
         key_file = self.keys_dir / key_name
         return key_file.exists()
 
-    def get_keyring_info(self) -> dict:
+    def get_keyring_info(self) -> dict[str, Any]:
         """
         Get information about the keyring system.
 

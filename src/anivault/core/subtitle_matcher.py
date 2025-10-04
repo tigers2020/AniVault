@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from anivault.core.models import ScannedFile
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.errors import (
+    AniVaultError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error
 
 logger = logging.getLogger(__name__)
@@ -119,10 +124,7 @@ class SubtitleMatcher:
             return True
 
         # Check for hash-based matching (common in anime releases)
-        if self._has_matching_hash(subtitle_name, video_name):
-            return True
-
-        return False
+        return bool(self._has_matching_hash(subtitle_name, video_name))
 
     def _clean_subtitle_name(self, name: str) -> str:
         """Clean subtitle filename for matching.
@@ -238,12 +240,26 @@ class SubtitleMatcher:
             return grouped_files
 
         except Exception as e:
-            log_operation_error(
-                logger=logger,
-                operation="group_files_with_subtitles",
-                error=e,
-                additional_context=context.additional_data if context else None,
-            )
+            if isinstance(e, AniVaultError):
+                log_operation_error(
+                    logger=logger,
+                    operation="group_files_with_subtitles",
+                    error=e,
+                    additional_context=context.additional_data if context else None,
+                )
+            else:
+                error = InfrastructureError(
+                    code=ErrorCode.SUBTITLE_GROUPING_FAILED,
+                    message=f"Failed to group files with subtitles: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    operation="group_files_with_subtitles",
+                    error=error,
+                    additional_context=context.additional_data if context else None,
+                )
             raise InfrastructureError(
                 code=ErrorCode.SUBTITLE_GROUPING_FAILED,
                 message=f"Failed to group files with subtitles: {e!s}",

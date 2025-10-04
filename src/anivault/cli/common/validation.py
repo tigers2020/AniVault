@@ -35,10 +35,9 @@ def create_validator(model: type[BaseModel]) -> Callable[[Any], Any]:
             # Create model instance with the value
             if hasattr(model, "model_fields") and "path" in model.model_fields:
                 instance = model(path=value)
-                return instance.path
-            else:
-                instance = model(value=value)
-                return instance.value
+                return getattr(instance, "path")
+            instance = model(value=value)
+            return getattr(instance, "value")
         except ValidationError as e:
             # Convert Pydantic validation error to Typer BadParameter
             error_messages = []
@@ -47,11 +46,13 @@ def create_validator(model: type[BaseModel]) -> Callable[[Any], Any]:
                 message = error.get("msg", "Validation failed")
                 error_messages.append(f"{field}: {message}")
 
+            msg = f"Validation failed: {'; '.join(error_messages)}"
             raise typer.BadParameter(
-                f"Validation failed: {'; '.join(error_messages)}",
+                msg,
             ) from e
         except Exception as e:
-            raise typer.BadParameter(f"Unexpected validation error: {e}") from e
+            msg = f"Unexpected validation error: {e}"
+            raise typer.BadParameter(msg) from e
 
     return validator
 
@@ -96,25 +97,32 @@ class NamingFormat(BaseModel):
         open_braces = format_str.count("{")
         close_braces = format_str.count("}")
         if open_braces != close_braces:
+            msg = f"Format string has mismatched braces: {open_braces} opening, {close_braces} closing"
             raise ValueError(
-                f"Format string has mismatched braces: {open_braces} opening, {close_braces} closing",
+                msg,
             )
 
         # Check for invalid placeholders
         invalid_placeholders = found_placeholders - valid_placeholders
         if invalid_placeholders:
-            raise ValueError(
+            msg = (
                 f"Invalid placeholders found: {', '.join(sorted(invalid_placeholders))}. "
-                f"Valid placeholders: {', '.join(sorted(valid_placeholders))}",
+                f"Valid placeholders: {', '.join(sorted(valid_placeholders))}"
+            )
+            raise ValueError(
+                msg,
             )
 
         # Check if at least one valid placeholder is present
         if not any(
             placeholder in valid_placeholders for placeholder in found_placeholders
         ):
-            raise ValueError(
+            msg = (
                 f"Format string must contain at least one valid placeholder. "
-                f"Valid placeholders: {', '.join(sorted(valid_placeholders))}",
+                f"Valid placeholders: {', '.join(sorted(valid_placeholders))}"
+            )
+            raise ValueError(
+                msg,
             )
 
         return format_str

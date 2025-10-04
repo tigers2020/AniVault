@@ -17,7 +17,7 @@ from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.progress import create_progress_manager
 from anivault.cli.scan_handler import _handle_scan_command
 from anivault.shared.errors import ApplicationError
-from anivault.shared.logging import get_logger
+from anivault.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -58,11 +58,11 @@ def handle_run_command(args: Any) -> int:  # noqa: PLR0911
         console = Console()
         context = get_cli_context()
         progress_manager = create_progress_manager(
-            disabled=context and context.is_json_output_enabled(),
+            disabled=bool(context and context.is_json_output_enabled()),
         )
 
         # Collect run data for JSON output
-        run_data = {
+        run_data: dict[str, Any] = {
             "workflow_summary": {
                 "directory": str(directory),
                 "extensions": args.extensions,

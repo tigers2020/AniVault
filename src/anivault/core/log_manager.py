@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError, parse_obj_as
 
@@ -118,7 +119,7 @@ class OperationLogManager:
         """
         return datetime.now().strftime("%Y%m%d-%H%M%S")
 
-    def _serialize_plan_data(self, plan: list[FileOperation]) -> list[dict]:
+    def _serialize_plan_data(self, plan: list[FileOperation]) -> list[dict[str, Any]]:
         """Serialize FileOperation objects to dictionaries.
 
         Args:
@@ -140,7 +141,7 @@ class OperationLogManager:
 
         return plan_data
 
-    def _write_log_file(self, log_path: Path, plan_data: list[dict]) -> None:
+    def _write_log_file(self, log_path: Path, plan_data: list[dict[str, Any]]) -> None:
         """Write serialized plan data to log file.
 
         Args:

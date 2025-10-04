@@ -12,9 +12,15 @@ import threading
 import time
 from typing import Any
 
+from anivault.core.models import ScannedFile as ProcessedFile
 from anivault.core.pipeline.utils import BoundedQueue
-from anivault.shared.constants import Pipeline
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.constants import NetworkConfig, Pipeline
+from anivault.shared.errors import (
+    AniVaultError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 
@@ -91,10 +97,23 @@ class ResultCollector(threading.Thread):
                     operation="poll_once",
                     context=context.to_dict(),
                 )
-            else:
+            elif isinstance(e, AniVaultError):
                 log_operation_error(
                     logger=logger,
                     error=e,
+                    operation="poll_once",
+                    context=context.to_dict(),
+                )
+            else:
+                error = InfrastructureError(
+                    code=ErrorCode.APPLICATION_ERROR,
+                    message=f"Pipeline polling failed: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
                     operation="poll_once",
                     context=context.to_dict(),
                 )
@@ -108,8 +127,8 @@ class ResultCollector(threading.Thread):
     def run(
         self,
         max_idle_loops: int | None = None,
-        idle_sleep: float = 0.05,
-        get_timeout: float = 1.0,  # Increased timeout for better reliability
+        idle_sleep: float = NetworkConfig.DEFAULT_TIMEOUT,
+        get_timeout: float = NetworkConfig.DEFAULT_TIMEOUT,  # Increased timeout for better reliability
     ) -> None:
         """Main collector loop that processes results from the output queue.
 
@@ -191,10 +210,23 @@ class ResultCollector(threading.Thread):
                     operation="collector_run",
                     context=context.to_dict(),
                 )
-            else:
+            elif isinstance(e, AniVaultError):
                 log_operation_error(
                     logger=logger,
                     error=e,
+                    operation="collector_run",
+                    context=context.to_dict(),
+                )
+            else:
+                error = InfrastructureError(
+                    code=ErrorCode.APPLICATION_ERROR,
+                    message=f"Collector run failed: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
                     operation="collector_run",
                     context=context.to_dict(),
                 )
@@ -304,10 +336,23 @@ class ResultCollector(threading.Thread):
                     operation="store_result",
                     context=context.to_dict(),
                 )
-            else:
+            elif isinstance(e, AniVaultError):
                 log_operation_error(
                     logger=logger,
                     error=e,
+                    operation="store_result",
+                    context=context.to_dict(),
+                )
+            else:
+                error = InfrastructureError(
+                    code=ErrorCode.APPLICATION_ERROR,
+                    message=f"Failed to store result: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
                     operation="store_result",
                     context=context.to_dict(),
                 )
@@ -347,10 +392,23 @@ class ResultCollector(threading.Thread):
                 operation="queue_operation",
                 context=context.to_dict(),
             )
-        else:
+        elif isinstance(error, AniVaultError):
             log_operation_error(
                 logger=logger,
                 error=error,
+                operation="queue_operation",
+                context=context.to_dict(),
+            )
+        else:
+            infrastructure_error = InfrastructureError(
+                code=ErrorCode.APPLICATION_ERROR,
+                message=f"Queue operation failed: {error!s}",
+                context=context,
+                original_error=error,
+            )
+            log_operation_error(
+                logger=logger,
+                error=infrastructure_error,
                 operation="queue_operation",
                 context=context.to_dict(),
             )
@@ -468,7 +526,10 @@ class ResultCollector(threading.Thread):
         if not successful_results:
             return 0.0
 
-        total_size = sum(result.get("file_size", 0) for result in successful_results)
+        total_size = sum(
+            result.get("file_size", 0) if isinstance(result.get("file_size"), (int, float)) else 0
+            for result in successful_results
+        )
         return total_size / len(successful_results)
 
     def get_file_extensions(self) -> list[str]:
@@ -522,12 +583,16 @@ class ResultCollector(threading.Thread):
 
         file_extensions = sorted(
             {
-                r.get("file_extension")
+                ext
                 for r in successful_results
-                if r.get("file_extension")
+                if (ext := r.get("file_extension")) is not None
             },
         )
-        worker_ids = sorted({r.get("worker_id") for r in results if r.get("worker_id")})
+        worker_ids = sorted({
+            worker_id
+            for r in results
+            if (worker_id := r.get("worker_id")) is not None
+        })
 
         return {
             "total_results": total_results,
@@ -582,7 +647,7 @@ class ResultCollectorPool:
 
     def __init__(
         self,
-        output_queue,
+        output_queue: BoundedQueue,
         num_collectors: int = 1,
         collector_id_prefix: str | None = None,
     ) -> None:
@@ -710,14 +775,16 @@ class ResultCollectorPool:
             ),
             "file_extensions": sorted(
                 {
-                    r.get("file_extension")
+                    ext
                     for r in successful_results
-                    if r.get("file_extension")
+                    if (ext := r.get("file_extension")) is not None
                 },
             ),
-            "worker_ids": sorted(
-                {r.get("worker_id") for r in all_results if r.get("worker_id")},
-            ),
+            "worker_ids": sorted({
+                worker_id
+                for r in all_results
+                if (worker_id := r.get("worker_id")) is not None
+            }),
         }
 
     def clear_all_results(self) -> None:

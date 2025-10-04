@@ -15,6 +15,10 @@ from anivault.shared.constants import (
     Application,
     Config,
     LogLevels,
+    RunDefaults,
+    TMDB,
+    TMDBConfig,
+    Timeout,
 )
 
 
@@ -29,7 +33,7 @@ class AppSettings(BaseModel):
         description="Logging level",
     )
     max_workers: int = Field(
-        default=4,
+        default=RunDefaults.DEFAULT_MAX_WORKERS,
         ge=1,
         le=16,
         description="Maximum worker threads",
@@ -41,7 +45,7 @@ class TmdbSettings(BaseModel):
 
     api_key: str = Field(default="", description="TMDB API key")
     base_url: str = Field(
-        default="https://api.themoviedb.org/3",
+        default=TMDB.API_BASE_URL,
         description="TMDB API base URL",
     )
     language: str = Field(
@@ -49,13 +53,13 @@ class TmdbSettings(BaseModel):
         description="Preferred language for API responses",
     )
     timeout: int = Field(
-        default=30,
+        default=Timeout.TMDB,
         ge=1,
         le=300,
         description="Request timeout in seconds",
     )
     rate_limit: int = Field(
-        default=35,
+        default=TMDBConfig.RATE_LIMIT_RPS,
         ge=1,
         le=50,
         description="Requests per second limit",

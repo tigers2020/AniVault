@@ -16,6 +16,8 @@ from typing import Any
 
 from anivault.core.filter import FilterEngine
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
+from anivault.shared.constants import ProcessingConfig
+from anivault.shared.constants.network import NetworkConfig
 
 
 class DirectoryScanner(threading.Thread):
@@ -41,7 +43,7 @@ class DirectoryScanner(threading.Thread):
         max_workers: int | None = None,
         quiet: bool = False,
         filter_engine: FilterEngine | None = None,
-        batch_size: int = 100,
+        batch_size: int = ProcessingConfig.DEFAULT_BATCH_SIZE,
         progress_callback: Callable[[dict[str, Any]], None] | None = None,
         cancel_event: threading.Event | None = None,
     ) -> None:
@@ -75,9 +77,7 @@ class DirectoryScanner(threading.Thread):
         self._lock = threading.Lock()
         self._quiet_mode = quiet
         # Adaptive threshold for parallel processing
-        self.parallel_threshold = (
-            1000  # Minimum files to benefit from parallel processing
-        )
+        self.parallel_threshold = ProcessingConfig.PARALLEL_THRESHOLD
         self.filter_engine = filter_engine
         self.batch_size = batch_size
         self.progress_callback = progress_callback
@@ -255,7 +255,7 @@ class DirectoryScanner(threading.Thread):
         Returns:
             Tuple of (list of file paths found, number of directories scanned).
         """
-        found_files = []
+        found_files: list[Path] = []
         directories_scanned = 0
 
         try:
@@ -323,7 +323,7 @@ class DirectoryScanner(threading.Thread):
         Returns:
             List of immediate subdirectory paths.
         """
-        subdirectories = []
+        subdirectories: list[Path] = []
 
         try:
             if not self.root_path.exists() or not self.root_path.is_dir():
@@ -358,7 +358,7 @@ class DirectoryScanner(threading.Thread):
         Returns:
             List of file paths found in the root directory.
         """
-        root_files = []
+        root_files: list[Path] = []
 
         try:
             if not self.root_path.exists() or not self.root_path.is_dir():
@@ -456,7 +456,7 @@ class DirectoryScanner(threading.Thread):
                 break
 
             try:
-                self.input_queue.put(file_path, timeout=1.0)
+                self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
             except Exception as e:
                 print(f"Warning: Failed to queue file {file_path}: {e}")
@@ -512,7 +512,7 @@ class DirectoryScanner(threading.Thread):
         finally:
             # Signal completion with sentinel
             try:
-                self.input_queue.put(None, timeout=1.0)
+                self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
             except Exception as e:
                 print(f"Warning: Failed to put sentinel value: {e}")
 
@@ -584,7 +584,7 @@ class DirectoryScanner(threading.Thread):
                     print(f"Error processing subdirectory {subdir}: {e}")
                     continue
 
-    def get_scan_summary(self) -> dict:
+    def get_scan_summary(self) -> dict[str, Any]:
         """Get a summary of the scanning results.
 
         Returns:

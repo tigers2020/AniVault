@@ -61,7 +61,7 @@ class ConfigManager:
                 config_data = toml.load(f)
 
             logger.debug("Successfully loaded TOML config from: %s", self.config_path)
-            return config_data
+            return config_data if isinstance(config_data, dict) else {}
 
         except toml.TomlDecodeError as e:
             logger.warning("Malformed TOML file %s: %s", self.config_path, e)
@@ -239,7 +239,7 @@ class ConfigManager:
         """
         try:
             if config_dict is None:
-                config_dict = self._get_merged_config()
+                config_dict = self.get_merged_config()
 
             # Validate using Pydantic model
             TomlConfig.model_validate(config_dict)

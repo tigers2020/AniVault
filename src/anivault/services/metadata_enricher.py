@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from anivault.core.parser.models import ParsingResult
+from anivault.shared.constants import APIFields
 from anivault.shared.constants.system import (
     MediaType,
 )
@@ -47,7 +48,7 @@ class EnrichedMetadata:
     file_info: ParsingResult
     tmdb_data: dict[str, Any] | None = None
     match_confidence: float = 0.0
-    enrichment_status: str = "pending"  # pending, success, failed, skipped
+    enrichment_status: str = APIFields.ENRICHMENT_STATUS_PENDING
 
 
 class MetadataEnricher:
@@ -113,22 +114,26 @@ class MetadataEnricher:
 
         try:
             # Search for matching media
+            if self.tmdb_client is None:
+                raise ValueError("TMDB client is not initialized")
             search_results = await self.tmdb_client.search_media(file_info.title)
 
             if not search_results:
-                enriched.enrichment_status = "failed"
+                enriched.enrichment_status = APIFields.ENRICHMENT_STATUS_FAILED
                 return enriched
 
             # Find the best match
             best_match = self._find_best_match(file_info, search_results)
 
             if best_match is None:
-                enriched.enrichment_status = "failed"
+                enriched.enrichment_status = APIFields.ENRICHMENT_STATUS_FAILED
                 return enriched
 
             # Get detailed information if we have a good match
             if best_match["match_confidence"] >= self.min_confidence:
                 try:
+                    if self.tmdb_client is None:
+                        raise ValueError("TMDB client is not initialized")
                     details = await self.tmdb_client.get_media_details(
                         best_match["id"],
                         best_match["media_type"],
@@ -298,8 +303,13 @@ class MetadataEnricher:
                     failed_result = EnrichedMetadata(file_info=file_infos[i])
                     failed_result.enrichment_status = "failed"
                     enriched_results.append(failed_result)
-                else:
+                elif isinstance(result, EnrichedMetadata):
                     enriched_results.append(result)
+                else:
+                    # Handle unexpected result type
+                    failed_result = EnrichedMetadata(file_info=file_infos[i])
+                    failed_result.enrichment_status = "failed"
+                    enriched_results.append(failed_result)
 
             log_operation_success(
                 logger=logger,
@@ -629,7 +639,7 @@ class MetadataEnricher:
         Returns:
             Dictionary containing enricher statistics
         """
-        stats = {
+        stats: dict[str, Any] = {
             "min_confidence": self.min_confidence,
             "enable_async": self.enable_async,
         }

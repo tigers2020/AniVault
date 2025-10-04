@@ -29,15 +29,22 @@ from anivault.cli.rollback_handler import rollback_command
 from anivault.cli.run_handler import run_command
 from anivault.cli.scan_handler import scan_command
 from anivault.cli.verify_handler import verify_command
+from anivault.shared.constants import (
+    CLICommands,
+    CLIDefaults,
+    CLIHelp,
+    CLIOptions,
+    FileSystem,
+)
 
 # Version information
-__version__ = "0.1.0"
+__version__ = CLIDefaults.VERSION
 
 
 def version_callback(value: bool) -> None:
     """Print version information and exit."""
     if value:
-        typer.echo(f"AniVault CLI v{__version__}")
+        typer.echo(CLIHelp.VERSION_TEXT.format(version=__version__))
         raise typer.Exit
 
 
@@ -74,10 +81,10 @@ def main_callback(
 
 # Create the main Typer app with callback
 app = typer.Typer(
-    name="anivault",
-    help="AniVault - Advanced Anime Collection Management System",
+    name=CLIHelp.APP_NAME,
+    help=CLIHelp.APP_DESCRIPTION,
     add_completion=True,  # Enable shell completion support
-    rich_markup_mode="rich",  # Enable rich formatting
+    rich_markup_mode=CLIHelp.APP_STYLE,  # Enable rich formatting
     no_args_is_help=True,
     invoke_without_command=True,
 )
@@ -90,52 +97,40 @@ def main(
     json_output: Annotated[bool, json_output_option] = False,
     version: Annotated[bool, version_option] = False,
 ) -> None:
-    """
-    AniVault - Advanced Anime Collection Management System.
-
-    A comprehensive tool for organizing anime collections with TMDB integration,
-    intelligent file matching, and automated organization capabilities.
-    """
     # Process the common options
     main_callback(verbose, log_level, json_output, version)
 
 
-@app.command("scan")
+@app.command(CLICommands.SCAN)
 def scan_command_typer(
-    directory: Path = typer.Argument(  # type: ignore[misc]
-        ...,
-        help="Directory to scan for anime files",
+    directory: Path = typer.Argument(        ...,
+        help=CLIHelp.SCAN_DIRECTORY_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(  # type: ignore[misc]
-        True,
-        "--recursive",
-        "-r",
-        help="Scan directories recursively",
+    recursive: bool = typer.Option(        True,
+        CLIOptions.RECURSIVE,
+        CLIOptions.RECURSIVE_SHORT,
+        help=CLIHelp.SCAN_RECURSIVE_HELP,
     ),
-    include_subtitles: bool = typer.Option(  # type: ignore[misc]
-        True,
-        "--include-subtitles",
-        help="Include subtitle files in scan",
+    include_subtitles: bool = typer.Option(        True,
+        CLIOptions.INCLUDE_SUBTITLES,
+        help=CLIHelp.SCAN_INCLUDE_SUBTITLES_HELP,
     ),
-    include_metadata: bool = typer.Option(  # type: ignore[misc]
-        True,
-        "--include-metadata",
-        help="Include metadata files in scan",
+    include_metadata: bool = typer.Option(        True,
+        CLIOptions.INCLUDE_METADATA,
+        help=CLIHelp.SCAN_INCLUDE_METADATA_HELP,
     ),
-    output_file: Path | None = typer.Option(  # type: ignore[misc]
-        None,
-        "--output",
-        "-o",
-        help="Output file for scan results (JSON format)",
+    output_file: Path | None = typer.Option(        None,
+        CLIOptions.OUTPUT,
+        CLIOptions.OUTPUT_SHORT,
+        help=CLIHelp.SCAN_OUTPUT_HELP,
         writable=True,
     ),
-    json: bool = typer.Option(  # type: ignore[misc]
-        False,
-        "--json",
+    json_output: bool = typer.Option(        False,
+        CLIOptions.JSON,
         help="Output results in JSON format",
     ),
 ) -> None:
@@ -181,42 +176,36 @@ def scan_command_typer(
     )
 
 
-@app.command("match")
+@app.command(CLICommands.MATCH)
 def match_command_typer(
-    directory: Path = typer.Argument(  # type: ignore[misc]
-        ...,
-        help="Directory to match anime files against TMDB database",
+    directory: Path = typer.Argument(        ...,
+        help=CLIHelp.MATCH_DIRECTORY_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(  # type: ignore[misc]
-        True,
+    recursive: bool = typer.Option(        True,
         "--recursive/--no-recursive",
-        "-r",
-        help="Match files recursively in subdirectories",
+        CLIOptions.RECURSIVE_SHORT,
+        help=CLIHelp.MATCH_RECURSIVE_HELP,
     ),
-    include_subtitles: bool = typer.Option(  # type: ignore[misc]
-        True,
+    include_subtitles: bool = typer.Option(        True,
         "--include-subtitles/--no-include-subtitles",
-        help="Include subtitle files in matching",
+        help=CLIHelp.MATCH_INCLUDE_SUBTITLES_HELP,
     ),
-    include_metadata: bool = typer.Option(  # type: ignore[misc]
-        True,
+    include_metadata: bool = typer.Option(        True,
         "--include-metadata/--no-include-metadata",
-        help="Include metadata files in matching",
+        help=CLIHelp.MATCH_INCLUDE_METADATA_HELP,
     ),
-    output_file: Path | None = typer.Option(  # type: ignore[misc]
-        None,
+    output_file: Path | None = typer.Option(        None,
         "--output",
-        "-o",
+        CLIOptions.OUTPUT_SHORT,
         help="Output file for match results (JSON format)",
         writable=True,
     ),
-    json: bool = typer.Option(  # type: ignore[misc]
-        False,
-        "--json",
+    json_output: bool = typer.Option(        False,
+        CLIOptions.JSON,
         help="Output results in JSON format",
     ),
 ) -> None:
@@ -262,108 +251,87 @@ def match_command_typer(
         include_subtitles,
         include_metadata,
         output_file,
+        json_output,
     )
 
 
-@app.command("organize")
+@app.command(CLICommands.ORGANIZE)
 def organize_command_typer(
-    directory: Path = typer.Argument(  # type: ignore[misc]
-        ...,
-        help="Directory containing scanned and matched anime files to organize",
+    directory: Path = typer.Argument(        ...,
+        help=CLIHelp.ORGANIZE_DIRECTORY_HELP,
         callback=create_validator(DirectoryPath),
     ),
-    dry_run: bool = typer.Option(  # type: ignore[misc]
-        False,
-        "--dry-run",
-        help="Show what would be organized without actually moving files",
+    dry_run: bool = typer.Option(        CLIDefaults.DEFAULT_DRY_RUN,
+        CLIOptions.DRY_RUN,
+        help=CLIHelp.ORGANIZE_DRY_RUN_HELP,
     ),
-    yes: bool = typer.Option(  # type: ignore[misc]
-        False,
-        "--yes",
-        "-y",
-        help="Skip confirmation prompts and proceed with organization",
+    yes: bool = typer.Option(        CLIDefaults.DEFAULT_YES,
+        CLIOptions.YES,
+        CLIOptions.YES_SHORT,
+        help=CLIHelp.ORGANIZE_YES_HELP,
     ),
-    json: bool = typer.Option(  # type: ignore[misc]
-        False,
-        "--json",
-        help="Output results in JSON format",
+    enhanced: bool = typer.Option(        False,
+        "--enhanced",
+        help="Use enhanced organization with grouping and Korean titles",
     ),
-    destination: str = typer.Option(  # type: ignore[misc]
-        "Anime",
-        "--destination",
-        "-d",
-        help="Destination directory for organized files",
+    destination: str = typer.Option(        CLIDefaults.DEFAULT_DESTINATION,
+        CLIOptions.DESTINATION,
+        CLIOptions.DESTINATION_SHORT,
+        help=CLIHelp.ORGANIZE_DESTINATION_HELP,
+    ),
+    extensions: str = typer.Option(        "mkv,mp4,avi,mov,wmv,flv,webm,m4v",
+        "--extensions",
+        help="Comma-separated list of video file extensions to process",
+    ),
+    json_output: bool = typer.Option(        CLIDefaults.DEFAULT_JSON,
+        CLIOptions.JSON,
+        help=CLIHelp.ORGANIZE_JSON_HELP,
     ),
 ) -> None:
-    """
-    Organize anime files into a structured directory layout.
-
-    This command takes scanned and matched anime files and organizes them
-    into a clean directory structure based on the TMDB metadata. It can
-    create series folders, season subfolders, and rename files consistently.
-
-    Examples:
-        # Organize files in current directory (with confirmation)
-        anivault organize .
-
-        # Preview what would be organized without making changes
-        anivault organize . --dry-run
-
-        # Organize without confirmation prompts
-        anivault organize . --yes
-    """
     # Call the organize command
-    organize_command(directory, dry_run, yes, json, destination)
+    organize_command(directory, dry_run, yes, enhanced, destination, extensions, json_output)
 
 
-@app.command("run")
+@app.command(CLICommands.RUN)
 def run_command_typer(
-    directory: Path = typer.Argument(  # type: ignore[misc]
-        ...,
-        help="Directory containing anime files to process",
+    directory: Path = typer.Argument(        ...,
+        help=CLIHelp.RUN_DIRECTORY_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
         readable=True,
     ),
-    recursive: bool = typer.Option(  # type: ignore[misc]
-        True,
+    recursive: bool = typer.Option(        True,
         "--recursive/--no-recursive",
-        "-r",
-        help="Process files recursively in subdirectories",
+        CLIOptions.RECURSIVE_SHORT,
+        help=CLIHelp.RUN_RECURSIVE_HELP,
     ),
-    include_subtitles: bool = typer.Option(  # type: ignore[misc]
-        True,
+    include_subtitles: bool = typer.Option(        True,
         "--include-subtitles/--no-include-subtitles",
-        help="Include subtitle files in processing",
+        help=CLIHelp.RUN_INCLUDE_SUBTITLES_HELP,
     ),
-    include_metadata: bool = typer.Option(  # type: ignore[misc]
-        True,
+    include_metadata: bool = typer.Option(        True,
         "--include-metadata/--no-include-metadata",
-        help="Include metadata files in processing",
+        help=CLIHelp.RUN_INCLUDE_METADATA_HELP,
     ),
-    output_file: Path | None = typer.Option(  # type: ignore[misc]
-        None,
+    output_file: Path | None = typer.Option(        None,
         "--output",
-        "-o",
-        help="Output file for processing results (JSON format)",
+        CLIOptions.OUTPUT_SHORT,
+        help=CLIHelp.RUN_OUTPUT_HELP,
         writable=True,
     ),
-    dry_run: bool = typer.Option(  # type: ignore[misc]
-        False,
+    dry_run: bool = typer.Option(        False,
         "--dry-run",
-        help="Show what would be processed without actually processing files",
+        help=CLIHelp.RUN_DRY_RUN_HELP,
     ),
-    yes: bool = typer.Option(  # type: ignore[misc]
-        False,
+    yes: bool = typer.Option(        False,
         "--yes",
-        "-y",
-        help="Skip confirmation prompts and proceed with processing",
+        CLIOptions.YES_SHORT,
+        help=CLIHelp.RUN_YES_HELP,
     ),
-    json: bool = typer.Option(  # type: ignore[misc]
-        False,
-        "--json",
-        help="Output results in JSON format",
+    json_output: bool = typer.Option(        False,
+        CLIOptions.JSON,
+        help=CLIHelp.RUN_JSON_HELP,
     ),
 ) -> None:
     """
@@ -419,16 +387,14 @@ def run_command_typer(
     )
 
 
-@app.command("log")
+@app.command(CLICommands.LOG)
 def log_command_typer(
-    command: str = typer.Argument(  # type: ignore[misc]
-        ...,
-        help="Log command to execute (list, show, tail)",
+    command: str = typer.Argument(        ...,
+        help=CLIHelp.LOG_HELP,
     ),
-    log_dir: Path = typer.Option(  # type: ignore[misc]
-        Path("logs"),
-        "--log-dir",
-        help="Directory containing log files",
+    log_dir: Path = typer.Option(        Path(FileSystem.LOG_DIRECTORY),
+        CLIOptions.LOG_DIR,
+        help=CLIHelp.LOG_DIR_HELP,
         exists=True,
         file_okay=False,
         dir_okay=True,
@@ -458,22 +424,19 @@ def log_command_typer(
     log_command(command, log_dir)
 
 
-@app.command("rollback")
+@app.command(CLICommands.ROLLBACK)
 def rollback_command_typer(
-    log_id: str = typer.Argument(  # type: ignore[misc]
-        ...,
-        help="ID of the operation log to rollback",
+    log_id: str = typer.Argument(        ...,
+        help=CLIHelp.ROLLBACK_LOG_ID_HELP,
     ),
-    dry_run: bool = typer.Option(  # type: ignore[misc]
-        False,
+    dry_run: bool = typer.Option(        False,
         "--dry-run",
-        help="Show what would be rolled back without actually moving files",
+        help=CLIHelp.ROLLBACK_DRY_RUN_HELP,
     ),
-    yes: bool = typer.Option(  # type: ignore[misc]
-        False,
+    yes: bool = typer.Option(        False,
         "--yes",
-        "-y",
-        help="Skip confirmation prompts and proceed with rollback",
+        CLIOptions.YES_SHORT,
+        help=CLIHelp.ROLLBACK_YES_HELP,
     ),
 ) -> None:
     """
@@ -497,35 +460,17 @@ def rollback_command_typer(
     rollback_command(log_id, dry_run, yes)
 
 
-@app.command("verify")
+@app.command(CLICommands.VERIFY)
 def verify_command_typer(
-    tmdb: bool = typer.Option(  # type: ignore[misc]
-        False,
+    tmdb: bool = typer.Option(        False,
         "--tmdb",
-        help="Verify TMDB API connectivity",
+        help=CLIHelp.VERIFY_TMDB_HELP,
     ),
-    all_components: bool = typer.Option(  # type: ignore[misc]
-        False,
+    all_components: bool = typer.Option(        False,
         "--all",
-        help="Verify all components",
+        help=CLIHelp.VERIFY_ALL_HELP,
     ),
 ) -> None:
-    """
-    Verify system components and connectivity.
-
-    This command allows you to verify that various system components are working
-    correctly, including TMDB API connectivity and other system dependencies.
-
-    Examples:
-        # Verify TMDB API connectivity
-        anivault verify --tmdb
-
-        # Verify all components
-        anivault verify --all
-
-        # Verify with JSON output
-        anivault verify --tmdb --json-output
-    """
     # Call the verify command
     verify_command(tmdb, all_components)
 

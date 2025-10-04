@@ -13,7 +13,10 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+from anivault.core.models import ScannedFile as ProcessedFile
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
+from anivault.shared.constants import ProcessingConfig
+from anivault.shared.constants.network import NetworkConfig
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 
@@ -42,7 +45,7 @@ class ParallelDirectoryScanner(threading.Thread):
         input_queue: BoundedQueue,
         stats: ScanStatistics,
         max_workers: int | None = None,
-        chunk_size: int = 10,
+        chunk_size: int = ProcessingConfig.DEFAULT_BATCH_SIZE,
     ) -> None:
         """Initialize the parallel directory scanner.
 
@@ -73,7 +76,7 @@ class ParallelDirectoryScanner(threading.Thread):
         Returns:
             Tuple of (list of file paths found, number of directories scanned).
         """
-        found_files = []
+        found_files: list[Path] = []
         directories_scanned = 0
 
         try:
@@ -118,7 +121,7 @@ class ParallelDirectoryScanner(threading.Thread):
         Returns:
             List of immediate subdirectory paths.
         """
-        subdirectories = []
+        subdirectories: list[Path] = []
 
         try:
             if not self.root_path.exists() or not self.root_path.is_dir():
@@ -157,7 +160,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 break
 
             try:
-                self.input_queue.put(file_path, timeout=1.0)
+                self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
             except Exception as e:
                 print(f"Warning: Failed to queue file {file_path}: {e}")
@@ -186,7 +189,7 @@ class ParallelDirectoryScanner(threading.Thread):
         self,
         executor: ThreadPoolExecutor,
         subdirectories: list[Path],
-    ) -> dict[Future, Path]:
+    ) -> dict[Future[ProcessedFile], Path]:
         """Submit scan jobs for given subdirectories to the executor.
 
         Args:
@@ -219,9 +222,15 @@ class ParallelDirectoryScanner(threading.Thread):
                     future_to_dir[future] = subdir
 
                 except RuntimeError as e:
+                    error = InfrastructureError(
+                        code=ErrorCode.WORKER_POOL_ERROR,
+                        message=f"Failed to submit scan jobs: {e!s}",
+                        context=context,
+                        original_error=e,
+                    )
                     log_operation_error(
                         operation="submit_scan_jobs",
-                        error=e,
+                        error=error,
                         context=context,
                         logger=logger,
                     )
@@ -256,7 +265,7 @@ class ParallelDirectoryScanner(threading.Thread):
             )
             raise error from e
 
-    def _await_scan_completion(self, future_to_dir: dict[Future, Path]) -> None:
+    def _await_scan_completion(self, future_to_dir: dict[Future[ProcessedFile], Path]) -> None:
         """Wait for scan completion and process results.
 
         Args:
@@ -285,11 +294,12 @@ class ParallelDirectoryScanner(threading.Thread):
                             additional_data={"subdirectory": str(subdir)},
                         )
 
+                        exception = future.exception()
                         error = InfrastructureError(
                             ErrorCode.SCANNER_ERROR,
-                            f"Individual scan job failed for directory {subdir}: {future.exception()}",
+                            f"Individual scan job failed for directory {subdir}: {exception}",
                             error_context,
-                            original_error=future.exception(),
+                            original_error=exception if isinstance(exception, Exception) else None,
                         )
                         log_operation_error(
                             logger=logger,
@@ -436,7 +446,7 @@ class ParallelDirectoryScanner(threading.Thread):
         finally:
             # Signal completion with sentinel
             try:
-                self.input_queue.put(None, timeout=1.0)
+                self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
             except Exception as e:
                 print(f"Warning: Failed to put sentinel value: {e}")
 
@@ -446,7 +456,7 @@ class ParallelDirectoryScanner(threading.Thread):
         Returns:
             List of file paths found in the root directory.
         """
-        root_files = []
+        root_files: list[Path] = []
 
         try:
             if not self.root_path.exists() or not self.root_path.is_dir():

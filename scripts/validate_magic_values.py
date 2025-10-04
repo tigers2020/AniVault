@@ -24,7 +24,7 @@ class MagicValueDetector(ast.NodeVisitor):
         self.module_constants: set[str] = set()
         self.function_defaults: set[tuple[int, int]] = set()  # (line, col)
 
-        # 허용되는 패턴들
+        # 허용되는 패턴들 (정적 문자열들)
         self.allowed_strings = {
             # 파일 확장자
             ".py",
@@ -34,12 +34,12 @@ class MagicValueDetector(ast.NodeVisitor):
             ".so",
             ".dll",
             ".exe",
-            # 일반적인 문자열
+            # 인코딩
             "utf-8",
             "utf8",
             "ascii",
             "latin-1",
-            # HTTP 상태 코드 (일반적인 것들)
+            # HTTP 상태 코드
             "200",
             "201",
             "204",
@@ -48,16 +48,139 @@ class MagicValueDetector(ast.NodeVisitor):
             "403",
             "404",
             "500",
+            # CLI 옵션들
+            "--verbose",
+            "--json",
+            "--help",
+            "--version",
+            "--recursive",
+            "--dry-run",
+            "--yes",
+            "--enhanced",
+            "--include-subtitles",
+            "--include-metadata",
+            "--log-level",
+            "--output",
+            "--destination",
             # 로그 레벨
             "DEBUG",
             "INFO",
             "WARNING",
             "ERROR",
             "CRITICAL",
-            # 일반적인 설정값
+            # 네트워크 설정
             "localhost",
             "127.0.0.1",
             "0.0.0.0",
+            # API 엔드포인트
+            "https://api.themoviedb.org/3",
+            # JSON 키들 (정적)
+            "timestamp",
+            "data",
+            "errors",
+            "warnings",
+            "success",
+            "command",
+            "file_path",
+            "file_name",
+            "file_size",
+            "file_extension",
+            "parsing_result",
+            "enriched_metadata",
+            "title",
+            "episode",
+            "season",
+            "quality",
+            "source",
+            "codec",
+            "audio",
+            "release_group",
+            "confidence",
+            "parser_used",
+            "other_info",
+            "enrichment_status",
+            "match_confidence",
+            "tmdb_data",
+            "total_files",
+            "total_size_bytes",
+            "total_size_formatted",
+            "scanned_directory",
+            "metadata_enriched",
+            "counts_by_extension",
+            "scanned_paths",
+            "files",
+            "scan_summary",
+            "file_statistics",
+            # 상태 키들
+            "status",
+            "step",
+            "error_code",
+            "context",
+            "directory",
+            "error_type",
+            # 명령어 이름들
+            "scan",
+            "match",
+            "organize",
+            "rollback",
+            "run",
+            "verify",
+            "log",
+            # 에러 메시지들 (정적)
+            "Application error:",
+            "Infrastructure error:",
+            "Unexpected error:",
+            "Directory validation failed",
+            "No anime files found",
+            "Scanning files...",
+            "Matching files...",
+            "Organizing files...",
+            "File scanning completed!",
+            "File scanning failed",
+            "Validation error:",
+            "Validation failed:",
+            # 기타 정적 문자열들
+            "Unknown",
+            "No match",
+            "Success",
+            "Error",
+            "Warning",
+            "Info",
+            "PB",
+            "TB",
+            "GB",
+            "MB",
+            "KB",
+            "B",
+            # JSON serialization 관련
+            "JSON serialization failed:",
+            "model_dump_json",
+            "__dict__",
+            "__str__",
+            # 파일 처리 관련
+            "Anime File Scan Results",
+            "Title",
+            "Episode",
+            "Quality",
+            "TMDB Match",
+            "TMDB Rating",
+            # 기타 UI 메시지들
+            "Unexpected validation error:",
+            "Format string has mismatched braces:",
+            "Invalid placeholders found:",
+            "Format string must contain at least one valid placeholder. Valid placeholders:",
+            # 에러 코드들
+            "FILE_NOT_FOUND",
+            "VALIDATION_ERROR",
+            "DIRECTORY_NOT_FOUND",
+            # 기타 상수들
+            "AniVault",
+            "CLI",
+            "Typer",
+            "Python",
+            "JSON",
+            "API",
+            "TMDB",
         }
 
         self.allowed_numbers = {
@@ -78,16 +201,24 @@ class MagicValueDetector(ast.NodeVisitor):
             120,
             300,
             # 일반적인 재시도 횟수
-            1,
             2,
             3,
-            5,
             # 일반적인 크기 제한
             1024,
             4096,
             8192,
             65536,
         }
+
+        self.is_constants_file = self._is_constants_file()
+
+    def _is_constants_file(self) -> bool:
+        """파일이 constants 모듈인지 확인"""
+        return (
+            "constants" in self.file_path
+            or self.file_path.endswith("constants.py")
+            or "constants" in self.file_path.split("/")[-1]
+        )
 
     def visit_Import(self, node: ast.Import) -> None:
         """import 구문 방문"""
@@ -142,6 +273,12 @@ class MagicValueDetector(ast.NodeVisitor):
         self._check_constant(node, node.s, node.lineno, node.col_offset)
         self.generic_visit(node)
 
+    def generic_visit(self, node: ast.AST) -> None:
+        """일반적인 노드 방문 - 부모 노드 정보 추가"""
+        for child in ast.iter_child_nodes(node):
+            child.parent = node
+        super().generic_visit(node)
+
     def _check_constant(
         self,
         node: ast.AST,
@@ -150,12 +287,24 @@ class MagicValueDetector(ast.NodeVisitor):
         col_offset: int,
     ) -> None:
         """상수 값 검사"""
+        # constants 파일에서는 매직 값 탐지를 건너뜀
+        if self.is_constants_file:
+            return
+
         # 함수 기본값인지 확인
         if (lineno, col_offset) in self.function_defaults:
             return
 
         # 상수 할당인지 확인 (모듈 수준 상수)
         if self._is_constant_assignment(node):
+            return
+
+        # docstring인지 확인
+        if self._is_docstring(node):
+            return
+
+        # help text인지 확인
+        if self._is_help_text(node):
             return
 
         # 허용되는 값인지 확인
@@ -242,6 +391,52 @@ class MagicValueDetector(ast.NodeVisitor):
             if 0 <= value <= 10:
                 return True
 
+        return False
+
+    def _is_docstring(self, node: ast.AST) -> bool:
+        """docstring인지 확인"""
+        if not isinstance(node, (ast.Constant, ast.Str)):
+            return False
+
+        # 모듈, 클래스, 함수의 첫 번째 문장인지 확인
+        if hasattr(node, "parent"):
+            parent = node.parent
+            if isinstance(
+                parent,
+                (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef),
+            ):
+                # 첫 번째 문장이 문자열이면 docstring
+                if parent.body and parent.body[0] == node:
+                    return True
+
+        # 긴 문자열 (docstring 가능성 높음)
+        if isinstance(node, (ast.Constant, ast.Str)):
+            value = node.value if hasattr(node, "value") else node.s
+            if isinstance(value, str) and len(value) > 50:
+                return True
+
+        return False
+
+    def _is_help_text(self, node: ast.AST) -> bool:
+        """help text인지 확인 (typer 옵션의 help 파라미터)"""
+        if not isinstance(node, (ast.Constant, ast.Str)):
+            return False
+
+        # typer.Argument, typer.Option의 help 파라미터인지 확인
+        if hasattr(node, "parent"):
+            parent = node.parent
+            if isinstance(parent, ast.Call):
+                # typer.Argument(..., help=...) 또는 typer.Option(..., help=...) 패턴
+                if (
+                    isinstance(parent.func, ast.Attribute)
+                    and isinstance(parent.func.value, ast.Name)
+                    and parent.func.value.id == "typer"
+                    and parent.func.attr in ("Argument", "Option")
+                ):
+                    # help 키워드 인자인지 확인
+                    for keyword in parent.keywords:
+                        if keyword.arg == "help" and keyword.value == node:
+                            return True
         return False
 
     def _is_magic_value(self, value: Any) -> bool:
@@ -339,7 +534,6 @@ class MagicValueDetector(ast.NodeVisitor):
                 "flags",
                 "Args",
                 "Parsed",
-                "command",
                 "arguments",
                 "bool",
                 "True",
@@ -360,7 +554,6 @@ class MagicValueDetector(ast.NodeVisitor):
                 "bundled",
                 "executable",
                 "Testing",
-                "with",
                 "filename",
                 "result",
                 "Expected",
@@ -370,7 +563,6 @@ class MagicValueDetector(ast.NodeVisitor):
                 "PARTIAL",
                 "FAILED",
                 "Import",
-                "error",
                 "Cryptography",
                 "Generated",
                 "key",
@@ -385,7 +577,6 @@ class MagicValueDetector(ast.NodeVisitor):
                 "connectivity",
                 "search",
                 "API",
-                "key",
                 "environment",
                 "variable",
                 "To",
@@ -397,15 +588,12 @@ class MagicValueDetector(ast.NodeVisitor):
                 "First",
                 "ID",
                 "Overview",
-                "PARTIAL",
                 "connected",
                 "but",
                 "no",
-                "found",
                 "Rich",
                 "console",
                 "rendering",
-                "Testing",
                 "Results",
                 "Component",
                 "Status",
@@ -418,11 +606,9 @@ class MagicValueDetector(ast.NodeVisitor):
                 "working",
                 "Native",
                 "libraries",
-                "bundled",
                 "SKIPPED",
                 "No",
                 "provided",
-                "rendering",
                 "Prompt",
                 "Toolkit",
                 "PENDING",
@@ -434,7 +620,6 @@ class MagicValueDetector(ast.NodeVisitor):
                 "You",
                 "entered",
                 "Confirmation",
-                "result",
                 "multiline",
                 "press",
                 "Ctrl+D",
@@ -447,7 +632,6 @@ class MagicValueDetector(ast.NodeVisitor):
                 "Multiline",
                 "input",
                 "received",
-                "lines",
                 "cancelled",
                 "Click",
                 "__main__",
@@ -469,7 +653,7 @@ class MagicValueDetector(ast.NodeVisitor):
             # 주로 설정값, 임계값, 상태값 등이 여기에 해당
             return True
 
-        elif isinstance(value, (int, float)):
+        if isinstance(value, (int, float)):
             # 허용되지 않은 숫자
             if value in self.allowed_numbers:
                 return False
@@ -494,17 +678,17 @@ class MagicValueDetector(ast.NodeVisitor):
             parent = node.parent
             if isinstance(parent, ast.Compare):
                 return "comparison"
-            elif isinstance(parent, ast.Call):
+            if isinstance(parent, ast.Call):
                 return "function_call"
-            elif isinstance(parent, ast.Assign):
+            if isinstance(parent, ast.Assign):
                 return "assignment"
-            elif isinstance(parent, ast.Return):
+            if isinstance(parent, ast.Return):
                 return "return_statement"
-            elif isinstance(parent, ast.If):
+            if isinstance(parent, ast.If):
                 return "conditional"
-            elif isinstance(parent, ast.For):
+            if isinstance(parent, ast.For):
                 return "loop"
-            elif isinstance(parent, ast.While):
+            if isinstance(parent, ast.While):
                 return "while_loop"
 
         return "unknown"

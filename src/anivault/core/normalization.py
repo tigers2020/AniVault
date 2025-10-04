@@ -19,6 +19,9 @@ import re
 import unicodedata
 from typing import Any
 
+from anivault.shared.constants import NormalizationConfig
+from anivault.shared.constants.core import LanguageDetectionConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -164,15 +167,14 @@ def _extract_title_from_anitopy(parsed_data: dict[str, Any]) -> str:
     """
     # Try to get anime_title first
     title = parsed_data.get("anime_title")
-
-    if title and isinstance(title, str) and title.strip():
+    if isinstance(title, str) and title.strip():
         return title.strip()
 
     # Fallback to other possible title fields
     fallback_fields = ["title", "series_name", "show_name"]
     for field in fallback_fields:
         value = parsed_data.get(field)
-        if value and isinstance(value, str) and value.strip():
+        if isinstance(value, str) and value.strip():
             return value.strip()
 
     # If no title found, return empty string
@@ -199,35 +201,25 @@ def _remove_metadata(title: str) -> str:
     # Remove common patterns in brackets and parentheses
     patterns_to_remove = [
         # Resolution patterns
-        r"\[(?:1080p|720p|480p|2160p|4K|HD|SD)\]",
-        r"\((?:1080p|720p|480p|2160p|4K|HD|SD)\)",
+        *NormalizationConfig.RESOLUTION_PATTERNS,
         # Codec patterns
-        r"\[(?:x264|x265|H\.264|H\.265|HEVC|AVC|VP9|AV1)\]",
-        r"\((?:x264|x265|H\.264|H\.265|HEVC|AVC|VP9|AV1)\)",
+        *NormalizationConfig.CODEC_PATTERNS,
         # Release group patterns (common groups)
-        r"\[(?:SubsPlease|HorribleSubs|EMBER|Erai-raws|AnimeTime|Judas)\]",
-        r"\((?:SubsPlease|HorribleSubs|EMBER|Erai-raws|AnimeTime|Judas)\)",
+        *NormalizationConfig.RELEASE_GROUP_PATTERNS,
         # Episode patterns
-        r"\[(?:E\d+|Episode\s+\d+|Ep\s+\d+)\]",
-        r"\((?:E\d+|Episode\s+\d+|Ep\s+\d+)\)",
-        r"\s+\d+\s*",  # Episode numbers anywhere
+        *NormalizationConfig.EPISODE_PATTERNS,
         # Season patterns
-        r"\[(?:S\d+|Season\s+\d+)\]",
-        r"\((?:S\d+|Season\s+\d+)\)",
+        *NormalizationConfig.SEASON_PATTERNS,
         # Source patterns
-        r"\[(?:BluRay|WEB|HDTV|DVD|BD)\]",
-        r"\((?:BluRay|WEB|HDTV|DVD|BD)\)",
+        *NormalizationConfig.SOURCE_PATTERNS,
         # Audio patterns
-        r"\[(?:AAC|FLAC|MP3|DTS|AC3|5\.1|2\.0)\]",
-        r"\((?:AAC|FLAC|MP3|DTS|AC3|5\.1|2\.0)\)",
+        *NormalizationConfig.AUDIO_PATTERNS,
         # Hash patterns
-        r"\[[A-Fa-f0-9]{8,}\]",
-        r"\([A-Fa-f0-9]{8,}\)",
+        *NormalizationConfig.HASH_PATTERNS,
         # File extensions
-        r"\.(?:mkv|mp4|avi|mov|wmv|flv|webm|m4v)$",
+        *NormalizationConfig.FILE_EXTENSION_PATTERNS,
         # Generic bracketed content (be more careful with this)
-        r"\[[^\]]*\]",
-        r"\([^)]*\)",
+        *NormalizationConfig.BRACKET_PATTERNS,
     ]
 
     cleaned = title
@@ -342,11 +334,11 @@ def _detect_language(title: str) -> str:  # noqa: PLR0911
     latin_ratio = latin_count / total_chars
 
     # Determine language based on dominant character type
-    if japanese_ratio > 0.3:  # 30% threshold for Japanese
+    if japanese_ratio > LanguageDetectionConfig.JAPANESE_RATIO_THRESHOLD:
         return "ja"
-    if korean_ratio > 0.3:  # 30% threshold for Korean
+    if korean_ratio > LanguageDetectionConfig.KOREAN_RATIO_THRESHOLD:
         return "ko"
-    if latin_ratio > 0.5:  # 50% threshold for English
+    if latin_ratio > LanguageDetectionConfig.LATIN_RATIO_THRESHOLD:
         return "en"
     if hiragana_count > 0 or katakana_count > 0 or kanji_count > 0:
         return "ja"

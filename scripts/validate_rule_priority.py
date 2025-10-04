@@ -14,9 +14,10 @@ AI 보안 룰 우선순위 검증 스크립트
 3. 모든 룰에 우선순위 설정
 4. 우선순위 순서가 올바름
 """
+from __future__ import annotations
 
+import sys
 from pathlib import Path
-from typing import Optional
 
 
 def find_rule_files() -> list[Path]:
@@ -33,7 +34,7 @@ def find_rule_files() -> list[Path]:
     return sorted(rule_files)
 
 
-def extract_rule_metadata(file_path: Path) -> dict[str, Optional[str]]:
+def extract_rule_metadata(file_path: Path) -> dict[str, str | None]:
     """룰 파일에서 메타데이터를 추출합니다."""
     metadata = {
         "file": str(file_path),
@@ -133,7 +134,7 @@ def validate_rule_priority() -> dict[str, list[str]]:
 
     # 4. 우선순위 순서 확인
     try:
-        sorted_priorities = sorted([int(p) for p in priorities.keys() if p.isdigit()])
+        sorted_priorities = sorted([int(p) for p in priorities if p.isdigit()])
         expected_sequence = list(range(1, len(sorted_priorities) + 1))
 
         if sorted_priorities != expected_sequence:
@@ -187,9 +188,8 @@ def print_validation_results(results: dict[str, list[str]]) -> None:
     if total_issues == 0:
         print("🎉 모든 검증을 통과했습니다!")
         return True
-    else:
-        print(f"⚠️ 총 {total_issues}개의 이슈가 발견되었습니다.")
-        return False
+    print(f"⚠️ 총 {total_issues}개의 이슈가 발견되었습니다.")
+    return False
 
 
 def main():
@@ -205,7 +205,7 @@ def main():
         print("2. 모든 룰에 우선순위 설정")
         print("3. 우선순위 중복 제거")
         print("4. 우선순위 순서 정리")
-        exit(1)
+        sys.exit(1)
     else:
         print("\n✅ AI 보안 룰 우선순위가 올바르게 설정되었습니다!")
 

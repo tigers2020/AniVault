@@ -20,7 +20,12 @@ from anivault.core.matching.engine import MatchingEngine
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache_v2 import JSONCacheV2
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import CLI, ConfidenceThresholds, Config, JsonKeys
+from anivault.shared.constants import (
+    CLIFormatting,
+    ConfidenceThresholds,
+    Encoding,
+    JsonKeys,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +139,7 @@ class BenchmarkRunner:
 
         # Initialize components
         self.cache = JSONCacheV2(self.cache_dir, self.statistics)
-        self.tmdb_client = TMDBClient(self.tmdb_api_key)
+        self.tmdb_client = TMDBClient(rate_limiter=None, semaphore_manager=None, state_machine=None)
         self.matching_engine = MatchingEngine(
             cache=self.cache,
             tmdb_client=self.tmdb_client,
@@ -158,7 +163,7 @@ class BenchmarkRunner:
             msg = f"Ground truth dataset not found: {dataset_path}"
             raise FileNotFoundError(msg)
 
-        with open(dataset_path, encoding=Config.DEFAULT_ENCODING) as f:
+        with open(dataset_path, encoding=Encoding.DEFAULT) as f:
             data = json.load(f)
 
         self.ground_truth = [
@@ -274,7 +279,7 @@ class BenchmarkRunner:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w", encoding=Config.DEFAULT_ENCODING) as f:
+        with open(output_path, "w", encoding=Encoding.DEFAULT) as f:
             json.dump(dataset, f, indent=2, ensure_ascii=False)
 
         logger.info(
@@ -493,7 +498,7 @@ class BenchmarkRunner:
             "statistics": self.statistics.get_summary(),
         }
 
-        with open(output_path, "w", encoding=Config.DEFAULT_ENCODING) as f:
+        with open(output_path, "w", encoding=Encoding.DEFAULT) as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
         logger.info("Saved benchmark results to %s", output_path)
@@ -504,9 +509,9 @@ class BenchmarkRunner:
         Args:
             summary: Summary statistics to print
         """
-        print("\n" + "=" * CLI.SEPARATOR_LENGTH)
+        print("\n" + "=" * CLIFormatting.SEPARATOR_LENGTH)
         print("BENCHMARK RESULTS SUMMARY")
-        print("=" * CLI.SEPARATOR_LENGTH)
+        print("=" * CLIFormatting.SEPARATOR_LENGTH)
         print(f"Total Tests:           {summary.total_tests}")
         print(f"Correct Matches:       {summary.correct_matches}")
         print(f"Incorrect Matches:     {summary.incorrect_matches}")
@@ -518,4 +523,4 @@ class BenchmarkRunner:
         print(f"Cache Hit Ratio:       {summary.cache_hit_ratio:.1f}%")
         print(f"API Calls:             {summary.api_calls}")
         print(f"API Errors:            {summary.api_errors}")
-        print("=" * CLI.SEPARATOR_LENGTH)
+        print("=" * CLIFormatting.SEPARATOR_LENGTH)

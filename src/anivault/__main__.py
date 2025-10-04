@@ -11,7 +11,8 @@ from pathlib import Path
 # Add the src directory to the Python path for absolute imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from anivault.cli.typer_app import app  # noqa: E402
+# Import after path setup
+from anivault.cli.typer_app import app
 
 if __name__ == "__main__":
     app()

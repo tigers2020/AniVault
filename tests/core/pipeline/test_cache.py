@@ -77,7 +77,7 @@ class TestCacheV1:
             ttl = 3600  # 1 hour
 
             # Set data
-            cache.set(key, data, ttl)
+            cache.set_cache(key, data, ttl)
 
             # Verify file was created
             cache_file = cache.cache_dir / f"{key}.json"
@@ -96,7 +96,7 @@ class TestCacheV1:
             data = {"title": "Test Anime", "episode": 1}
             ttl = 3600
 
-            cache.set(key, data, ttl)
+            cache.set_cache(key, data, ttl)
 
             cache_file = cache.cache_dir / f"{key}.json"
             with open(cache_file, encoding="utf-8") as f:
@@ -144,7 +144,7 @@ class TestCacheV1:
             ttl = 1  # 1 second TTL
 
             # Set data
-            cache.set(key, data, ttl)
+            cache.set_cache(key, data, ttl)
 
             # Wait for expiration
             time.sleep(1.1)
@@ -162,7 +162,7 @@ class TestCacheV1:
             data = {"title": "Test Anime", "episode": 1}
             ttl = 3600  # 1 hour TTL
 
-            cache.set(key, data, ttl)
+            cache.set_cache(key, data, ttl)
 
             # Should return data immediately (not expired)
             result = cache.get(key)
@@ -177,7 +177,7 @@ class TestCacheV1:
             data = {"title": "Test Anime"}
             ttl = 0  # No TTL
 
-            cache.set(key, data, ttl)
+            cache.set_cache(key, data, ttl)
 
             result = cache.get(key)
             assert result == data
@@ -189,7 +189,7 @@ class TestCacheV1:
 
             # Create multiple cache entries
             for i in range(3):
-                cache.set(f"key_{i}", {"data": i}, 3600)
+                cache.set_cache(f"key_{i}", {"data": i}, 3600)
 
             # Verify files exist
             cache_files = list(cache.cache_dir.glob("*.json"))
@@ -221,14 +221,14 @@ class TestCacheV1:
             cache = CacheV1(Path(temp_dir))
 
             # Create valid entry
-            cache.set("valid_key", {"data": "valid"}, 3600)
+            cache.set_cache("valid_key", {"data": "valid"}, 3600)
 
             # Create expired entry
-            cache.set("expired_key", {"data": "expired"}, 1)
+            cache.set_cache("expired_key", {"data": "expired"}, 1)
             time.sleep(1.1)
 
             # Create entry without TTL
-            cache.set("no_ttl_key", {"data": "no_ttl"}, 0)
+            cache.set_cache("no_ttl_key", {"data": "no_ttl"}, 0)
 
             info = cache.get_cache_info()
 
@@ -244,7 +244,7 @@ class TestCacheV1:
             cache = CacheV1(Path(temp_dir))
 
             # Create valid entry
-            cache.set("valid_key", {"data": "valid"}, 3600)
+            cache.set_cache("valid_key", {"data": "valid"}, 3600)
 
             # Create corrupted file
             corrupted_file = cache.cache_dir / "corrupted_key.json"
@@ -272,7 +272,7 @@ class TestCacheV1:
             }
             ttl = 3600
 
-            cache.set(key, data, ttl)
+            cache.set_cache(key, data, ttl)
             retrieved_data = cache.get(key)
 
             assert retrieved_data == data
@@ -294,7 +294,7 @@ class TestCacheV1:
             }
             ttl = 3600
 
-            cache.set(key, data, ttl)
+            cache.set_cache(key, data, ttl)
             retrieved_data = cache.get(key)
 
             assert retrieved_data == data
@@ -320,7 +320,7 @@ class TestCacheV1:
                     }
 
                     # Set data
-                    cache.set(key, data, 3600)
+                    cache.set_cache(key, data, 3600)
 
                     # Get data
                     retrieved = cache.get(key)
