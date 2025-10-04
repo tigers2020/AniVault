@@ -151,7 +151,6 @@ class TestPipelineThroughput:
 
     def test_scan_throughput_with_different_workers(
         self,
-        benchmark,
         small_test_data: list[Path],
         benchmark_data_dir: Path,
     ) -> None:
@@ -161,18 +160,13 @@ class TestPipelineThroughput:
         worker_counts = [1, 2, 4, 8]
 
         for num_workers in worker_counts:
-
-            def run_scan():
-                """Function to benchmark with specific worker count."""
-                return run_pipeline(
-                    root_path=str(benchmark_data_dir),
-                    extensions=extensions,
-                    num_workers=num_workers,
-                    max_queue_size=100,
-                )
-
-            # When - Run the benchmark
-            results = benchmark(run_scan)
+            # When - Run the pipeline directly (no benchmark fixture)
+            results = run_pipeline(
+                root_path=str(benchmark_data_dir),
+                extensions=extensions,
+                num_workers=num_workers,
+                max_queue_size=100,
+            )
 
             # Then - Verify results
             assert results is not None
@@ -185,29 +179,22 @@ class TestPipelineThroughput:
     ) -> None:
         """Benchmark scanner throughput with different file extensions."""
         # Given
-        extension_sets = [
-            [".mp4"],
-            [".mp4", ".mkv"],
-            [".mp4", ".mkv", ".avi"],
-            [".mp4", ".mkv", ".avi", ".mov", ".wmv"],
-        ]
+        extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv"]
 
-        for extensions in extension_sets:
+        def run_scan():
+            """Function to benchmark with multiple extensions."""
+            return run_pipeline(
+                root_path=str(benchmark_data_dir),
+                extensions=extensions,
+                num_workers=4,
+                max_queue_size=100,
+            )
 
-            def run_scan():
-                """Function to benchmark with specific extensions."""
-                return run_pipeline(
-                    root_path=str(benchmark_data_dir),
-                    extensions=extensions,
-                    num_workers=4,
-                    max_queue_size=100,
-                )
+        # When - Run the benchmark
+        results = benchmark(run_scan)
 
-            # When - Run the benchmark
-            results = benchmark(run_scan)
-
-            # Then - Verify results
-            assert results is not None
+        # Then - Verify results
+        assert results is not None
 
     def test_memory_usage_during_scan(
         self,

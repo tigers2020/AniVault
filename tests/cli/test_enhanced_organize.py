@@ -18,9 +18,11 @@ class TestEnhancedOrganize:
 
     def test_generate_enhanced_organization_plan_single_file(self):
         """Test enhanced organization plan with single file."""
+        # Create a proper ParsingResult object instead of using Mock
+        metadata = ParsingResult(title="Attack on Titan", season=1, episode=1)
         file = ScannedFile(
             file_path=Path("Attack on Titan - 01.mkv"),
-            metadata=ParsingResult(title="Attack on Titan", season=1, episode=1),
+            metadata=metadata,
         )
         args = Mock()
         args.destination = "Anime"
@@ -34,6 +36,8 @@ class TestEnhancedOrganize:
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [file]
             }
+            # Mock find_highest_resolution to return the actual file object
+            mock_resolution.return_value.find_highest_resolution.return_value = file
             mock_resolution.return_value.group_by_resolution.return_value = {
                 "1080p": [file]
             }
@@ -66,6 +70,8 @@ class TestEnhancedOrganize:
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": files
             }
+            # Mock find_highest_resolution to return the first file (highest resolution)
+            mock_resolution.return_value.find_highest_resolution.return_value = files[0]
             mock_resolution.return_value.group_by_resolution.return_value = {
                 "1080p": files
             }
@@ -100,6 +106,9 @@ class TestEnhancedOrganize:
             mock_subtitle.return_value.find_matching_subtitles.return_value = [
                 subtitle_file
             ]
+            
+            # Mock the resolution detector's find_highest_resolution method
+            mock_resolution.return_value.find_highest_resolution.return_value = video_file
 
             result = _generate_enhanced_organization_plan([video_file], args)
             assert len(result) == 2  # Video + subtitle
@@ -152,10 +161,10 @@ class TestEnhancedOrganize:
         args.destination = "Anime"
         args.similarity_threshold = 0.7
 
-        with patch("anivault.cli.organize_handler.FileGrouper") as mock_grouper, patch(
-            "anivault.cli.organize_handler.ResolutionDetector"
+        with patch("anivault.core.file_grouper.FileGrouper") as mock_grouper, patch(
+            "anivault.core.resolution_detector.ResolutionDetector"
         ) as mock_resolution, patch(
-            "anivault.cli.organize_handler.SubtitleMatcher"
+            "anivault.core.subtitle_matcher.SubtitleMatcher"
         ) as mock_subtitle, patch(
             "anivault.services.metadata_enricher.MetadataEnricher"
         ) as mock_enricher:
@@ -166,6 +175,9 @@ class TestEnhancedOrganize:
                 "1080p": [file]
             }
             mock_subtitle.return_value.find_matching_subtitles.return_value = []
+            
+            # Mock the resolution detector's find_highest_resolution method
+            mock_resolution.return_value.find_highest_resolution.return_value = file
 
             # Mock Korean title enrichment
             mock_enriched = Mock()
