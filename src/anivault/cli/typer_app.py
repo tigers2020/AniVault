@@ -74,7 +74,7 @@ def main_callback(
 app = typer.Typer(
     name="anivault",
     help="AniVault - Advanced Anime Collection Management System",
-    add_completion=False,  # Will be enabled later
+    add_completion=True,  # Enable shell completion support
     rich_markup_mode="rich",  # Enable rich formatting
     no_args_is_help=True,
     invoke_without_command=True,
@@ -426,7 +426,7 @@ def verify_command_typer(
         "--tmdb",
         help="Verify TMDB API connectivity",
     ),
-    all: bool = typer.Option(  # type: ignore[misc]
+    all_components: bool = typer.Option(  # type: ignore[misc]
         False,
         "--all",
         help="Verify all components",
@@ -449,7 +449,7 @@ def verify_command_typer(
         anivault verify --tmdb --json-output
     """
     # Call the verify command
-    verify_command(tmdb, all)
+    verify_command(tmdb, all_components)
 
 
 if __name__ == "__main__":
