@@ -14,17 +14,18 @@ from typing import Any
 import typer
 
 from anivault.cli.common.context import get_cli_context
+from anivault.cli.common.models import LogOptions, DirectoryPath
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI
 
 logger = logging.getLogger(__name__)
 
 
-def handle_log_command(args: Any) -> int:
+def handle_log_command(options: LogOptions) -> int:
     """Handle the log command.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated log command options
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -34,8 +35,8 @@ def handle_log_command(args: Any) -> int:
     try:
         context = get_cli_context()
         if context and context.is_json_output_enabled():
-            return _handle_log_command_json(args)
-        return _handle_log_command_console(args)
+            return _handle_log_command_json(options)
+        return _handle_log_command_console(options)
 
     except Exception as e:
         context = get_cli_context()
@@ -56,18 +57,18 @@ def handle_log_command(args: Any) -> int:
         return 1
 
 
-def _handle_log_command_json(args: Any) -> int:
+def _handle_log_command_json(options: LogOptions) -> int:
     """Handle log command with JSON output.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated log command options
 
     Returns:
         Exit code (0 for success, non-zero for error)
     """
     try:
-        if args.log_command == "list":
-            log_data = _collect_log_list_data(args)
+        if options.log_command == "list":
+            log_data = _collect_log_list_data(options)
             if log_data is None:
                 return 1
 
@@ -100,11 +101,11 @@ def _handle_log_command_json(args: Any) -> int:
         return 1
 
 
-def _handle_log_command_console(args: Any) -> int:
+def _handle_log_command_console(options: LogOptions) -> int:
     """Handle log command with console output.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated log command options
 
     Returns:
         Exit code (0 for success, non-zero for error)
@@ -114,8 +115,8 @@ def _handle_log_command_console(args: Any) -> int:
 
         console = Console()
 
-        if args.log_command == "list":
-            result = _run_log_list_command_impl(args, console)
+        if options.log_command == "list":
+            result = _run_log_list_command_impl(options, console)
         else:
             console.print("[red]Error: No log command specified[/red]")
             result = 1
@@ -136,11 +137,11 @@ def _handle_log_command_console(args: Any) -> int:
         return 1
 
 
-def _collect_log_list_data(args: Any) -> dict | None:
+def _collect_log_list_data(options: LogOptions) -> dict | None:
     """Collect log list data for JSON output.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated log command options
 
     Returns:
         Dictionary containing log list data, or None if error
@@ -149,7 +150,7 @@ def _collect_log_list_data(args: Any) -> dict | None:
         from pathlib import Path
 
         # Get log directory
-        log_dir = Path(args.log_dir)
+        log_dir = options.log_dir.path
         if not log_dir.exists():
             return {
                 "error": f"Log directory does not exist: {log_dir}",
@@ -209,11 +210,11 @@ def _collect_log_list_data(args: Any) -> dict | None:
         return None
 
 
-def _run_log_list_command_impl(args, console) -> int:
+def _run_log_list_command_impl(options: LogOptions, console) -> int:
     """Run the log list command.
 
     Args:
-        args: Parsed command line arguments
+        options: Validated log command options
         console: Rich console instance
 
     Returns:
@@ -225,7 +226,7 @@ def _run_log_list_command_impl(args, console) -> int:
         from rich.table import Table
 
         # Get log directory
-        log_dir = Path(args.log_dir)
+        log_dir = options.log_dir.path
         if not log_dir.exists():
             console.print(f"[red]Log directory does not exist: {log_dir}[/red]")
             return 1
@@ -315,21 +316,22 @@ def log_command(
         # Tail log file in real-time
         anivault log tail app.log --follow
     """
-    # Create a mock args object to maintain compatibility with existing handler
-    class MockArgs:
-        def __init__(self):
-            self.log_command = command
-            self.log_dir = str(log_dir)
+    try:
+        # Create and validate options using Pydantic
+        options = LogOptions(
+            log_command=command,
+            log_dir=DirectoryPath(path=log_dir)
+        )
+        
+        # Call the handler with validated options
+        exit_code = handle_log_command(options)
+        
+        if exit_code != 0:
+            raise typer.Exit(exit_code)
             
-            # Get CLI context for JSON output
-            context = get_cli_context()
-            self.json = context.json_output if context else False
-            self.verbose = context.verbose if context else 0
-
-    args = MockArgs()
-    
-    # Call the existing handler
-    exit_code = handle_log_command(args)
-    
-    if exit_code != 0:
-        raise typer.Exit(exit_code)
+    except Exception as e:
+        # Handle validation errors
+        from rich.console import Console
+        console = Console()
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
