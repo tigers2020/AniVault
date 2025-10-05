@@ -9,6 +9,7 @@ that may contain Japanese, Korean, or other non-ASCII characters.
 from __future__ import annotations
 
 import io
+import logging
 import os
 import sys
 from pathlib import Path
@@ -17,6 +18,8 @@ from typing import Any, BinaryIO, TextIO
 import chardet
 
 from anivault.shared.constants import Encoding
+
+logger = logging.getLogger(__name__)
 
 # Constants for encoding
 UTF8_ENCODING = Encoding.DEFAULT
@@ -209,8 +212,29 @@ def get_file_encoding(file_path: str | Path) -> str:
             return encoding if encoding is not None else UTF8_ENCODING
     except ImportError:
         # Fallback to UTF-8 if chardet is not available
+        logger.debug("chardet library not available, using UTF-8 fallback")
         return UTF8_ENCODING
-    except Exception:
+    except PermissionError:
+        logger.warning(
+            "Permission denied detecting encoding, falling back to UTF-8: %s",
+            file_path,
+        )
+        return UTF8_ENCODING
+    except OSError:
+        # Handle file system errors (file not found, disk issues, etc.)
+        logger.warning(
+            "File system error detecting encoding, falling back to UTF-8: %s",
+            file_path,
+            exc_info=True,
+        )
+        return UTF8_ENCODING
+    except (UnicodeDecodeError, ValueError):
+        # Handle encoding detection errors
+        logger.warning(
+            "Encoding detection failed, falling back to UTF-8: %s",
+            file_path,
+            exc_info=True,
+        )
         return UTF8_ENCODING
 
 

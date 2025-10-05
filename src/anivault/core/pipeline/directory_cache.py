@@ -7,9 +7,18 @@ and their contents, allowing the scanner to skip unchanged directories on subseq
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from pathlib import Path
 from typing import Any
+
+from anivault.shared.errors import (
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class DirectoryCacheManager:
@@ -40,10 +49,18 @@ class DirectoryCacheManager:
 
         If the file doesn't exist, initializes an empty cache.
         Handles JSON parsing errors gracefully.
+
+        Raises:
+            InfrastructureError: If cache file cannot be read due to permission issues.
         """
         with self._lock:
             if self._loaded:
                 return
+
+            context = ErrorContext(
+                operation="load_cache",
+                file_path=str(self.cache_file),
+            )
 
             try:
                 if self.cache_file.exists():
@@ -51,8 +68,40 @@ class DirectoryCacheManager:
                         self._cache = json.load(f)
                 else:
                     self._cache = {}
-            except (OSError, json.JSONDecodeError):
-                # If cache is corrupted or unreadable, start fresh
+            except PermissionError as e:
+                error = InfrastructureError(
+                    code=ErrorCode.FILE_ACCESS_DENIED,
+                    message=f"Permission denied reading cache file: {self.cache_file}",
+                    context=context,
+                    original_error=e,
+                )
+                logger.exception(
+                    "Failed to load cache due to permission error: %s",
+                    self.cache_file,
+                )
+                raise error from e
+            except OSError as e:
+                # Handle other file system errors (disk full, network issues, etc.)
+                error = InfrastructureError(
+                    code=ErrorCode.FILE_READ_ERROR,
+                    message=f"File system error reading cache file: {self.cache_file}",
+                    context=context,
+                    original_error=e,
+                )
+                logger.warning(
+                    "File system error loading cache, starting with empty cache: %s",
+                    self.cache_file,
+                    exc_info=True,
+                )
+                # For OSError, start with empty cache rather than failing completely
+                self._cache = {}
+            except json.JSONDecodeError:
+                # Handle corrupted JSON gracefully
+                logger.warning(
+                    "Corrupted cache file detected, starting with empty cache: %s",
+                    self.cache_file,
+                    exc_info=True,
+                )
                 self._cache = {}
 
             self._loaded = True
@@ -62,14 +111,47 @@ class DirectoryCacheManager:
         Save the current cache to the JSON file.
 
         Creates the file if it doesn't exist. Handles write errors gracefully.
+
+        Raises:
+            InfrastructureError: If cache file cannot be written due to critical errors.
         """
         with self._lock:
+            context = ErrorContext(
+                operation="save_cache",
+                file_path=str(self.cache_file),
+            )
+
             try:
                 with open(self.cache_file, "w", encoding="utf-8") as f:
                     json.dump(self._cache, f, indent=2, ensure_ascii=False)
-            except OSError:
-                # Silently fail if we can't write the cache
-                pass
+                logger.debug("Successfully saved cache to: %s", self.cache_file)
+            except PermissionError as e:
+                error = InfrastructureError(
+                    code=ErrorCode.FILE_ACCESS_DENIED,
+                    message=f"Permission denied writing cache file: {self.cache_file}",
+                    context=context,
+                    original_error=e,
+                )
+                logger.exception(
+                    "Failed to save cache due to permission error: %s",
+                    self.cache_file,
+                )
+                raise error from e
+            except OSError as e:
+                # Handle other file system errors (disk full, network issues, etc.)
+                error = InfrastructureError(
+                    code=ErrorCode.FILE_WRITE_ERROR,
+                    message=f"File system error writing cache file: {self.cache_file}",
+                    context=context,
+                    original_error=e,
+                )
+                logger.warning(
+                    "File system error saving cache (continuing without cache): %s",
+                    self.cache_file,
+                    exc_info=True,
+                )
+                # For OSError, log but don't fail the operation completely
+                # This allows the application to continue functioning without cache
 
     def get_directory_data(self, dir_path: str | Path) -> dict[str, Any] | None:
         """
