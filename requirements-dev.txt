@@ -18,6 +18,7 @@ bandit==1.7.5
 pbr==5.11.1
 safety==2.3.4
 pip-audit==2.6.1
+detect-secrets==1.4.0
 
 # Type checking
 pydantic==2.5.0

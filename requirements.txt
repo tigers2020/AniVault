@@ -8,6 +8,7 @@ orjson>=3.9.0
 rapidfuzz>=3.5.0
 prompt-toolkit>=3.0.0
 pydantic>=2.0.0
+chardet>=5.0.0
 
 
 # Development dependencies
