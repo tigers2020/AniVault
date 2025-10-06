@@ -15,6 +15,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import orjson
+
 from anivault.core.statistics import StatisticsCollector
 from anivault.security.permissions import (
     set_secure_file_permissions,
@@ -32,6 +34,44 @@ from anivault.shared.errors import (
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 logger = logging.getLogger(__name__)
+
+
+def _convert_to_serializable(obj: Any) -> Any:
+    """
+    Convert objects to JSON-serializable format.
+
+    Handles custom objects (like tmdbv3api's AsObj) by converting them to dicts.
+    Recursively processes nested structures.
+
+    Args:
+        obj: Object to convert
+
+    Returns:
+        JSON-serializable version of the object
+    """
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+
+    if isinstance(obj, dict):
+        return {k: _convert_to_serializable(v) for k, v in obj.items()}
+
+    if isinstance(obj, (list, tuple)):
+        return [_convert_to_serializable(item) for item in obj]
+
+    # Handle custom objects with __dict__ (like AsObj)
+    if hasattr(obj, "__dict__"):
+        return {
+            k: _convert_to_serializable(v)
+            for k, v in obj.__dict__.items()
+            if not k.startswith("_")
+        }
+
+    # Handle datetime objects
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+
+    # Fallback: convert to string
+    return str(obj)
 
 
 class SQLiteCacheDB:
@@ -101,7 +141,10 @@ class SQLiteCacheDB:
             if db_is_new:
                 try:
                     set_secure_file_permissions(self.db_path)
-                    logger.info("Secure permissions (600) set for new DB: %s", self.db_path)
+                    logger.info(
+                        "Secure permissions (600) set for new DB: %s",
+                        self.db_path,
+                    )
                 except Exception as e:  # noqa: BLE001
                     # Log warning but continue - permissions are not critical for functionality
                     logger.warning(
@@ -278,9 +321,14 @@ class SQLiteCacheDB:
                 # Use default TTL
                 expires_at = now + timedelta(seconds=CacheConfig.DEFAULT_TTL)
 
-            # Serialize data to JSON
+            # Serialize data to JSON using orjson for better type support
+            # First convert to fully serializable format (handles AsObj and nested objects)
             try:
-                response_data = json.dumps(data, ensure_ascii=False)
+                serializable_data = _convert_to_serializable(data)
+                response_data = orjson.dumps(
+                    serializable_data,
+                    option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY,
+                ).decode("utf-8")
             except (TypeError, ValueError) as e:
                 error = DomainError(
                     code=ErrorCode.CACHE_SERIALIZATION_ERROR,
@@ -401,7 +449,10 @@ class SQLiteCacheDB:
                 expires_at = datetime.fromisoformat(expires_at_str)
                 if datetime.now(timezone.utc) > expires_at:
                     # Expired
-                    logger.debug("Cache entry expired for key hash: %s...", key_hash[:16])
+                    logger.debug(
+                        "Cache entry expired for key hash: %s...",
+                        key_hash[:16],
+                    )
                     self.statistics.record_cache_miss(cache_type)
                     return None
 
@@ -424,7 +475,10 @@ class SQLiteCacheDB:
                 last_accessed_at = ?
             WHERE key_hash = ?
             """
-            self.conn.execute(update_sql, (datetime.now(timezone.utc).isoformat(), key_hash))
+            self.conn.execute(
+                update_sql,
+                (datetime.now(timezone.utc).isoformat(), key_hash),
+            )
 
             # Cache hit
             self.statistics.record_cache_hit(cache_type)
@@ -718,4 +772,3 @@ class SQLiteCacheDB:
                 logger.warning("Failed to close database connection: %s", str(e))
             finally:
                 self.conn = None
-
