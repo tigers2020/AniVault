@@ -8,10 +8,11 @@ mypy==1.5.1
 pre-commit==3.3.3
 
 # Testing
-pytest==7.4.0
-pytest-cov==4.1.0
-pytest-mock==3.11.1
-pytest-xdist==3.3.1
+pytest>=8.2.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+pytest-xdist>=3.3.1
+pytest-asyncio>=1.0.0
 
 # Security checks
 bandit==1.7.5
@@ -21,9 +22,9 @@ pip-audit==2.6.1
 detect-secrets==1.4.0
 
 # Type checking
-pydantic==2.5.0
-types-requests==2.31.0.1
-types-PyYAML==6.0.12.9
+pydantic>=2.7.0
+types-requests>=2.31.0
+types-PyYAML>=6.0.12
 
 # Documentation
 sphinx==7.1.2
@@ -32,7 +33,6 @@ myst-parser==2.0.0
 
 # Code analysis
 radon==6.0.1
-xenon==0.9.0
 vulture==2.7
 
 # Performance profiling
@@ -44,6 +44,6 @@ jupyter==1.0.0
 ipykernel==6.25.0
 
 # Additional development tools
-ipython==8.14.0
-rich==13.5.2
-click==8.1.7
+ipython>=8.14.0
+rich>=14.1.0
+click>=8.1.0
