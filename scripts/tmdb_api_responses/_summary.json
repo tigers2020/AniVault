@@ -1,0 +1,347 @@
+{
+  "total_files": 28,
+  "endpoints": {
+    "discover_movies_animation": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "discover_movies_popular": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "discover_tv_animation": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "discover_tv_popular": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "movie_details": {
+      "fields": [
+        "production_companies",
+        "imdb_id",
+        "release_date",
+        "keywords",
+        "id",
+        "production_countries",
+        "trailers",
+        "backdrop_path",
+        "origin_country",
+        "adult",
+        "budget",
+        "images",
+        "translations",
+        "spoken_languages",
+        "release_dates",
+        "original_title",
+        "revenue",
+        "title",
+        "overview",
+        "vote_count",
+        "tagline",
+        "original_language",
+        "belongs_to_collection",
+        "runtime",
+        "videos",
+        "video",
+        "status",
+        "poster_path",
+        "genres",
+        "vote_average",
+        "casts",
+        "popularity",
+        "homepage"
+      ],
+      "field_count": 33
+    },
+    "movie_now_playing": {
+      "fields": [
+        "total_pages",
+        "results",
+        "total_results",
+        "dates",
+        "page"
+      ],
+      "field_count": 5
+    },
+    "movie_popular": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "movie_recommendations": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "movie_search": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "movie_similar": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "movie_top_rated": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "movie_upcoming": {
+      "fields": [
+        "total_pages",
+        "results",
+        "total_results",
+        "dates",
+        "page"
+      ],
+      "field_count": 5
+    },
+    "person_details": {
+      "fields": [
+        "adult",
+        "place_of_birth",
+        "imdb_id",
+        "profile_path",
+        "images",
+        "birthday",
+        "id",
+        "known_for_department",
+        "deathday",
+        "biography",
+        "also_known_as",
+        "popularity",
+        "homepage",
+        "name",
+        "gender"
+      ],
+      "field_count": 15
+    },
+    "person_popular": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "person_search": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "season_details": {
+      "fields": [
+        "videos",
+        "networks",
+        "overview",
+        "poster_path",
+        "id",
+        "season_number",
+        "images",
+        "translations",
+        "vote_average",
+        "name",
+        "air_date",
+        "episodes",
+        "credits"
+      ],
+      "field_count": 13
+    },
+    "trending_movies_day": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "trending_movies_week": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "trending_tv_day": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "trending_tv_week": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "tv_airing_today": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "tv_details": {
+      "fields": [
+        "production_companies",
+        "in_production",
+        "original_name",
+        "id",
+        "next_episode_to_air",
+        "production_countries",
+        "backdrop_path",
+        "origin_country",
+        "first_air_date",
+        "adult",
+        "images",
+        "translations",
+        "spoken_languages",
+        "created_by",
+        "last_episode_to_air",
+        "episode_run_time",
+        "overview",
+        "vote_count",
+        "tagline",
+        "type",
+        "languages",
+        "original_language",
+        "videos",
+        "number_of_episodes",
+        "networks",
+        "number_of_seasons",
+        "poster_path",
+        "genres",
+        "status",
+        "vote_average",
+        "seasons",
+        "popularity",
+        "homepage",
+        "name",
+        "last_air_date",
+        "credits"
+      ],
+      "field_count": 36
+    },
+    "tv_on_the_air": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "tv_popular": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "tv_recommendations": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "tv_search": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "tv_similar": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    },
+    "tv_top_rated": {
+      "fields": [
+        "total_pages",
+        "results",
+        "page",
+        "total_results"
+      ],
+      "field_count": 4
+    }
+  },
+  "common_fields": [
+    "total_pages",
+    "results",
+    "page",
+    "total_results"
+  ],
+  "unique_fields": {}
+}

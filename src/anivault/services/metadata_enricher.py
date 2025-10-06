@@ -14,9 +14,7 @@ from typing import Any
 
 from anivault.core.parser.models import ParsingResult
 from anivault.shared.constants import APIFields
-from anivault.shared.constants.system import (
-    MediaType,
-)
+from anivault.shared.constants.system import MediaType
 from anivault.shared.errors import (
     AniVaultError,
     DomainError,
@@ -149,7 +147,41 @@ class MetadataEnricher:
                     )
                     # Fall back to search result if details fail
                     enriched.tmdb_data = best_match
-                except Exception as e:
+                except (ConnectionError, TimeoutError) as e:
+                    # Handle network-related errors
+                    error = InfrastructureError(
+                        code=ErrorCode.TMDB_API_CONNECTION_ERROR,
+                        message=f"Network error during media details retrieval: {e!s}",
+                        context=ErrorContext(
+                            operation="get_media_details",
+                            additional_data={
+                                "media_id": best_match["id"],
+                                "media_type": best_match["media_type"],
+                                "title": file_info.title,
+                                "error_type": "network",
+                                "original_error": str(e),
+                            },
+                        ),
+                        original_error=e,
+                    )
+                except (ValueError, KeyError, TypeError) as e:
+                    # Handle data processing errors
+                    error = DomainError(
+                        code=ErrorCode.VALIDATION_ERROR,
+                        message=f"Data processing error during media details retrieval: {e!s}",
+                        context=ErrorContext(
+                            operation="get_media_details",
+                            additional_data={
+                                "media_id": best_match["id"],
+                                "media_type": best_match["media_type"],
+                                "title": file_info.title,
+                                "error_type": "data_processing",
+                                "original_error": str(e),
+                            },
+                        ),
+                        original_error=e,
+                    )
+                except Exception as e:  # noqa: BLE001
                     # Handle unexpected errors
                     error = InfrastructureError(
                         code=ErrorCode.TMDB_API_REQUEST_FAILED,
@@ -160,6 +192,7 @@ class MetadataEnricher:
                                 "media_id": best_match["id"],
                                 "media_type": best_match["media_type"],
                                 "title": file_info.title,
+                                "error_type": "unexpected",
                                 "original_error": str(e),
                             },
                         ),
@@ -193,7 +226,39 @@ class MetadataEnricher:
                 additional_context=context.additional_data if context else None,
             )
             enriched.enrichment_status = "failed"
-        except Exception as e:
+        except (ConnectionError, TimeoutError) as e:
+            # Handle network-related errors
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_CONNECTION_ERROR,
+                message=f"Network error during metadata enrichment: {e!s}",
+                context=ErrorContext(
+                    operation="enrich_metadata",
+                    additional_data={
+                        "title": file_info.title,
+                        "min_confidence": self.min_confidence,
+                        "error_type": "network",
+                        "original_error": str(e),
+                    },
+                ),
+                original_error=e,
+            )
+        except (ValueError, KeyError, TypeError) as e:
+            # Handle data processing errors
+            error = DomainError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message=f"Data processing error during metadata enrichment: {e!s}",
+                context=ErrorContext(
+                    operation="enrich_metadata",
+                    additional_data={
+                        "title": file_info.title,
+                        "min_confidence": self.min_confidence,
+                        "error_type": "data_processing",
+                        "original_error": str(e),
+                    },
+                ),
+                original_error=e,
+            )
+        except Exception as e:  # noqa: BLE001
             # Handle unexpected errors
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
@@ -203,6 +268,7 @@ class MetadataEnricher:
                     additional_data={
                         "title": file_info.title,
                         "min_confidence": self.min_confidence,
+                        "error_type": "unexpected",
                         "original_error": str(e),
                     },
                 ),
@@ -320,7 +386,39 @@ class MetadataEnricher:
 
             return enriched_results
 
-        except Exception as e:
+        except (ConnectionError, TimeoutError) as e:
+            # Handle network-related errors in batch processing
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_CONNECTION_ERROR,
+                message=f"Network error during batch enrichment: {e!s}",
+                context=ErrorContext(
+                    operation="enrich_batch",
+                    additional_data={
+                        "file_count": len(file_infos),
+                        "min_confidence": self.min_confidence,
+                        "error_type": "network",
+                        "original_error": str(e),
+                    },
+                ),
+                original_error=e,
+            )
+        except (ValueError, KeyError, TypeError) as e:
+            # Handle data processing errors in batch processing
+            error = DomainError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message=f"Data processing error during batch enrichment: {e!s}",
+                context=ErrorContext(
+                    operation="enrich_batch",
+                    additional_data={
+                        "file_count": len(file_infos),
+                        "min_confidence": self.min_confidence,
+                        "error_type": "data_processing",
+                        "original_error": str(e),
+                    },
+                ),
+                original_error=e,
+            )
+        except Exception as e:  # noqa: BLE001
             # Handle unexpected errors in batch processing
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
@@ -330,6 +428,7 @@ class MetadataEnricher:
                     additional_data={
                         "file_count": len(file_infos),
                         "min_confidence": self.min_confidence,
+                        "error_type": "unexpected",
                         "original_error": str(e),
                     },
                 ),
@@ -407,11 +506,11 @@ class MetadataEnricher:
                         best_score = score
                         best_match = result
                         best_match["match_confidence"] = score
-                except Exception as e:
-                    # Log error for individual result scoring but continue processing
+                except (ValueError, KeyError, TypeError) as e:
+                    # Handle data processing errors for individual result scoring
                     error = DomainError(
                         code=ErrorCode.VALIDATION_ERROR,
-                        message=f"Error calculating match score for result: {e!s}",
+                        message=f"Data processing error calculating match score for result: {e!s}",
                         context=ErrorContext(
                             operation="calculate_match_score",
                             additional_data={
@@ -419,6 +518,25 @@ class MetadataEnricher:
                                 "result_id": result.get("id", "unknown"),
                                 "result_title": result.get("title")
                                 or result.get("name", "unknown"),
+                                "error_type": "data_processing",
+                                "original_error": str(e),
+                            },
+                        ),
+                        original_error=e,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # Log error for individual result scoring but continue processing
+                    error = DomainError(
+                        code=ErrorCode.VALIDATION_ERROR,
+                        message=f"Unexpected error calculating match score for result: {e!s}",
+                        context=ErrorContext(
+                            operation="calculate_match_score",
+                            additional_data={
+                                "title": file_info.title,
+                                "result_id": result.get("id", "unknown"),
+                                "result_title": result.get("title")
+                                or result.get("name", "unknown"),
+                                "error_type": "unexpected",
                                 "original_error": str(e),
                             },
                         ),
@@ -434,7 +552,26 @@ class MetadataEnricher:
 
             return best_match if best_score >= self.min_confidence else None
 
-        except Exception as e:
+        except (ValueError, KeyError, TypeError) as e:
+            # Handle data processing errors in match finding
+            error = DomainError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message=f"Data processing error during best match finding: {e!s}",
+                context=ErrorContext(
+                    operation="find_best_match",
+                    additional_data={
+                        "title": file_info.title,
+                        "search_results_count": (
+                            len(search_results) if search_results else 0
+                        ),
+                        "min_confidence": self.min_confidence,
+                        "error_type": "data_processing",
+                        "original_error": str(e),
+                    },
+                ),
+                original_error=e,
+            )
+        except Exception as e:  # noqa: BLE001
             # Handle unexpected errors in match finding
             error = DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
@@ -447,6 +584,7 @@ class MetadataEnricher:
                             len(search_results) if search_results else 0
                         ),
                         "min_confidence": self.min_confidence,
+                        "error_type": "unexpected",
                         "original_error": str(e),
                     },
                 ),
@@ -489,10 +627,18 @@ class MetadataEnricher:
                     tmdb_result.get("title") or tmdb_result.get("name", ""),
                 )
                 score += title_score * 0.6
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
+                # Handle data processing errors in title similarity calculation
+                logger.warning(
+                    "Data processing error calculating title similarity: %s. Title1: %s, Title2: %s",
+                    str(e),
+                    file_info.title,
+                    tmdb_result.get("title") or tmdb_result.get("name", ""),
+                )
+            except Exception as e:  # noqa: BLE001
                 # If title similarity calculation fails, log and continue with 0
                 logger.warning(
-                    "Error calculating title similarity: %s. Title1: %s, Title2: %s",
+                    "Unexpected error calculating title similarity: %s. Title1: %s, Title2: %s",
                     str(e),
                     file_info.title,
                     tmdb_result.get("title") or tmdb_result.get("name", ""),
@@ -506,9 +652,15 @@ class MetadataEnricher:
                 ):
                     # For TV shows, episode info is relevant
                     score += 0.2
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(
-                    "Error checking episode info: %s. File info: %s",
+                    "Data processing error checking episode info: %s. File info: %s",
+                    str(e),
+                    file_info,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "Unexpected error checking episode info: %s. File info: %s",
                     str(e),
                     file_info,
                 )
@@ -521,9 +673,15 @@ class MetadataEnricher:
                 ):
                     # For TV shows, season info is relevant
                     score += 0.1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(
-                    "Error checking season info: %s. File info: %s",
+                    "Data processing error checking season info: %s. File info: %s",
+                    str(e),
+                    file_info,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "Unexpected error checking season info: %s. File info: %s",
                     str(e),
                     file_info,
                 )
@@ -535,9 +693,16 @@ class MetadataEnricher:
                     and file_info.has_episode_info()
                 ):
                     score += 0.1
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(
-                    "Error checking media type bonus: %s. File info: %s, TMDB result: %s",
+                    "Data processing error checking media type bonus: %s. File info: %s, TMDB result: %s",
+                    str(e),
+                    file_info,
+                    tmdb_result,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "Unexpected error checking media type bonus: %s. File info: %s, TMDB result: %s",
                     str(e),
                     file_info,
                     tmdb_result,
@@ -545,16 +710,28 @@ class MetadataEnricher:
 
             return min(score, 1.0)
 
-        except Exception:
-            # If the entire scoring process fails, return 0
+        except (ValueError, KeyError, AttributeError, TypeError):
+            # Handle specific data processing errors
             logger.exception(
                 "Error calculating match score. File info: %s, TMDB result: %s",
                 file_info,
                 tmdb_result,
             )
             return 0.0
+        except Exception:
+            # Handle unexpected errors
+            logger.exception(
+                "Unexpected error calculating match score. File info: %s, TMDB result: %s",
+                file_info,
+                tmdb_result,
+            )
+            return 0.0
 
-    def _calculate_title_similarity(self, title1: str, title2: str) -> float:  # noqa: PLR0911
+    def _calculate_title_similarity(
+        self,
+        title1: str,
+        title2: str,
+    ) -> float:
         """Calculate similarity between two titles.
 
         This method implements a simple similarity algorithm that considers:
@@ -597,7 +774,8 @@ class MetadataEnricher:
                 union = words1.union(words2)
 
                 return len(intersection) / len(union) if union else 0.0
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
+                # Handle specific data processing errors
                 logger.warning(
                     "Error calculating word overlap for titles '%s' and '%s': %s",
                     title1,
@@ -605,10 +783,27 @@ class MetadataEnricher:
                     str(e),
                 )
                 return 0.0
+            except Exception:
+                # Handle unexpected errors
+                logger.exception(
+                    "Unexpected error calculating word overlap for titles '%s' and '%s'",
+                    title1,
+                    title2,
+                )
+                return 0.0
 
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
+            # Handle specific data processing errors
             logger.exception(
                 "Error calculating title similarity for '%s' and '%s'",
+                title1,
+                title2,
+            )
+            return 0.0
+        except Exception:
+            # Handle unexpected errors
+            logger.exception(
+                "Unexpected error calculating title similarity for '%s' and '%s'",
                 title1,
                 title2,
             )

@@ -86,7 +86,7 @@ def normalize_query_from_anitopy(
 
         return result
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(
             "Failed to normalize anitopy result '%s': %s",
             anitopy_result,
@@ -143,7 +143,7 @@ def normalize_query(filename: str) -> tuple[str, str]:
 
         return normalized_title, language
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(
             "Failed to normalize query '%s': %s. Using filename as fallback.",
             filename,

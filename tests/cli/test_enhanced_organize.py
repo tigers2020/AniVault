@@ -1,11 +1,12 @@
 """Tests for enhanced organize command."""
 
-import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 from anivault.cli.organize_handler import _generate_enhanced_organization_plan
-from anivault.core.models import ScannedFile, ParsingResult
+from anivault.core.models import ParsingResult, ScannedFile
 
 
 class TestEnhancedOrganize:
@@ -28,11 +29,13 @@ class TestEnhancedOrganize:
         args.destination = "Anime"
         args.similarity_threshold = 0.7
 
-        with patch("anivault.core.file_grouper.FileGrouper") as mock_grouper, patch(
-            "anivault.core.resolution_detector.ResolutionDetector"
-        ) as mock_resolution, patch(
-            "anivault.core.subtitle_matcher.SubtitleMatcher"
-        ) as mock_subtitle:
+        with (
+            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch(
+                "anivault.core.resolution_detector.ResolutionDetector"
+            ) as mock_resolution,
+            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+        ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [file]
             }
@@ -62,11 +65,13 @@ class TestEnhancedOrganize:
         args.destination = "Anime"
         args.similarity_threshold = 0.7
 
-        with patch("anivault.core.file_grouper.FileGrouper") as mock_grouper, patch(
-            "anivault.core.resolution_detector.ResolutionDetector"
-        ) as mock_resolution, patch(
-            "anivault.core.subtitle_matcher.SubtitleMatcher"
-        ) as mock_subtitle:
+        with (
+            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch(
+                "anivault.core.resolution_detector.ResolutionDetector"
+            ) as mock_resolution,
+            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+        ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": files
             }
@@ -92,11 +97,13 @@ class TestEnhancedOrganize:
         args.destination = "Anime"
         args.similarity_threshold = 0.7
 
-        with patch("anivault.core.file_grouper.FileGrouper") as mock_grouper, patch(
-            "anivault.core.resolution_detector.ResolutionDetector"
-        ) as mock_resolution, patch(
-            "anivault.core.subtitle_matcher.SubtitleMatcher"
-        ) as mock_subtitle:
+        with (
+            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch(
+                "anivault.core.resolution_detector.ResolutionDetector"
+            ) as mock_resolution,
+            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+        ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [video_file]
             }
@@ -130,11 +137,13 @@ class TestEnhancedOrganize:
         args.destination = "Anime"
         args.similarity_threshold = 0.7
 
-        with patch("anivault.core.file_grouper.FileGrouper") as mock_grouper, patch(
-            "anivault.core.resolution_detector.ResolutionDetector"
-        ) as mock_resolution, patch(
-            "anivault.core.subtitle_matcher.SubtitleMatcher"
-        ) as mock_subtitle:
+        with (
+            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch(
+                "anivault.core.resolution_detector.ResolutionDetector"
+            ) as mock_resolution,
+            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+        ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [high_res_file, low_res_file]
             }
@@ -163,13 +172,16 @@ class TestEnhancedOrganize:
         args.destination = "Anime"
         args.similarity_threshold = 0.7
 
-        with patch("anivault.core.file_grouper.FileGrouper") as mock_grouper, patch(
-            "anivault.core.resolution_detector.ResolutionDetector"
-        ) as mock_resolution, patch(
-            "anivault.core.subtitle_matcher.SubtitleMatcher"
-        ) as mock_subtitle, patch(
-            "anivault.services.metadata_enricher.MetadataEnricher"
-        ) as mock_enricher:
+        with (
+            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch(
+                "anivault.core.resolution_detector.ResolutionDetector"
+            ) as mock_resolution,
+            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+            patch(
+                "anivault.services.metadata_enricher.MetadataEnricher"
+            ) as mock_enricher,
+        ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [file]
             }

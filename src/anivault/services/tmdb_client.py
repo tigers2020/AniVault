@@ -81,6 +81,61 @@ class TMDBClient:
         self._tv = TV()
         self._movie = Movie()
 
+    def _generate_shortened_titles(self, title: str) -> list[str]:
+        """Generate shortened versions of the title for fallback search.
+
+        Args:
+            title: Original title to shorten
+
+        Returns:
+            List of shortened titles, ordered by preference (longest first)
+        """
+        # Split title into words
+        words = title.strip().split()
+        if len(words) <= 1:
+            return []  # Cannot shorten single word titles
+
+        shortened_titles = []
+
+        # Remove common suffixes/versions
+        version_patterns = [
+            r"\s+v\d+$",  # v1, v2, etc.
+            r"\s+version\s+\d+$",  # version 1, version 2, etc.
+            r"\s+\d{4}$",  # year at end
+            r"\s+\(.*\)$",  # parentheses at end
+            r"\s+\[.*\]$",  # brackets at end
+            r"\s+ext$",  # ext suffix
+            r"\s+special$",  # special suffix
+            r"\s+ova$",  # ova suffix
+            r"\s+tv$",  # tv suffix
+        ]
+
+        import re
+
+        base_title = title
+        for pattern in version_patterns:
+            base_title = re.sub(pattern, "", base_title, flags=re.IGNORECASE)
+
+        # Add base title without version patterns
+        if base_title.strip() != title.strip():
+            shortened_titles.append(base_title.strip())
+
+        # Generate progressive word removal (keep at least 2 words)
+        current_words = words.copy()
+        while len(current_words) > 2:
+            current_words.pop()  # Remove last word
+            shortened_titles.append(" ".join(current_words))
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_titles = []
+        for title_var in shortened_titles:
+            if title_var.lower() not in seen:
+                seen.add(title_var.lower())
+                unique_titles.append(title_var)
+
+        return unique_titles
+
     async def search_media(self, title: str) -> list[dict[str, Any]]:
         """Search for media (TV shows and movies) by title.
 
@@ -105,10 +160,49 @@ class TMDBClient:
 
         # Search TV shows
         try:
-            tv_results = await self._make_request(lambda: self._tv.search(title))
+            tv_response = await self._make_request(lambda: self._tv.search(title))
+            # Extract results from API response (handle both dict and AsObj)
+            if hasattr(tv_response, "get"):
+                tv_results = tv_response.get("results", [])
+            else:
+                logger.warning(
+                    "TV search returned unexpected response: %s",
+                    type(tv_response),
+                )
+                tv_results = []
+
             for result in tv_results:
-                result["media_type"] = MediaType.TV
-                results.append(result)
+                if isinstance(result, dict):
+                    result["media_type"] = MediaType.TV
+                    results.append(result)
+                else:
+                    # Convert any non-dict object to dict (including AsObj)
+                    try:
+                        if hasattr(result, "__dict__"):
+                            # Convert object with attributes to dict
+                            result_dict = {
+                                k: v
+                                for k, v in result.__dict__.items()
+                                if not k.startswith("_")
+                            }
+                        elif hasattr(result, "get"):
+                            # Convert dict-like object to dict
+                            result_dict = dict(result)
+                        else:
+                            # Fallback: create dict from string representation
+                            result_dict = {"title": str(result)}
+
+                        result_dict["media_type"] = MediaType.TV
+                        results.append(result_dict)
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to convert TV search result %s: %s",
+                            type(result),
+                            e,
+                        )
+                        results.append(
+                            {"title": str(result), "media_type": MediaType.TV},
+                        )
         except AniVaultError as e:
             # Re-raise AniVaultError as-is
             tv_error = e
@@ -119,7 +213,7 @@ class TMDBClient:
                 additional_context=context.additional_data if context else None,
             )
             # Continue with movie search even if TV search fails
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Convert generic exceptions to InfrastructureError
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
@@ -137,10 +231,49 @@ class TMDBClient:
 
         # Search movies
         try:
-            movie_results = await self._make_request(lambda: self._movie.search(title))
+            movie_response = await self._make_request(lambda: self._movie.search(title))
+            # Extract results from API response (handle both dict and AsObj)
+            if hasattr(movie_response, "get"):
+                movie_results = movie_response.get("results", [])
+            else:
+                logger.warning(
+                    "Movie search returned unexpected response: %s",
+                    type(movie_response),
+                )
+                movie_results = []
+
             for result in movie_results:
-                result["media_type"] = MediaType.MOVIE
-                results.append(result)
+                if isinstance(result, dict):
+                    result["media_type"] = MediaType.MOVIE
+                    results.append(result)
+                else:
+                    # Convert any non-dict object to dict (including AsObj)
+                    try:
+                        if hasattr(result, "__dict__"):
+                            # Convert object with attributes to dict
+                            result_dict = {
+                                k: v
+                                for k, v in result.__dict__.items()
+                                if not k.startswith("_")
+                            }
+                        elif hasattr(result, "get"):
+                            # Convert dict-like object to dict
+                            result_dict = dict(result)
+                        else:
+                            # Fallback: create dict from string representation
+                            result_dict = {"title": str(result)}
+
+                        result_dict["media_type"] = MediaType.MOVIE
+                        results.append(result_dict)
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to convert Movie search result %s: %s",
+                            type(result),
+                            e,
+                        )
+                        results.append(
+                            {"title": str(result), "media_type": MediaType.MOVIE},
+                        )
         except AniVaultError as e:
             # Re-raise AniVaultError as-is
             movie_error = e
@@ -151,7 +284,7 @@ class TMDBClient:
                 additional_context=context.additional_data if context else None,
             )
             # Continue even if movie search fails
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Convert generic exceptions to InfrastructureError
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
@@ -167,20 +300,121 @@ class TMDBClient:
             )
             # Continue even if movie search fails
 
-        # If both searches failed, raise an error
+        # If both searches failed, try with shortened title
         if not results:
-            error = InfrastructureError(
-                code=ErrorCode.TMDB_API_MEDIA_NOT_FOUND,
-                message=f"No media found for title: {title}",
-                context=context,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="search_media",
-                additional_context=context.additional_data if context else None,
-            )
-            raise error
+            shortened_titles = self._generate_shortened_titles(title)
+            for shortened_title in shortened_titles:
+                logger.debug("Trying shortened title: %s", shortened_title)
+                try:
+                    # Try TV search with shortened title
+                    try:
+                        tv_response = await self._make_request(
+                            lambda: self._tv.search(shortened_title),
+                        )
+                        if hasattr(tv_response, "get"):
+                            tv_results = tv_response.get("results", [])
+                        else:
+                            tv_results = []
+
+                        for result in tv_results:
+                            if isinstance(result, dict):
+                                result["media_type"] = MediaType.TV
+                                results.append(result)
+                            else:
+                                try:
+                                    if hasattr(result, "__dict__"):
+                                        result_dict = {
+                                            k: v
+                                            for k, v in result.__dict__.items()
+                                            if not k.startswith("_")
+                                        }
+                                    elif hasattr(result, "get"):
+                                        result_dict = dict(result)
+                                    else:
+                                        result_dict = {"title": str(result)}
+
+                                    result_dict["media_type"] = MediaType.TV
+                                    results.append(result_dict)
+                                except Exception:
+                                    results.append(
+                                        {
+                                            "title": str(result),
+                                            "media_type": MediaType.TV,
+                                        },
+                                    )
+                    except Exception:
+                        pass  # Continue with movie search
+
+                    # Try movie search with shortened title
+                    try:
+                        movie_response = await self._make_request(
+                            lambda: self._movie.search(shortened_title),
+                        )
+                        if hasattr(movie_response, "get"):
+                            movie_results = movie_response.get("results", [])
+                        else:
+                            movie_results = []
+
+                        for result in movie_results:
+                            if isinstance(result, dict):
+                                result["media_type"] = MediaType.MOVIE
+                                results.append(result)
+                            else:
+                                try:
+                                    if hasattr(result, "__dict__"):
+                                        result_dict = {
+                                            k: v
+                                            for k, v in result.__dict__.items()
+                                            if not k.startswith("_")
+                                        }
+                                    elif hasattr(result, "get"):
+                                        result_dict = dict(result)
+                                    else:
+                                        result_dict = {"title": str(result)}
+
+                                    result_dict["media_type"] = MediaType.MOVIE
+                                    results.append(result_dict)
+                                except Exception:
+                                    results.append(
+                                        {
+                                            "title": str(result),
+                                            "media_type": MediaType.MOVIE,
+                                        },
+                                    )
+                    except Exception:
+                        pass  # Continue with next shortened title
+
+                    # If we found results with shortened title, break
+                    if results:
+                        logger.info(
+                            "Found results with shortened title '%s' for original '%s'",
+                            shortened_title,
+                            title,
+                        )
+                        break
+
+                except Exception as e:
+                    logger.debug(
+                        "Shortened title '%s' also failed: %s",
+                        shortened_title,
+                        e,
+                    )
+                    continue
+
+            # If still no results after trying all shortened titles, raise error
+            if not results:
+                error = InfrastructureError(
+                    code=ErrorCode.TMDB_API_MEDIA_NOT_FOUND,
+                    message=f"No media found for title: {title} (tried shortened versions: {shortened_titles})",
+                    context=context,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
+                    operation="search_media",
+                    additional_context=context.additional_data if context else None,
+                )
+                raise error
 
         log_operation_success(
             logger=logger,

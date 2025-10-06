@@ -1,6 +1,6 @@
 """
-Test package for AniVault.
+Test suite for AniVault.
 
-This package contains all unit tests, integration tests, and test utilities
-for the AniVault anime collection management system.
+This package contains all test modules for the AniVault application,
+including unit tests, integration tests, and performance benchmarks.
 """

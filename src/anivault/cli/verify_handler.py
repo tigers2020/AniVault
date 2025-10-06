@@ -62,7 +62,34 @@ def handle_verify_command(options: VerifyOptions) -> int:
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
         return 1
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        # Handle file system errors
+        logger.exception("File system error in verify command")
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
+            error_output = format_json_output(
+                success=False,
+                command="verify",
+                errors=[f"File system error: {e}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+        return 1
+    except (ValueError, KeyError, TypeError, AttributeError) as e:
+        # Handle data processing errors
+        logger.exception("Data processing error in verify command")
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
+            error_output = format_json_output(
+                success=False,
+                command="verify",
+                errors=[f"Data processing error: {e}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+        return 1
     except Exception as e:
+        # Handle unexpected errors
         logger.exception("Unexpected error in verify command")
         context = get_cli_context()
         if context and context.is_json_output_enabled():
@@ -98,9 +125,15 @@ def _handle_verify_command_json(options: VerifyOptions) -> int:
         sys.stdout.buffer.write(output)
         sys.stdout.buffer.write(b"\n")
         return 0
-    except Exception:
+    except (OSError, ValueError, KeyError):
+        # Handle specific I/O and data processing errors
         sys.stdout.buffer.write(b"\n")
         logger.exception("Error in verify command JSON output")
+        return 1
+    except Exception:
+        # Handle unexpected errors
+        sys.stdout.buffer.write(b"\n")
+        logger.exception("Unexpected error in verify command JSON output")
         return 1
 
 
@@ -245,7 +278,7 @@ def _collect_verify_data(options: VerifyOptions) -> dict[str, Any] | None:
                     "error_code": str(e.code),
                 }
                 verify_results["verification_status"] = "FAILED"
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 verify_results["tmdb_api"] = {
                     "status": "FAILED",
                     "message": f"Unexpected error: {e}",
@@ -265,8 +298,13 @@ def _collect_verify_data(options: VerifyOptions) -> dict[str, Any] | None:
 
         return verify_results
 
-    except Exception:
+    except (OSError, ValueError, KeyError, AttributeError):
+        # Handle specific data processing and I/O errors
         logger.exception("Error collecting verify data")
+        return None
+    except Exception:
+        # Handle unexpected errors
+        logger.exception("Unexpected error collecting verify data")
         return None
 
 

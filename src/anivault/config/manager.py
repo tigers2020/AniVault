@@ -1,33 +1,27 @@
 """
 Configuration Manager for AniVault
 
-This module provides the ConfigManager class for loading and merging
-configuration from multiple sources with proper priority handling:
-Environment Variables > TOML File > Default Values
+This module provides the ConfigManager class that orchestrates configuration
+loading, validation, and storage with proper separation of concerns.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
-import toml
-from pydantic import ValidationError
-
+from anivault.config.loader import ConfigLoader
+from anivault.config.storage import ConfigStorage
 from anivault.config.validation import TomlConfig
-from anivault.shared.constants import (
-    Config,
-    Encoding,
-)
-from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+from anivault.config.validator import ConfigValidator
+from anivault.shared.constants import Config
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
-    """Manages hierarchical configuration loading and merging."""
+    """Orchestrates configuration loading, validation, and storage."""
 
     def __init__(self, config_path: Path | None = None) -> None:
         """Initialize the ConfigManager.
@@ -43,70 +37,20 @@ class ConfigManager:
         else:
             self.config_path = Path(config_path)
 
-    def _load_toml_config(self) -> dict[str, Any]:
-        """Load configuration from TOML file.
+        # Initialize components
+        self.loader = ConfigLoader(self.config_path)
+        self.storage = ConfigStorage(self.config_path)
+        self.validator = ConfigValidator()
+
+    def load_config(self) -> TomlConfig:
+        """Load and validate configuration with proper priority.
+
+        Priority: Environment Variables > TOML File > Default Values
 
         Returns:
-            Dictionary containing TOML configuration data
-
-        Raises:
-            ApplicationError: If TOML file is malformed
+            Validated TomlConfig object
         """
-        try:
-            if not self.config_path.exists():
-                logger.debug("TOML config file not found: %s", self.config_path)
-                return {}
-
-            with open(self.config_path, encoding=Encoding.DEFAULT) as f:
-                config_data = toml.load(f)
-
-            logger.debug("Successfully loaded TOML config from: %s", self.config_path)
-            return config_data if isinstance(config_data, dict) else {}
-
-        except toml.TomlDecodeError as e:
-            logger.warning("Malformed TOML file %s: %s", self.config_path, e)
-            raise ApplicationError(
-                ErrorCode.CONFIG_ERROR,
-                f"Malformed TOML configuration file: {self.config_path}",
-                ErrorContext(file_path=str(self.config_path)),
-            ) from e
-        except Exception as e:
-            logger.exception("Unexpected error loading TOML config")
-            raise ApplicationError(
-                ErrorCode.CONFIG_ERROR,
-                f"Failed to load TOML configuration: {self.config_path}",
-                ErrorContext(file_path=str(self.config_path)),
-            ) from e
-
-    @staticmethod
-    def _deep_merge_dicts(
-        base: dict[str, Any],
-        override: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Deep merge two dictionaries recursively.
-
-        Args:
-            base: Base dictionary to merge into
-            override: Dictionary with override values
-
-        Returns:
-            Merged dictionary with override values taking precedence
-        """
-        result = base.copy()
-
-        for key, value in override.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
-                # Recursively merge nested dictionaries
-                result[key] = ConfigManager._deep_merge_dicts(result[key], value)
-            else:
-                # Override the value
-                result[key] = value
-
-        return result
+        return self.loader.load_validated_config()
 
     def get_merged_config(self) -> dict[str, Any]:
         """Get merged configuration from defaults and TOML file.
@@ -114,92 +58,7 @@ class ConfigManager:
         Returns:
             Dictionary containing merged configuration (TOML > Defaults)
         """
-        # Get default configuration from Pydantic models
-        try:
-            default_config = TomlConfig.model_validate({}).model_dump()
-        except ValidationError as e:
-            logger.exception("Failed to create default configuration")
-            raise ApplicationError(
-                ErrorCode.CONFIG_ERROR,
-                "Failed to create default configuration",
-                ErrorContext(operation="get_default_config"),
-            ) from e
-
-        # Load TOML configuration
-        toml_config = self._load_toml_config()
-
-        # Merge TOML config over defaults (TOML > Defaults)
-        merged_config = self._deep_merge_dicts(default_config, toml_config)
-
-        logger.debug("Successfully merged default and TOML configurations")
-        return merged_config
-
-    def load_config(self) -> TomlConfig:
-        """Load and validate configuration with proper priority.
-
-        Priority: Environment Variables > TOML File > Default Values
-
-        BaseSettings automatically handles environment variables with the following order:
-        1. Environment variables (ANIVAULT_APP__NAME, etc.)
-        2. Constructor arguments (TOML config)
-        3. Default values
-
-        However, constructor arguments take precedence over environment variables.
-        To ensure environment variables override TOML values, we:
-        1. Create TomlConfig() without arguments (reads environment variables)
-        2. Manually apply TOML values only where environment variables don't exist
-
-        Returns:
-            Validated TomlConfig object
-
-        Raises:
-            ApplicationError: If configuration validation fails or other unexpected error occurs.
-        """
-        try:
-            # Create TomlConfig instance without any arguments
-            # This allows BaseSettings to read environment variables first
-            settings = TomlConfig()
-
-            # Load TOML configuration
-            toml_config = self._load_toml_config()
-
-            # Apply TOML values only where environment variables don't exist
-            if toml_config:
-                # Check if environment variables exist for each section
-                for section_name, section_data in toml_config.items():
-                    if not hasattr(settings, section_name):
-                        continue
-
-                    section_obj = getattr(settings, section_name)
-
-                    # Apply each field from TOML only if no environment variable exists
-                    for field_name, field_value in section_data.items():
-                        env_var_name = f"{Config.ENV_PREFIX}{section_name.upper()}{Config.ENV_DELIMITER}{field_name.upper()}"
-
-                        # Only apply TOML value if environment variable doesn't exist
-                        if not os.getenv(env_var_name) and hasattr(
-                            section_obj,
-                            field_name,
-                        ):
-                            setattr(section_obj, field_name, field_value)
-
-            logger.info("Successfully loaded and validated configuration")
-            return settings
-
-        except ValidationError as e:
-            logger.exception("Configuration validation failed")
-            raise ApplicationError(
-                ErrorCode.VALIDATION_ERROR,
-                f"Configuration validation failed: {e}",
-                ErrorContext(file_path=str(self.config_path)),
-            ) from e
-        except Exception as e:
-            logger.exception("Unexpected error loading settings")
-            raise ApplicationError(
-                ErrorCode.CONFIG_ERROR,
-                f"Failed to load configuration: {e}",
-                ErrorContext(file_path=str(self.config_path)),
-            ) from e
+        return self.loader.load_merged_config()
 
     def save_config(self, config: TomlConfig) -> None:
         """Save configuration to TOML file.
@@ -208,25 +67,15 @@ class ConfigManager:
             config: TomlConfig object to save
 
         Raises:
-            ApplicationError: If saving fails
+            ValueError: If validation fails
         """
-        try:
-            # Convert to dictionary for TOML serialization
-            config_dict = config.model_dump()
+        # Validate before saving
+        errors = self.validator.validate_config_object(config)
+        if errors:
+            error_message = f"Configuration validation failed: {', '.join(errors)}"
+            raise ValueError(error_message)
 
-            # Write to TOML file
-            with open(self.config_path, "w", encoding=Encoding.DEFAULT) as f:
-                toml.dump(config_dict, f)
-
-            logger.info("Configuration saved to: %s", self.config_path)
-
-        except Exception as e:
-            logger.exception("Failed to save configuration")
-            raise ApplicationError(
-                ErrorCode.CONFIG_ERROR,
-                f"Failed to save configuration: {e}",
-                ErrorContext(file_path=str(self.config_path)),
-            ) from e
+        self.storage.save_config(config)
 
     def validate_config(self, config_dict: dict[str, Any] | None = None) -> list[str]:
         """Validate configuration dictionary.
@@ -237,45 +86,119 @@ class ConfigManager:
         Returns:
             List of validation error messages. Empty list if valid.
         """
-        try:
-            if config_dict is None:
-                config_dict = self.get_merged_config()
+        if config_dict is None:
+            config_dict = self.get_merged_config()
 
-            # Validate using Pydantic model
-            TomlConfig.model_validate(config_dict)
-            return []
-
-        except ValidationError as e:
-            errors = []
-            for error in e.errors():
-                field_path = " -> ".join(str(loc) for loc in error["loc"])
-                errors.append(f"{field_path}: {error['msg']}")
-            return errors
-        except Exception as e:
-            return [f"Unexpected validation error: {e}"]
+        return self.validator.validate_config_dict(config_dict)
 
     def save_default_config(self) -> None:
         """Save default configuration to TOML file.
 
         This creates a template configuration file that users can modify.
         """
+        self.storage.save_default_config()
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a configuration value by key.
+
+        Args:
+            key: Configuration key (supports dot notation for nested keys)
+            default: Default value if key not found
+
+        Returns:
+            Configuration value or default
+        """
         try:
-            # Create default configuration
-            default_config = TomlConfig.model_validate({})
+            config = self.get_merged_config()
 
-            # Convert to dictionary for TOML serialization
-            config_dict = default_config.model_dump()
+            # Support dot notation for nested keys
+            keys = key.split(".")
+            value = config
 
-            # Write to TOML file
-            with open(self.config_path, "w", encoding=Encoding.DEFAULT) as f:
-                toml.dump(config_dict, f)
+            for k in keys:
+                if isinstance(value, dict) and k in value:
+                    value = value[k]
+                else:
+                    return default
 
-            logger.info("Default configuration saved to: %s", self.config_path)
+            return value
 
-        except Exception as e:
-            logger.exception("Failed to save default configuration")
-            raise ApplicationError(
-                ErrorCode.CONFIG_ERROR,
-                f"Failed to save default configuration: {e}",
-                ErrorContext(file_path=str(self.config_path)),
-            ) from e
+        except (KeyError, TypeError, AttributeError) as e:
+            logger.warning("Failed to get config value for key '%s': %s", key, e)
+            return default
+
+    def has(self, key: str) -> bool:
+        """Check if configuration key exists.
+
+        Args:
+            key: Configuration key (supports dot notation for nested keys)
+
+        Returns:
+            True if key exists, False otherwise
+        """
+        return self.get(key) is not None
+
+    def set(self, key: str, value: Any) -> None:
+        """Set a configuration value by key.
+
+        Args:
+            key: Configuration key (supports dot notation for nested keys)
+            value: Value to set
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Validate the field value if possible
+        keys = key.split(".")
+        if len(keys) >= 2:
+            section = keys[0]
+            field = keys[1]
+            errors = self.validator.validate_field_value(section, field, value)
+            if errors:
+                error_message = f"Validation failed for {key}: {', '.join(errors)}"
+                raise ValueError(error_message)
+
+        self.storage.set_nested_value(key, value)
+
+    def rollback_config(self) -> bool:
+        """Rollback to backup configuration if available.
+
+        Returns:
+            True if rollback was successful, False if no backup available
+        """
+        return self.storage.rollback_to_backup()
+
+    def cleanup_backup(self) -> None:
+        """Remove backup file if it exists."""
+        self.storage.cleanup_backup()
+
+    def get_config_schema(self) -> dict[str, Any]:
+        """Get the configuration schema.
+
+        Returns:
+            JSON schema for the configuration
+        """
+        return self.validator.get_config_schema()
+
+    def get_field_description(self, section: str, field: str) -> str | None:
+        """Get description for a specific configuration field.
+
+        Args:
+            section: Configuration section name
+            field: Field name within the section
+
+        Returns:
+            Field description if found, None otherwise
+        """
+        return self.validator.get_field_description(section, field)
+
+    def get_required_fields(self, section: str) -> list[str]:
+        """Get list of required fields for a configuration section.
+
+        Args:
+            section: Configuration section name
+
+        Returns:
+            List of required field names
+        """
+        return self.validator.get_required_fields(section)

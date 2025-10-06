@@ -220,7 +220,7 @@ class MagicValueDetector(ast.NodeVisitor):
             or "constants" in self.file_path.split("/")[-1]
         )
 
-    def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
+    def visit_Import(self, node: ast.Import) -> None:
         """import 구문 방문"""
         for alias in node.names:
             if alias.name.startswith("anivault.shared.constants"):
@@ -228,26 +228,26 @@ class MagicValueDetector(ast.NodeVisitor):
                 self.imported_constants.add(alias.asname or alias.name.split(".")[-1])
         self.generic_visit(node)
 
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """from import 구문 방문"""
         if node.module and node.module.startswith("anivault.shared.constants"):
             for alias in node.names:
                 self.imported_constants.add(alias.asname or alias.name)
         self.generic_visit(node)
 
-    def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+    def visit_Assign(self, node: ast.Assign) -> None:
         """할당 구문 방문 - 모듈 수준 상수 추적"""
         for target in node.targets:
             if isinstance(target, ast.Name) and target.id.isupper():
                 self.module_constants.add(target.id)
         self.generic_visit(node)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """함수 정의 방문 - 기본값 위치 추적"""
         self._track_function_defaults(node)
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """비동기 함수 정의 방문 - 기본값 위치 추적"""
         self._track_function_defaults(node)
         self.generic_visit(node)
@@ -258,17 +258,17 @@ class MagicValueDetector(ast.NodeVisitor):
             if hasattr(default, "lineno") and hasattr(default, "col_offset"):
                 self.function_defaults.add((default.lineno, default.col_offset))
 
-    def visit_Constant(self, node: ast.Constant) -> None:  # noqa: N802
+    def visit_Constant(self, node: ast.Constant) -> None:
         """상수 노드 방문 (Python 3.8+)"""
         self._check_constant(node, node.value, node.lineno, node.col_offset)
         self.generic_visit(node)
 
-    def visit_Num(self, node: ast.Num) -> None:  # noqa: N802
+    def visit_Num(self, node: ast.Num) -> None:
         """숫자 노드 방문 (Python < 3.8)"""
         self._check_constant(node, node.n, node.lineno, node.col_offset)
         self.generic_visit(node)
 
-    def visit_Str(self, node: ast.Str) -> None:  # noqa: N802
+    def visit_Str(self, node: ast.Str) -> None:
         """문자열 노드 방문 (Python < 3.8)"""
         self._check_constant(node, node.s, node.lineno, node.col_offset)
         self.generic_visit(node)

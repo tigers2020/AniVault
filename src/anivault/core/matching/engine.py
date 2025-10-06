@@ -17,9 +17,7 @@ from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import (
-    ConfidenceThresholds,
-)
+from anivault.shared.constants import ConfidenceThresholds
 
 logger = logging.getLogger(__name__)
 
@@ -99,14 +97,21 @@ class MatchingEngine:
 
                 # Type validation for cached results
                 if not isinstance(cached_results, list):
-                    logger.warning("Invalid cached results type: %s, expected list, clearing cache", type(cached_results))
+                    logger.warning(
+                        "Invalid cached results type: %s, expected list, clearing cache",
+                        type(cached_results),
+                    )
                     self.cache.delete(cache_key, "search")
                     return []
 
                 # Validate that all items in the list are dicts
                 for i, item in enumerate(cached_results):
                     if not isinstance(item, dict):
-                        logger.warning("Invalid cached item type at index %d: %s, expected dict, clearing cache", i, type(item))
+                        logger.warning(
+                            "Invalid cached item type at index %d: %s, expected dict, clearing cache",
+                            i,
+                            type(item),
+                        )
                         self.cache.delete(cache_key, "search")
                         return []
 
@@ -306,7 +311,10 @@ class MatchingEngine:
             try:
                 # Type validation for candidate
                 if not isinstance(candidate, dict):
-                    logger.warning("Invalid candidate type: %s, expected dict, skipping", type(candidate))
+                    logger.warning(
+                        "Invalid candidate type: %s, expected dict, skipping",
+                        type(candidate),
+                    )
                     continue
 
                 # Calculate confidence score using the scoring system
@@ -830,8 +838,7 @@ class MatchingEngine:
         # Get cache hit ratio from statistics
         hit_ratio = self.statistics.get_cache_hit_ratio()
         total_requests = (
-            self.statistics.metrics.cache_hits +
-            self.statistics.metrics.cache_misses
+            self.statistics.metrics.cache_hits + self.statistics.metrics.cache_misses
         )
 
         # Get cache item count from SQLite if available

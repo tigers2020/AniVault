@@ -13,10 +13,11 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+
 from anivault.shared.constants import FileSystem
 
 
-@pytest.fixture()
+@pytest.fixture
 def temp_dir() -> Generator[Path, None, None]:
     """Create a temporary directory for test files.
 
@@ -27,7 +28,7 @@ def temp_dir() -> Generator[Path, None, None]:
         yield Path(temp_path)
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_anime_files(temp_dir: Path) -> list[Path]:
     """Create sample anime files for testing.
 
@@ -56,7 +57,7 @@ def sample_anime_files(temp_dir: Path) -> list[Path]:
     return files
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_tmdb_client():
     """Create a mock TMDB client for testing.
 
@@ -91,7 +92,7 @@ def mock_tmdb_client():
     return mock_client
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_cache():
     """Create a mock cache for testing.
 
@@ -106,7 +107,7 @@ def mock_cache():
     return mock_cache
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_logger():
     """Create a mock logger for testing.
 
@@ -134,7 +135,7 @@ def _reset_global_state():
     # Cleanup after test if needed
 
 
-@pytest.fixture()
+@pytest.fixture
 def benchmark_data_dir(temp_dir: Path) -> Path:
     """Create a directory for benchmark test data.
 

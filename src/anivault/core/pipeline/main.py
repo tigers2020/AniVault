@@ -573,7 +573,7 @@ def _graceful_shutdown(
             context=context.to_dict(),
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         infrastructure_error = InfrastructureError(
             ErrorCode.PIPELINE_SHUTDOWN_ERROR,
             f"Graceful shutdown failed: {e}",
@@ -623,7 +623,7 @@ def _force_shutdown_if_needed(
             context=context.to_dict(),
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         infrastructure_error = InfrastructureError(
             ErrorCode.PIPELINE_SHUTDOWN_ERROR,
             f"Force shutdown failed: {e}",

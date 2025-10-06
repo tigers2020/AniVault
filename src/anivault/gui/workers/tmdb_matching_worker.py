@@ -8,20 +8,20 @@ operations using PySide6's QThread and signal/slot mechanism.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
-from ...core.matching.engine import MatchingEngine
-from ...core.parser.anitopy_parser import AnitopyParser
-from ...services.rate_limiter import TokenBucketRateLimiter
-from ...services.semaphore_manager import SemaphoreManager
-from ...services.sqlite_cache_db import SQLiteCacheDB
-from ...services.state_machine import RateLimitStateMachine
-from ...services.tmdb_client import TMDBClient
-from ...shared.constants import FileSystem
-from ..models import FileItem
+from anivault.core.matching.engine import MatchingEngine
+from anivault.core.parser.anitopy_parser import AnitopyParser
+from anivault.gui.models import FileItem
+from anivault.services.rate_limiter import TokenBucketRateLimiter
+from anivault.services.semaphore_manager import SemaphoreManager
+from anivault.services.sqlite_cache_db import SQLiteCacheDB
+from anivault.services.state_machine import RateLimitStateMachine
+from anivault.services.tmdb_client import TMDBClient
+from anivault.shared.constants import FileSystem
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class TMDBMatchingWorker(QObject):
     """
     Worker class for TMDB matching operations in the background.
-    
+
     This class runs in a separate thread and uses signals to communicate
     with the main GUI thread for thread-safe updates during TMDB API calls.
     """
@@ -45,7 +45,7 @@ class TMDBMatchingWorker(QObject):
     def __init__(self, api_key: str, parent=None):
         """
         Initialize the TMDB matching worker.
-        
+
         Args:
             api_key: TMDB API key for authentication
             parent: Parent widget
@@ -54,7 +54,7 @@ class TMDBMatchingWorker(QObject):
 
         self._cancelled = False
         self._api_key = api_key
-        self._files_to_match: List[FileItem] = []
+        self._files_to_match: list[FileItem] = []
 
         # Initialize core components
         self._initialize_components()
@@ -95,13 +95,13 @@ class TMDBMatchingWorker(QObject):
             logger.debug("TMDB components initialized successfully")
 
         except Exception as e:
-            logger.error("Failed to initialize TMDB components: %s", e)
+            logger.exception("Failed to initialize TMDB components: %s", e)
             raise
 
-    def match_files(self, files: List[FileItem]) -> None:
+    def match_files(self, files: list[FileItem]) -> None:
         """
         Start TMDB matching process for the given files.
-        
+
         Args:
             files: List of FileItem objects to match against TMDB
         """
@@ -120,7 +120,7 @@ class TMDBMatchingWorker(QObject):
             asyncio.run(self._match_files_async())
 
         except Exception as e:
-            logger.error("Error during TMDB matching: %s", e)
+            logger.exception("Error during TMDB matching: %s", e)
             self.matching_error.emit(f"TMDB matching error: {e!s}")
 
     async def _match_files_async(self) -> None:
@@ -158,19 +158,23 @@ class TMDBMatchingWorker(QObject):
 
             # Emit completion signal
             self.matching_finished.emit(matching_results)
-            logger.info("TMDB matching completed: %d/%d files matched", matched_count, total_files)
+            logger.info(
+                "TMDB matching completed: %d/%d files matched",
+                matched_count,
+                total_files,
+            )
 
         except Exception as e:
-            logger.error("Error in async matching process: %s", e)
+            logger.exception("Error in async matching process: %s", e)
             self.matching_error.emit(f"Async matching error: {e!s}")
 
-    async def _match_single_file(self, file_item: FileItem) -> Dict[str, Any]:
+    async def _match_single_file(self, file_item: FileItem) -> dict[str, Any]:
         """
         Match a single file against TMDB.
-        
+
         Args:
             file_item: FileItem to match
-            
+
         Returns:
             Dictionary containing matching result
         """
@@ -212,7 +216,7 @@ class TMDBMatchingWorker(QObject):
             }
 
         except Exception as e:
-            logger.error("Error matching file %s: %s", file_item.file_name, e)
+            logger.exception("Error matching file %s: %s", file_item.file_name, e)
             return {
                 "file_path": str(file_item.file_path),
                 "file_name": file_item.file_name,
@@ -229,7 +233,7 @@ class TMDBMatchingWorker(QObject):
     def _validate_api_key(self) -> bool:
         """
         Validate that the API key is properly configured.
-        
+
         Returns:
             True if API key is valid, False otherwise
         """
@@ -250,5 +254,5 @@ class TMDBMatchingWorker(QObject):
             return True
 
         except Exception as e:
-            logger.error("Failed to validate API key: %s", e)
+            logger.exception("Failed to validate API key: %s", e)
             return False

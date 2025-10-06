@@ -1,0 +1,53 @@
+{
+  "adult": false,
+  "backdrop_path": "/eNJhWy7xFzR74SYaSJHqJZuroDm.jpg",
+  "belongs_to_collection": null,
+  "budget": 0,
+  "genres": {},
+  "homepage": "",
+  "id": 1033219,
+  "imdb_id": "tt22408766",
+  "origin_country": {},
+  "original_language": "en",
+  "original_title": "Attack on Titan",
+  "overview": "물을 찾아 타이탄 행성으로 간 지구인들이 타이탄 반군의 공격을 받는다. 물을 지키려는 자와 확보하려는 자. 과연 승자는 누가 될 것 인가?",
+  "popularity": 2.4008,
+  "poster_path": "/aQQ9oRO273ImFTAmY4RR3kPTkff.jpg",
+  "production_companies": {},
+  "production_countries": {},
+  "release_date": "2022-09-30",
+  "revenue": 0,
+  "runtime": 92,
+  "spoken_languages": {},
+  "status": "Released",
+  "tagline": "",
+  "title": "갤럭시 오브 타이탄",
+  "video": false,
+  "vote_average": 6.0,
+  "vote_count": 173,
+  "videos": {
+    "results": {}
+  },
+  "trailers": {
+    "quicktime": {},
+    "youtube": {}
+  },
+  "images": {
+    "backdrops": {},
+    "logos": {},
+    "posters": {}
+  },
+  "casts": {
+    "cast": {},
+    "crew": {}
+  },
+  "translations": {
+    "translations": {}
+  },
+  "keywords": {
+    "keywords": {}
+  },
+  "release_dates": {
+    "results": {}
+  }
+}

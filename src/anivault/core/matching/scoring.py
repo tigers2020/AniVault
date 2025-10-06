@@ -52,6 +52,21 @@ def calculate_confidence_score(
         0.95
     """
     try:
+        # Type validation and conversion
+        if not isinstance(normalized_query, dict):
+            logger.warning(
+                "Invalid query type: %s, expected dict",
+                type(normalized_query),
+            )
+            return 0.0
+
+        if not isinstance(tmdb_result, dict):
+            logger.warning(
+                "Invalid TMDB result type: %s, expected dict",
+                type(tmdb_result),
+            )
+            return 0.0
+
         # Check for empty query or result
         query_title = normalized_query.get("title", "")
         result_title = tmdb_result.get("title", "")
@@ -99,9 +114,18 @@ def calculate_confidence_score(
 
         return confidence_score
 
-    except Exception:
+    except (ValueError, KeyError, AttributeError, TypeError):
+        # Handle specific data processing errors
         logger.exception(
             "Error calculating confidence score for query '%s' and result '%s'",
+            normalized_query.get("title", ""),
+            tmdb_result.get("title", ""),
+        )
+        return 0.0
+    except Exception:
+        # Handle unexpected errors
+        logger.exception(
+            "Unexpected error calculating confidence score for query '%s' and result '%s'",
             normalized_query.get("title", ""),
             tmdb_result.get("title", ""),
         )

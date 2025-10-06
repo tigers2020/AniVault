@@ -464,7 +464,7 @@ With all critical risks successfully mitigated, the AniVault project is ready to
 
 | Document | Purpose | Status |
 |----------|---------|--------|
-| `DEVELOPMENT_GUIDE.md` | Developer setup guide | ✅ Complete |
+| `docs/handbook/development_guide.md` | Developer setup guide | ✅ Complete |
 | `docs/tmdb-api-key-guide.md` | API key acquisition guide | ✅ Complete |
 | `docs/pyinstaller-poc-results.md` | PyInstaller validation results | ✅ Complete |
 | `docs/tmdb-api-validation-results.md` | TMDB API validation results | ✅ Complete |

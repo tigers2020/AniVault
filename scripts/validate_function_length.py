@@ -40,12 +40,12 @@ class FunctionComplexityDetector(ast.NodeVisitor):
             ast.Assert,
         }
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """일반 함수 정의 방문"""
         self._analyze_function(node)
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """비동기 함수 정의 방문"""
         self._analyze_function(node)
         self.generic_visit(node)

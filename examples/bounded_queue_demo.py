@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.anivault import BoundedQueue  # noqa: E402
+from src.anivault import BoundedQueue
 
 
 def producer(queue: BoundedQueue, items: list, delay: float = 0.1) -> None:

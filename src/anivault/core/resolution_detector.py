@@ -158,7 +158,10 @@ class ResolutionDetector:
             return "480p"
         return "SD"
 
-    def _detect_from_file_properties(self, file_path: Path) -> ResolutionInfo:  # noqa: ARG002
+    def _detect_from_file_properties(
+        self,
+        file_path: Path,
+    ) -> ResolutionInfo:
         """Detect resolution from file properties (placeholder for future implementation).
 
         Args:

@@ -10,16 +10,9 @@ to eliminate duplication and provide a single source of truth.
 """
 
 # Import all constant classes for direct access
-from .api import (
-    APIConfig,
-    TMDBConfig,
-)
-from .api import (
-    CacheConfig as APICacheConfig,
-)
-from .api_fields import (
-    APIFields,
-)
+from .api import APIConfig, TMDBConfig
+from .api import CacheConfig as APICacheConfig
+from .api_fields import APIFields
 from .cli import (
     BatchConfig,
     CLICommands,
@@ -33,20 +26,10 @@ from .cli import (
     RunDefaults,
     WorkerConfig,
 )
-from .cli import (
-    CacheConfig as CLICacheConfig,
-)
-from .cli import (
-    LogConfig as CLILogConfig,
-)
-from .core import (
-    BusinessRules,
-    NormalizationConfig,
-    ProcessingConfig,
-)
-from .core import (
-    CacheConfig as CoreCacheConfig,
-)
+from .cli import CacheConfig as CLICacheConfig
+from .cli import LogConfig as CLILogConfig
+from .core import BusinessRules, NormalizationConfig, ProcessingConfig
+from .core import CacheConfig as CoreCacheConfig
 from .file_formats import (
     ExclusionPatterns,
     FileLimits,
@@ -55,16 +38,8 @@ from .file_formats import (
     TestConfig,
     VideoFormats,
 )
-from .logging import (
-    ErrorLogging,
-    LogLevels,
-    LogMessages,
-    LogPaths,
-    PerformanceLogging,
-)
-from .logging import (
-    LogConfig as LoggingConfig,
-)
+from .logging import ErrorLogging, LogLevels, LogMessages, LogPaths, PerformanceLogging
+from .logging import LogConfig as LoggingConfig
 from .matching import (
     ConfidenceThresholds,
     FallbackStrategy,
@@ -73,10 +48,7 @@ from .matching import (
     TitleNormalization,
     ValidationConfig,
 )
-from .network import (
-    DownloadConfig,
-    NetworkConfig,
-)
+from .network import DownloadConfig, NetworkConfig
 
 # Import system classes for direct access
 from .system import (
@@ -124,10 +96,10 @@ __all__ = [
     "CLIMessages",
     "CLIOptions",
     "Cache",
-    "CoreCacheConfig",
     "ConfidenceConfig",
     "ConfidenceThresholds",
     "Config",
+    "CoreCacheConfig",
     "DownloadConfig",
     "Encoding",
     "EnrichmentStatus",

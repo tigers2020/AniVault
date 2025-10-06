@@ -193,6 +193,8 @@ large_test_data/
 .cursor/mcp.json
 
 # Temporary and debug files
+docs/*/*.*
+tests/*/*.*
 debug_*.py
 *_debug.py
 *_test.py

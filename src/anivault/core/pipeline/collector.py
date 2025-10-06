@@ -177,7 +177,7 @@ class ResultCollector(threading.Thread):
 
                     self._store_result_with_error_handling(item)
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     self._handle_queue_error(e, context)
                     continue
 
@@ -290,8 +290,19 @@ class ResultCollector(threading.Thread):
             )
             try:
                 self.output_queue.task_done()
+            except (ValueError, RuntimeError) as e:
+                # Handle specific queue operation errors
+                logger.warning(
+                    "Error marking task as done in collector %s: %s",
+                    self.collector_id,
+                    e,
+                )
             except Exception:
-                pass
+                # Handle unexpected queue errors
+                logger.exception(
+                    "Unexpected error marking task as done in collector %s",
+                    self.collector_id,
+                )
             self.stop()
             return True
         return False
@@ -364,8 +375,19 @@ class ResultCollector(threading.Thread):
         finally:
             try:
                 self.output_queue.task_done()
+            except (ValueError, RuntimeError) as e:
+                # Handle specific queue operation errors
+                logger.warning(
+                    "Error marking task as done in collector %s: %s",
+                    self.collector_id,
+                    e,
+                )
             except Exception:
-                pass
+                # Handle unexpected queue errors
+                logger.exception(
+                    "Unexpected error marking task as done in collector %s",
+                    self.collector_id,
+                )
 
     def _handle_queue_error(self, error: Exception, context: ErrorContext) -> None:
         """Handle queue-related errors.
@@ -526,9 +548,11 @@ class ResultCollector(threading.Thread):
             return 0.0
 
         total_size = sum(
-            result.get("file_size", 0)
-            if isinstance(result.get("file_size"), (int, float))
-            else 0
+            (
+                result.get("file_size", 0)
+                if isinstance(result.get("file_size"), (int, float))
+                else 0
+            )
             for result in successful_results
         )
         return total_size / len(successful_results)

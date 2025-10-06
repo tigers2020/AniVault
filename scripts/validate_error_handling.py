@@ -66,17 +66,17 @@ class ErrorHandlingDetector(ast.NodeVisitor):
             r'"[^"]*Stack\s+trace[^"]*"',
         ]
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """일반 함수 정의 방문"""
         self._analyze_function(node)
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """비동기 함수 정의 방문"""
         self._analyze_function(node)
         self.generic_visit(node)
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """클래스 정의 방문"""
         self.generic_visit(node)
 

@@ -14,6 +14,7 @@ AI 보안 룰 우선순위 검증 스크립트
 3. 모든 룰에 우선순위 설정
 4. 우선순위 순서가 올바름
 """
+
 from __future__ import annotations
 
 import sys
@@ -147,9 +148,9 @@ def validate_rule_priority() -> dict[str, list[str]]:
     info.append(f"총 {len(rules)}개의 룰 파일 발견")
     for rule in sorted(
         rules,
-        key=lambda x: int(x["priority"])
-        if x["priority"] and x["priority"].isdigit()
-        else 999,
+        key=lambda x: (
+            int(x["priority"]) if x["priority"] and x["priority"].isdigit() else 999
+        ),
     ):
         priority_info = (
             f"우선순위 {rule['priority']}" if rule["priority"] else "우선순위 없음"

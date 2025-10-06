@@ -97,8 +97,16 @@ def main(
     json_output: Annotated[bool, json_output_option] = False,
     version: Annotated[bool, version_option] = False,
 ) -> None:
-    # Process the common options
-    main_callback(verbose, log_level, json_output, version)
+    """Main CLI callback with error handling."""
+    try:
+        # Process the common options
+        main_callback(verbose, log_level, json_output, version)
+    except Exception as e:
+        # Import here to avoid circular imports
+        from anivault.cli.common.error_handler import handle_cli_error
+
+        exit_code = handle_cli_error(e, "main-callback", json_output)
+        raise typer.Exit(exit_code) from e
 
 
 @app.command(CLICommands.SCAN)
@@ -518,4 +526,24 @@ def verify_command_typer(
 
 
 if __name__ == "__main__":
-    app()
+    try:
+        app()
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully
+        import logging
+        import sys
+
+        logger = logging.getLogger(__name__)
+        logger.info("Command interrupted by user")
+        sys.exit(1)
+    except SystemExit:
+        # Re-raise SystemExit to preserve exit codes
+        raise
+    except Exception as e:  # noqa: BLE001
+        # Handle unexpected errors with structured logging
+        import sys
+
+        from anivault.cli.common.error_handler import handle_cli_error
+
+        exit_code = handle_cli_error(e, "typer-app")
+        sys.exit(exit_code)

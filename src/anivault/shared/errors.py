@@ -120,6 +120,11 @@ class ErrorCode(str, Enum):
     CLI_FILE_ORGANIZATION_FAILED = "CLI_FILE_ORGANIZATION_FAILED"
     CLI_ROLLBACK_EXECUTION_FAILED = "CLI_ROLLBACK_EXECUTION_FAILED"
 
+    # CLI Entrypoint Errors
+    CLI_UNEXPECTED_ERROR = "CLI_UNEXPECTED_ERROR"
+    CLI_COMMAND_INTERRUPTED = "CLI_COMMAND_INTERRUPTED"
+    CLI_OUTPUT_ERROR = "CLI_OUTPUT_ERROR"
+
     # Business Logic Errors
     BUSINESS_LOGIC_ERROR = "BUSINESS_LOGIC_ERROR"
     DATA_PROCESSING_ERROR = "DATA_PROCESSING_ERROR"
@@ -131,6 +136,9 @@ class ErrorCode(str, Enum):
     CONCURRENCY_ERROR = "CONCURRENCY_ERROR"
     RESOURCE_UNAVAILABLE = "RESOURCE_UNAVAILABLE"
     RESOURCE_CLEANUP_ERROR = "RESOURCE_CLEANUP_ERROR"
+
+    # Infrastructure Errors
+    INFRASTRUCTURE_ERROR = "INFRASTRUCTURE_ERROR"
 
     # Pipeline Errors
     PIPELINE_INITIALIZATION_ERROR = "PIPELINE_INITIALIZATION_ERROR"
@@ -396,4 +404,67 @@ def create_data_processing_error(
         message,
         context,
         original_error,
+    )
+
+
+class CliError(ApplicationError):
+    """CLI-specific error with enhanced context for command-line operations."""
+
+    def __init__(
+        self,
+        code: ErrorCode,
+        message: str,
+        context: ErrorContext | None = None,
+        original_error: Exception | None = None,
+        command: str | None = None,
+        exit_code: int = 1,
+    ):
+        super().__init__(code, message, context, original_error)
+        self.command = command
+        self.exit_code = exit_code
+
+
+def create_cli_error(
+    message: str,
+    command: str | None = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
+    exit_code: int = 1,
+) -> CliError:
+    """Create a CLI error with context."""
+    context = ErrorContext(
+        operation=operation,
+        additional_data={"command": command} if command else None,
+    )
+    return CliError(
+        ErrorCode.CLI_UNEXPECTED_ERROR,
+        message,
+        context,
+        original_error,
+        command,
+        exit_code,
+    )
+
+
+def create_cli_output_error(
+    message: str,
+    command: str | None = None,
+    output_type: str | None = None,
+    original_error: Exception | None = None,
+) -> CliError:
+    """Create a CLI output error with context."""
+    context = ErrorContext(
+        operation="cli_output",
+        additional_data={
+            "command": command,
+            "output_type": output_type,
+        },
+    )
+    return CliError(
+        ErrorCode.CLI_OUTPUT_ERROR,
+        message,
+        context,
+        original_error,
+        command,
+        exit_code=1,
     )

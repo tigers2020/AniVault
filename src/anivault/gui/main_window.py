@@ -1,0 +1,592 @@
+"""
+Main Window Implementation for AniVault GUI
+
+This module contains the main window class that serves as the root container
+for all UI elements in the AniVault GUI application.
+"""
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Any
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QMainWindow,
+    QMessageBox,
+    QSplitter,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+)
+
+from .controllers import ScanController, TMDBController
+from .dialogs.settings_dialog import SettingsDialog
+from .dialogs.tmdb_progress_dialog import TMDBProgressDialog
+from .state_model import StateModel
+from .widgets import GroupGridViewWidget
+
+logger = logging.getLogger(__name__)
+
+
+class MainWindow(QMainWindow):
+    """
+    Main application window for AniVault GUI.
+
+    This class serves as the root container for all UI elements including
+    the file tree, main work area, and log panel.
+    """
+
+    # Signals
+    directory_selected = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+
+        self.setWindowTitle("AniVault - Anime File Organizer")
+        self.setGeometry(100, 100, 1200, 800)
+
+        # Initialize state model
+        self.state_model = StateModel(self)
+
+        # Initialize controllers
+        self.scan_controller = ScanController(self)
+        self.tmdb_controller = TMDBController(parent=self)
+
+        # Initialize TMDB matching components
+        self.tmdb_progress_dialog = None
+
+        # Initialize theme-related attributes
+        self.theme_manager = None
+        self.config_manager = None
+        self.theme_action_group = None
+
+        # Initialize UI components
+        self._setup_ui()
+        self._setup_menu()
+        self._setup_toolbar()
+        self._setup_status_bar()
+
+        # Connect signals
+        self._connect_signals()
+
+        logger.info("MainWindow initialized successfully")
+
+    def _setup_ui(self) -> None:
+        """Set up the main UI layout."""
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        # Main layout
+        main_layout = QHBoxLayout(central_widget)
+
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        main_layout.addWidget(splitter)
+
+        # Group grid view widget (left panel)
+        self.group_view = GroupGridViewWidget()
+        splitter.addWidget(self.group_view)
+
+        # Main work area (right panel) - file details view
+        self.work_area = QWidget()
+        work_layout = QVBoxLayout(self.work_area)
+
+        # Group details header
+        self.group_details_label = QLabel("Select a group to view details")
+        self.group_details_label.setObjectName("groupDetailsLabel")
+        work_layout.addWidget(self.group_details_label)
+
+        # File list for selected group
+        self.file_list = QListWidget()
+        # Note: Styling is now handled by the central QSS theme system
+        work_layout.addWidget(self.file_list)
+
+        splitter.addWidget(self.work_area)
+
+        # Set splitter proportions (file tree: 30%, work area: 70%)
+        splitter.setSizes([360, 840])
+
+    def _setup_menu(self) -> None:
+        """Set up the menu bar."""
+        menubar = self.menuBar()
+
+        # File menu
+        file_menu = menubar.addMenu("&File")
+
+        # Open Folder action
+        self.open_folder_action = QAction("&Open Folder", self)
+        self.open_folder_action.setShortcut("Ctrl+O")
+        self.open_folder_action.setObjectName("openFolderAction")
+        self.open_folder_action.triggered.connect(self.open_folder)
+        file_menu.addAction(self.open_folder_action)
+
+        file_menu.addSeparator()
+
+        # Exit action
+        exit_action = QAction("E&xit", self)
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # Settings menu
+        settings_menu = menubar.addMenu("&Settings")
+
+        # API Key action
+        self.api_key_action = QAction("Configure &API Key...", self)
+        self.api_key_action.setShortcut("Ctrl+K")
+        self.api_key_action.triggered.connect(self.open_settings_dialog)
+        settings_menu.addAction(self.api_key_action)
+
+        # View menu
+        view_menu = menubar.addMenu("&View")
+
+        # Theme submenu
+        theme_menu = view_menu.addMenu("&Theme")
+
+        # Create theme action group for exclusive selection
+        self.theme_action_group = QActionGroup(self)
+        self.theme_action_group.setExclusive(True)
+
+        # Light theme action
+        light_theme_action = QAction("&Light", self)
+        light_theme_action.setCheckable(True)
+        light_theme_action.setData("light")
+        light_theme_action.triggered.connect(lambda: self.switch_theme(light_theme_action))
+        self.theme_action_group.addAction(light_theme_action)
+        theme_menu.addAction(light_theme_action)
+
+        # Dark theme action
+        dark_theme_action = QAction("&Dark", self)
+        dark_theme_action.setCheckable(True)
+        dark_theme_action.setData("dark")
+        dark_theme_action.triggered.connect(lambda: self.switch_theme(dark_theme_action))
+        self.theme_action_group.addAction(dark_theme_action)
+        theme_menu.addAction(dark_theme_action)
+
+        # Help menu
+        help_menu = menubar.addMenu("&Help")
+
+        about_action = QAction("&About", self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
+
+    def _setup_toolbar(self) -> None:
+        """Set up the toolbar."""
+        toolbar = self.addToolBar("Main Toolbar")
+
+        # Open Folder button - use the same action from menu
+        toolbar.addAction(self.open_folder_action)
+
+        toolbar.addSeparator()
+
+        # Match button - only enabled when files are available
+        self.match_action = QAction("&Match with TMDB", self)
+        self.match_action.setToolTip("Match scanned files with TMDB database")
+        self.match_action.setEnabled(False)  # Initially disabled
+        self.match_action.triggered.connect(self.start_tmdb_matching)
+        toolbar.addAction(self.match_action)
+
+        toolbar.addSeparator()
+
+        # Placeholder for future actions
+        toolbar.addWidget(QWidget())  # Spacer
+
+    def _setup_status_bar(self) -> None:
+        """Set up the status bar."""
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("Ready")
+
+        # Add cache status label as permanent widget
+        self.cache_status_label = QLabel("캐시: 초기화 중...")
+        self.cache_status_label.setToolTip("캐시 히트율 및 항목 수 정보")
+        self.status_bar.addPermanentWidget(self.cache_status_label)
+
+    def update_cache_status(self, stats: dict[str, Any]) -> None:
+        """Update cache status display in status bar.
+
+        Args:
+            stats: Dictionary containing cache statistics:
+                - hit_ratio: Cache hit ratio percentage (0.0-100.0)
+                - total_requests: Total cache requests (hits + misses)
+                - cache_items: Total items in cache
+                - cache_type: Primary cache type (SQLite/JSON/Hybrid)
+        """
+        if not isinstance(stats, dict):
+            logger.warning("Invalid stats type: %s", type(stats))
+            return
+
+        hit_ratio = stats.get("hit_ratio", 0.0)
+        cache_items = stats.get("cache_items", 0)
+        cache_type = stats.get("cache_type", "Unknown")
+
+        # Format: 캐시: 87.3% 히트율 (1,247 항목) [SQLite]
+        status_text = f"캐시: {hit_ratio:.1f}% 히트율 ({cache_items:,} 항목) [{cache_type}]"
+        self.cache_status_label.setText(status_text)
+
+    def open_folder(self) -> None:
+        """Open folder selection dialog."""
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "Open Folder",
+            str(Path.home()),
+            QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks,
+        )
+
+        if directory:
+            logger.info("Folder opened: %s", directory)
+            self.status_bar.showMessage(f"Opened: {directory}")
+
+            # Update state model
+            self.state_model.selected_directory = Path(directory)
+
+            # Start file scanning
+            self.start_file_scan()
+
+    def switch_theme(self, action: QAction) -> None:
+        """Switch the application theme."""
+        if not self.theme_manager or not self.config_manager:
+            logger.warning("Theme manager or config manager not available")
+            return
+
+        # Validate action type
+        if not isinstance(action, QAction):
+            logger.error("Invalid action type: %s", type(action))
+            return
+
+        try:
+            theme_name = action.data()
+            if not theme_name:
+                logger.error("No theme data found in action")
+                return
+
+            logger.info("Switching to theme: %s", theme_name)
+
+            # Apply the theme
+            app = QApplication.instance()
+            if app:
+                self.theme_manager.load_and_apply_theme(app, theme_name)
+            else:
+                logger.error("No QApplication instance found")
+                return
+
+            # Save theme preference
+            self.config_manager.set("theme", theme_name)
+
+            # Update status bar
+            self.status_bar.showMessage(f"Theme switched to {theme_name.title()}", 3000)
+
+            logger.info("Theme switched successfully to: %s", theme_name)
+
+        except Exception as e:
+            logger.exception("Failed to switch theme: %s", e)
+            QMessageBox.warning(self, "Theme Error",
+                               f"Failed to switch theme: {e}")
+
+    def set_theme_managers(self, theme_manager, config_manager) -> None:
+        """Set theme and config managers for theme switching."""
+        self.theme_manager = theme_manager
+        self.config_manager = config_manager
+
+        # Set initial theme selection based on current theme
+        if self.theme_manager and self.theme_action_group:
+            current_theme = self.theme_manager.get_current_theme()
+            if current_theme:
+                for action in self.theme_action_group.actions():
+                    if action.data() == current_theme:
+                        action.setChecked(True)
+                        break
+
+    def show_about(self) -> None:
+        """Show about dialog."""
+        QMessageBox.about(
+            self,
+            "About AniVault",
+            "AniVault - Anime File Organizer\n\n"
+            "A tool for organizing anime files using TMDB metadata.\n\n"
+            "Version: 1.0.0",
+        )
+
+    def _connect_signals(self) -> None:
+        """Connect signals between components."""
+        # Connect state model signals
+        self.state_model.files_updated.connect(self.on_files_updated)
+        self.state_model.file_status_changed.connect(self.on_file_status_changed)
+
+        # Connect group view signal
+        self.group_view.groupSelected.connect(self.on_group_selected)
+
+        # Connect scan controller signals
+        self.scan_controller.scan_started.connect(self.on_scan_started)
+        self.scan_controller.scan_progress.connect(self.on_scan_progress)
+        self.scan_controller.scan_finished.connect(self.on_scan_finished)
+        self.scan_controller.scan_error.connect(self.on_scan_error)
+        self.scan_controller.files_grouped.connect(self.on_files_grouped)
+
+        # Connect TMDB controller signals
+        self.tmdb_controller.matching_started.connect(self.on_tmdb_matching_started)
+        self.tmdb_controller.file_matched.connect(self.on_tmdb_file_matched)
+        self.tmdb_controller.matching_progress.connect(self.on_tmdb_matching_progress)
+        self.tmdb_controller.matching_finished.connect(self.on_tmdb_matching_finished)
+        self.tmdb_controller.matching_error.connect(self.on_tmdb_matching_error)
+        self.tmdb_controller.matching_cancelled.connect(self.on_tmdb_matching_cancelled)
+        self.tmdb_controller.cache_stats_updated.connect(self.update_cache_status)
+
+    def start_file_scan(self) -> None:
+        """Start file scanning using scan controller."""
+        if not self.state_model.selected_directory:
+            logger.warning("No directory selected for scanning")
+            return
+
+        try:
+            self.scan_controller.scan_directory(self.state_model.selected_directory)
+        except ValueError as e:
+            logger.exception("Failed to start file scan: %s", e)
+            self.status_bar.showMessage(f"Scan error: {e}")
+            QMessageBox.warning(self, "Scan Error", f"Failed to start scan:\n{e}")
+
+    def on_scan_started(self) -> None:
+        """Handle scan started signal."""
+        self.status_bar.showMessage("Scanning for media files...")
+        logger.info("File scan started")
+
+    def on_scan_progress(self, progress: int) -> None:
+        """Handle scan progress signal."""
+        self.status_bar.showMessage(f"Scanning... {progress}%")
+
+    def on_scan_finished(self, file_items: list) -> None:
+        """Handle scan finished signal."""
+        # Update state model
+        self.state_model.add_scanned_files(file_items)
+
+        self.status_bar.showMessage(f"Scan complete. Found {len(file_items)} files")
+        logger.info("File scan completed successfully")
+
+        # Enable Match button if files are available
+        if file_items:
+            self.match_action.setEnabled(True)
+            # Start file grouping after scan completion
+            try:
+                self.scan_controller.group_files(file_items)
+            except ValueError as e:
+                logger.exception("File grouping failed: %s", e)
+                self.status_bar.showMessage(f"Grouping failed: {e}")
+        else:
+            self.match_action.setEnabled(False)
+
+    def on_scan_error(self, error_msg: str) -> None:
+        """Handle scan error signal."""
+        self.status_bar.showMessage(f"Scan error: {error_msg}")
+        logger.error("File scan error: %s", error_msg)
+
+        # Show error dialog
+        QMessageBox.warning(self, "Scan Error", f"Failed to scan directory:\n{error_msg}")
+
+    def on_files_grouped(self, grouped_files: dict) -> None:
+        """Handle files grouped signal."""
+        self.update_file_tree_with_groups(grouped_files)
+
+    def on_files_updated(self, files: list) -> None:
+        """Handle files updated signal from state model."""
+        logger.info("Files updated in state model: %d files", len(files))
+
+    def on_file_status_changed(self, file_path: Path, status: str) -> None:
+        """Handle file status changed signal from state model."""
+        # Note: File status updates are now handled by the state model and group view
+        # No direct file tree manipulation needed
+        logger.debug("File status updated: %s -> %s", file_path.name, status)
+
+
+    def update_file_tree_with_groups(self, grouped_files: dict) -> None:
+        """Update the group grid view with grouped files as cards."""
+        # Update the grid view with grouped files and connect click events
+        self.group_view.update_groups(grouped_files, self.on_group_selected)
+
+        total_files = sum(len(files) for files in grouped_files.values())
+        logger.info("Updated group grid view with %d grouped files in %d groups",
+                   total_files, len(grouped_files))
+
+    def on_group_selected(self, group_name: str, files: list) -> None:
+        """Handle group selection from grid view.
+
+        Supports both ScannedFile and FileItem objects.
+        """
+        # Update group details header
+        self.group_details_label.setText(f"📁 {group_name} ({len(files)} files)")
+
+        # Clear and populate file list
+        self.file_list.clear()
+
+        for file_item in files:
+            # Duck typing: get file path and name safely
+            file_path = getattr(file_item, "file_path", None)
+            if isinstance(file_path, Path):
+                file_name = file_path.name
+                file_text = f"{file_name}\n{file_path}"
+            else:
+                # Fallback for FileItem with file_name attribute
+                file_name = getattr(file_item, "file_name", "Unknown")
+                file_path_str = str(file_path) if file_path else "Unknown path"
+                file_text = f"{file_name}\n{file_path_str}"
+
+            self.file_list.addItem(file_text)
+
+        logger.debug("Selected group: %s with %d files", group_name, len(files))
+
+    def update_file_tree(self, files: list) -> None:
+        """Update the group view with scanned files (fallback for ungrouped display)."""
+        # Clear existing groups
+        self.group_view.clear_groups()
+
+        # Create a single group for all files if no grouping is performed
+        if files:
+            file_items = []
+            for file_item in files:
+                file_items.append(file_item)
+
+            self.group_view.add_group("All Files", file_items)
+
+        logger.info("Updated group view with %d files (ungrouped)", len(files))
+        self.status_bar.showMessage(f"Found {len(files)} files")
+
+    def open_settings_dialog(self) -> None:
+        """Open the settings dialog for API key configuration."""
+        try:
+            dialog = SettingsDialog(self, self.config_manager)
+
+            # Connect signal
+            dialog.api_key_saved.connect(self._on_api_key_saved)
+
+            # Show dialog
+            dialog.exec()
+
+        except Exception as e:
+            logger.exception("Failed to open settings dialog: %s", e)
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to open settings dialog: {e!s}",
+            )
+
+    def _on_api_key_saved(self, api_key: str) -> None:
+        """
+        Handle API key saved signal.
+
+        Args:
+            api_key: The saved API key
+        """
+        logger.info("API key saved successfully")
+        self.status_bar.showMessage("API key saved successfully")
+
+    def start_tmdb_matching(self) -> None:
+        """Start TMDB matching process for scanned files."""
+        # Check if files are available for matching
+        if not self.state_model.scanned_files:
+            QMessageBox.warning(
+                self,
+                "No Files to Match",
+                "Please scan a directory first before starting TMDB matching.",
+            )
+            return
+
+        # Check if API key is configured
+        api_key = self.config_manager.get("tmdb.api_key") if self.config_manager else None
+        if not api_key:
+            QMessageBox.warning(
+                self,
+                "API Key Required",
+                "Please configure your TMDB API key in Settings before starting matching.",
+            )
+            return
+
+        # Set API key in controller
+        self.tmdb_controller.set_api_key(api_key)
+
+        # Create and show progress dialog
+        self.tmdb_progress_dialog = TMDBProgressDialog(self)
+        self.tmdb_progress_dialog.cancelled.connect(self._on_tmdb_matching_cancelled)
+
+        # Show dialog
+        self.tmdb_progress_dialog.show()
+
+        # Update status bar
+        self.status_bar.showMessage("Starting TMDB matching...")
+        logger.info("TMDB matching started - %d files to process", len(self.state_model.scanned_files))
+
+        # Start TMDB matching using controller
+        try:
+            self.tmdb_controller.match_files(self.state_model.scanned_files)
+        except (ValueError, RuntimeError) as e:
+            logger.exception("Failed to start TMDB matching: %s", e)
+            self.status_bar.showMessage(f"TMDB matching error: {e}")
+            QMessageBox.warning(self, "TMDB Matching Error", f"Failed to start matching:\n{e}")
+            if self.tmdb_progress_dialog:
+                self.tmdb_progress_dialog.close()
+                self.tmdb_progress_dialog = None
+
+    def on_tmdb_matching_started(self) -> None:
+        """Handle TMDB matching started signal."""
+        self.status_bar.showMessage("TMDB matching started...")
+        logger.info("TMDB matching started")
+
+    def on_tmdb_file_matched(self, result: dict) -> None:
+        """Handle TMDB file matched signal."""
+        file_path = Path(result.get("file_path", ""))
+        file_name = result.get("file_name", "Unknown")
+        result.get("match_result")
+        status = result.get("status", "unknown")
+
+        # Update state model
+        if hasattr(self, "state_model") and self.state_model:
+            self.state_model.update_file_status(file_path, status)
+
+        logger.debug("File matched: %s - %s", file_name, status)
+
+    def on_tmdb_matching_progress(self, progress: int) -> None:
+        """Handle TMDB matching progress signal."""
+        if self.tmdb_progress_dialog:
+            self.tmdb_progress_dialog.update_progress(progress)
+        self.status_bar.showMessage(f"TMDB matching... {progress}%")
+
+    def on_tmdb_matching_finished(self, results: list) -> None:
+        """Handle TMDB matching finished signal."""
+        matched_count = self.tmdb_controller.get_matched_files_count()
+        total_count = self.tmdb_controller.get_total_files_count()
+
+        if self.tmdb_progress_dialog:
+            self.tmdb_progress_dialog.show_completion(matched_count, total_count)
+
+        self.status_bar.showMessage(f"TMDB matching completed: {matched_count}/{total_count} matched")
+        logger.info("TMDB matching completed: %d/%d files matched", matched_count, total_count)
+
+        # TODO: Update UI with match results in next subtask
+
+    def on_tmdb_matching_error(self, error_msg: str) -> None:
+        """Handle TMDB matching error signal."""
+        if self.tmdb_progress_dialog:
+            self.tmdb_progress_dialog.show_error(error_msg)
+
+        self.status_bar.showMessage(f"TMDB matching error: {error_msg}")
+        logger.error("TMDB matching error: %s", error_msg)
+
+        # Show error dialog
+        QMessageBox.warning(self, "TMDB Matching Error", f"Failed to match files:\n{error_msg}")
+
+    def on_tmdb_matching_cancelled(self) -> None:
+        """Handle TMDB matching cancellation."""
+        if self.tmdb_progress_dialog:
+            self.tmdb_progress_dialog.close()
+            self.tmdb_progress_dialog = None
+        self.status_bar.showMessage("TMDB matching cancelled")
+        logger.info("TMDB matching cancelled by user")
+
+    def _on_tmdb_matching_cancelled(self) -> None:
+        """Handle TMDB matching cancellation from progress dialog."""
+        self.tmdb_controller.cancel_matching()

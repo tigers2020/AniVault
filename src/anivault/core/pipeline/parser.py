@@ -151,7 +151,7 @@ class ParserWorker(threading.Thread):
             )
             log_operation_error(logger, error)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Handle unexpected errors
             self.stats.increment_failures()
             duration_ms = (time.time() - start_time) * 1000
@@ -400,7 +400,7 @@ class ParserWorker(threading.Thread):
 
             return result
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Create structured error context
             context = ErrorContext(
                 file_path=str(file_path),

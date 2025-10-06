@@ -162,7 +162,7 @@ class ParallelDirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Warning: Failed to queue file {file_path}: {e}")
                 continue
 
@@ -302,9 +302,9 @@ class ParallelDirectoryScanner(threading.Thread):
                             ErrorCode.SCANNER_ERROR,
                             f"Individual scan job failed for directory {subdir}: {exception}",
                             error_context,
-                            original_error=exception
-                            if isinstance(exception, Exception)
-                            else None,
+                            original_error=(
+                                exception if isinstance(exception, Exception) else None
+                            ),
                         )
                         log_operation_error(
                             logger=logger,
@@ -323,7 +323,7 @@ class ParallelDirectoryScanner(threading.Thread):
                     # Update statistics (thread-safe)
                     self._thread_safe_update_stats(queued_files, dirs_scanned)
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     subdir = future_to_dir[future]
                     error_context = ErrorContext(
                         operation="process_scan_result",
@@ -351,7 +351,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 context=context.additional_data,
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = InfrastructureError(
                 ErrorCode.SCANNER_ERROR,
                 f"Failed to await scan completion: {e}",
@@ -399,7 +399,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 context=context.additional_data,
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = InfrastructureError(
                 ErrorCode.SCANNER_ERROR,
                 f"Failed to scan subdirectories: {e}",
@@ -446,13 +446,13 @@ class ParallelDirectoryScanner(threading.Thread):
             # Scan subdirectories using the new method
             self._scan_subdirectories(subdirectories)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Error in parallel directory scanning: {e}")
         finally:
             # Signal completion with sentinel
             try:
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Warning: Failed to put sentinel value: {e}")
 
     def _scan_root_files(self) -> list[Path]:

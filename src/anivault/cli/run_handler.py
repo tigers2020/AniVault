@@ -194,13 +194,42 @@ def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PL
             sys.stdout.buffer.flush()
         return 1
 
-    except Exception as e:
-        logger.exception("%sin run command", CLIMessages.Error.UNEXPECTED_ERROR)
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        # Handle file system errors
+        logger.exception("File system error in run command")
         if options.json_output:
             json_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.RUN,
-                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e!s}"],
+                errors=[f"File system error: {e}"],
+                data={"error_type": type(e).__name__},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        return 1
+    except (ValueError, KeyError, TypeError, AttributeError) as e:
+        # Handle data processing errors
+        logger.exception("Data processing error in run command")
+        if options.json_output:
+            json_output = format_json_output(
+                success=False,
+                command=CLIMessages.CommandNames.RUN,
+                errors=[f"Data processing error: {e}"],
+                data={"error_type": type(e).__name__},
+            )
+            sys.stdout.buffer.write(json_output)
+            sys.stdout.buffer.write(b"\n")
+            sys.stdout.buffer.flush()
+        return 1
+    except Exception as e:
+        # Handle unexpected errors
+        logger.exception("Unexpected error in run command")
+        if options.json_output:
+            json_output = format_json_output(
+                success=False,
+                command=CLIMessages.CommandNames.RUN,
+                errors=[f"Unexpected error: {e}"],
                 data={"error_type": type(e).__name__},
             )
             sys.stdout.buffer.write(json_output)

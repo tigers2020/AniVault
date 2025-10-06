@@ -11,6 +11,7 @@ The ProgressManager class offers:
 - Conditional disabling for non-interactive modes or JSON output
 - Consistent styling and formatting across all commands
 """
+
 from __future__ import annotations
 
 import types

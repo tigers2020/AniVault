@@ -533,7 +533,7 @@ def _perform_organization(plan: Any, options: OrganizeOptions) -> int:
                 console.print(
                     f"[grey62]Operation logged to: {saved_log_path}[/grey62]",
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 console.print(
                     f"[bold yellow]Warning: Could not save operation log: "
                     f"{e}[/bold yellow]",

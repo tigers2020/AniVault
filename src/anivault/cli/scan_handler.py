@@ -120,9 +120,9 @@ def scan_command(
                 "recursive": scan_options.recursive,
                 "include_subtitles": scan_options.include_subtitles,
                 "include_metadata": scan_options.include_metadata,
-                "output_file": str(scan_options.output)
-                if scan_options.output
-                else None,
+                "output_file": (
+                    str(scan_options.output) if scan_options.output else None
+                ),
                 "json": scan_options.json_output,
             },
         )()
@@ -164,10 +164,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
             TMDBClient,
             TokenBucketRateLimiter,
         )
-        from anivault.shared.constants import (
-            CLI,
-            QueueConfig,
-        )
+        from anivault.shared.constants import CLI, QueueConfig
         from anivault.shared.constants.logging import LogConfig
 
         console = Console()
@@ -229,13 +226,58 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                 },
             )
             return CLIDefaults.EXIT_ERROR
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            # Handle file system errors
             context = get_cli_context()
             if context and context.is_json_output_enabled():
                 json_output = format_json_output(
                     success=False,
                     command="scan",
-                    errors=[f"Unexpected error: {e!s}"],
+                    errors=[f"File system error: {e}"],
+                    data={"error_type": type(e).__name__},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"File system error: {e}",
+                        "error",
+                    ),
+                )
+            logger.exception("File system error during scan validation")
+            return CLIDefaults.EXIT_ERROR
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            # Handle data processing errors
+            context = get_cli_context()
+            if context and context.is_json_output_enabled():
+                json_output = format_json_output(
+                    success=False,
+                    command="scan",
+                    errors=[f"Data processing error: {e}"],
+                    data={"error_type": type(e).__name__},
+                )
+                sys.stdout.buffer.write(json_output)
+                sys.stdout.buffer.write(b"\n")
+                sys.stdout.buffer.flush()
+            else:
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Data processing error: {e}",
+                        "error",
+                    ),
+                )
+            logger.exception("Data processing error during scan validation")
+            return CLIDefaults.EXIT_ERROR
+        except Exception as e:
+            # Handle unexpected errors
+            context = get_cli_context()
+            if context and context.is_json_output_enabled():
+                json_output = format_json_output(
+                    success=False,
+                    command="scan",
+                    errors=[f"Unexpected error: {e}"],
                     data={"error_type": type(e).__name__},
                 )
                 sys.stdout.buffer.write(json_output)
@@ -248,7 +290,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                         "error",
                     ),
                 )
-            logger.exception(CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION)
+            logger.exception("Unexpected error during scan validation")
             return CLIDefaults.EXIT_ERROR
 
         # Determine if we should enrich metadata
@@ -295,7 +337,20 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                     ),
                 )
 
+        except (OSError, ValueError, KeyError, AttributeError) as e:
+            # Handle specific I/O and data processing errors
+            context = get_cli_context()
+            if not (context and context.is_json_output_enabled()):
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"❌ File scanning failed: {e}",
+                        "error",
+                    ),
+                )
+            logger.exception("Error during file scanning")
+            raise
         except Exception:
+            # Handle unexpected errors
             context = get_cli_context()
             if not (context and context.is_json_output_enabled()):
                 console.print(
@@ -304,6 +359,7 @@ def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
                         "error",
                     ),
                 )
+            logger.exception("Unexpected error during file scanning")
             raise
 
         if not file_results:

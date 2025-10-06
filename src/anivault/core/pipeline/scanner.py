@@ -7,6 +7,7 @@ specific extensions and feeding them into a bounded queue.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 from collections.abc import Callable, Generator
@@ -18,6 +19,8 @@ from anivault.core.filter import FilterEngine
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.shared.constants import ProcessingConfig
 from anivault.shared.constants.network import NetworkConfig
+
+logger = logging.getLogger(__name__)
 
 
 class DirectoryScanner(threading.Thread):
@@ -92,9 +95,18 @@ class DirectoryScanner(threading.Thread):
         if self.progress_callback:
             try:
                 self.progress_callback(kwargs)
+            except (TypeError, ValueError, AttributeError) as e:
+                # Handle specific callback errors - log but don't interrupt scan
+                logger.warning(
+                    "Callback error during scan progress reporting: %s",
+                    e,
+                    exc_info=True,
+                )
             except Exception:
-                # Silently ignore callback errors to prevent scan interruption
-                pass
+                # Handle unexpected callback errors - log but don't interrupt scan
+                logger.exception(
+                    "Unexpected callback error during scan progress reporting",
+                )
 
     def scan_files(self) -> Generator[Path, None, None]:
         """Generator that recursively scans for files with specified extensions.
@@ -526,7 +538,7 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Warning: Failed to queue file {file_path}: {e}")
                 continue
 
@@ -575,13 +587,13 @@ class DirectoryScanner(threading.Thread):
             else:
                 self._run_sequential_scan()
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Error during directory scanning: {e}")
         finally:
             # Signal completion with sentinel
             try:
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Warning: Failed to put sentinel value: {e}")
 
     def _run_sequential_scan(self) -> None:
@@ -595,7 +607,7 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path)
                 self.stats.increment_files_scanned()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Error putting file {file_path} into queue: {e}")
                 continue
 
@@ -647,7 +659,7 @@ class DirectoryScanner(threading.Thread):
                     # Update statistics (thread-safe)
                     self._thread_safe_update_stats(queued_files, dirs_scanned)
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     subdir = future_to_dir[future]
                     print(f"Error processing subdirectory {subdir}: {e}")
                     continue

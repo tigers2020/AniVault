@@ -4,6 +4,7 @@ Secure Keyring System for AniVault.
 This module provides a secure keyring system for storing and retrieving
 encrypted API keys and other sensitive data using PIN-based encryption.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

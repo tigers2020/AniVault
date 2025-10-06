@@ -1,7 +1,7 @@
 # TMDB Cache Database System
 
-**Version**: 1.0  
-**Last Updated**: 2025-10-06  
+**Version**: 1.0
+**Last Updated**: 2025-10-06
 **Status**: Production Ready
 
 ---
@@ -58,13 +58,13 @@ def match_command(directory: str, use_cache: bool = True):
     """Match anime files with TMDB."""
     # Initialize cache
     cache_db = SQLiteCacheDB(Path("~/.anivault/cache.db"))
-    
+
     # Create TMDB client with cache
     tmdb_client = TMDBClient(api_key=api_key, cache=cache_db)
-    
+
     # Match files
     results = tmdb_client.search_anime("進撃の巨人", language="ja")
-    
+
     cache_db.close()
     return results
 ```
@@ -78,11 +78,11 @@ from anivault.services.sqlite_cache_db import SQLiteCacheDB
 
 class TMDBController(QObject):
     cache_stats_updated = Signal(dict)
-    
+
     def __init__(self):
         super().__init__()
         self.cache = SQLiteCacheDB(Path("~/.anivault/cache.db"))
-        
+
     def get_cache_stats(self):
         """Get cache statistics for UI display."""
         info = self.cache.get_cache_info()
@@ -432,7 +432,7 @@ See [Performance Benchmark Report](../performance/cache_benchmark.md) for detail
 
 **Cause**: Multiple processes accessing database without WAL mode
 
-**Solution**: 
+**Solution**:
 - WAL mode is enabled by default
 - Check if `PRAGMA journal_mode=WAL` is active
 - Ensure proper connection cleanup with `close()`
@@ -472,4 +472,3 @@ See [Migration Guide](../migration/json_to_sqlite.md) for migrating from JSONCac
 - [Architecture Documentation](../architecture/cache_system.md)
 - [Performance Benchmarks](../performance/cache_benchmark.md)
 - [Security Guidelines](../security/README.md)
-

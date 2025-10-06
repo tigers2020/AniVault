@@ -203,8 +203,13 @@ def _collect_log_list_data(options: LogOptions) -> dict[str, Any] | None:
             "total_files": len(log_data),
         }
 
-    except Exception:
+    except (OSError, ValueError, KeyError, AttributeError):
+        # Handle specific I/O and data processing errors
         logger.exception("Error collecting log list data")
+        return None
+    except Exception:
+        # Handle unexpected errors
+        logger.exception("Unexpected error collecting log list data")
         return None
 
 

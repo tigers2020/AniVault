@@ -380,7 +380,7 @@ class FileOrganizer:
         if not no_log and moved_files:
             try:
                 self.log_manager.save_plan(plan)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Warning: Failed to save operation log: {e}")
 
     def organize(

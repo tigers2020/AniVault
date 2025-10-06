@@ -12,11 +12,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from anivault.shared.errors import (
-    ErrorCode,
-    ErrorContext,
-    InfrastructureError,
-)
+from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 
 logger = logging.getLogger(__name__)
 

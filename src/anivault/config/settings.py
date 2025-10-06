@@ -7,6 +7,7 @@ including filter settings for the smart filtering engine.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -29,9 +30,9 @@ from anivault.shared.constants import (
     VideoFormats,
     WorkerConfig,
 )
-from anivault.shared.constants import (
-    TMDBConfig as TMDBConstants,
-)
+from anivault.shared.constants import TMDBConfig as TMDBConstants
+
+logger = logging.getLogger(__name__)
 
 
 class FilterConfig(BaseModel):
@@ -491,9 +492,12 @@ def _load_env_file() -> None:
     except ImportError:
         # python-dotenv not installed, skip .env loading
         pass
+    except (OSError, ValueError, KeyError) as e:
+        # Handle specific I/O and data processing errors when loading .env file
+        logger.warning("Error loading .env file, skipping: %s", e)
     except Exception:
-        # Ignore errors loading .env file
-        pass
+        # Handle unexpected errors when loading .env file
+        logger.exception("Unexpected error loading .env file, skipping")
 
 
 def load_settings(config_path: str | Path | None = None) -> Settings:

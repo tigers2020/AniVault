@@ -1,143 +1,101 @@
-# Pre-commit configuration for AniVault
-# This file configures pre-commit hooks to run code quality checks before commits
+# Pre-commit hooks configuration for AniVault
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
 
 repos:
-  # Basic Python checks
+  # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        name: Trim Trailing Whitespace
-        description: Remove trailing whitespace
       - id: end-of-file-fixer
-        name: Fix End of Files
-        description: Ensure files end with a newline
       - id: check-yaml
-        name: Check YAML
-        description: Check YAML syntax
-      - id: check-json
-        name: Check JSON
-        description: Check JSON syntax
-      - id: check-toml
-        name: Check TOML
-        description: Check TOML syntax
-      - id: check-merge-conflict
-        name: Check for merge conflicts
-        description: Check for merge conflict markers
+        args: ['--allow-multiple-documents']
       - id: check-added-large-files
-        name: Check for large files
-        description: Prevent large files from being committed
         args: ['--maxkb=1000']
-      - id: check-case-conflict
-        name: Check for case conflicts
-        description: Check for case conflicts in filenames
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
       - id: debug-statements
-        name: Check for debug statements
-        description: Check for debugger imports and breakpoints
-      - id: check-docstring-first
-        name: Check docstring is first
-        description: Check that docstrings appear before code
+      - id: name-tests-test
+        args: ['--pytest-test-first']
 
-  # Python code formatting with Ruff
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.8
+  # Black code formatter
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
     hooks:
+      - id: black
+        language_version: python3
+        args: [--line-length=88]
+
+  # Ruff linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # Ruff linter
       - id: ruff
-        name: Ruff Linter
-        description: Lint Python code with Ruff
         args: [--fix, --exit-non-zero-on-fix]
+      # Ruff formatter (alternative to Black, but we'll use Black for consistency)
       - id: ruff-format
-        name: Ruff Formatter
-        description: Format Python code with Ruff
 
+  # MyPy type checker
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests, types-PyYAML]
+        args: [--config-file=pyproject.toml]
+        files: ^src/anivault/
 
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: [-r, src/, -f, json, -o, bandit-report.json]
+        exclude: tests/
 
-  # Python type checking (temporarily disabled due to existing codebase type issues)
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.5.1
-  #   hooks:
-  #     - id: mypy
-  #       name: MyPy Type Checker
-  #       description: Type check Python code with MyPy
-  #       additional_dependencies: [types-requests, types-PyYAML]
-  #       args: ['--explicit-package-bases', '--ignore-missing-imports', '--no-strict-optional', '--allow-untyped-calls', '-p', 'anivault']
-  #       pass_filenames: false
-  #       always_run: true
+  # Detect secrets hook
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '\.secrets\.baseline$'
 
-  # Security checks (temporarily disabled due to dependency issues)
-  # - repo: https://github.com/PyCQA/bandit
-  #   rev: 1.7.5
-  #   hooks:
-  #     - id: bandit
-  #       name: Bandit Security Checker
-  #       description: Check for common security issues
-  #       args: ['-r', 'src/', '-f', 'json', '-o', 'bandit-report.json']
-  #       exclude: 'tests/'
+  # Safety dependency vulnerability scanner
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.2
+    hooks:
+      - id: python-safety-dependencies-check
+        args: [--json, --output, safety-report.json]
 
-  # Custom AniVault code quality checks (temporarily disabled)
-  # - repo: local
-  #   hooks:
-  #     - id: validate-magic-values
-  #       name: Validate Magic Values
-  #       description: Check for hardcoded magic values
-  #       entry: python scripts/validate_magic_values.py
-  #       language: system
-  #       files: \.py$
-  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-  #       pass_filenames: true
-  #       always_run: false
+  # Additional Python quality checks
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black, --line-length=88]
 
-  #     - id: validate-function-length
-  #       name: Validate Function Length
-  #       description: Check function length and complexity
-  #       entry: python scripts/validate_function_length.py
-  #       language: system
-  #       files: \.py$
-  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-  #       pass_filenames: true
-  #       always_run: false
+# Configuration for pre-commit
+default_install_hook_types: [pre-commit, pre-push]
+minimum_pre_commit_version: '3.0.0'
 
-  #     - id: validate-error-handling
-  #       name: Validate Error Handling
-  #       description: Check error handling patterns
-  #       entry: python scripts/validate_error_handling.py
-  #       language: system
-  #       files: \.py$
-  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-  #       pass_filenames: true
-  #       always_run: false
-
-  #     - id: validate-code-quality
-  #       name: Validate Code Quality
-  #       description: Comprehensive code quality validation
-  #       entry: python scripts/validate_code_quality.py
-  #       language: system
-  #       files: \.py$
-  #       args: ['--exclude', 'tests/', '--exclude', 'scripts/']
-  #       pass_filenames: true
-  #       always_run: false
-
-# Configuration
-# default_stages: [commit]  # Temporarily disabled for dependency optimization commit
-fail_fast: false
-minimum_pre_commit_version: '2.0.0'
-
-# Skip certain checks for specific file patterns
+# Skip certain hooks for specific file types
 exclude: |
   (?x)^(
-    \.git/.*|
-    \.venv/.*|
-    venv/.*|
-    \.env/.*|
-    __pycache__/.*|
-    \.pytest_cache/.*|
-    \.mypy_cache/.*|
-    \.coverage.*|
-    htmlcov/.*|
-    \.tox/.*|
-    dist/.*|
-    build/.*|
-    \.eggs/.*|
-    \.DS_Store|
-    Thumbs\.db
+      \.git/.*|
+      \.venv/.*|
+      \.pytest_cache/.*|
+      build/.*|
+      dist/.*|
+      \.eggs/.*|
+      \.coverage.*|
+      htmlcov/.*|
+      \.tox/.*|
+      \.mypy_cache/.*|
+      \.ruff_cache/.*|
+      __pycache__/.*|
+      \.DS_Store
   )$

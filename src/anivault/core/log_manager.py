@@ -14,12 +14,7 @@ from typing import Any
 
 from pydantic import ValidationError, parse_obj_as
 
-from anivault.shared.constants import (
-    CLI,
-    Encoding,
-    FileSystem,
-    Logging,
-)
+from anivault.shared.constants import CLI, Encoding, FileSystem, Logging
 
 from .models import FileOperation
 

@@ -8,6 +8,8 @@ configuration file and provides type validation and default values.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -151,6 +153,64 @@ class PerformanceSettings(BaseModel):
     )
 
 
+class FolderSettings(BaseModel):
+    """Folder and directory settings."""
+
+    source_folder: str = Field(
+        default="",
+        description="Source folder path for media files to organize",
+    )
+    target_folder: str = Field(
+        default="",
+        description="Target folder path for organized media files",
+    )
+    auto_scan_on_startup: bool = Field(
+        default=False,
+        description="Automatically scan source folder when application starts",
+    )
+    auto_scan_interval_minutes: int = Field(
+        default=0,
+        ge=0,
+        le=1440,
+        description="Auto scan interval in minutes (0 = disabled)",
+    )
+    include_subdirectories: bool = Field(
+        default=True,
+        description="Include subdirectories when scanning",
+    )
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
+
+    @field_validator("source_folder", "target_folder")
+    @classmethod
+    def validate_folder_path(cls, v: str) -> str:
+        """Validate folder path."""
+        if v and v.strip():
+            path = Path(v.strip())
+            # Basic validation - path should be absolute or resolvable
+            try:
+                resolved_path = path.resolve()
+                # Check if it's a valid path format
+                if not resolved_path.is_absolute():
+                    raise ValueError("Folder path must be absolute")
+            except (OSError, ValueError) as e:
+                msg = f"Invalid folder path: {e}"
+                raise ValueError(msg) from e
+        return v
+
+    @field_validator("auto_scan_interval_minutes")
+    @classmethod
+    def validate_scan_interval(cls, v: int) -> int:
+        """Validate scan interval."""
+        if v < 0:
+            raise ValueError("Scan interval must be non-negative")
+        if v > 0 and v < 1:
+            raise ValueError("Scan interval must be at least 1 minute")
+        return v
+
+
 class TomlConfig(BaseSettings):
     """Main configuration model that aggregates all sections."""
 
@@ -174,6 +234,10 @@ class TomlConfig(BaseSettings):
         default_factory=PerformanceSettings,
         description="Performance settings",
     )
+    folders: FolderSettings = Field(
+        default_factory=FolderSettings,
+        description="Folder and directory settings",
+    )
 
     model_config = SettingsConfigDict(
         extra="forbid",  # Reject extra fields
@@ -194,6 +258,12 @@ class TomlConfig(BaseSettings):
                 "security": {"encryption_enabled": True},
                 "cache": {"enabled": True},
                 "performance": {"profiling_enabled": False},
+                "folders": {
+                    "source_folder": "/path/to/source",
+                    "target_folder": "/path/to/target",
+                    "auto_scan_on_startup": True,
+                    "auto_scan_interval_minutes": 60,
+                },
             },
         },
     )

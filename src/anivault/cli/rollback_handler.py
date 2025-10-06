@@ -86,14 +86,39 @@ def handle_rollback_command(options: RollbackOptions) -> int:
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
         return 1
-    except Exception as e:
-        logger.exception("%sin rollback command", CLIMessages.Error.UNEXPECTED_ERROR)
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        # Handle file system errors
+        logger.exception("File system error in rollback command")
         context = get_cli_context()
         if context and context.is_json_output_enabled():
             error_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.ROLLBACK,
-                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e}"],
+                errors=[f"File system error: {e}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+    except (ValueError, KeyError, TypeError, AttributeError) as e:
+        # Handle data processing errors
+        logger.exception("Data processing error in rollback command")
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
+            error_output = format_json_output(
+                success=False,
+                command=CLIMessages.CommandNames.ROLLBACK,
+                errors=[f"Data processing error: {e}"],
+            )
+            sys.stdout.buffer.write(error_output)
+            sys.stdout.buffer.write(b"\n")
+    except Exception as e:
+        # Handle unexpected errors
+        logger.exception("Unexpected error in rollback command")
+        context = get_cli_context()
+        if context and context.is_json_output_enabled():
+            error_output = format_json_output(
+                success=False,
+                command=CLIMessages.CommandNames.ROLLBACK,
+                errors=[f"Unexpected error: {e}"],
             )
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
@@ -286,8 +311,13 @@ def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
             "dry_run": options.dry_run,
         }
 
-    except Exception:
+    except (OSError, ValueError, KeyError, AttributeError):
+        # Handle specific I/O and data processing errors
         logger.exception("Error collecting rollback data")
+        return None
+    except Exception:
+        # Handle unexpected errors
+        logger.exception("Unexpected error collecting rollback data")
         return None
 
 

@@ -7,6 +7,7 @@
 - 함수 길이 및 복잡도 검증 (validate_function_length.py)
 - 에러 처리 패턴 검증 (validate_error_handling.py)
 """
+
 from __future__ import annotations
 
 import argparse

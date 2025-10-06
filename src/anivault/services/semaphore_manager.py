@@ -137,10 +137,17 @@ class SemaphoreManager:
         except ApplicationError:
             # Re-raise ApplicationError as-is
             raise
+        except (ValueError, TypeError, AttributeError) as e:
+            error = ApplicationError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message=f"Data processing error acquiring semaphore: {e!s}",
+                context=context,
+                original_error=e,
+            )
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
-                message=f"Failed to acquire semaphore: {e!s}",
+                message=f"Unexpected error acquiring semaphore: {e!s}",
                 context=context,
                 original_error=e,
             )
@@ -260,7 +267,7 @@ class SemaphoreManager:
                 duration_ms=0,
                 context=context.additional_data,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = ApplicationError(
                 code=ErrorCode.RESOURCE_CLEANUP_ERROR,
                 message="Failed to release semaphore",
@@ -337,7 +344,7 @@ class SemaphoreManager:
                 duration_ms=0,
                 context=context.additional_data,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = ApplicationError(
                 code=ErrorCode.RESOURCE_CLEANUP_ERROR,
                 message="Failed to release semaphore",

@@ -32,6 +32,7 @@ dev = [
     "pytest-mock>=3.11.0",
     "pytest-httpx>=0.30.0",
     "pytest-benchmark>=4.0.0",
+    "pytest-qt>=4.2.0",
     "hypothesis>=6.88.0",
     "memory-profiler>=0.61.0",
     "ruff>=0.6.0",
@@ -62,7 +63,6 @@ ignore = [
     "TRY300",  # Consider moving statement to else block
     "TRY301",  # Abstract raise to inner function
     "TRY003",  # Avoid specifying long messages outside the exception class
-    "BLE001",  # Do not catch blind exception
     "SLF001",  # Private member accessed
     "PLW0603",  # Using global statement
     "PERF203",  # try-except within loop
@@ -86,7 +86,6 @@ ignore = [
     "PERF401",  # List comprehension (가독성 우선)
     "PTH123",  # open() vs Path.open() (일관성 유지)
     "PLC0415",  # Import not at top (동적 import 필요)
-    "E722",  # Bare except (제너레이터 중단용)
     "S311",  # Standard pseudo-random generators (fine for tests)
     "FBT001",  # Boolean positional argument (fine for test helpers)
     "FBT002",  # Boolean default positional argument (fine for test helpers)
@@ -139,7 +138,7 @@ python_version = "3.9"
 # plugins = ["pydantic.mypy"]  # Temporarily disabled due to dependency issues
 namespace_packages = true
 explicit_package_bases = true  # Enable to fix module path conflicts
-mypy_path = ["src"]
+mypy_path = "src"
 
 # 단계적 엄격화 - 기본 설정
 strict = false

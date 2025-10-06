@@ -202,10 +202,17 @@ class TokenBucketRateLimiter:
         except ApplicationError:
             # Re-raise ApplicationError as-is
             raise
+        except (ValueError, TypeError, AttributeError) as e:
+            error = ApplicationError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message=f"Data processing error acquiring tokens: {e!s}",
+                context=context,
+                original_error=e,
+            )
         except Exception as e:
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
-                message=f"Failed to acquire tokens: {e!s}",
+                message=f"Unexpected error acquiring tokens: {e!s}",
                 context=context,
                 original_error=e,
             )
