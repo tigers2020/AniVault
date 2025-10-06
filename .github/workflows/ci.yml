@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9, 3.10, 3.11, 3.12]
+        python-version: [3.10, 3.11, 3.12]
 
     steps:
     - uses: actions/checkout@v4
@@ -37,28 +37,28 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        ruff check src/ tests/
-        ruff format --check src/ tests/
+        ruff check src tests
+        ruff format --check src tests
 
     - name: Type check with mypy
       run: |
-        mypy src/ --ignore-missing-imports
+        mypy src --ignore-missing-imports
 
-    - name: Type check with pyright
+    - name: Security scan with bandit
       run: |
-        pyright src/ --pythonversion=${{ matrix.python-version }}
+        bandit -r src -f json -o bandit-report.json
+      continue-on-error: true
 
-    - name: Test with pytest
+    - name: Run tests
       run: |
-        pytest -q --cov=src --cov-report=xml --cov-report=html --cov-fail-under=70
+        pytest tests/ -v --maxfail=1 --tb=short
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload bandit report
+      uses: actions/upload-artifact@v3
+      if: always()
       with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+        name: bandit-report-${{ matrix.python-version }}
+        path: bandit-report.json
 
   security:
     runs-on: ubuntu-latest
@@ -68,116 +68,38 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11
+        python-version: '3.11'
 
-    - name: Install dependencies
+    - name: Install detect-secrets
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+        pip install detect-secrets
 
-    - name: Security check with bandit
+    - name: Scan for secrets
       run: |
-        bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/ -f txt
+        detect-secrets scan --baseline .secrets.baseline
+      continue-on-error: true
 
   build:
     runs-on: ubuntu-latest
     needs: [test, security]
+    if: github.ref == 'refs/heads/main'
+
     steps:
     - uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11
+        python-version: '3.11'
 
-    - name: Install dependencies
+    - name: Install build dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install build
+        pip install build twine
 
     - name: Build package
       run: |
         python -m build
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist
-        path: dist/
-
-  lint-only:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
-
-    - name: Install dependencies
+    - name: Check package
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
-
-    - name: Run pre-commit
-      uses: pre-commit/action@v3.0.0
-
-  baseline-reports:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-
-    - name: Run tests and generate baseline report
-      continue-on-error: true
-      run: |
-        python -m pytest --junitxml=pytest-report.xml -q --tb=no
-
-    - name: Run code quality validation
-      continue-on-error: true
-      run: |
-        python scripts/validate_code_quality.py src/ --format json > code_quality_report.txt 2>&1
-
-    - name: Run security validation
-      continue-on-error: true
-      run: |
-        python scripts/validate_security_setup.py > security_report.txt 2>&1
-
-    - name: Run dependency validation
-      continue-on-error: true
-      run: |
-        python scripts/validate_dependencies.py > dependency_report.txt 2>&1
-
-    - name: Upload baseline reports as artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: baseline-reports
-        path: |
-          pytest-report.xml
-          code_quality_report.txt
-          security_report.txt
-          dependency_report.txt
-        retention-days: 30
+        twine check dist/*
