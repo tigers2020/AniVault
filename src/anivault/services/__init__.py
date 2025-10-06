@@ -4,9 +4,9 @@ This module contains service classes for external API integrations,
 rate limiting, and other business logic components.
 """
 
-from .cache_v2 import CacheEntry, JSONCacheV2
 from .rate_limiter import TokenBucketRateLimiter
 from .semaphore_manager import SemaphoreManager
+from .sqlite_cache_db import SQLiteCacheDB
 from .state_machine import RateLimitState, RateLimitStateMachine
 
 # Import these conditionally to avoid circular dependencies
@@ -19,10 +19,9 @@ except ImportError:
     _HAS_DEPENDENCIES = False
 
 __all__ = [
-    "CacheEntry",
-    "JSONCacheV2",
     "RateLimitState",
     "RateLimitStateMachine",
+    "SQLiteCacheDB",
     "SemaphoreManager",
     "TokenBucketRateLimiter",
 ]

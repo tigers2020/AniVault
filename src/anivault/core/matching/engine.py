@@ -15,7 +15,7 @@ from rapidfuzz import fuzz
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.cache_v2 import JSONCacheV2
+from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.tmdb_client import TMDBClient
 from anivault.shared.constants import (
     ConfidenceThresholds,
@@ -48,14 +48,14 @@ class MatchingEngine:
 
     def __init__(
         self,
-        cache: JSONCacheV2,
+        cache: SQLiteCacheDB,
         tmdb_client: TMDBClient,
         statistics: StatisticsCollector | None = None,
     ):
         """Initialize the matching engine.
 
         Args:
-            cache: Cache v2 instance for storing TMDB search results
+            cache: SQLite cache database for storing TMDB search results
             tmdb_client: TMDB client for API calls
             statistics: Optional statistics collector for performance tracking
         """
@@ -88,12 +88,32 @@ class MatchingEngine:
             return []
 
         # Check cache first
-        cached_results = self.cache.get(cache_key, "search")
-        if cached_results is not None:
+        cached_data = self.cache.get(cache_key, "search")
+        if cached_data is not None:
             logger.debug("Cache hit for search query: %s", cache_key)
             self.statistics.record_cache_hit("search")
-            # Type assertion for cached results - we expect list from search cache
-            return cached_results  # type: ignore[return-value]
+
+            # Extract results from cached dict
+            if isinstance(cached_data, dict) and "results" in cached_data:
+                cached_results = cached_data["results"]
+
+                # Type validation for cached results
+                if not isinstance(cached_results, list):
+                    logger.warning("Invalid cached results type: %s, expected list, clearing cache", type(cached_results))
+                    self.cache.delete(cache_key, "search")
+                    return []
+
+                # Validate that all items in the list are dicts
+                for i, item in enumerate(cached_results):
+                    if not isinstance(item, dict):
+                        logger.warning("Invalid cached item type at index %d: %s, expected dict, clearing cache", i, type(item))
+                        self.cache.delete(cache_key, "search")
+                        return []
+
+                return cached_results
+            logger.warning("Invalid cached data structure, clearing cache")
+            self.cache.delete(cache_key, "search")
+            return []
 
         # Cache miss - search TMDB
         logger.debug("Cache miss for search query: %s", cache_key)
@@ -106,9 +126,11 @@ class MatchingEngine:
             results = await self.tmdb_client.search_media(title)
 
             # Store results in cache (7 days TTL)
+            # Wrap list results in dict for CacheEntry compatibility
+            cache_data = {"results": results}
             self.cache.set_cache(
                 key=cache_key,
-                data=results,  # type: ignore[arg-type]
+                data=cache_data,
                 cache_type="search",
                 ttl_seconds=7 * 24 * 60 * 60,  # 7 days
             )
@@ -282,6 +304,11 @@ class MatchingEngine:
 
         for candidate in candidates:
             try:
+                # Type validation for candidate
+                if not isinstance(candidate, dict):
+                    logger.warning("Invalid candidate type: %s, expected dict, skipping", type(candidate))
+                    continue
+
                 # Calculate confidence score using the scoring system
                 confidence_score = calculate_confidence_score(
                     normalized_query,
@@ -788,3 +815,49 @@ class MatchingEngine:
         if confidence_score >= ConfidenceThresholds.LOW:
             return "low"
         return "very_low"
+
+    def get_cache_stats(self) -> dict[str, Any]:
+        """Get comprehensive cache statistics for GUI display.
+
+        Returns:
+            Dictionary containing cache statistics:
+            - hit_ratio: Cache hit ratio percentage (0.0-100.0)
+            - total_requests: Total cache requests (hits + misses)
+            - cache_items: Total items in cache
+            - cache_mode: Current cache mode (hybrid/db-only/json-only)
+            - cache_type: Primary cache type (SQLite/JSON/Hybrid)
+        """
+        # Get cache hit ratio from statistics
+        hit_ratio = self.statistics.get_cache_hit_ratio()
+        total_requests = (
+            self.statistics.metrics.cache_hits +
+            self.statistics.metrics.cache_misses
+        )
+
+        # Get cache item count from SQLite if available
+        cache_items = 0
+        if hasattr(self, "db_cache") and self.db_cache:
+            try:
+                cache_info = self.db_cache.get_cache_info()
+                cache_items = cache_info.get("total_files", 0)
+            except OSError as e:
+                logger.warning("Failed to get cache item count: %s", e)
+
+        # Determine primary cache type for display
+        cache_mode = getattr(self, "cache_mode", "json-only")
+        if cache_mode == "hybrid":
+            cache_type = "Hybrid"
+        elif cache_mode == "db-only":
+            cache_type = "SQLite"
+        elif cache_mode == "json-only":
+            cache_type = "JSON"
+        else:
+            cache_type = "Unknown"
+
+        return {
+            "hit_ratio": hit_ratio,
+            "total_requests": total_requests,
+            "cache_items": cache_items,
+            "cache_mode": cache_mode,
+            "cache_type": cache_type,
+        }

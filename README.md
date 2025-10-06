@@ -8,6 +8,7 @@ AniVault는 TMDB API를 활용한 애니메이션 파일 자동 정리 시스템
 - TMDB API를 통한 메타데이터 수집 (한국어 제목 지원)
 - 자동 파일 정리 및 이름 변경
 - **Enhanced Organize**: 파일명 유사성 기반 그룹핑, 해상도별 분류, 자막 파일 자동 매칭
+- **SQLite Cache System**: 고성능 TMDB API 캐싱, 오프라인 지원, WAL 동시성
 - Windows 단일 실행파일(.exe) 지원
 
 ## 설치
@@ -533,6 +534,54 @@ task-master list
 task-master show <task-id>
 ```
 
+## TMDB Cache System
+
+AniVault uses a **high-performance SQLite-based cache system** for TMDB API responses:
+
+### Features
+
+- ✅ **8.8x faster reads** compared to legacy JSON file cache
+- ✅ **WAL mode** for concurrent access without locks
+- ✅ **Automatic TTL expiration** (24h for search, 14d for details)
+- ✅ **Security-first**: File permissions 600, API key validation
+- ✅ **Production-ready**: Zero-dependency (Python stdlib only)
+
+### Quick Example
+
+```python
+from anivault.services.sqlite_cache_db import SQLiteCacheDB
+from pathlib import Path
+
+# Initialize cache
+cache = SQLiteCacheDB(Path("~/.anivault/cache.db"))
+
+# Store TMDB response
+cache.set_cache(
+    key="search:tv:attack on titan",
+    data={"results": [...]},
+    cache_type="search",
+    ttl_seconds=86400
+)
+
+# Retrieve cached data
+data = cache.get("search:tv:attack on titan", cache_type="search")
+
+cache.close()
+```
+
+### Documentation
+
+- **[User Guide](docs/tmdb_cache_db.md)** - Quick start, API reference, configuration
+- **[Architecture](docs/architecture/cache_system.md)** - Design decisions, data flow, integration
+- **[Migration Guide](docs/migration/json_to_sqlite.md)** - Migrate from JSON to SQLite
+- **[Performance Benchmarks](docs/performance/cache_benchmark.md)** - Detailed performance metrics
+
+---
+
 ## 라이선스
+
+## Handbook
+
+- [AniVault Handbook](docs/handbook/README.md) - architecture, workflows, and rules in one directory
 
 MIT License

@@ -76,8 +76,13 @@ def handle_match_command(options: MatchOptions) -> int:
             },
         )
         return 1
+    except (OSError, ValueError, KeyError, AttributeError):
+        # Handle specific I/O and data processing errors
+        logger.exception("Error in match command")
+        return 1
     except Exception:
-        logger.exception("%sin match command", CLIMessages.Error.UNEXPECTED_ERROR)
+        # Handle unexpected errors
+        logger.exception("%s in match command", CLIMessages.Error.UNEXPECTED_ERROR)
         return 1
 
 
@@ -98,9 +103,9 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         from anivault.core.matching.engine import MatchingEngine
         from anivault.core.parser.anitopy_parser import AnitopyParser
         from anivault.services import (
-            JSONCacheV2,
             RateLimitStateMachine,
             SemaphoreManager,
+            SQLiteCacheDB,
             TMDBClient,
             TokenBucketRateLimiter,
         )
@@ -194,8 +199,9 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
                 ),
             )
 
-        # Initialize services
-        cache = JSONCacheV2(FileSystem.CACHE_DIRECTORY)  # Default cache directory
+        # Initialize services (SQLite cache)
+        cache_db_path = Path(FileSystem.CACHE_DIRECTORY) / "tmdb_cache.db"
+        cache = SQLiteCacheDB(cache_db_path)
         rate_limiter = TokenBucketRateLimiter(
             capacity=50,  # Default rate limit
             refill_rate=50,
@@ -439,7 +445,7 @@ async def _process_file_impl(
             "match_result": match_result,
         }
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {
             "file_path": str(file_path),
             "error": str(e),

@@ -18,7 +18,7 @@ from typing import Any
 
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.cache_v2 import JSONCacheV2
+from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.tmdb_client import TMDBClient
 from anivault.shared.constants import (
     CLIFormatting,
@@ -137,8 +137,9 @@ class BenchmarkRunner:
         self.tmdb_api_key = tmdb_api_key
         self.statistics = statistics or StatisticsCollector()
 
-        # Initialize components
-        self.cache = JSONCacheV2(self.cache_dir, self.statistics)
+        # Initialize components (SQLite cache)
+        cache_db_path = Path(self.cache_dir) / "benchmark_cache.db"
+        self.cache = SQLiteCacheDB(cache_db_path, self.statistics)
         self.tmdb_client = TMDBClient(
             rate_limiter=None,
             semaphore_manager=None,
