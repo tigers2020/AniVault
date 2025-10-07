@@ -75,10 +75,13 @@ class GroupCardWidget(QFrame):
             else:
                 full_title = title_text
 
-            title_label = QLabel(full_title)
+            # Truncate title for display (keep full title in tooltip)
+            display_title = self._truncate_group_name(full_title, max_length=50)
+            
+            title_label = QLabel(display_title)
             title_label.setObjectName("groupTitleLabel")
             title_label.setWordWrap(True)
-            title_label.setToolTip(full_title)
+            title_label.setToolTip(full_title)  # Full title on hover
             title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
             info_layout.addWidget(title_label)
 
