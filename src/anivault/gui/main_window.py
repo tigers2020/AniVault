@@ -608,7 +608,7 @@ class MainWindow(QMainWindow):
         # Update UI with match results - re-group files with updated TMDB metadata
         if hasattr(self, "scan_controller") and self.scan_controller:
             try:
-                # Re-group files using scan controller (which has the grouping logic)
+                # Re-group files by TMDB title (merge groups with same TMDB match)
                 # Use internal _scanned_files to get updated metadata (scanned_files property returns copy)
                 file_items = (
                     self.state_model._scanned_files
@@ -616,9 +616,9 @@ class MainWindow(QMainWindow):
                     else self.state_model.scanned_files
                 )
                 if file_items:
-                    self.scan_controller.group_files(file_items)
+                    self.scan_controller.group_files_by_tmdb_title(file_items)
                     logger.info(
-                        "Re-grouped %d files with updated TMDB metadata",
+                        "Re-grouped %d files by TMDB title (merging groups with same match)",
                         len(file_items),
                     )
             except Exception:
