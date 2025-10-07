@@ -260,7 +260,7 @@ class EncryptionService:
             raise SecurityError(
                 code=ErrorCode.INVALID_TOKEN,
                 message="Token is empty or None",
-                context={"operation": "validate_token"},
+                context=ErrorContext(operation="validate_token"),
             )
 
         try:
@@ -271,14 +271,17 @@ class EncryptionService:
             raise SecurityError(
                 code=ErrorCode.INVALID_TOKEN,
                 message="Invalid or expired token",
-                context={"operation": "validate_token"},
+                context=ErrorContext(operation="validate_token"),
                 original_error=e,
             ) from e
         except Exception as e:
             raise SecurityError(
                 code=ErrorCode.INVALID_TOKEN,
                 message=f"Token validation failed: {e}",
-                context={"operation": "validate_token", "error_type": type(e).__name__},
+                context=ErrorContext(
+                    operation="validate_token",
+                    additional_data={"error_type": type(e).__name__},
+                ),
                 original_error=e,
             ) from e
 
@@ -293,6 +296,8 @@ class EncryptionService:
         Returns:
             True if token is valid, False otherwise
         """
+        from anivault.shared.errors import SecurityError
+
         try:
             self.validate_token(token)
             return True

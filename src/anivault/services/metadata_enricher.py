@@ -100,9 +100,7 @@ class EnrichedMetadata:
                 vote_average = self.tmdb_data.vote_average
                 tmdb_id = self.tmdb_data.id
                 media_type = (
-                    "tv"
-                    if self.tmdb_data.number_of_seasons is not None
-                    else "movie"
+                    "tv" if self.tmdb_data.number_of_seasons is not None else "movie"
                 )
 
                 # Extract year from display_date
@@ -286,7 +284,7 @@ class MetadataEnricher:
                     )
                 except (ValueError, KeyError, TypeError) as e:
                     # Handle data processing errors
-                    error = DomainError(
+                    data_error = DomainError(
                         code=ErrorCode.VALIDATION_ERROR,
                         message=f"Data processing error during media details retrieval: {e!s}",
                         context=ErrorContext(
@@ -301,6 +299,8 @@ class MetadataEnricher:
                         ),
                         original_error=e,
                     )
+                    logger.exception("Data processing error during media details retrieval")
+                    raise data_error from e
                 except Exception as e:  # noqa: BLE001
                     # Handle unexpected errors
                     error = InfrastructureError(
@@ -364,7 +364,7 @@ class MetadataEnricher:
             )
         except (ValueError, KeyError, TypeError) as e:
             # Handle data processing errors
-            error = DomainError(
+            enrichment_error = DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
                 message=f"Data processing error during metadata enrichment: {e!s}",
                 context=ErrorContext(
@@ -378,6 +378,8 @@ class MetadataEnricher:
                 ),
                 original_error=e,
             )
+            logger.exception("Data processing error during metadata enrichment")
+            raise enrichment_error from e
         except Exception as e:  # noqa: BLE001
             # Handle unexpected errors
             error = InfrastructureError(
@@ -508,7 +510,7 @@ class MetadataEnricher:
 
         except (ConnectionError, TimeoutError) as e:
             # Handle network-related errors in batch processing
-            error = InfrastructureError(
+            network_error = InfrastructureError(
                 code=ErrorCode.TMDB_API_CONNECTION_ERROR,
                 message=f"Network error during batch enrichment: {e!s}",
                 context=ErrorContext(
@@ -522,9 +524,16 @@ class MetadataEnricher:
                 ),
                 original_error=e,
             )
+            log_operation_error(
+                logger=logger,
+                operation="enrich_batch",
+                error=network_error,
+                additional_context=context.additional_data if context else None,
+            )
+            raise network_error from e
         except (ValueError, KeyError, TypeError) as e:
             # Handle data processing errors in batch processing
-            error = DomainError(
+            batch_error = DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
                 message=f"Data processing error during batch enrichment: {e!s}",
                 context=ErrorContext(
@@ -538,6 +547,13 @@ class MetadataEnricher:
                 ),
                 original_error=e,
             )
+            log_operation_error(
+                logger=logger,
+                operation="enrich_batch",
+                error=batch_error,
+                additional_context=context.additional_data if context else None,
+            )
+            raise batch_error from e
         except Exception as e:  # noqa: BLE001
             # Handle unexpected errors in batch processing
             error = InfrastructureError(

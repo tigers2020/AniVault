@@ -86,7 +86,9 @@ class MatchingEngine:
 
         # Include language in cache key to avoid serving wrong-language cached results
         language = getattr(
-            self.tmdb_client, TMDBSearchKeys.LANGUAGE, DefaultLanguage.KOREAN,
+            self.tmdb_client,
+            TMDBSearchKeys.LANGUAGE,
+            DefaultLanguage.KOREAN,
         )
         cache_key = f"{title}:lang={language}"
 
@@ -237,7 +239,8 @@ class MatchingEngine:
 
         # Sort by title score (highest first)
         scored_candidates.sort(
-            key=lambda x: x.get(MatchingFieldNames.TITLE_SCORE, 0), reverse=True,
+            key=lambda x: x.get(MatchingFieldNames.TITLE_SCORE, 0),
+            reverse=True,
         )
 
         logger.debug("Scored %d candidates", len(scored_candidates))
@@ -302,12 +305,12 @@ class MatchingEngine:
                 )
                 # Include candidates without year but with lower priority
                 candidate_with_year = candidate.copy()
-                candidate_with_year[
-                    MatchingFieldNames.YEAR_SCORE
-                ] = YearMatchingConfig.YEAR_SCORE_UNKNOWN
-                candidate_with_year[
-                    MatchingFieldNames.YEAR_DIFF
-                ] = YearMatchingConfig.YEAR_DIFF_UNKNOWN
+                candidate_with_year[MatchingFieldNames.YEAR_SCORE] = (
+                    YearMatchingConfig.YEAR_SCORE_UNKNOWN
+                )
+                candidate_with_year[MatchingFieldNames.YEAR_DIFF] = (
+                    YearMatchingConfig.YEAR_DIFF_UNKNOWN
+                )
                 filtered_candidates.append(candidate_with_year)
                 continue
 
@@ -375,11 +378,8 @@ class MatchingEngine:
             try:
                 # Type validation for candidate
                 if not isinstance(candidate, dict):
-                    logger.warning(
-                        "Invalid candidate type: %s, expected dict, skipping",
-                        type(candidate),
-                    )
-                    continue
+                    # Skip invalid candidates (unreachable in normal flow)
+                    continue  # type: ignore[unreachable]
 
                 # Calculate confidence score using the scoring system
                 confidence_score = calculate_confidence_score(
@@ -389,9 +389,9 @@ class MatchingEngine:
 
                 # Add confidence score to candidate
                 candidate_with_confidence = candidate.copy()
-                candidate_with_confidence[
-                    MatchingFieldNames.CONFIDENCE_SCORE
-                ] = confidence_score
+                candidate_with_confidence[MatchingFieldNames.CONFIDENCE_SCORE] = (
+                    confidence_score
+                )
 
                 scored_candidates.append(candidate_with_confidence)
 
@@ -414,7 +414,8 @@ class MatchingEngine:
 
         # Sort by confidence score (highest first)
         scored_candidates.sort(
-            key=lambda x: x.get(MatchingFieldNames.CONFIDENCE_SCORE, 0), reverse=True,
+            key=lambda x: x.get(MatchingFieldNames.CONFIDENCE_SCORE, 0),
+            reverse=True,
         )
 
         logger.debug(
@@ -669,10 +670,9 @@ class MatchingEngine:
             candidates: Original list of candidates
         """
         best_confidence = result.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
-        used_fallback = (
-            result.get(MatchingFieldNames.MATCHING_METADATA, {}).get(
-                "used_fallback", False,
-            )
+        used_fallback = result.get(MatchingFieldNames.MATCHING_METADATA, {}).get(
+            "used_fallback",
+            False,
         )
 
         self.statistics.record_match_success(
@@ -875,7 +875,8 @@ class MatchingEngine:
 
             # Use the higher of the original confidence or partial confidence
             original_confidence = partial_candidate.get(
-                MatchingFieldNames.CONFIDENCE_SCORE, 0.0
+                MatchingFieldNames.CONFIDENCE_SCORE,
+                0.0,
             )
             new_confidence = max(original_confidence, partial_confidence)
             partial_candidate[MatchingFieldNames.CONFIDENCE_SCORE] = new_confidence

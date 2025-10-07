@@ -356,7 +356,7 @@ class TMDBClient:
                     try:
                         # Use default argument to bind loop variable
                         tv_response = await self._make_request(
-                            lambda t=shortened_title: self._tv.search(t),
+                            lambda t=shortened_title: self._tv.search(t),  # type: ignore[misc]
                         )
                         if hasattr(tv_response, "get"):
                             tv_results = tv_response.get("results", [])
@@ -409,7 +409,7 @@ class TMDBClient:
                     try:
                         # Use default argument to bind loop variable
                         movie_response = await self._make_request(
-                            lambda t=shortened_title: self._movie.search(t),
+                            lambda t=shortened_title: self._movie.search(t),  # type: ignore[misc]
                         )
                         if hasattr(movie_response, "get"):
                             movie_results = movie_response.get("results", [])

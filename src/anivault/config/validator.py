@@ -139,7 +139,8 @@ class ConfigValidator:
             properties = schema.get("properties", {})
             section_schema = properties.get(section, {})
             field_schema = section_schema.get("properties", {}).get(field, {})
-            return field_schema.get("description")
+            description: str | None = field_schema.get("description")
+            return description
         except (KeyError, TypeError, AttributeError) as e:
             logger.warning(
                 "Failed to get field description for %s.%s: %s",
@@ -163,13 +164,13 @@ class ConfigValidator:
             schema = ConfigValidator.get_config_schema()
             properties = schema.get("properties", {})
             section_schema = properties.get(section, {})
-            required = section_schema.get("required", [])
+            required_fields: list[str] = section_schema.get("required", [])
             logger.debug(
                 "Retrieved %d required fields for section %s",
-                len(required),
+                len(required_fields),
                 section,
             )
-            return required
+            return required_fields
         except (KeyError, TypeError, AttributeError) as e:
             logger.warning(
                 "Failed to get required fields for section %s: %s",

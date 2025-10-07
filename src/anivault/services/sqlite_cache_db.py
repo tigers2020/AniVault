@@ -182,7 +182,7 @@ class SQLiteCacheDB:
 
         except sqlite3.Error as e:
             error = InfrastructureError(
-                code=ErrorCode.DATABASE_CONNECTION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=f"Failed to initialize SQLite cache: {e!s}",
                 context=context,
                 original_error=e,
@@ -200,7 +200,7 @@ class SQLiteCacheDB:
         if self.conn is None:
             msg = "Database connection not initialized"
             raise InfrastructureError(
-                code=ErrorCode.DATABASE_CONNECTION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=msg,
                 context=ErrorContext(operation="create_tables"),
             )
@@ -302,7 +302,7 @@ class SQLiteCacheDB:
         if self.conn is None:
             msg = "Database connection not initialized"
             raise InfrastructureError(
-                code=ErrorCode.DATABASE_CONNECTION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=msg,
                 context=context,
             )
@@ -393,7 +393,11 @@ class SQLiteCacheDB:
                     cache_entry.cache_type,
                     response_data_json,  # Use serialized JSON string
                     cache_entry.created_at.isoformat(),
-                    cache_entry.expires_at.isoformat() if cache_entry.expires_at else None,
+                    (
+                        cache_entry.expires_at.isoformat()
+                        if cache_entry.expires_at
+                        else None
+                    ),
                     cache_entry.response_size,
                     cache_entry.created_at.isoformat(),
                 ),
@@ -410,7 +414,7 @@ class SQLiteCacheDB:
             )
 
         except sqlite3.Error as e:
-            error = InfrastructureError(
+            db_error = InfrastructureError(
                 code=ErrorCode.FILE_ACCESS_ERROR,
                 message=f"Failed to set cache: {e!s}",
                 context=context,
@@ -418,11 +422,11 @@ class SQLiteCacheDB:
             )
             log_operation_error(
                 logger=logger,
-                error=error,
+                error=db_error,
                 operation="cache_set",
                 additional_context=context.additional_data,
             )
-            raise error from e
+            raise db_error from e
 
     def get(
         self,
@@ -452,7 +456,7 @@ class SQLiteCacheDB:
         if self.conn is None:
             msg = "Database connection not initialized"
             raise InfrastructureError(
-                code=ErrorCode.DATABASE_CONNECTION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=msg,
                 context=context,
             )
@@ -517,7 +521,7 @@ class SQLiteCacheDB:
                 cache_entry = CacheEntry(
                     cache_key=cache_key_db,
                     key_hash=key_hash_db,
-                    cache_type=cache_type_db,  # type: ignore[arg-type]
+                    cache_type=cache_type_db,  # Literal["search", "details"] from DB, type checked at runtime
                     response_data=response_data,
                     created_at=created_at,
                     expires_at=expires_at,
@@ -621,7 +625,7 @@ class SQLiteCacheDB:
         if self.conn is None:
             msg = "Database connection not initialized"
             raise InfrastructureError(
-                code=ErrorCode.DATABASE_CONNECTION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=msg,
                 context=context,
             )
@@ -679,7 +683,7 @@ class SQLiteCacheDB:
         if self.conn is None:
             msg = "Database connection not initialized"
             raise InfrastructureError(
-                code=ErrorCode.DATABASE_CONNECTION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=msg,
                 context=context,
             )
@@ -749,7 +753,7 @@ class SQLiteCacheDB:
         if self.conn is None:
             msg = "Database connection not initialized"
             raise InfrastructureError(
-                code=ErrorCode.DATABASE_CONNECTION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=msg,
                 context=context,
             )

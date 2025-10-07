@@ -475,7 +475,12 @@ def _load_env_file() -> None:
         SecurityError: If .env file is missing or TMDB_API_KEY is not configured
         InfrastructureError: If .env file cannot be read due to permission issues
     """
-    from anivault.shared.errors import ErrorCode, InfrastructureError, SecurityError
+    from anivault.shared.errors import (
+        ErrorCode,
+        ErrorContext,
+        InfrastructureError,
+        SecurityError,
+    )
 
     # Check if .env file exists
     env_file = Path(".env")
@@ -486,7 +491,10 @@ def _load_env_file() -> None:
                 "Environment file .env not found. "
                 "Copy env.template to .env and configure your TMDB API key."
             ),
-            context={"file_path": str(env_file.absolute())},
+            context=ErrorContext(
+                operation="load_env",
+                additional_data={"file_path": str(env_file.absolute())},
+            ),
         )
 
     try:
@@ -512,14 +520,20 @@ def _load_env_file() -> None:
         raise InfrastructureError(
             code=ErrorCode.FILE_PERMISSION_DENIED,
             message=f"Permission denied reading .env file: {env_file}",
-            context={"file_path": str(env_file.absolute())},
+            context=ErrorContext(
+                operation="load_env",
+                additional_data={"file_path": str(env_file.absolute())},
+            ),
             original_error=e,
         ) from e
     except (OSError, ValueError) as e:
         raise InfrastructureError(
             code=ErrorCode.FILE_READ_ERROR,
             message=f"Failed to read .env file: {e}",
-            context={"file_path": str(env_file.absolute())},
+            context=ErrorContext(
+                operation="load_env",
+                additional_data={"file_path": str(env_file.absolute())},
+            ),
             original_error=e,
         ) from e
 
@@ -532,7 +546,10 @@ def _load_env_file() -> None:
                 "TMDB_API_KEY not found in environment. "
                 "Set TMDB_API_KEY in .env file."
             ),
-            context={"env_file": str(env_file.absolute())},
+            context=ErrorContext(
+                operation="validate_api_key",
+                additional_data={"env_file": str(env_file.absolute())},
+            ),
         )
 
     # Validate API key format
@@ -541,7 +558,10 @@ def _load_env_file() -> None:
         raise SecurityError(
             code=ErrorCode.INVALID_CONFIG,
             message="TMDB_API_KEY is empty in .env file",
-            context={"env_file": str(env_file.absolute())},
+            context=ErrorContext(
+                operation="validate_api_key",
+                additional_data={"env_file": str(env_file.absolute())},
+            ),
         )
 
     if len(api_key) < 20:
@@ -551,7 +571,13 @@ def _load_env_file() -> None:
                 f"TMDB_API_KEY appears invalid (too short: {len(api_key)} characters). "
                 f"Expected at least 20 characters. Please check your API key."
             ),
-            context={"env_file": str(env_file.absolute()), "key_length": len(api_key)},
+            context=ErrorContext(
+                operation="validate_api_key",
+                additional_data={
+                    "env_file": str(env_file.absolute()),
+                    "key_length": len(api_key),
+                },
+            ),
         )
 
 

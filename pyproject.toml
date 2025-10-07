@@ -140,8 +140,8 @@ namespace_packages = true
 explicit_package_bases = true  # Enable to fix module path conflicts
 mypy_path = "src"
 
-# 단계적 엄격화 - 기본 설정
-strict = false
+# 단계적 엄격화 - Strict mode enabled for Task 11
+strict = true
 warn_return_any = true
 warn_unused_ignores = true
 warn_redundant_casts = true

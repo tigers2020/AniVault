@@ -13,6 +13,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from anivault.shared.constants import CacheValidationConstants
 
+# Explicitly export for mypy
+__all__ = ["CacheEntry", "CacheValidationConstants"]
+
 
 class CacheEntry(BaseModel):
     """SQLite cache entry domain model.
@@ -117,7 +120,9 @@ class CacheEntry(BaseModel):
     @field_validator("expires_at")
     @classmethod
     def validate_expires_after_created(
-        cls, v: datetime | None, info: Any,
+        cls,
+        v: datetime | None,
+        info: Any,
     ) -> datetime | None:
         """Validate that expires_at is after created_at.
 
@@ -159,4 +164,3 @@ class CacheEntry(BaseModel):
             return now > expires_at_aware
 
         return now > self.expires_at
-

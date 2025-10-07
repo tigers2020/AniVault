@@ -324,10 +324,9 @@ class FileOrganizer:
                     msg,
                 ) from e
 
-        else:
-            # Unsupported operation type
-            msg = f"Unsupported operation type: {operation.operation_type}"
-            raise ValueError(msg)
+        # Note: else block removed as unreachable with OperationType enum (MOVE, COPY only)
+        msg = f"Unsupported operation type: {operation.operation_type}"
+        raise ValueError(msg)
 
     def _handle_operation_error(
         self,
