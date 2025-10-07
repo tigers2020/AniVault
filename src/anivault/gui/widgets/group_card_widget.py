@@ -185,10 +185,11 @@ class GroupCardWidget(QFrame):
 
         if anime_info:
             poster_path = anime_info.get("poster_path")
-            title = anime_info.get("title", "?")
+            # Try both 'title' and 'name' fields (TMDB uses different fields for movies vs TV)
+            title = anime_info.get("title") or anime_info.get("name") or "?"
             logger.info(
                 "🎨 Poster widget - title: '%s', poster_path: %s",
-                title[:30] if title else "None",
+                title[:30] if title and title != "?" else "None",
                 poster_path[:30] if poster_path else "None",
             )
 
@@ -309,10 +310,18 @@ class GroupCardWidget(QFrame):
             if isinstance(meta.other_info, dict):
                 match_result = meta.other_info.get("match_result")
                 if match_result:
+                    # DEBUG: Log entire match_result structure
+                    title = match_result.get("title") or match_result.get("name") or "Unknown"
                     logger.info(
                         "✓ Found match_result in ParsingResult.other_info: %s",
-                        match_result.get("title", "Unknown"),
+                        title,
                     )
+                    if title == "Unknown":
+                        logger.warning(
+                            "⚠️ match_result has no title/name! Keys: %s, Type: %s",
+                            list(match_result.keys()) if isinstance(match_result, dict) else "NOT_DICT",
+                            type(match_result).__name__
+                        )
                     return match_result
                 logger.debug("other_info is dict but no match_result")
             else:
