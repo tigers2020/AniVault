@@ -87,15 +87,15 @@ class MainWindow(QMainWindow):
         # Main layout
         main_layout = QHBoxLayout(central_widget)
 
-        # Create splitter for resizable panels
-        splitter = QSplitter(Qt.Horizontal)
+        # Create splitter for resizable panels (vertical layout: top/bottom)
+        splitter = QSplitter(Qt.Vertical)
         main_layout.addWidget(splitter)
 
-        # Group grid view widget (left panel)
+        # Group grid view widget (top panel - 80%)
         self.group_view = GroupGridViewWidget()
         splitter.addWidget(self.group_view)
 
-        # Main work area (right panel) - file details view
+        # Main work area (bottom panel - 20%) - file details view
         self.work_area = QWidget()
         work_layout = QVBoxLayout(self.work_area)
 
@@ -111,8 +111,8 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(self.work_area)
 
-        # Set splitter proportions (file tree: 30%, work area: 70%)
-        splitter.setSizes([360, 840])
+        # Set splitter proportions (top: 80%, bottom: 20% = 4:1 ratio)
+        splitter.setSizes([960, 240])
 
     def _setup_menu(self) -> None:
         """Set up the menu bar."""
