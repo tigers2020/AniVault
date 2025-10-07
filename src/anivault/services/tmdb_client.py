@@ -49,7 +49,8 @@ class TMDBClient:
         rate_limiter: TokenBucketRateLimiter | None = None,
         semaphore_manager: SemaphoreManager | None = None,
         state_machine: RateLimitStateMachine | None = None,
-        language: str = Language.ENGLISH,
+        language: str = Language.KOREAN,
+        region: str = "KR",
     ):
         """Initialize the TMDB client.
 
@@ -57,7 +58,8 @@ class TMDBClient:
             rate_limiter: Token bucket rate limiter instance
             semaphore_manager: Semaphore manager for concurrency control
             state_machine: Rate limiting state machine
-            language: Language code for TMDB API requests (default: English)
+            language: Language code for TMDB API requests (default: Korean)
+            region: Region code for TMDB API requests (default: KR)
         """
         self.config = get_config()
 
@@ -75,6 +77,7 @@ class TMDBClient:
         self._tmdb = TMDb()
         self._tmdb.api_key = self.config.tmdb.api_key
         self._tmdb.language = language
+        self._tmdb.region = region
         self._tmdb.debug = self.config.app.debug
 
         # Initialize API objects
