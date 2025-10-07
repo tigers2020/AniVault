@@ -76,6 +76,7 @@ class CacheValidationConstants:
 
     # Logging
     CACHE_KEY_LOG_MAX_LENGTH = 50  # Max cache key length for logging
+    HASH_PREFIX_LOG_LENGTH = 16  # Hash prefix length for logging (first 16 chars)
 
 
 class CacheConfig:

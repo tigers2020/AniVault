@@ -264,7 +264,10 @@ class SQLiteCacheDB:
         key_hash = hashlib.sha256(normalized_key.encode("utf-8")).hexdigest()
 
         # Log only hash prefix, never full key
-        logger.debug("Generated cache key hash: %s...", key_hash[:16])
+        logger.debug(
+            "Generated cache key hash: %s...",
+            key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
+        )
 
         return normalized_key, key_hash
 
@@ -458,9 +461,10 @@ class SQLiteCacheDB:
             # Generate key hash
             _, key_hash = self._generate_cache_key_hash(key)
 
-            # Query cache
+            # Query cache - fetch all fields to reconstruct CacheEntry
             sql = """
-            SELECT response_data, expires_at
+            SELECT cache_key, key_hash, cache_type, response_data,
+                   created_at, expires_at, hit_count, last_accessed_at, response_size
             FROM tmdb_cache
             WHERE key_hash = ? AND cache_type = ?
             """
@@ -473,34 +477,75 @@ class SQLiteCacheDB:
                 self.statistics.record_cache_miss(cache_type)
                 return None
 
-            response_data_str, expires_at_str = row
+            (
+                cache_key_db,
+                key_hash_db,
+                cache_type_db,
+                response_data_str,
+                created_at_str,
+                expires_at_str,
+                hit_count_db,
+                last_accessed_at_str,
+                response_size_db,
+            ) = row
 
-            # Check expiration
-            if expires_at_str:
-                expires_at = datetime.fromisoformat(expires_at_str)
-                if datetime.now(timezone.utc) > expires_at:
-                    # Expired
-                    logger.debug(
-                        "Cache entry expired for key hash: %s...",
-                        key_hash[:16],
-                    )
-                    self.statistics.record_cache_miss(cache_type)
-                    return None
-
-            # Deserialize JSON
+            # Deserialize response_data first (needed for CacheEntry)
             try:
-                data = json.loads(response_data_str)
+                response_data = json.loads(response_data_str)
             except json.JSONDecodeError as e:
                 logger.warning(
                     "Failed to deserialize cache data for key hash %s...: %s",
-                    key_hash[:16],
+                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
                     str(e),
+                )
+                self.statistics.record_cache_miss(cache_type)
+                return None
+
+            # Parse timestamps
+            created_at = datetime.fromisoformat(created_at_str)
+            expires_at = (
+                datetime.fromisoformat(expires_at_str) if expires_at_str else None
+            )
+            last_accessed_at = (
+                datetime.fromisoformat(last_accessed_at_str)
+                if last_accessed_at_str
+                else None
+            )
+
+            # Reconstruct CacheEntry for validation and expiration check
+            try:
+                cache_entry = CacheEntry(
+                    cache_key=cache_key_db,
+                    key_hash=key_hash_db,
+                    cache_type=cache_type_db,  # type: ignore[arg-type]
+                    response_data=response_data,
+                    created_at=created_at,
+                    expires_at=expires_at,
+                    hit_count=hit_count_db or 0,
+                    last_accessed_at=last_accessed_at,
+                    response_size=response_size_db or 0,
+                )
+            except ValidationError as e:
+                logger.warning(
+                    "Failed to validate cached entry for key hash %s...: %s",
+                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
+                    str(e),
+                )
+                self.statistics.record_cache_miss(cache_type)
+                return None
+
+            # Check expiration using CacheEntry method
+            if cache_entry.is_expired():
+                logger.debug(
+                    "Cache entry expired for key hash: %s...",
+                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
                 )
                 self.statistics.record_cache_miss(cache_type)
                 return None
 
             # Normalize cached data: use TV show 'name' as 'title' (name is localized)
             # This handles both legacy cache and ensures localized titles are used
+            data = cache_entry.response_data
             if isinstance(data, dict):
                 if "results" in data and isinstance(data["results"], list):
                     for result in data["results"]:
@@ -530,7 +575,10 @@ class SQLiteCacheDB:
 
             # Cache hit
             self.statistics.record_cache_hit(cache_type)
-            logger.debug("Cache hit for key hash: %s...", key_hash[:16])
+            logger.debug(
+                "Cache hit for key hash: %s...",
+                key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
+            )
 
             return data
 
@@ -589,7 +637,10 @@ class SQLiteCacheDB:
             deleted = cursor.rowcount > 0
 
             if deleted:
-                logger.debug("Deleted cache entry for key hash: %s...", key_hash[:16])
+                logger.debug(
+                    "Deleted cache entry for key hash: %s...",
+                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
+                )
 
             return deleted
 
