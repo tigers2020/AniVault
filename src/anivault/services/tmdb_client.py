@@ -80,6 +80,10 @@ class TMDBClient:
         self._tmdb.region = region
         self._tmdb.debug = self.config.app.debug
 
+        # Store language for explicit parameter passing
+        self.language = language
+        self.region = region
+
         # Initialize API objects
         self._tv = TV()
         self._movie = Movie()
@@ -163,7 +167,9 @@ class TMDBClient:
 
         # Search TV shows
         try:
-            tv_response = await self._make_request(lambda: self._tv.search(title))
+            tv_response = await self._make_request(
+                lambda: self._tv.search(title, language=self.language)
+            )
             # Extract results from API response (handle both dict and AsObj)
             if hasattr(tv_response, "get"):
                 tv_results = tv_response.get("results", [])
@@ -240,7 +246,9 @@ class TMDBClient:
 
         # Search movies
         try:
-            movie_response = await self._make_request(lambda: self._movie.search(title))
+            movie_response = await self._make_request(
+                lambda: self._movie.search(title, language=self.language)
+            )
             # Extract results from API response (handle both dict and AsObj)
             if hasattr(movie_response, "get"):
                 movie_results = movie_response.get("results", [])
@@ -318,7 +326,7 @@ class TMDBClient:
                     # Try TV search with shortened title
                     try:
                         tv_response = await self._make_request(
-                            lambda: self._tv.search(shortened_title),
+                            lambda: self._tv.search(shortened_title, language=self.language),
                         )
                         if hasattr(tv_response, "get"):
                             tv_results = tv_response.get("results", [])
@@ -357,7 +365,7 @@ class TMDBClient:
                     # Try movie search with shortened title
                     try:
                         movie_response = await self._make_request(
-                            lambda: self._movie.search(shortened_title),
+                            lambda: self._movie.search(shortened_title, language=self.language),
                         )
                         if hasattr(movie_response, "get"):
                             movie_results = movie_response.get("results", [])
@@ -471,9 +479,13 @@ class TMDBClient:
 
         try:
             if media_type == MediaType.TV:
-                result = await self._make_request(lambda: self._tv.details(media_id))
+                result = await self._make_request(
+                    lambda: self._tv.details(media_id, language=self.language)
+                )
             else:  # movie
-                result = await self._make_request(lambda: self._movie.details(media_id))
+                result = await self._make_request(
+                    lambda: self._movie.details(media_id, language=self.language)
+                )
 
             # Normalize TV show 'name' field to 'title' for consistency
             if isinstance(result, dict) and media_type == MediaType.TV:
