@@ -78,7 +78,7 @@ class TMDBClient:
         self._tmdb.api_key = self.config.tmdb.api_key
         self._tmdb.language = language  # Set language BEFORE creating TV/Movie objects
         self._tmdb.region = region
-        self._tmdb.debug = self.config.app.debug
+        self._tmdb.debug = True  # Force debug to see actual API calls with language parameter
 
         # Store language for explicit parameter passing
         self.language = language
