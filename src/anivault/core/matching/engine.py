@@ -77,13 +77,17 @@ class MatchingEngine:
         Returns:
             List of TMDB search results with media_type field
         """
-        # Use normalized title as cache key
-        cache_key = normalized_query.get("title", "")
-
+        # Use normalized title + language as cache key (language-sensitive caching)
+        title = normalized_query.get("title", "")
+        
         # Check if title is empty before doing anything
-        if not cache_key:
+        if not title:
             logger.warning("Empty title in normalized query, skipping TMDB search")
             return []
+        
+        # Include language in cache key to avoid serving wrong-language cached results
+        language = getattr(self.tmdb_client, "language", "ko-KR")
+        cache_key = f"{title}:lang={language}"
 
         # Check cache first
         cached_data = self.cache.get(cache_key, "search")
@@ -121,9 +125,8 @@ class MatchingEngine:
             return []
 
         # Cache miss - search TMDB
-        logger.debug("Cache miss for search query: %s", cache_key)
+        logger.debug("Cache miss for search query: %s (language: %s)", title, language)
         self.statistics.record_cache_miss("search")
-        title = cache_key
 
         try:
             # Search TMDB for both TV and movies
