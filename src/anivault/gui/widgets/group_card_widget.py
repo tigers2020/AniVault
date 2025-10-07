@@ -175,22 +175,38 @@ class GroupCardWidget(QFrame):
 
         # Try to load poster from TMDB data
         anime_info = self._get_anime_info()
-        logger.debug("Creating poster for group '%s': anime_info=%s", 
+        logger.info("🎨 Creating poster for group '%s': anime_info=%s", 
                     self.group_name[:30], "YES" if anime_info else "NO")
         
         if anime_info:
             poster_path = anime_info.get("poster_path")
             title = anime_info.get("title", "?")
-            logger.debug("Poster widget - title: '%s', poster_path: %s", 
+            logger.info("🎨 Poster widget - title: '%s', poster_path: %s", 
                         title[:30] if title else "None", 
                         poster_path[:30] if poster_path else "None")
             
-            if poster_path:
-                # NOTE: Poster image loading from TMDB will be implemented in future version
-                # For now, show placeholder with title initial
-                initial = title[0].upper() if title else "?"
+            # Always show poster with initial, even if no poster_path (for now)
+            # This ensures TMDB-matched items show colored background
+            if title and title != "Unknown" and title != "?":
+                initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
-                logger.debug("Set poster to initial: %s", initial)
+                logger.info("🎨 Set poster to initial '%s' for: %s", initial, title[:30])
+                poster_label.setStyleSheet(
+                    """
+                    QLabel#posterLabel {
+                        background-color: #007acc;
+                        color: white;
+                        font-size: 36px;
+                        font-weight: bold;
+                        border: 1px solid #005a9e;
+                        border-radius: 5px;
+                    }
+                """,
+                )
+            elif poster_path:
+                # Has poster_path but title is Unknown
+                initial = "?"
+                poster_label.setText(f"🎬\n{initial}")
                 poster_label.setStyleSheet(
                     """
                     QLabel#posterLabel {
