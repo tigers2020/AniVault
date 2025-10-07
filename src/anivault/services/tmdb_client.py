@@ -349,6 +349,9 @@ class TMDBClient:
                         for result in tv_results:
                             if isinstance(result, dict):
                                 result["media_type"] = MediaType.TV
+                                # Use TV show 'name' field as 'title' (name is localized, title is original)
+                                if "name" in result:
+                                    result["title"] = result["name"]  # Always use localized name
                                 results.append(result)
                             else:
                                 try:
@@ -364,6 +367,9 @@ class TMDBClient:
                                         result_dict = {"title": str(result)}
 
                                     result_dict["media_type"] = MediaType.TV
+                                    # Use TV show 'name' field as 'title' (name is localized, title is original)
+                                    if "name" in result_dict:
+                                        result_dict["title"] = result_dict["name"]  # Always use localized name
                                     results.append(result_dict)
                                 except Exception:
                                     results.append(
