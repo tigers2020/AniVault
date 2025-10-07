@@ -174,6 +174,11 @@ class TMDBClient:
             tv_response = await self._make_request(
                 lambda: self._tv.search(title)
             )
+            # DEBUG: Log actual API response to verify language setting
+            logger.info("🔍 TMDB API TV search response for '%s': %s", 
+                        title[:30], 
+                        str(tv_response)[:200] if tv_response else "None")
+            
             # Extract results from API response (handle both dict and AsObj)
             if hasattr(tv_response, "get"):
                 tv_results = tv_response.get("results", [])
@@ -190,6 +195,12 @@ class TMDBClient:
                     # Normalize TV show 'name' field to 'title' for consistency
                     if "name" in result and "title" not in result:
                         result["title"] = result["name"]
+                    # DEBUG: Log first result to check language
+                    if len(results) == 0:
+                        logger.info("🔍 First TV result: title='%s', name='%s', overview='%s'", 
+                                    result.get("title", "N/A")[:50],
+                                    result.get("name", "N/A")[:50],
+                                    result.get("overview", "N/A")[:100])
                     results.append(result)
                 else:
                     # Convert any non-dict object to dict (including AsObj)
