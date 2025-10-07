@@ -265,8 +265,16 @@ class GroupCardWidget(QFrame):
                 return match_result
             logger.debug("No match_result in metadata dict")
 
-        # Case 2: metadata is ParsingResult or similar object (not yet matched)
-        # Extract basic info from parsed result as fallback
+        # Case 2: metadata is ParsingResult or similar object
+        # First check if ParsingResult has TMDB data in other_info
+        if hasattr(meta, "other_info") and isinstance(meta.other_info, dict):
+            match_result = meta.other_info.get("match_result")
+            if match_result:
+                logger.debug("Found match_result in ParsingResult.other_info: %s", 
+                           match_result.get("title", "Unknown"))
+                return match_result
+        
+        # Fallback: Extract basic info from parsed result
         try:
             anime_dict = {
                 "title": getattr(meta, "title", None) or first_file.file_path.stem,

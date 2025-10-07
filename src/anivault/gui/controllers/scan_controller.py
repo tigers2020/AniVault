@@ -138,6 +138,18 @@ class ScanController(QObject):
                         other_info={"error": str(e)},
                     )
 
+                # Preserve TMDB metadata if it exists in the file_item
+                # This is critical for UI updates after TMDB matching
+                if hasattr(file_item, "metadata") and isinstance(file_item.metadata, dict):
+                    match_result = file_item.metadata.get("match_result")
+                    if match_result:
+                        # Inject match_result into parsed_result.other_info
+                        if not parsed_result.other_info:
+                            parsed_result.other_info = {}
+                        parsed_result.other_info["match_result"] = match_result
+                        logger.debug("Preserved TMDB metadata for: %s - %s", 
+                                   file_item.file_path.name, match_result.get("title", "Unknown"))
+
                 # Create ScannedFile object for grouping
                 scanned_file = ScannedFile(
                     file_path=file_item.file_path,
