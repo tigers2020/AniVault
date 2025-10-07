@@ -174,6 +174,9 @@ class TMDBClient:
             for result in tv_results:
                 if isinstance(result, dict):
                     result["media_type"] = MediaType.TV
+                    # Normalize TV show 'name' field to 'title' for consistency
+                    if "name" in result and "title" not in result:
+                        result["title"] = result["name"]
                     results.append(result)
                 else:
                     # Convert any non-dict object to dict (including AsObj)
@@ -193,6 +196,9 @@ class TMDBClient:
                             result_dict = {"title": str(result)}
 
                         result_dict["media_type"] = MediaType.TV
+                        # Normalize TV show 'name' field to 'title' for consistency
+                        if "name" in result_dict and "title" not in result_dict:
+                            result_dict["title"] = result_dict["name"]
                         results.append(result_dict)
                     except Exception as e:
                         logger.warning(
@@ -465,6 +471,11 @@ class TMDBClient:
                 result = await self._make_request(lambda: self._tv.details(media_id))
             else:  # movie
                 result = await self._make_request(lambda: self._movie.details(media_id))
+
+            # Normalize TV show 'name' field to 'title' for consistency
+            if isinstance(result, dict) and media_type == MediaType.TV:
+                if "name" in result and "title" not in result:
+                    result["title"] = result["name"]
 
             log_operation_success(
                 logger=logger,

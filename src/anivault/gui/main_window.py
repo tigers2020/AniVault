@@ -4,6 +4,7 @@ Main Window Implementation for AniVault GUI
 This module contains the main window class that serves as the root container
 for all UI elements in the AniVault GUI application.
 """
+
 from __future__ import annotations
 
 import logging
@@ -158,7 +159,9 @@ class MainWindow(QMainWindow):
         light_theme_action = QAction("&Light", self)
         light_theme_action.setCheckable(True)
         light_theme_action.setData("light")
-        light_theme_action.triggered.connect(lambda: self.switch_theme(light_theme_action))
+        light_theme_action.triggered.connect(
+            lambda: self.switch_theme(light_theme_action),
+        )
         self.theme_action_group.addAction(light_theme_action)
         theme_menu.addAction(light_theme_action)
 
@@ -166,7 +169,9 @@ class MainWindow(QMainWindow):
         dark_theme_action = QAction("&Dark", self)
         dark_theme_action.setCheckable(True)
         dark_theme_action.setData("dark")
-        dark_theme_action.triggered.connect(lambda: self.switch_theme(dark_theme_action))
+        dark_theme_action.triggered.connect(
+            lambda: self.switch_theme(dark_theme_action),
+        )
         self.theme_action_group.addAction(dark_theme_action)
         theme_menu.addAction(dark_theme_action)
 
@@ -228,7 +233,9 @@ class MainWindow(QMainWindow):
         cache_type = stats.get("cache_type", "Unknown")
 
         # Format: 캐시: 87.3% 히트율 (1,247 항목) [SQLite]
-        status_text = f"캐시: {hit_ratio:.1f}% 히트율 ({cache_items:,} 항목) [{cache_type}]"
+        status_text = (
+            f"캐시: {hit_ratio:.1f}% 히트율 ({cache_items:,} 항목) [{cache_type}]"
+        )
         self.cache_status_label.setText(status_text)
 
     def open_folder(self) -> None:
@@ -287,8 +294,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             logger.exception("Failed to switch theme: %s", e)
-            QMessageBox.warning(self, "Theme Error",
-                               f"Failed to switch theme: {e}")
+            QMessageBox.warning(self, "Theme Error", f"Failed to switch theme: {e}")
 
     def set_theme_managers(self, theme_manager, config_manager) -> None:
         """Set theme and config managers for theme switching."""
@@ -387,7 +393,11 @@ class MainWindow(QMainWindow):
         logger.error("File scan error: %s", error_msg)
 
         # Show error dialog
-        QMessageBox.warning(self, "Scan Error", f"Failed to scan directory:\n{error_msg}")
+        QMessageBox.warning(
+            self,
+            "Scan Error",
+            f"Failed to scan directory:\n{error_msg}",
+        )
 
     def on_files_grouped(self, grouped_files: dict) -> None:
         """Handle files grouped signal."""
@@ -403,15 +413,17 @@ class MainWindow(QMainWindow):
         # No direct file tree manipulation needed
         logger.debug("File status updated: %s -> %s", file_path.name, status)
 
-
     def update_file_tree_with_groups(self, grouped_files: dict) -> None:
         """Update the group grid view with grouped files as cards."""
         # Update the grid view with grouped files and connect click events
         self.group_view.update_groups(grouped_files, self.on_group_selected)
 
         total_files = sum(len(files) for files in grouped_files.values())
-        logger.info("Updated group grid view with %d grouped files in %d groups",
-                   total_files, len(grouped_files))
+        logger.info(
+            "Updated group grid view with %d grouped files in %d groups",
+            total_files,
+            len(grouped_files),
+        )
 
     def on_group_selected(self, group_name: str, files: list) -> None:
         """Handle group selection from grid view.
@@ -497,7 +509,9 @@ class MainWindow(QMainWindow):
             return
 
         # Check if API key is configured
-        api_key = self.config_manager.get("tmdb.api_key") if self.config_manager else None
+        api_key = (
+            self.config_manager.get("tmdb.api_key") if self.config_manager else None
+        )
         if not api_key:
             QMessageBox.warning(
                 self,
@@ -518,7 +532,10 @@ class MainWindow(QMainWindow):
 
         # Update status bar
         self.status_bar.showMessage("Starting TMDB matching...")
-        logger.info("TMDB matching started - %d files to process", len(self.state_model.scanned_files))
+        logger.info(
+            "TMDB matching started - %d files to process",
+            len(self.state_model.scanned_files),
+        )
 
         # Start TMDB matching using controller
         try:
@@ -526,7 +543,11 @@ class MainWindow(QMainWindow):
         except (ValueError, RuntimeError) as e:
             logger.exception("Failed to start TMDB matching: %s", e)
             self.status_bar.showMessage(f"TMDB matching error: {e}")
-            QMessageBox.warning(self, "TMDB Matching Error", f"Failed to start matching:\n{e}")
+            QMessageBox.warning(
+                self,
+                "TMDB Matching Error",
+                f"Failed to start matching:\n{e}",
+            )
             if self.tmdb_progress_dialog:
                 self.tmdb_progress_dialog.close()
                 self.tmdb_progress_dialog = None
@@ -563,10 +584,26 @@ class MainWindow(QMainWindow):
         if self.tmdb_progress_dialog:
             self.tmdb_progress_dialog.show_completion(matched_count, total_count)
 
-        self.status_bar.showMessage(f"TMDB matching completed: {matched_count}/{total_count} matched")
-        logger.info("TMDB matching completed: %d/%d files matched", matched_count, total_count)
+        self.status_bar.showMessage(
+            f"TMDB matching completed: {matched_count}/{total_count} matched",
+        )
+        logger.info(
+            "TMDB matching completed: %d/%d files matched",
+            matched_count,
+            total_count,
+        )
 
-        # TODO: Update UI with match results in next subtask
+        # Update UI with match results - refresh group grid view
+        if hasattr(self, "group_grid_view") and self.group_grid_view:
+            try:
+                # Re-group files with updated TMDB metadata
+                grouped_files = self.state_model.get_grouped_files()
+                if grouped_files:
+                    self.group_grid_view.update_groups(grouped_files)
+                    logger.info("Updated group grid view with TMDB match results")
+            except Exception:
+                logger.exception("Failed to update group grid view after matching")
+                # Non-critical error, don't show to user
 
     def on_tmdb_matching_error(self, error_msg: str) -> None:
         """Handle TMDB matching error signal."""
@@ -577,7 +614,11 @@ class MainWindow(QMainWindow):
         logger.error("TMDB matching error: %s", error_msg)
 
         # Show error dialog
-        QMessageBox.warning(self, "TMDB Matching Error", f"Failed to match files:\n{error_msg}")
+        QMessageBox.warning(
+            self,
+            "TMDB Matching Error",
+            f"Failed to match files:\n{error_msg}",
+        )
 
     def on_tmdb_matching_cancelled(self) -> None:
         """Handle TMDB matching cancellation."""
