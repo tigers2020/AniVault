@@ -13,7 +13,6 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from anivault.core.models import ScannedFile as ProcessedFile
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.shared.constants import ProcessingConfig
 from anivault.shared.constants.network import NetworkConfig

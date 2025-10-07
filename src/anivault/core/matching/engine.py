@@ -367,13 +367,6 @@ class MatchingEngine:
         """
         scored_candidates = []
 
-        # Convert NormalizedQuery to dict for compatibility with existing scoring
-        # TODO(Task 4.2): Refactor calculate_confidence_score to use NormalizedQuery
-        normalized_query_dict = {
-            "title": normalized_query.title,
-            "year": normalized_query.year,
-        }
-
         for candidate in candidates:
             try:
                 # Type validation for candidate
@@ -381,10 +374,21 @@ class MatchingEngine:
                     # Skip invalid candidates (unreachable in normal flow)
                     continue  # type: ignore[unreachable]
 
-                # Calculate confidence score using the scoring system
+                # Convert dict candidate to TMDBSearchResult for scoring
+                # This is a temporary adapter until full end-to-end dataclass flow
+                try:
+                    tmdb_result = TMDBSearchResult.model_validate(candidate)
+                except Exception as e:
+                    logger.warning(
+                        "Failed to validate candidate as TMDBSearchResult: %s",
+                        str(e),
+                    )
+                    continue
+
+                # Calculate confidence score using dataclass inputs
                 confidence_score = calculate_confidence_score(
-                    normalized_query_dict,
-                    candidate,
+                    normalized_query,
+                    tmdb_result,
                 )
 
                 # Add confidence score to candidate

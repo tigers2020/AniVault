@@ -7,18 +7,19 @@ returned by the TMDB API, helping to determine the best match for a given query.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from rapidfuzz import fuzz
 
+from ...services.tmdb_models import TMDBSearchResult
 from ...shared.constants.matching import ScoringWeights
+from .models import NormalizedQuery
 
 logger = logging.getLogger(__name__)
 
 
 def calculate_confidence_score(
-    normalized_query: dict[str, Any],
-    tmdb_result: dict[str, Any],
+    normalized_query: NormalizedQuery,
+    tmdb_result: TMDBSearchResult,
 ) -> float:
     """Calculate a confidence score for a TMDB result based on the normalized query.
 
@@ -30,16 +31,16 @@ def calculate_confidence_score(
     continue evaluating other candidates rather than failing completely.
 
     Args:
-        normalized_query: Dictionary containing normalized query data with keys:
+        normalized_query: NormalizedQuery domain object containing:
             - title: Clean title for comparison
-            - language: Detected language ('ja', 'ko', 'en', or 'unknown')
             - year: Year hint if available
-        tmdb_result: Dictionary containing TMDB result data with keys:
-            - title: TMDB title
-            - release_date: Release date string (YYYY-MM-DD format)
+        tmdb_result: TMDBSearchResult Pydantic model containing:
+            - title/name: TMDB title (localized)
+            - original_title/original_name: Original title
+            - release_date/first_air_date: Release date string (YYYY-MM-DD format)
             - media_type: Type of media ('tv' or 'movie')
             - popularity: Popularity score from TMDB
-            - genres: List of genre dictionaries with 'name' key
+            - genres: List of genre IDs
 
     Returns:
         A confidence score between 0.0 and 1.0, where:
@@ -55,28 +56,19 @@ def calculate_confidence_score(
         - Data processing error occurs (graceful degradation with logging)
 
     Examples:
-        >>> query = {"title": "Attack on Titan", "language": "en", "year": 2013}
-        >>> result = {"title": "Attack on Titan", "release_date": "2013-04-07",
-        ...           "media_type": "tv", "popularity": 85.2, "genres": [{"name": "Animation"}]}
+        >>> query = NormalizedQuery(title="Attack on Titan", year=2013)
+        >>> result = TMDBSearchResult(id=1429, media_type="tv", title="Attack on Titan",
+        ...           release_date="2013-04-07", popularity=85.2, ...)
         >>> calculate_confidence_score(query, result)
         0.95
     """
     try:
-        # Type validation and conversion
-        if not isinstance(normalized_query, dict):
-            # Invalid type (unreachable with proper NormalizedQuery usage)
-            return 0.0  # type: ignore[unreachable]
-
-        if not isinstance(tmdb_result, dict):
-            # Invalid type (unreachable with proper TMDBSearchResult usage)
-            return 0.0  # type: ignore[unreachable]
-
-        # Check for empty query or result
-        query_title = normalized_query.get("title", "")
-        localized_title = tmdb_result.get("title", "") or tmdb_result.get("name", "")
-        original_title = tmdb_result.get("original_title", "") or tmdb_result.get(
-            "original_name",
-            "",
+        # Extract titles using dataclass attributes
+        query_title = normalized_query.title
+        # Get raw title/name, not display_title (which returns "Unknown" for empty)
+        localized_title = tmdb_result.title or tmdb_result.name or ""
+        original_title = (
+            tmdb_result.original_title or tmdb_result.original_name or ""
         )
 
         if not query_title or (not localized_title and not original_title):
@@ -101,11 +93,11 @@ def calculate_confidence_score(
         title_score = max(title_scores) if title_scores else 0.0
         logger.info(f"🎯 Final title score (max): {title_score:.3f}")
         year_score = _calculate_year_score(
-            normalized_query.get("year"),
-            tmdb_result.get("release_date"),
+            normalized_query.year,
+            tmdb_result.display_date,  # Uses release_date or first_air_date property
         )
-        media_type_score = _calculate_media_type_score(tmdb_result.get("media_type"))
-        popularity_bonus = _calculate_popularity_bonus(tmdb_result.get("popularity", 0))
+        media_type_score = _calculate_media_type_score(tmdb_result.media_type)
+        popularity_bonus = _calculate_popularity_bonus(tmdb_result.popularity)
 
         # Weighted aggregation using centralized constants (weights sum to 1.0)
         # Note: These weights are defined in shared.constants.matching.ScoringWeights
@@ -132,20 +124,20 @@ def calculate_confidence_score(
 
         return confidence_score
 
-    except (ValueError, KeyError, AttributeError, TypeError):
+    except (ValueError, AttributeError, TypeError):
         # Handle specific data processing errors
         logger.exception(
             "Error calculating confidence score for query '%s' and result '%s'",
-            normalized_query.get("title", ""),
-            tmdb_result.get("title", ""),
+            normalized_query.title,
+            tmdb_result.title or tmdb_result.name or "Unknown",
         )
         return 0.0
     except Exception:
         # Handle unexpected errors
         logger.exception(
             "Unexpected error calculating confidence score for query '%s' and result '%s'",
-            normalized_query.get("title", ""),
-            tmdb_result.get("title", ""),
+            normalized_query.title,
+            tmdb_result.title or tmdb_result.name or "Unknown",
         )
         return 0.0
 
