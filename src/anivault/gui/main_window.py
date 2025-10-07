@@ -561,12 +561,17 @@ class MainWindow(QMainWindow):
         """Handle TMDB file matched signal."""
         file_path = Path(result.get("file_path", ""))
         file_name = result.get("file_name", "Unknown")
-        result.get("match_result")
+        match_result = result.get("match_result")  # Actually use this!
         status = result.get("status", "unknown")
 
         # Update state model
         if hasattr(self, "state_model") and self.state_model:
             self.state_model.update_file_status(file_path, status)
+            
+            # Save TMDB metadata to state model
+            if match_result:
+                self.state_model.set_file_metadata(file_path, {"match_result": match_result})
+                logger.debug("Saved TMDB metadata for: %s - %s", file_name, match_result.get("title", "Unknown"))
 
         logger.debug("File matched: %s - %s", file_name, status)
 
@@ -593,16 +598,17 @@ class MainWindow(QMainWindow):
             total_count,
         )
 
-        # Update UI with match results - refresh group grid view
-        if hasattr(self, "group_grid_view") and self.group_grid_view:
+        # Update UI with match results - re-group files with updated TMDB metadata
+        if hasattr(self, "scan_controller") and self.scan_controller:
             try:
-                # Re-group files with updated TMDB metadata
-                grouped_files = self.state_model.get_grouped_files()
-                if grouped_files:
-                    self.group_grid_view.update_groups(grouped_files)
-                    logger.info("Updated group grid view with TMDB match results")
+                # Re-group files using scan controller (which has the grouping logic)
+                # Use internal _scanned_files to get updated metadata (scanned_files property returns copy)
+                file_items = self.state_model._scanned_files if hasattr(self.state_model, "_scanned_files") else self.state_model.scanned_files
+                if file_items:
+                    self.scan_controller.group_files(file_items)
+                    logger.info("Re-grouped %d files with updated TMDB metadata", len(file_items))
             except Exception:
-                logger.exception("Failed to update group grid view after matching")
+                logger.exception("Failed to re-group files after TMDB matching")
                 # Non-critical error, don't show to user
 
     def on_tmdb_matching_error(self, error_msg: str) -> None:
