@@ -713,22 +713,39 @@ class MatchingEngine:
                 # Boost for animation genre
                 new_confidence = min(1.0, current_confidence + ANIMATION_BOOST)
                 boosted_candidate["confidence_score"] = new_confidence
-                logger.debug(
-                    "✅ Applied animation boost to '%s': %.3f -> %.3f",
-                    candidate.get("title", "")[:40],
-                    current_confidence,
-                    new_confidence,
-                )
+                
+                # Animation threshold: 0.2 (lenient for cross-script fuzzy matching)
+                if new_confidence >= 0.2:
+                    boosted_candidates.append(boosted_candidate)
+                    logger.debug(
+                        "✅ Applied animation boost to '%s': %.3f -> %.3f (passed threshold 0.2)",
+                        candidate.get("title", "")[:40],
+                        current_confidence,
+                        new_confidence,
+                    )
+                else:
+                    logger.debug(
+                        "❌ Animation candidate '%s' rejected: %.3f < 0.2",
+                        candidate.get("title", "")[:40],
+                        new_confidence,
+                    )
             else:
-                # No penalty - genre_ids may be missing or incomplete
-                # Just log for diagnostic purposes
-                logger.debug(
-                    "ℹ️ No animation genre for '%s' (genre_ids: %s)",
-                    candidate.get("title", "")[:40],
-                    genre_ids if genre_ids else "empty",
-                )
-
-            boosted_candidates.append(boosted_candidate)
+                # Non-animation: require much higher confidence (0.8) to avoid false positives
+                # This filters out quiz shows, variety shows, live-action, etc.
+                if current_confidence >= 0.8:
+                    boosted_candidates.append(boosted_candidate)
+                    logger.debug(
+                        "✅ Non-animation candidate '%s' accepted: %.3f >= 0.8",
+                        candidate.get("title", "")[:40],
+                        current_confidence,
+                    )
+                else:
+                    logger.debug(
+                        "❌ Non-animation candidate '%s' rejected: %.3f < 0.8 (genre_ids: %s)",
+                        candidate.get("title", "")[:40],
+                        current_confidence,
+                        genre_ids if genre_ids else "empty",
+                    )
 
         # Sort by confidence score (highest first)
         boosted_candidates.sort(
