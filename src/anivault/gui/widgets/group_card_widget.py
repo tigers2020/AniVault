@@ -175,14 +175,22 @@ class GroupCardWidget(QFrame):
 
         # Try to load poster from TMDB data
         anime_info = self._get_anime_info()
+        logger.debug("Creating poster for group '%s': anime_info=%s", 
+                    self.group_name[:30], "YES" if anime_info else "NO")
+        
         if anime_info:
             poster_path = anime_info.get("poster_path")
+            title = anime_info.get("title", "?")
+            logger.debug("Poster widget - title: '%s', poster_path: %s", 
+                        title[:30] if title else "None", 
+                        poster_path[:30] if poster_path else "None")
+            
             if poster_path:
                 # NOTE: Poster image loading from TMDB will be implemented in future version
                 # For now, show placeholder with title initial
-                title = anime_info.get("title", "?")
                 initial = title[0].upper() if title else "?"
                 poster_label.setText(f"🎬\n{initial}")
+                logger.debug("Set poster to initial: %s", initial)
                 poster_label.setStyleSheet(
                     """
                     QLabel#posterLabel {
@@ -267,12 +275,21 @@ class GroupCardWidget(QFrame):
 
         # Case 2: metadata is ParsingResult or similar object
         # First check if ParsingResult has TMDB data in other_info
-        if hasattr(meta, "other_info") and isinstance(meta.other_info, dict):
-            match_result = meta.other_info.get("match_result")
-            if match_result:
-                logger.debug("Found match_result in ParsingResult.other_info: %s", 
-                           match_result.get("title", "Unknown"))
-                return match_result
+        logger.debug("Case 2: metadata type is %s", type(meta).__name__)
+        if hasattr(meta, "other_info"):
+            logger.debug("metadata has other_info: %s", meta.other_info)
+            if isinstance(meta.other_info, dict):
+                match_result = meta.other_info.get("match_result")
+                if match_result:
+                    logger.info("✓ Found match_result in ParsingResult.other_info: %s", 
+                               match_result.get("title", "Unknown"))
+                    return match_result
+                else:
+                    logger.debug("other_info is dict but no match_result")
+            else:
+                logger.debug("other_info is not dict: %s", type(meta.other_info))
+        else:
+            logger.debug("metadata has no other_info attribute")
         
         # Fallback: Extract basic info from parsed result
         try:
