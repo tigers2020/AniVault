@@ -135,9 +135,16 @@ class TMDBClient:
         if base_title.strip() != title.strip():
             shortened_titles.append(base_title.strip())
 
-        # Generate progressive word removal (keep at least 2 words)
+        # Generate progressive word removal (recursive trimming down to 1 word)
+        # Example: "이세계 묵시록 마이노그라~파멸의 문명에서 시작하는 세계 정복~"
+        #       → "이세계 묵시록 마이노그라~파멸의 문명에서 시작하는"
+        #       → "이세계 묵시록 마이노그라~파멸의 문명에서"
+        #       → ...
+        #       → "이세계 묵시록 마이노그라~"
+        #       → "이세계 묵시록"
+        #       → "이세계"
         current_words = words.copy()
-        while len(current_words) > 2:
+        while len(current_words) > 1:  # Changed from > 2 to > 1 for more aggressive fallback
             current_words.pop()  # Remove last word
             shortened_titles.append(" ".join(current_words))
 
