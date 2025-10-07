@@ -86,8 +86,8 @@ class AutoScanner:
         try:
             config = self.config_manager.load_config()
             return config.folders.auto_scan_interval_minutes
-        except Exception as e:
-            logger.exception("Error getting auto scan interval: %s", e)
+        except Exception:
+            logger.exception("Error getting auto scan interval")
             return 0
 
     def can_auto_scan(self) -> tuple[bool, str]:
@@ -147,7 +147,7 @@ class AutoScanner:
             return True, "Auto scan completed"
 
         except Exception as e:
-            logger.exception("Auto scan failed: %s", e)
+            logger.exception("Auto scan failed")
             return False, f"Auto scan failed: {e}"
         finally:
             self._scan_in_progress = False
@@ -216,7 +216,7 @@ class AutoScanner:
             return True, ""
 
         except Exception as e:
-            logger.exception("Error updating folder settings: %s", e)
+            logger.exception("Error updating folder settings")
             return False, f"Failed to update folder settings: {e}"
 
     def get_scan_status(self) -> dict[str, Any]:

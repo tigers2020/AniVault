@@ -17,8 +17,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from anivault.core.matching.engine import MatchingEngine
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
-from anivault.services.tmdb_client import TMDBClient
-
 from test_data import generate_anitopy_results
 
 
@@ -61,7 +59,7 @@ async def benchmark_find_match(iterations: int = 100) -> dict:
         start = time.perf_counter()
 
         try:
-            result = await matching_engine.find_match(anitopy_result)
+            await matching_engine.find_match(anitopy_result)
         except Exception:
             # Expected if no cache/API - we're measuring overhead
             pass

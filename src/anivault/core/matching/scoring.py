@@ -10,9 +10,9 @@ import logging
 
 from rapidfuzz import fuzz
 
-from ...services.tmdb_models import TMDBSearchResult
-from ...shared.constants.matching import ScoringWeights
-from .models import NormalizedQuery
+from anivault.core.matching.models import NormalizedQuery
+from anivault.services.tmdb_models import TMDBSearchResult
+from anivault.shared.constants.matching import ScoringWeights
 
 logger = logging.getLogger(__name__)
 
@@ -79,17 +79,23 @@ def calculate_confidence_score(
             localized_score = _calculate_title_score(query_title, localized_title)
             title_scores.append(localized_score)
             logger.info(
-                f"📊 Localized title score: {localized_score:.3f} ('{query_title[:30]}' vs '{localized_title[:30]}')",
+                "📊 Localized title score: %.3f ('%s' vs '%s')",
+                localized_score,
+                query_title[:30],
+                localized_title[:30],
             )
         if original_title:
             original_score = _calculate_title_score(query_title, original_title)
             title_scores.append(original_score)
             logger.info(
-                f"📊 Original title score: {original_score:.3f} ('{query_title[:30]}' vs '{original_title[:30]}')",
+                "📊 Original title score: %.3f ('%s' vs '%s')",
+                original_score,
+                query_title[:30],
+                original_title[:30],
             )
 
         title_score = max(title_scores) if title_scores else 0.0
-        logger.info(f"🎯 Final title score (max): {title_score:.3f}")
+        logger.info("🎯 Final title score (max): %.3f", title_score)
         year_score = _calculate_year_score(
             normalized_query.year,
             tmdb_result.display_date,  # Uses release_date or first_air_date property

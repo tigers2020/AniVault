@@ -73,8 +73,8 @@ class AniVaultGUI:
             logger.info("GUI application initialized successfully")
             return True
 
-        except Exception as e:
-            logger.exception("Failed to initialize GUI application: %s", e)
+        except Exception:
+            logger.exception("Failed to initialize GUI application: %s")
             return False
 
     def run(self) -> int:
@@ -100,8 +100,8 @@ class AniVaultGUI:
             # Run event loop
             return self.app.exec()
 
-        except Exception as e:
-            logger.exception("Error running GUI application: %s", e)
+        except Exception:
+            logger.exception("Error running GUI application: %s")
             return 1
 
     def _load_initial_theme(self) -> None:
@@ -123,8 +123,8 @@ class AniVaultGUI:
                     self.app,
                     ThemeManager.DEFAULT_THEME,
                 )
-            except Exception as fallback_error:
-                logger.exception("Failed to apply fallback theme: %s", fallback_error)
+            except Exception:
+                logger.exception("Failed to apply fallback theme")
 
     def _setup_auto_scanner(self) -> None:
         """Setup auto scanner with callback to main window."""
@@ -137,8 +137,8 @@ class AniVaultGUI:
                     # Set directory in state model and start scanning
                     self.main_window.state_model.selected_directory = Path(folder_path)
                     self.main_window.start_file_scan()
-                except Exception as e:
-                    logger.exception("Auto scan callback failed: %s", e)
+                except Exception:
+                    logger.exception("Auto scan callback failed: %s")
 
             self.auto_scanner.set_scan_callback(scan_callback)
 
@@ -182,8 +182,8 @@ class AniVaultGUI:
             if self.app:
                 self.app.quit()
                 logger.info("GUI application cleaned up")
-        except Exception as e:
-            logger.exception("Error during cleanup: %s", e)
+        except Exception:
+            logger.exception("Error during cleanup: %s")
 
 
 def main() -> int:
@@ -202,8 +202,8 @@ def main() -> int:
         logger.info("Application interrupted by user")
         return 0
 
-    except Exception as e:
-        logger.exception("Unexpected error: %s", e)
+    except Exception:
+        logger.exception("Unexpected error: %s")
         return 1
 
     finally:

@@ -48,7 +48,7 @@ class ThemeManager:
             self.themes_dir.mkdir(parents=True, exist_ok=True)
             logger.debug("Themes directory ensured: %s", self.themes_dir)
         except Exception as e:
-            logger.exception("Failed to create themes directory: %s", e)
+            logger.exception("Failed to create themes directory")
             raise ApplicationError(
                 ErrorCode.FILE_OPERATION_ERROR,
                 f"Failed to create themes directory: {e}",
@@ -68,8 +68,8 @@ class ThemeManager:
                 themes.append(theme_name)
             logger.debug("Available themes: %s", themes)
             return themes
-        except Exception as e:
-            logger.exception("Failed to get available themes: %s", e)
+        except Exception:
+            logger.exception("Failed to get available themes")
             return []
 
     def get_qss_path(self, theme_name: str) -> Path:
@@ -119,7 +119,7 @@ class ThemeManager:
             return content
 
         except Exception as e:
-            logger.exception("Failed to load theme content for %s: %s", theme_name, e)
+            logger.exception("Failed to load theme content for %s", theme_name)
             raise ApplicationError(
                 ErrorCode.FILE_READ_ERROR,
                 f"Failed to load theme content for {theme_name}: {e}",
@@ -164,7 +164,7 @@ class ThemeManager:
             logger.info("Applied theme: %s", theme_name)
 
         except Exception as e:
-            logger.exception("Failed to apply theme %s: %s", theme_name, e)
+            logger.exception("Failed to apply theme %s", theme_name)
             raise ApplicationError(
                 ErrorCode.APPLICATION_ERROR,
                 f"Failed to apply theme {theme_name}: {e}",
@@ -203,17 +203,14 @@ class ThemeManager:
             logger.info("Loaded and applied theme: %s", theme_name)
 
         except Exception as e:
-            logger.exception("Failed to load and apply theme %s: %s", theme_name, e)
+            logger.exception("Failed to load and apply theme %s", theme_name)
             # Fallback to default theme if available
             if theme_name != self.DEFAULT_THEME:
                 logger.warning("Falling back to default theme: %s", self.DEFAULT_THEME)
                 try:
                     self.load_and_apply_theme(app, self.DEFAULT_THEME)
-                except Exception as fallback_error:
-                    logger.exception(
-                        "Failed to apply fallback theme: %s",
-                        fallback_error,
-                    )
+                except Exception:
+                    logger.exception("Failed to apply fallback theme")
                     raise ApplicationError(
                         ErrorCode.APPLICATION_ERROR,
                         f"Failed to apply any theme: {e}",

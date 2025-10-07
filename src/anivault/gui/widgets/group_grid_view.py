@@ -195,7 +195,7 @@ class GroupGridViewWidget(QScrollArea):
                     "AnitopyParser is not available. Please install anitopy library.",
                 )
             except Exception as e:
-                logger.exception("Failed to update group name with parser: %s", str(e))
+                logger.exception("Failed to update group name with parser")
                 QMessageBox.critical(
                     self,
                     "Update Failed",
@@ -203,7 +203,7 @@ class GroupGridViewWidget(QScrollArea):
                 )
 
         except Exception as e:
-            logger.exception("Error updating group name with parser: %s", str(e))
+            logger.exception("Error updating group name with parser")
             QMessageBox.critical(self, "Error", f"Error updating group name: {e!s}")
 
     def edit_group_name(self, old_group_name: str, files: list) -> None:
@@ -239,7 +239,7 @@ class GroupGridViewWidget(QScrollArea):
                     logger.debug("Group name unchanged: %s", old_group_name)
 
         except Exception as e:
-            logger.exception("Error editing group name: %s", str(e))
+            logger.exception("Error editing group name")
             QMessageBox.critical(self, "Error", f"Error editing group name: {e!s}")
 
     def _update_group_card_name(
@@ -303,6 +303,6 @@ class GroupGridViewWidget(QScrollArea):
                 new_group_name,
             )
 
-        except Exception as e:
-            logger.exception("Error updating group card name: %s", str(e))
+        except Exception:
+            logger.exception("Error updating group card name")
             raise

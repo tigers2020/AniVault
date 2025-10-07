@@ -215,6 +215,6 @@ class StateModel(QObject):
             logger.info("Imported state from: %s", file_path)
             return True
 
-        except Exception as e:
-            logger.exception("Failed to import state: %s", e)
+        except Exception:
+            logger.exception("Failed to import state: %s")
             return False

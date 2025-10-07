@@ -9,15 +9,16 @@ new results against the baseline collected before migration.
 import asyncio
 import json
 import logging
-from pathlib import Path
 
 # Add src to path for imports
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.normalizer import QueryNormalizer
+
+from anivault.core.matching.engine import MatchingEngine
 from anivault.services.tmdb_client import TMDBClient
 
 logger = logging.getLogger(__name__)

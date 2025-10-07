@@ -283,7 +283,7 @@ class SettingsDialog(QDialog):
             self.accept()
 
         except Exception as e:
-            logger.exception("Failed to save API key: %s", e)
+            logger.exception("Failed to save API key: %s")
             self._show_error(
                 DialogTitles.SAVE_FAILED,
                 DialogMessages.SETTINGS_SAVE_FAILED.format(error=e),
@@ -313,7 +313,7 @@ class SettingsDialog(QDialog):
             logger.info("API key saved successfully")
 
         except Exception as e:
-            logger.exception("Failed to save API key to configuration: %s", e)
+            logger.exception("Failed to save API key to configuration: %s")
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save API key: {e!s}",
@@ -415,7 +415,7 @@ class SettingsDialog(QDialog):
             logger.info("Folder settings saved successfully")
 
         except Exception as e:
-            logger.exception("Failed to save folder settings: %s", e)
+            logger.exception("Failed to save folder settings: %s")
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save folder settings: {e!s}",

@@ -112,7 +112,7 @@ class FileScannerWorker(QObject):
                 )
 
         except Exception as e:
-            logger.exception("Error during file scan: %s", e)
+            logger.exception("Error during file scan: %s")
             self.scan_error.emit(f"Scan error: {e!s}")
 
     def cancel_scan(self) -> None:
@@ -156,8 +156,8 @@ class FileScannerWorker(QObject):
 
             return True
 
-        except Exception as e:
-            logger.exception("Directory validation error: %s", e)
+        except Exception:
+            logger.exception("Directory validation error: %s")
             return False
 
     def _get_all_files(self, directory: Path) -> list[Path]:
@@ -198,8 +198,8 @@ class FileScannerWorker(QObject):
 
         except PermissionError as e:
             logger.warning("Permission denied accessing directory: %s", e)
-        except Exception as e:
-            logger.exception("Error walking directory: %s", e)
+        except Exception:
+            logger.exception("Error walking directory: %s")
             raise
 
         return files

@@ -30,7 +30,6 @@ from PySide6.QtWidgets import (
 from anivault.shared.constants.gui_messages import (
     DialogMessages,
     DialogTitles,
-    StatusMessages,
 )
 
 from .controllers import ScanController, TMDBController

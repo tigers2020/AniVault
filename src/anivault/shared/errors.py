@@ -97,9 +97,9 @@ class ErrorCode(str, Enum):
     CONFIG_INVALID = "CONFIG_INVALID"  # Alias for consistency
 
     # Security Errors
-    INVALID_TOKEN = "INVALID_TOKEN"
-    TOKEN_EXPIRED = "TOKEN_EXPIRED"
-    TOKEN_MALFORMED = "TOKEN_MALFORMED"
+    INVALID_TOKEN = "INVALID_TOKEN"  # noqa: S105  # Error code, not actual password
+    TOKEN_EXPIRED = "TOKEN_EXPIRED"  # noqa: S105  # Error code, not actual password
+    TOKEN_MALFORMED = "TOKEN_MALFORMED"  # noqa: S105  # Error code, not actual password
     ENCRYPTION_FAILED = "ENCRYPTION_FAILED"
     DECRYPTION_FAILED = "DECRYPTION_FAILED"
 

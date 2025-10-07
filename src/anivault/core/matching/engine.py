@@ -378,7 +378,7 @@ class MatchingEngine:
                 # This is a temporary adapter until full end-to-end dataclass flow
                 try:
                     tmdb_result = TMDBSearchResult.model_validate(candidate)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.warning(
                         "Failed to validate candidate as TMDBSearchResult: %s",
                         str(e),
@@ -541,8 +541,8 @@ class MatchingEngine:
             logger.info("No candidates found for: %s", normalized_query.title)
             return None
 
-        # Convert TMDBSearchResult to dict for compatibility with existing scoring logic
-        # TODO(Task 4.2): Refactor scoring methods to use TMDBSearchResult directly
+        # Convert TMDBSearchResult to dict for compatibility with existing logic
+        # NOTE: Scoring already uses TMDBSearchResult (Task 4 complete)
         candidates = [result.model_dump() for result in search_results]
 
         return candidates
@@ -650,7 +650,7 @@ class MatchingEngine:
         Returns:
             MatchResult domain object with match details
         """
-        from ...shared.constants.tmdb_keys import TMDBResponseKeys
+        from anivault.shared.constants.tmdb_keys import TMDBResponseKeys
 
         best_confidence = best_candidate.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
         tmdb_id = best_candidate.get(TMDBResponseKeys.ID, 0)

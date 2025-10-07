@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from ...shared.constants.matching import ValidationConstants
+from anivault.shared.constants.matching import ValidationConstants
 
 
 @dataclass(frozen=True)

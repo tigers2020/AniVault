@@ -15,7 +15,6 @@ from statistics import mean, median, stdev
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
-
 from test_data import generate_cache_test_data
 
 
@@ -69,7 +68,7 @@ def benchmark_cache_operations(iterations: int = 1000) -> dict:
         start = time.perf_counter()
 
         try:
-            result = cache.get(entry["key"])
+            cache.get(entry["key"])
         except Exception as e:
             print(f"⚠️  Error at iteration {i}: {e}")
             continue
