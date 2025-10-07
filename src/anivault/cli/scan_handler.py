@@ -26,8 +26,50 @@ from anivault.shared.constants import (
 )
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.errors import ApplicationError, InfrastructureError
+from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
+
+
+def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
+    """Convert FileMetadata dataclass to JSON-serializable dict.
+
+    This helper function converts a FileMetadata instance to a dictionary
+    suitable for JSON output, maintaining backward compatibility with
+    existing CLI JSON output format.
+
+    Args:
+        metadata: FileMetadata instance to convert
+
+    Returns:
+        JSON-serializable dictionary
+
+    Example:
+        >>> metadata = FileMetadata(
+        ...     title="Attack on Titan",
+        ...     file_path=Path("/anime/aot.mkv"),
+        ...     file_type="mkv",
+        ...     tmdb_id=1429,
+        ... )
+        >>> result = _file_metadata_to_dict(metadata)
+        >>> isinstance(result, dict)
+        True
+    """
+    return {
+        "title": metadata.title,
+        "file_path": str(metadata.file_path),
+        "file_name": metadata.file_name,
+        "file_type": metadata.file_type,
+        "year": metadata.year,
+        "season": metadata.season,
+        "episode": metadata.episode,
+        "genres": metadata.genres,
+        "overview": metadata.overview,
+        "poster_path": metadata.poster_path,
+        "vote_average": metadata.vote_average,
+        "tmdb_id": metadata.tmdb_id,
+        "media_type": metadata.media_type,
+    }
 
 
 def scan_command(
