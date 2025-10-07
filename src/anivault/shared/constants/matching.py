@@ -11,12 +11,20 @@ from .system import BASE_SECOND
 
 
 class ConfidenceThresholds:
-    """Confidence threshold constants for matching."""
+    """Confidence threshold constants for matching.
+    
+    Note: Thresholds are intentionally low because:
+    - File names use Japanese romanization (e.g., "Kaifuku Jutsushi")
+    - TMDB returns localized titles (e.g., "회복술사의 재시작")
+    - Original titles use different scripts (e.g., "回復術士のやり直し")
+    - String similarity is inherently low across different writing systems
+    - TMDB's relevance algorithm already filters results effectively
+    """
 
-    # Base confidence levels
-    HIGH = 0.8
-    MEDIUM = 0.6
-    LOW = 0.4
+    # Base confidence levels - trust TMDB's relevance ranking
+    HIGH = 0.8  # Very strong match (exact or near-exact title)
+    MEDIUM = 0.5  # Good match (partial title match + metadata)
+    LOW = 0.2  # Accept if TMDB found it (trust relevance algorithm)
 
     # Benchmark specific thresholds
     BENCHMARK_DEFAULT = 0.7
