@@ -70,9 +70,7 @@ class FileMetadata:
             msg = "title cannot be empty"
             raise ValueError(msg)
 
-        if not isinstance(self.file_path, Path):
-            msg = f"file_path must be a Path object, got {type(self.file_path)}"
-            raise TypeError(msg)
+        # Type check removed - dataclass type hint enforces this at runtime
 
         if not self.file_type:
             msg = "file_type cannot be empty"

@@ -189,7 +189,7 @@ class ParallelDirectoryScanner(threading.Thread):
         self,
         executor: ThreadPoolExecutor,
         subdirectories: list[Path],
-    ) -> dict[Future[ProcessedFile], Path]:
+    ) -> dict[Future[tuple[list[Path], int]], Path]:
         """Submit scan jobs for given subdirectories to the executor.
 
         Args:
@@ -211,7 +211,7 @@ class ParallelDirectoryScanner(threading.Thread):
         )
 
         try:
-            future_to_dir = {}
+            future_to_dir: dict[Future[tuple[list[Path], int]], Path] = {}
 
             for subdir in subdirectories:
                 if self._stop_event.is_set():
@@ -267,7 +267,7 @@ class ParallelDirectoryScanner(threading.Thread):
 
     def _await_scan_completion(
         self,
-        future_to_dir: dict[Future[ProcessedFile], Path],
+        future_to_dir: dict[Future[tuple[list[Path], int]], Path],
     ) -> None:
         """Wait for scan completion and process results.
 

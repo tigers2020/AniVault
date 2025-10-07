@@ -386,7 +386,10 @@ class DirectoryScanner(threading.Thread):
         """
         return directory.exists() and directory.is_dir()
 
-    def _process_directory_entry(self, entry: os.DirEntry[str]) -> tuple[list[Path], int]:
+    def _process_directory_entry(
+        self,
+        entry: os.DirEntry[str],
+    ) -> tuple[list[Path], int]:
         """Process a directory entry during scanning.
 
         Args:
