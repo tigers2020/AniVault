@@ -26,8 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Genre-based filtering constants
 ANIMATION_GENRE_ID = 16  # TMDB Animation genre ID
-ANIMATION_BOOST = 0.2  # Moderate boost for confirmed animation
+ANIMATION_BOOST = 0.5  # Strong boost for confirmed animation (ensures anime is prioritized)
 # NOTE: No penalty for non-animation to avoid false negatives when genre_ids missing
+# The boost is strong enough (0.5) to ensure animation always wins over non-animation
 
 
 class MatchingEngine:
