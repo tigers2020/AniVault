@@ -211,7 +211,9 @@ class ScanController(QObject):
                     match_result = file_item.metadata.get("match_result")
                     if match_result:
                         # Try both title and name fields
-                        tmdb_title = match_result.get("title") or match_result.get("name")
+                        tmdb_title = match_result.get("title") or match_result.get(
+                            "name",
+                        )
 
                 if tmdb_title:
                     if tmdb_title not in grouped_by_tmdb:

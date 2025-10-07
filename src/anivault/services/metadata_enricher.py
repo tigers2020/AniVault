@@ -299,7 +299,9 @@ class MetadataEnricher:
                         ),
                         original_error=e,
                     )
-                    logger.exception("Data processing error during media details retrieval")
+                    logger.exception(
+                        "Data processing error during media details retrieval",
+                    )
                     raise data_error from e
                 except Exception as e:  # noqa: BLE001
                     # Handle unexpected errors

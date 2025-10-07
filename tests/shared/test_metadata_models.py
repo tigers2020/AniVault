@@ -161,7 +161,9 @@ class TestFileMetadata:
 
     def test_vote_average_below_range_raises_error(self) -> None:
         """Test that vote_average below 0.0 raises ValueError."""
-        with pytest.raises(ValueError, match=r"vote_average must be between 0\.0 and 10\.0"):
+        with pytest.raises(
+            ValueError, match=r"vote_average must be between 0\.0 and 10\.0"
+        ):
             FileMetadata(
                 title="Test Anime",
                 vote_average=-0.1,
@@ -171,7 +173,9 @@ class TestFileMetadata:
 
     def test_vote_average_above_range_raises_error(self) -> None:
         """Test that vote_average above 10.0 raises ValueError."""
-        with pytest.raises(ValueError, match=r"vote_average must be between 0\.0 and 10\.0"):
+        with pytest.raises(
+            ValueError, match=r"vote_average must be between 0\.0 and 10\.0"
+        ):
             FileMetadata(
                 title="Test Anime",
                 vote_average=10.1,
@@ -258,4 +262,3 @@ class TestFileMetadata:
 
         assert metadata.episode == 0
         assert metadata.display_name == "Test Anime S01E00"
-

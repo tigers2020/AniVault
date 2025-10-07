@@ -152,4 +152,3 @@ class FileMetadata:
             'aot_s01e01.mkv'
         """
         return self.file_path.name
-
