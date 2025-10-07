@@ -4,13 +4,14 @@ Group Card Widget - Displays a file group as a clickable card.
 This widget represents a single file group in the grid view, showing
 group name, file count, and anime information if available.
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QLabel, QMenu, QVBoxLayout, QWidget
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class GroupCardWidget(QFrame):
     """Card widget for displaying a file group."""
 
     # Signal emitted when card is clicked with group_name and files
-    cardClicked = Signal(str, list)
+    cardClicked = Signal(str, list)  # noqa: N815 (Qt signal naming convention)
 
     def __init__(self, group_name: str, files: list, parent: QWidget | None = None):
         """
@@ -39,79 +40,189 @@ class GroupCardWidget(QFrame):
         self._setup_card()
 
     def _setup_card(self) -> None:
-        """Set up the card layout and styling."""
+        """Set up the card layout and styling (TMDB-style horizontal layout)."""
         self.setFrameStyle(QFrame.Box | QFrame.Raised)
         self.setLineWidth(1)
         # Note: Size is now handled by the central QSS theme system
 
-        # Main layout
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(5)
+        # Main horizontal layout (TMDB style: poster on left, info on right)
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(15)
 
-        # Group title with length limit and tooltip
-        display_name = self._truncate_group_name(self.group_name, max_length=25)
-        title_label = QLabel(f"📁 {display_name}")
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setObjectName("groupTitleLabel")
-        title_label.setToolTip(f"📁 {self.group_name}")  # Show full name on hover
-        layout.addWidget(title_label)
+        # Left: Poster image
+        poster_label = self._create_poster_widget()
+        main_layout.addWidget(poster_label)
 
-        # File count
-        count_label = QLabel(f"{len(self.files)} files")
-        count_label.setAlignment(Qt.AlignCenter)
-        count_label.setObjectName("groupCountLabel")
-        layout.addWidget(count_label)
+        # Right: Information layout
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(5)
 
-        # Anime information placeholder
+        # Get anime info first to determine what to display
         anime_info = self._get_anime_info()
+
         if anime_info:
-            # Anime title
-            anime_title = anime_info.get("title", "Unknown Anime")
-            anime_label = QLabel(f"🎬 {self._truncate_text(anime_title, 30)}")
-            anime_label.setAlignment(Qt.AlignCenter)
-            anime_label.setObjectName("animeInfoLabel")
-            anime_label.setWordWrap(True)
-            layout.addWidget(anime_label)
+            # Title section: Korean title + Original title
+            title_text = anime_info.get("title", "Unknown")
+            original_title = anime_info.get("original_title") or anime_info.get(
+                "original_name",
+            )
 
-            # Rating (if available)
-            rating = anime_info.get("vote_average")
-            if rating:
-                rating_label = QLabel(f"⭐ {rating:.1f}/10")
-                rating_label.setAlignment(Qt.AlignCenter)
-                rating_label.setObjectName("animeRatingLabel")
-                layout.addWidget(rating_label)
+            if original_title and original_title != title_text:
+                full_title = f"{title_text} ({original_title})"
+            else:
+                full_title = title_text
 
-            # Genre (show first genre)
-            genres = anime_info.get("genres", [])
-            if genres:
-                genre_name = genres[0].get("name", "") if isinstance(genres[0], dict) else str(genres[0])
-                genre_label = QLabel(f"📂 {genre_name}")
-                genre_label.setAlignment(Qt.AlignCenter)
-                genre_label.setObjectName("animeGenreLabel")
-                layout.addWidget(genre_label)
+            title_label = QLabel(full_title)
+            title_label.setObjectName("groupTitleLabel")
+            title_label.setWordWrap(True)
+            title_label.setToolTip(full_title)
+            title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+            info_layout.addWidget(title_label)
+
+            # Date section
+            release_date = anime_info.get("first_air_date") or anime_info.get(
+                "release_date",
+            )
+            if release_date:
+                date_label = QLabel(release_date)
+                date_label.setObjectName("groupDateLabel")
+                date_label.setStyleSheet("font-size: 11px; color: #888;")
+                info_layout.addWidget(date_label)
+
+            # Overview/Description section (2-3 lines with ellipsis)
+            overview = anime_info.get("overview", "")
+            if overview:
+                truncated_overview = self._truncate_text(overview, max_length=150)
+                overview_label = QLabel(truncated_overview)
+                overview_label.setObjectName("groupOverviewLabel")
+                overview_label.setWordWrap(True)
+                overview_label.setStyleSheet("font-size: 12px; color: #555;")
+                overview_label.setToolTip(overview)  # Full text on hover
+                info_layout.addWidget(overview_label)
+
+            # File count at bottom
+            count_label = QLabel(f"📂 {len(self.files)} files")
+            count_label.setObjectName("groupCountLabel")
+            count_label.setStyleSheet("font-size: 11px; color: #666;")
+            info_layout.addWidget(count_label)
+
         else:
-            # No anime info available - show helpful placeholder
-            placeholder_label = QLabel("🔍 Scan to find anime info")
-            placeholder_label.setAlignment(Qt.AlignCenter)
-            placeholder_label.setObjectName("animeInfoPlaceholder")
-            placeholder_label.setToolTip("Click 'Match with TMDB' to find anime information")
-            layout.addWidget(placeholder_label)
+            # No TMDB data - show file-based info
+            display_name = self._truncate_group_name(self.group_name, max_length=40)
+            title_label = QLabel(f"📁 {display_name}")
+            title_label.setObjectName("groupTitleLabel")
+            title_label.setWordWrap(True)
+            title_label.setToolTip(f"📁 {self.group_name}")
+            title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+            info_layout.addWidget(title_label)
 
-            # Add a subtle hint about file parsing
+            # File hint
             hint_label = QLabel(f"📝 {self._get_file_hint()}")
-            hint_label.setAlignment(Qt.AlignCenter)
             hint_label.setObjectName("animeInfoHint")
-            hint_label.setToolTip("Parsed from filename")
-            layout.addWidget(hint_label)
+            hint_label.setStyleSheet("font-size: 11px; color: #888;")
+            hint_label.setToolTip(
+                "Parsed from filename - Click 'Match with TMDB' for details",
+            )
+            info_layout.addWidget(hint_label)
+
+            # File count
+            count_label = QLabel(f"📂 {len(self.files)} files")
+            count_label.setObjectName("groupCountLabel")
+            count_label.setStyleSheet("font-size: 12px; color: #666;")
+            info_layout.addWidget(count_label)
+
+            # Placeholder message
+            placeholder_label = QLabel("🔍 Match with TMDB to see details")
+            placeholder_label.setObjectName("animeInfoPlaceholder")
+            placeholder_label.setStyleSheet(
+                "font-size: 11px; color: #999; font-style: italic;",
+            )
+            info_layout.addWidget(placeholder_label)
+
+        # Add stretch to push content to top
+        info_layout.addStretch()
+
+        main_layout.addLayout(info_layout)
 
         # Enable context menu
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
 
         # Set cursor to indicate clickability
-        # Note: Styling is now handled by the central QSS theme system
         self.setCursor(Qt.PointingHandCursor)
+
+    def _create_poster_widget(self) -> QLabel:
+        """
+        Create poster image widget.
+
+        Returns:
+            QLabel with poster image or placeholder
+        """
+        poster_label = QLabel()
+        poster_label.setObjectName("posterLabel")
+        poster_label.setFixedSize(QSize(100, 150))  # 2:3 aspect ratio
+        poster_label.setAlignment(Qt.AlignCenter)
+        poster_label.setStyleSheet(
+            """
+            QLabel#posterLabel {
+                background-color: #f0f0f0;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+            }
+        """,
+        )
+
+        # Try to load poster from TMDB data
+        anime_info = self._get_anime_info()
+        if anime_info:
+            poster_path = anime_info.get("poster_path")
+            if poster_path:
+                # NOTE: Poster image loading from TMDB will be implemented in future version
+                # For now, show placeholder with title initial
+                title = anime_info.get("title", "?")
+                initial = title[0].upper() if title else "?"
+                poster_label.setText(f"🎬\n{initial}")
+                poster_label.setStyleSheet(
+                    """
+                    QLabel#posterLabel {
+                        background-color: #007acc;
+                        color: white;
+                        font-size: 36px;
+                        font-weight: bold;
+                        border: 1px solid #005a9e;
+                        border-radius: 5px;
+                    }
+                """,
+                )
+            else:
+                # No poster - show file icon
+                poster_label.setText("📁")
+                poster_label.setStyleSheet(
+                    """
+                    QLabel#posterLabel {
+                        background-color: #e0e0e0;
+                        font-size: 48px;
+                        border: 1px solid #ccc;
+                        border-radius: 5px;
+                    }
+                """,
+                )
+        else:
+            # No anime info - show folder icon
+            poster_label.setText("📁")
+            poster_label.setStyleSheet(
+                """
+                QLabel#posterLabel {
+                    background-color: #e0e0e0;
+                    font-size: 48px;
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                }
+            """,
+            )
+
+        return poster_label
 
     def _get_anime_info(self) -> dict | None:
         """
@@ -129,7 +240,10 @@ class GroupCardWidget(QFrame):
         first_file = self.files[0]
 
         # Get filename safely (duck typing)
-        file_name = getattr(first_file, "file_name", None) or getattr(first_file, "file_path", Path("unknown")).name
+        file_name = (
+            getattr(first_file, "file_name", None)
+            or getattr(first_file, "file_path", Path("unknown")).name
+        )
         logger.debug("Checking anime info for file: %s", file_name)
 
         # Get metadata attribute (ScannedFile has it, FileItem might have it)
@@ -144,7 +258,10 @@ class GroupCardWidget(QFrame):
             logger.debug("File has metadata dict with keys: %s", meta.keys())
             match_result = meta.get("match_result")
             if match_result:
-                logger.debug("Found match result: %s", match_result.get("title", "Unknown"))
+                logger.debug(
+                    "Found match result: %s",
+                    match_result.get("title", "Unknown"),
+                )
                 return match_result
             logger.debug("No match_result in metadata dict")
 
@@ -161,9 +278,12 @@ class GroupCardWidget(QFrame):
             }
             # Only return if we have at least a title
             if anime_dict.get("title"):
-                logger.debug("Using parsed metadata as fallback: %s", anime_dict.get("title"))
+                logger.debug(
+                    "Using parsed metadata as fallback: %s",
+                    anime_dict.get("title"),
+                )
                 return anime_dict
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 (defensive catch for metadata parsing)
             logger.debug("Failed to extract anime info from metadata: %s", e)
 
         return None
@@ -213,9 +333,9 @@ class GroupCardWidget(QFrame):
         """
         if len(text) <= max_length:
             return text
-        return text[:max_length-3] + "..."
+        return text[: max_length - 3] + "..."
 
-    def enterEvent(self, event) -> None:
+    def enterEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
         """Show detail popup when mouse enters the card."""
         logger.debug("Mouse entered group card: %s", self.group_name)
         anime_info = self._get_anime_info()
@@ -226,7 +346,7 @@ class GroupCardWidget(QFrame):
             logger.debug("No anime info available for popup")
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
         """Hide detail popup when mouse leaves the card."""
         logger.debug("Mouse left group card: %s", self.group_name)
         self._hide_detail_popup()
@@ -255,7 +375,11 @@ class GroupCardWidget(QFrame):
         self._detail_popup.raise_()
         self._detail_popup.show()
 
-        logger.debug("Showing anime detail popup at (%d, %d)", card_pos.x() + 10, card_pos.y())
+        logger.debug(
+            "Showing anime detail popup at (%d, %d)",
+            card_pos.x() + 10,
+            card_pos.y(),
+        )
 
     def _hide_detail_popup(self) -> None:
         """Hide the detail popup."""
@@ -280,7 +404,7 @@ class GroupCardWidget(QFrame):
             return group_name
 
         # Truncate and add ellipsis
-        return group_name[:max_length-3] + "..."
+        return group_name[: max_length - 3] + "..."
 
     def _show_context_menu(self, position) -> None:
         """
@@ -305,14 +429,17 @@ class GroupCardWidget(QFrame):
     def _update_group_name_with_parser(self) -> None:
         """Update group name using parser."""
         if hasattr(self.parent_widget, "update_group_name_with_parser"):
-            self.parent_widget.update_group_name_with_parser(self.group_name, self.files)
+            self.parent_widget.update_group_name_with_parser(
+                self.group_name,
+                self.files,
+            )
 
     def _edit_group_name(self) -> None:
         """Edit group name manually."""
         if hasattr(self.parent_widget, "edit_group_name"):
             self.parent_widget.edit_group_name(self.group_name, self.files)
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
         """
         Handle mouse press event - emit cardClicked signal.
 
@@ -323,4 +450,3 @@ class GroupCardWidget(QFrame):
             logger.debug("Group card clicked: %s", self.group_name)
             self.cardClicked.emit(self.group_name, self.files)
         super().mousePressEvent(event)
-
