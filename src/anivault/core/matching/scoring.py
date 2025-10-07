@@ -64,18 +64,12 @@ def calculate_confidence_score(
     try:
         # Type validation and conversion
         if not isinstance(normalized_query, dict):
-            logger.warning(
-                "Invalid query type: %s, expected dict",
-                type(normalized_query),
-            )
-            return 0.0
+            # Invalid type (unreachable with proper NormalizedQuery usage)
+            return 0.0  # type: ignore[unreachable]
 
         if not isinstance(tmdb_result, dict):
-            logger.warning(
-                "Invalid TMDB result type: %s, expected dict",
-                type(tmdb_result),
-            )
-            return 0.0
+            # Invalid type (unreachable with proper TMDBSearchResult usage)
+            return 0.0  # type: ignore[unreachable]
 
         # Check for empty query or result
         query_title = normalized_query.get("title", "")

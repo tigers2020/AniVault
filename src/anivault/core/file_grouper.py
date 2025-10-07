@@ -79,7 +79,12 @@ class TitleExtractor:
         """Extract title using anitopy parser."""
         try:
             parsed = self.parser.parse(filename)
-            title = parsed.get("anime_title", "")
+            # parser.parse() returns ParsingResult (dataclass) in production,
+            # but tests mock it as dict for backward compatibility
+            if isinstance(parsed, dict):
+                title: str = parsed.get("anime_title", "")
+            else:
+                title = parsed.title if parsed.title else ""
             if title:
                 return title.strip()
             return self.extract_base_title(filename)
@@ -207,7 +212,7 @@ class GroupNameManager:
         if len(grouped_files) <= 1:
             return grouped_files
 
-        merged = {}
+        merged: dict[str, list[ScannedFile]] = {}
         processed = set()
 
         for group_name, files in grouped_files.items():
@@ -446,7 +451,7 @@ class FileGrouper:
         Returns:
             Dictionary mapping normalized hash to list of similar titles
         """
-        hash_groups = {}
+        hash_groups: dict[str, list[str]] = {}
 
         for title in file_groups:
             # Normalize title for hashing (remove common variations)

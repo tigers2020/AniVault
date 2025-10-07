@@ -138,14 +138,21 @@ class SemaphoreManager:
             # Re-raise ApplicationError as-is
             raise
         except (ValueError, TypeError, AttributeError) as e:
-            error = ApplicationError(
+            validation_error = ApplicationError(
                 code=ErrorCode.VALIDATION_ERROR,
                 message=f"Data processing error acquiring semaphore: {e!s}",
                 context=context,
                 original_error=e,
             )
+            log_operation_error(
+                logger=logger,
+                operation="semaphore_acquire",
+                error=validation_error,
+                additional_context=context.additional_data,
+            )
+            raise validation_error from e
         except Exception as e:
-            error = ApplicationError(
+            unexpected_error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
                 message=f"Unexpected error acquiring semaphore: {e!s}",
                 context=context,
@@ -154,10 +161,10 @@ class SemaphoreManager:
             log_operation_error(
                 logger=logger,
                 operation="semaphore_acquire",
-                error=error,
+                error=unexpected_error,
                 additional_context=context.additional_data,
             )
-            raise error from e
+            raise unexpected_error from e
 
     def release(self) -> None:
         """Release the semaphore.

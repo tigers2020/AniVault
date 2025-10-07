@@ -386,7 +386,7 @@ class DirectoryScanner(threading.Thread):
         """
         return directory.exists() and directory.is_dir()
 
-    def _process_directory_entry(self, entry: os.DirEntry) -> tuple[list[Path], int]:
+    def _process_directory_entry(self, entry: os.DirEntry[str]) -> tuple[list[Path], int]:
         """Process a directory entry during scanning.
 
         Args:
@@ -402,7 +402,7 @@ class DirectoryScanner(threading.Thread):
         # Recursively scan subdirectories
         return self._parallel_scan_directory(Path(entry.path))
 
-    def _process_file_entry(self, entry: os.DirEntry) -> Path | None:
+    def _process_file_entry(self, entry: os.DirEntry[str]) -> Path | None:
         """Process a file entry during scanning.
 
         Args:
