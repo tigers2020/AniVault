@@ -77,4 +77,3 @@ class TMDBMediaTypes:
     MOVIE = "movie"
     PERSON = "person"
     ALL = "all"
-

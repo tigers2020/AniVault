@@ -16,12 +16,14 @@ from pathlib import Path
 from typing import Any
 
 import orjson
+from pydantic import ValidationError
 
 from anivault.core.statistics import StatisticsCollector
 from anivault.security.permissions import (
     set_secure_file_permissions,
     validate_api_key_not_in_data,
 )
+from anivault.services.cache_models import CacheEntry, CacheValidationConstants
 from anivault.shared.constants import Cache
 from anivault.shared.constants.core import CacheConfig
 from anivault.shared.errors import (
@@ -288,7 +290,7 @@ class SQLiteCacheDB:
         context = ErrorContext(
             operation="cache_set",
             additional_data={
-                "key": key[:50],  # Truncate for logging
+                "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
                 "cache_type": cache_type,
                 "ttl_seconds": ttl_seconds,
             },
@@ -325,7 +327,7 @@ class SQLiteCacheDB:
             # First convert to fully serializable format (handles AsObj and nested objects)
             try:
                 serializable_data = _convert_to_serializable(data)
-                response_data = orjson.dumps(
+                response_data_json = orjson.dumps(
                     serializable_data,
                     option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY,
                 ).decode("utf-8")
@@ -344,9 +346,35 @@ class SQLiteCacheDB:
                 )
                 raise error from e
 
-            response_size = len(response_data)
+            response_size = len(response_data_json)
 
-            # Insert or replace cache entry
+            # Create CacheEntry domain object for validation
+            try:
+                cache_entry = CacheEntry(
+                    cache_key=cache_key,
+                    key_hash=key_hash,
+                    cache_type=cache_type,  # type: ignore[arg-type]
+                    response_data=data,
+                    created_at=now,
+                    expires_at=expires_at,
+                    response_size=response_size,
+                )
+            except ValidationError as e:
+                error = DomainError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message=f"Cache entry validation failed: {e!s}",
+                    context=context,
+                    original_error=e,
+                )
+                log_operation_error(
+                    logger=logger,
+                    error=error,
+                    operation="cache_set",
+                    additional_context=context.additional_data,
+                )
+                raise error from e
+
+            # Insert or replace cache entry using validated CacheEntry
             sql = """
             INSERT OR REPLACE INTO tmdb_cache (
                 cache_key, key_hash, cache_type, response_data,
@@ -357,14 +385,14 @@ class SQLiteCacheDB:
             self.conn.execute(
                 sql,
                 (
-                    cache_key,
-                    key_hash,
-                    cache_type,
-                    response_data,
-                    now.isoformat(),
-                    expires_at.isoformat(),
-                    response_size,
-                    now.isoformat(),
+                    cache_entry.cache_key,
+                    cache_entry.key_hash,
+                    cache_entry.cache_type,
+                    response_data_json,  # Use serialized JSON string
+                    cache_entry.created_at.isoformat(),
+                    cache_entry.expires_at.isoformat() if cache_entry.expires_at else None,
+                    cache_entry.response_size,
+                    cache_entry.created_at.isoformat(),
                 ),
             )
 
@@ -412,7 +440,10 @@ class SQLiteCacheDB:
         """
         context = ErrorContext(
             operation="cache_get",
-            additional_data={"key": key[:50], "cache_type": cache_type},
+            additional_data={
+                "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
+                "cache_type": cache_type,
+            },
         )
 
         if self.conn is None:
@@ -533,7 +564,10 @@ class SQLiteCacheDB:
         """
         context = ErrorContext(
             operation="cache_delete",
-            additional_data={"key": key[:50], "cache_type": cache_type},
+            additional_data={
+                "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
+                "cache_type": cache_type,
+            },
         )
 
         if self.conn is None:

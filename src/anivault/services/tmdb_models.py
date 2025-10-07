@@ -325,4 +325,3 @@ class TMDBMediaDetails(BaseModel):
             TV show first air date or movie release date, None if both are None
         """
         return self.first_air_date or self.release_date
-

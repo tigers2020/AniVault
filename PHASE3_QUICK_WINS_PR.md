@@ -1,8 +1,8 @@
 # Phase 3 Quick Wins - Magic Values to Constants (Part 1/3)
 
-**PR Type**: Refactoring (Magic Values → Constants)  
-**Branch**: `rescue/freeze`  
-**Commit**: `eabc13d`  
+**PR Type**: Refactoring (Magic Values → Constants)
+**Branch**: `rescue/freeze`
+**Commit**: `eabc13d`
 **Status**: Ready for Review ✅
 
 ---
@@ -314,7 +314,6 @@ git push --force-with-lease origin rescue/freeze
 
 ---
 
-**Reviewers**: @eng-core, @qa-core  
-**Protocol**: Persona-Driven Planning + Proof-Driven Development  
+**Reviewers**: @eng-core, @qa-core
+**Protocol**: Persona-Driven Planning + Proof-Driven Development
 **Status**: Ready for Review! 🚀
-

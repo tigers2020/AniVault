@@ -11,18 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-class CacheValidationConstants:
-    """Validation constants for cache entry models."""
-
-    # SHA-256 hash length
-    SHA256_HASH_LENGTH = 64  # SHA-256 produces 64-character hex string
-
-    # Hexadecimal character set for validation
-    HEX_CHARS = "0123456789abcdef"
-
-    # Error message formatting
-    ERROR_MESSAGE_PREVIEW_LENGTH = 20  # Characters to show in error messages
+from anivault.shared.constants import CacheValidationConstants
 
 
 class CacheEntry(BaseModel):
@@ -144,8 +133,8 @@ class CacheEntry(BaseModel):
         """
         if v is not None and "created_at" in info.data:
             created_at = info.data["created_at"]
-            if v <= created_at:
-                msg = f"expires_at ({v}) must be after created_at ({created_at})"
+            if v < created_at:
+                msg = f"expires_at ({v}) must not be before created_at ({created_at})"
                 raise ValueError(msg)
         return v
 

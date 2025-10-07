@@ -123,4 +123,3 @@ class LogFieldNames:
     # File operation fields
     SOURCE_PATH = "source_path"
     DESTINATION_PATH = "destination_path"
-

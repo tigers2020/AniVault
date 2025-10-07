@@ -62,6 +62,22 @@ class TMDBConfig(APIConfig):
     DEFAULT_INCLUDE_ADULT = False
 
 
+class CacheValidationConstants:
+    """Validation constants for cache entry models."""
+
+    # SHA-256 hash length
+    SHA256_HASH_LENGTH = 64  # SHA-256 produces 64-character hex string
+
+    # Hexadecimal character set for validation
+    HEX_CHARS = "0123456789abcdef"
+
+    # Error message formatting
+    ERROR_MESSAGE_PREVIEW_LENGTH = 20  # Characters to show in error messages
+
+    # Logging
+    CACHE_KEY_LOG_MAX_LENGTH = 50  # Max cache key length for logging
+
+
 class CacheConfig:
     """Cache configuration constants."""
 

@@ -84,4 +84,3 @@ class ContentTypes:
     PLAIN_TEXT = "text/plain"
     FORM_URLENCODED = "application/x-www-form-urlencoded"
     MULTIPART_FORM = "multipart/form-data"
-

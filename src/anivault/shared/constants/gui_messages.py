@@ -7,7 +7,6 @@ the application and makes internationalization easier.
 """
 
 
-
 class DialogTitles:
     """Dialog title constants."""
 
@@ -188,4 +187,3 @@ __all__ = [
     "ToolTips",
     "UIConfig",
 ]
-

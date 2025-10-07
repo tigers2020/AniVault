@@ -126,7 +126,7 @@ settings_dict = {
 
 **이유**: 실제 코드에서 사용되는 딕셔너리 키는 상수화 권장
 
-**권장**: 
+**권장**:
 ```python
 # ✅ GOOD: 상수화
 class SettingsKeys:
@@ -174,7 +174,7 @@ raise ValueError("TMDB_API_KEY is empty in .env file")  # 👈 일부 에러 메
 - ✅ Pydantic Field description
 - ✅ Docstring, validator 메시지
 - ✅ 환경 변수 패턴
-- ✅ 파일명 패턴  
+- ✅ 파일명 패턴
 - ✅ 예시 데이터 (json_schema_extra)
 
 ### **Phase 3 (선택사항): 추가 개선**
@@ -249,9 +249,9 @@ python scripts/validate_magic_values.py src/ --format json > violations.json
 - name: Check Magic Values
   run: |
     python scripts/validate_magic_values.py src/ --format json > magic_violations.json
-    
+
     violations_count=$(jq '.violations_count' magic_violations.json)
-    
+
     if [ $violations_count -gt 100 ]; then
       echo "❌ Too many magic values: $violations_count"
       exit 1
@@ -295,4 +295,3 @@ python scripts/validate_magic_values.py src/ --format json > violations.json
 ---
 
 **[윤도현/CLI]** settings.py의 **121개 매직 값**이 **39개로 줄었어!** (68% 감소) 🎉🎉🎉
-

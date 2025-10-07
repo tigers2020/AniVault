@@ -583,4 +583,3 @@ class TestTMDBMediaDetails:
 
         # Then
         assert details.display_date == "2016-08-26"
-

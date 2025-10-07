@@ -129,7 +129,9 @@ class MetadataEnricher:
 
             # Find the best match
             # Convert Pydantic models to dicts for compatibility with existing matching logic
-            search_results_dicts = [result.model_dump() for result in search_response.results]
+            search_results_dicts = [
+                result.model_dump() for result in search_response.results
+            ]
             best_match = self._find_best_match(file_info, search_results_dicts)
 
             if best_match is None:
@@ -164,8 +166,12 @@ class MetadataEnricher:
                         context=ErrorContext(
                             operation=LogOperationNames.GET_MEDIA_DETAILS,
                             additional_data={
-                                LogContextKeys.MEDIA_ID: best_match[TMDBResponseKeys.ID],
-                                LogContextKeys.MEDIA_TYPE: best_match[TMDBResponseKeys.MEDIA_TYPE],
+                                LogContextKeys.MEDIA_ID: best_match[
+                                    TMDBResponseKeys.ID
+                                ],
+                                LogContextKeys.MEDIA_TYPE: best_match[
+                                    TMDBResponseKeys.MEDIA_TYPE
+                                ],
                                 "title": file_info.title,
                                 "error_type": "network",
                                 LogContextKeys.ORIGINAL_ERROR: str(e),
