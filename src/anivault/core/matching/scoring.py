@@ -79,11 +79,16 @@ def calculate_confidence_score(
         # Use the higher score (handles both Korean filenames and Japanese romanization)
         title_scores = []
         if localized_title:
-            title_scores.append(_calculate_title_score(query_title, localized_title))
+            localized_score = _calculate_title_score(query_title, localized_title)
+            title_scores.append(localized_score)
+            logger.info(f"📊 Localized title score: {localized_score:.3f} ('{query_title[:30]}' vs '{localized_title[:30]}')")
         if original_title:
-            title_scores.append(_calculate_title_score(query_title, original_title))
+            original_score = _calculate_title_score(query_title, original_title)
+            title_scores.append(original_score)
+            logger.info(f"📊 Original title score: {original_score:.3f} ('{query_title[:30]}' vs '{original_title[:30]}')")
         
         title_score = max(title_scores) if title_scores else 0.0
+        logger.info(f"🎯 Final title score (max): {title_score:.3f}")
         year_score = _calculate_year_score(
             normalized_query.get("year"),
             tmdb_result.get("release_date"),
