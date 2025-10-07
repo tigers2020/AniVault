@@ -473,9 +473,14 @@ class SQLiteCacheDB:
             if isinstance(data, dict):
                 if "results" in data and isinstance(data["results"], list):
                     for result in data["results"]:
-                        if isinstance(result, dict) and result.get("media_type") == "tv":
+                        if (
+                            isinstance(result, dict)
+                            and result.get("media_type") == "tv"
+                        ):
                             if "name" in result:
-                                result["title"] = result["name"]  # Always use localized name
+                                result["title"] = result[
+                                    "name"
+                                ]  # Always use localized name
                 elif data.get("media_type") == "tv":
                     if "name" in data:
                         data["title"] = data["name"]  # Always use localized name

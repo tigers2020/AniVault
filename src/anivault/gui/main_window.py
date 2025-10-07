@@ -567,11 +567,18 @@ class MainWindow(QMainWindow):
         # Update state model
         if hasattr(self, "state_model") and self.state_model:
             self.state_model.update_file_status(file_path, status)
-            
+
             # Save TMDB metadata to state model
             if match_result:
-                self.state_model.set_file_metadata(file_path, {"match_result": match_result})
-                logger.debug("Saved TMDB metadata for: %s - %s", file_name, match_result.get("title", "Unknown"))
+                self.state_model.set_file_metadata(
+                    file_path,
+                    {"match_result": match_result},
+                )
+                logger.debug(
+                    "Saved TMDB metadata for: %s - %s",
+                    file_name,
+                    match_result.get("title", "Unknown"),
+                )
 
         logger.debug("File matched: %s - %s", file_name, status)
 
@@ -603,10 +610,17 @@ class MainWindow(QMainWindow):
             try:
                 # Re-group files using scan controller (which has the grouping logic)
                 # Use internal _scanned_files to get updated metadata (scanned_files property returns copy)
-                file_items = self.state_model._scanned_files if hasattr(self.state_model, "_scanned_files") else self.state_model.scanned_files
+                file_items = (
+                    self.state_model._scanned_files
+                    if hasattr(self.state_model, "_scanned_files")
+                    else self.state_model.scanned_files
+                )
                 if file_items:
                     self.scan_controller.group_files(file_items)
-                    logger.info("Re-grouped %d files with updated TMDB metadata", len(file_items))
+                    logger.info(
+                        "Re-grouped %d files with updated TMDB metadata",
+                        len(file_items),
+                    )
             except Exception:
                 logger.exception("Failed to re-group files after TMDB matching")
                 # Non-critical error, don't show to user

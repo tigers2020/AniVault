@@ -177,35 +177,45 @@ class GroupCardWidget(QFrame):
 
         # Try to load poster from TMDB data
         anime_info = self._get_anime_info()
-        logger.info("🎨 Creating poster for group '%s': anime_info=%s", 
-                    self.group_name[:30], "YES" if anime_info else "NO")
-        
+        logger.info(
+            "🎨 Creating poster for group '%s': anime_info=%s",
+            self.group_name[:30],
+            "YES" if anime_info else "NO",
+        )
+
         if anime_info:
             poster_path = anime_info.get("poster_path")
             title = anime_info.get("title", "?")
-            logger.info("🎨 Poster widget - title: '%s', poster_path: %s", 
-                        title[:30] if title else "None", 
-                        poster_path[:30] if poster_path else "None")
-            
+            logger.info(
+                "🎨 Poster widget - title: '%s', poster_path: %s",
+                title[:30] if title else "None",
+                poster_path[:30] if poster_path else "None",
+            )
+
             # Try to load actual poster image from TMDB
             if poster_path:
                 pixmap = self._load_tmdb_poster(poster_path)
                 if pixmap and not pixmap.isNull():
                     # Successfully loaded poster image
                     scaled_pixmap = pixmap.scaled(
-                        100, 150,
+                        100,
+                        150,
                         Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation
+                        Qt.SmoothTransformation,
                     )
                     poster_label.setPixmap(scaled_pixmap)
                     logger.info("✅ Loaded poster image for: %s", title[:30])
                     return poster_label
-            
+
             # Fallback: Show initial if no poster_path or failed to load
             if title and title != "Unknown" and title != "?":
                 initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
-                logger.info("🎨 Set poster to initial '%s' for: %s", initial, title[:30])
+                logger.info(
+                    "🎨 Set poster to initial '%s' for: %s",
+                    initial,
+                    title[:30],
+                )
                 poster_label.setStyleSheet(
                     """
                     QLabel#posterLabel {
@@ -299,16 +309,17 @@ class GroupCardWidget(QFrame):
             if isinstance(meta.other_info, dict):
                 match_result = meta.other_info.get("match_result")
                 if match_result:
-                    logger.info("✓ Found match_result in ParsingResult.other_info: %s", 
-                               match_result.get("title", "Unknown"))
+                    logger.info(
+                        "✓ Found match_result in ParsingResult.other_info: %s",
+                        match_result.get("title", "Unknown"),
+                    )
                     return match_result
-                else:
-                    logger.debug("other_info is dict but no match_result")
+                logger.debug("other_info is dict but no match_result")
             else:
                 logger.debug("other_info is not dict: %s", type(meta.other_info))
         else:
             logger.debug("metadata has no other_info attribute")
-        
+
         # Fallback: Extract basic info from parsed result
         try:
             anime_dict = {
@@ -496,42 +507,41 @@ class GroupCardWidget(QFrame):
             # TMDB image configuration
             TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/"
             POSTER_SIZE = "w185"  # Small poster size for cards
-            
+
             # Create cache directory
             cache_dir = Path.home() / ".anivault" / "cache" / "posters"
             cache_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Sanitize filename
             filename = poster_path.strip("/").replace("/", "_")
             cache_file = cache_dir / filename
-            
+
             # Check cache first
             if cache_file.exists():
                 logger.debug("📦 Loading poster from cache: %s", filename)
                 pixmap = QPixmap(str(cache_file))
                 if not pixmap.isNull():
                     return pixmap
-            
+
             # Download from TMDB
             image_url = f"{TMDB_IMAGE_BASE_URL}{POSTER_SIZE}{poster_path}"
             logger.info("⬇️ Downloading poster: %s", image_url)
-            
+
             response = requests.get(image_url, timeout=5)
             response.raise_for_status()
-            
+
             # Save to cache
             with open(cache_file, "wb") as f:
                 f.write(response.content)
-            
+
             # Load into QPixmap
             pixmap = QPixmap()
             if pixmap.loadFromData(response.content):
                 logger.info("✅ Downloaded and cached poster: %s", filename)
                 return pixmap
-            else:
-                logger.warning("❌ Failed to load pixmap from downloaded data")
-                return None
-                
+            logger.warning("❌ Failed to load pixmap from downloaded data")
+            return None
+
         except requests.exceptions.RequestException as e:
             logger.warning("❌ Failed to download poster: %s", str(e))
             return None

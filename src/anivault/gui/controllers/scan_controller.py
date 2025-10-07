@@ -4,6 +4,7 @@ Scan Controller Implementation
 This module contains the ScanController class that manages file scanning
 business logic and coordinates between the UI layer and core scanning services.
 """
+
 from __future__ import annotations
 
 import logging
@@ -119,10 +120,18 @@ class ScanController(QObject):
                 # Parse the filename to get proper metadata
                 try:
                     parsed_result = self.parser.parse(file_item.file_path.name)
-                    logger.debug("Parsed '%s' -> title: '%s', confidence: %.2f",
-                               file_item.file_path.name, parsed_result.title, parsed_result.confidence)
+                    logger.debug(
+                        "Parsed '%s' -> title: '%s', confidence: %.2f",
+                        file_item.file_path.name,
+                        parsed_result.title,
+                        parsed_result.confidence,
+                    )
                 except Exception as e:
-                    logger.warning("Failed to parse '%s': %s", file_item.file_path.name, e)
+                    logger.warning(
+                        "Failed to parse '%s': %s",
+                        file_item.file_path.name,
+                        e,
+                    )
                     # Fallback to basic metadata
                     parsed_result = ParsingResult(
                         title=file_item.file_name,
@@ -140,15 +149,21 @@ class ScanController(QObject):
 
                 # Preserve TMDB metadata if it exists in the file_item
                 # This is critical for UI updates after TMDB matching
-                if hasattr(file_item, "metadata") and isinstance(file_item.metadata, dict):
+                if hasattr(file_item, "metadata") and isinstance(
+                    file_item.metadata,
+                    dict,
+                ):
                     match_result = file_item.metadata.get("match_result")
                     if match_result:
                         # Inject match_result into parsed_result.other_info
                         if not parsed_result.other_info:
                             parsed_result.other_info = {}
                         parsed_result.other_info["match_result"] = match_result
-                        logger.debug("Preserved TMDB metadata for: %s - %s", 
-                                   file_item.file_path.name, match_result.get("title", "Unknown"))
+                        logger.debug(
+                            "Preserved TMDB metadata for: %s - %s",
+                            file_item.file_path.name,
+                            match_result.get("title", "Unknown"),
+                        )
 
                 # Create ScannedFile object for grouping
                 scanned_file = ScannedFile(
@@ -165,7 +180,11 @@ class ScanController(QObject):
             group_count = len(grouped_files)
             total_files = sum(len(files) for files in grouped_files.values())
 
-            logger.info("File grouping completed: %d groups, %d total files", group_count, total_files)
+            logger.info(
+                "File grouping completed: %d groups, %d total files",
+                group_count,
+                total_files,
+            )
 
             # Emit signal for UI update
             self.files_grouped.emit(grouped_files)

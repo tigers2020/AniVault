@@ -15,7 +15,7 @@ from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
-from anivault.shared.constants import Language, MediaType
+from anivault.shared.constants import MediaType
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
@@ -88,9 +88,13 @@ class TMDBClient:
         # TV and Movie objects will inherit TMDb configuration
         self._tv = TV()
         self._movie = Movie()
-        
+
         # Verify configuration is applied
-        logger.info("TMDB Client initialized with language: %s, region: %s", language, region)
+        logger.info(
+            "TMDB Client initialized with language: %s, region: %s",
+            language,
+            region,
+        )
 
     def _generate_shortened_titles(self, title: str) -> list[str]:
         """Generate shortened versions of the title for fallback search.
@@ -171,9 +175,7 @@ class TMDBClient:
 
         # Search TV shows
         try:
-            tv_response = await self._make_request(
-                lambda: self._tv.search(title)
-            )
+            tv_response = await self._make_request(lambda: self._tv.search(title))
             # Extract results from API response (handle both dict and AsObj)
             if hasattr(tv_response, "get"):
                 tv_results = tv_response.get("results", [])
@@ -211,7 +213,9 @@ class TMDBClient:
                         result_dict["media_type"] = MediaType.TV
                         # Use TV show 'name' field as 'title' (name is localized, title is original)
                         if "name" in result_dict:
-                            result_dict["title"] = result_dict["name"]  # Always use localized name
+                            result_dict["title"] = result_dict[
+                                "name"
+                            ]  # Always use localized name
                         results.append(result_dict)
                     except Exception as e:
                         logger.warning(
@@ -250,9 +254,7 @@ class TMDBClient:
 
         # Search movies
         try:
-            movie_response = await self._make_request(
-                lambda: self._movie.search(title)
-            )
+            movie_response = await self._make_request(lambda: self._movie.search(title))
             # Extract results from API response (handle both dict and AsObj)
             if hasattr(movie_response, "get"):
                 movie_results = movie_response.get("results", [])
@@ -483,13 +485,9 @@ class TMDBClient:
 
         try:
             if media_type == MediaType.TV:
-                result = await self._make_request(
-                    lambda: self._tv.details(media_id)
-                )
+                result = await self._make_request(lambda: self._tv.details(media_id))
             else:  # movie
-                result = await self._make_request(
-                    lambda: self._movie.details(media_id)
-                )
+                result = await self._make_request(lambda: self._movie.details(media_id))
 
             # Use TV show 'name' field as 'title' (name is localized, title is original)
             if isinstance(result, dict) and media_type == MediaType.TV:
