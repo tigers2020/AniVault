@@ -475,7 +475,7 @@ class MatchingEngine:
                 best_candidate,
                 normalized_query,
             )
-            
+
             # Record stats using dict version for backward compatibility
             result_dict = best_candidate.copy()
             result_dict[MatchingFieldNames.MATCHING_METADATA] = {
@@ -484,10 +484,13 @@ class MatchingEngine:
                 "total_candidates": len(candidates),
                 "scored_candidates": len(scored_candidates),
                 "confidence_score": match_result.confidence_score,
-                "confidence_level": self._get_confidence_level(match_result.confidence_score),
-                "used_fallback": match_result.confidence_score < ConfidenceThresholds.HIGH,
+                "confidence_level": self._get_confidence_level(
+                    match_result.confidence_score,
+                ),
+                "used_fallback": match_result.confidence_score
+                < ConfidenceThresholds.HIGH,
             }
-            
+
             self._record_successful_match(result_dict, candidates)
             self.statistics.end_timing("matching_operation")
 
@@ -648,7 +651,7 @@ class MatchingEngine:
             MatchResult domain object with match details
         """
         from ...shared.constants.tmdb_keys import TMDBResponseKeys
-        
+
         best_confidence = best_candidate.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
         tmdb_id = best_candidate.get(TMDBResponseKeys.ID, 0)
         title = (
@@ -656,7 +659,7 @@ class MatchingEngine:
             or best_candidate.get(TMDBResponseKeys.NAME)
             or "Unknown"
         )
-        
+
         # Extract year from date fields
         year = None
         release_date = best_candidate.get(TMDBResponseKeys.RELEASE_DATE)
@@ -667,9 +670,9 @@ class MatchingEngine:
                 year = int(date_str.split("-")[0])
             except (ValueError, IndexError, AttributeError):
                 pass
-        
+
         media_type = best_candidate.get(TMDBResponseKeys.MEDIA_TYPE, "unknown")
-        
+
         match_result = MatchResult(
             tmdb_id=tmdb_id,
             title=title,

@@ -439,7 +439,7 @@ async def _process_file_impl(
             }
         # Match against TMDB (returns MatchResult | None)
         match_result = await matching_engine.find_match(parsing_dict)
-        
+
         # Convert MatchResult to dict for backward compatibility with CLI/JSON output
         match_result_dict = match_result.to_dict() if match_result else None
 

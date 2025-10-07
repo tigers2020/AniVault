@@ -6,17 +6,17 @@
 
 ### 📦 변경 사항
 
-1. **calculate_confidence_score** (Task 4.3):  
+1. **calculate_confidence_score** (Task 4.3):
    - dict → NormalizedQuery + TMDBSearchResult
    - 모든 dict key access → attribute access
    - Type validation 제거 (dataclass 보장)
 
-2. **find_match()** (Task 4.4-4.5):  
+2. **find_match()** (Task 4.4-4.5):
    - 반환: dict → MatchResult | None
    - _create_match_result() 메서드 추가
    - MatchResult.to_dict() backward compatibility
 
-3. **호출부 Adapter** (5개 파일):  
+3. **호출부 Adapter** (5개 파일):
    - cli/match_handler.py
    - gui/workers/tmdb_matching_worker.py
    - core/benchmark.py

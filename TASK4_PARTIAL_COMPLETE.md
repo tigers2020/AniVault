@@ -15,23 +15,23 @@
 
 ## 🚀 주요 리팩터링
 
-1. **Pydantic Models** (API Boundary):  
+1. **Pydantic Models** (API Boundary):
    - TMDB API: 5개 모델
    - Cache: CacheEntry
 
-2. **Frozen Dataclasses** (Domain):  
+2. **Frozen Dataclasses** (Domain):
    - NormalizedQuery, MatchResult
 
-3. **Regular Dataclasses** (Presentation):  
+3. **Regular Dataclasses** (Presentation):
    - FileMetadata, ParsingResult, EnrichedMetadata
 
-4. **calculate_confidence_score**:  
+4. **calculate_confidence_score**:
    - dict → NormalizedQuery + TMDBSearchResult ✅
    - 모든 테스트 dataclass로 변환 ✅
 
 ## ⏭️ 남은 작업
 
-**Task 4.4-4.5** (별도 PR 권장):  
+**Task 4.4-4.5** (별도 PR 권장):
 - find_match() → MatchResult 반환
 - 5개 호출 위치 adapter 추가
   * benchmark.py, cli/match_handler.py

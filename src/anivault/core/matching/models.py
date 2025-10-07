@@ -105,10 +105,10 @@ class MatchResult:
                 f"got {self.media_type}"
             )
             raise ValueError(error_message)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert MatchResult to dict for backward compatibility.
-        
+
         Returns:
             Dictionary representation of the match result
         """

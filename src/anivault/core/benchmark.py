@@ -401,7 +401,7 @@ class BenchmarkRunner:
         else:
             # Already a dict
             match_dict = match_result
-        
+
         actual_tmdb_id = match_dict.get("id")
         actual_title = match_dict.get("title", "")
         confidence_score = match_dict.get("confidence_score", 0.0)
