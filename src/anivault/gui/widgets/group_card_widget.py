@@ -10,7 +10,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import requests
 from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
 
 logger = logging.getLogger(__name__)
@@ -185,8 +187,21 @@ class GroupCardWidget(QFrame):
                         title[:30] if title else "None", 
                         poster_path[:30] if poster_path else "None")
             
-            # Always show poster with initial, even if no poster_path (for now)
-            # This ensures TMDB-matched items show colored background
+            # Try to load actual poster image from TMDB
+            if poster_path:
+                pixmap = self._load_tmdb_poster(poster_path)
+                if pixmap and not pixmap.isNull():
+                    # Successfully loaded poster image
+                    scaled_pixmap = pixmap.scaled(
+                        100, 150,
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
+                    )
+                    poster_label.setPixmap(scaled_pixmap)
+                    logger.info("✅ Loaded poster image for: %s", title[:30])
+                    return poster_label
+            
+            # Fallback: Show initial if no poster_path or failed to load
             if title and title != "Unknown" and title != "?":
                 initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
@@ -203,7 +218,7 @@ class GroupCardWidget(QFrame):
                     }
                 """,
                 )
-            elif poster_path:
+            else:
                 # Has poster_path but title is Unknown
                 initial = "?"
                 poster_label.setText(f"🎬\n{initial}")
@@ -215,19 +230,6 @@ class GroupCardWidget(QFrame):
                         font-size: 36px;
                         font-weight: bold;
                         border: 1px solid #005a9e;
-                        border-radius: 5px;
-                    }
-                """,
-                )
-            else:
-                # No poster - show file icon
-                poster_label.setText("📁")
-                poster_label.setStyleSheet(
-                    """
-                    QLabel#posterLabel {
-                        background-color: #e0e0e0;
-                        font-size: 48px;
-                        border: 1px solid #ccc;
                         border-radius: 5px;
                     }
                 """,
@@ -479,6 +481,63 @@ class GroupCardWidget(QFrame):
         """Edit group name manually."""
         if hasattr(self.parent_widget, "edit_group_name"):
             self.parent_widget.edit_group_name(self.group_name, self.files)
+
+    def _load_tmdb_poster(self, poster_path: str) -> QPixmap | None:
+        """
+        Load TMDB poster image from cache or download from TMDB.
+
+        Args:
+            poster_path: TMDB poster path (e.g., "/abc123.jpg")
+
+        Returns:
+            QPixmap if successful, None otherwise
+        """
+        try:
+            # TMDB image configuration
+            TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/"
+            POSTER_SIZE = "w185"  # Small poster size for cards
+            
+            # Create cache directory
+            cache_dir = Path.home() / ".anivault" / "cache" / "posters"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Sanitize filename
+            filename = poster_path.strip("/").replace("/", "_")
+            cache_file = cache_dir / filename
+            
+            # Check cache first
+            if cache_file.exists():
+                logger.debug("📦 Loading poster from cache: %s", filename)
+                pixmap = QPixmap(str(cache_file))
+                if not pixmap.isNull():
+                    return pixmap
+            
+            # Download from TMDB
+            image_url = f"{TMDB_IMAGE_BASE_URL}{POSTER_SIZE}{poster_path}"
+            logger.info("⬇️ Downloading poster: %s", image_url)
+            
+            response = requests.get(image_url, timeout=5)
+            response.raise_for_status()
+            
+            # Save to cache
+            with open(cache_file, "wb") as f:
+                f.write(response.content)
+            
+            # Load into QPixmap
+            pixmap = QPixmap()
+            if pixmap.loadFromData(response.content):
+                logger.info("✅ Downloaded and cached poster: %s", filename)
+                return pixmap
+            else:
+                logger.warning("❌ Failed to load pixmap from downloaded data")
+                return None
+                
+        except requests.exceptions.RequestException as e:
+            logger.warning("❌ Failed to download poster: %s", str(e))
+            return None
+        except Exception as e:
+            logger.exception("❌ Unexpected error loading poster: %s", str(e))
+            return None
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
         """
