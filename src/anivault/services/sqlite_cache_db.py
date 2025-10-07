@@ -468,6 +468,18 @@ class SQLiteCacheDB:
                 self.statistics.record_cache_miss(cache_type)
                 return None
 
+            # Normalize cached data: ensure TV shows have 'title' field (not just 'name')
+            # This handles legacy cache entries created before name→title normalization
+            if isinstance(data, dict):
+                if "results" in data and isinstance(data["results"], list):
+                    for result in data["results"]:
+                        if isinstance(result, dict) and result.get("media_type") == "tv":
+                            if "name" in result and not result.get("title"):
+                                result["title"] = result["name"]
+                elif data.get("media_type") == "tv":
+                    if "name" in data and not data.get("title"):
+                        data["title"] = data["name"]
+
             # Update hit count and last accessed
             update_sql = """
             UPDATE tmdb_cache
