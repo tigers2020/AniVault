@@ -69,13 +69,21 @@ def calculate_confidence_score(
 
         # Check for empty query or result
         query_title = normalized_query.get("title", "")
-        result_title = tmdb_result.get("title", "")
+        localized_title = tmdb_result.get("title", "") or tmdb_result.get("name", "")
+        original_title = tmdb_result.get("original_title", "") or tmdb_result.get("original_name", "")
 
-        if not query_title or not result_title:
+        if not query_title or (not localized_title and not original_title):
             return 0.0
 
-        # Calculate individual score components
-        title_score = _calculate_title_score(query_title, result_title)
+        # Calculate title score against BOTH localized and original titles
+        # Use the higher score (handles both Korean filenames and Japanese romanization)
+        title_scores = []
+        if localized_title:
+            title_scores.append(_calculate_title_score(query_title, localized_title))
+        if original_title:
+            title_scores.append(_calculate_title_score(query_title, original_title))
+        
+        title_score = max(title_scores) if title_scores else 0.0
         year_score = _calculate_year_score(
             normalized_query.get("year"),
             tmdb_result.get("release_date"),

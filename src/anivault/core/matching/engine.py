@@ -175,15 +175,23 @@ class MatchingEngine:
         scored_candidates = []
 
         for candidate in candidates:
-            # Extract title from candidate
-            candidate_title = candidate.get("title", "") or candidate.get("name", "")
+            # Extract titles from candidate (try both localized and original)
+            localized_title = candidate.get("title", "") or candidate.get("name", "")
+            original_title = candidate.get("original_title", "") or candidate.get("original_name", "")
 
-            if not candidate_title:
+            if not localized_title and not original_title:
                 logger.debug("Skipping candidate with no title")
                 continue
 
-            # Calculate fuzzy match score
-            title_score = fuzz.ratio(normalized_title.lower(), candidate_title.lower())
+            # Calculate fuzzy match score against BOTH localized and original titles
+            # Use the higher score (handles both Korean filenames and Japanese romanization)
+            scores = []
+            if localized_title:
+                scores.append(fuzz.ratio(normalized_title.lower(), localized_title.lower()))
+            if original_title:
+                scores.append(fuzz.ratio(normalized_title.lower(), original_title.lower()))
+            
+            title_score = max(scores) if scores else 0
 
             # Add score to candidate
             candidate_with_score = candidate.copy()
@@ -192,8 +200,9 @@ class MatchingEngine:
             scored_candidates.append(candidate_with_score)
 
             logger.debug(
-                "Scored candidate '%s' against '%s': %d",
-                candidate_title,
+                "Scored candidate '%s' (original: '%s') against '%s': %d",
+                localized_title,
+                original_title[:30] if original_title else "N/A",
                 normalized_title,
                 title_score,
             )
