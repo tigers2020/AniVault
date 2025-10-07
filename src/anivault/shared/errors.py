@@ -29,6 +29,7 @@ class ErrorCode(str, Enum):
     FILE_NOT_FOUND = "FILE_NOT_FOUND"
     DIRECTORY_NOT_FOUND = "DIRECTORY_NOT_FOUND"
     PERMISSION_DENIED = "PERMISSION_DENIED"
+    FILE_PERMISSION_DENIED = "FILE_PERMISSION_DENIED"
     INVALID_PATH = "INVALID_PATH"
     DIRECTORY_CREATION_FAILED = "DIRECTORY_CREATION_FAILED"
     FILE_ACCESS_DENIED = "FILE_ACCESS_DENIED"
@@ -91,7 +92,16 @@ class ErrorCode(str, Enum):
     CONFIG_ERROR = "CONFIG_ERROR"
     CONFIGURATION_ERROR = "CONFIGURATION_ERROR"
     MISSING_CONFIG = "MISSING_CONFIG"
+    CONFIG_MISSING = "CONFIG_MISSING"  # Alias for consistency
     INVALID_CONFIG = "INVALID_CONFIG"
+    CONFIG_INVALID = "CONFIG_INVALID"  # Alias for consistency
+
+    # Security Errors
+    INVALID_TOKEN = "INVALID_TOKEN"
+    TOKEN_EXPIRED = "TOKEN_EXPIRED"
+    TOKEN_MALFORMED = "TOKEN_MALFORMED"
+    ENCRYPTION_FAILED = "ENCRYPTION_FAILED"
+    DECRYPTION_FAILED = "DECRYPTION_FAILED"
 
     # Dependency Errors
     DEPENDENCY_MISSING = "DEPENDENCY_MISSING"
@@ -271,6 +281,21 @@ class DataProcessingError(AniVaultError):
     - Business rule violations
     - Data validation errors
     - KeyError, ValueError, TypeError during data processing
+    """
+
+
+class SecurityError(AniVaultError):
+    """Security-related errors.
+
+    These errors occur when security constraints are violated,
+    secrets are missing, or authentication/authorization fails.
+
+    Examples:
+    - Missing API keys or secrets
+    - Invalid authentication credentials
+    - Permission denied
+    - Security configuration errors
+    - Encryption/decryption failures
     """
 
 

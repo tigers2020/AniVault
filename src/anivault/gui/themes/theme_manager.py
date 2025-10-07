@@ -4,6 +4,7 @@ Theme Manager for AniVault GUI
 This module provides centralized theme management using PySide6 QSS files
 to ensure consistent styling across the application.
 """
+
 from __future__ import annotations
 
 import logging
@@ -122,7 +123,9 @@ class ThemeManager:
             raise ApplicationError(
                 ErrorCode.FILE_READ_ERROR,
                 f"Failed to load theme content for {theme_name}: {e}",
-                ErrorContext(file_path=str(qss_path) if qss_path else f"{theme_name}.qss"),
+                ErrorContext(
+                    file_path=str(qss_path) if qss_path else f"{theme_name}.qss",
+                ),
             ) from e
 
     def apply_theme(self, theme_name: str) -> None:
@@ -207,7 +210,10 @@ class ThemeManager:
                 try:
                     self.load_and_apply_theme(app, self.DEFAULT_THEME)
                 except Exception as fallback_error:
-                    logger.exception("Failed to apply fallback theme: %s", fallback_error)
+                    logger.exception(
+                        "Failed to apply fallback theme: %s",
+                        fallback_error,
+                    )
                     raise ApplicationError(
                         ErrorCode.APPLICATION_ERROR,
                         f"Failed to apply any theme: {e}",

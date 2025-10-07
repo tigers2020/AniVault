@@ -10,7 +10,12 @@ from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.models import VerifyOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI
-from anivault.shared.errors import ApplicationError, InfrastructureError
+from anivault.shared.errors import (
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -298,14 +303,39 @@ def _collect_verify_data(options: VerifyOptions) -> dict[str, Any] | None:
 
         return verify_results
 
-    except (OSError, ValueError, KeyError, AttributeError):
-        # Handle specific data processing and I/O errors
-        logger.exception("Error collecting verify data")
-        return None
-    except Exception:
-        # Handle unexpected errors
-        logger.exception("Unexpected error collecting verify data")
-        return None
+    except OSError as e:
+        # File system I/O error
+        raise InfrastructureError(
+            code=ErrorCode.FILE_ACCESS_ERROR,
+            message=f"Failed to access verification data: {e}",
+            context=ErrorContext(
+                operation="collect_verify_data",
+                additional_data={"error_type": type(e).__name__},
+            ),
+            original_error=e,
+        ) from e
+    except (ValueError, KeyError, AttributeError) as e:
+        # Data processing error
+        raise ApplicationError(
+            code=ErrorCode.DATA_PROCESSING_ERROR,
+            message=f"Failed to process verification data: {e}",
+            context=ErrorContext(
+                operation="collect_verify_data",
+                additional_data={"error_type": type(e).__name__},
+            ),
+            original_error=e,
+        ) from e
+    except Exception as e:
+        # Unexpected error
+        raise ApplicationError(
+            code=ErrorCode.APPLICATION_ERROR,
+            message=f"Unexpected error collecting verification data: {e}",
+            context=ErrorContext(
+                operation="collect_verify_data",
+                additional_data={"error_type": type(e).__name__},
+            ),
+            original_error=e,
+        ) from e
 
 
 def verify_command(

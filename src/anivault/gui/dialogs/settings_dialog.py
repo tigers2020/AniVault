@@ -4,6 +4,7 @@ Settings Dialog for API Key Management
 This module contains the SettingsDialog class for managing TMDB API key
 configuration in the AniVault GUI application.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,7 +51,11 @@ class SettingsDialog(QDialog):
     api_key_saved = Signal(str)  # Emitted when API key is successfully saved
     folder_settings_changed = Signal()  # Emitted when folder settings are changed
 
-    def __init__(self, parent: QWidget | None = None, config_manager: ConfigManager | None = None):
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        config_manager: ConfigManager | None = None,
+    ):
         """
         Initialize the settings dialog.
 
@@ -97,12 +102,16 @@ class SettingsDialog(QDialog):
 
         # Button box
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save |
-            QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel,
         )
         # Connect buttons directly to avoid double signal emission
-        self.button_box.button(QDialogButtonBox.StandardButton.Save).clicked.connect(self._save_settings)
-        self.button_box.button(QDialogButtonBox.StandardButton.Cancel).clicked.connect(self.reject)
+        self.button_box.button(QDialogButtonBox.StandardButton.Save).clicked.connect(
+            self._save_settings,
+        )
+        self.button_box.button(QDialogButtonBox.StandardButton.Cancel).clicked.connect(
+            self.reject,
+        )
 
         layout.addWidget(self.button_box)
 
@@ -128,7 +137,9 @@ class SettingsDialog(QDialog):
         form_layout.addRow(self.api_key_label, self.api_key_input)
 
         # Info label
-        info_label = QLabel("Get your API key from: https://www.themoviedb.org/settings/api")
+        info_label = QLabel(
+            "Get your API key from: https://www.themoviedb.org/settings/api",
+        )
         info_label.setWordWrap(True)
         info_label.setStyleSheet("color: #666; font-size: 11px;")
 
@@ -148,7 +159,9 @@ class SettingsDialog(QDialog):
         source_layout = QFormLayout(source_group)
 
         self.source_folder_input = QLineEdit()
-        self.source_folder_input.setPlaceholderText("Select source folder for media files")
+        self.source_folder_input.setPlaceholderText(
+            "Select source folder for media files",
+        )
         self.source_folder_btn = QPushButton("Browse...")
         self.source_folder_btn.clicked.connect(self._browse_source_folder)
 
@@ -162,7 +175,9 @@ class SettingsDialog(QDialog):
         target_layout = QFormLayout(target_group)
 
         self.target_folder_input = QLineEdit()
-        self.target_folder_input.setPlaceholderText("Select target folder for organized files")
+        self.target_folder_input.setPlaceholderText(
+            "Select target folder for organized files",
+        )
         self.target_folder_btn = QPushButton("Browse...")
         self.target_folder_btn.clicked.connect(self._browse_target_folder)
 
@@ -215,7 +230,9 @@ class SettingsDialog(QDialog):
                 self.source_folder_input.setText(folders.source_folder)
                 self.target_folder_input.setText(folders.target_folder)
                 self.auto_scan_startup_checkbox.setChecked(folders.auto_scan_on_startup)
-                self.auto_scan_interval_spinbox.setValue(folders.auto_scan_interval_minutes)
+                self.auto_scan_interval_spinbox.setValue(
+                    folders.auto_scan_interval_minutes,
+                )
                 self.include_subdirs_checkbox.setChecked(folders.include_subdirectories)
         except Exception as e:
             logger.warning("Failed to load current configuration: %s", e)
@@ -231,7 +248,10 @@ class SettingsDialog(QDialog):
             return
 
         if len(api_key) < 10:
-            self._show_error("Invalid API Key", "API key appears to be too short. Please check your input.")
+            self._show_error(
+                "Invalid API Key",
+                "API key appears to be too short. Please check your input.",
+            )
             return
 
         try:
@@ -340,7 +360,10 @@ class SettingsDialog(QDialog):
             if is_valid:
                 self.source_folder_input.setText(folder)
             else:
-                self._show_error("Invalid Folder", f"Cannot use selected folder: {error}")
+                self._show_error(
+                    "Invalid Folder",
+                    f"Cannot use selected folder: {error}",
+                )
 
     def _browse_target_folder(self) -> None:
         """Browse for target folder."""
@@ -355,7 +378,10 @@ class SettingsDialog(QDialog):
             if is_valid:
                 self.target_folder_input.setText(folder)
             else:
-                self._show_error("Invalid Folder", f"Cannot use selected folder: {error}")
+                self._show_error(
+                    "Invalid Folder",
+                    f"Cannot use selected folder: {error}",
+                )
 
     def _save_folder_settings(self) -> None:
         """Save folder settings to configuration."""

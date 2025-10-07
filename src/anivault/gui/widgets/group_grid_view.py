@@ -4,6 +4,7 @@ Group Grid View Widget - Displays file groups as a grid of cards.
 This widget manages a grid layout of GroupCardWidget instances and handles
 group management operations like adding, updating, and renaming groups.
 """
+
 from __future__ import annotations
 
 import logging
@@ -68,7 +69,12 @@ class GroupGridViewWidget(QScrollArea):
         self.group_cards.clear()
         logger.debug("Cleared all group cards")
 
-    def add_group(self, group_name: str, files: list, on_card_click: Callable | None = None) -> None:
+    def add_group(
+        self,
+        group_name: str,
+        files: list,
+        on_card_click: Callable | None = None,
+    ) -> None:
         """
         Add a group card to the grid.
 
@@ -108,7 +114,11 @@ class GroupGridViewWidget(QScrollArea):
         logger.debug("Card clicked, emitting groupSelected signal: %s", group_name)
         self.groupSelected.emit(group_name, files)
 
-    def update_groups(self, grouped_files: dict, on_card_click: Callable | None = None) -> None:
+    def update_groups(
+        self,
+        grouped_files: dict,
+        on_card_click: Callable | None = None,
+    ) -> None:
         """
         Update the grid with grouped files.
 
@@ -119,15 +129,22 @@ class GroupGridViewWidget(QScrollArea):
         self.clear_groups()
 
         # Sort groups by size (largest first)
-        sorted_groups = sorted(grouped_files.items(), key=lambda x: len(x[1]), reverse=True)
+        sorted_groups = sorted(
+            grouped_files.items(),
+            key=lambda x: len(x[1]),
+            reverse=True,
+        )
 
         for group_name, files in sorted_groups:
             # Use ScannedFile objects directly to preserve metadata
             self.add_group(group_name, files, on_card_click)
 
         total_files = sum(len(files) for files in grouped_files.values())
-        logger.info("Updated grid view with %d groups containing %d total files",
-                   len(grouped_files), total_files)
+        logger.info(
+            "Updated grid view with %d groups containing %d total files",
+            len(grouped_files),
+            total_files,
+        )
 
     def update_group_name_with_parser(self, old_group_name: str, files: list) -> None:
         """
@@ -150,25 +167,40 @@ class GroupGridViewWidget(QScrollArea):
 
             # Use the file grouper's parser to get a better title
             from anivault.core.parser.anitopy_parser import AnitopyParser
+
             try:
                 parser = AnitopyParser()
                 # Use the first file as representative
                 representative_file = files[0]
                 parsed_result = parser.parse(representative_file.file_path.name)
 
-                new_group_name = parsed_result.title if parsed_result.title else old_group_name
+                new_group_name = (
+                    parsed_result.title if parsed_result.title else old_group_name
+                )
 
                 # Update the group name
                 self._update_group_card_name(old_group_name, new_group_name, files)
 
-                logger.info("Updated group name using parser: '%s' -> '%s'", old_group_name, new_group_name)
+                logger.info(
+                    "Updated group name using parser: '%s' -> '%s'",
+                    old_group_name,
+                    new_group_name,
+                )
 
             except ImportError:
                 logger.warning("AnitopyParser not available")
-                QMessageBox.warning(self, "Parser Unavailable", "AnitopyParser is not available. Please install anitopy library.")
+                QMessageBox.warning(
+                    self,
+                    "Parser Unavailable",
+                    "AnitopyParser is not available. Please install anitopy library.",
+                )
             except Exception as e:
                 logger.exception("Failed to update group name with parser: %s", str(e))
-                QMessageBox.critical(self, "Update Failed", f"Failed to update group name: {e!s}")
+                QMessageBox.critical(
+                    self,
+                    "Update Failed",
+                    f"Failed to update group name: {e!s}",
+                )
 
         except Exception as e:
             logger.exception("Error updating group name with parser: %s", str(e))
@@ -198,7 +230,11 @@ class GroupGridViewWidget(QScrollArea):
                 if new_group_name != old_group_name:
                     # Update the group name
                     self._update_group_card_name(old_group_name, new_group_name, files)
-                    logger.info("Manually updated group name: '%s' -> '%s'", old_group_name, new_group_name)
+                    logger.info(
+                        "Manually updated group name: '%s' -> '%s'",
+                        old_group_name,
+                        new_group_name,
+                    )
                 else:
                     logger.debug("Group name unchanged: %s", old_group_name)
 
@@ -206,7 +242,12 @@ class GroupGridViewWidget(QScrollArea):
             logger.exception("Error editing group name: %s", str(e))
             QMessageBox.critical(self, "Error", f"Error editing group name: {e!s}")
 
-    def _update_group_card_name(self, old_group_name: str, new_group_name: str, files: list) -> None:
+    def _update_group_card_name(
+        self,
+        old_group_name: str,
+        new_group_name: str,
+        files: list,
+    ) -> None:
         """
         Update the group card with new name.
 
@@ -237,7 +278,9 @@ class GroupGridViewWidget(QScrollArea):
 
             # Also maintain backward compatibility with legacy callback
             if hasattr(self.parent(), "on_group_selected"):
-                new_card.cardClicked.connect(lambda gn, f: self.parent().on_group_selected(gn, f))
+                new_card.cardClicked.connect(
+                    lambda gn, f: self.parent().on_group_selected(gn, f),
+                )
 
             self.group_cards[new_group_name] = new_card
 
@@ -250,11 +293,16 @@ class GroupGridViewWidget(QScrollArea):
             if hasattr(self.parent(), "group_details_label"):
                 current_text = self.parent().group_details_label.text()
                 if f"📁 {old_group_name}" in current_text:
-                    self.parent().group_details_label.setText(f"📁 {new_group_name} ({len(files)} files)")
+                    self.parent().group_details_label.setText(
+                        f"📁 {new_group_name} ({len(files)} files)",
+                    )
 
-            logger.debug("Updated group card: '%s' -> '%s'", old_group_name, new_group_name)
+            logger.debug(
+                "Updated group card: '%s' -> '%s'",
+                old_group_name,
+                new_group_name,
+            )
 
         except Exception as e:
             logger.exception("Error updating group card name: %s", str(e))
             raise
-

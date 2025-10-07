@@ -36,8 +36,13 @@ def main():
             last_modified=1234567890.0,
         ),
         ScannedFile(
-            file_path=Path("Demon Slayer - Entertainment District Arc - 01 [1080p].mkv"),
-            metadata=ParsingResult(title="Demon Slayer - Entertainment District Arc - 01", parser_used="example"),
+            file_path=Path(
+                "Demon Slayer - Entertainment District Arc - 01 [1080p].mkv",
+            ),
+            metadata=ParsingResult(
+                title="Demon Slayer - Entertainment District Arc - 01",
+                parser_used="example",
+            ),
             file_size=1000,
             last_modified=1234567890.0,
         ),

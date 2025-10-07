@@ -17,6 +17,7 @@ from anivault.shared.constants import APIFields
 from anivault.shared.constants.system import MediaType
 from anivault.shared.errors import (
     AniVaultError,
+    ApplicationError,
     DomainError,
     ErrorCode,
     ErrorContext,
@@ -491,112 +492,68 @@ class MetadataEnricher:
             },
         )
 
-        try:
-            if not search_results:
-                return None
-
-            best_match = None
-            best_score = 0.0
-
-            for result in search_results:
-                try:
-                    score = self._calculate_match_score(file_info, result)
-
-                    if score > best_score:
-                        best_score = score
-                        best_match = result
-                        best_match["match_confidence"] = score
-                except (ValueError, KeyError, TypeError) as e:
-                    # Handle data processing errors for individual result scoring
-                    error = DomainError(
-                        code=ErrorCode.VALIDATION_ERROR,
-                        message=f"Data processing error calculating match score for result: {e!s}",
-                        context=ErrorContext(
-                            operation="calculate_match_score",
-                            additional_data={
-                                "title": file_info.title,
-                                "result_id": result.get("id", "unknown"),
-                                "result_title": result.get("title")
-                                or result.get("name", "unknown"),
-                                "error_type": "data_processing",
-                                "original_error": str(e),
-                            },
-                        ),
-                        original_error=e,
-                    )
-                except Exception as e:  # noqa: BLE001
-                    # Log error for individual result scoring but continue processing
-                    error = DomainError(
-                        code=ErrorCode.VALIDATION_ERROR,
-                        message=f"Unexpected error calculating match score for result: {e!s}",
-                        context=ErrorContext(
-                            operation="calculate_match_score",
-                            additional_data={
-                                "title": file_info.title,
-                                "result_id": result.get("id", "unknown"),
-                                "result_title": result.get("title")
-                                or result.get("name", "unknown"),
-                                "error_type": "unexpected",
-                                "original_error": str(e),
-                            },
-                        ),
-                        original_error=e,
-                    )
-                    log_operation_error(
-                        logger=logger,
-                        operation="calculate_match_score",
-                        error=error,
-                        additional_context=context.additional_data if context else None,
-                    )
-                    continue
-
-            return best_match if best_score >= self.min_confidence else None
-
-        except (ValueError, KeyError, TypeError) as e:
-            # Handle data processing errors in match finding
-            error = DomainError(
+        # Validate search results
+        if not search_results:
+            raise ApplicationError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message=f"Data processing error during best match finding: {e!s}",
+                message="No TMDB search results to match against",
+                context=context,
+            )
+
+        # Validate file_info (will raise DomainError if invalid)
+        if not file_info.title:
+            raise DomainError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="File info has empty title",
+                context=context,
+            )
+
+        best_match = None
+        best_score = 0.0
+        failed_results = 0
+
+        for result in search_results:
+            try:
+                score = self._calculate_match_score(file_info, result)
+
+                if score > best_score:
+                    best_score = score
+                    best_match = result
+                    best_match["match_confidence"] = score
+
+            except DomainError as e:
+                # If it's a file_info validation error (empty title), re-raise
+                if "title cannot be empty" in str(e.message).lower():
+                    raise
+                # Otherwise, log and skip this result (partial failure allowed)
+                failed_results += 1
+                log_operation_error(
+                    logger=logger,
+                    operation="calculate_match_score",
+                    error=e,
+                    additional_context={
+                        "result_id": result.get("id", "unknown"),
+                        "result_title": result.get("title") or result.get("name", "unknown"),
+                    },
+                )
+                continue
+
+        # If all results failed, raise error
+        if failed_results == len(search_results):
+            raise ApplicationError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message=f"All {len(search_results)} TMDB results failed to process",
                 context=ErrorContext(
                     operation="find_best_match",
                     additional_data={
                         "title": file_info.title,
-                        "search_results_count": (
-                            len(search_results) if search_results else 0
-                        ),
-                        "min_confidence": self.min_confidence,
-                        "error_type": "data_processing",
-                        "original_error": str(e),
+                        "failed_count": failed_results,
+                        "total_count": len(search_results),
                     },
                 ),
-                original_error=e,
             )
-        except Exception as e:  # noqa: BLE001
-            # Handle unexpected errors in match finding
-            error = DomainError(
-                code=ErrorCode.VALIDATION_ERROR,
-                message=f"Unexpected error during best match finding: {e!s}",
-                context=ErrorContext(
-                    operation="find_best_match",
-                    additional_data={
-                        "title": file_info.title,
-                        "search_results_count": (
-                            len(search_results) if search_results else 0
-                        ),
-                        "min_confidence": self.min_confidence,
-                        "error_type": "unexpected",
-                        "original_error": str(e),
-                    },
-                ),
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                operation="find_best_match",
-                error=error,
-                additional_context=context.additional_data if context else None,
-            )
-            return None
+
+        return best_match if best_score >= self.min_confidence else None
 
     def _calculate_match_score(
         self,
@@ -616,33 +573,35 @@ class MetadataEnricher:
 
         Returns:
             Match confidence score (0.0 to 1.0)
+            
+        Raises:
+            DomainError: If validation or data processing fails
         """
+        # Validate TMDB result has required fields
+        tmdb_title = tmdb_result.get("title") or tmdb_result.get("name")
+        if not tmdb_title:
+            raise DomainError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message="TMDB result missing title/name field",
+                context=ErrorContext(
+                    operation="calculate_match_score",
+                    additional_data={
+                        "file_title": file_info.title,
+                        "tmdb_keys": list(tmdb_result.keys()),
+                    },
+                ),
+            )
+
         try:
             score = 0.0
 
             # Title similarity (most important factor)
-            try:
-                title_score = self._calculate_title_similarity(
-                    file_info.title,
-                    tmdb_result.get("title") or tmdb_result.get("name", ""),
-                )
-                score += title_score * 0.6
-            except (ValueError, TypeError, AttributeError) as e:
-                # Handle data processing errors in title similarity calculation
-                logger.warning(
-                    "Data processing error calculating title similarity: %s. Title1: %s, Title2: %s",
-                    str(e),
-                    file_info.title,
-                    tmdb_result.get("title") or tmdb_result.get("name", ""),
-                )
-            except Exception as e:  # noqa: BLE001
-                # If title similarity calculation fails, log and continue with 0
-                logger.warning(
-                    "Unexpected error calculating title similarity: %s. Title1: %s, Title2: %s",
-                    str(e),
-                    file_info.title,
-                    tmdb_result.get("title") or tmdb_result.get("name", ""),
-                )
+            # This will raise DomainError if title validation fails
+            title_score = self._calculate_title_similarity(
+                file_info.title,
+                tmdb_title,
+            )
+            score += title_score * 0.6
 
             # Episode/season matching
             try:
@@ -710,22 +669,39 @@ class MetadataEnricher:
 
             return min(score, 1.0)
 
-        except (ValueError, KeyError, AttributeError, TypeError):
-            # Handle specific data processing errors
-            logger.exception(
-                "Error calculating match score. File info: %s, TMDB result: %s",
-                file_info,
-                tmdb_result,
-            )
-            return 0.0
-        except Exception:
-            # Handle unexpected errors
-            logger.exception(
-                "Unexpected error calculating match score. File info: %s, TMDB result: %s",
-                file_info,
-                tmdb_result,
-            )
-            return 0.0
+        except DomainError:
+            # Re-raise DomainError as-is
+            raise
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            # Data processing error
+            raise DomainError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message=f"Data processing error calculating match score: {e}",
+                context=ErrorContext(
+                    operation="calculate_match_score",
+                    additional_data={
+                        "file_title": file_info.title,
+                        "tmdb_title": tmdb_title,
+                        "error_type": type(e).__name__,
+                    },
+                ),
+                original_error=e,
+            ) from e
+        except Exception as e:
+            # Unexpected error
+            raise DomainError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message=f"Unexpected error calculating match score: {e}",
+                context=ErrorContext(
+                    operation="calculate_match_score",
+                    additional_data={
+                        "file_title": file_info.title,
+                        "tmdb_title": tmdb_title,
+                        "error_type": type(e).__name__,
+                    },
+                ),
+                original_error=e,
+            ) from e
 
     def _calculate_title_similarity(
         self,
@@ -745,11 +721,38 @@ class MetadataEnricher:
 
         Returns:
             Similarity score (0.0 to 1.0)
+            
+        Raises:
+            DomainError: If title validation fails or processing errors occur
         """
-        try:
-            if not title1 or not title2:
-                return 0.0
+        # Validate inputs
+        if not isinstance(title1, str) or not isinstance(title2, str):
+            raise DomainError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="Title must be a string",
+                context=ErrorContext(
+                    operation="calculate_title_similarity",
+                    additional_data={
+                        "title1_type": type(title1).__name__,
+                        "title2_type": type(title2).__name__,
+                    },
+                ),
+            )
+        
+        if not title1 or not title2:
+            raise DomainError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="Title cannot be empty",
+                context=ErrorContext(
+                    operation="calculate_title_similarity",
+                    additional_data={
+                        "title1_empty": not title1,
+                        "title2_empty": not title2,
+                    },
+                ),
+            )
 
+        try:
             # Normalize titles
             t1 = title1.lower().strip()
             t2 = title2.lower().strip()
@@ -763,51 +766,47 @@ class MetadataEnricher:
                 return 0.8
 
             # Word overlap
-            try:
-                words1 = set(t1.split())
-                words2 = set(t2.split())
+            words1 = set(t1.split())
+            words2 = set(t2.split())
 
-                if not words1 or not words2:
-                    return 0.0
-
-                intersection = words1.intersection(words2)
-                union = words1.union(words2)
-
-                return len(intersection) / len(union) if union else 0.0
-            except (ValueError, TypeError, AttributeError) as e:
-                # Handle specific data processing errors
-                logger.warning(
-                    "Error calculating word overlap for titles '%s' and '%s': %s",
-                    title1,
-                    title2,
-                    str(e),
-                )
-                return 0.0
-            except Exception:
-                # Handle unexpected errors
-                logger.exception(
-                    "Unexpected error calculating word overlap for titles '%s' and '%s'",
-                    title1,
-                    title2,
-                )
+            if not words1 or not words2:
                 return 0.0
 
-        except (ValueError, TypeError, AttributeError):
-            # Handle specific data processing errors
-            logger.exception(
-                "Error calculating title similarity for '%s' and '%s'",
-                title1,
-                title2,
-            )
-            return 0.0
-        except Exception:
-            # Handle unexpected errors
-            logger.exception(
-                "Unexpected error calculating title similarity for '%s' and '%s'",
-                title1,
-                title2,
-            )
-            return 0.0
+            intersection = words1.intersection(words2)
+            union = words1.union(words2)
+
+            return len(intersection) / len(union) if union else 0.0
+
+        except (ValueError, TypeError, AttributeError) as e:
+            # Data processing error
+            raise DomainError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message=f"Failed to calculate title similarity: {e}",
+                context=ErrorContext(
+                    operation="calculate_title_similarity",
+                    additional_data={
+                        "title1": title1[:50],  # Truncate for logging
+                        "title2": title2[:50],
+                        "error_type": type(e).__name__,
+                    },
+                ),
+                original_error=e,
+            ) from e
+        except Exception as e:
+            # Unexpected error
+            raise DomainError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message=f"Unexpected error calculating title similarity: {e}",
+                context=ErrorContext(
+                    operation="calculate_title_similarity",
+                    additional_data={
+                        "title1": title1[:50],
+                        "title2": title2[:50],
+                        "error_type": type(e).__name__,
+                    },
+                ),
+                original_error=e,
+            ) from e
 
     def _enrich_metadata_sync_fallback(
         self,

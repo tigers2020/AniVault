@@ -4,6 +4,7 @@ Data models for AniVault GUI
 This module contains the data models used by the GUI components,
 including the file tree model and related data structures.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,12 +51,18 @@ class FileTreeModel(QStandardItemModel):
         super().__init__(parent)
 
         # Set up column headers
-        self.setHorizontalHeaderLabels(["File Name", "Path", "Status", "Matched Series"])
+        self.setHorizontalHeaderLabels(
+            ["File Name", "Path", "Status", "Matched Series"],
+        )
 
         # Configure model properties
         self.setSortRole(Qt.DisplayRole)
 
-    def add_file(self, file_item: FileItem, parent_item: QStandardItem | None = None) -> None:
+    def add_file(
+        self,
+        file_item: FileItem,
+        parent_item: QStandardItem | None = None,
+    ) -> None:
         """Add a file item to the model."""
         # Create items for each column
         name_item = QStandardItem(file_item.file_name)
@@ -89,7 +96,7 @@ class FileTreeModel(QStandardItemModel):
 
         # Set group item properties
         group_item.setData(group_name, Qt.UserRole)  # Store group name
-        group_item.setData(files, Qt.UserRole + 1)   # Store files list
+        group_item.setData(files, Qt.UserRole + 1)  # Store files list
 
         # Make group item bold
         font = group_item.font()
@@ -143,10 +150,19 @@ class FileTreeModel(QStandardItemModel):
                     # Update the file item
                     file_item.status = new_status
 
-                    logger.debug("Updated status for %s: %s", file_path.name, new_status)
+                    logger.debug(
+                        "Updated status for %s: %s",
+                        file_path.name,
+                        new_status,
+                    )
                     break
 
-    def update_file_match_result(self, file_path: Path, match_result: dict, status: str) -> None:
+    def update_file_match_result(
+        self,
+        file_path: Path,
+        match_result: dict,
+        status: str,
+    ) -> None:
         """
         Update the matched series information for a specific file.
 
@@ -182,9 +198,16 @@ class FileTreeModel(QStandardItemModel):
                         file_item.metadata = {}
                     file_item.metadata["match_result"] = match_result
 
-                    logger.debug("Updated match result for %s: %s -> %s",
-                               file_path.name, status,
-                               match_result.get("title", "No match") if match_result else "No match")
+                    logger.debug(
+                        "Updated match result for %s: %s -> %s",
+                        file_path.name,
+                        status,
+                        (
+                            match_result.get("title", "No match")
+                            if match_result
+                            else "No match"
+                        ),
+                    )
                     break
 
     def get_all_files(self) -> list[FileItem]:

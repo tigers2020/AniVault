@@ -244,9 +244,48 @@ class EncryptionService:
                 original_error=e,
             ) from e
 
-    def is_valid_token(self, token: str) -> bool:
+    def validate_token(self, token: str) -> None:
+        """Validate that a token is valid and can be decrypted.
+
+        Args:
+            token: Token to validate
+
+        Raises:
+            SecurityError: If token is invalid, malformed, or expired
         """
-        Check if a token is valid without decrypting it.
+        from anivault.shared.errors import SecurityError, ErrorCode
+
+        # Validate token is not empty
+        if not token or len(token.strip()) == 0:
+            raise SecurityError(
+                code=ErrorCode.INVALID_TOKEN,
+                message="Token is empty or None",
+                context={"operation": "validate_token"},
+            )
+
+        try:
+            # Try to decrypt to validate
+            token_bytes = token.encode("utf-8")
+            self._fernet_suite.decrypt(token_bytes)
+        except InvalidToken as e:
+            raise SecurityError(
+                code=ErrorCode.INVALID_TOKEN,
+                message="Invalid or expired token",
+                context={"operation": "validate_token"},
+                original_error=e,
+            ) from e
+        except Exception as e:
+            raise SecurityError(
+                code=ErrorCode.INVALID_TOKEN,
+                message=f"Token validation failed: {e}",
+                context={"operation": "validate_token", "error_type": type(e).__name__},
+                original_error=e,
+            ) from e
+
+    def is_valid_token(self, token: str) -> bool:
+        """Check if a token is valid (legacy method for backward compatibility).
+
+        This method is deprecated. Use validate_token() for new code.
 
         Args:
             token: Token to validate
@@ -255,9 +294,7 @@ class EncryptionService:
             True if token is valid, False otherwise
         """
         try:
-            # Try to decrypt without raising exception
-            token_bytes = token.encode("utf-8")
-            self._fernet_suite.decrypt(token_bytes)
+            self.validate_token(token)
             return True
-        except (InvalidToken, Exception):
+        except SecurityError:
             return False

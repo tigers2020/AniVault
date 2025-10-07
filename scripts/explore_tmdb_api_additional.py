@@ -184,7 +184,9 @@ class TMDBAPIAdditionalExplorer:
             season_number = 1
             episode_number = 1
 
-            logger.info(f"TV Episode Details (TV ID: {tv_id}, S{season_number}E{episode_number})")
+            logger.info(
+                f"TV Episode Details (TV ID: {tv_id}, S{season_number}E{episode_number})",
+            )
             details = episode.details(tv_id, season_number, episode_number)
             self.save_response("tv_episode_details", details)
 
@@ -237,4 +239,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

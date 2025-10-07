@@ -167,20 +167,3 @@ def format_error_output(command: str, errors: list[str]) -> bytes:
         JSON-encoded bytes for error output
     """
     return format_json_output(success=False, command=command, errors=errors)
-
-
-def is_json_serializable(obj: Any) -> bool:
-    """
-    Check if an object is JSON serializable.
-
-    Args:
-        obj: Object to check
-
-    Returns:
-        True if the object is JSON serializable, False otherwise
-    """
-    try:
-        orjson.dumps(obj)
-        return True
-    except (TypeError, ValueError):
-        return False

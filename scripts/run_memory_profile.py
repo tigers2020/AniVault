@@ -21,9 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import modules after path setup
-from tests.test_helpers import cleanup_test_directory, create_large_test_directory
-
 from anivault.core.pipeline.main import run_pipeline
+from tests.test_helpers import cleanup_test_directory, create_large_test_directory
 
 
 # Note: @profile decorator is added by memory_profiler when running with:

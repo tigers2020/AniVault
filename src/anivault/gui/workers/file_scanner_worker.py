@@ -106,7 +106,10 @@ class FileScannerWorker(QObject):
 
             if not self._cancelled:
                 self.scan_finished.emit(file_items)
-                logger.info("File scan completed. Found %d media files", len(file_items))
+                logger.info(
+                    "File scan completed. Found %d media files",
+                    len(file_items),
+                )
 
         except Exception as e:
             logger.exception("Error during file scan: %s", e)
@@ -221,7 +224,10 @@ class FileScannerWorker(QObject):
             if file_path.suffix.lower() in VIDEO_EXTENSIONS:
                 media_files.append(file_path)
 
-        logger.debug("Filtered %d media files from %d total files",
-                    len(media_files), len(files))
+        logger.debug(
+            "Filtered %d media files from %d total files",
+            len(media_files),
+            len(files),
+        )
 
         return media_files

@@ -97,16 +97,16 @@ class ScanController(QObject):
 
     def _group_files_by_filename(self, file_items: list[FileItem]) -> dict:
         """Helper method to group files by filename (for unmatched files).
-        
+
         Args:
             file_items: List of FileItem objects without TMDB matches
-            
+
         Returns:
             Dictionary mapping group names to lists of FileItem objects
         """
         # Parse filenames and use FileGrouper for intelligent grouping
         scanned_files = []
-        
+
         for file_item in file_items:
             try:
                 parsed_result = self.parser.parse(file_item.file_path.name)
@@ -125,7 +125,7 @@ class ScanController(QObject):
                     parser_used="gui_fallback",
                     other_info={"error": str(e)},
                 )
-            
+
             scanned_file = ScannedFile(
                 file_path=file_item.file_path,
                 metadata=parsed_result,
@@ -133,10 +133,10 @@ class ScanController(QObject):
                 last_modified=0.0,
             )
             scanned_files.append(scanned_file)
-        
+
         # Use FileGrouper to group by similarity
         grouped_files = self.file_grouper.group_files(scanned_files)
-        
+
         # Convert back to FileItem-keyed dict
         result = {}
         for group_name, scanned_list in grouped_files.items():
@@ -148,64 +148,70 @@ class ScanController(QObject):
                         file_item_list.append(fi)
                         break
             result[group_name] = file_item_list
-        
+
         return result
-    
+
     def group_files_by_tmdb_title(self, file_items: list[FileItem]) -> dict:
         """Group files by TMDB title after matching.
-        
+
         Args:
             file_items: List of FileItem objects with TMDB metadata
-            
+
         Returns:
             Dictionary mapping TMDB titles to lists of files
-            
+
         Raises:
             ValueError: If file_items is empty or invalid
         """
         if not file_items:
             raise ValueError("Cannot group empty file list")
-        
+
         try:
             logger.info("Regrouping %d files by TMDB title", len(file_items))
-            
+
             # Separate matched and unmatched files
             matched_files = []
             unmatched_files = []
-            
+
             for file_item in file_items:
                 # Check if file has TMDB match
                 has_match = False
-                if hasattr(file_item, "metadata") and isinstance(file_item.metadata, dict):
+                if hasattr(file_item, "metadata") and isinstance(
+                    file_item.metadata,
+                    dict,
+                ):
                     match_result = file_item.metadata.get("match_result")
                     if match_result:
                         has_match = True
                         matched_files.append(file_item)
-                
+
                 if not has_match:
                     unmatched_files.append(file_item)
-            
+
             logger.info(
                 "TMDB grouping: %d matched, %d unmatched files",
                 len(matched_files),
-                len(unmatched_files)
+                len(unmatched_files),
             )
-            
+
             # Group matched files by TMDB title
             grouped_by_tmdb = {}
             for file_item in matched_files:
                 match_result = file_item.metadata.get("match_result")
                 # Try both title and name fields
                 tmdb_title = match_result.get("title") or match_result.get("name")
-                
+
                 if tmdb_title:
                     if tmdb_title not in grouped_by_tmdb:
                         grouped_by_tmdb[tmdb_title] = []
                     grouped_by_tmdb[tmdb_title].append(file_item)
-            
+
             # For unmatched files, use original filename-based grouping
             if unmatched_files:
-                logger.info("Using filename-based grouping for %d unmatched files", len(unmatched_files))
+                logger.info(
+                    "Using filename-based grouping for %d unmatched files",
+                    len(unmatched_files),
+                )
                 # Use the standard group_files method for unmatched files
                 unmatched_groups = self._group_files_by_filename(unmatched_files)
                 # Merge unmatched groups with TMDB groups
@@ -214,7 +220,7 @@ class ScanController(QObject):
                         grouped_by_tmdb[group_name] = files
                     else:
                         grouped_by_tmdb[group_name].extend(files)
-            
+
             # Convert FileItem back to ScannedFile for compatibility
             final_groups = {}
             for tmdb_title, items in grouped_by_tmdb.items():
@@ -222,15 +228,18 @@ class ScanController(QObject):
                 for file_item in items:
                     # Parse filename
                     parsed_result = self.parser.parse(file_item.file_path.name)
-                    
+
                     # Preserve TMDB metadata
-                    if hasattr(file_item, "metadata") and isinstance(file_item.metadata, dict):
+                    if hasattr(file_item, "metadata") and isinstance(
+                        file_item.metadata,
+                        dict,
+                    ):
                         match_result = file_item.metadata.get("match_result")
                         if match_result:
                             if not parsed_result.other_info:
                                 parsed_result.other_info = {}
                             parsed_result.other_info["match_result"] = match_result
-                    
+
                     scanned_file = ScannedFile(
                         file_path=file_item.file_path,
                         metadata=parsed_result,
@@ -238,23 +247,23 @@ class ScanController(QObject):
                         last_modified=0.0,
                     )
                     scanned_files.append(scanned_file)
-                
+
                 final_groups[tmdb_title] = scanned_files
-            
+
             logger.info(
                 "TMDB regrouping completed: %d groups (from TMDB titles)",
                 len(final_groups),
             )
-            
+
             # Emit signal for UI update
             self.files_grouped.emit(final_groups)
-            
+
             return final_groups
-            
+
         except Exception as e:
             logger.exception("TMDB-based grouping failed: %s", e)
             raise
-    
+
     def group_files(self, file_items: list[FileItem]) -> dict:
         """Group scanned files by similarity.
 

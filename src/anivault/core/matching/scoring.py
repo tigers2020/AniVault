@@ -23,6 +23,10 @@ def calculate_confidence_score(
     This function combines multiple scoring components to produce a final confidence
     score between 0.0 and 1.0, where 1.0 indicates a perfect match.
 
+    **Graceful Degradation**: If scoring fails due to invalid/missing data or errors,
+    returns 0.0 (no match) and logs the error. This allows the matching pipeline to
+    continue evaluating other candidates rather than failing completely.
+
     Args:
         normalized_query: Dictionary containing normalized query data with keys:
             - title: Clean title for comparison
@@ -43,6 +47,10 @@ def calculate_confidence_score(
         - 0.4-0.59 = Medium confidence
         - 0.2-0.39 = Low confidence
         - 0.0-0.19 = Very low confidence
+        
+        Returns 0.0 if:
+        - Empty/missing title in query or result (normal case)
+        - Data processing error occurs (graceful degradation with logging)
 
     Examples:
         >>> query = {"title": "Attack on Titan", "language": "en", "year": 2013}
@@ -70,7 +78,10 @@ def calculate_confidence_score(
         # Check for empty query or result
         query_title = normalized_query.get("title", "")
         localized_title = tmdb_result.get("title", "") or tmdb_result.get("name", "")
-        original_title = tmdb_result.get("original_title", "") or tmdb_result.get("original_name", "")
+        original_title = tmdb_result.get("original_title", "") or tmdb_result.get(
+            "original_name",
+            "",
+        )
 
         if not query_title or (not localized_title and not original_title):
             return 0.0
@@ -81,12 +92,16 @@ def calculate_confidence_score(
         if localized_title:
             localized_score = _calculate_title_score(query_title, localized_title)
             title_scores.append(localized_score)
-            logger.info(f"📊 Localized title score: {localized_score:.3f} ('{query_title[:30]}' vs '{localized_title[:30]}')")
+            logger.info(
+                f"📊 Localized title score: {localized_score:.3f} ('{query_title[:30]}' vs '{localized_title[:30]}')",
+            )
         if original_title:
             original_score = _calculate_title_score(query_title, original_title)
             title_scores.append(original_score)
-            logger.info(f"📊 Original title score: {original_score:.3f} ('{query_title[:30]}' vs '{original_title[:30]}')")
-        
+            logger.info(
+                f"📊 Original title score: {original_score:.3f} ('{query_title[:30]}' vs '{original_title[:30]}')",
+            )
+
         title_score = max(title_scores) if title_scores else 0.0
         logger.info(f"🎯 Final title score (max): {title_score:.3f}")
         year_score = _calculate_year_score(

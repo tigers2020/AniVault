@@ -380,7 +380,7 @@ class SQLiteCacheDB:
 
         except sqlite3.Error as e:
             error = InfrastructureError(
-                code=ErrorCode.DATABASE_OPERATION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=f"Failed to set cache: {e!s}",
                 context=context,
                 original_error=e,
@@ -505,7 +505,7 @@ class SQLiteCacheDB:
 
         except sqlite3.Error as e:
             error = InfrastructureError(
-                code=ErrorCode.DATABASE_OPERATION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=f"Failed to get cache: {e!s}",
                 context=context,
                 original_error=e,
@@ -559,9 +559,9 @@ class SQLiteCacheDB:
 
             return deleted
 
-        except sqlite3.Error as e:
+        except (sqlite3.Error, sqlite3.ProgrammingError) as e:
             error = InfrastructureError(
-                code=ErrorCode.DATABASE_OPERATION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=f"Failed to delete cache: {e!s}",
                 context=context,
                 original_error=e,
@@ -572,7 +572,7 @@ class SQLiteCacheDB:
                 operation="cache_delete",
                 additional_context=context.additional_data,
             )
-            return False
+            raise error from e
 
     def purge_expired(self, cache_type: str | None = None) -> int:
         """Remove expired cache entries.
@@ -631,7 +631,7 @@ class SQLiteCacheDB:
 
         except sqlite3.Error as e:
             error = InfrastructureError(
-                code=ErrorCode.DATABASE_OPERATION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=f"Failed to purge expired cache: {e!s}",
                 context=context,
                 original_error=e,
@@ -689,7 +689,7 @@ class SQLiteCacheDB:
 
         except sqlite3.Error as e:
             error = InfrastructureError(
-                code=ErrorCode.DATABASE_OPERATION_ERROR,
+                code=ErrorCode.FILE_ACCESS_ERROR,
                 message=f"Failed to clear cache: {e!s}",
                 context=context,
                 original_error=e,

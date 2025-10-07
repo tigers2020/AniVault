@@ -8,9 +8,8 @@ pyproject.toml의 의존성과 실제 설치된 패키지 간의 호환성을 �
 
 import subprocess
 import sys
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 
 def load_pyproject_dependencies() -> tuple[list[str], list[str]]:

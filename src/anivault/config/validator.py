@@ -42,7 +42,10 @@ class ConfigValidator:
             for error in e.errors():
                 field_path = " -> ".join(str(loc) for loc in error["loc"])
                 errors.append(f"{field_path}: {error['msg']}")
-            logger.warning("Configuration validation failed with %d errors", len(errors))
+            logger.warning(
+                "Configuration validation failed with %d errors",
+                len(errors),
+            )
             return errors
         except Exception as e:
             error_msg = f"Unexpected validation error: {e}"
@@ -138,7 +141,12 @@ class ConfigValidator:
             field_schema = section_schema.get("properties", {}).get(field, {})
             return field_schema.get("description")
         except (KeyError, TypeError, AttributeError) as e:
-            logger.warning("Failed to get field description for %s.%s: %s", section, field, e)
+            logger.warning(
+                "Failed to get field description for %s.%s: %s",
+                section,
+                field,
+                e,
+            )
             return None
 
     @staticmethod
@@ -156,8 +164,16 @@ class ConfigValidator:
             properties = schema.get("properties", {})
             section_schema = properties.get(section, {})
             required = section_schema.get("required", [])
-            logger.debug("Retrieved %d required fields for section %s", len(required), section)
+            logger.debug(
+                "Retrieved %d required fields for section %s",
+                len(required),
+                section,
+            )
             return required
         except (KeyError, TypeError, AttributeError) as e:
-            logger.warning("Failed to get required fields for section %s: %s", section, e)
+            logger.warning(
+                "Failed to get required fields for section %s: %s",
+                section,
+                e,
+            )
             return []

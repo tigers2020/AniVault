@@ -42,7 +42,7 @@ class TMDBConfig(APIConfig):
     MOVIE_DETAILS_ENDPOINT = "/movie/{movie_id}"
 
     # TMDB specific rate limits
-    RATE_LIMIT_RPS = 35.0  # requests per second
+    RATE_LIMIT_RPS = 35  # requests per second
     RATE_LIMIT_DELAY = 0.25 * BASE_SECOND  # delay between requests
 
     # TMDB specific timeouts

@@ -1,0 +1,312 @@
+{
+  "files_analyzed": 110,
+  "violations_count": 34,
+  "violations": [
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 436,
+      "column": 8,
+      "function": "_confirm_organization",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 317,
+      "column": 8,
+      "function": "_collect_rollback_data",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 321,
+      "column": 8,
+      "function": "_collect_rollback_data",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 550,
+      "column": 8,
+      "function": "_confirm_rollback",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\config\\auto_scanner.py",
+      "line": 91,
+      "column": 12,
+      "function": "get_auto_scan_interval",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\config\\folder_validator.py",
+      "line": 123,
+      "column": 12,
+      "function": "validate_folder_pair",
+      "type": "exception_swallowing",
+      "context": "Exception swallowed with pass",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\config\\storage.py",
+      "line": 203,
+      "column": 12,
+      "function": "rollback_to_backup",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\config\\validator.py",
+      "line": 150,
+      "column": 12,
+      "function": "get_field_description",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\normalization.py",
+      "line": 95,
+      "column": 8,
+      "function": "normalize_query_from_anitopy",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\engine.py",
+      "line": 439,
+      "column": 12,
+      "function": "find_match",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\scoring.py",
+      "line": 152,
+      "column": 8,
+      "function": "calculate_confidence_score",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\scoring.py",
+      "line": 160,
+      "column": 8,
+      "function": "calculate_confidence_score",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\parser\\anitopy_parser.py",
+      "line": 181,
+      "column": 12,
+      "function": "_extract_episode_number",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\parser\\anitopy_parser.py",
+      "line": 202,
+      "column": 12,
+      "function": "_extract_season_number",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\cache.py",
+      "line": 113,
+      "column": 12,
+      "function": "get",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\cache.py",
+      "line": 118,
+      "column": 12,
+      "function": "get",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\collector.py",
+      "line": 253,
+      "column": 12,
+      "function": "_get_item_from_queue",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 217,
+      "column": 12,
+      "function": "_should_include_file",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 227,
+      "column": 12,
+      "function": "_should_include_file",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 436,
+      "column": 16,
+      "function": "_process_file_entry",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 446,
+      "column": 16,
+      "function": "_process_file_entry",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 540,
+      "column": 12,
+      "function": "_estimate_total_files",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 548,
+      "column": 12,
+      "function": "_estimate_total_files",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\app.py",
+      "line": 79,
+      "column": 12,
+      "function": "initialize",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\app.py",
+      "line": 204,
+      "column": 8,
+      "function": "main",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\state_model.py",
+      "line": 220,
+      "column": 12,
+      "function": "import_state",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\controllers\\scan_controller.py",
+      "line": 381,
+      "column": 16,
+      "function": "_start_scanning_thread",
+      "type": "exception_swallowing",
+      "context": "Exception swallowed with pass",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\controllers\\tmdb_controller.py",
+      "line": 82,
+      "column": 16,
+      "function": "_cleanup_matching_thread",
+      "type": "exception_swallowing",
+      "context": "Exception swallowed with pass",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 567,
+      "column": 12,
+      "function": "_load_tmdb_poster",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 570,
+      "column": 12,
+      "function": "_load_tmdb_poster",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\gui\\workers\\file_scanner_worker.py",
+      "line": 161,
+      "column": 12,
+      "function": "_validate_directory",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\security\\encryption.py",
+      "line": 300,
+      "column": 12,
+      "function": "is_valid_token",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\services\\sqlite_cache_db.py",
+      "line": 519,
+      "column": 12,
+      "function": "get",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    },
+    {
+      "file": "src\\anivault\\services\\sqlite_cache_db.py",
+      "line": 469,
+      "column": 16,
+      "function": "get",
+      "type": "silent_failure",
+      "context": "Silent failure with return None/False",
+      "severity": "high"
+    }
+  ]
+}

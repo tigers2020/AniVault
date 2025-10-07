@@ -42,9 +42,9 @@ def handle_organize_command(options: OrganizeOptions) -> int:
 
     try:
         console = _setup_organize_console()
+        
+        # Validate directory (raises exception on error)
         directory = _validate_organize_directory(options, console)
-        if directory is None:
-            return 1
 
         scanned_files = _get_scanned_files(options, directory, console)
         if not scanned_files:
@@ -167,11 +167,23 @@ def _setup_organize_console() -> Any:
     return Console()
 
 
-def _validate_organize_directory(options: OrganizeOptions, console: Any) -> Any:
-    """Validate directory for organize command."""
-    try:
-        from anivault.cli.common.context import validate_directory
+def _validate_organize_directory(options: OrganizeOptions, console: Any) -> Path:
+    """Validate directory for organize command.
 
+    Args:
+        options: Validated organize options
+        console: Rich console for output
+
+    Returns:
+        Validated directory path
+
+    Raises:
+        ApplicationError: If directory validation fails
+        InfrastructureError: If directory access fails
+    """
+    from anivault.cli.common.context import validate_directory
+
+    try:
         directory = validate_directory(str(options.directory))
         if options.json_output is None:
             console.print(
@@ -181,81 +193,23 @@ def _validate_organize_directory(options: OrganizeOptions, console: Any) -> Any:
                 ),
             )
         return directory
-    except ApplicationError as e:
-        if options.json_output is not None:
-            json_output = format_json_output(
-                success=False,
-                command=CLIMessages.CommandNames.ORGANIZE,
-                errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{e.message}"],
-                data={
-                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
-                    CLIMessages.StatusKeys.CONTEXT: e.context,
-                },
-            )
-            sys.stdout.buffer.write(json_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
-        else:
-            console.print(
-                CLIFormatting.format_colored_message(
-                    f"Application error: {e.message}",
-                    "error",
-                ),
-            )
-        logger.exception(
-            CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
-            extra={
-                CLIMessages.StatusKeys.CONTEXT: e.context,
-                CLIMessages.StatusKeys.ERROR_CODE: e.code,
-            },
-        )
-        return None
-    except InfrastructureError as e:
-        if options.json_output is not None:
-            json_output = format_json_output(
-                success=False,
-                command=CLIMessages.CommandNames.ORGANIZE,
-                errors=[f"{CLIMessages.Error.INFRASTRUCTURE_ERROR}{e.message}"],
-                data={
-                    CLIMessages.StatusKeys.ERROR_CODE: e.code,
-                    CLIMessages.StatusKeys.CONTEXT: e.context,
-                },
-            )
-            sys.stdout.buffer.write(json_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
-        else:
-            console.print(
-                CLIFormatting.format_colored_message(
-                    f"Infrastructure error: {e.message}",
-                    "error",
-                ),
-            )
-        logger.exception(
-            CLIMessages.Error.DIRECTORY_VALIDATION_FAILED,
-            extra={
-                CLIMessages.StatusKeys.CONTEXT: e.context,
-                CLIMessages.StatusKeys.ERROR_CODE: e.code,
-            },
-        )
-        return None
+    except (ApplicationError, InfrastructureError):
+        # Re-raise AniVault errors as-is (caller will handle UI/logging)
+        raise
     except Exception as e:
-        if options.json_output is not None:
-            json_output = format_json_output(
-                success=False,
-                command=CLIMessages.CommandNames.ORGANIZE,
-                errors=[f"{CLIMessages.Error.UNEXPECTED_ERROR}{e!s}"],
-                data={"error_type": type(e).__name__},
-            )
-            sys.stdout.buffer.write(json_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
-        else:
-            console.print(
-                CLIFormatting.format_colored_message(f"Unexpected error: {e}", "error"),
-            )
-        logger.exception(CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION)
-        return None
+        # Wrap unexpected errors
+        raise InfrastructureError(
+            code=ErrorCode.FILE_ACCESS_ERROR,
+            message=f"Unexpected error validating directory: {e}",
+            context=ErrorContext(
+                operation="validate_organize_directory",
+                additional_data={
+                    "directory": str(options.directory),
+                    "error_type": type(e).__name__,
+                },
+            ),
+            original_error=e,
+        ) from e
 
 
 def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -> Any:
@@ -672,9 +626,20 @@ def _collect_organize_data(
         elif isinstance(raw_file_size, str):
             try:
                 total_size += int(raw_file_size)
-            except (ValueError, TypeError):
-                pass
-        # Skip other types silently - boundary Any properly handled
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    "Invalid file size value in operation data: %s (type: %s)",
+                    raw_file_size,
+                    type(raw_file_size).__name__,
+                    extra={"error": str(e)},
+                )
+        # Skip other types with warning
+        else:
+            if raw_file_size is not None:
+                logger.warning(
+                    "Unexpected file size type in operation data: %s",
+                    type(raw_file_size).__name__,
+                )
 
     return {
         "organize_summary": {

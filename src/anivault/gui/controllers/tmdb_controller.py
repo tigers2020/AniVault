@@ -4,6 +4,7 @@ TMDB Controller Implementation
 This module contains the TMDBController class that manages TMDB API operations
 and coordinates between the UI layer and TMDB services.
 """
+
 from __future__ import annotations
 
 import logging
@@ -62,6 +63,28 @@ class TMDBController(QObject):
 
         logger.debug("TMDBController initialized")
 
+    def _cleanup_matching_thread(self) -> None:
+        """Clean up existing TMDB matching thread if running.
+        
+        This method ensures proper cleanup of the previous thread before
+        starting a new matching operation to prevent QThread crashes.
+        """
+        if self.tmdb_thread is not None:
+            try:
+                if self.tmdb_thread.isRunning():
+                    logger.debug("Cleaning up running TMDB thread")
+                    if self.tmdb_worker is not None:
+                        self.tmdb_worker.cancel_matching()
+                    self.tmdb_thread.wait(5000)  # 5 second timeout
+            except RuntimeError:
+                # Thread object was already deleted, ignore
+                logger.debug("TMDB thread was already deleted")
+                pass
+            finally:
+                self.tmdb_thread = None
+                self.tmdb_worker = None
+                self.is_matching = False
+
     def set_api_key(self, api_key: str) -> None:
         """Set the TMDB API key.
 
@@ -118,8 +141,9 @@ class TMDBController(QObject):
         Returns:
             Number of matched files
         """
-        return sum(1 for result in self.match_results
-                  if result.get("status") == "matched")
+        return sum(
+            1 for result in self.match_results if result.get("status") == "matched"
+        )
 
     def get_total_files_count(self) -> int:
         """Get the total number of files processed.
@@ -135,6 +159,9 @@ class TMDBController(QObject):
         Args:
             files: List of files to match
         """
+        # Clean up previous thread if exists
+        self._cleanup_matching_thread()
+
         # Create and setup thread
         self.tmdb_thread = QThread()
         self.tmdb_worker = TMDBMatchingWorker(self.api_key)
@@ -156,10 +183,18 @@ class TMDBController(QObject):
         # Cleanup when thread finishes
         self.tmdb_thread.finished.connect(self.tmdb_thread.deleteLater)
         self.tmdb_thread.finished.connect(self.tmdb_worker.deleteLater)
+        self.tmdb_thread.finished.connect(self._on_thread_finished)
 
         # Start thread
         self.tmdb_thread.start()
         logger.debug("TMDB matching thread started")
+
+    def _on_thread_finished(self) -> None:
+        """Handle thread finished signal for cleanup."""
+        logger.debug("TMDB thread finished")
+        self.tmdb_thread = None
+        self.tmdb_worker = None
+        self.is_matching = False
 
     def _on_matching_started(self) -> None:
         """Handle matching started signal."""

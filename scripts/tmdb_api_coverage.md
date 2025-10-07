@@ -100,7 +100,7 @@
    ```python
    # 모든 엔드포인트에 적용 가능
    cache_key = f"{endpoint}:{category}:{params}"
-   
+
    # 예시
    "details:collection:id=123"
    "list:company:id=456"
@@ -181,4 +181,3 @@ watch_providers.available_regions()
 - 더 확실하지만 시간 소요
 
 어떤 방향으로 진행하시겠습니까?
-

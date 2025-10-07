@@ -17,6 +17,12 @@ from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.models import DirectoryPath, LogOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI, FileSystem
+from anivault.shared.errors import (
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -137,14 +143,18 @@ def _handle_log_command_console(options: LogOptions) -> int:
         return 1
 
 
-def _collect_log_list_data(options: LogOptions) -> dict[str, Any] | None:
+def _collect_log_list_data(options: LogOptions) -> dict[str, Any]:
     """Collect log list data for JSON output.
 
     Args:
         options: Validated log command options
 
     Returns:
-        Dictionary containing log list data, or None if error
+        Dictionary containing log list data
+
+    Raises:
+        InfrastructureError: If file system access fails
+        ApplicationError: If data processing fails
     """
     try:
         # Get log directory
@@ -153,6 +163,7 @@ def _collect_log_list_data(options: LogOptions) -> dict[str, Any] | None:
             return {
                 "error": f"Log directory does not exist: {log_dir}",
                 "log_files": [],
+                "total_files": 0,
             }
 
         # Find log files
@@ -161,6 +172,7 @@ def _collect_log_list_data(options: LogOptions) -> dict[str, Any] | None:
             return {
                 "message": "No log files found",
                 "log_files": [],
+                "total_files": 0,
             }
 
         # Sort by modification time (newest first)
@@ -203,14 +215,48 @@ def _collect_log_list_data(options: LogOptions) -> dict[str, Any] | None:
             "total_files": len(log_data),
         }
 
-    except (OSError, ValueError, KeyError, AttributeError):
-        # Handle specific I/O and data processing errors
-        logger.exception("Error collecting log list data")
-        return None
-    except Exception:
-        # Handle unexpected errors
-        logger.exception("Unexpected error collecting log list data")
-        return None
+    except OSError as e:
+        # File system I/O error
+        raise InfrastructureError(
+            code=ErrorCode.FILE_ACCESS_ERROR,
+            message=f"Failed to access log files: {e}",
+            context=ErrorContext(
+                operation="collect_log_list_data",
+                additional_data={
+                    "log_dir": str(options.log_dir.path),
+                    "error_type": type(e).__name__,
+                },
+            ),
+            original_error=e,
+        ) from e
+    except (ValueError, KeyError, AttributeError) as e:
+        # Data processing error
+        raise ApplicationError(
+            code=ErrorCode.DATA_PROCESSING_ERROR,
+            message=f"Failed to process log data: {e}",
+            context=ErrorContext(
+                operation="collect_log_list_data",
+                additional_data={
+                    "log_dir": str(options.log_dir.path),
+                    "error_type": type(e).__name__,
+                },
+            ),
+            original_error=e,
+        ) from e
+    except Exception as e:
+        # Unexpected error
+        raise ApplicationError(
+            code=ErrorCode.APPLICATION_ERROR,
+            message=f"Unexpected error collecting log list data: {e}",
+            context=ErrorContext(
+                operation="collect_log_list_data",
+                additional_data={
+                    "log_dir": str(options.log_dir.path),
+                    "error_type": type(e).__name__,
+                },
+            ),
+            original_error=e,
+        ) from e
 
 
 def _run_log_list_command_impl(options: LogOptions, console: Any) -> int:

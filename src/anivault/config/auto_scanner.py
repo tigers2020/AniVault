@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 from anivault.config.folder_validator import FolderValidator
 from anivault.config.validation import FolderSettings
+from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,14 @@ class AutoScanner:
             return True, source_folder
 
         except Exception as e:
-            logger.exception("Error checking auto scan startup condition: %s", e)
-            return False, ""
+            logger.exception("Error checking auto scan startup condition")
+            context = ErrorContext(operation="should_auto_scan_on_startup")
+            raise ApplicationError(
+                ErrorCode.CONFIGURATION_ERROR,
+                "Failed to check auto scan configuration",
+                context,
+                e,
+            ) from e
 
     def get_auto_scan_interval(self) -> int:
         """Get the auto scan interval in minutes.
@@ -145,18 +152,27 @@ class AutoScanner:
         finally:
             self._scan_in_progress = False
 
-    def get_folder_settings(self) -> FolderSettings | None:
+    def get_folder_settings(self) -> FolderSettings:
         """Get current folder settings.
 
         Returns:
-            FolderSettings object or None if error
+            FolderSettings object
+
+        Raises:
+            ApplicationError: If failed to retrieve folder settings
         """
         try:
             config = self.config_manager.load_config()
             return config.folders
         except Exception as e:
-            logger.exception("Error getting folder settings: %s", e)
-            return None
+            logger.exception("Error getting folder settings")
+            context = ErrorContext(operation="get_folder_settings")
+            raise ApplicationError(
+                ErrorCode.CONFIGURATION_ERROR,
+                "Failed to retrieve folder settings",
+                context,
+                e,
+            ) from e
 
     def update_folder_settings(
         self,
@@ -211,19 +227,6 @@ class AutoScanner:
         """
         try:
             folder_settings = self.get_folder_settings()
-            if not folder_settings:
-                return {
-                    "enabled": False,
-                    "source_folder": "",
-                    "target_folder": "",
-                    "auto_scan_on_startup": False,
-                    "auto_scan_interval_minutes": 0,
-                    "include_subdirectories": True,
-                    "can_scan": False,
-                    "scan_in_progress": self._scan_in_progress,
-                    "error": "Failed to load folder settings",
-                }
-
             can_scan, reason = self.can_auto_scan()
 
             return {
@@ -238,8 +241,9 @@ class AutoScanner:
                 "error": "" if can_scan else reason,
             }
 
-        except Exception as e:
-            logger.exception("Error getting scan status: %s", e)
+        except ApplicationError as e:
+            # ApplicationError from get_folder_settings - contains detailed context
+            logger.exception("Error getting scan status")
             return {
                 "enabled": False,
                 "source_folder": "",
@@ -249,5 +253,19 @@ class AutoScanner:
                 "include_subdirectories": True,
                 "can_scan": False,
                 "scan_in_progress": self._scan_in_progress,
-                "error": f"Failed to get scan status: {e}",
+                "error": f"Failed to get scan status: {e.message}",
+            }
+        except Exception as e:
+            # Unexpected errors
+            logger.exception("Unexpected error getting scan status")
+            return {
+                "enabled": False,
+                "source_folder": "",
+                "target_folder": "",
+                "auto_scan_on_startup": False,
+                "auto_scan_interval_minutes": 0,
+                "include_subdirectories": True,
+                "can_scan": False,
+                "scan_in_progress": self._scan_in_progress,
+                "error": f"Unexpected error getting scan status: {e}",
             }

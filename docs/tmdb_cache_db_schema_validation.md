@@ -187,9 +187,9 @@
 
 ```sql
 -- SHA-256 해시 인덱스 사용
-SELECT response_data 
-FROM tmdb_cache 
-WHERE key_hash = ? 
+SELECT response_data
+FROM tmdb_cache
+WHERE key_hash = ?
   AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
 LIMIT 1;
 ```
@@ -230,7 +230,7 @@ LIMIT 1;
 ```python
 class SQLiteCacheDB:
     """TMDB API용 범용 SQLite 캐시 DB."""
-    
+
     def __init__(self, db_path: Path) -> None
     def set(cache_key: str, cache_type: str, response_data: dict, ttl_seconds: int) -> None
     def get(cache_key: str, cache_type: str) -> Optional[dict]
@@ -261,12 +261,11 @@ class SQLiteCacheDB:
 
 ## ✅ **승인 및 서명**
 
-**검증자**: AI Assistant (김지유의 "영수증 드리븐 개발" 원칙 적용)  
-**검증 방법**: 실제 API 응답 40개 수집 및 구조 분석  
-**검증 결과**: ✅ **승인 - 구현 진행 가능**  
+**검증자**: AI Assistant (김지유의 "영수증 드리븐 개발" 원칙 적용)
+**검증 방법**: 실제 API 응답 40개 수집 및 구조 분석
+**검증 결과**: ✅ **승인 - 구현 진행 가능**
 **검증 날짜**: 2025-10-06
 
 ---
 
 > **김지유의 말**: "영수증(실제 API 응답)이 모든 것을 증명한다. 40개 응답이 스키마의 완벽함을 보장한다."
-

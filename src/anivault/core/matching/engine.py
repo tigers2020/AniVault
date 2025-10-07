@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Genre-based filtering constants
 ANIMATION_GENRE_ID = 16  # TMDB Animation genre ID
-ANIMATION_BOOST = 0.5  # Strong boost for confirmed animation (ensures anime is prioritized)
+ANIMATION_BOOST = (
+    0.5  # Strong boost for confirmed animation (ensures anime is prioritized)
+)
 # NOTE: No penalty for non-animation to avoid false negatives when genre_ids missing
 # The boost is strong enough (0.5) to ensure animation always wins over non-animation
 
@@ -81,12 +83,12 @@ class MatchingEngine:
         """
         # Use normalized title + language as cache key (language-sensitive caching)
         title = normalized_query.get("title", "")
-        
+
         # Check if title is empty before doing anything
         if not title:
             logger.warning("Empty title in normalized query, skipping TMDB search")
             return []
-        
+
         # Include language in cache key to avoid serving wrong-language cached results
         language = getattr(self.tmdb_client, "language", "ko-KR")
         cache_key = f"{title}:lang={language}"
@@ -179,7 +181,10 @@ class MatchingEngine:
         for candidate in candidates:
             # Extract titles from candidate (try both localized and original)
             localized_title = candidate.get("title", "") or candidate.get("name", "")
-            original_title = candidate.get("original_title", "") or candidate.get("original_name", "")
+            original_title = candidate.get("original_title", "") or candidate.get(
+                "original_name",
+                "",
+            )
 
             if not localized_title and not original_title:
                 logger.debug("Skipping candidate with no title")
@@ -189,10 +194,14 @@ class MatchingEngine:
             # Use the higher score (handles both Korean filenames and Japanese romanization)
             scores = []
             if localized_title:
-                scores.append(fuzz.ratio(normalized_title.lower(), localized_title.lower()))
+                scores.append(
+                    fuzz.ratio(normalized_title.lower(), localized_title.lower()),
+                )
             if original_title:
-                scores.append(fuzz.ratio(normalized_title.lower(), original_title.lower()))
-            
+                scores.append(
+                    fuzz.ratio(normalized_title.lower(), original_title.lower()),
+                )
+
             title_score = max(scores) if scores else 0
 
             # Add score to candidate
@@ -708,12 +717,12 @@ class MatchingEngine:
 
             # Apply genre boost for confirmed animation (no penalty to avoid false negatives)
             current_confidence = boosted_candidate.get("confidence_score", 0.0)
-            
+
             if ANIMATION_GENRE_ID in genre_ids:
                 # Boost for animation genre
                 new_confidence = min(1.0, current_confidence + ANIMATION_BOOST)
                 boosted_candidate["confidence_score"] = new_confidence
-                
+
                 # Animation threshold: 0.2 (lenient for cross-script fuzzy matching)
                 if new_confidence >= 0.2:
                     boosted_candidates.append(boosted_candidate)
@@ -729,23 +738,22 @@ class MatchingEngine:
                         candidate.get("title", "")[:40],
                         new_confidence,
                     )
+            # Non-animation: require much higher confidence (0.8) to avoid false positives
+            # This filters out quiz shows, variety shows, live-action, etc.
+            elif current_confidence >= 0.8:
+                boosted_candidates.append(boosted_candidate)
+                logger.debug(
+                    "✅ Non-animation candidate '%s' accepted: %.3f >= 0.8",
+                    candidate.get("title", "")[:40],
+                    current_confidence,
+                )
             else:
-                # Non-animation: require much higher confidence (0.8) to avoid false positives
-                # This filters out quiz shows, variety shows, live-action, etc.
-                if current_confidence >= 0.8:
-                    boosted_candidates.append(boosted_candidate)
-                    logger.debug(
-                        "✅ Non-animation candidate '%s' accepted: %.3f >= 0.8",
-                        candidate.get("title", "")[:40],
-                        current_confidence,
-                    )
-                else:
-                    logger.debug(
-                        "❌ Non-animation candidate '%s' rejected: %.3f < 0.8 (genre_ids: %s)",
-                        candidate.get("title", "")[:40],
-                        current_confidence,
-                        genre_ids if genre_ids else "empty",
-                    )
+                logger.debug(
+                    "❌ Non-animation candidate '%s' rejected: %.3f < 0.8 (genre_ids: %s)",
+                    candidate.get("title", "")[:40],
+                    current_confidence,
+                    genre_ids if genre_ids else "empty",
+                )
 
         # Sort by confidence score (highest first)
         boosted_candidates.sort(

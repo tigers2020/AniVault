@@ -135,21 +135,25 @@ class TMDBMatchingWorker(QObject):
         try:
             # Group files by anime title to reduce duplicate TMDB searches
             groups = self._group_files_by_title(self._files_to_match)
-            logger.info("Grouped %d files into %d unique titles", total_files, len(groups))
-            
+            logger.info(
+                "Grouped %d files into %d unique titles",
+                total_files,
+                len(groups),
+            )
+
             processed_files = 0
-            
+
             # Match once per group instead of per file
             for group_title, file_items in groups.items():
                 if self._cancelled:
                     self.matching_cancelled.emit()
                     return
-                
+
                 # Match first file in group to get TMDB result
                 first_file = file_items[0]
                 group_match_result = await self._match_single_file(first_file)
                 match_result = group_match_result.get("match_result")
-                
+
                 # Apply same match result to all files in group
                 for file_item in file_items:
                     result = {
@@ -159,20 +163,20 @@ class TMDBMatchingWorker(QObject):
                         "status": "matched" if match_result else "failed",
                     }
                     matching_results.append(result)
-                    
+
                     # Update matched count
                     if match_result is not None:
                         matched_count += 1
-                    
+
                     # Emit file matched signal for each file
                     self.file_matched.emit(result)
-                    
+
                     processed_files += 1
-                    
+
                     # Emit progress signal
                     progress = int(processed_files * 100 / total_files)
                     self.matching_progress.emit(progress)
-                    
+
                     # Allow GUI to process events
                     QApplication.processEvents()
 
@@ -192,39 +196,41 @@ class TMDBMatchingWorker(QObject):
     def _group_files_by_title(self, files: list[FileItem]) -> dict[str, list[FileItem]]:
         """
         Group files by anime title to reduce duplicate TMDB searches.
-        
+
         Args:
             files: List of FileItem objects
-            
+
         Returns:
             Dictionary mapping anime title to list of FileItem objects
         """
         groups: dict[str, list[FileItem]] = {}
-        
+
         for file_item in files:
             try:
                 # Parse filename to extract title
                 parsing_result = self.parser.parse(file_item.file_name)
-                
+
                 if parsing_result:
                     # Use anime title as group key
-                    title = getattr(parsing_result, "title", None) or file_item.file_name
-                    
+                    title = (
+                        getattr(parsing_result, "title", None) or file_item.file_name
+                    )
+
                     # Normalize title for grouping (lowercase, strip)
                     normalized_title = title.lower().strip()
-                    
+
                     if normalized_title not in groups:
                         groups[normalized_title] = []
                     groups[normalized_title].append(file_item)
                 else:
                     # Failed to parse - use filename as group
                     groups[file_item.file_name] = [file_item]
-                    
+
             except Exception as e:
                 logger.warning("Failed to group file %s: %s", file_item.file_name, e)
                 # Add to separate group
                 groups[file_item.file_name] = [file_item]
-        
+
         return groups
 
     async def _match_single_file(self, file_item: FileItem) -> dict[str, Any]:
@@ -289,29 +295,41 @@ class TMDBMatchingWorker(QObject):
         self._cancelled = True
         logger.info("TMDB matching cancellation requested")
 
-    def _validate_api_key(self) -> bool:
-        """
-        Validate that the API key is properly configured.
+    def _validate_api_key(self) -> None:
+        """Validate that the API key is properly configured.
 
-        Returns:
-            True if API key is valid, False otherwise
+        Raises:
+            SecurityError: If API key is missing or invalid
         """
         from anivault.config import get_config
+        from anivault.shared.errors import SecurityError, ErrorCode
 
         try:
             config = get_config()
             api_key = config.tmdb.api_key
 
             if not api_key or len(api_key.strip()) == 0:
-                logger.warning("No TMDB API key configured")
-                return False
+                raise SecurityError(
+                    code=ErrorCode.MISSING_CONFIG,
+                    message="TMDB API key not configured in settings",
+                    context={"operation": "validate_api_key", "worker": "tmdb_matching"},
+                )
 
             if len(api_key) < 10:  # Basic validation
-                logger.warning("TMDB API key appears to be invalid (too short)")
-                return False
+                raise SecurityError(
+                    code=ErrorCode.INVALID_CONFIG,
+                    message=f"TMDB API key appears invalid (too short: {len(api_key)} characters)",
+                    context={"operation": "validate_api_key", "key_length": len(api_key)},
+                )
 
-            return True
-
+        except SecurityError:
+            # Re-raise SecurityError as-is
+            raise
         except Exception as e:
-            logger.exception("Failed to validate API key: %s", e)
-            return False
+            # Wrap other exceptions in SecurityError
+            raise SecurityError(
+                code=ErrorCode.CONFIG_ERROR,
+                message=f"Failed to validate API key: {e}",
+                context={"operation": "validate_api_key", "error_type": type(e).__name__},
+                original_error=e,
+            ) from e

@@ -4,6 +4,7 @@ Anime Detail Popup - Shows detailed anime information on hover.
 This widget displays comprehensive anime information including title,
 rating, status, genres, and overview in a tooltip-style popup.
 """
+
 from __future__ import annotations
 
 import logging
@@ -81,7 +82,9 @@ class AnimeDetailPopup(QFrame):
         # Genres (up to 3, concise)
         genres = self.anime_info.get("genres", [])
         if genres:
-            genre_names = [g.get("name", "") if isinstance(g, dict) else str(g) for g in genres[:3]]
+            genre_names = [
+                g.get("name", "") if isinstance(g, dict) else str(g) for g in genres[:3]
+            ]
             genre_text = "🎭 " + " · ".join(genre_names)
             genre_label = QLabel(genre_text)
             genre_label.setObjectName("popupGenreLabel")
@@ -176,4 +179,3 @@ class AnimeDetailPopup(QFrame):
                         break
 
         return " · ".join(company_names) if company_names else None
-

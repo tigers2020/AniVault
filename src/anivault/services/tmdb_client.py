@@ -78,7 +78,9 @@ class TMDBClient:
         self._tmdb.api_key = self.config.tmdb.api_key
         self._tmdb.language = language  # Set language BEFORE creating TV/Movie objects
         self._tmdb.region = region
-        self._tmdb.debug = True  # Force debug to see actual API calls with language parameter
+        self._tmdb.debug = (
+            True  # Force debug to see actual API calls with language parameter
+        )
 
         # Store language for explicit parameter passing
         self.language = language
@@ -144,7 +146,9 @@ class TMDBClient:
         #       → "이세계 묵시록"
         #       → "이세계"
         current_words = words.copy()
-        while len(current_words) > 1:  # Changed from > 2 to > 1 for more aggressive fallback
+        while (
+            len(current_words) > 1
+        ):  # Changed from > 2 to > 1 for more aggressive fallback
             current_words.pop()  # Remove last word
             shortened_titles.append(" ".join(current_words))
 
@@ -351,7 +355,9 @@ class TMDBClient:
                                 result["media_type"] = MediaType.TV
                                 # Use TV show 'name' field as 'title' (name is localized, title is original)
                                 if "name" in result:
-                                    result["title"] = result["name"]  # Always use localized name
+                                    result["title"] = result[
+                                        "name"
+                                    ]  # Always use localized name
                                 results.append(result)
                             else:
                                 try:
@@ -369,7 +375,9 @@ class TMDBClient:
                                     result_dict["media_type"] = MediaType.TV
                                     # Use TV show 'name' field as 'title' (name is localized, title is original)
                                     if "name" in result_dict:
-                                        result_dict["title"] = result_dict["name"]  # Always use localized name
+                                        result_dict["title"] = result_dict[
+                                            "name"
+                                        ]  # Always use localized name
                                     results.append(result_dict)
                                 except Exception:
                                     results.append(
@@ -378,8 +386,13 @@ class TMDBClient:
                                             "media_type": MediaType.TV,
                                         },
                                     )
-                    except Exception:
-                        pass  # Continue with movie search
+                    except Exception as e:
+                        # TV search failed, continue with movie search (graceful)
+                        logger.debug(
+                            "TV search failed, continuing with movie search: %s",
+                            str(e),
+                            extra={"title": title, "error_type": type(e).__name__},
+                        )
 
                     # Try movie search with shortened title
                     try:
@@ -417,8 +430,14 @@ class TMDBClient:
                                             "media_type": MediaType.MOVIE,
                                         },
                                     )
-                    except Exception:
-                        pass  # Continue with next shortened title
+                    except Exception as e:
+                        # Movie search with this shortened title failed, try next (graceful)
+                        logger.debug(
+                            "Movie search failed for shortened title '%s', trying next: %s",
+                            shortened_title,
+                            str(e),
+                            extra={"original_title": title, "error_type": type(e).__name__},
+                        )
 
                     # If we found results with shortened title, break
                     if results:
@@ -825,8 +844,13 @@ class TMDBClient:
             retry_after = response.headers.get("Retry-After")
             if retry_after:
                 return float(retry_after)
-        except (ValueError, AttributeError):
-            pass
+        except (ValueError, AttributeError) as e:
+            # Invalid Retry-After value, return None (caller handles default)
+            logger.debug(
+                "Failed to parse Retry-After header: %s",
+                str(e),
+                extra={"header_value": response.headers.get("Retry-After"), "error_type": type(e).__name__},
+            )
 
         return None
 

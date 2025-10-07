@@ -88,7 +88,10 @@ class FolderValidator:
         return True, ""
 
     @staticmethod
-    def validate_folder_pair(source: str | Path, target: str | Path) -> tuple[bool, str]:
+    def validate_folder_pair(
+        source: str | Path,
+        target: str | Path,
+    ) -> tuple[bool, str]:
         """Validate source and target folder pair.
 
         Args:

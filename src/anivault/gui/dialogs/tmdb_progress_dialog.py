@@ -4,17 +4,14 @@ TMDB Progress Dialog for AniVault GUI
 This module contains the TMDBProgressDialog class that provides a progress
 dialog specifically for TMDB matching operations with cancel functionality.
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtWidgets import (
-    QLabel,
-    QProgressDialog,
-    QWidget,
-)
+from PySide6.QtWidgets import QLabel, QProgressDialog, QWidget
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +94,12 @@ class TMDBProgressDialog(QProgressDialog):
         else:
             self.setLabelText("TMDB matching completed!")
 
-    def update_file_status(self, current_file: str, total_files: int, current_index: int) -> None:
+    def update_file_status(
+        self,
+        current_file: str,
+        total_files: int,
+        current_index: int,
+    ) -> None:
         """
         Update the dialog with current file information.
 
@@ -106,7 +108,9 @@ class TMDBProgressDialog(QProgressDialog):
             total_files: Total number of files to process
             current_index: Current file index (0-based)
         """
-        progress = int((current_index + 1) * 100 / total_files) if total_files > 0 else 0
+        progress = (
+            int((current_index + 1) * 100 / total_files) if total_files > 0 else 0
+        )
 
         # Truncate long filenames for display
         display_name = Path(current_file).name
@@ -142,7 +146,11 @@ class TMDBProgressDialog(QProgressDialog):
         # Auto-close after 3 seconds
         QTimer.singleShot(3000, self.accept)
 
-        logger.info("TMDB matching completed: %d/%d files matched", total_matched, total_files)
+        logger.info(
+            "TMDB matching completed: %d/%d files matched",
+            total_matched,
+            total_files,
+        )
 
     def _on_cancel_clicked(self) -> None:
         """Handle cancel button clicked."""
@@ -163,4 +171,3 @@ class TMDBProgressDialog(QProgressDialog):
         self.canceled.connect(self._on_cancel_clicked)
 
         logger.debug("TMDB progress dialog reset")
-

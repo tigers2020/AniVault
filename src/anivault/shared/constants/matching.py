@@ -12,7 +12,7 @@ from .system import BASE_SECOND
 
 class ConfidenceThresholds:
     """Confidence threshold constants for matching.
-    
+
     Note: Thresholds are intentionally low because:
     - File names use Japanese romanization (e.g., "Kaifuku Jutsushi")
     - TMDB returns localized titles (e.g., "회복술사의 재시작")

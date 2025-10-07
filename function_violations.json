@@ -1,0 +1,1772 @@
+{
+  "files_analyzed": 110,
+  "violations_count": 164,
+  "violations": [
+    {
+      "file": "src\\anivault\\cli\\json_formatter.py",
+      "line": 97,
+      "column": 0,
+      "function": "safe_json_serialize",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Function with long docstring (566 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\json_formatter.py",
+      "line": 144,
+      "column": 0,
+      "function": "format_success_output",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (215 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\json_formatter.py",
+      "line": 158,
+      "column": 0,
+      "function": "format_error_output",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (196 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\log_handler.py",
+      "line": 24,
+      "column": 0,
+      "function": "handle_log_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (154 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\log_handler.py",
+      "line": 60,
+      "column": 0,
+      "function": "_handle_log_command_json",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (167 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 89,
+      "column": 0,
+      "function": "_run_match_command_impl",
+      "type": "length",
+      "value": 309,
+      "threshold": 80,
+      "context": "Function with long docstring (185 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 89,
+      "column": 0,
+      "function": "_run_match_command_impl",
+      "type": "complexity",
+      "value": 25,
+      "threshold": 10,
+      "context": "Function with long docstring (185 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 89,
+      "column": 0,
+      "function": "_run_match_command_impl",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (185 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 455,
+      "column": 0,
+      "function": "_display_match_results_impl",
+      "type": "complexity",
+      "value": 14,
+      "threshold": 10,
+      "context": "Function with long docstring (139 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 522,
+      "column": 0,
+      "function": "_collect_match_data",
+      "type": "length",
+      "value": 143,
+      "threshold": 80,
+      "context": "Function with long docstring (207 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 522,
+      "column": 0,
+      "function": "_collect_match_data",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (207 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 667,
+      "column": 0,
+      "function": "match_command",
+      "type": "length",
+      "value": 101,
+      "threshold": 80,
+      "context": "Function with long docstring (1280 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 667,
+      "column": 0,
+      "function": "match_command",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Function with long docstring (1280 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\match_handler.py",
+      "line": 667,
+      "column": 0,
+      "function": "match_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (1280 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 30,
+      "column": 0,
+      "function": "handle_organize_command",
+      "type": "length",
+      "value": 131,
+      "threshold": 80,
+      "context": "Function with long docstring (164 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 30,
+      "column": 0,
+      "function": "handle_organize_command",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Function with long docstring (164 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 30,
+      "column": 0,
+      "function": "handle_organize_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Database",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (164 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 170,
+      "column": 0,
+      "function": "_validate_organize_directory",
+      "type": "length",
+      "value": 89,
+      "threshold": 80,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 170,
+      "column": 0,
+      "function": "_validate_organize_directory",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 261,
+      "column": 0,
+      "function": "_get_scanned_files",
+      "type": "length",
+      "value": 122,
+      "threshold": 80,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 261,
+      "column": 0,
+      "function": "_get_scanned_files",
+      "type": "complexity",
+      "value": 14,
+      "threshold": 10,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 438,
+      "column": 0,
+      "function": "_execute_organization_plan",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 485,
+      "column": 0,
+      "function": "_perform_organization",
+      "type": "length",
+      "value": 101,
+      "threshold": 80,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 485,
+      "column": 0,
+      "function": "_perform_organization",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 588,
+      "column": 0,
+      "function": "_collect_organize_data",
+      "type": "length",
+      "value": 107,
+      "threshold": 80,
+      "context": "Function with long docstring (374 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 588,
+      "column": 0,
+      "function": "_collect_organize_data",
+      "type": "complexity",
+      "value": 12,
+      "threshold": 10,
+      "context": "Function with long docstring (374 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 725,
+      "column": 0,
+      "function": "_generate_enhanced_organization_plan",
+      "type": "length",
+      "value": 109,
+      "threshold": 80,
+      "context": "Function with long docstring (346 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 725,
+      "column": 0,
+      "function": "_generate_enhanced_organization_plan",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Function with long docstring (346 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 836,
+      "column": 0,
+      "function": "organize_command",
+      "type": "length",
+      "value": 120,
+      "threshold": 80,
+      "context": "Function with long docstring (1692 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\organize_handler.py",
+      "line": 836,
+      "column": 0,
+      "function": "organize_command",
+      "type": "parameters",
+      "value": 7,
+      "threshold": 5,
+      "context": "Function with long docstring (1692 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 32,
+      "column": 0,
+      "function": "handle_rollback_command",
+      "type": "length",
+      "value": 94,
+      "threshold": 80,
+      "context": "Function with long docstring (156 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 32,
+      "column": 0,
+      "function": "handle_rollback_command",
+      "type": "complexity",
+      "value": 24,
+      "threshold": 10,
+      "context": "Function with long docstring (156 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 32,
+      "column": 0,
+      "function": "handle_rollback_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Database",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (156 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 128,
+      "column": 0,
+      "function": "_handle_rollback_command_json",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Database",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (169 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 218,
+      "column": 0,
+      "function": "_collect_rollback_data",
+      "type": "length",
+      "value": 104,
+      "threshold": 80,
+      "context": "Function with long docstring (174 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 218,
+      "column": 0,
+      "function": "_collect_rollback_data",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Database",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (174 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 348,
+      "column": 0,
+      "function": "_run_rollback_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Database"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (153 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 473,
+      "column": 0,
+      "function": "_execute_rollback_plan",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "Database",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (53 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\rollback_handler.py",
+      "line": 518,
+      "column": 0,
+      "function": "_perform_rollback",
+      "type": "length",
+      "value": 85,
+      "threshold": 80,
+      "context": "Function with long docstring (279 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\run_handler.py",
+      "line": 32,
+      "column": 0,
+      "function": "handle_run_command",
+      "type": "length",
+      "value": 207,
+      "threshold": 80,
+      "context": "Function with long docstring (187 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\run_handler.py",
+      "line": 32,
+      "column": 0,
+      "function": "handle_run_command",
+      "type": "complexity",
+      "value": 26,
+      "threshold": 10,
+      "context": "Function with long docstring (187 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\run_handler.py",
+      "line": 32,
+      "column": 0,
+      "function": "handle_run_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (187 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\run_handler.py",
+      "line": 408,
+      "column": 0,
+      "function": "_create_match_args",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\run_handler.py",
+      "line": 457,
+      "column": 0,
+      "function": "_handle_run_error",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (217 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\run_handler.py",
+      "line": 516,
+      "column": 0,
+      "function": "run_command",
+      "type": "length",
+      "value": 118,
+      "threshold": 80,
+      "context": "Function with long docstring (1492 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\run_handler.py",
+      "line": 516,
+      "column": 0,
+      "function": "run_command",
+      "type": "parameters",
+      "value": 8,
+      "threshold": 5,
+      "context": "Function with long docstring (1492 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\scan_handler.py",
+      "line": 33,
+      "column": 0,
+      "function": "scan_command",
+      "type": "length",
+      "value": 105,
+      "threshold": 80,
+      "context": "Function with long docstring (1148 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\scan_handler.py",
+      "line": 33,
+      "column": 0,
+      "function": "scan_command",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Function with long docstring (1148 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\scan_handler.py",
+      "line": 140,
+      "column": 0,
+      "function": "_handle_scan_command",
+      "type": "length",
+      "value": 445,
+      "threshold": 80,
+      "context": "Function with long docstring (175 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\scan_handler.py",
+      "line": 140,
+      "column": 0,
+      "function": "_handle_scan_command",
+      "type": "complexity",
+      "value": 68,
+      "threshold": 10,
+      "context": "Function with long docstring (175 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\scan_handler.py",
+      "line": 140,
+      "column": 0,
+      "function": "_handle_scan_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "Network",
+        "I/O",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (175 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\scan_handler.py",
+      "line": 587,
+      "column": 0,
+      "function": "_collect_scan_data",
+      "type": "length",
+      "value": 106,
+      "threshold": 80,
+      "context": "Function with long docstring (258 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\scan_handler.py",
+      "line": 695,
+      "column": 0,
+      "function": "_display_results",
+      "type": "complexity",
+      "value": 16,
+      "threshold": 10,
+      "context": "Function with long docstring (145 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\typer_app.py",
+      "line": 113,
+      "column": 0,
+      "function": "scan_command_typer",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Function with long docstring (1148 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\typer_app.py",
+      "line": 194,
+      "column": 0,
+      "function": "match_command_typer",
+      "type": "length",
+      "value": 82,
+      "threshold": 80,
+      "context": "Function with long docstring (1280 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\typer_app.py",
+      "line": 194,
+      "column": 0,
+      "function": "match_command_typer",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Function with long docstring (1280 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\typer_app.py",
+      "line": 279,
+      "column": 0,
+      "function": "organize_command_typer",
+      "type": "parameters",
+      "value": 7,
+      "threshold": 5,
+      "context": "Function"
+    },
+    {
+      "file": "src\\anivault\\cli\\typer_app.py",
+      "line": 331,
+      "column": 0,
+      "function": "run_command_typer",
+      "type": "length",
+      "value": 100,
+      "threshold": 80,
+      "context": "Function with long docstring (1492 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\typer_app.py",
+      "line": 331,
+      "column": 0,
+      "function": "run_command_typer",
+      "type": "parameters",
+      "value": 8,
+      "threshold": 5,
+      "context": "Function with long docstring (1492 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\verify_handler.py",
+      "line": 18,
+      "column": 0,
+      "function": "handle_verify_command",
+      "type": "length",
+      "value": 86,
+      "threshold": 80,
+      "context": "Function with long docstring (170 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\verify_handler.py",
+      "line": 18,
+      "column": 0,
+      "function": "handle_verify_command",
+      "type": "complexity",
+      "value": 24,
+      "threshold": 10,
+      "context": "Function with long docstring (170 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\verify_handler.py",
+      "line": 18,
+      "column": 0,
+      "function": "handle_verify_command",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (170 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\verify_handler.py",
+      "line": 106,
+      "column": 0,
+      "function": "_handle_verify_command_json",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (183 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\verify_handler.py",
+      "line": 140,
+      "column": 0,
+      "function": "_handle_verify_command_console",
+      "type": "length",
+      "value": 94,
+      "threshold": 80,
+      "context": "Function with long docstring (186 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\verify_handler.py",
+      "line": 140,
+      "column": 0,
+      "function": "_handle_verify_command_console",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Function with long docstring (186 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\verify_handler.py",
+      "line": 236,
+      "column": 0,
+      "function": "_collect_verify_data",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Function with long docstring (186 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\common\\error_handler.py",
+      "line": 61,
+      "column": 0,
+      "function": "handle_cli_error",
+      "type": "length",
+      "value": 124,
+      "threshold": 80,
+      "context": "Function with long docstring (267 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\common\\error_handler.py",
+      "line": 61,
+      "column": 0,
+      "function": "handle_cli_error",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (267 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\common\\error_handler.py",
+      "line": 187,
+      "column": 0,
+      "function": "handle_specific_exceptions",
+      "type": "length",
+      "value": 91,
+      "threshold": 80,
+      "context": "Function with long docstring (279 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\common\\error_handler.py",
+      "line": 187,
+      "column": 0,
+      "function": "handle_specific_exceptions",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Function with long docstring (279 chars)"
+    },
+    {
+      "file": "src\\anivault\\cli\\common\\error_handler.py",
+      "line": 187,
+      "column": 0,
+      "function": "handle_specific_exceptions",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (279 chars)"
+    },
+    {
+      "file": "src\\anivault\\config\\auto_scanner.py",
+      "line": 161,
+      "column": 4,
+      "function": "update_folder_settings",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Method in class AutoScanner"
+    },
+    {
+      "file": "src\\anivault\\config\\loader.py",
+      "line": 146,
+      "column": 4,
+      "function": "load_validated_config",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class ConfigLoader"
+    },
+    {
+      "file": "src\\anivault\\config\\settings.py",
+      "line": 364,
+      "column": 4,
+      "function": "from_environment",
+      "type": "length",
+      "value": 84,
+      "threshold": 80,
+      "context": "Method in class Settings"
+    },
+    {
+      "file": "src\\anivault\\config\\settings.py",
+      "line": 467,
+      "column": 0,
+      "function": "_load_env_file",
+      "type": "complexity",
+      "value": 15,
+      "threshold": 10,
+      "context": "Function with long docstring (55 chars)"
+    },
+    {
+      "file": "src\\anivault\\core\\benchmark.py",
+      "line": 184,
+      "column": 4,
+      "function": "create_sample_dataset",
+      "type": "length",
+      "value": 111,
+      "threshold": 80,
+      "context": "Method in class BenchmarkRunner"
+    },
+    {
+      "file": "src\\anivault\\core\\file_grouper.py",
+      "line": 97,
+      "column": 4,
+      "function": "score_title_quality",
+      "type": "complexity",
+      "value": 13,
+      "threshold": 10,
+      "context": "Method in class TitleQualityEvaluator"
+    },
+    {
+      "file": "src\\anivault\\core\\file_grouper.py",
+      "line": 149,
+      "column": 4,
+      "function": "select_better_title",
+      "type": "complexity",
+      "value": 12,
+      "threshold": 10,
+      "context": "Method in class TitleQualityEvaluator"
+    },
+    {
+      "file": "src\\anivault\\core\\file_grouper.py",
+      "line": 202,
+      "column": 4,
+      "function": "merge_similar_group_names",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class GroupNameManager"
+    },
+    {
+      "file": "src\\anivault\\core\\file_grouper.py",
+      "line": 271,
+      "column": 4,
+      "function": "group_files",
+      "type": "length",
+      "value": 92,
+      "threshold": 80,
+      "context": "Method in class FileGrouper"
+    },
+    {
+      "file": "src\\anivault\\core\\file_grouper.py",
+      "line": 271,
+      "column": 4,
+      "function": "group_files",
+      "type": "complexity",
+      "value": 14,
+      "threshold": 10,
+      "context": "Method in class FileGrouper"
+    },
+    {
+      "file": "src\\anivault\\core\\file_grouper.py",
+      "line": 475,
+      "column": 4,
+      "function": "_merge_using_union_find",
+      "type": "complexity",
+      "value": 16,
+      "threshold": 10,
+      "context": "Method in class FileGrouper"
+    },
+    {
+      "file": "src\\anivault\\core\\filter.py",
+      "line": 90,
+      "column": 4,
+      "function": "should_skip_file",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class FilterEngine"
+    },
+    {
+      "file": "src\\anivault\\core\\normalization.py",
+      "line": 301,
+      "column": 0,
+      "function": "_detect_language",
+      "type": "complexity",
+      "value": 12,
+      "threshold": 10,
+      "context": "Function with long docstring (374 chars)"
+    },
+    {
+      "file": "src\\anivault\\core\\resolution_detector.py",
+      "line": 56,
+      "column": 4,
+      "function": "detect_resolution",
+      "type": "length",
+      "value": 84,
+      "threshold": 80,
+      "context": "Method in class ResolutionDetector"
+    },
+    {
+      "file": "src\\anivault\\core\\resolution_detector.py",
+      "line": 56,
+      "column": 4,
+      "function": "detect_resolution",
+      "type": "complexity",
+      "value": 13,
+      "threshold": 10,
+      "context": "Method in class ResolutionDetector"
+    },
+    {
+      "file": "src\\anivault\\core\\resolution_detector.py",
+      "line": 141,
+      "column": 4,
+      "function": "_classify_resolution",
+      "type": "complexity",
+      "value": 13,
+      "threshold": 10,
+      "context": "Method in class ResolutionDetector"
+    },
+    {
+      "file": "src\\anivault\\core\\statistics.py",
+      "line": 130,
+      "column": 4,
+      "function": "record_matching_operation",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Method in class StatisticsCollector"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\engine.py",
+      "line": 68,
+      "column": 4,
+      "function": "_search_tmdb",
+      "type": "length",
+      "value": 89,
+      "threshold": 80,
+      "context": "Method in class MatchingEngine"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\engine.py",
+      "line": 158,
+      "column": 4,
+      "function": "_score_candidates",
+      "type": "complexity",
+      "value": 13,
+      "threshold": 10,
+      "context": "Method in class MatchingEngine"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\engine.py",
+      "line": 227,
+      "column": 4,
+      "function": "_filter_and_sort_by_year",
+      "type": "length",
+      "value": 86,
+      "threshold": 80,
+      "context": "Method in class MatchingEngine"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\engine.py",
+      "line": 441,
+      "column": 4,
+      "function": "_validate_and_normalize_input",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Database",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Method in class MatchingEngine"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\engine.py",
+      "line": 684,
+      "column": 4,
+      "function": "_apply_genre_filter",
+      "type": "length",
+      "value": 82,
+      "threshold": 80,
+      "context": "Method in class MatchingEngine"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\engine.py",
+      "line": 767,
+      "column": 4,
+      "function": "_apply_partial_substring_match",
+      "type": "length",
+      "value": 85,
+      "threshold": 80,
+      "context": "Method in class MatchingEngine"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\scoring.py",
+      "line": 17,
+      "column": 0,
+      "function": "calculate_confidence_score",
+      "type": "length",
+      "value": 136,
+      "threshold": 80,
+      "context": "Function with long docstring (1475 chars)"
+    },
+    {
+      "file": "src\\anivault\\core\\matching\\scoring.py",
+      "line": 17,
+      "column": 0,
+      "function": "calculate_confidence_score",
+      "type": "complexity",
+      "value": 16,
+      "threshold": 10,
+      "context": "Function with long docstring (1475 chars)"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\collector.py",
+      "line": 126,
+      "column": 4,
+      "function": "run",
+      "type": "length",
+      "value": 114,
+      "threshold": 80,
+      "context": "Method in class ResultCollector"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\collector.py",
+      "line": 310,
+      "column": 4,
+      "function": "_store_result_with_error_handling",
+      "type": "length",
+      "value": 81,
+      "threshold": 80,
+      "context": "Method in class ResultCollector"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\main.py",
+      "line": 104,
+      "column": 0,
+      "function": "_create_pipeline_components",
+      "type": "length",
+      "value": 114,
+      "threshold": 80,
+      "context": "Function with long docstring (498 chars)"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\main.py",
+      "line": 641,
+      "column": 0,
+      "function": "run_pipeline",
+      "type": "length",
+      "value": 148,
+      "threshold": 80,
+      "context": "Function with long docstring (745 chars)"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\main.py",
+      "line": 641,
+      "column": 0,
+      "function": "run_pipeline",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (745 chars)"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parallel_scanner.py",
+      "line": 41,
+      "column": 4,
+      "function": "__init__",
+      "type": "parameters",
+      "value": 7,
+      "threshold": 5,
+      "context": "Method in class ParallelDirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parallel_scanner.py",
+      "line": 70,
+      "column": 4,
+      "function": "_recursive_scan_directory",
+      "type": "complexity",
+      "value": 12,
+      "threshold": 10,
+      "context": "Method in class ParallelDirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parallel_scanner.py",
+      "line": 70,
+      "column": 4,
+      "function": "_recursive_scan_directory",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class ParallelDirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parallel_scanner.py",
+      "line": 118,
+      "column": 4,
+      "function": "_scan_root_directories",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class ParallelDirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parallel_scanner.py",
+      "line": 268,
+      "column": 4,
+      "function": "_await_scan_completion",
+      "type": "length",
+      "value": 99,
+      "threshold": 80,
+      "context": "Method in class ParallelDirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parallel_scanner.py",
+      "line": 458,
+      "column": 4,
+      "function": "_scan_root_files",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class ParallelDirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parallel_scanner.py",
+      "line": 458,
+      "column": 4,
+      "function": "_scan_root_files",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class ParallelDirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parser.py",
+      "line": 38,
+      "column": 4,
+      "function": "__init__",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Method in class ParserWorker"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\parser.py",
+      "line": 446,
+      "column": 4,
+      "function": "__init__",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Method in class ParserWorkerPool"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 39,
+      "column": 4,
+      "function": "__init__",
+      "type": "parameters",
+      "value": 12,
+      "threshold": 5,
+      "context": "Method in class DirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 314,
+      "column": 4,
+      "function": "_parallel_scan_directory",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class DirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 416,
+      "column": 4,
+      "function": "_get_immediate_subdirectories",
+      "type": "complexity",
+      "value": 13,
+      "threshold": 10,
+      "context": "Method in class DirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 416,
+      "column": 4,
+      "function": "_get_immediate_subdirectories",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class DirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 451,
+      "column": 4,
+      "function": "_scan_root_files",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class DirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 502,
+      "column": 4,
+      "function": "_should_use_parallel",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "Network"
+      ],
+      "threshold": 1,
+      "context": "Method in class DirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\core\\pipeline\\scanner.py",
+      "line": 614,
+      "column": 4,
+      "function": "_run_parallel_scan",
+      "type": "mixed_responsibilities",
+      "value": [
+        "UI",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class DirectoryScanner"
+    },
+    {
+      "file": "src\\anivault\\gui\\models.py",
+      "line": 160,
+      "column": 4,
+      "function": "update_file_match_result",
+      "type": "complexity",
+      "value": 12,
+      "threshold": 10,
+      "context": "Method in class FileTreeModel"
+    },
+    {
+      "file": "src\\anivault\\gui\\controllers\\scan_controller.py",
+      "line": 154,
+      "column": 4,
+      "function": "group_files_by_tmdb_title",
+      "type": "length",
+      "value": 112,
+      "threshold": 80,
+      "context": "Method in class ScanController"
+    },
+    {
+      "file": "src\\anivault\\gui\\controllers\\scan_controller.py",
+      "line": 154,
+      "column": 4,
+      "function": "group_files_by_tmdb_title",
+      "type": "complexity",
+      "value": 24,
+      "threshold": 10,
+      "context": "Method in class ScanController"
+    },
+    {
+      "file": "src\\anivault\\gui\\controllers\\scan_controller.py",
+      "line": 267,
+      "column": 4,
+      "function": "group_files",
+      "type": "length",
+      "value": 99,
+      "threshold": 80,
+      "context": "Method in class ScanController"
+    },
+    {
+      "file": "src\\anivault\\gui\\controllers\\scan_controller.py",
+      "line": 267,
+      "column": 4,
+      "function": "group_files",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class ScanController"
+    },
+    {
+      "file": "src\\anivault\\gui\\controllers\\tmdb_controller.py",
+      "line": 134,
+      "column": 4,
+      "function": "_start_matching_thread",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Business Logic",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class TMDBController"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\anime_detail_popup.py",
+      "line": 36,
+      "column": 4,
+      "function": "_setup_ui",
+      "type": "length",
+      "value": 82,
+      "threshold": 80,
+      "context": "Method in class AnimeDetailPopup"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\anime_detail_popup.py",
+      "line": 36,
+      "column": 4,
+      "function": "_setup_ui",
+      "type": "complexity",
+      "value": 17,
+      "threshold": 10,
+      "context": "Method in class AnimeDetailPopup"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 44,
+      "column": 4,
+      "function": "_setup_card",
+      "type": "length",
+      "value": 115,
+      "threshold": 80,
+      "context": "Method in class GroupCardWidget"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 44,
+      "column": 4,
+      "function": "_setup_card",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class GroupCardWidget"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 160,
+      "column": 4,
+      "function": "_create_poster_widget",
+      "type": "length",
+      "value": 106,
+      "threshold": 80,
+      "context": "Method in class GroupCardWidget"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 160,
+      "column": 4,
+      "function": "_create_poster_widget",
+      "type": "complexity",
+      "value": 14,
+      "threshold": 10,
+      "context": "Method in class GroupCardWidget"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 267,
+      "column": 4,
+      "function": "_get_anime_info",
+      "type": "length",
+      "value": 97,
+      "threshold": 80,
+      "context": "Method in class GroupCardWidget"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 267,
+      "column": 4,
+      "function": "_get_anime_info",
+      "type": "complexity",
+      "value": 18,
+      "threshold": 10,
+      "context": "Method in class GroupCardWidget"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_card_widget.py",
+      "line": 516,
+      "column": 4,
+      "function": "_load_tmdb_poster",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "I/O"
+      ],
+      "threshold": 1,
+      "context": "Method in class GroupCardWidget"
+    },
+    {
+      "file": "src\\anivault\\gui\\widgets\\group_grid_view.py",
+      "line": 245,
+      "column": 4,
+      "function": "_update_group_card_name",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class GroupGridViewWidget"
+    },
+    {
+      "file": "src\\anivault\\security\\keyring.py",
+      "line": 133,
+      "column": 4,
+      "function": "save_key",
+      "type": "complexity",
+      "value": 12,
+      "threshold": 10,
+      "context": "Method in class Keyring"
+    },
+    {
+      "file": "src\\anivault\\security\\keyring.py",
+      "line": 181,
+      "column": 4,
+      "function": "load_key",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class Keyring"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 86,
+      "column": 4,
+      "function": "enrich_metadata",
+      "type": "length",
+      "value": 200,
+      "threshold": 80,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 86,
+      "column": 4,
+      "function": "enrich_metadata",
+      "type": "complexity",
+      "value": 15,
+      "threshold": 10,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 301,
+      "column": 4,
+      "function": "enrich_batch",
+      "type": "length",
+      "value": 149,
+      "threshold": 80,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 468,
+      "column": 4,
+      "function": "_find_best_match",
+      "type": "length",
+      "value": 132,
+      "threshold": 80,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 468,
+      "column": 4,
+      "function": "_find_best_match",
+      "type": "complexity",
+      "value": 12,
+      "threshold": 10,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 601,
+      "column": 4,
+      "function": "_calculate_match_score",
+      "type": "length",
+      "value": 128,
+      "threshold": 80,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 601,
+      "column": 4,
+      "function": "_calculate_match_score",
+      "type": "complexity",
+      "value": 26,
+      "threshold": 10,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 730,
+      "column": 4,
+      "function": "_calculate_title_similarity",
+      "type": "length",
+      "value": 81,
+      "threshold": 80,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\metadata_enricher.py",
+      "line": 730,
+      "column": 4,
+      "function": "_calculate_title_similarity",
+      "type": "complexity",
+      "value": 15,
+      "threshold": 10,
+      "context": "Method in class MetadataEnricher"
+    },
+    {
+      "file": "src\\anivault\\services\\rate_limiter.py",
+      "line": 138,
+      "column": 4,
+      "function": "try_acquire",
+      "type": "length",
+      "value": 88,
+      "threshold": 80,
+      "context": "Method in class TokenBucketRateLimiter"
+    },
+    {
+      "file": "src\\anivault\\services\\semaphore_manager.py",
+      "line": 89,
+      "column": 4,
+      "function": "acquire",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class SemaphoreManager"
+    },
+    {
+      "file": "src\\anivault\\services\\sqlite_cache_db.py",
+      "line": 269,
+      "column": 4,
+      "function": "set_cache",
+      "type": "length",
+      "value": 126,
+      "threshold": 80,
+      "context": "Method in class SQLiteCacheDB"
+    },
+    {
+      "file": "src\\anivault\\services\\sqlite_cache_db.py",
+      "line": 269,
+      "column": 4,
+      "function": "set_cache",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Method in class SQLiteCacheDB"
+    },
+    {
+      "file": "src\\anivault\\services\\sqlite_cache_db.py",
+      "line": 396,
+      "column": 4,
+      "function": "get",
+      "type": "length",
+      "value": 124,
+      "threshold": 80,
+      "context": "Method in class SQLiteCacheDB"
+    },
+    {
+      "file": "src\\anivault\\services\\sqlite_cache_db.py",
+      "line": 396,
+      "column": 4,
+      "function": "get",
+      "type": "complexity",
+      "value": 18,
+      "threshold": 10,
+      "context": "Method in class SQLiteCacheDB"
+    },
+    {
+      "file": "src\\anivault\\services\\sqlite_cache_db.py",
+      "line": 705,
+      "column": 4,
+      "function": "get_cache_info",
+      "type": "complexity",
+      "value": 13,
+      "threshold": 10,
+      "context": "Method in class SQLiteCacheDB"
+    },
+    {
+      "file": "src\\anivault\\services\\tmdb_client.py",
+      "line": 47,
+      "column": 4,
+      "function": "__init__",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Method in class TMDBClient"
+    },
+    {
+      "file": "src\\anivault\\services\\tmdb_client.py",
+      "line": 165,
+      "column": 4,
+      "function": "search_media",
+      "type": "length",
+      "value": 305,
+      "threshold": 80,
+      "context": "Method in class TMDBClient"
+    },
+    {
+      "file": "src\\anivault\\services\\tmdb_client.py",
+      "line": 165,
+      "column": 4,
+      "function": "search_media",
+      "type": "complexity",
+      "value": 48,
+      "threshold": 10,
+      "context": "Method in class TMDBClient"
+    },
+    {
+      "file": "src\\anivault\\services\\tmdb_client.py",
+      "line": 471,
+      "column": 4,
+      "function": "get_media_details",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class TMDBClient"
+    },
+    {
+      "file": "src\\anivault\\services\\tmdb_client.py",
+      "line": 768,
+      "column": 4,
+      "function": "_convert_tmdb_exception",
+      "type": "complexity",
+      "value": 11,
+      "threshold": 10,
+      "context": "Method in class TMDBClient"
+    },
+    {
+      "file": "src\\anivault\\shared\\cache_utils.py",
+      "line": 76,
+      "column": 0,
+      "function": "generate_cache_key",
+      "type": "length",
+      "value": 87,
+      "threshold": 80,
+      "context": "Function with long docstring (2082 chars)"
+    },
+    {
+      "file": "src\\anivault\\shared\\errors.py",
+      "line": 413,
+      "column": 4,
+      "function": "__init__",
+      "type": "parameters",
+      "value": 7,
+      "threshold": 5,
+      "context": "Method in class CliError"
+    },
+    {
+      "file": "src\\anivault\\shared\\logging.py",
+      "line": 68,
+      "column": 0,
+      "function": "setup_structured_logger",
+      "type": "mixed_responsibilities",
+      "value": [
+        "Network",
+        "Business Logic"
+      ],
+      "threshold": 1,
+      "context": "Function with long docstring (184 chars)"
+    },
+    {
+      "file": "src\\anivault\\shared\\logging.py",
+      "line": 165,
+      "column": 0,
+      "function": "log_operation_success",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Function with long docstring (194 chars)"
+    },
+    {
+      "file": "src\\anivault\\shared\\logging.py",
+      "line": 268,
+      "column": 0,
+      "function": "log_api_call",
+      "type": "parameters",
+      "value": 6,
+      "threshold": 5,
+      "context": "Function with long docstring (242 chars)"
+    },
+    {
+      "file": "src\\anivault\\shared\\logging.py",
+      "line": 319,
+      "column": 0,
+      "function": "log_file_operation",
+      "type": "parameters",
+      "value": 7,
+      "threshold": 5,
+      "context": "Function with long docstring (283 chars)"
+    },
+    {
+      "file": "src\\anivault\\utils\\logging_config.py",
+      "line": 87,
+      "column": 0,
+      "function": "setup_logging",
+      "type": "length",
+      "value": 81,
+      "threshold": 80,
+      "context": "Function with long docstring (703 chars)"
+    },
+    {
+      "file": "src\\anivault\\utils\\logging_config.py",
+      "line": 87,
+      "column": 0,
+      "function": "setup_logging",
+      "type": "parameters",
+      "value": 9,
+      "threshold": 5,
+      "context": "Function with long docstring (703 chars)"
+    }
+  ]
+}

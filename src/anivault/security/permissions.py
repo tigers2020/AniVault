@@ -98,7 +98,8 @@ def _set_windows_permissions(file_path: Path) -> None:
 
         # Get current user's SID
         user_sid = win32security.GetFileSecurity(
-            str(file_path), win32security.OWNER_SECURITY_INFORMATION,
+            str(file_path),
+            win32security.OWNER_SECURITY_INFORMATION,
         ).GetSecurityDescriptorOwner()
 
         # Create new DACL with owner-only access
@@ -154,7 +155,9 @@ def validate_api_key_not_in_data(data: dict[str, Any]) -> None:
 
     context = ErrorContext(
         operation="validate_api_key",
-        additional_data={"data_keys": list(data.keys()) if isinstance(data, dict) else None},
+        additional_data={
+            "data_keys": list(data.keys()) if isinstance(data, dict) else None,
+        },
     )
 
     def check_dict(d: dict[str, Any], path: str = "") -> None:
@@ -183,4 +186,3 @@ def validate_api_key_not_in_data(data: dict[str, Any]) -> None:
 
     if isinstance(data, dict):
         check_dict(data)
-

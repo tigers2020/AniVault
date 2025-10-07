@@ -205,8 +205,25 @@ class DirectoryScanner(threading.Thread):
             # Get file stats for filtering
             file_stat = file_path.stat()
             return not self.filter_engine.should_skip_file(file_path, file_stat)
-        except (OSError, PermissionError):
-            # Skip files we can't stat
+        except PermissionError as e:
+            # Skip files we can't stat (permission denied)
+            logger.warning(
+                "Skipping file due to permission error: %s",
+                file_path,
+                extra={"error": str(e), "operation": "should_include_file"},
+            )
+            # Note: stats.increment_skipped() not available yet
+            # Skipped files are tracked implicitly
+            return False
+        except OSError as e:
+            # Skip files we can't stat (OS error)
+            logger.warning(
+                "Skipping file due to OS error: %s",
+                file_path,
+                extra={"error": str(e), "operation": "should_include_file"},
+            )
+            # Note: stats.increment_skipped() not available yet
+            # Skipped files are tracked implicitly
             return False
 
     def scan(self) -> Generator[list[Path], None, None]:
@@ -352,9 +369,9 @@ class DirectoryScanner(threading.Thread):
             # Count this directory
             directories_scanned += 1
 
-        except (OSError, PermissionError) as e:
+        except (OSError, PermissionError):
             # Log permission errors but continue scanning
-            print(f"Warning: Cannot scan directory {directory}: {e}")
+            logger.warning("Cannot scan directory: %s", directory, exc_info=True)
 
         return found_files, directories_scanned
 
@@ -407,8 +424,25 @@ class DirectoryScanner(threading.Thread):
                 file_stat = entry.stat()
                 if self.filter_engine.should_skip_file(file_path, file_stat):
                     return None  # Skip this file
-            except (OSError, PermissionError):
-                # Skip files we can't stat
+            except PermissionError as e:
+                # Skip files we can't stat (permission denied)
+                logger.warning(
+                    "Skipping file entry due to permission error: %s",
+                    file_path,
+                    extra={"error": str(e), "operation": "process_file_entry"},
+                )
+                # Note: stats.increment_skipped() not available yet
+            # Skipped files are tracked implicitly
+                return None
+            except OSError as e:
+                # Skip files we can't stat (OS error)
+                logger.warning(
+                    "Skipping file entry due to OS error: %s",
+                    file_path,
+                    extra={"error": str(e), "operation": "process_file_entry"},
+                )
+                # Note: stats.increment_skipped() not available yet
+            # Skipped files are tracked implicitly
                 return None
 
         return file_path
@@ -443,8 +477,8 @@ class DirectoryScanner(threading.Thread):
                     except (OSError, PermissionError):
                         continue
 
-        except (OSError, PermissionError) as e:
-            print(f"Warning: Error accessing root directory: {e}")
+        except (OSError, PermissionError):
+            logger.warning("Error accessing root directory", exc_info=True)
 
         return subdirectories
 
@@ -475,8 +509,8 @@ class DirectoryScanner(threading.Thread):
                     except (OSError, PermissionError):
                         continue
 
-        except (OSError, PermissionError) as e:
-            print(f"Warning: Cannot scan root directory: {e}")
+        except (OSError, PermissionError):
+            logger.warning("Cannot scan root directory", exc_info=True)
 
         return root_files
 
@@ -496,7 +530,21 @@ class DirectoryScanner(threading.Thread):
                 if file_count > self.parallel_threshold * 2:
                     break
             return file_count
-        except (OSError, PermissionError):
+        except PermissionError as e:
+            # Can't walk directory (permission denied) - return 0 as fallback
+            logger.warning(
+                "Cannot estimate file count due to permission error: %s",
+                self.root_path,
+                extra={"error": str(e), "operation": "estimate_total_files"},
+            )
+            return 0
+        except OSError as e:
+            # Can't walk directory (OS error) - return 0 as fallback
+            logger.warning(
+                "Cannot estimate file count due to OS error: %s",
+                self.root_path,
+                extra={"error": str(e), "operation": "estimate_total_files"},
+            )
             return 0
 
     def _should_use_parallel(self) -> bool:
@@ -513,9 +561,10 @@ class DirectoryScanner(threading.Thread):
         should_use_parallel = estimated_files >= self.parallel_threshold
 
         if not should_use_parallel and not getattr(self, "_quiet_mode", False):
-            print(
-                f"Adaptive threshold: Sequential scanning recommended for {estimated_files} files "
-                f"(threshold: {self.parallel_threshold})",
+            logger.info(
+                "Adaptive threshold: Sequential scanning recommended for %d files (threshold: %d)",
+                estimated_files,
+                self.parallel_threshold,
             )
 
         return should_use_parallel
@@ -538,8 +587,8 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
-            except Exception as e:  # noqa: BLE001
-                print(f"Warning: Failed to queue file {file_path}: {e}")
+            except Exception:  # noqa: BLE001
+                logger.warning("Failed to queue file: %s", file_path, exc_info=True)
                 continue
 
         return queued_count
@@ -574,11 +623,11 @@ class DirectoryScanner(threading.Thread):
         try:
             # Validate root path
             if not self.root_path.exists():
-                print(f"Warning: Root path does not exist: {self.root_path}")
+                logger.warning("Root path does not exist: %s", self.root_path)
                 return
 
             if not self.root_path.is_dir():
-                print(f"Warning: Root path is not a directory: {self.root_path}")
+                logger.warning("Root path is not a directory: %s", self.root_path)
                 return
 
             # Use adaptive threshold to determine if parallel processing is beneficial
@@ -587,14 +636,14 @@ class DirectoryScanner(threading.Thread):
             else:
                 self._run_sequential_scan()
 
-        except Exception as e:  # noqa: BLE001
-            print(f"Error during directory scanning: {e}")
+        except Exception:
+            logger.exception("Error during directory scanning")
         finally:
             # Signal completion with sentinel
             try:
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
-            except Exception as e:  # noqa: BLE001
-                print(f"Warning: Failed to put sentinel value: {e}")
+            except Exception:  # noqa: BLE001
+                logger.warning("Failed to put sentinel value", exc_info=True)
 
     def _run_sequential_scan(self) -> None:
         """Run sequential directory scanning using the original method."""
@@ -607,8 +656,8 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path)
                 self.stats.increment_files_scanned()
-            except Exception as e:  # noqa: BLE001
-                print(f"Error putting file {file_path} into queue: {e}")
+            except Exception:
+                logger.exception("Error putting file into queue: %s", file_path)
                 continue
 
     def _run_parallel_scan(self) -> None:
@@ -619,9 +668,10 @@ class DirectoryScanner(threading.Thread):
         # Also scan the root directory itself for files
         root_files = self._scan_root_files()
 
-        print(
-            f"Parallel scanning {len(subdirectories)} subdirectories "
-            f"using {self.max_workers} workers",
+        logger.info(
+            "Parallel scanning %d subdirectories using %d workers",
+            len(subdirectories),
+            self.max_workers,
         )
 
         # Use ThreadPoolExecutor for parallel directory scanning
@@ -659,9 +709,9 @@ class DirectoryScanner(threading.Thread):
                     # Update statistics (thread-safe)
                     self._thread_safe_update_stats(queued_files, dirs_scanned)
 
-                except Exception as e:  # noqa: BLE001
+                except Exception:
                     subdir = future_to_dir[future]
-                    print(f"Error processing subdirectory {subdir}: {e}")
+                    logger.exception("Error processing subdirectory: %s", subdir)
                     continue
 
     def get_scan_summary(self) -> dict[str, Any]:

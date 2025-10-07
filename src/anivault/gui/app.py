@@ -4,6 +4,7 @@ Main GUI Application Entry Point
 This module contains the main application class that initializes
 and runs the AniVault GUI application.
 """
+
 from __future__ import annotations
 
 import logging
@@ -46,9 +47,8 @@ class AniVaultGUI:
             self.app.setApplicationVersion("1.0.0")
             self.app.setOrganizationName("AniVault")
 
-            # Set application properties
-            self.app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-            self.app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+            # High DPI scaling is enabled by default in Qt6
+            # No need to set deprecated attributes
 
             # Initialize configuration manager
             self.config_manager = ConfigManager()
@@ -120,7 +120,10 @@ class AniVaultGUI:
             logger.warning("Failed to load initial theme, using default: %s", e)
             # Fallback to default theme
             try:
-                self.theme_manager.load_and_apply_theme(self.app, ThemeManager.DEFAULT_THEME)
+                self.theme_manager.load_and_apply_theme(
+                    self.app,
+                    ThemeManager.DEFAULT_THEME,
+                )
             except Exception as fallback_error:
                 logger.exception("Failed to apply fallback theme: %s", fallback_error)
 
@@ -146,7 +149,9 @@ class AniVaultGUI:
             return
 
         try:
-            should_scan, _source_folder = self.auto_scanner.should_auto_scan_on_startup()
+            should_scan, _source_folder = (
+                self.auto_scanner.should_auto_scan_on_startup()
+            )
             if should_scan:
                 logger.info("Auto scan on startup enabled, starting scan...")
                 success, message = self.auto_scanner.perform_auto_scan()
@@ -156,14 +161,30 @@ class AniVaultGUI:
                     logger.warning("Auto scan on startup failed: %s", message)
             else:
                 logger.info("Auto scan on startup not enabled or configured")
-        except Exception as e:
-            logger.exception("Error during auto scan startup check: %s", e)
+        except Exception:
+            # ApplicationError from should_auto_scan_on_startup provides detailed context
+            logger.exception("Error during auto scan startup check")
+            # Continue app startup gracefully
 
     def cleanup(self) -> None:
         """Clean up application resources."""
-        if self.app:
-            self.app.quit()
-            logger.info("GUI application cleaned up")
+        try:
+            # Clean up controllers and threads first
+            if self.main_window:
+                # Ensure all threads are properly cleaned up
+                if hasattr(self.main_window, 'scan_controller'):
+                    # ScanController doesn't have _cleanup_scanning_thread method
+                    # Thread cleanup is handled in _start_scanning_thread
+                    pass
+                if hasattr(self.main_window, 'tmdb_controller'):
+                    self.main_window.tmdb_controller._cleanup_matching_thread()
+            
+            # Quit application
+            if self.app:
+                self.app.quit()
+                logger.info("GUI application cleaned up")
+        except Exception as e:
+            logger.exception("Error during cleanup: %s", e)
 
 
 def main() -> int:

@@ -137,6 +137,7 @@ class ConfigStorage:
         try:
             # Load existing TOML config
             from anivault.config.loader import ConfigLoader
+
             loader = ConfigLoader(self.config_path)
             toml_config = loader.load_toml_config()
 

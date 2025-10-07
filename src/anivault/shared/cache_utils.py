@@ -18,6 +18,7 @@ Example:
 Author: AniVault Development Team
 Date: 2025-01-06
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -159,4 +160,3 @@ def generate_cache_key(
     key_hash = hashlib.sha256(cache_key.encode("utf-8")).hexdigest()
 
     return cache_key, key_hash
-

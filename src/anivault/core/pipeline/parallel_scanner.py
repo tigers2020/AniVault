@@ -109,9 +109,9 @@ class ParallelDirectoryScanner(threading.Thread):
             # Count this directory
             directories_scanned += 1
 
-        except (OSError, PermissionError) as e:
+        except (OSError, PermissionError):
             # Log permission errors but continue scanning
-            print(f"Warning: Cannot scan directory {directory}: {e}")
+            logger.warning("Cannot scan directory: %s", directory, exc_info=True)
 
         return found_files, directories_scanned
 
@@ -139,8 +139,8 @@ class ParallelDirectoryScanner(threading.Thread):
                     except (OSError, PermissionError):
                         continue
 
-        except (OSError, PermissionError) as e:
-            print(f"Warning: Error accessing root directory: {e}")
+        except (OSError, PermissionError):
+            logger.warning("Error accessing root directory", exc_info=True)
 
         return subdirectories
 
@@ -162,8 +162,8 @@ class ParallelDirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
-            except Exception as e:  # noqa: BLE001
-                print(f"Warning: Failed to queue file {file_path}: {e}")
+            except Exception:  # noqa: BLE001
+                logger.warning("Failed to queue file: %s", file_path, exc_info=True)
                 continue
 
         return queued_count
@@ -418,11 +418,11 @@ class ParallelDirectoryScanner(threading.Thread):
         try:
             # Validate root path
             if not self.root_path.exists():
-                print(f"Warning: Root path does not exist: {self.root_path}")
+                logger.warning("Root path does not exist: %s", self.root_path)
                 return
 
             if not self.root_path.is_dir():
-                print(f"Warning: Root path is not a directory: {self.root_path}")
+                logger.warning("Root path is not a directory: %s", self.root_path)
                 return
 
             # Get immediate subdirectories for parallel processing
@@ -431,9 +431,10 @@ class ParallelDirectoryScanner(threading.Thread):
             # Also scan the root directory itself for files
             root_files = self._scan_root_files()
 
-            print(
-                f"Parallel scanning {len(subdirectories)} subdirectories "
-                f"using {self.max_workers} workers",
+            logger.info(
+                "Parallel scanning %d subdirectories using %d workers",
+                len(subdirectories),
+                self.max_workers,
             )
 
             # Process root files first (thread-safe)
@@ -446,14 +447,14 @@ class ParallelDirectoryScanner(threading.Thread):
             # Scan subdirectories using the new method
             self._scan_subdirectories(subdirectories)
 
-        except Exception as e:  # noqa: BLE001
-            print(f"Error in parallel directory scanning: {e}")
+        except Exception:
+            logger.exception("Error in parallel directory scanning")
         finally:
             # Signal completion with sentinel
             try:
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
-            except Exception as e:  # noqa: BLE001
-                print(f"Warning: Failed to put sentinel value: {e}")
+            except Exception:  # noqa: BLE001
+                logger.warning("Failed to put sentinel value", exc_info=True)
 
     def _scan_root_files(self) -> list[Path]:
         """Scan the root directory for files directly.
@@ -484,7 +485,7 @@ class ParallelDirectoryScanner(threading.Thread):
 
             # Root directory will be counted in the main run method
 
-        except (OSError, PermissionError) as e:
-            print(f"Warning: Cannot scan root directory: {e}")
+        except (OSError, PermissionError):
+            logger.warning("Cannot scan root directory", exc_info=True)
 
         return root_files

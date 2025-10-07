@@ -26,44 +26,44 @@
 -- 메인 캐시 테이블
 CREATE TABLE tmdb_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    
+
     -- ===========================
     -- 캐시 키 정보
     -- ===========================
     cache_key TEXT NOT NULL UNIQUE,      -- 원본 키 (예: "search:tv:attack on titan:lang=ko")
     key_hash TEXT NOT NULL UNIQUE,       -- SHA-256 해시 (빠른 조회용)
-    
+
     -- ===========================
     -- 캐시 타입 (확장 가능)
     -- ===========================
     cache_type TEXT NOT NULL,            -- "search", "details", "discover", "trending" 등
     endpoint_category TEXT,              -- "movie", "tv", "person", "season" 등 (옵션)
-    
+
     -- ===========================
     -- 실제 데이터 (JSON BLOB)
     -- ===========================
     response_data TEXT NOT NULL,         -- JSON 형태로 저장된 API 응답 전체
-    
+
     -- ===========================
     -- TTL 및 메타데이터
     -- ===========================
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     expires_at TIMESTAMP,                -- NULL이면 영구 캐시
-    
+
     -- ===========================
     -- 통계 및 분석용 (선택)
     -- ===========================
     hit_count INTEGER DEFAULT 0,         -- 캐시 히트 카운트
     last_accessed_at TIMESTAMP,          -- 마지막 액세스 시간
     response_size INTEGER,               -- 응답 크기 (바이트)
-    
+
     -- ===========================
     -- 인덱스
     -- ===========================
     CHECK (length(cache_key) > 0),
     CHECK (length(key_hash) = 64),       -- SHA-256은 64자
-    CHECK (cache_type IN ('search', 'details', 'discover', 'trending', 'popular', 
-                          'recommendations', 'similar', 'now_playing', 'upcoming', 
+    CHECK (cache_type IN ('search', 'details', 'discover', 'trending', 'popular',
+                          'recommendations', 'similar', 'now_playing', 'upcoming',
                           'top_rated', 'on_the_air', 'airing_today'))
 );
 
@@ -110,25 +110,25 @@ def generate_cache_key(
     params: Dict[str, Any]
 ) -> tuple[str, str]:
     """범용 캐시 키 생성.
-    
+
     Args:
         endpoint: API 엔드포인트 (예: "search", "details")
         category: 리소스 카테고리 (예: "movie", "tv")
         params: 쿼리 파라미터
-    
+
     Returns:
         (cache_key, key_hash) 튜플
     """
     # 1. 파라미터 정렬 및 문자열화
     sorted_params = sorted(params.items())
     param_str = ":".join(f"{k}={v}" for k, v in sorted_params)
-    
+
     # 2. 캐시 키 생성
     cache_key = f"{endpoint}:{category}:{param_str}"
-    
+
     # 3. SHA-256 해시 생성
     key_hash = hashlib.sha256(cache_key.encode("utf-8")).hexdigest()
-    
+
     return cache_key, key_hash
 ```
 
@@ -149,11 +149,11 @@ key_hash = hashlib.sha256(cache_key.encode()).hexdigest()
 
 # DB에 저장
 INSERT INTO tmdb_cache (
-    cache_key, 
-    key_hash, 
-    cache_type, 
+    cache_key,
+    key_hash,
+    cache_type,
     endpoint_category,
-    response_data, 
+    response_data,
     expires_at,
     response_size
 ) VALUES (
@@ -171,14 +171,14 @@ INSERT INTO tmdb_cache (
 
 ```python
 # 캐시 키로 조회
-SELECT response_data 
-FROM tmdb_cache 
-WHERE key_hash = ? 
+SELECT response_data
+FROM tmdb_cache
+WHERE key_hash = ?
   AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
 LIMIT 1;
 
 # 조회 성공 시 통계 업데이트
-UPDATE tmdb_cache 
+UPDATE tmdb_cache
 SET hit_count = hit_count + 1,
     last_accessed_at = CURRENT_TIMESTAMP
 WHERE key_hash = ?;
@@ -188,16 +188,16 @@ WHERE key_hash = ?;
 
 ```python
 # 만료된 항목 삭제
-DELETE FROM tmdb_cache 
-WHERE expires_at IS NOT NULL 
+DELETE FROM tmdb_cache
+WHERE expires_at IS NOT NULL
   AND expires_at < CURRENT_TIMESTAMP;
 
 # 오래된 항목 삭제 (LRU)
-DELETE FROM tmdb_cache 
+DELETE FROM tmdb_cache
 WHERE id IN (
-    SELECT id 
-    FROM tmdb_cache 
-    ORDER BY last_accessed_at ASC 
+    SELECT id
+    FROM tmdb_cache
+    ORDER BY last_accessed_at ASC
     LIMIT 1000
 );
 ```
@@ -210,7 +210,7 @@ WHERE id IN (
 
 ```sql
 -- 타입별 캐시 개수
-SELECT 
+SELECT
     cache_type,
     endpoint_category,
     COUNT(*) as count,
@@ -225,7 +225,7 @@ ORDER BY count DESC;
 
 ```sql
 -- 캐시 히트율 상위 10개
-SELECT 
+SELECT
     cache_key,
     cache_type,
     hit_count,
@@ -240,7 +240,7 @@ LIMIT 10;
 
 ```sql
 -- 1시간 내 만료 예정
-SELECT 
+SELECT
     cache_key,
     cache_type,
     expires_at,
@@ -307,4 +307,3 @@ ORDER BY expires_at ASC;
 - **응답 요약**: `scripts/tmdb_api_responses/_summary.json`
 - **TMDB API 문서**: https://developers.themoviedb.org/3/
 - **tmdbv3api 라이브러리**: https://github.com/AnthonyBloomer/tmdbv3api
-

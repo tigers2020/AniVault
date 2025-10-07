@@ -4,6 +4,7 @@ State management for AniVault GUI
 This module contains the state model that manages the application's
 shared state, ensuring separation of data from the view.
 """
+
 from __future__ import annotations
 
 import json
@@ -161,9 +162,13 @@ class StateModel(QObject):
     def export_state(self, file_path: Path) -> None:
         """Export current state to a JSON file."""
         state_data = {
-            "selected_directory": str(self._selected_directory) if self._selected_directory else None,
+            "selected_directory": (
+                str(self._selected_directory) if self._selected_directory else None
+            ),
             "scanned_files": [f.to_dict() for f in self._scanned_files],
-            "file_status_cache": {str(k): v for k, v in self._file_status_cache.items()},
+            "file_status_cache": {
+                str(k): v for k, v in self._file_status_cache.items()
+            },
             "metadata_cache": {str(k): v for k, v in self._metadata_cache.items()},
             "operation_history": self._operation_history,
             "export_timestamp": datetime.now().isoformat(),

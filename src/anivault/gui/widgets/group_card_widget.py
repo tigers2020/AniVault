@@ -77,7 +77,7 @@ class GroupCardWidget(QFrame):
 
             # Truncate title for display (keep full title in tooltip)
             display_title = self._truncate_group_name(full_title, max_length=50)
-            
+
             title_label = QLabel(display_title)
             title_label.setObjectName("groupTitleLabel")
             title_label.setWordWrap(True)
@@ -127,7 +127,7 @@ class GroupCardWidget(QFrame):
             hint_label.setObjectName("animeInfoHint")
             hint_label.setStyleSheet("font-size: 11px; color: #888;")
             hint_label.setToolTip(
-                "Parsed from filename - Click 'Match with TMDB' for details",
+                "Parsed from filename - TMDB details will load automatically",
             )
             info_layout.addWidget(hint_label)
 
@@ -138,7 +138,7 @@ class GroupCardWidget(QFrame):
             info_layout.addWidget(count_label)
 
             # Placeholder message
-            placeholder_label = QLabel("🔍 Match with TMDB to see details")
+            placeholder_label = QLabel("🔍 Loading TMDB details...")
             placeholder_label.setObjectName("animeInfoPlaceholder")
             placeholder_label.setStyleSheet(
                 "font-size: 11px; color: #999; font-style: italic;",
@@ -212,7 +212,7 @@ class GroupCardWidget(QFrame):
                     return poster_label
 
             # Fallback: Show initial if no poster_path or failed to load
-            if title and title != "Unknown" and title != "?":
+            if title and title not in {"Unknown", "?"}:
                 initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
                 logger.info(
@@ -314,7 +314,11 @@ class GroupCardWidget(QFrame):
                 match_result = meta.other_info.get("match_result")
                 if match_result:
                     # DEBUG: Log entire match_result structure
-                    title = match_result.get("title") or match_result.get("name") or "Unknown"
+                    title = (
+                        match_result.get("title")
+                        or match_result.get("name")
+                        or "Unknown"
+                    )
                     logger.info(
                         "✓ Found match_result in ParsingResult.other_info: %s",
                         title,
@@ -322,8 +326,12 @@ class GroupCardWidget(QFrame):
                     if title == "Unknown":
                         logger.warning(
                             "⚠️ match_result has no title/name! Keys: %s, Type: %s",
-                            list(match_result.keys()) if isinstance(match_result, dict) else "NOT_DICT",
-                            type(match_result).__name__
+                            (
+                                list(match_result.keys())
+                                if isinstance(match_result, dict)
+                                else "NOT_DICT"
+                            ),
+                            type(match_result).__name__,
                         )
                     return match_result
                 logger.debug("other_info is dict but no match_result")
@@ -517,8 +525,8 @@ class GroupCardWidget(QFrame):
         """
         try:
             # TMDB image configuration
-            TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/"
-            POSTER_SIZE = "w185"  # Small poster size for cards
+            tmdb_image_base_url = "https://image.tmdb.org/t/p/"
+            poster_size = "w185"  # Small poster size for cards
 
             # Create cache directory
             cache_dir = Path.home() / ".anivault" / "cache" / "posters"
@@ -536,7 +544,7 @@ class GroupCardWidget(QFrame):
                     return pixmap
 
             # Download from TMDB
-            image_url = f"{TMDB_IMAGE_BASE_URL}{POSTER_SIZE}{poster_path}"
+            image_url = f"{tmdb_image_base_url}{poster_size}{poster_path}"
             logger.info("⬇️ Downloading poster: %s", image_url)
 
             response = requests.get(image_url, timeout=5)
@@ -557,8 +565,8 @@ class GroupCardWidget(QFrame):
         except requests.exceptions.RequestException as e:
             logger.warning("❌ Failed to download poster: %s", str(e))
             return None
-        except Exception as e:
-            logger.exception("❌ Unexpected error loading poster: %s", str(e))
+        except Exception:
+            logger.exception("❌ Unexpected error loading poster")
             return None
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)

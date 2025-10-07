@@ -229,36 +229,44 @@ class TMDBAPIExplorer:
         try:
             # 1. 인기 영화 발견
             logger.info("1. Discover Popular Movies")
-            movies = discover.discover_movies({
-                "sort_by": "popularity.desc",
-                "page": 1,
-            })
+            movies = discover.discover_movies(
+                {
+                    "sort_by": "popularity.desc",
+                    "page": 1,
+                },
+            )
             self.save_response("discover_movies_popular", movies)
 
             # 2. 애니메이션 장르 영화
             logger.info("2. Discover Animation Movies")
-            animation_movies = discover.discover_movies({
-                "with_genres": 16,  # Animation genre ID
-                "sort_by": "vote_average.desc",
-                "vote_count.gte": 100,
-            })
+            animation_movies = discover.discover_movies(
+                {
+                    "with_genres": 16,  # Animation genre ID
+                    "sort_by": "vote_average.desc",
+                    "vote_count.gte": 100,
+                },
+            )
             self.save_response("discover_movies_animation", animation_movies)
 
             # 3. TV 쇼 발견
             logger.info("3. Discover Popular TV Shows")
-            tv_shows = discover.discover_tv_shows({
-                "sort_by": "popularity.desc",
-                "page": 1,
-            })
+            tv_shows = discover.discover_tv_shows(
+                {
+                    "sort_by": "popularity.desc",
+                    "page": 1,
+                },
+            )
             self.save_response("discover_tv_popular", tv_shows)
 
             # 4. 애니메이션 TV 쇼
             logger.info("4. Discover Animation TV Shows")
-            animation_tv = discover.discover_tv_shows({
-                "with_genres": 16,  # Animation genre ID
-                "sort_by": "vote_average.desc",
-                "vote_count.gte": 50,
-            })
+            animation_tv = discover.discover_tv_shows(
+                {
+                    "with_genres": 16,  # Animation genre ID
+                    "sort_by": "vote_average.desc",
+                    "vote_count.gte": 50,
+                },
+            )
             self.save_response("discover_tv_animation", animation_tv)
 
         except Exception as e:
@@ -384,4 +392,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

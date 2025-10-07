@@ -356,13 +356,12 @@ def _run_rollback_command(options: RollbackOptions) -> int:  # noqa: PLR0911
     """
     try:
         console = _setup_rollback_console()
+        
+        # Get log path (raises exception on error)
         log_path = _get_rollback_log_path(options, console)
-        if log_path is None:
-            return 1
-
+        
+        # Generate rollback plan (raises exception on error)
         rollback_plan = _generate_rollback_plan(log_path, console)
-        if rollback_plan is None:
-            return 1
 
         if not rollback_plan:
             console.print("[yellow]No rollback operations needed[/yellow]")
@@ -406,68 +405,104 @@ def _setup_rollback_console() -> Any:
     return Console()
 
 
-def _get_rollback_log_path(options: RollbackOptions, console: Any) -> Any:
-    """Get rollback log path."""
+def _get_rollback_log_path(options: RollbackOptions, console: Any) -> Path:
+    """Get rollback log path.
+    
+    Args:
+        options: Rollback options
+        console: Console (unused, kept for backward compatibility)
+    
+    Returns:
+        Path to rollback log file
+    
+    Raises:
+        ApplicationError: If log path cannot be determined or log not found
+        InfrastructureError: If log file access fails
+    """
+    from pathlib import Path
+    from anivault.core.log_manager import OperationLogManager
+
     try:
-        from pathlib import Path
-
-        from anivault.core.log_manager import OperationLogManager
-
         log_manager = OperationLogManager(Path.cwd())
-        return log_manager.get_log_by_id(options.log_id)
-    except ApplicationError as e:
-        console.print(f"[red]Application error: {e.message}[/red]")
-        logger.exception(
-            "Failed to get rollback log path",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        return None
-    except InfrastructureError as e:
-        console.print(f"[red]Infrastructure error: {e.message}[/red]")
-        logger.exception(
-            "Failed to get rollback log path",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        return None
+        log_path = log_manager.get_log_by_id(options.log_id)
+        
+        if log_path is None:
+            raise ApplicationError(
+                code=ErrorCode.FILE_NOT_FOUND,
+                message=f"Rollback log with ID '{options.log_id}' not found",
+                context={"log_id": options.log_id, "operation": "get_rollback_log_path"},
+            )
+        
+        return log_path
+        
+    except (ApplicationError, InfrastructureError):
+        # Re-raise AniVault errors as-is
+        raise
+    except OSError as e:
+        raise InfrastructureError(
+            code=ErrorCode.FILE_ACCESS_ERROR,
+            message=f"Failed to access rollback log: {e}",
+            context={"log_id": options.log_id, "operation": "get_rollback_log_path"},
+            original_error=e,
+        ) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error: {e}[/red]")
-        logger.exception("Unexpected error getting rollback log path")
-        return None
+        raise ApplicationError(
+            code=ErrorCode.APPLICATION_ERROR,
+            message=f"Unexpected error getting rollback log path: {e}",
+            context={"log_id": options.log_id, "operation": "get_rollback_log_path"},
+            original_error=e,
+        ) from e
 
 
-def _generate_rollback_plan(log_path: Any, console: Any) -> Any:
-    """Generate rollback plan."""
+def _generate_rollback_plan(log_path: Path, console: Any) -> list:
+    """Generate rollback plan.
+    
+    Args:
+        log_path: Path to rollback log file
+        console: Console (unused, kept for backward compatibility)
+    
+    Returns:
+        List of rollback operations
+    
+    Raises:
+        ApplicationError: If rollback plan generation fails
+        InfrastructureError: If log file cannot be read
+    """
+    from pathlib import Path
+    from anivault.core.log_manager import OperationLogManager
+    from anivault.core.rollback_manager import RollbackManager
+
     try:
-        from pathlib import Path
-
-        from anivault.core.log_manager import OperationLogManager
-        from anivault.core.rollback_manager import RollbackManager
-
         log_manager = OperationLogManager(Path.cwd())
         rollback_manager = RollbackManager(log_manager)
-        return rollback_manager.generate_rollback_plan(log_path)
-    except ApplicationError as e:
-        console.print(
-            f"[red]Application error generating rollback plan: {e.message}[/red]",
-        )
-        logger.exception(
-            "Failed to generate rollback plan",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        return None
-    except InfrastructureError as e:
-        console.print(
-            f"[red]Infrastructure error generating rollback plan: {e.message}[/red]",
-        )
-        logger.exception(
-            "Failed to generate rollback plan",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        return None
+        rollback_plan = rollback_manager.generate_rollback_plan(log_path)
+        
+        if rollback_plan is None:
+            raise ApplicationError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message=f"Failed to generate rollback plan from log: {log_path}",
+                context={"log_path": str(log_path), "operation": "generate_rollback_plan"},
+            )
+        
+        return rollback_plan
+        
+    except (ApplicationError, InfrastructureError):
+        # Re-raise AniVault errors as-is
+        raise
+    except OSError as e:
+        raise InfrastructureError(
+            code=ErrorCode.FILE_READ_ERROR,
+            message=f"Failed to read rollback log file: {e}",
+            context={"log_path": str(log_path), "operation": "generate_rollback_plan"},
+            original_error=e,
+        ) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error generating rollback plan: {e}[/red]")
-        logger.exception("Unexpected error generating rollback plan")
-        return None
+        raise ApplicationError(
+            code=ErrorCode.APPLICATION_ERROR,
+            message=f"Unexpected error generating rollback plan: {e}",
+            context={"log_path": str(log_path), "operation": "generate_rollback_plan"},
+            original_error=e,
+        ) from e
 
 
 def _execute_rollback_plan(

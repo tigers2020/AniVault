@@ -12,46 +12,46 @@
     --primary-color: #3b82f6;
     --primary-hover: #2563eb;
     --primary-active: #1d4ed8;
-    
+
     --secondary-color: #64748b;
     --secondary-hover: #475569;
     --secondary-active: #334155;
-    
+
     --background-color: #0f172a;
     --surface-color: #1e293b;
     --surface-hover: #334155;
     --surface-active: #475569;
-    
+
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
     --text-disabled: #64748b;
-    
+
     --border-color: #334155;
     --border-hover: #475569;
     --border-active: #64748b;
-    
+
     --success-color: #10b981;
     --warning-color: #f59e0b;
     --error-color: #ef4444;
     --info-color: #3b82f6;
-    
+
     /* Placeholder colors */
     --placeholder-color: #64748b;
     --placeholder-hint: #475569;
-    
+
     /* Spacing */
     --spacing-xs: 4px;
     --spacing-sm: 8px;
     --spacing-md: 12px;
     --spacing-lg: 16px;
     --spacing-xl: 24px;
-    
+
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 6px;
     --radius-lg: 8px;
-    
+
     /* Font Sizes */
     --font-xs: 11px;
     --font-sm: 12px;

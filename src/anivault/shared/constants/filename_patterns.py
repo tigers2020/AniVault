@@ -133,6 +133,7 @@ AGGRESSIVE_CLEANUP_PATTERNS: Final[list[str]] = [
     r"\[\s*\]",
 ]
 
+
 # Quality scoring constants
 class TitleQualityScores:
     """Constants for title quality scoring."""
@@ -156,6 +157,7 @@ class TitleQualityScores:
 
     # Title selection thresholds
     SIGNIFICANT_QUALITY_DIFF: Final[int] = 2
+
 
 # Group naming constants
 class GroupNaming:

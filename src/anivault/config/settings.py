@@ -26,11 +26,9 @@ from anivault.shared.constants import (
     Memory,
     SubtitleFormats,
     Timeout,
-    TMDBErrorHandling,
-    VideoFormats,
-    WorkerConfig,
 )
 from anivault.shared.constants import TMDBConfig as TMDBConstants
+from anivault.shared.constants import TMDBErrorHandling, VideoFormats, WorkerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -467,37 +465,94 @@ class Settings(BaseModel):
 
 
 def _load_env_file() -> None:
-    """Load environment variables from .env file if it exists."""
+    """Load environment variables from .env file.
+
+    This function loads environment variables from a .env file.
+    For security reasons, TMDB_API_KEY is required and the function
+    will raise an error if the .env file or API key is missing.
+
+    Raises:
+        SecurityError: If .env file is missing or TMDB_API_KEY is not configured
+        InfrastructureError: If .env file cannot be read due to permission issues
+    """
+    from anivault.shared.errors import ErrorCode, InfrastructureError, SecurityError
+
+    # Check if .env file exists
+    env_file = Path(".env")
+    if not env_file.exists():
+        raise SecurityError(
+            code=ErrorCode.MISSING_CONFIG,
+            message=(
+                "Environment file .env not found. "
+                "Copy env.template to .env and configure your TMDB API key."
+            ),
+            context={"file_path": str(env_file.absolute())},
+        )
+
     try:
-        from dotenv import load_dotenv
+        # Try to use python-dotenv if available
+        try:
+            import importlib
 
-        # Try to load .env file from current directory
-        env_path = Path(".env")
-        if env_path.exists():
-            load_dotenv(env_path, override=True)
-            # Ensure environment variables are available in current process
-            import os
+            dotenv = importlib.import_module("dotenv")
+            dotenv.load_dotenv(env_file, override=True)
+        except ImportError:
+            # Fallback: Load .env file manually
+            with open(env_file, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        key = key.strip()
+                        value = value.strip().strip("\"'")
+                        if key and value and not os.getenv(key):
+                            os.environ[key] = value
 
-            if not os.getenv("TMDB_API_KEY"):
-                # Fallback: read .env file manually if load_dotenv didn't work
-                with open(env_path, encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith("#") and "=" in line:
-                            key, value = line.split("=", 1)
-                            key = key.strip()
-                            value = value.strip().strip("\"'")
-                            if key == "TMDB_API_KEY" and not os.getenv(key):
-                                os.environ[key] = value
-    except ImportError:
-        # python-dotenv not installed, skip .env loading
-        pass
-    except (OSError, ValueError, KeyError) as e:
-        # Handle specific I/O and data processing errors when loading .env file
-        logger.warning("Error loading .env file, skipping: %s", e)
-    except Exception:
-        # Handle unexpected errors when loading .env file
-        logger.exception("Unexpected error loading .env file, skipping")
+    except PermissionError as e:
+        raise InfrastructureError(
+            code=ErrorCode.FILE_PERMISSION_DENIED,
+            message=f"Permission denied reading .env file: {env_file}",
+            context={"file_path": str(env_file.absolute())},
+            original_error=e,
+        ) from e
+    except (OSError, ValueError) as e:
+        raise InfrastructureError(
+            code=ErrorCode.FILE_READ_ERROR,
+            message=f"Failed to read .env file: {e}",
+            context={"file_path": str(env_file.absolute())},
+            original_error=e,
+        ) from e
+
+    # Validate that TMDB_API_KEY is set
+    api_key = os.getenv("TMDB_API_KEY")
+    if not api_key:
+        raise SecurityError(
+            code=ErrorCode.MISSING_CONFIG,
+            message=(
+                "TMDB_API_KEY not found in environment. "
+                "Set TMDB_API_KEY in .env file."
+            ),
+            context={"env_file": str(env_file.absolute())},
+        )
+
+    # Validate API key format
+    api_key = api_key.strip()
+    if len(api_key) == 0:
+        raise SecurityError(
+            code=ErrorCode.INVALID_CONFIG,
+            message="TMDB_API_KEY is empty in .env file",
+            context={"env_file": str(env_file.absolute())},
+        )
+
+    if len(api_key) < 20:
+        raise SecurityError(
+            code=ErrorCode.INVALID_CONFIG,
+            message=(
+                f"TMDB_API_KEY appears invalid (too short: {len(api_key)} characters). "
+                f"Expected at least 20 characters. Please check your API key."
+            ),
+            context={"env_file": str(env_file.absolute()), "key_length": len(api_key)},
+        )
 
 
 def load_settings(config_path: str | Path | None = None) -> Settings:
