@@ -124,7 +124,7 @@ class TMDBMatchingWorker(QObject):
             self.matching_error.emit(f"TMDB matching error: {e!s}")
 
     async def _match_files_async(self) -> None:
-        """Async implementation of file matching process."""
+        """Async implementation of file matching process (optimized group-based)."""
         if not self._files_to_match:
             return
 
@@ -133,40 +133,99 @@ class TMDBMatchingWorker(QObject):
         matched_count = 0
 
         try:
-            for i, file_item in enumerate(self._files_to_match):
+            # Group files by anime title to reduce duplicate TMDB searches
+            groups = self._group_files_by_title(self._files_to_match)
+            logger.info("Grouped %d files into %d unique titles", total_files, len(groups))
+            
+            processed_files = 0
+            
+            # Match once per group instead of per file
+            for group_title, file_items in groups.items():
                 if self._cancelled:
                     self.matching_cancelled.emit()
                     return
-
-                # Process current file
-                result = await self._match_single_file(file_item)
-                matching_results.append(result)
-
-                # Update matched count
-                if result.get("match_result") is not None:
-                    matched_count += 1
-
-                # Emit progress signal
-                progress = int((i + 1) * 100 / total_files)
-                self.matching_progress.emit(progress)
-
-                # Emit file matched signal
-                self.file_matched.emit(result)
-
-                # Allow GUI to process events
-                QApplication.processEvents()
+                
+                # Match first file in group to get TMDB result
+                first_file = file_items[0]
+                group_match_result = await self._match_single_file(first_file)
+                match_result = group_match_result.get("match_result")
+                
+                # Apply same match result to all files in group
+                for file_item in file_items:
+                    result = {
+                        "file_path": str(file_item.file_path),
+                        "file_name": file_item.file_name,
+                        "match_result": match_result,
+                        "status": "matched" if match_result else "failed",
+                    }
+                    matching_results.append(result)
+                    
+                    # Update matched count
+                    if match_result is not None:
+                        matched_count += 1
+                    
+                    # Emit file matched signal for each file
+                    self.file_matched.emit(result)
+                    
+                    processed_files += 1
+                    
+                    # Emit progress signal
+                    progress = int(processed_files * 100 / total_files)
+                    self.matching_progress.emit(progress)
+                    
+                    # Allow GUI to process events
+                    QApplication.processEvents()
 
             # Emit completion signal
             self.matching_finished.emit(matching_results)
             logger.info(
-                "TMDB matching completed: %d/%d files matched",
+                "TMDB matching completed: %d/%d files matched (searched %d unique titles)",
                 matched_count,
                 total_files,
+                len(groups),
             )
 
         except Exception as e:
             logger.exception("Error in async matching process: %s", e)
             self.matching_error.emit(f"Async matching error: {e!s}")
+
+    def _group_files_by_title(self, files: list[FileItem]) -> dict[str, list[FileItem]]:
+        """
+        Group files by anime title to reduce duplicate TMDB searches.
+        
+        Args:
+            files: List of FileItem objects
+            
+        Returns:
+            Dictionary mapping anime title to list of FileItem objects
+        """
+        groups: dict[str, list[FileItem]] = {}
+        
+        for file_item in files:
+            try:
+                # Parse filename to extract title
+                parsing_result = self.parser.parse(file_item.file_name)
+                
+                if parsing_result:
+                    # Use anime title as group key
+                    title = getattr(parsing_result, "title", None) or file_item.file_name
+                    
+                    # Normalize title for grouping (lowercase, strip)
+                    normalized_title = title.lower().strip()
+                    
+                    if normalized_title not in groups:
+                        groups[normalized_title] = []
+                    groups[normalized_title].append(file_item)
+                else:
+                    # Failed to parse - use filename as group
+                    groups[file_item.file_name] = [file_item]
+                    
+            except Exception as e:
+                logger.warning("Failed to group file %s: %s", file_item.file_name, e)
+                # Add to separate group
+                groups[file_item.file_name] = [file_item]
+        
+        return groups
 
     async def _match_single_file(self, file_item: FileItem) -> dict[str, Any]:
         """
