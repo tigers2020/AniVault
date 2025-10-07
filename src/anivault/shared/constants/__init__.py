@@ -59,6 +59,7 @@ from .matching import (
     ValidationConfig,
 )
 from .network import DownloadConfig, NetworkConfig
+from .tmdb_messages import TMDBErrorMessages, TMDBOperationNames
 
 # Import system classes for direct access
 from .system import (
@@ -150,6 +151,8 @@ __all__ = [
     "SubtitleFormats",
     "TMDBConfig",
     "TMDBErrorHandling",
+    "TMDBErrorMessages",
+    "TMDBOperationNames",
     "TestConfig",
     "Timeout",
     "TitleNormalization",

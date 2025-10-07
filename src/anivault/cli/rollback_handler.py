@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.models import RollbackOptions
 from anivault.cli.json_formatter import format_json_output
+from anivault.core.models import OperationType
 from anivault.shared.constants import CLI
 from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.errors import (
@@ -274,7 +275,7 @@ def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
                 {
                     "source_path": str(operation.source_path),
                     "destination_path": str(operation.destination_path),
-                    "operation_type": "MOVE",
+                    "operation_type": OperationType.MOVE.value,
                 },
             )
 
@@ -284,7 +285,7 @@ def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
                 {
                     "source_path": str(operation.source_path),
                     "destination_path": str(operation.destination_path),
-                    "operation_type": "MOVE",
+                    "operation_type": OperationType.MOVE.value,
                 },
             )
 
@@ -294,7 +295,7 @@ def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
                 {
                     "source_path": str(operation.source_path),
                     "destination_path": str(operation.destination_path),
-                    "operation_type": "MOVE",
+                    "operation_type": OperationType.MOVE.value,
                     "reason": "Source file not found",
                 },
             )
@@ -345,7 +346,7 @@ def _validate_rollback_plan_for_json(
     return executable_plan, skipped_operations
 
 
-def _run_rollback_command(options: RollbackOptions) -> int:  # noqa: PLR0911
+def _run_rollback_command(options: RollbackOptions) -> int:
     """Run the rollback command.
 
     Args:
@@ -356,10 +357,10 @@ def _run_rollback_command(options: RollbackOptions) -> int:  # noqa: PLR0911
     """
     try:
         console = _setup_rollback_console()
-        
+
         # Get log path (raises exception on error)
         log_path = _get_rollback_log_path(options, console)
-        
+
         # Generate rollback plan (raises exception on error)
         rollback_plan = _generate_rollback_plan(log_path, console)
 
@@ -407,34 +408,38 @@ def _setup_rollback_console() -> Any:
 
 def _get_rollback_log_path(options: RollbackOptions, console: Any) -> Path:
     """Get rollback log path.
-    
+
     Args:
         options: Rollback options
         console: Console (unused, kept for backward compatibility)
-    
+
     Returns:
         Path to rollback log file
-    
+
     Raises:
         ApplicationError: If log path cannot be determined or log not found
         InfrastructureError: If log file access fails
     """
     from pathlib import Path
+
     from anivault.core.log_manager import OperationLogManager
 
     try:
         log_manager = OperationLogManager(Path.cwd())
         log_path = log_manager.get_log_by_id(options.log_id)
-        
+
         if log_path is None:
             raise ApplicationError(
                 code=ErrorCode.FILE_NOT_FOUND,
                 message=f"Rollback log with ID '{options.log_id}' not found",
-                context={"log_id": options.log_id, "operation": "get_rollback_log_path"},
+                context={
+                    "log_id": options.log_id,
+                    "operation": "get_rollback_log_path",
+                },
             )
-        
+
         return log_path
-        
+
     except (ApplicationError, InfrastructureError):
         # Re-raise AniVault errors as-is
         raise
@@ -456,19 +461,20 @@ def _get_rollback_log_path(options: RollbackOptions, console: Any) -> Path:
 
 def _generate_rollback_plan(log_path: Path, console: Any) -> list:
     """Generate rollback plan.
-    
+
     Args:
         log_path: Path to rollback log file
         console: Console (unused, kept for backward compatibility)
-    
+
     Returns:
         List of rollback operations
-    
+
     Raises:
         ApplicationError: If rollback plan generation fails
         InfrastructureError: If log file cannot be read
     """
     from pathlib import Path
+
     from anivault.core.log_manager import OperationLogManager
     from anivault.core.rollback_manager import RollbackManager
 
@@ -476,16 +482,19 @@ def _generate_rollback_plan(log_path: Path, console: Any) -> list:
         log_manager = OperationLogManager(Path.cwd())
         rollback_manager = RollbackManager(log_manager)
         rollback_plan = rollback_manager.generate_rollback_plan(log_path)
-        
+
         if rollback_plan is None:
             raise ApplicationError(
                 code=ErrorCode.DATA_PROCESSING_ERROR,
                 message=f"Failed to generate rollback plan from log: {log_path}",
-                context={"log_path": str(log_path), "operation": "generate_rollback_plan"},
+                context={
+                    "log_path": str(log_path),
+                    "operation": "generate_rollback_plan",
+                },
             )
-        
+
         return rollback_plan
-        
+
     except (ApplicationError, InfrastructureError):
         # Re-raise AniVault errors as-is
         raise

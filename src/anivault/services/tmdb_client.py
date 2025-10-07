@@ -16,6 +16,10 @@ from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
 from anivault.shared.constants import MediaType
+from anivault.shared.constants.tmdb_messages import (
+    TMDBErrorMessages,
+    TMDBOperationNames,
+)
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
@@ -436,7 +440,10 @@ class TMDBClient:
                             "Movie search failed for shortened title '%s', trying next: %s",
                             shortened_title,
                             str(e),
-                            extra={"original_title": title, "error_type": type(e).__name__},
+                            extra={
+                                "original_title": title,
+                                "error_type": type(e).__name__,
+                            },
                         )
 
                     # If we found results with shortened title, break
@@ -794,41 +801,44 @@ class TMDBClient:
             if status_code == 401:
                 return (
                     ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
-                    "TMDB API authentication failed",
+                    TMDBErrorMessages.AUTHENTICATION_FAILED,
                 )
             if status_code == 403:
                 return (
                     ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
-                    "TMDB API access forbidden",
+                    TMDBErrorMessages.ACCESS_FORBIDDEN,
                 )
             if status_code == 429:
                 return (
                     ErrorCode.TMDB_API_RATE_LIMIT_EXCEEDED,
-                    "TMDB API rate limit exceeded",
+                    TMDBErrorMessages.RATE_LIMIT_EXCEEDED,
                 )
             if 400 <= status_code < 500:
                 return (
                     ErrorCode.TMDB_API_REQUEST_FAILED,
-                    f"TMDB API client error: {status_code}",
+                    TMDBErrorMessages.CLIENT_ERROR.format(status_code=status_code),
                 )
             if 500 <= status_code < 600:
                 return (
                     ErrorCode.TMDB_API_SERVER_ERROR,
-                    f"TMDB API server error: {status_code}",
+                    TMDBErrorMessages.SERVER_ERROR.format(status_code=status_code),
                 )
             return (
                 ErrorCode.TMDB_API_REQUEST_FAILED,
-                f"TMDB API request failed: {status_code}",
+                TMDBErrorMessages.REQUEST_FAILED.format(status_code=status_code),
             )
         # No response object, check exception message
         message = str(exception).lower()
         if "timeout" in message:
-            return ErrorCode.TMDB_API_TIMEOUT, "TMDB API request timeout"
+            return ErrorCode.TMDB_API_TIMEOUT, TMDBErrorMessages.TIMEOUT
         if "connection" in message:
-            return ErrorCode.TMDB_API_CONNECTION_ERROR, "TMDB API connection failed"
+            return (
+                ErrorCode.TMDB_API_CONNECTION_ERROR,
+                TMDBErrorMessages.CONNECTION_FAILED,
+            )
         return (
             ErrorCode.TMDB_API_REQUEST_FAILED,
-            f"TMDB API request failed: {exception}",
+            TMDBErrorMessages.REQUEST_FAILED.format(status_code=str(exception)),
         )
 
     def _extract_retry_after(self, response: Any) -> float | None:
@@ -849,7 +859,10 @@ class TMDBClient:
             logger.debug(
                 "Failed to parse Retry-After header: %s",
                 str(e),
-                extra={"header_value": response.headers.get("Retry-After"), "error_type": type(e).__name__},
+                extra={
+                    "header_value": response.headers.get("Retry-After"),
+                    "error_type": type(e).__name__,
+                },
             )
 
         return None
