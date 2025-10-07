@@ -253,7 +253,7 @@ class EncryptionService:
         Raises:
             SecurityError: If token is invalid, malformed, or expired
         """
-        from anivault.shared.errors import SecurityError, ErrorCode
+        from anivault.shared.errors import ErrorCode, SecurityError
 
         # Validate token is not empty
         if not token or len(token.strip()) == 0:

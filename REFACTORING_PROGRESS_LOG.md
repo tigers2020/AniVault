@@ -90,7 +90,7 @@ def is_valid_token(self, token: str) -> bool:
 # ✅ 목표
 def validate_token(self, token: str) -> None:
     """Validate token.
-    
+
     Raises:
         SecurityError: If token is invalid
     """
@@ -104,7 +104,7 @@ def validate_token(self, token: str) -> None:
         ) from e
 ```
 
-**예상 공수**: 30분  
+**예상 공수**: 30분
 **테스트**: 3개 추가 (invalid, expired, malformed)
 
 #### Task 3/3: gui/workers/tmdb_matching_worker.py - _validate_api_key()
@@ -122,7 +122,7 @@ def _validate_api_key(self) -> bool:
 # ✅ 목표
 def _validate_api_key(self) -> None:
     """Validate TMDB API key.
-    
+
     Raises:
         SecurityError: If API key is missing or invalid
     """
@@ -132,7 +132,7 @@ def _validate_api_key(self) -> None:
             ErrorCode.MISSING_CONFIG,
             "TMDB API key not configured"
         )
-    
+
     if len(api_key) < 10:
         raise SecurityError(
             ErrorCode.INVALID_CONFIG,
@@ -140,7 +140,7 @@ def _validate_api_key(self) -> None:
         )
 ```
 
-**예상 공수**: 30분  
+**예상 공수**: 30분
 **테스트**: 3개 추가
 
 ---
@@ -148,18 +148,18 @@ def _validate_api_key(self) -> None:
 ## 🔧 기술적 발견사항
 
 ### 1. Pre-commit PATH 이슈
-**문제**: `pre-commit` 명령이 PowerShell에서 인식되지 않음  
-**해결**: `python -m pre_commit` 사용  
+**문제**: `pre-commit` 명령이 PowerShell에서 인식되지 않음
+**해결**: `python -m pre_commit` 사용
 **적용**: 모든 스크립트에서 `python -m pre_commit` 형식 사용
 
 ### 2. Path 패칭 이슈
-**문제**: `os.path.exists` 패치가 `Path.exists()`에 작동하지 않음  
-**해결**: `pathlib.Path.exists` 직접 패치  
+**문제**: `os.path.exists` 패치가 `Path.exists()`에 작동하지 않음
+**해결**: `pathlib.Path.exists` 직접 패치
 **교훈**: pathlib 사용 시 패칭 대상 주의
 
 ### 3. 빈 문자열 vs None
-**문제**: 빈 문자열 API 키를 INVALID vs MISSING 중 어느 것으로?  
-**결정**: 빈 문자열도 MISSING으로 처리 (실질적으로 값 없음)  
+**문제**: 빈 문자열 API 키를 INVALID vs MISSING 중 어느 것으로?
+**결정**: 빈 문자열도 MISSING으로 처리 (실질적으로 값 없음)
 **적용**: 테스트에서 두 에러 코드 모두 허용
 
 ---
@@ -233,6 +233,5 @@ def _validate_api_key(self) -> None:
 
 ---
 
-**마지막 업데이트**: 2025-10-07 16:30  
+**마지막 업데이트**: 2025-10-07 16:30
 **다음 업데이트**: 17:00 (Stage 1 완료 목표)
-

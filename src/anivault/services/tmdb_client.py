@@ -11,14 +11,18 @@ import asyncio
 import logging
 from typing import Any, Callable
 
+from pydantic import ValidationError
 from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
 from anivault.config.settings import get_config
-from anivault.shared.constants import MediaType
+from anivault.shared.constants import (
+    HTTPStatusCodes,
+    LogContextKeys,
+    MediaType,
+)
 from anivault.shared.constants.tmdb_messages import (
     TMDBErrorMessages,
-    TMDBOperationNames,
 )
 from anivault.shared.errors import (
     AniVaultError,
@@ -31,6 +35,7 @@ from anivault.shared.logging import log_operation_error, log_operation_success
 from .rate_limiter import TokenBucketRateLimiter
 from .semaphore_manager import SemaphoreManager
 from .state_machine import RateLimitState, RateLimitStateMachine
+from .tmdb_models import TMDBMediaDetails, TMDBSearchResponse, TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +147,7 @@ class TMDBClient:
             shortened_titles.append(base_title.strip())
 
         # Generate progressive word removal (recursive trimming down to 1 word)
-        # Example: "이세계 묵시록 마이노그라~파멸의 문명에서 시작하는 세계 정복~"
+        # Example: "이세계 묵시록 마이노그라~파멸의 문명에서 시작하는 세계 정복~"  # noqa: ERA001
         #       → "이세계 묵시록 마이노그라~파멸의 문명에서 시작하는"
         #       → "이세계 묵시록 마이노그라~파멸의 문명에서"
         #       → ...
@@ -166,27 +171,28 @@ class TMDBClient:
 
         return unique_titles
 
-    async def search_media(self, title: str) -> list[dict[str, Any]]:
+    async def search_media(self, title: str) -> TMDBSearchResponse:
         """Search for media (TV shows and movies) by title.
 
         This method searches both TV shows and movies using the TMDB API
-        and returns a combined list of results with metadata.
+        and returns a combined response with typed results.
 
         Args:
             title: Title to search for
 
         Returns:
-            List of media results with metadata
+            TMDBSearchResponse with typed search results
 
         Raises:
             InfrastructureError: If API request fails after all retries
+            ValidationError: If API response doesn't match expected schema
         """
         context = ErrorContext(
             operation="search_media",
             additional_data={"title": title},
         )
 
-        results = []
+        result_models: list[TMDBSearchResult] = []
 
         # Search TV shows
         try:
@@ -202,45 +208,45 @@ class TMDBClient:
                 tv_results = []
 
             for result in tv_results:
-                if isinstance(result, dict):
-                    result["media_type"] = MediaType.TV
-                    # Use TV show 'name' field as 'title' (name is localized, title is original)
-                    if "name" in result:
-                        result["title"] = result["name"]  # Always use localized name
-                    results.append(result)
-                else:
-                    # Convert any non-dict object to dict (including AsObj)
-                    try:
-                        if hasattr(result, "__dict__"):
-                            # Convert object with attributes to dict
-                            result_dict = {
-                                k: v
-                                for k, v in result.__dict__.items()
-                                if not k.startswith("_")
-                            }
-                        elif hasattr(result, "get"):
-                            # Convert dict-like object to dict
-                            result_dict = dict(result)
-                        else:
-                            # Fallback: create dict from string representation
-                            result_dict = {"title": str(result)}
+                try:
+                    # Convert result to dict if needed
+                    if isinstance(result, dict):
+                        result_dict = result
+                    elif hasattr(result, "__dict__"):
+                        # Convert object with attributes to dict
+                        result_dict = {
+                            k: v
+                            for k, v in result.__dict__.items()
+                            if not k.startswith("_")
+                        }
+                    elif hasattr(result, "get"):
+                        # Convert dict-like object to dict
+                        result_dict = dict(result)
+                    else:
+                        # Fallback: create minimal dict
+                        result_dict = {"id": 0, "name": str(result)}
 
-                        result_dict["media_type"] = MediaType.TV
-                        # Use TV show 'name' field as 'title' (name is localized, title is original)
-                        if "name" in result_dict:
-                            result_dict["title"] = result_dict[
-                                "name"
-                            ]  # Always use localized name
-                        results.append(result_dict)
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to convert TV search result %s: %s",
-                            type(result),
-                            e,
-                        )
-                        results.append(
-                            {"title": str(result), "media_type": MediaType.TV},
-                        )
+                    # Add media_type for Pydantic model
+                    result_dict["media_type"] = MediaType.TV
+
+                    # Parse into Pydantic model
+                    result_model = TMDBSearchResult(**result_dict)
+                    result_models.append(result_model)
+
+                except ValidationError as e:
+                    # Log validation error but continue processing other results
+                    logger.warning(
+                        "Failed to parse TV search result into Pydantic model: %s",
+                        e,
+                        extra={"result_data": result},
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # Catch-all for unexpected errors
+                    logger.warning(
+                        "Failed to process TV search result %s: %s",
+                        type(result),
+                        e,
+                    )
         except AniVaultError as e:
             # Re-raise AniVaultError as-is
             tv_error = e
@@ -281,37 +287,45 @@ class TMDBClient:
                 movie_results = []
 
             for result in movie_results:
-                if isinstance(result, dict):
-                    result["media_type"] = MediaType.MOVIE
-                    results.append(result)
-                else:
-                    # Convert any non-dict object to dict (including AsObj)
-                    try:
-                        if hasattr(result, "__dict__"):
-                            # Convert object with attributes to dict
-                            result_dict = {
-                                k: v
-                                for k, v in result.__dict__.items()
-                                if not k.startswith("_")
-                            }
-                        elif hasattr(result, "get"):
-                            # Convert dict-like object to dict
-                            result_dict = dict(result)
-                        else:
-                            # Fallback: create dict from string representation
-                            result_dict = {"title": str(result)}
+                try:
+                    # Convert result to dict if needed
+                    if isinstance(result, dict):
+                        result_dict = result
+                    elif hasattr(result, "__dict__"):
+                        # Convert object with attributes to dict
+                        result_dict = {
+                            k: v
+                            for k, v in result.__dict__.items()
+                            if not k.startswith("_")
+                        }
+                    elif hasattr(result, "get"):
+                        # Convert dict-like object to dict
+                        result_dict = dict(result)
+                    else:
+                        # Fallback: create minimal dict
+                        result_dict = {"id": 0, "title": str(result)}
 
-                        result_dict["media_type"] = MediaType.MOVIE
-                        results.append(result_dict)
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to convert Movie search result %s: %s",
-                            type(result),
-                            e,
-                        )
-                        results.append(
-                            {"title": str(result), "media_type": MediaType.MOVIE},
-                        )
+                    # Add media_type for Pydantic model
+                    result_dict["media_type"] = MediaType.MOVIE
+
+                    # Parse into Pydantic model
+                    result_model = TMDBSearchResult(**result_dict)
+                    result_models.append(result_model)
+
+                except ValidationError as e:
+                    # Log validation error but continue processing other results
+                    logger.warning(
+                        "Failed to parse Movie search result into Pydantic model: %s",
+                        e,
+                        extra={"result_data": result},
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # Catch-all for unexpected errors
+                    logger.warning(
+                        "Failed to process Movie search result %s: %s",
+                        type(result),
+                        e,
+                    )
         except AniVaultError as e:
             # Re-raise AniVaultError as-is
             movie_error = e
@@ -339,15 +353,16 @@ class TMDBClient:
             # Continue even if movie search fails
 
         # If both searches failed, try with shortened title
-        if not results:
+        if not result_models:
             shortened_titles = self._generate_shortened_titles(title)
             for shortened_title in shortened_titles:
                 logger.debug("Trying shortened title: %s", shortened_title)
                 try:
                     # Try TV search with shortened title
                     try:
+                        # Use default argument to bind loop variable
                         tv_response = await self._make_request(
-                            lambda: self._tv.search(shortened_title),
+                            lambda t=shortened_title: self._tv.search(t),
                         )
                         if hasattr(tv_response, "get"):
                             tv_results = tv_response.get("results", [])
@@ -355,42 +370,40 @@ class TMDBClient:
                             tv_results = []
 
                         for result in tv_results:
-                            if isinstance(result, dict):
-                                result["media_type"] = MediaType.TV
-                                # Use TV show 'name' field as 'title' (name is localized, title is original)
-                                if "name" in result:
-                                    result["title"] = result[
-                                        "name"
-                                    ]  # Always use localized name
-                                results.append(result)
-                            else:
-                                try:
-                                    if hasattr(result, "__dict__"):
-                                        result_dict = {
-                                            k: v
-                                            for k, v in result.__dict__.items()
-                                            if not k.startswith("_")
-                                        }
-                                    elif hasattr(result, "get"):
-                                        result_dict = dict(result)
-                                    else:
-                                        result_dict = {"title": str(result)}
+                            try:
+                                # Convert result to dict if needed
+                                if isinstance(result, dict):
+                                    result_dict = result
+                                elif hasattr(result, "__dict__"):
+                                    result_dict = {
+                                        k: v
+                                        for k, v in result.__dict__.items()
+                                        if not k.startswith("_")
+                                    }
+                                elif hasattr(result, "get"):
+                                    result_dict = dict(result)
+                                else:
+                                    result_dict = {"id": 0, "name": str(result)}
 
-                                    result_dict["media_type"] = MediaType.TV
-                                    # Use TV show 'name' field as 'title' (name is localized, title is original)
-                                    if "name" in result_dict:
-                                        result_dict["title"] = result_dict[
-                                            "name"
-                                        ]  # Always use localized name
-                                    results.append(result_dict)
-                                except Exception:
-                                    results.append(
-                                        {
-                                            "title": str(result),
-                                            "media_type": MediaType.TV,
-                                        },
-                                    )
-                    except Exception as e:
+                                # Add media_type for Pydantic model
+                                result_dict["media_type"] = MediaType.TV
+
+                                # Parse into Pydantic model
+                                result_model = TMDBSearchResult(**result_dict)
+                                result_models.append(result_model)
+
+                            except ValidationError as e:
+                                logger.warning(
+                                    "Failed to parse TV search result (shortened): %s",
+                                    e,
+                                    extra={"result_data": result},
+                                )
+                            except Exception as e:  # noqa: BLE001
+                                logger.warning(
+                                    "Failed to process TV search result (shortened): %s",
+                                    e,
+                                )
+                    except Exception as e:  # noqa: BLE001
                         # TV search failed, continue with movie search (graceful)
                         logger.debug(
                             "TV search failed, continuing with movie search: %s",
@@ -400,8 +413,9 @@ class TMDBClient:
 
                     # Try movie search with shortened title
                     try:
+                        # Use default argument to bind loop variable
                         movie_response = await self._make_request(
-                            lambda: self._movie.search(shortened_title),
+                            lambda t=shortened_title: self._movie.search(t),
                         )
                         if hasattr(movie_response, "get"):
                             movie_results = movie_response.get("results", [])
@@ -409,32 +423,40 @@ class TMDBClient:
                             movie_results = []
 
                         for result in movie_results:
-                            if isinstance(result, dict):
-                                result["media_type"] = MediaType.MOVIE
-                                results.append(result)
-                            else:
-                                try:
-                                    if hasattr(result, "__dict__"):
-                                        result_dict = {
-                                            k: v
-                                            for k, v in result.__dict__.items()
-                                            if not k.startswith("_")
-                                        }
-                                    elif hasattr(result, "get"):
-                                        result_dict = dict(result)
-                                    else:
-                                        result_dict = {"title": str(result)}
+                            try:
+                                # Convert result to dict if needed
+                                if isinstance(result, dict):
+                                    result_dict = result
+                                elif hasattr(result, "__dict__"):
+                                    result_dict = {
+                                        k: v
+                                        for k, v in result.__dict__.items()
+                                        if not k.startswith("_")
+                                    }
+                                elif hasattr(result, "get"):
+                                    result_dict = dict(result)
+                                else:
+                                    result_dict = {"id": 0, "title": str(result)}
 
-                                    result_dict["media_type"] = MediaType.MOVIE
-                                    results.append(result_dict)
-                                except Exception:
-                                    results.append(
-                                        {
-                                            "title": str(result),
-                                            "media_type": MediaType.MOVIE,
-                                        },
-                                    )
-                    except Exception as e:
+                                # Add media_type for Pydantic model
+                                result_dict["media_type"] = MediaType.MOVIE
+
+                                # Parse into Pydantic model
+                                result_model = TMDBSearchResult(**result_dict)
+                                result_models.append(result_model)
+
+                            except ValidationError as e:
+                                logger.warning(
+                                    "Failed to parse Movie search result (shortened): %s",
+                                    e,
+                                    extra={"result_data": result},
+                                )
+                            except Exception as e:  # noqa: BLE001
+                                logger.warning(
+                                    "Failed to process Movie search result (shortened): %s",
+                                    e,
+                                )
+                    except Exception as e:  # noqa: BLE001
                         # Movie search with this shortened title failed, try next (graceful)
                         logger.debug(
                             "Movie search failed for shortened title '%s', trying next: %s",
@@ -447,7 +469,7 @@ class TMDBClient:
                         )
 
                     # If we found results with shortened title, break
-                    if results:
+                    if result_models:
                         logger.info(
                             "Found results with shortened title '%s' for original '%s'",
                             shortened_title,
@@ -455,7 +477,7 @@ class TMDBClient:
                         )
                         break
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.debug(
                         "Shortened title '%s' also failed: %s",
                         shortened_title,
@@ -464,7 +486,7 @@ class TMDBClient:
                     continue
 
             # If still no results after trying all shortened titles, raise error
-            if not results:
+            if not result_models:
                 error = InfrastructureError(
                     code=ErrorCode.TMDB_API_MEDIA_NOT_FOUND,
                     message=f"No media found for title: {title} (tried shortened versions: {shortened_titles})",
@@ -484,13 +506,20 @@ class TMDBClient:
             duration_ms=0,  # Duration would be calculated in _make_request
             context=context.additional_data if context else None,
         )
-        return results
+
+        # Wrap results in TMDBSearchResponse
+        return TMDBSearchResponse(
+            page=1,
+            total_pages=1,
+            total_results=len(result_models),
+            results=result_models,
+        )
 
     async def get_media_details(
         self,
         media_id: int,
         media_type: str,
-    ) -> dict[str, Any] | None:
+    ) -> TMDBMediaDetails | None:
         """Get detailed information for a specific media item.
 
         Args:
@@ -498,10 +527,11 @@ class TMDBClient:
             media_type: Type of media ('tv' or 'movie')
 
         Returns:
-            Detailed media information or None if not found
+            TMDBMediaDetails or None if not found
 
         Raises:
             InfrastructureError: If API request fails after all retries
+            ValidationError: If API response doesn't match expected schema
         """
         context = ErrorContext(
             operation="get_media_details",
@@ -528,10 +558,37 @@ class TMDBClient:
             else:  # movie
                 result = await self._make_request(lambda: self._movie.details(media_id))
 
-            # Use TV show 'name' field as 'title' (name is localized, title is original)
-            if isinstance(result, dict) and media_type == MediaType.TV:
-                if "name" in result:
-                    result["title"] = result["name"]  # Always use localized name
+            # Convert result to dict if needed
+            if isinstance(result, dict):
+                result_dict = result
+            elif hasattr(result, "__dict__"):
+                result_dict = {
+                    k: v for k, v in result.__dict__.items() if not k.startswith("_")
+                }
+            elif hasattr(result, "get"):
+                result_dict = dict(result)
+            else:
+                # Cannot convert to dict, return None
+                logger.warning(
+                    "get_media_details returned unexpected type: %s",
+                    type(result),
+                )
+                return None
+
+            # Parse into Pydantic model
+            try:
+                details_model = TMDBMediaDetails(**result_dict)
+            except ValidationError:
+                logger.exception(
+                    "Failed to parse media details into Pydantic model",
+                    extra={
+                        "media_id": media_id,
+                        "media_type": media_type,
+                        "result_data": result_dict,
+                    },
+                )
+                # Return None on validation error (graceful degradation)
+                return None
 
             log_operation_success(
                 logger=logger,
@@ -539,7 +596,7 @@ class TMDBClient:
                 duration_ms=0,  # Duration would be calculated in _make_request
                 context=context.additional_data if context else None,
             )
-            return result if isinstance(result, dict) else None
+            return details_model
 
         except AniVaultError as e:
             # Re-raise AniVaultError as-is
@@ -713,9 +770,9 @@ class TMDBClient:
             context: Error context for logging
         """
         if hasattr(exception, "response") and exception.response is not None:
-            status_code = getattr(exception.response, "status_code", 0)
+            status_code = getattr(exception.response, LogContextKeys.STATUS_CODE, 0)
 
-            if status_code == 429:
+            if status_code == HTTPStatusCodes.TOO_MANY_REQUESTS:
                 # Handle rate limiting
                 retry_after = self._extract_retry_after(exception.response)
                 self.state_machine.handle_429(retry_after)
@@ -728,7 +785,7 @@ class TMDBClient:
                 # Reset rate limiter on 429
                 self.rate_limiter.reset()
 
-            elif 500 <= status_code < 600:
+            elif HTTPStatusCodes.is_server_error(status_code):
                 # Handle server errors
                 self.state_machine.handle_error(status_code)
             else:
@@ -796,29 +853,29 @@ class TMDBClient:
             Tuple of (ErrorCode, error_message)
         """
         if hasattr(exception, "response") and exception.response is not None:
-            status_code = getattr(exception.response, "status_code", 0)
+            status_code = getattr(exception.response, LogContextKeys.STATUS_CODE, 0)
 
-            if status_code == 401:
+            if status_code == HTTPStatusCodes.UNAUTHORIZED:
                 return (
                     ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
                     TMDBErrorMessages.AUTHENTICATION_FAILED,
                 )
-            if status_code == 403:
+            if status_code == HTTPStatusCodes.FORBIDDEN:
                 return (
                     ErrorCode.TMDB_API_AUTHENTICATION_ERROR,
                     TMDBErrorMessages.ACCESS_FORBIDDEN,
                 )
-            if status_code == 429:
+            if status_code == HTTPStatusCodes.TOO_MANY_REQUESTS:
                 return (
                     ErrorCode.TMDB_API_RATE_LIMIT_EXCEEDED,
                     TMDBErrorMessages.RATE_LIMIT_EXCEEDED,
                 )
-            if 400 <= status_code < 500:
+            if HTTPStatusCodes.is_client_error(status_code):
                 return (
                     ErrorCode.TMDB_API_REQUEST_FAILED,
                     TMDBErrorMessages.CLIENT_ERROR.format(status_code=status_code),
                 )
-            if 500 <= status_code < 600:
+            if HTTPStatusCodes.is_server_error(status_code):
                 return (
                     ErrorCode.TMDB_API_SERVER_ERROR,
                     TMDBErrorMessages.SERVER_ERROR.format(status_code=status_code),

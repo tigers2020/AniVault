@@ -37,4 +37,3 @@ exclude: |
       .*\.egg-info/.*|
       node_modules/.*
   )$
-

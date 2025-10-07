@@ -1,7 +1,7 @@
 # Stage 1: 보안 즉시 조치 최종 보고서
 
-**완료일**: 2025-10-07  
-**소요 시간**: 3시간  
+**완료일**: 2025-10-07
+**소요 시간**: 3시간
 **상태**: ✅ 완료
 
 ---
@@ -13,7 +13,7 @@
 
 ### 달성 결과 ✅
 - ✅ config/settings.py - .env 로딩 실패 시 SecurityError 발생
-- ✅ security/encryption.py - 토큰 검증 실패 시 SecurityError 발생  
+- ✅ security/encryption.py - 토큰 검증 실패 시 SecurityError 발생
 - ✅ gui/workers/tmdb_matching_worker.py - API 키 검증 강화 (로그 + 구조화)
 
 ---
@@ -69,7 +69,7 @@ if len(api_key) < 20:
 def validate_token(self, token: str) -> None:
     if not token:
         raise SecurityError(ErrorCode.INVALID_TOKEN, "Token is empty")
-    
+
     try:
         self._fernet_suite.decrypt(token.encode("utf-8"))
     except InvalidToken as e:
@@ -159,8 +159,8 @@ def is_valid_token(self, token: str) -> bool:
 ## 💡 주요 결정사항
 
 ### 1. GUI Worker는 예외를 raise하지 않음
-**이유**: PySide6 스레드에서 예외 발생 시 앱 크래시 가능  
-**해결**: 구조화된 로깅 + signal로 에러 전파  
+**이유**: PySide6 스레드에서 예외 발생 시 앱 크래시 가능
+**해결**: 구조화된 로깅 + signal로 에러 전파
 **적용**: tmdb_matching_worker.py는 return False 유지하되 로그 강화
 
 ### 2. 하위 호환성 유지 패턴
@@ -178,7 +178,7 @@ def is_valid_token(self, token: str) -> bool:  # 기존 (하위 호환)
 ```
 
 ### 3. Failure-First 테스트 전략 확립
-**효과**: 실제 에러 케이스를 먼저 테스트하여 구현 검증  
+**효과**: 실제 에러 케이스를 먼저 테스트하여 구현 검증
 **적용**: 모든 리팩토링에 Failure-First 패턴 적용 결정
 
 ---
@@ -272,6 +272,5 @@ def is_valid_token(self, token: str) -> bool:  # 기존 (하위 호환)
 
 ---
 
-**Status**: ✅ Stage 1 완료, Stage 2 준비 완료  
+**Status**: ✅ Stage 1 완료, Stage 2 준비 완료
 **Next**: rollback_handler.py 리팩토링 시작
-

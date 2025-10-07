@@ -1,7 +1,7 @@
 # Stage 2 완료 보고서: Silent Failure 대량 제거
 
-**날짜**: 2025-10-07  
-**범위**: Stage 2.1 (rollback) + 2.2 (metadata) + 2.3 (organize)  
+**날짜**: 2025-10-07
+**범위**: Stage 2.1 (rollback) + 2.2 (metadata) + 2.3 (organize)
 **총 제거**: 20개 silent failure → 0개 (100%)
 
 ---
@@ -78,28 +78,28 @@ def _get_rollback_log_path(options, console):
 ```python
 def _get_rollback_log_path(options, console) -> Path:
     """Get rollback log path.
-    
+
     Raises:
         ApplicationError: If log not found
         InfrastructureError: If file access fails
     """
     try:
         log_path = log_manager.get_log_by_id(options.log_id)
-        
+
         if log_path is None:
             raise ApplicationError(
                 code=ErrorCode.FILE_NOT_FOUND,
                 message=f"Rollback log '{options.log_id}' not found",
                 context=...
             )
-        
+
         return log_path  # ✅ 항상 유효한 Path
-        
+
     except (ApplicationError, InfrastructureError):
         raise  # ✅ 명확한 예외 전파
 ```
 
-**핵심**: 
+**핵심**:
 - ✅ UI/로깅 책임 분리 (최상위 핸들러만 담당)
 - ✅ 명확한 반환 타입
 - ✅ None 체크 → 예외 발생
@@ -124,7 +124,7 @@ def _calculate_title_similarity(title1, title2):
 ```python
 def _calculate_title_similarity(title1, title2) -> float:
     """Calculate title similarity.
-    
+
     Raises:
         DomainError: If validation or processing fails
     """
@@ -135,18 +135,18 @@ def _calculate_title_similarity(title1, title2) -> float:
             message="Title must be a string",
             context=...
         )
-    
+
     if not title1 or not title2:
         raise DomainError(
             code=ErrorCode.VALIDATION_ERROR,
             message="Title cannot be empty",
             context=...
         )
-    
+
     try:
         # ... 계산 로직 ...
         return score  # ✅ 실제 점수 반환
-        
+
     except Exception as e:
         # ✅ 명확한 예외 전환
         raise DomainError(
@@ -303,10 +303,10 @@ Total:                                            24/24 ✅ (100%)
 ## 🎉 **Week 1 마일스톤 달성**
 
 ### **완료한 작업**
-✅ **Stage 1 (보안)**: 3개 보안 취약점 수정  
-✅ **Stage 2.1 (rollback)**: 9개 CLI 핸들러 개선  
-✅ **Stage 2.2 (metadata)**: 7개 매칭 알고리즘 투명성 확보  
-✅ **Stage 2.3 (organize)**: 4개 조직화 핸들러 개선  
+✅ **Stage 1 (보안)**: 3개 보안 취약점 수정
+✅ **Stage 2.1 (rollback)**: 9개 CLI 핸들러 개선
+✅ **Stage 2.2 (metadata)**: 7개 매칭 알고리즘 투명성 확보
+✅ **Stage 2.3 (organize)**: 4개 조직화 핸들러 개선
 
 ### **생성한 자산**
 - 📝 24개 Failure-First 테스트
@@ -464,7 +464,6 @@ pytest tests/services/test_tmdb_client_failures.py -v
 
 ---
 
-**리뷰어**: 윤도현, 사토 미나, 최로건  
-**승인 상태**: ✅ Stage 2 전체 완료  
+**리뷰어**: 윤도현, 사토 미나, 최로건
+**승인 상태**: ✅ Stage 2 전체 완료
 **다음 단계**: Stage 3 (tmdb_client.py) 시작
-

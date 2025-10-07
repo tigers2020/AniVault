@@ -42,7 +42,7 @@ def handle_organize_command(options: OrganizeOptions) -> int:
 
     try:
         console = _setup_organize_console()
-        
+
         # Validate directory (raises exception on error)
         directory = _validate_organize_directory(options, console)
 
@@ -634,12 +634,11 @@ def _collect_organize_data(
                     extra={"error": str(e)},
                 )
         # Skip other types with warning
-        else:
-            if raw_file_size is not None:
-                logger.warning(
-                    "Unexpected file size type in operation data: %s",
-                    type(raw_file_size).__name__,
-                )
+        elif raw_file_size is not None:
+            logger.warning(
+                "Unexpected file size type in operation data: %s",
+                type(raw_file_size).__name__,
+            )
 
     return {
         "organize_summary": {

@@ -432,7 +432,7 @@ class DirectoryScanner(threading.Thread):
                     extra={"error": str(e), "operation": "process_file_entry"},
                 )
                 # Note: stats.increment_skipped() not available yet
-            # Skipped files are tracked implicitly
+                # Skipped files are tracked implicitly
                 return None
             except OSError as e:
                 # Skip files we can't stat (OS error)
@@ -442,7 +442,7 @@ class DirectoryScanner(threading.Thread):
                     extra={"error": str(e), "operation": "process_file_entry"},
                 )
                 # Note: stats.increment_skipped() not available yet
-            # Skipped files are tracked implicitly
+                # Skipped files are tracked implicitly
                 return None
 
         return file_path

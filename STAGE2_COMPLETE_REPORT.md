@@ -1,7 +1,7 @@
 # Stage 2 완료 보고서: Silent Failure 제거
 
-**날짜**: 2025-10-07  
-**완료**: Stage 2.1 (rollback) + Stage 2.2 (metadata)  
+**날짜**: 2025-10-07
+**완료**: Stage 2.1 (rollback) + Stage 2.2 (metadata)
 **총 제거**: 16개 silent failure
 
 ---
@@ -38,7 +38,7 @@ def _calculate_title_similarity(title1, title2):
 ```python
 def _calculate_title_similarity(title1, title2) -> float:
     """Calculate title similarity.
-    
+
     Raises:
         DomainError: If validation or processing fails
     """
@@ -52,7 +52,7 @@ def _calculate_title_similarity(title1, title2) -> float:
                 additional_data={"title1_type": type(title1).__name__, ...}
             ),
         )
-    
+
     # ✅ 빈 문자열 검증
     if not title1 or not title2:
         raise DomainError(
@@ -60,11 +60,11 @@ def _calculate_title_similarity(title1, title2) -> float:
             message="Title cannot be empty",
             context=...
         )
-    
+
     try:
         # ... 계산 로직 ...
         return score
-        
+
     except Exception as e:
         # ✅ 명확한 예외 전환
         raise DomainError(
@@ -93,7 +93,7 @@ def _calculate_title_similarity(title1, title2) -> float:
 ```python
 def _find_best_match(file_info, search_results):
     """Find best match with partial failure tolerance.
-    
+
     - file_info 에러: 즉시 재전파 (전체 실패)
     - 개별 result 에러: 로그 후 스킵 (부분 실패 허용)
     - 모든 result 실패: ApplicationError 발생
@@ -110,7 +110,7 @@ def _find_best_match(file_info, search_results):
             failed_results += 1
             log_operation_error(...)
             continue
-    
+
     # 모든 result 실패 시 명확한 예외
     if failed_results == len(search_results):
         raise ApplicationError(
@@ -234,7 +234,6 @@ for item in items:
 
 ---
 
-**리뷰어**: 윤도현, 사토 미나, 최로건  
-**승인 상태**: ✅ Stage 2.1-2.2 완료  
+**리뷰어**: 윤도현, 사토 미나, 최로건
+**승인 상태**: ✅ Stage 2.1-2.2 완료
 **다음 단계**: Stage 2.3 organize_handler.py
-

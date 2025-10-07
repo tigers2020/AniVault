@@ -275,8 +275,18 @@ class MagicValueDetector(ast.NodeVisitor):
 
     def generic_visit(self, node: ast.AST) -> None:
         """일반적인 노드 방문 - 부모 노드 정보 추가"""
+        # 일반 자식 노드에 부모 설정
         for child in ast.iter_child_nodes(node):
             child.parent = node
+        
+        # Call 노드의 keyword에 부모 설정
+        # AST 구조: Call > keyword > value (Constant)
+        if isinstance(node, ast.Call):
+            for keyword in node.keywords:
+                keyword.parent = node  # keyword의 부모는 Call
+                if hasattr(keyword, 'value'):
+                    keyword.value.parent = keyword  # value의 부모는 keyword
+        
         super().generic_visit(node)
 
     def _check_constant(
@@ -305,6 +315,10 @@ class MagicValueDetector(ast.NodeVisitor):
 
         # help text인지 확인
         if self._is_help_text(node):
+            return
+
+        # 문서화 문자열인지 확인 (Pydantic Field description, 에러 메시지 등)
+        if self._is_documentation_string(node):
             return
 
         # 허용되는 값인지 확인
@@ -398,22 +412,38 @@ class MagicValueDetector(ast.NodeVisitor):
         if not isinstance(node, (ast.Constant, ast.Str)):
             return False
 
+        # 값 추출
+        value = node.value if hasattr(node, "value") else node.s
+        if not isinstance(value, str):
+            return False
+
         # 모듈, 클래스, 함수의 첫 번째 문장인지 확인
         if hasattr(node, "parent"):
             parent = node.parent
-            if isinstance(
-                parent,
-                (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef),
-            ):
+            
+            # 1. 직접적인 docstring (모듈, 클래스, 함수의 첫 번째 문장)
+            if isinstance(parent, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
                 # 첫 번째 문장이 문자열이면 docstring
                 if parent.body and parent.body[0] == node:
                     return True
-
-        # 긴 문자열 (docstring 가능성 높음)
-        if isinstance(node, (ast.Constant, ast.Str)):
-            value = node.value if hasattr(node, "value") else node.s
-            if isinstance(value, str) and len(value) > 50:
-                return True
+            
+            # 2. Expr 노드 안의 문자열 (docstring 패턴)
+            if isinstance(parent, ast.Expr):
+                if hasattr(parent, 'parent'):
+                    grandparent = parent.parent
+                    if isinstance(grandparent, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                        # 첫 번째 statement인지 확인
+                        if grandparent.body and grandparent.body[0] == parent:
+                            return True
+        
+        # 3. 긴 문자열 (docstring 가능성 높음) - 50자 이상
+        if len(value) > 50:
+            return True
+        
+        # 4. 문장으로 끝나는 문자열 (설명 문자열 패턴)
+        # "Configuration for..."  "This is..."  "Validate that..." 등
+        if value.endswith('.') and len(value) > 20:
+            return True
 
         return False
 
@@ -437,6 +467,175 @@ class MagicValueDetector(ast.NodeVisitor):
                     for keyword in parent.keywords:
                         if keyword.arg == "help" and keyword.value == node:
                             return True
+        return False
+
+    def _is_documentation_string(self, node: ast.AST) -> bool:
+        """문서화 문자열인지 확인 (Pydantic Field description, 에러 메시지 등)"""
+        if not isinstance(node, (ast.Constant, ast.Str)):
+            return False
+
+        if not hasattr(node, "parent"):
+            return False
+
+        parent = node.parent
+
+        # 1. Pydantic Field의 문서화 키워드 인자
+        # AST 구조: Call > keyword > Constant
+        # parent = keyword 타입
+        if isinstance(parent, ast.keyword):
+            # 문서화 관련 키워드 인자
+            if parent.arg in ("description", "title", "example", "examples", "alias"):
+                # Call 노드 확인 (keyword의 부모)
+                if hasattr(parent, 'parent') and isinstance(parent.parent, ast.Call):
+                    call_node = parent.parent
+                    # Field 함수인지 확인
+                    if isinstance(call_node.func, ast.Name) and call_node.func.id == "Field":
+                        return True
+            
+            # 환경 변수 이름 (Field의 env 파라미터)
+            # Field(env="TMDB_API_KEY")
+            if parent.arg == "env":
+                if hasattr(parent, 'parent') and isinstance(parent.parent, ast.Call):
+                    call_node = parent.parent
+                    if isinstance(call_node.func, ast.Name) and call_node.func.id == "Field":
+                        return True
+
+        # 2. 환경 변수 조회 (os.getenv, os.environ)
+        if isinstance(parent, ast.Call):
+            # os.getenv("VARIABLE_NAME")
+            if isinstance(parent.func, ast.Attribute):
+                if (parent.func.attr == "getenv" and 
+                    isinstance(parent.func.value, ast.Name) and 
+                    parent.func.value.id == "os"):
+                    if parent.args and parent.args[0] == node:
+                        return True
+            
+            # os.getenv 직접 import한 경우: getenv("VARIABLE_NAME")
+            if isinstance(parent.func, ast.Name) and parent.func.id == "getenv":
+                if parent.args and parent.args[0] == node:
+                    return True
+
+        # 3. os.environ["VARIABLE_NAME"] 구독 접근
+        if isinstance(parent, ast.Subscript):
+            if isinstance(parent.value, ast.Attribute):
+                if (parent.value.attr == "environ" and 
+                    isinstance(parent.value.value, ast.Name) and 
+                    parent.value.value.id == "os"):
+                    return True
+            # environ 직접 import한 경우: environ["VARIABLE_NAME"]
+            if isinstance(parent.value, ast.Name) and parent.value.id == "environ":
+                return True
+
+        # 4. 에러 메시지 (raise 문의 문자열)
+        if isinstance(parent, ast.Call):
+            # 예외 생성자의 첫 번째 인자
+            if parent.args and parent.args[0] == node:
+                if isinstance(parent.func, ast.Name):
+                    # ValueError("message"), RuntimeError("message") 등
+                    if parent.func.id.endswith("Error") or parent.func.id == "Exception":
+                        return True
+
+        # 5. logger 호출의 메시지
+        if isinstance(parent, ast.Call):
+            if isinstance(parent.func, ast.Attribute):
+                # logger.info("message"), logger.error("message") 등
+                if parent.func.attr in ("debug", "info", "warning", "error", "critical", "exception"):
+                    if parent.args and parent.args[0] == node:
+                        return True
+
+        # 6. f-string이나 format() 호출의 메시지
+        if isinstance(parent, ast.JoinedStr):
+            return True
+        
+        # 7. 파일 I/O 함수의 파일명 (첫 번째 인자)
+        if isinstance(parent, ast.Call):
+            # open("filename"), Path("filename") 등
+            file_io_functions = {
+                "open", "read", "write", "load", "dump",
+                "Path", "PurePath", "PosixPath", "WindowsPath",
+                "read_text", "write_text", "read_bytes", "write_bytes",
+                "exists", "is_file", "is_dir",
+                "load_dotenv"  # python-dotenv
+            }
+            
+            # 직접 함수 호출: open("file")
+            if isinstance(parent.func, ast.Name):
+                if parent.func.id in file_io_functions:
+                    if parent.args and parent.args[0] == node:
+                        return True
+            
+            # 속성 함수 호출: Path.read_text("file")
+            if isinstance(parent.func, ast.Attribute):
+                if parent.func.attr in file_io_functions:
+                    if parent.args and parent.args[0] == node:
+                        return True
+        
+        # 8. 파일명 키워드 인자 (filename=, file=, path= 등)
+        if isinstance(parent, ast.keyword):
+            if parent.arg in ("filename", "file", "path", "filepath", "file_path", 
+                            "output", "input", "env_file", "dotenv_path"):
+                return True
+        
+        # 9. 예시 데이터 (json_schema_extra, ConfigDict의 example)
+        # 딕셔너리 안의 값들을 추적하여 예시 데이터인지 확인
+        if self._is_example_data(node):
+            return True
+
+        return False
+    
+    def _is_example_data(self, node: ast.AST) -> bool:
+        """예시 데이터인지 확인 (json_schema_extra, example, 테스트/벤치마크 데이터 등)"""
+        # 벤치마크/테스트 파일은 예시 데이터로 간주
+        if any(pattern in self.file_path for pattern in ["benchmark.py", "test_", "_test.py", "tests/"]):
+            return True
+        
+        # 부모 노드를 거슬러 올라가면서 예시 데이터 컨텍스트 확인
+        current = node
+        depth = 0
+        max_depth = 10  # 최대 10단계까지만 추적
+        
+        while hasattr(current, 'parent') and depth < max_depth:
+            parent = current.parent
+            
+            # Dict 노드인 경우
+            if isinstance(parent, ast.Dict):
+                # 딕셔너리의 키가 "example"이거나 "examples"인 경우
+                for i, (key, value) in enumerate(zip(parent.keys, parent.values)):
+                    if key and isinstance(key, (ast.Constant, ast.Str)):
+                        key_value = key.value if hasattr(key, 'value') else key.s
+                        if key_value in ("example", "examples", "json_schema_extra"):
+                            # 이 딕셔너리 값 안에 있으면 예시 데이터
+                            if self._is_descendant_of(node, value):
+                                return True
+            
+            # keyword 노드인 경우 (json_schema_extra=..., example=...)
+            if isinstance(parent, ast.keyword):
+                if parent.arg in ("json_schema_extra", "example", "examples"):
+                    return True
+            
+            # Call 노드의 함수가 ConfigDict인 경우
+            if isinstance(parent, ast.Call):
+                if isinstance(parent.func, ast.Name) and parent.func.id == "ConfigDict":
+                    # ConfigDict 안의 모든 값은 설정 데이터
+                    return True
+            
+            current = parent
+            depth += 1
+        
+        return False
+    
+    def _is_descendant_of(self, node: ast.AST, ancestor: ast.AST) -> bool:
+        """node가 ancestor의 자손인지 확인"""
+        current = node
+        depth = 0
+        max_depth = 20
+        
+        while hasattr(current, 'parent') and depth < max_depth:
+            if current == ancestor:
+                return True
+            current = current.parent
+            depth += 1
+        
         return False
 
     def _is_magic_value(self, value: Any) -> bool:

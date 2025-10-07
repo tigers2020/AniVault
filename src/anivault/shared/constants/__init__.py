@@ -30,6 +30,7 @@ from .cli import QueueConfig, RunDefaults, WorkerConfig
 from .core import BusinessRules
 from .core import CacheConfig as CoreCacheConfig
 from .core import NormalizationConfig, ProcessingConfig
+from .error_keys import ErrorCategoryValues, ErrorContextKeys, StatusValues
 from .file_formats import (
     ExclusionPatterns,
     FileLimits,
@@ -48,20 +49,26 @@ from .gui_messages import (
     ToolTips,
     UIConfig,
 )
+from .http_codes import ContentTypes, HTTPHeaders, HTTPStatusCodes
 from .logging import ErrorLogging
 from .logging import LogConfig as LoggingConfig
 from .logging import LogLevels, LogMessages, LogPaths, PerformanceLogging
+from .logging_keys import LogContextKeys, LogFieldNames, LogOperationNames
 from .matching import (
+    CacheConfig as MatchingCacheConfig,
     ConfidenceThresholds,
+    DefaultLanguage,
     FallbackStrategy,
     GenreConfig,
     MatchingAlgorithm,
+    MatchingFieldNames,
     ScoringWeights,
     TitleNormalization,
     ValidationConfig,
+    ValidationConstants,
+    YearMatchingConfig,
 )
 from .network import DownloadConfig, NetworkConfig
-from .tmdb_messages import TMDBErrorMessages, TMDBOperationNames
 
 # Import system classes for direct access
 from .system import (
@@ -88,6 +95,8 @@ from .system import (
     Timeout,
     TMDBErrorHandling,
 )
+from .tmdb_keys import TMDBMediaTypes, TMDBResponseKeys, TMDBSearchKeys
+from .tmdb_messages import TMDBErrorMessages, TMDBOperationNames
 
 # Export all classes and constants
 __all__ = [
@@ -112,13 +121,17 @@ __all__ = [
     "Cache",
     "ConfidenceConfig",
     "ConfidenceThresholds",
+    "DefaultLanguage",
     "Config",
+    "ContentTypes",
     "CoreCacheConfig",
     "DialogMessages",
     "DialogTitles",
     "DownloadConfig",
     "Encoding",
     "EnrichmentStatus",
+    "ErrorCategoryValues",
+    "ErrorContextKeys",
     "ErrorHandling",
     "ErrorLogging",
     "ExclusionPatterns",
@@ -126,14 +139,21 @@ __all__ = [
     "FileLimits",
     "FileSystem",
     "GenreConfig",
+    "HTTPHeaders",
+    "HTTPStatusCodes",
     "JsonKeys",
     "Language",
+    "LogContextKeys",
+    "LogFieldNames",
     "LogLevels",
     "LogMessages",
+    "LogOperationNames",
     "LogPaths",
     "Logging",
     "LoggingConfig",
     "MatchingAlgorithm",
+    "MatchingCacheConfig",
+    "MatchingFieldNames",
     "MediaType",
     "Memory",
     "MetadataConfig",
@@ -151,17 +171,23 @@ __all__ = [
     "ScoringWeights",
     "Status",
     "StatusMessages",
+    "StatusValues",
     "SubtitleFormats",
     "TMDBConfig",
     "TMDBErrorHandling",
     "TMDBErrorMessages",
+    "TMDBMediaTypes",
     "TMDBOperationNames",
+    "TMDBResponseKeys",
+    "TMDBSearchKeys",
     "TestConfig",
     "Timeout",
     "TitleNormalization",
     "ToolTips",
     "UIConfig",
     "ValidationConfig",
+    "ValidationConstants",
     "VideoFormats",
     "WorkerConfig",
+    "YearMatchingConfig",
 ]

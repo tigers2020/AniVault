@@ -10,6 +10,69 @@ from typing import ClassVar
 from .system import BASE_SECOND
 
 
+class ValidationConstants:
+    """Validation constants for matching domain models."""
+
+    # Year validation
+    MIN_VALID_YEAR = 1900  # Earliest valid release year
+    FUTURE_YEAR_TOLERANCE = 5  # Years into future allowed for upcoming releases
+
+    # Confidence score validation
+    MIN_CONFIDENCE_SCORE = 0.0  # Minimum valid confidence score
+    MAX_CONFIDENCE_SCORE = 1.0  # Maximum valid confidence score
+
+    # Media type validation
+    VALID_MEDIA_TYPES: ClassVar[list[str]] = [
+        "tv",
+        "movie",
+    ]  # Allowed media type values
+
+
+class YearMatchingConfig:
+    """Year matching configuration constants."""
+
+    # Year score calculation
+    YEAR_SCORE_MAX = 100  # Maximum year score for exact match
+    YEAR_DIFF_UNKNOWN = 999  # Year difference for candidates without year info
+    YEAR_SCORE_UNKNOWN = 0  # Score for candidates without year info
+
+
+class CacheConfig:
+    """Cache configuration constants for matching engine."""
+
+    # Cache TTL (time-to-live)
+    SEARCH_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
+    DETAILS_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
+
+    # Cache types
+    CACHE_TYPE_SEARCH = "search"
+    CACHE_TYPE_DETAILS = "details"
+
+
+class MatchingFieldNames:
+    """Internal field names used during matching process."""
+
+    # Scoring fields added to candidates during matching
+    TITLE_SCORE = "title_score"
+    YEAR_SCORE = "year_score"
+    YEAR_DIFF = "year_diff"
+    CONFIDENCE_SCORE = "confidence_score"
+    PARTIAL_MATCH_SCORE = "partial_match_score"
+    USED_PARTIAL_MATCHING = "used_partial_matching"
+
+    # Metadata field
+    MATCHING_METADATA = "matching_metadata"
+
+
+class DefaultLanguage:
+    """Default language configuration for TMDB API."""
+
+    # Default language code for TMDB API requests
+    KOREAN = "ko-KR"
+    JAPANESE = "ja-JP"
+    ENGLISH = "en-US"
+
+
 class ConfidenceThresholds:
     """Confidence threshold constants for matching.
 
@@ -28,7 +91,9 @@ class ConfidenceThresholds:
 
     # Genre-specific thresholds (used in _apply_genre_filter)
     ANIMATION_MIN = 0.2  # Lenient for cross-script fuzzy matching
-    NON_ANIMATION_MIN = 0.8  # Strict to avoid false positives (quiz shows, variety, etc.)
+    NON_ANIMATION_MIN = (
+        0.8  # Strict to avoid false positives (quiz shows, variety, etc.)
+    )
 
     # Benchmark specific thresholds
     BENCHMARK_DEFAULT = 0.7
@@ -86,10 +151,10 @@ class FallbackStrategy:
 
 class ScoringWeights:
     """Scoring weight configuration for matching.
-    
+
     These weights are used in calculate_confidence_score() to determine
     the overall match confidence. The sum must equal 1.0.
-    
+
     Note: These values are tuned based on empirical testing with anime filenames.
     """
 
@@ -106,7 +171,7 @@ class ScoringWeights:
 
 class GenreConfig:
     """Genre-based filtering configuration.
-    
+
     These constants control how the matching engine applies genre-based
     filtering and confidence boosting for animation content.
     """
@@ -123,11 +188,16 @@ class GenreConfig:
 
 
 __all__ = [
+    "CacheConfig",
     "ConfidenceThresholds",
+    "DefaultLanguage",
+    "FallbackStrategy",
     "GenreConfig",
     "MatchingAlgorithm",
+    "MatchingFieldNames",
     "ScoringWeights",
-    "ValidationConfig",
     "TitleNormalization",
-    "FallbackStrategy",
+    "ValidationConfig",
+    "ValidationConstants",
+    "YearMatchingConfig",
 ]

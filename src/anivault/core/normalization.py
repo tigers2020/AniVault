@@ -17,7 +17,10 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from anivault.core.matching.models import NormalizedQuery
 
 from anivault.shared.constants import NormalizationConfig
 from anivault.shared.constants.core import LanguageDetectionConfig
@@ -27,26 +30,26 @@ logger = logging.getLogger(__name__)
 
 def normalize_query_from_anitopy(
     anitopy_result: dict[str, Any],
-) -> dict[str, Any] | None:
-    """Normalize an anitopy result into a standardized search query for TMDB API.
+) -> NormalizedQuery | None:
+    """Normalize an anitopy result into a NormalizedQuery domain object.
 
     This function processes an anitopy parse result through multiple stages to produce
-    a clean, searchable title and detect the language.
+    a clean, searchable title and extract year metadata.
 
     Args:
         anitopy_result: The result from anitopy.parse() containing anime metadata.
 
     Returns:
-        A dictionary containing normalized query data with keys:
-        - title: Clean title suitable for TMDB search
-        - language: Detected language ('ja', 'ko', 'en', or 'unknown')
-        - year: Year hint if available
-        - original_data: The original anitopy result
+        NormalizedQuery domain object with validated title and optional year,
+        or None if normalization fails.
 
     Examples:
         >>> result = anitopy.parse("[SubsPlease] Attack on Titan - 01 (1080p).mkv")
-        >>> normalize_query_from_anitopy(result)
-        {'title': 'Attack on Titan', 'language': 'en', 'year': None, 'original_data': {...}}
+        >>> query = normalize_query_from_anitopy(result)
+        >>> query.title
+        'Attack on Titan'
+        >>> query.year
+        None
     """
     try:
         # Extract title from anitopy results
@@ -62,29 +65,37 @@ def normalize_query_from_anitopy(
         # Normalize characters and Unicode
         normalized_title = _normalize_characters(cleaned_title)
 
-        # Detect language
-        language = _detect_language(normalized_title)
-
         # Extract year hint if available
         year_hint = anitopy_result.get("anime_year")
         if not year_hint:
             year_hint = anitopy_result.get("year")
 
-        result = {
-            "title": normalized_title,
-            "language": language,
-            "year": year_hint,
-            "original_data": anitopy_result,
-        }
+        # Convert year to int if present
+        year_int: int | None = None
+        if year_hint is not None:
+            try:
+                year_int = int(year_hint)
+            except (ValueError, TypeError):
+                logger.debug("Failed to convert year hint to int: %s", year_hint)
+
+        # Create NormalizedQuery domain object (validates title and year)
+        # Import here to avoid circular import
+        from anivault.core.matching.models import NormalizedQuery
+
+        try:
+            normalized_query = NormalizedQuery(title=normalized_title, year=year_int)
+        except ValueError as e:
+            logger.warning("Failed to create NormalizedQuery: %s", str(e))
+            return None
 
         logger.debug(
-            "Normalized anitopy result: '%s' -> '%s' (%s)",
+            "Normalized anitopy result: '%s' -> '%s' (year: %s)",
             title,
             normalized_title,
-            language,
+            year_int,
         )
 
-        return result
+        return normalized_query
 
     except Exception as e:  # noqa: BLE001
         logger.warning(

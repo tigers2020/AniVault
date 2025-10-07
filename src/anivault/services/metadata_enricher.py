@@ -13,7 +13,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from anivault.core.parser.models import ParsingResult
-from anivault.shared.constants import APIFields
+from anivault.shared.constants import (
+    APIFields,
+    LogContextKeys,
+    LogOperationNames,
+    TMDBResponseKeys,
+)
 from anivault.shared.constants.system import EnrichmentStatus, MediaType
 from anivault.shared.errors import (
     AniVaultError,
@@ -26,6 +31,7 @@ from anivault.shared.errors import (
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 from .tmdb_client import TMDBClient
+from .tmdb_models import TMDBMediaDetails
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +51,7 @@ class EnrichedMetadata:
     """
 
     file_info: ParsingResult
-    tmdb_data: dict[str, Any] | None = None
+    tmdb_data: TMDBMediaDetails | dict[str, Any] | None = None
     match_confidence: float = 0.0
     enrichment_status: str = APIFields.ENRICHMENT_STATUS_PENDING
 
@@ -97,10 +103,10 @@ class MetadataEnricher:
             EnrichedMetadata containing both file info and TMDB data
         """
         context = ErrorContext(
-            operation="enrich_metadata",
+            operation=LogOperationNames.ENRICH_METADATA,
             additional_data={
                 "title": file_info.title,
-                "min_confidence": self.min_confidence,
+                LogContextKeys.MIN_CONFIDENCE: self.min_confidence,
             },
         )
 
@@ -115,14 +121,16 @@ class MetadataEnricher:
             # Search for matching media
             if self.tmdb_client is None:
                 raise ValueError("TMDB client is not initialized")
-            search_results = await self.tmdb_client.search_media(file_info.title)
+            search_response = await self.tmdb_client.search_media(file_info.title)
 
-            if not search_results:
+            if not search_response.results:
                 enriched.enrichment_status = APIFields.ENRICHMENT_STATUS_FAILED
                 return enriched
 
             # Find the best match
-            best_match = self._find_best_match(file_info, search_results)
+            # Convert Pydantic models to dicts for compatibility with existing matching logic
+            search_results_dicts = [result.model_dump() for result in search_response.results]
+            best_match = self._find_best_match(file_info, search_results_dicts)
 
             if best_match is None:
                 enriched.enrichment_status = APIFields.ENRICHMENT_STATUS_FAILED
@@ -134,15 +142,15 @@ class MetadataEnricher:
                     if self.tmdb_client is None:
                         raise ValueError("TMDB client is not initialized")
                     details = await self.tmdb_client.get_media_details(
-                        best_match["id"],
-                        best_match["media_type"],
+                        best_match[TMDBResponseKeys.ID],
+                        best_match[TMDBResponseKeys.MEDIA_TYPE],
                     )
                     enriched.tmdb_data = details
                 except AniVaultError as e:
                     # Handle AniVault errors from TMDB client
                     log_operation_error(
                         logger=logger,
-                        operation="get_media_details",
+                        operation=LogOperationNames.GET_MEDIA_DETAILS,
                         error=e,
                         additional_context=context.additional_data if context else None,
                     )
@@ -154,13 +162,13 @@ class MetadataEnricher:
                         code=ErrorCode.TMDB_API_CONNECTION_ERROR,
                         message=f"Network error during media details retrieval: {e!s}",
                         context=ErrorContext(
-                            operation="get_media_details",
+                            operation=LogOperationNames.GET_MEDIA_DETAILS,
                             additional_data={
-                                "media_id": best_match["id"],
-                                "media_type": best_match["media_type"],
+                                LogContextKeys.MEDIA_ID: best_match[TMDBResponseKeys.ID],
+                                LogContextKeys.MEDIA_TYPE: best_match[TMDBResponseKeys.MEDIA_TYPE],
                                 "title": file_info.title,
                                 "error_type": "network",
-                                "original_error": str(e),
+                                LogContextKeys.ORIGINAL_ERROR: str(e),
                             },
                         ),
                         original_error=e,

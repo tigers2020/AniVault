@@ -114,7 +114,9 @@ class FunctionComplexityDetector(ast.NodeVisitor):
                     "column": node.col_offset,
                     "function": function_name,
                     "type": "mixed_responsibilities",
-                    "value": list(responsibilities),  # Convert set to list for JSON serialization
+                    "value": list(
+                        responsibilities,
+                    ),  # Convert set to list for JSON serialization
                     "threshold": 1,
                     "context": self._get_function_context(node),
                 },

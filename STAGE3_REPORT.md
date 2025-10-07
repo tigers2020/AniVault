@@ -1,7 +1,7 @@
 # Stage 3 완료 보고서: 파이프라인 & CLI 투명성 확보
 
-**날짜**: 2025-10-07  
-**완료**: Stage 3.1 (scanner) + 3.2 (log_handler)  
+**날짜**: 2025-10-07
+**완료**: Stage 3.1 (scanner) + 3.2 (log_handler)
 **총 제거/개선**: 5개 silent failure
 
 ---
@@ -228,7 +228,6 @@ grep -n "sqlite_cache_db" error_violations.json
 
 ---
 
-**리뷰어**: 윤도현, 김지유, 최로건  
-**승인 상태**: ✅ Stage 3.1-3.2 완료 (50% 마일스톤 달성!)  
+**리뷰어**: 윤도현, 김지유, 최로건
+**승인 상태**: ✅ Stage 3.1-3.2 완료 (50% 마일스톤 달성!)
 **다음 단계**: Stage 3.3 (sqlite_cache_db.py)
-
