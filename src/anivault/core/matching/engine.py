@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 # Genre-based filtering constants
 ANIMATION_GENRE_ID = 16  # TMDB Animation genre ID
-ANIMATION_BOOST = 0.3  # Strong boost for animation (was 0.1)
-NON_ANIMATION_PENALTY = -0.2  # Penalty for non-animation results
+ANIMATION_BOOST = 0.2  # Moderate boost for confirmed animation
+# NOTE: No penalty for non-animation to avoid false negatives when genre_ids missing
 
 
 class MatchingEngine:
@@ -705,11 +705,11 @@ class MatchingEngine:
                 tmdb_data = candidate.get("tmdb_data", {})
                 genre_ids = tmdb_data.get("genre_ids", [])
 
-            # Apply genre boost/penalty based on animation status
+            # Apply genre boost for confirmed animation (no penalty to avoid false negatives)
             current_confidence = boosted_candidate.get("confidence_score", 0.0)
             
             if ANIMATION_GENRE_ID in genre_ids:
-                # Strong boost for animation genre
+                # Boost for animation genre
                 new_confidence = min(1.0, current_confidence + ANIMATION_BOOST)
                 boosted_candidate["confidence_score"] = new_confidence
                 logger.debug(
@@ -719,14 +719,12 @@ class MatchingEngine:
                     new_confidence,
                 )
             else:
-                # Penalty for non-animation (we're looking for anime!)
-                new_confidence = max(0.0, current_confidence + NON_ANIMATION_PENALTY)
-                boosted_candidate["confidence_score"] = new_confidence
+                # No penalty - genre_ids may be missing or incomplete
+                # Just log for diagnostic purposes
                 logger.debug(
-                    "❌ Applied non-animation penalty to '%s': %.3f -> %.3f",
+                    "ℹ️ No animation genre for '%s' (genre_ids: %s)",
                     candidate.get("title", "")[:40],
-                    current_confidence,
-                    new_confidence,
+                    genre_ids if genre_ids else "empty",
                 )
 
             boosted_candidates.append(boosted_candidate)
