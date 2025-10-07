@@ -26,6 +26,10 @@ class ConfidenceThresholds:
     MEDIUM = 0.5  # Good match (partial title match + metadata)
     LOW = 0.2  # Accept if TMDB found it (trust relevance algorithm)
 
+    # Genre-specific thresholds (used in _apply_genre_filter)
+    ANIMATION_MIN = 0.2  # Lenient for cross-script fuzzy matching
+    NON_ANIMATION_MIN = 0.8  # Strict to avoid false positives (quiz shows, variety, etc.)
+
     # Benchmark specific thresholds
     BENCHMARK_DEFAULT = 0.7
     BENCHMARK_HIGH = 0.9
@@ -100,4 +104,30 @@ class ScoringWeights:
     RATING_MATCH = POPULARITY_MATCH  # Deprecated: use POPULARITY_MATCH
 
 
-__all__ = ["ConfidenceThresholds", "MatchingAlgorithm", "ScoringWeights"]
+class GenreConfig:
+    """Genre-based filtering configuration.
+    
+    These constants control how the matching engine applies genre-based
+    filtering and confidence boosting for animation content.
+    """
+
+    # TMDB genre IDs
+    ANIMATION_GENRE_ID = 16  # TMDB Animation genre ID (verified with TMDB API)
+
+    # Confidence boost for animation genre
+    # This strong boost (0.5) ensures anime is prioritized over non-animation
+    ANIMATION_BOOST = 0.5
+
+    # Maximum confidence (safety cap)
+    MAX_CONFIDENCE = 1.0
+
+
+__all__ = [
+    "ConfidenceThresholds",
+    "GenreConfig",
+    "MatchingAlgorithm",
+    "ScoringWeights",
+    "ValidationConfig",
+    "TitleNormalization",
+    "FallbackStrategy",
+]

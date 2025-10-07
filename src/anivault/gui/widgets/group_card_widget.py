@@ -15,6 +15,8 @@ from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
 
+from anivault.shared.constants.gui_messages import UIConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +67,7 @@ class GroupCardWidget(QFrame):
 
         if anime_info:
             # Title section: Korean title + Original title
-            title_text = anime_info.get("title", "Unknown")
+            title_text = anime_info.get("title", UIConfig.UNKNOWN_TITLE)
             original_title = anime_info.get("original_title") or anime_info.get(
                 "original_name",
             )
@@ -76,7 +78,10 @@ class GroupCardWidget(QFrame):
                 full_title = title_text
 
             # Truncate title for display (keep full title in tooltip)
-            display_title = self._truncate_group_name(full_title, max_length=50)
+            display_title = self._truncate_group_name(
+                full_title,
+                max_length=UIConfig.GROUP_CARD_TITLE_MAX_LENGTH,
+            )
 
             title_label = QLabel(display_title)
             title_label.setObjectName("groupTitleLabel")
@@ -96,9 +101,12 @@ class GroupCardWidget(QFrame):
                 info_layout.addWidget(date_label)
 
             # Overview/Description section (2-3 lines with ellipsis)
-            overview = anime_info.get("overview", "")
+            overview = anime_info.get("overview", UIConfig.NO_OVERVIEW)
             if overview:
-                truncated_overview = self._truncate_text(overview, max_length=150)
+                truncated_overview = self._truncate_text(
+                    overview,
+                    max_length=UIConfig.GROUP_CARD_OVERVIEW_MAX_LENGTH,
+                )
                 overview_label = QLabel(truncated_overview)
                 overview_label.setObjectName("groupOverviewLabel")
                 overview_label.setWordWrap(True)
@@ -107,7 +115,7 @@ class GroupCardWidget(QFrame):
                 info_layout.addWidget(overview_label)
 
             # File count at bottom
-            count_label = QLabel(f"📂 {len(self.files)} files")
+            count_label = QLabel(f"{UIConfig.FOLDER_ICON} {len(self.files)} files")
             count_label.setObjectName("groupCountLabel")
             count_label.setStyleSheet("font-size: 11px; color: #666;")
             info_layout.addWidget(count_label)
@@ -212,7 +220,7 @@ class GroupCardWidget(QFrame):
                     return poster_label
 
             # Fallback: Show initial if no poster_path or failed to load
-            if title and title not in {"Unknown", "?"}:
+            if title and title not in {UIConfig.UNKNOWN_TITLE, "?"}:
                 initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
                 logger.info(
@@ -300,7 +308,7 @@ class GroupCardWidget(QFrame):
             if match_result:
                 logger.debug(
                     "Found match result: %s",
-                    match_result.get("title", "Unknown"),
+                    match_result.get("title", UIConfig.UNKNOWN_TITLE),
                 )
                 return match_result
             logger.debug("No match_result in metadata dict")
@@ -315,15 +323,15 @@ class GroupCardWidget(QFrame):
                 if match_result:
                     # DEBUG: Log entire match_result structure
                     title = (
-                        match_result.get("title")
-                        or match_result.get("name")
-                        or "Unknown"
-                    )
+                    match_result.get("title")
+                    or match_result.get("name")
+                    or UIConfig.UNKNOWN_TITLE
+                )
                     logger.info(
                         "✓ Found match_result in ParsingResult.other_info: %s",
                         title,
                     )
-                    if title == "Unknown":
+                    if title == UIConfig.UNKNOWN_TITLE:
                         logger.warning(
                             "⚠️ match_result has no title/name! Keys: %s, Type: %s",
                             (

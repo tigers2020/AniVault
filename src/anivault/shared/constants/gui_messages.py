@@ -160,6 +160,24 @@ class PlaceholderTexts:
     SEARCH = "Search..."
 
 
+class UIConfig:
+    """UI layout and display configuration constants."""
+
+    # Text truncation limits
+    GROUP_CARD_TITLE_MAX_LENGTH = 50  # Group card title truncation
+    GROUP_CARD_OVERVIEW_MAX_LENGTH = 150  # Overview/description truncation
+
+    # Default/fallback values
+    UNKNOWN_TITLE = "Unknown"
+    NO_OVERVIEW = ""
+    DEFAULT_GROUP_NAME = "Unnamed Group"
+
+    # Icon/emoji constants
+    FOLDER_ICON = "📂"
+    FILM_ICON = "🎬"
+    STAR_ICON = "⭐"
+
+
 # Export all classes
 __all__ = [
     "DialogTitles",
@@ -169,5 +187,6 @@ __all__ = [
     "ProgressMessages",
     "ToolTips",
     "PlaceholderTexts",
+    "UIConfig",
 ]
 

@@ -17,20 +17,9 @@ from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.tmdb_client import TMDBClient
-from anivault.shared.constants import ConfidenceThresholds
+from anivault.shared.constants import ConfidenceThresholds, GenreConfig
 
 logger = logging.getLogger(__name__)
-
-# Confidence thresholds for fallback strategies - now imported from shared constants
-
-
-# Genre-based filtering constants
-ANIMATION_GENRE_ID = 16  # TMDB Animation genre ID
-ANIMATION_BOOST = (
-    0.5  # Strong boost for confirmed animation (ensures anime is prioritized)
-)
-# NOTE: No penalty for non-animation to avoid false negatives when genre_ids missing
-# The boost is strong enough (0.5) to ensure animation always wins over non-animation
 
 
 class MatchingEngine:
@@ -718,40 +707,47 @@ class MatchingEngine:
             # Apply genre boost for confirmed animation (no penalty to avoid false negatives)
             current_confidence = boosted_candidate.get("confidence_score", 0.0)
 
-            if ANIMATION_GENRE_ID in genre_ids:
+            if GenreConfig.ANIMATION_GENRE_ID in genre_ids:
                 # Boost for animation genre
-                new_confidence = min(1.0, current_confidence + ANIMATION_BOOST)
+                new_confidence = min(
+                    GenreConfig.MAX_CONFIDENCE,
+                    current_confidence + GenreConfig.ANIMATION_BOOST,
+                )
                 boosted_candidate["confidence_score"] = new_confidence
 
-                # Animation threshold: 0.2 (lenient for cross-script fuzzy matching)
-                if new_confidence >= 0.2:
+                # Animation threshold: lenient for cross-script fuzzy matching
+                if new_confidence >= ConfidenceThresholds.ANIMATION_MIN:
                     boosted_candidates.append(boosted_candidate)
                     logger.debug(
-                        "✅ Applied animation boost to '%s': %.3f -> %.3f (passed threshold 0.2)",
+                        "✅ Applied animation boost to '%s': %.3f -> %.3f (passed threshold %.1f)",
                         candidate.get("title", "")[:40],
                         current_confidence,
                         new_confidence,
+                        ConfidenceThresholds.ANIMATION_MIN,
                     )
                 else:
                     logger.debug(
-                        "❌ Animation candidate '%s' rejected: %.3f < 0.2",
+                        "❌ Animation candidate '%s' rejected: %.3f < %.1f",
                         candidate.get("title", "")[:40],
                         new_confidence,
+                        ConfidenceThresholds.ANIMATION_MIN,
                     )
-            # Non-animation: require much higher confidence (0.8) to avoid false positives
+            # Non-animation: require much higher confidence to avoid false positives
             # This filters out quiz shows, variety shows, live-action, etc.
-            elif current_confidence >= 0.8:
+            elif current_confidence >= ConfidenceThresholds.NON_ANIMATION_MIN:
                 boosted_candidates.append(boosted_candidate)
                 logger.debug(
-                    "✅ Non-animation candidate '%s' accepted: %.3f >= 0.8",
+                    "✅ Non-animation candidate '%s' accepted: %.3f >= %.1f",
                     candidate.get("title", "")[:40],
                     current_confidence,
+                    ConfidenceThresholds.NON_ANIMATION_MIN,
                 )
             else:
                 logger.debug(
-                    "❌ Non-animation candidate '%s' rejected: %.3f < 0.8 (genre_ids: %s)",
+                    "❌ Non-animation candidate '%s' rejected: %.3f < %.1f (genre_ids: %s)",
                     candidate.get("title", "")[:40],
                     current_confidence,
+                    ConfidenceThresholds.NON_ANIMATION_MIN,
                     genre_ids if genre_ids else "empty",
                 )
 

@@ -46,6 +46,7 @@ from .gui_messages import (
     ProgressMessages,
     StatusMessages,
     ToolTips,
+    UIConfig,
 )
 from .logging import ErrorLogging
 from .logging import LogConfig as LoggingConfig
@@ -53,6 +54,7 @@ from .logging import LogLevels, LogMessages, LogPaths, PerformanceLogging
 from .matching import (
     ConfidenceThresholds,
     FallbackStrategy,
+    GenreConfig,
     MatchingAlgorithm,
     ScoringWeights,
     TitleNormalization,
@@ -123,6 +125,7 @@ __all__ = [
     "FallbackStrategy",
     "FileLimits",
     "FileSystem",
+    "GenreConfig",
     "JsonKeys",
     "Language",
     "LogLevels",
@@ -157,6 +160,7 @@ __all__ = [
     "Timeout",
     "TitleNormalization",
     "ToolTips",
+    "UIConfig",
     "ValidationConfig",
     "VideoFormats",
     "WorkerConfig",
