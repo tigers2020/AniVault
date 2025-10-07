@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from anivault.core.parser.models import ParsingResult
@@ -29,6 +30,7 @@ from anivault.shared.errors import (
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
+from anivault.shared.metadata_models import FileMetadata
 
 from .tmdb_client import TMDBClient
 from .tmdb_models import TMDBMediaDetails
@@ -54,6 +56,109 @@ class EnrichedMetadata:
     tmdb_data: TMDBMediaDetails | dict[str, Any] | None = None
     match_confidence: float = 0.0
     enrichment_status: str = APIFields.ENRICHMENT_STATUS_PENDING
+
+    def to_file_metadata(self, file_path: Path) -> FileMetadata:
+        """Convert EnrichedMetadata to FileMetadata for presentation layer.
+
+        This method extracts relevant information from the internal
+        EnrichedMetadata structure and converts it to the lightweight
+        FileMetadata dataclass used by GUI and CLI layers.
+
+        Args:
+            file_path: Path to the media file
+
+        Returns:
+            FileMetadata instance for presentation layer
+
+        Example:
+            >>> enriched = EnrichedMetadata(file_info=parsing_result)
+            >>> file_metadata = enriched.to_file_metadata(Path("/anime/aot.mkv"))
+        """
+        # Extract title from parsing result
+        title = self.file_info.title
+
+        # Extract basic fields from parsing result
+        year: int | None = None
+        season: int | None = self.file_info.season
+        episode: int | None = self.file_info.episode
+
+        # Extract TMDB data if available
+        genres: list[str] = []
+        overview: str | None = None
+        poster_path: str | None = None
+        vote_average: float | None = None
+        tmdb_id: int | None = None
+        media_type: str | None = None
+
+        if self.tmdb_data is not None:
+            # Handle TMDBMediaDetails Pydantic model
+            if isinstance(self.tmdb_data, TMDBMediaDetails):
+                title = self.tmdb_data.display_title  # Use localized title
+                genres = [genre.name for genre in self.tmdb_data.genres]
+                overview = self.tmdb_data.overview
+                poster_path = self.tmdb_data.poster_path
+                vote_average = self.tmdb_data.vote_average
+                tmdb_id = self.tmdb_data.id
+                media_type = (
+                    "tv"
+                    if self.tmdb_data.number_of_seasons is not None
+                    else "movie"
+                )
+
+                # Extract year from display_date
+                if self.tmdb_data.display_date:
+                    try:
+                        year = int(self.tmdb_data.display_date.split("-")[0])
+                    except (ValueError, IndexError):
+                        pass
+
+            # Handle dict (fallback/legacy format)
+            elif isinstance(self.tmdb_data, dict):
+                title = (
+                    self.tmdb_data.get(TMDBResponseKeys.TITLE)
+                    or self.tmdb_data.get(TMDBResponseKeys.NAME)
+                    or title
+                )
+
+                # Extract genres
+                genres_data = self.tmdb_data.get(TMDBResponseKeys.GENRES, [])
+                if isinstance(genres_data, list):
+                    genres = [
+                        g.get(TMDBResponseKeys.NAME, "")
+                        for g in genres_data
+                        if isinstance(g, dict)
+                    ]
+
+                overview = self.tmdb_data.get(TMDBResponseKeys.OVERVIEW)
+                poster_path = self.tmdb_data.get(TMDBResponseKeys.POSTER_PATH)
+                vote_average = self.tmdb_data.get(TMDBResponseKeys.VOTE_AVERAGE)
+                tmdb_id = self.tmdb_data.get(TMDBResponseKeys.ID)
+                media_type = self.tmdb_data.get(TMDBResponseKeys.MEDIA_TYPE)
+
+                # Extract year
+                date_str = self.tmdb_data.get(
+                    TMDBResponseKeys.FIRST_AIR_DATE,
+                ) or self.tmdb_data.get(TMDBResponseKeys.RELEASE_DATE)
+                if date_str and isinstance(date_str, str):
+                    try:
+                        year = int(date_str.split("-")[0])
+                    except (ValueError, IndexError):
+                        pass
+
+        return FileMetadata(
+            title=title,
+            file_path=file_path,
+            file_type=file_path.suffix.lstrip(".").lower(),
+            year=year,
+            season=season,
+            episode=episode,
+            genres=genres,
+            overview=overview,
+            poster_path=poster_path,
+            vote_average=vote_average,
+            tmdb_id=tmdb_id,
+            media_type=media_type,
+        )
 
 
 class MetadataEnricher:

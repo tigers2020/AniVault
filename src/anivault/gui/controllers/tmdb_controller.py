@@ -84,6 +84,15 @@ class TMDBController(QObject):
                 self.tmdb_worker = None
                 self.is_matching = False
 
+    @property
+    def has_api_key(self) -> bool:
+        """Check if API key is configured.
+
+        Returns:
+            True if API key is set, False otherwise
+        """
+        return self.api_key is not None and len(self.api_key) > 0
+
     def set_api_key(self, api_key: str) -> None:
         """Set the TMDB API key.
 
@@ -184,6 +193,9 @@ class TMDBController(QObject):
         self.tmdb_thread.finished.connect(self.tmdb_worker.deleteLater)
         self.tmdb_thread.finished.connect(self._on_thread_finished)
 
+        # Set matching state
+        self.is_matching = True
+
         # Start thread
         self.tmdb_thread.start()
         logger.debug("TMDB matching thread started")
@@ -252,14 +264,6 @@ class TMDBController(QObject):
         """Handle matching cancelled signal."""
         self.is_matching = False
         self.matching_cancelled.emit()
-
-    def has_api_key(self) -> bool:
-        """Check if API key is set.
-
-        Returns:
-            True if API key is set, False otherwise
-        """
-        return bool(self.api_key)
 
     def is_operation_in_progress(self) -> bool:
         """Check if an operation is currently in progress.

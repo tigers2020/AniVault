@@ -18,6 +18,7 @@ from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingResult
 from anivault.gui.models import FileItem
 from anivault.gui.workers import FileScannerWorker
+from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ class ScanController(QObject):
         for file_item in file_items:
             try:
                 parsed_result = self.parser.parse(file_item.file_path.name)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to parse '%s': %s", file_item.file_path.name, e)
                 parsed_result = ParsingResult(
                     title=file_item.file_name,
@@ -174,12 +175,15 @@ class ScanController(QObject):
             unmatched_files = []
 
             for file_item in file_items:
-                # Check if file has TMDB match
+                # Check if file has TMDB match using FileMetadata
                 has_match = False
-                if hasattr(file_item, "metadata") and isinstance(
-                    file_item.metadata,
-                    dict,
-                ):
+                if isinstance(file_item.metadata, FileMetadata):
+                    # FileMetadata with tmdb_id indicates successful TMDB match
+                    if file_item.metadata.tmdb_id is not None:
+                        has_match = True
+                        matched_files.append(file_item)
+                elif isinstance(file_item.metadata, dict):
+                    # Legacy dict format (backward compatibility)
                     match_result = file_item.metadata.get("match_result")
                     if match_result:
                         has_match = True
@@ -197,9 +201,17 @@ class ScanController(QObject):
             # Group matched files by TMDB title
             grouped_by_tmdb = {}
             for file_item in matched_files:
-                match_result = file_item.metadata.get("match_result")
-                # Try both title and name fields
-                tmdb_title = match_result.get("title") or match_result.get("name")
+                tmdb_title = None
+
+                # Extract title from FileMetadata or legacy dict
+                if isinstance(file_item.metadata, FileMetadata):
+                    tmdb_title = file_item.metadata.title
+                elif isinstance(file_item.metadata, dict):
+                    # Legacy dict format (backward compatibility)
+                    match_result = file_item.metadata.get("match_result")
+                    if match_result:
+                        # Try both title and name fields
+                        tmdb_title = match_result.get("title") or match_result.get("name")
 
                 if tmdb_title:
                     if tmdb_title not in grouped_by_tmdb:
@@ -229,11 +241,24 @@ class ScanController(QObject):
                     # Parse filename
                     parsed_result = self.parser.parse(file_item.file_path.name)
 
-                    # Preserve TMDB metadata
-                    if hasattr(file_item, "metadata") and isinstance(
-                        file_item.metadata,
-                        dict,
-                    ):
+                    # Preserve TMDB metadata from FileMetadata
+                    if isinstance(file_item.metadata, FileMetadata):
+                        # Convert FileMetadata back to match_result dict for compatibility
+                        if file_item.metadata.tmdb_id is not None:
+                            match_result_dict = {
+                                "id": file_item.metadata.tmdb_id,
+                                "title": file_item.metadata.title,
+                                "media_type": file_item.metadata.media_type,
+                                "genres": file_item.metadata.genres,
+                                "overview": file_item.metadata.overview,
+                                "vote_average": file_item.metadata.vote_average,
+                                "poster_path": file_item.metadata.poster_path,
+                            }
+                            if not parsed_result.other_info:
+                                parsed_result.other_info = {}
+                            parsed_result.other_info["match_result"] = match_result_dict
+                    elif isinstance(file_item.metadata, dict):
+                        # Legacy dict format (backward compatibility)
                         match_result = file_item.metadata.get("match_result")
                         if match_result:
                             if not parsed_result.other_info:
@@ -260,8 +285,8 @@ class ScanController(QObject):
 
             return final_groups
 
-        except Exception as e:
-            logger.exception("TMDB-based grouping failed: %s", e)
+        except Exception:
+            logger.exception("TMDB-based grouping failed")
             raise
 
     def group_files(self, file_items: list[FileItem]) -> dict:
@@ -295,7 +320,7 @@ class ScanController(QObject):
                         parsed_result.title,
                         parsed_result.confidence,
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.warning(
                         "Failed to parse '%s': %s",
                         file_item.file_path.name,
@@ -318,10 +343,28 @@ class ScanController(QObject):
 
                 # Preserve TMDB metadata if it exists in the file_item
                 # This is critical for UI updates after TMDB matching
-                if hasattr(file_item, "metadata") and isinstance(
-                    file_item.metadata,
-                    dict,
-                ):
+                if isinstance(file_item.metadata, FileMetadata):
+                    # Convert FileMetadata to match_result dict for compatibility
+                    if file_item.metadata.tmdb_id is not None:
+                        match_result_dict = {
+                            "id": file_item.metadata.tmdb_id,
+                            "title": file_item.metadata.title,
+                            "media_type": file_item.metadata.media_type,
+                            "genres": file_item.metadata.genres,
+                            "overview": file_item.metadata.overview,
+                            "vote_average": file_item.metadata.vote_average,
+                            "poster_path": file_item.metadata.poster_path,
+                        }
+                        if not parsed_result.other_info:
+                            parsed_result.other_info = {}
+                        parsed_result.other_info["match_result"] = match_result_dict
+                        logger.debug(
+                            "Preserved TMDB metadata for: %s - %s",
+                            file_item.file_path.name,
+                            file_item.metadata.title,
+                        )
+                elif isinstance(file_item.metadata, dict):
+                    # Legacy dict format (backward compatibility)
                     match_result = file_item.metadata.get("match_result")
                     if match_result:
                         # Inject match_result into parsed_result.other_info
@@ -360,8 +403,8 @@ class ScanController(QObject):
 
             return grouped_files
 
-        except Exception as e:
-            logger.exception("File grouping failed: %s", e)
+        except Exception:
+            logger.exception("File grouping failed")
             raise
 
     def _start_scanning_thread(self, directory_path: Path) -> None:

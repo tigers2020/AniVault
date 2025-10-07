@@ -14,6 +14,8 @@ from typing import Any
 from PySide6.QtCore import QModelIndex, Qt, Signal
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 
+from anivault.shared.metadata_models import FileMetadata
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,15 +26,37 @@ class FileItem:
         self.file_path = Path(file_path)
         self.file_name = self.file_path.name
         self.status = status
-        self.metadata: dict[str, Any] | None = None
+        self.metadata: FileMetadata | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary representation."""
+        """Convert to dictionary representation.
+
+        Note: metadata is converted to dict for backward compatibility
+        with CLI JSON output and serialization.
+        """
+        metadata_dict = None
+        if self.metadata is not None:
+            # Convert FileMetadata dataclass to dict
+            metadata_dict = {
+                "title": self.metadata.title,
+                "year": self.metadata.year,
+                "season": self.metadata.season,
+                "episode": self.metadata.episode,
+                "file_path": str(self.metadata.file_path),
+                "file_type": self.metadata.file_type,
+                "genres": self.metadata.genres,
+                "overview": self.metadata.overview,
+                "poster_path": self.metadata.poster_path,
+                "vote_average": self.metadata.vote_average,
+                "tmdb_id": self.metadata.tmdb_id,
+                "media_type": self.metadata.media_type,
+            }
+
         return {
             "file_name": self.file_name,
             "file_path": str(self.file_path),
             "status": self.status,
-            "metadata": self.metadata,
+            "metadata": metadata_dict,
         }
 
 
@@ -160,7 +184,7 @@ class FileTreeModel(QStandardItemModel):
     def update_file_match_result(
         self,
         file_path: Path,
-        match_result: dict,
+        match_result: dict | FileMetadata | None,
         status: str,
     ) -> None:
         """
@@ -168,7 +192,7 @@ class FileTreeModel(QStandardItemModel):
 
         Args:
             file_path: Path of the file to update
-            match_result: TMDB match result dictionary
+            match_result: TMDB match result (dict for legacy, FileMetadata for new)
             status: New status for the file ('Matched', 'Failed', etc.)
         """
         for row in range(self.rowCount()):
@@ -182,31 +206,44 @@ class FileTreeModel(QStandardItemModel):
                         status_item.setText(status)
                         status_item.setData(status, Qt.DisplayRole)
 
+                    # Extract title for display
+                    series_title = "Unknown"
+                    if isinstance(match_result, FileMetadata):
+                        series_title = match_result.title
+                    elif isinstance(match_result, dict):
+                        series_title = match_result.get("title", "Unknown")
+
                     # Update the matched series item
                     matched_item = self.item(row, 3)
-                    if matched_item and match_result:
-                        series_title = match_result.get("title", "Unknown")
-                        matched_item.setText(series_title)
-                        matched_item.setData(series_title, Qt.DisplayRole)
-                    elif matched_item:
-                        matched_item.setText("No match found")
-                        matched_item.setData("No match found", Qt.DisplayRole)
+                    if matched_item:
+                        if match_result:
+                            matched_item.setText(series_title)
+                            matched_item.setData(series_title, Qt.DisplayRole)
+                        else:
+                            matched_item.setText("No match found")
+                            matched_item.setData("No match found", Qt.DisplayRole)
 
                     # Update the file item status and metadata
                     file_item.status = status
-                    if not file_item.metadata:
-                        file_item.metadata = {}
-                    file_item.metadata["match_result"] = match_result
+
+                    # Handle different metadata types
+                    if isinstance(match_result, FileMetadata):
+                        # Direct assignment of FileMetadata
+                        file_item.metadata = match_result
+                    elif isinstance(match_result, dict):
+                        # Legacy dict format (backward compatibility)
+                        if not file_item.metadata:
+                            file_item.metadata = {}  # type: ignore[assignment]
+                        file_item.metadata["match_result"] = match_result  # type: ignore[index]
+                    else:
+                        # No match result
+                        file_item.metadata = None
 
                     logger.debug(
                         "Updated match result for %s: %s -> %s",
                         file_path.name,
                         status,
-                        (
-                            match_result.get("title", "No match")
-                            if match_result
-                            else "No match"
-                        ),
+                        series_title if match_result else "No match",
                     )
                     break
 
