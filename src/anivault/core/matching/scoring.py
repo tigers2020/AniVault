@@ -67,9 +67,7 @@ def calculate_confidence_score(
         query_title = normalized_query.title
         # Get raw title/name, not display_title (which returns "Unknown" for empty)
         localized_title = tmdb_result.title or tmdb_result.name or ""
-        original_title = (
-            tmdb_result.original_title or tmdb_result.original_name or ""
-        )
+        original_title = tmdb_result.original_title or tmdb_result.original_name or ""
 
         if not query_title or (not localized_title and not original_title):
             return 0.0

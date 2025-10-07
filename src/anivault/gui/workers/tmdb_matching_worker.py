@@ -269,14 +269,17 @@ class TMDBMatchingWorker(QObject):
                     "video_resolution": getattr(parsing_result, "quality", ""),
                 }
 
-            # Match against TMDB
+            # Match against TMDB (returns MatchResult | None)
             match_result = await self.matching_engine.find_match(parsing_dict)
+            
+            # Convert MatchResult to dict for backward compatibility with GUI
+            match_result_dict = match_result.to_dict() if match_result else None
 
             return {
                 "file_path": str(file_item.file_path),
                 "file_name": file_item.file_name,
                 "parsing_result": parsing_result,
-                "match_result": match_result,
+                "match_result": match_result_dict,  # Now a dict or None
                 "status": "matched" if match_result else "failed",
             }
 

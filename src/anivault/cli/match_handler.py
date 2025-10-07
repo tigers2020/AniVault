@@ -437,12 +437,16 @@ async def _process_file_impl(
                 "release_group": getattr(parsing_result, "release_group", ""),
                 "video_resolution": getattr(parsing_result, "quality", ""),
             }
+        # Match against TMDB (returns MatchResult | None)
         match_result = await matching_engine.find_match(parsing_dict)
+        
+        # Convert MatchResult to dict for backward compatibility with CLI/JSON output
+        match_result_dict = match_result.to_dict() if match_result else None
 
         return {
             "file_path": str(file_path),
             "parsing_result": parsing_result,
-            "match_result": match_result,
+            "match_result": match_result_dict,  # Now a dict or None
         }
 
     except Exception as e:  # noqa: BLE001

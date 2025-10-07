@@ -1,98 +1,70 @@
-"""Matching Engine Domain Models.
+"""Domain models for the matching engine.
 
-This module defines immutable domain models for the matching engine's
-internal data structures. These models use frozen dataclasses for
-immutability and performance.
+This module defines frozen dataclasses that represent the domain concepts
+in the anime matching system, ensuring immutability and type safety.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
-from anivault.shared.constants import ValidationConstants
+from ...shared.constants.matching import ValidationConstants
 
 
 @dataclass(frozen=True)
 class NormalizedQuery:
-    """Normalized search query for matching.
+    """Normalized query for TMDB matching.
 
-    Immutable domain object representing a normalized user query.
-    Used internally by the matching engine for consistent comparison.
+    This frozen dataclass represents a normalized user query, ensuring immutability
+    and type safety for the matching process.
 
     Attributes:
-        title: Normalized title string (non-empty, trimmed)
-        year: Optional year hint for filtering (1900-future)
-
-    Example:
-        >>> query = NormalizedQuery(title="진격의 거인", year=2013)
-        >>> query.title
-        '진격의 거인'
-        >>> query.year
-        2013
-
-    Raises:
-        ValueError: If title is empty or year is out of valid range
+        title: Clean title for comparison (required, non-empty)
+        year: Year hint if available (must be between 1900 and 5 years in the future)
     """
 
     title: str
-    year: int | None = None
+    year: int | None
 
     def __post_init__(self) -> None:
-        """Validate normalized query fields.
+        """Validate normalized query invariants.
 
         Raises:
-            ValueError: If title is empty/whitespace or year is invalid
+            ValueError: If title is empty/whitespace or year is out of valid range
         """
         # Validate title
         if not self.title or not self.title.strip():
-            raise ValueError("Title cannot be empty or whitespace")
+            error_message = "title cannot be empty or whitespace"
+            raise ValueError(error_message)
 
-        # Validate year if provided
+        # Validate year (if provided)
         if self.year is not None:
             current_year = datetime.now().year
-            future_limit = current_year + ValidationConstants.FUTURE_YEAR_TOLERANCE
+            max_year = current_year + ValidationConstants.FUTURE_YEAR_TOLERANCE
 
-            if self.year < ValidationConstants.MIN_VALID_YEAR:
-                msg = f"Year {self.year} is too old (must be >= {ValidationConstants.MIN_VALID_YEAR})"
-                raise ValueError(msg)
-
-            if self.year > future_limit:
-                msg = (
-                    f"Year {self.year} is too far in future (must be <= {future_limit})"
+            if not (ValidationConstants.MIN_VALID_YEAR <= self.year <= max_year):
+                error_message = (
+                    f"year must be between {ValidationConstants.MIN_VALID_YEAR} "
+                    f"and {max_year}, got {self.year}"
                 )
-                raise ValueError(
-                    msg,
-                )
+                raise ValueError(error_message)
 
 
 @dataclass(frozen=True)
 class MatchResult:
-    """Match result with confidence score.
+    """Result of a TMDB match operation.
 
-    Immutable domain object representing a matching result between
-    a query and a TMDB media item.
+    This frozen dataclass represents the result of matching a user query
+    against TMDB data, ensuring immutability and type safety.
 
     Attributes:
-        tmdb_id: TMDB media ID
-        title: Media title
-        year: Release/first air year
-        confidence_score: Match confidence (0.0-1.0)
-        media_type: Type of media ("tv" or "movie")
-
-    Example:
-        >>> result = MatchResult(
-        ...     tmdb_id=1429,
-        ...     title="진격의 거인",
-        ...     year=2013,
-        ...     confidence_score=0.95,
-        ...     media_type="tv"
-        ... )
-        >>> result.confidence_score
-        0.95
-
-    Raises:
-        ValueError: If title is empty or confidence_score is out of range
+        tmdb_id: TMDB identifier (required, positive integer)
+        title: TMDB title (required, non-empty)
+        year: Release/first air year (if available)
+        confidence_score: Match confidence (0.0 to 1.0)
+        media_type: Type of media ('tv' or 'movie')
     """
 
     tmdb_id: int
@@ -102,14 +74,15 @@ class MatchResult:
     media_type: str
 
     def __post_init__(self) -> None:
-        """Validate match result fields.
+        """Validate match result invariants.
 
         Raises:
-            ValueError: If title is empty or confidence_score is invalid
+            ValueError: If any field is invalid
         """
         # Validate title
         if not self.title or not self.title.strip():
-            raise ValueError("Title cannot be empty or whitespace")
+            error_message = "title cannot be empty or whitespace"
+            raise ValueError(error_message)
 
         # Validate confidence_score
         if not (
@@ -117,17 +90,32 @@ class MatchResult:
             <= self.confidence_score
             <= ValidationConstants.MAX_CONFIDENCE_SCORE
         ):
-            msg = (
-                f"Confidence score {self.confidence_score} must be between "
-                f"{ValidationConstants.MIN_CONFIDENCE_SCORE} and {ValidationConstants.MAX_CONFIDENCE_SCORE}"
+            error_message = (
+                f"Confidence score must be between "
+                f"{ValidationConstants.MIN_CONFIDENCE_SCORE} and "
+                f"{ValidationConstants.MAX_CONFIDENCE_SCORE}, "
+                f"got {self.confidence_score}"
             )
-            raise ValueError(
-                msg,
-            )
+            raise ValueError(error_message)
 
         # Validate media_type
         if self.media_type not in ValidationConstants.VALID_MEDIA_TYPES:
-            msg = f"Media type '{self.media_type}' must be one of {ValidationConstants.VALID_MEDIA_TYPES}"
-            raise ValueError(
-                msg,
+            error_message = (
+                f"media_type must be one of {ValidationConstants.VALID_MEDIA_TYPES}, "
+                f"got {self.media_type}"
             )
+            raise ValueError(error_message)
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert MatchResult to dict for backward compatibility.
+        
+        Returns:
+            Dictionary representation of the match result
+        """
+        return {
+            "id": self.tmdb_id,
+            "title": self.title,
+            "year": self.year,
+            "confidence_score": self.confidence_score,
+            "media_type": self.media_type,
+        }

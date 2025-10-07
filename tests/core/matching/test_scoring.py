@@ -338,4 +338,3 @@ class TestCalculateConfidenceScore:
         for query, result in test_cases:
             score = calculate_confidence_score(query, result)
             assert 0.0 <= score <= 1.0
-

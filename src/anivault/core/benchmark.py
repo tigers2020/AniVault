@@ -390,13 +390,21 @@ class BenchmarkRunner:
     def _create_match_result(
         self,
         entry: GroundTruthEntry,
-        match_result: dict[str, Any],
+        match_result: Any,  # Can be MatchResult dataclass or dict (for backward compat)
         processing_time: float,
     ) -> BenchmarkResult:
         """Create a result for when a match was found."""
-        actual_tmdb_id = match_result.get("id")
-        actual_title = match_result.get("title", "")
-        confidence_score = match_result.get("confidence_score", 0.0)
+        # Handle both MatchResult dataclass and dict (backward compatibility)
+        if hasattr(match_result, "to_dict"):
+            # MatchResult dataclass - convert to dict
+            match_dict = match_result.to_dict()
+        else:
+            # Already a dict
+            match_dict = match_result
+        
+        actual_tmdb_id = match_dict.get("id")
+        actual_title = match_dict.get("title", "")
+        confidence_score = match_dict.get("confidence_score", 0.0)
 
         is_correct = (
             actual_tmdb_id == entry.expected_tmdb_id

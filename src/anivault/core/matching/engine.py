@@ -12,7 +12,7 @@ from typing import Any
 
 from rapidfuzz import fuzz
 
-from anivault.core.matching.models import NormalizedQuery
+from anivault.core.matching.models import MatchResult, NormalizedQuery
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
@@ -428,7 +428,7 @@ class MatchingEngine:
         )
         return scored_candidates
 
-    async def find_match(self, anitopy_result: dict[str, Any]) -> dict[str, Any] | None:
+    async def find_match(self, anitopy_result: dict[str, Any]) -> MatchResult | None:
         """Find the best match for an anime title using multi-stage matching with fallback strategies.
 
         This method orchestrates the entire matching process by delegating to specialized methods.
@@ -437,7 +437,7 @@ class MatchingEngine:
             anitopy_result: Result from anitopy.parse() containing anime metadata
 
         Returns:
-            Best matching TMDB result with confidence metadata or None if no good match found
+            MatchResult domain object with confidence metadata or None if no good match found
         """
         self.statistics.start_timing("matching_operation")
 
@@ -470,17 +470,28 @@ class MatchingEngine:
             if not self._validate_final_confidence(best_candidate):
                 return None
 
-            # Step 6: Add metadata and return result
-            result = self._add_matching_metadata(
+            # Step 6: Create MatchResult from best_candidate
+            match_result = self._create_match_result(
                 best_candidate,
                 normalized_query,
-                candidates,
-                scored_candidates,
             )
-            self._record_successful_match(result, candidates)
+            
+            # Record stats using dict version for backward compatibility
+            result_dict = best_candidate.copy()
+            result_dict[MatchingFieldNames.MATCHING_METADATA] = {
+                "original_title": normalized_query.title,
+                "year_hint": normalized_query.year,
+                "total_candidates": len(candidates),
+                "scored_candidates": len(scored_candidates),
+                "confidence_score": match_result.confidence_score,
+                "confidence_level": self._get_confidence_level(match_result.confidence_score),
+                "used_fallback": match_result.confidence_score < ConfidenceThresholds.HIGH,
+            }
+            
+            self._record_successful_match(result_dict, candidates)
             self.statistics.end_timing("matching_operation")
 
-            return result
+            return match_result
 
         except Exception:
             logger.exception("Error in find_match")
@@ -622,45 +633,59 @@ class MatchingEngine:
 
         return True
 
-    def _add_matching_metadata(
+    def _create_match_result(
         self,
         best_candidate: dict[str, Any],
         normalized_query: NormalizedQuery,
-        candidates: list[dict[str, Any]],
-        scored_candidates: list[dict[str, Any]],
-    ) -> dict[str, Any]:
-        """Add metadata about the matching process to the result.
+    ) -> MatchResult:
+        """Create MatchResult domain object from best candidate.
 
         Args:
-            best_candidate: The best matching candidate
+            best_candidate: The best matching candidate dict
             normalized_query: NormalizedQuery domain object
-            candidates: Original list of candidates
-            scored_candidates: List of scored candidates
 
         Returns:
-            Candidate with added matching metadata
+            MatchResult domain object with match details
         """
+        from ...shared.constants.tmdb_keys import TMDBResponseKeys
+        
         best_confidence = best_candidate.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
-
-        best_candidate[MatchingFieldNames.MATCHING_METADATA] = {
-            "original_title": normalized_query.title,
-            "year_hint": normalized_query.year,
-            "total_candidates": len(candidates),
-            "scored_candidates": len(scored_candidates),
-            "confidence_score": best_confidence,
-            "confidence_level": self._get_confidence_level(best_confidence),
-            "used_fallback": best_confidence < ConfidenceThresholds.HIGH,
-        }
-
-        logger.info(
-            "Found best match for '%s': '%s' (confidence: %.3f, level: %s)",
-            normalized_query.title,
-            best_candidate.get(TMDBResponseKeys.TITLE, ""),
-            best_confidence,
-            best_candidate[MatchingFieldNames.MATCHING_METADATA]["confidence_level"],
+        tmdb_id = best_candidate.get(TMDBResponseKeys.ID, 0)
+        title = (
+            best_candidate.get(TMDBResponseKeys.TITLE)
+            or best_candidate.get(TMDBResponseKeys.NAME)
+            or "Unknown"
+        )
+        
+        # Extract year from date fields
+        year = None
+        release_date = best_candidate.get(TMDBResponseKeys.RELEASE_DATE)
+        first_air_date = best_candidate.get(TMDBResponseKeys.FIRST_AIR_DATE)
+        date_str = release_date or first_air_date
+        if date_str:
+            try:
+                year = int(date_str.split("-")[0])
+            except (ValueError, IndexError, AttributeError):
+                pass
+        
+        media_type = best_candidate.get(TMDBResponseKeys.MEDIA_TYPE, "unknown")
+        
+        match_result = MatchResult(
+            tmdb_id=tmdb_id,
+            title=title,
+            year=year,
+            confidence_score=best_confidence,
+            media_type=media_type,
         )
 
-        return best_candidate
+        logger.info(
+            "Found best match for '%s': '%s' (confidence: %.3f)",
+            normalized_query.title,
+            match_result.title,
+            match_result.confidence_score,
+        )
+
+        return match_result
 
     def _record_successful_match(
         self,
