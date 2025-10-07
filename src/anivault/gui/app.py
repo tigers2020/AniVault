@@ -11,7 +11,6 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from anivault.config.auto_scanner import AutoScanner
@@ -172,13 +171,13 @@ class AniVaultGUI:
             # Clean up controllers and threads first
             if self.main_window:
                 # Ensure all threads are properly cleaned up
-                if hasattr(self.main_window, 'scan_controller'):
+                if hasattr(self.main_window, "scan_controller"):
                     # ScanController doesn't have _cleanup_scanning_thread method
                     # Thread cleanup is handled in _start_scanning_thread
                     pass
-                if hasattr(self.main_window, 'tmdb_controller'):
+                if hasattr(self.main_window, "tmdb_controller"):
                     self.main_window.tmdb_controller._cleanup_matching_thread()
-            
+
             # Quit application
             if self.app:
                 self.app.quit()

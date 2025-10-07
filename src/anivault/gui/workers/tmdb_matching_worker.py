@@ -302,7 +302,7 @@ class TMDBMatchingWorker(QObject):
             SecurityError: If API key is missing or invalid
         """
         from anivault.config import get_config
-        from anivault.shared.errors import SecurityError, ErrorCode
+        from anivault.shared.errors import ErrorCode, SecurityError
 
         try:
             config = get_config()
@@ -312,14 +312,20 @@ class TMDBMatchingWorker(QObject):
                 raise SecurityError(
                     code=ErrorCode.MISSING_CONFIG,
                     message="TMDB API key not configured in settings",
-                    context={"operation": "validate_api_key", "worker": "tmdb_matching"},
+                    context={
+                        "operation": "validate_api_key",
+                        "worker": "tmdb_matching",
+                    },
                 )
 
             if len(api_key) < 10:  # Basic validation
                 raise SecurityError(
                     code=ErrorCode.INVALID_CONFIG,
                     message=f"TMDB API key appears invalid (too short: {len(api_key)} characters)",
-                    context={"operation": "validate_api_key", "key_length": len(api_key)},
+                    context={
+                        "operation": "validate_api_key",
+                        "key_length": len(api_key),
+                    },
                 )
 
         except SecurityError:
@@ -330,6 +336,9 @@ class TMDBMatchingWorker(QObject):
             raise SecurityError(
                 code=ErrorCode.CONFIG_ERROR,
                 message=f"Failed to validate API key: {e}",
-                context={"operation": "validate_api_key", "error_type": type(e).__name__},
+                context={
+                    "operation": "validate_api_key",
+                    "error_type": type(e).__name__,
+                },
                 original_error=e,
             ) from e

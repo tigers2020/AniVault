@@ -34,6 +34,10 @@ from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
 from anivault.config.manager import ConfigManager
 from anivault.config.validation import TomlConfig
+from anivault.shared.constants.gui_messages import (
+    DialogMessages,
+    DialogTitles,
+)
 from anivault.shared.errors import AniVaultError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -244,13 +248,16 @@ class SettingsDialog(QDialog):
 
         # Validate API key
         if not api_key:
-            self._show_error("API Key Required", "Please enter your TMDB API key.")
+            self._show_error(
+                DialogTitles.API_KEY_REQUIRED,
+                DialogMessages.API_KEY_REQUIRED,
+            )
             return
 
         if len(api_key) < 10:
             self._show_error(
-                "Invalid API Key",
-                "API key appears to be too short. Please check your input.",
+                DialogTitles.INVALID_API_KEY,
+                DialogMessages.API_KEY_TOO_SHORT,
             )
             return
 
@@ -268,8 +275,8 @@ class SettingsDialog(QDialog):
             # Show success message
             QMessageBox.information(
                 self,
-                "Settings Saved",
-                "Settings have been saved successfully.",
+                DialogTitles.SETTINGS_SAVED,
+                DialogMessages.API_KEY_SAVED,
             )
 
             # Close dialog
@@ -278,8 +285,8 @@ class SettingsDialog(QDialog):
         except Exception as e:
             logger.exception("Failed to save API key: %s", e)
             self._show_error(
-                "Save Failed",
-                f"Failed to save API key: {e!s}",
+                DialogTitles.SAVE_FAILED,
+                DialogMessages.SETTINGS_SAVE_FAILED.format(error=e),
             )
 
     def _save_api_key_to_config(self, api_key: str) -> None:

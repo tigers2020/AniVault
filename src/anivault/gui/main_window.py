@@ -27,6 +27,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.shared.constants.gui_messages import (
+    DialogMessages,
+    DialogTitles,
+    StatusMessages,
+)
+
 from .controllers import ScanController, TMDBController
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.tmdb_progress_dialog import TMDBProgressDialog
@@ -285,7 +291,11 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             logger.exception("Failed to switch theme")
-            QMessageBox.warning(self, "Theme Error", f"Failed to switch theme: {e}")
+            QMessageBox.warning(
+                self,
+                DialogTitles.ERROR,
+                f"Failed to switch theme: {e}",
+            )
 
     def set_theme_managers(self, theme_manager, config_manager) -> None:
         """Set theme and config managers for theme switching."""
@@ -346,8 +356,12 @@ class MainWindow(QMainWindow):
             self.scan_controller.scan_directory(self.state_model.selected_directory)
         except ValueError as e:
             logger.exception("Failed to start file scan")
-            self.status_bar.showMessage(f"Scan error: {e}")
-            QMessageBox.warning(self, "Scan Error", f"Failed to start scan:\n{e}")
+            self.status_bar.showMessage(DialogMessages.SCAN_ERROR.format(error=e))
+            QMessageBox.warning(
+                self,
+                DialogTitles.SCAN_ERROR,
+                f"Failed to start scan:\n{e}",
+            )
 
     def on_scan_started(self) -> None:
         """Handle scan started signal."""
@@ -382,7 +396,7 @@ class MainWindow(QMainWindow):
         # Show error dialog
         QMessageBox.warning(
             self,
-            "Scan Error",
+            DialogTitles.SCAN_ERROR,
             f"Failed to scan directory:\n{error_msg}",
         )
 
@@ -392,7 +406,11 @@ class MainWindow(QMainWindow):
 
         # Auto-start TMDB matching after grouping (only if not already in progress and not a regroup)
         # Skip auto-start if this is a regroup after TMDB matching to prevent infinite loop
-        if not self.tmdb_controller.is_matching and not getattr(self, '_is_regrouping', False):
+        if not self.tmdb_controller.is_matching and not getattr(
+            self,
+            "_is_regrouping",
+            False,
+        ):
             logger.info("Auto-starting TMDB matching after file grouping")
 
             # Check if API key is configured before starting
@@ -407,11 +425,10 @@ class MainWindow(QMainWindow):
                 logger.warning(
                     "Skipping auto TMDB match: API key not configured or no files",
                 )
+        elif self.tmdb_controller.is_matching:
+            logger.info("Skipping auto TMDB match: matching already in progress")
         else:
-            if self.tmdb_controller.is_matching:
-                logger.info("Skipping auto TMDB match: matching already in progress")
-            else:
-                logger.info("Skipping auto TMDB match: this is a regroup operation")
+            logger.info("Skipping auto TMDB match: this is a regroup operation")
 
     def on_files_updated(self, files: list) -> None:
         """Handle files updated signal from state model."""
@@ -491,7 +508,7 @@ class MainWindow(QMainWindow):
             logger.exception("Failed to open settings dialog")
             QMessageBox.critical(
                 self,
-                "Error",
+                DialogTitles.ERROR,
                 f"Failed to open settings dialog: {e!s}",
             )
 
@@ -511,7 +528,7 @@ class MainWindow(QMainWindow):
         if not self.state_model.scanned_files:
             QMessageBox.warning(
                 self,
-                "No Files to Match",
+                DialogTitles.WARNING,
                 "Please scan a directory first before starting TMDB matching.",
             )
             return
@@ -523,8 +540,8 @@ class MainWindow(QMainWindow):
         if not api_key:
             QMessageBox.warning(
                 self,
-                "API Key Required",
-                "Please configure your TMDB API key in Settings before starting matching.",
+                DialogTitles.API_KEY_REQUIRED,
+                DialogMessages.TMDB_API_KEY_MISSING,
             )
             return
 
@@ -532,7 +549,7 @@ class MainWindow(QMainWindow):
         if self.tmdb_controller.is_matching:
             QMessageBox.information(
                 self,
-                "TMDB Matching In Progress",
+                DialogTitles.TMDB_MATCHING,
                 "TMDB matching is already in progress. Please wait for it to complete.",
             )
             return
@@ -564,10 +581,10 @@ class MainWindow(QMainWindow):
             self.tmdb_controller.match_files(self.state_model.scanned_files)
         except (ValueError, RuntimeError) as e:
             logger.exception("Failed to start TMDB matching")
-            self.status_bar.showMessage(f"TMDB matching error: {e}")
+            self.status_bar.showMessage(DialogMessages.TMDB_MATCHING_ERROR.format(error=e))
             QMessageBox.warning(
                 self,
-                "TMDB Matching Error",
+                DialogTitles.TMDB_ERROR,
                 f"Failed to start matching:\n{e}",
             )
             if self.tmdb_progress_dialog:
@@ -636,7 +653,7 @@ class MainWindow(QMainWindow):
             try:
                 # Set flag to prevent auto-start during regroup
                 self._is_regrouping = True
-                
+
                 # Re-group files by TMDB title (merge groups with same TMDB match)
                 # Use internal _scanned_files to get updated metadata (scanned_files property returns copy)
                 file_items = (
@@ -668,7 +685,7 @@ class MainWindow(QMainWindow):
         # Show error dialog
         QMessageBox.warning(
             self,
-            "TMDB Matching Error",
+            DialogTitles.TMDB_ERROR,
             f"Failed to match files:\n{error_msg}",
         )
 
@@ -683,6 +700,6 @@ class MainWindow(QMainWindow):
     def _on_tmdb_matching_cancelled(self) -> None:
         """Handle TMDB matching cancellation from progress dialog."""
         self.tmdb_controller.cancel_matching()
-        
+
         # Ensure is_matching flag is reset to prevent auto-restart
         self.tmdb_controller.is_matching = False

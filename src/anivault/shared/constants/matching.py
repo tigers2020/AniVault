@@ -81,12 +81,23 @@ class FallbackStrategy:
 
 
 class ScoringWeights:
-    """Scoring weight configuration for matching."""
+    """Scoring weight configuration for matching.
+    
+    These weights are used in calculate_confidence_score() to determine
+    the overall match confidence. The sum must equal 1.0.
+    
+    Note: These values are tuned based on empirical testing with anime filenames.
+    """
 
-    TITLE_MATCH = 0.4
-    YEAR_MATCH = 0.3
-    GENRE_MATCH = 0.2
-    RATING_MATCH = 0.1
+    # Primary weights (sum = 1.0)
+    TITLE_MATCH = 0.5  # Title similarity is most important
+    YEAR_MATCH = 0.25  # Year match is important for accuracy
+    MEDIA_TYPE_MATCH = 0.15  # Media type preference (tv vs movie)
+    POPULARITY_MATCH = 0.1  # Popularity bonus for disambiguation
+
+    # Legacy aliases (for backwards compatibility)
+    GENRE_MATCH = MEDIA_TYPE_MATCH  # Deprecated: use MEDIA_TYPE_MATCH
+    RATING_MATCH = POPULARITY_MATCH  # Deprecated: use POPULARITY_MATCH
 
 
 __all__ = ["ConfidenceThresholds", "MatchingAlgorithm", "ScoringWeights"]

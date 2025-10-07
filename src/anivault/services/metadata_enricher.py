@@ -14,7 +14,7 @@ from typing import Any
 
 from anivault.core.parser.models import ParsingResult
 from anivault.shared.constants import APIFields
-from anivault.shared.constants.system import MediaType
+from anivault.shared.constants.system import EnrichmentStatus, MediaType
 from anivault.shared.errors import (
     AniVaultError,
     ApplicationError,
@@ -108,7 +108,7 @@ class MetadataEnricher:
 
         # Skip if file info is not valid
         if not file_info.is_valid():
-            enriched.enrichment_status = "skipped"
+            enriched.enrichment_status = EnrichmentStatus.SKIPPED
             return enriched
 
         try:
@@ -209,7 +209,7 @@ class MetadataEnricher:
                     enriched.tmdb_data = best_match
 
             enriched.match_confidence = best_match["match_confidence"]
-            enriched.enrichment_status = "success"
+            enriched.enrichment_status = EnrichmentStatus.SUCCESS
 
             log_operation_success(
                 logger=logger,
@@ -226,7 +226,7 @@ class MetadataEnricher:
                 error=e,
                 additional_context=context.additional_data if context else None,
             )
-            enriched.enrichment_status = "failed"
+            enriched.enrichment_status = EnrichmentStatus.FAILED
         except (ConnectionError, TimeoutError) as e:
             # Handle network-related errors
             error = InfrastructureError(
@@ -281,7 +281,7 @@ class MetadataEnricher:
                 error=error,
                 additional_context=context.additional_data if context else None,
             )
-            enriched.enrichment_status = "failed"
+            enriched.enrichment_status = EnrichmentStatus.FAILED
 
         return enriched
 
@@ -533,7 +533,8 @@ class MetadataEnricher:
                     error=e,
                     additional_context={
                         "result_id": result.get("id", "unknown"),
-                        "result_title": result.get("title") or result.get("name", "unknown"),
+                        "result_title": result.get("title")
+                        or result.get("name", "unknown"),
                     },
                 )
                 continue
@@ -573,7 +574,7 @@ class MetadataEnricher:
 
         Returns:
             Match confidence score (0.0 to 1.0)
-            
+
         Raises:
             DomainError: If validation or data processing fails
         """
@@ -721,7 +722,7 @@ class MetadataEnricher:
 
         Returns:
             Similarity score (0.0 to 1.0)
-            
+
         Raises:
             DomainError: If title validation fails or processing errors occur
         """
@@ -738,7 +739,7 @@ class MetadataEnricher:
                     },
                 ),
             )
-        
+
         if not title1 or not title2:
             raise DomainError(
                 code=ErrorCode.VALIDATION_ERROR,

@@ -65,7 +65,7 @@ class TMDBController(QObject):
 
     def _cleanup_matching_thread(self) -> None:
         """Clean up existing TMDB matching thread if running.
-        
+
         This method ensures proper cleanup of the previous thread before
         starting a new matching operation to prevent QThread crashes.
         """
@@ -79,7 +79,6 @@ class TMDBController(QObject):
             except RuntimeError:
                 # Thread object was already deleted, ignore
                 logger.debug("TMDB thread was already deleted")
-                pass
             finally:
                 self.tmdb_thread = None
                 self.tmdb_worker = None

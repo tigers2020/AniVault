@@ -13,6 +13,11 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import QLabel, QProgressDialog, QWidget
 
+from anivault.shared.constants.gui_messages import (
+    ButtonTexts,
+    ProgressMessages,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,20 +63,20 @@ class TMDBProgressDialog(QProgressDialog):
     def _setup_ui(self) -> None:
         """Set up the custom UI elements."""
         # Set initial label text
-        self.setLabelText("Preparing TMDB matching...")
+        self.setLabelText(ProgressMessages.PREPARING_TMDB)
 
         # Add custom status label
-        self.status_label = QLabel("Initializing...")
+        self.status_label = QLabel(ProgressMessages.INITIALIZING_TMDB)
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("QLabel { color: #666; font-size: 11px; }")
 
         # Add status label to the dialog
         # Note: QProgressDialog doesn't have a direct way to add custom widgets
         # We'll use the label text to show detailed status
-        self.setLabelText("Preparing TMDB matching...")
+        self.setLabelText(ProgressMessages.PREPARING_TMDB)
 
         # Customize cancel button text
-        self.setCancelButtonText("Cancel Matching")
+        self.setCancelButtonText(ButtonTexts.CANCEL_MATCHING)
 
     def update_progress(self, value: int, status_message: str = "") -> None:
         """
@@ -88,11 +93,11 @@ class TMDBProgressDialog(QProgressDialog):
             logger.debug("Progress updated: %d%% - %s", value, status_message)
         # Default status based on progress
         elif value == 0:
-            self.setLabelText("Starting TMDB matching...")
+            self.setLabelText(ProgressMessages.STARTING_TMDB)
         elif value < 100:
-            self.setLabelText(f"Matching files... {value}%")
+            self.setLabelText(ProgressMessages.MATCHING_IN_PROGRESS.format(percent=value))
         else:
-            self.setLabelText("TMDB matching completed!")
+            self.setLabelText(ProgressMessages.MATCHING_COMPLETE)
 
     def update_file_status(
         self,

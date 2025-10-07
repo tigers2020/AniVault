@@ -11,6 +11,8 @@ from typing import Any
 
 from rapidfuzz import fuzz
 
+from ...shared.constants.matching import ScoringWeights
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +49,7 @@ def calculate_confidence_score(
         - 0.4-0.59 = Medium confidence
         - 0.2-0.39 = Low confidence
         - 0.0-0.19 = Very low confidence
-        
+
         Returns 0.0 if:
         - Empty/missing title in query or result (normal case)
         - Data processing error occurs (graceful degradation with logging)
@@ -111,20 +113,14 @@ def calculate_confidence_score(
         media_type_score = _calculate_media_type_score(tmdb_result.get("media_type"))
         popularity_bonus = _calculate_popularity_bonus(tmdb_result.get("popularity", 0))
 
-        # Weighted aggregation (weights sum to 1.0)
-        weights = {
-            "title": 0.5,  # Title similarity is most important
-            "year": 0.25,  # Year match is important for accuracy
-            "media_type": 0.15,  # Media type preference
-            "popularity": 0.1,  # Popularity bonus
-        }
-
-        # Calculate weighted average
+        # Weighted aggregation using centralized constants (weights sum to 1.0)
+        # Note: These weights are defined in shared.constants.matching.ScoringWeights
+        # and are tuned based on empirical testing with anime filenames
         confidence_score = (
-            title_score * weights["title"]
-            + year_score * weights["year"]
-            + media_type_score * weights["media_type"]
-            + popularity_bonus * weights["popularity"]
+            title_score * ScoringWeights.TITLE_MATCH
+            + year_score * ScoringWeights.YEAR_MATCH
+            + media_type_score * ScoringWeights.MEDIA_TYPE_MATCH
+            + popularity_bonus * ScoringWeights.POPULARITY_MATCH
         )
 
         # Ensure score is within bounds
