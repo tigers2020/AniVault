@@ -160,13 +160,16 @@ class AutoScanner:
         """Get current folder settings.
 
         Returns:
-            FolderSettings object
+            FolderSettings object (creates default if None)
 
         Raises:
             ApplicationError: If failed to retrieve folder settings
         """
         try:
             config = self.config_manager.load_config()
+            # Return default FolderSettings if None
+            if config.folders is None:
+                return FolderSettings()
             return config.folders
         except Exception as e:
             logger.exception("Error getting folder settings")
@@ -200,6 +203,10 @@ class AutoScanner:
         """
         try:
             config = self.config_manager.load_config()
+
+            # Create folders settings if it doesn't exist
+            if config.folders is None:
+                config.folders = FolderSettings()
 
             # Update folder settings
             config.folders.source_folder = source_folder
