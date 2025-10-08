@@ -15,6 +15,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -32,7 +33,9 @@ from anivault.shared.constants.gui_messages import (
     DialogTitles,
 )
 
-from .controllers import ScanController, TMDBController
+from .controllers import ScanController, TMDBController, OrganizeController
+from .dialogs.organize_preview_dialog import OrganizePreviewDialog
+from .dialogs.organize_progress_dialog import OrganizeProgressDialog
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.tmdb_progress_dialog import TMDBProgressDialog
 from .state_model import StateModel
@@ -64,6 +67,7 @@ class MainWindow(QMainWindow):
         # Initialize controllers
         self.scan_controller = ScanController(self)
         self.tmdb_controller = TMDBController(parent=self)
+        self.organize_controller = OrganizeController(parent=self)
 
         # Initialize TMDB matching components
         self.tmdb_progress_dialog = None
@@ -135,6 +139,16 @@ class MainWindow(QMainWindow):
 
         file_menu.addSeparator()
 
+        # Organize Files action
+        self.organize_action = QAction("📦 &Organize Files...", self)
+        self.organize_action.setShortcut("Ctrl+Shift+O")
+        self.organize_action.setObjectName("organizeFilesAction")
+        self.organize_action.triggered.connect(self.organize_files)
+        self.organize_action.setEnabled(False)  # Enabled after matching
+        file_menu.addAction(self.organize_action)
+
+        file_menu.addSeparator()
+
         # Exit action
         exit_action = QAction("E&xit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -193,6 +207,11 @@ class MainWindow(QMainWindow):
 
         # Open Folder button - use the same action from menu
         toolbar.addAction(self.open_folder_action)
+
+        toolbar.addSeparator()
+
+        # Organize Files button
+        toolbar.addAction(self.organize_action)
 
         toolbar.addSeparator()
 
@@ -344,6 +363,9 @@ class MainWindow(QMainWindow):
         self.tmdb_controller.matching_error.connect(self.on_tmdb_matching_error)
         self.tmdb_controller.matching_cancelled.connect(self.on_tmdb_matching_cancelled)
         self.tmdb_controller.cache_stats_updated.connect(self.update_cache_status)
+
+        # Connect organize controller signals
+        self.organize_controller.plan_generated.connect(self._on_organize_plan_generated)
 
     def start_file_scan(self) -> None:
         """Start file scanning using scan controller."""
@@ -647,6 +669,11 @@ class MainWindow(QMainWindow):
             total_count,
         )
 
+        # Enable organize button if any files matched
+        if matched_count > 0:
+            self.organize_action.setEnabled(True)
+            logger.debug("Organize button enabled (%d files matched)", matched_count)
+
         # Update UI with match results - re-group files with updated TMDB metadata
         if hasattr(self, "scan_controller") and self.scan_controller:
             try:
@@ -702,3 +729,87 @@ class MainWindow(QMainWindow):
 
         # Ensure is_matching flag is reset to prevent auto-restart
         self.tmdb_controller.is_matching = False
+
+    def organize_files(self) -> None:
+        """Start file organization process with preview."""
+        if not self.state_model or not self.state_model.scanned_files:
+            QMessageBox.warning(
+                self,
+                "파일 없음",
+                "정리할 파일이 없습니다. 먼저 폴더를 스캔하세요.",
+            )
+            return
+
+        logger.info("Starting file organization for %d files", len(self.state_model.scanned_files))
+
+        try:
+            # Generate organization plan
+            self.organize_controller.organize_files(
+                self.state_model.scanned_files,
+                dry_run=True,  # Generate plan only
+            )
+
+            # Wait for plan to be generated
+            # (In a real implementation, this would be async with signal/slot)
+
+        except (ValueError, RuntimeError) as e:
+            logger.exception("Failed to start file organization")
+            QMessageBox.warning(
+                self,
+                "정리 오류",
+                f"파일 정리를 시작할 수 없습니다:\n{e}",
+            )
+
+    def _on_organize_plan_generated(self, plan: list) -> None:
+        """Handle organization plan generated signal.
+
+        Args:
+            plan: List of FileOperation objects
+        """
+        if not plan:
+            QMessageBox.information(
+                self,
+                "정리 불필요",
+                "모든 파일이 이미 올바른 위치에 있습니다.",
+            )
+            return
+
+        # Show preview dialog
+        preview_dialog = OrganizePreviewDialog(plan, self)
+
+        if preview_dialog.exec() == QDialog.Accepted and preview_dialog.is_confirmed():
+            # User confirmed - execute the plan
+            self._execute_organization_plan(plan)
+        else:
+            logger.info("User cancelled file organization")
+            self.status_bar.showMessage("파일 정리가 취소되었습니다.")
+
+    def _execute_organization_plan(self, plan: list) -> None:
+        """Execute the file organization plan.
+
+        Args:
+            plan: List of FileOperation objects to execute
+        """
+        # Show progress dialog
+        progress_dialog = OrganizeProgressDialog(len(plan), self)
+        progress_dialog.show()
+
+        # Connect controller signals to progress dialog
+        self.organize_controller.organization_progress.connect(
+            progress_dialog.update_progress
+        )
+        self.organize_controller.file_organized.connect(
+            progress_dialog.add_file_result
+        )
+        self.organize_controller.organization_finished.connect(
+            lambda results: progress_dialog.show_completion(
+                len([r for r in results if r]),
+                len(plan),
+            )
+        )
+        self.organize_controller.organization_error.connect(
+            progress_dialog.show_error
+        )
+
+        # Execute plan
+        self.organize_controller._execute_organization_plan(plan)

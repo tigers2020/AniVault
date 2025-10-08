@@ -11,7 +11,8 @@ Controllers follow the MVC pattern by:
 - Enabling better testability and separation of concerns
 """
 
+from .organize_controller import OrganizeController
 from .scan_controller import ScanController
 from .tmdb_controller import TMDBController
 
-__all__ = ["ScanController", "TMDBController"]
+__all__ = ["ScanController", "TMDBController", "OrganizeController"]
