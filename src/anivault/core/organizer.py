@@ -11,6 +11,7 @@ import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from anivault.config.settings import Settings
 from anivault.core.log_manager import OperationLogManager
@@ -43,6 +44,24 @@ class FileOrganizer:
         self.settings = settings or Settings.from_environment()
         self.app_config = self.settings.app
 
+    def _get_metadata_value(self, metadata: Any, key: str, default: Any = None) -> Any:
+        """
+        Safely get value from metadata (supports both dict and object).
+
+        Args:
+            metadata: Metadata (can be dict or object with attributes)
+            key: Key/attribute name to retrieve
+            default: Default value if key not found
+
+        Returns:
+            Value from metadata or default
+        """
+        # Try dict access first
+        if isinstance(metadata, dict):
+            return metadata.get(key, default)
+        # Try attribute access
+        return getattr(metadata, key, default)
+
     def _construct_destination_path(self, scanned_file: ScannedFile) -> Path:
         """
         Construct the destination path for a scanned file.
@@ -59,11 +78,30 @@ class FileOrganizer:
         # Get metadata from the parsed result
         metadata = scanned_file.metadata
 
-        # Extract series information
-        series_title = metadata.title or "Unknown Series"
-        season_number = metadata.season
-        episode_number = metadata.episode
-        episode_title = metadata.other_info.get("episode_title")
+        # Extract series information (support both dict and object)
+        # Priority: TMDB matched title > parsed title > "Unknown Series"
+        series_title = "Unknown Series"
+        
+        # Check for TMDB match result first
+        other_info = self._get_metadata_value(metadata, "other_info", {})
+        if not isinstance(other_info, dict):
+            other_info = {}
+        
+        match_result = other_info.get("match_result")
+        if match_result:
+            # Use TMDB matched title (Korean title)
+            if isinstance(match_result, dict):
+                series_title = match_result.get("title") or match_result.get("name", "Unknown Series")
+            else:
+                # match_result is MatchResult object
+                series_title = getattr(match_result, "title", "Unknown Series")
+        else:
+            # Fallback to parsed title
+            series_title = self._get_metadata_value(metadata, "title", "Unknown Series")
+        
+        season_number = self._get_metadata_value(metadata, "season")
+        episode_number = self._get_metadata_value(metadata, "episode")
+        episode_title = other_info.get("episode_title")
 
         # Clean series title for filesystem compatibility
         series_title = self._sanitize_filename(series_title)
@@ -146,8 +184,19 @@ class FileOrganizer:
         operations: list[FileOperation] = []
 
         for scanned_file in scanned_files:
-            # Skip files that don't have sufficient metadata
-            if not scanned_file.metadata.title:
+            # Skip files that don't have sufficient metadata (support both dict and object)
+            title = self._get_metadata_value(scanned_file.metadata, "title")
+            if not title:
+                continue
+            
+            # Skip files without TMDB match result (only organize matched files)
+            other_info = self._get_metadata_value(scanned_file.metadata, "other_info", {})
+            if not isinstance(other_info, dict):
+                other_info = {}
+            
+            match_result = other_info.get("match_result")
+            if not match_result:
+                logger.debug("Skipping file without TMDB match: %s", scanned_file.file_path.name)
                 continue
 
             # Construct destination path
