@@ -206,7 +206,10 @@ class FileOrganizer:
         subtitle_matcher = SubtitleMatcher()
         
         # Find matching subtitle files
-        matching_subtitles = subtitle_matcher.find_matching_subtitles(scanned_file.file_path)
+        matching_subtitles = subtitle_matcher.find_matching_subtitles(
+            scanned_file,  # Pass ScannedFile object
+            scanned_file.file_path.parent  # Search in video file's directory
+        )
         
         for subtitle_path in matching_subtitles:
             # Create destination path for subtitle (same directory as video)
