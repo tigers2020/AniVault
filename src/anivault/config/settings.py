@@ -584,7 +584,7 @@ class Settings(BaseSettings):
 
         with open(file_path, "w", encoding=Encoding.DEFAULT) as f:
             toml.dump(
-                self.model_dump(exclude_defaults=True),
+                self.model_dump(exclude_defaults=False, exclude_none=True),
                 f,
             )
 

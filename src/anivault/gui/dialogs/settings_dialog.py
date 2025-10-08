@@ -327,22 +327,9 @@ class SettingsDialog(QDialog):
         Args:
             config: Configuration object to save
         """
-        import toml
-
-        # Convert config to dict
-        config_dict = {
-            "tmdb": {
-                "api_key": config.tmdb.api_key,
-            },
-        }
-
-        # Ensure config directory exists
+        # Use Settings.to_toml_file() to save all configuration sections
         config_path = self.config_manager.config_path
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Write to file
-        with open(config_path, "w", encoding="utf-8") as f:
-            toml.dump(config_dict, f)
+        config.to_toml_file(config_path)
 
     def _show_error(self, title: str, message: str) -> None:
         """
