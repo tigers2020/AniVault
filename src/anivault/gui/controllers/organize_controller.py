@@ -17,6 +17,9 @@ from anivault.config.settings import Settings
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import ScannedFile
 from anivault.core.organizer import FileOrganizer
+from anivault.core.parser.anitopy_parser import AnitopyParser
+from anivault.core.parser.models import ParsingResult
+from anivault.gui.models import FileItem
 
 logger = logging.getLogger(__name__)
 
@@ -56,26 +59,112 @@ class OrganizeController(QObject):
         self.log_manager = OperationLogManager(log_root_path)
         self.settings = Settings.from_environment()
         self.file_organizer = FileOrganizer(self.log_manager, self.settings)
+        
+        # Initialize parser for filename parsing
+        self.parser = AnitopyParser()
 
         logger.debug("OrganizeController initialized")
 
+    def _convert_fileitem_to_scannedfile(self, file_item: FileItem) -> ScannedFile | None:
+        """Convert GUI FileItem to core ScannedFile.
+
+        Args:
+            file_item: FileItem from GUI
+
+        Returns:
+            ScannedFile for core processing, or None if conversion fails
+        """
+        try:
+            # FileItem.metadata is stored as dict by StateModel.set_file_metadata()
+            # Format: {"match_result": {...}}
+            
+            if not file_item.metadata or not isinstance(file_item.metadata, dict):
+                # No metadata - skip this file
+                logger.debug("Skipping file without metadata: %s", file_item.file_path.name)
+                return None
+            
+            # Extract match_result (the TMDB matching result)
+            match_result = file_item.metadata.get("match_result")
+            
+            if not match_result:
+                # No TMDB match - skip this file
+                logger.debug("Skipping file without TMDB match: %s", file_item.file_path.name)
+                return None
+            
+            # Parse filename to get season/episode info
+            # (This info is not stored in FileItem.metadata)
+            try:
+                parsed = self.parser.parse(file_item.file_path.name)
+                season = parsed.season
+                episode = parsed.episode
+            except Exception as e:
+                logger.warning("Failed to parse filename %s: %s", file_item.file_path.name, e)
+                season = None
+                episode = None
+            
+            # Get title from match_result
+            if isinstance(match_result, dict):
+                # match_result is dict
+                title = match_result.get("title") or match_result.get("name", file_item.file_path.stem)
+            else:
+                # match_result is MatchResult dataclass
+                title = match_result.title
+            
+            # Create ParsingResult with match_result in other_info
+            parsing_result = ParsingResult(
+                title=title,
+                season=season,
+                episode=episode,
+                other_info={"match_result": match_result},
+            )
+            
+            # Create ScannedFile
+            scanned_file = ScannedFile(
+                file_path=file_item.file_path,
+                metadata=parsing_result,
+                file_size=file_item.file_path.stat().st_size if file_item.file_path.exists() else 0,
+                last_modified=file_item.file_path.stat().st_mtime if file_item.file_path.exists() else 0.0,
+            )
+            
+            return scanned_file
+            
+        except Exception as e:
+            logger.warning("Failed to convert FileItem to ScannedFile for %s: %s", 
+                          file_item.file_path.name, e)
+            return None
+
     def organize_files(
         self,
-        scanned_files: list[ScannedFile],
+        file_items: list[FileItem] | list[ScannedFile],
         dry_run: bool = True,
     ) -> None:
         """Start file organization process.
 
         Args:
-            scanned_files: List of scanned files to organize
+            file_items: List of FileItem or ScannedFile objects to organize
             dry_run: If True, generate plan only without executing
         """
         if self.is_organizing:
             logger.warning("Organization already in progress")
             return
 
-        if not scanned_files:
+        if not file_items:
             logger.warning("No files to organize")
+            self.organization_error.emit("정리할 파일이 없습니다.")
+            return
+
+        # Convert FileItems to ScannedFiles if needed
+        scanned_files: list[ScannedFile] = []
+        for item in file_items:
+            if isinstance(item, FileItem):
+                converted = self._convert_fileitem_to_scannedfile(item)
+                if converted:
+                    scanned_files.append(converted)
+            else:
+                scanned_files.append(item)
+
+        if not scanned_files:
+            logger.warning("No valid files to organize after conversion")
             self.organization_error.emit("정리할 파일이 없습니다.")
             return
 
