@@ -101,7 +101,7 @@ class OrganizePreviewDialog(QDialog):
             # Destination
             dest_path = Path(operation.destination_path)
             dest_item = QTableWidgetItem(str(dest_path))
-            dest_item.setToolTip(str(dest_path))
+            dest_item.setToolTip(f"이동 위치: {str(dest_path)}")
 
             # Color code based on operation type
             if hasattr(operation, "operation_type"):
@@ -112,18 +112,18 @@ class OrganizePreviewDialog(QDialog):
 
             self.table.setItem(idx, 3, dest_item)
 
-        # Set column widths - better proportions
+        # Set column widths - better proportions for long paths
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)  # 파일명 - 가장 넓게
-        header.setSectionResizeMode(1, QHeaderView.Stretch)  # 현재 위치
-        header.setSectionResizeMode(2, QHeaderView.Fixed)    # 화살표 - 고정
-        header.setSectionResizeMode(3, QHeaderView.Stretch)  # 이동 위치
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 파일명 - 내용에 맞춤
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # 현재 위치 - 내용에 맞춤
+        header.setSectionResizeMode(2, QHeaderView.Fixed)             # 화살표 - 고정
+        header.setSectionResizeMode(3, QHeaderView.Stretch)           # 이동 위치 - 남은 공간 모두 사용
         
         # Set minimum column widths
         self.table.setColumnWidth(0, 200)  # 파일명 최소 너비
-        self.table.setColumnWidth(1, 150) # 현재 위치 최소 너비  
+        self.table.setColumnWidth(1, 200) # 현재 위치 최소 너비 (더 넓게)
         self.table.setColumnWidth(2, 40)   # 화살표 고정 너비
-        self.table.setColumnWidth(3, 150) # 이동 위치 최소 너비
+        self.table.setColumnWidth(3, 300) # 이동 위치 최소 너비 (훨씬 넓게)
 
         layout.addWidget(self.table)
 
