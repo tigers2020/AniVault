@@ -299,6 +299,16 @@ class MainWindow(QMainWindow):
                 logger.error("No QApplication instance found")
                 return
 
+            # Save theme preference to settings
+            try:
+                from anivault.config.settings import get_config
+                config = get_config()
+                config.app.theme = theme_name
+                config.to_toml_file("config/config.toml")
+                logger.info("Theme preference saved: %s", theme_name)
+            except Exception as e:
+                logger.warning("Failed to save theme preference: %s", e)
+
             # Update status bar
             self.status_bar.showMessage(f"Theme switched to {theme_name.title()}", 3000)
 

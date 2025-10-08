@@ -191,6 +191,7 @@ class AppConfig(BaseModel):
         description="Application description",
     )
     debug: bool = Field(default=False, description="Enable debug mode")
+    theme: str = Field(default="light", description="Application theme (light, dark)")
 
 
 class LoggingConfig(BaseModel):

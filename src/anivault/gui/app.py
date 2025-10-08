@@ -108,8 +108,11 @@ class AniVaultGUI:
     def _load_initial_theme(self) -> None:
         """Load and apply the initial theme from configuration."""
         try:
-            # Use default theme (theme preference will be added to Settings later)
-            saved_theme = ThemeManager.DEFAULT_THEME
+            # Get saved theme from configuration
+            from anivault.config.settings import get_config
+            
+            config = get_config()
+            saved_theme = config.app.theme
 
             # Apply the theme
             self.theme_manager.load_and_apply_theme(self.app, saved_theme)
