@@ -217,6 +217,39 @@ adaptive_*.json
 filenames.txt
 
 # ===========================================
+# Project Reports & Progress Tracking
+# ===========================================
+
+# Progress and completion reports (keep only in PR descriptions)
+*_COMPLETE*.md
+*_PROGRESS*.md
+*_SUMMARY.md
+*_REPORT*.md
+STAGE*.md
+PHASE*.md
+TASK*.md
+PR_*.md
+NEXT_ACTIONS.md
+PROJECT_COMPLETE.md
+REFACTORING*.md
+RISK_*.md
+SPRINT*.md
+ROLLBACK*.md
+
+# Validation and violation reports
+*_violations*.json
+*_validation.json
+function_*.json
+magic_*.json
+error_*.json
+bandit-report.json
+stage*_*.json
+
+# Test directories (use pytest fixtures instead)
+test_dir/
+test_dir_*/
+
+# ===========================================
 # Security & Environment
 # ===========================================
 
