@@ -68,7 +68,8 @@ class OrganizePreviewDialog(QDialog):
         # Info message
         info_label = QLabel(
             "다음 파일들이 정리됩니다. 확인 후 '실행' 버튼을 눌러주세요.\n"
-            "💡 고해상도 파일은 메인 폴더로, 낮은 해상도는 low_res 폴더로 이동됩니다."
+            "💡 고해상도 파일은 메인 폴더로, 낮은 해상도는 low_res 폴더로 이동됩니다.\n"
+            "📁 Season 폴더는 파일명에 'S01E01' 형태가 있을 때만 생성됩니다."
         )
         info_label.setWordWrap(True)
         info_label.setProperty("class", "info-message")
@@ -112,18 +113,21 @@ class OrganizePreviewDialog(QDialog):
 
             self.table.setItem(idx, 3, dest_item)
 
-        # Set column widths - better proportions for long paths
+        # Set column widths - prioritize destination column for long paths
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 파일명 - 내용에 맞춤
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # 현재 위치 - 내용에 맞춤
         header.setSectionResizeMode(2, QHeaderView.Fixed)             # 화살표 - 고정
-        header.setSectionResizeMode(3, QHeaderView.Stretch)           # 이동 위치 - 남은 공간 모두 사용
+        header.setSectionResizeMode(3, QHeaderView.Interactive)       # 이동 위치 - 수동 조절 가능
         
-        # Set minimum column widths
-        self.table.setColumnWidth(0, 200)  # 파일명 최소 너비
-        self.table.setColumnWidth(1, 200) # 현재 위치 최소 너비 (더 넓게)
-        self.table.setColumnWidth(2, 40)   # 화살표 고정 너비
-        self.table.setColumnWidth(3, 300) # 이동 위치 최소 너비 (훨씬 넓게)
+        # Set column widths with more space for destination
+        self.table.setColumnWidth(0, 150)  # 파일명 - 적당히
+        self.table.setColumnWidth(1, 150)  # 현재 위치 - 적당히
+        self.table.setColumnWidth(2, 30)   # 화살표 - 최소
+        self.table.setColumnWidth(3, 500)  # 이동 위치 - 매우 넓게
+        
+        # Allow horizontal scrolling for very long paths
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
         layout.addWidget(self.table)
 

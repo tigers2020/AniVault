@@ -3,6 +3,7 @@ name = "AniVault"
 version = "0.1.0"
 description = "Anime Collection Management System"
 debug = false
+theme = "dark"
 
 [logging]
 level = "INFO"
@@ -19,7 +20,7 @@ timeout = 30
 retry_attempts = 3
 retry_delay = 1.0
 rate_limit_delay = 0.25
-rate_limit_rps = 35
+rate_limit_rps = 35.0
 concurrent_requests = 4
 
 [file_processing]

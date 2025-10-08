@@ -90,17 +90,18 @@ class FileOrganizer:
             target_folder = Path("F:/Anime")
             media_type = "anime"
         
-        if season_number is not None:
-            season_dir = f"Season {season_number:02d}"
-            series_dir = target_folder / media_type / season_dir / series_title
-        else:
-            series_dir = target_folder / media_type / series_title
+        # Default to Season 1 if no season specified
+        if season_number is None:
+            season_number = 1
+        
+        season_dir = f"Season {season_number:02d}"
+        series_dir = target_folder / media_type / season_dir / series_title
 
         # Build filename
         filename_parts = [series_title]
 
-        if season_number is not None:
-            filename_parts.append(f"S{season_number:02d}")
+        # Always include season in filename (now that we default to 1)
+        filename_parts.append(f"S{season_number:02d}")
 
         if episode_number is not None:
             filename_parts.append(f"E{episode_number:02d}")
