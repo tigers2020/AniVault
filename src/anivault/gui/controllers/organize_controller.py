@@ -51,7 +51,9 @@ class OrganizeController(QObject):
         self.current_plan: list[Any] = []
 
         # Initialize services
-        self.log_manager = OperationLogManager()
+        # Use user's home directory for logs
+        log_root_path = Path.home()
+        self.log_manager = OperationLogManager(log_root_path)
         self.settings = Settings.from_environment()
         self.file_organizer = FileOrganizer(self.log_manager, self.settings)
 
@@ -173,4 +175,5 @@ class OrganizeController(QObject):
             List of FileOperation objects
         """
         return self.current_plan
+
 
