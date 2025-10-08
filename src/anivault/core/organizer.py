@@ -97,26 +97,10 @@ class FileOrganizer:
         season_dir = f"Season {season_number:02d}"
         series_dir = target_folder / media_type / season_dir / series_title
 
-        # Build filename
-        filename_parts = [series_title]
-
-        # Always include season in filename (now that we default to 1)
-        filename_parts.append(f"S{season_number:02d}")
-
-        if episode_number is not None:
-            filename_parts.append(f"E{episode_number:02d}")
-
-        if episode_title:
-            episode_title = self._sanitize_filename(episode_title)
-            filename_parts.append(episode_title)
-
-        # Join filename parts
-        base_filename = " - ".join(filename_parts)
-
-        # Add file extension
-        filename = f"{base_filename}{scanned_file.extension}"
-
-        return series_dir / filename
+        # Use original filename (as requested by user)
+        original_filename = scanned_file.file_path.name
+        
+        return series_dir / original_filename
 
     def _sanitize_filename(self, filename: str) -> str:
         """
