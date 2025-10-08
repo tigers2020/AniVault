@@ -229,7 +229,7 @@ class SettingsDialog(QDialog):
                 logger.debug("Loaded existing API key from configuration")
 
             # Load folder settings
-            if hasattr(self._cached_config, "folders"):
+            if hasattr(self._cached_config, "folders") and self._cached_config.folders is not None:
                 folders = self._cached_config.folders
                 self.source_folder_input.setText(folders.source_folder)
                 self.target_folder_input.setText(folders.target_folder)
