@@ -65,6 +65,12 @@ class MatchResult:
         year: Release/first air year (if available)
         confidence_score: Match confidence (0.0 to 1.0)
         media_type: Type of media ('tv' or 'movie')
+        poster_path: Relative path to poster image (e.g., "/abc123.jpg")
+        backdrop_path: Relative path to backdrop image (if available)
+        overview: Plot synopsis/description (if available)
+        popularity: TMDB popularity score (if available)
+        vote_average: Average user rating (if available)
+        original_language: Original language code (if available)
     """
 
     tmdb_id: int
@@ -72,6 +78,12 @@ class MatchResult:
     year: int | None
     confidence_score: float
     media_type: str
+    poster_path: str | None = None
+    backdrop_path: str | None = None
+    overview: str | None = None
+    popularity: float | None = None
+    vote_average: float | None = None
+    original_language: str | None = None
 
     def __post_init__(self) -> None:
         """Validate match result invariants.
@@ -118,4 +130,10 @@ class MatchResult:
             "year": self.year,
             "confidence_score": self.confidence_score,
             "media_type": self.media_type,
+            "poster_path": self.poster_path,
+            "backdrop_path": self.backdrop_path,
+            "overview": self.overview,
+            "popularity": self.popularity,
+            "vote_average": self.vote_average,
+            "original_language": self.original_language,
         }

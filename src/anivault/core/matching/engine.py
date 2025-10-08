@@ -673,12 +673,26 @@ class MatchingEngine:
 
         media_type = best_candidate.get(TMDBResponseKeys.MEDIA_TYPE, "unknown")
 
+        # Extract additional TMDB metadata
+        poster_path = best_candidate.get(TMDBResponseKeys.POSTER_PATH)
+        backdrop_path = best_candidate.get(TMDBResponseKeys.BACKDROP_PATH)
+        overview = best_candidate.get(TMDBResponseKeys.OVERVIEW)
+        popularity = best_candidate.get(TMDBResponseKeys.POPULARITY)
+        vote_average = best_candidate.get(TMDBResponseKeys.VOTE_AVERAGE)
+        original_language = best_candidate.get(TMDBResponseKeys.ORIGINAL_LANGUAGE)
+
         match_result = MatchResult(
             tmdb_id=tmdb_id,
             title=title,
             year=year,
             confidence_score=best_confidence,
             media_type=media_type,
+            poster_path=poster_path,
+            backdrop_path=backdrop_path,
+            overview=overview,
+            popularity=popularity,
+            vote_average=vote_average,
+            original_language=original_language,
         )
 
         logger.info(
