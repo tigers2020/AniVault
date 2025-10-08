@@ -306,11 +306,21 @@ class GroupCardWidget(QFrame):
             logger.debug("File has metadata dict with keys: %s", meta.keys())
             match_result = meta.get("match_result")
             if match_result:
-                logger.debug(
-                    "Found match result: %s",
-                    match_result.get("title", UIConfig.UNKNOWN_TITLE),
-                )
-                return match_result
+                # Convert MatchResult dataclass to dict if needed
+                if hasattr(match_result, "to_dict"):
+                    match_result_dict = match_result.to_dict()
+                    logger.debug(
+                        "Found match result: %s",
+                        match_result_dict.get("title", UIConfig.UNKNOWN_TITLE),
+                    )
+                    return match_result_dict
+                else:
+                    # Already a dict
+                    logger.debug(
+                        "Found match result: %s",
+                        match_result.get("title", UIConfig.UNKNOWN_TITLE),
+                    )
+                    return match_result
             logger.debug("No match_result in metadata dict")
 
         # Case 2: metadata is ParsingResult or similar object
@@ -321,27 +331,32 @@ class GroupCardWidget(QFrame):
             if isinstance(meta.other_info, dict):
                 match_result = meta.other_info.get("match_result")
                 if match_result:
-                    # DEBUG: Log entire match_result structure
-                    title = (
-                    match_result.get("title")
-                    or match_result.get("name")
-                    or UIConfig.UNKNOWN_TITLE
-                )
-                    logger.info(
-                        "✓ Found match_result in ParsingResult.other_info: %s",
-                        title,
-                    )
-                    if title == UIConfig.UNKNOWN_TITLE:
-                        logger.warning(
-                            "⚠️ match_result has no title/name! Keys: %s, Type: %s",
-                            (
-                                list(match_result.keys())
-                                if isinstance(match_result, dict)
-                                else "NOT_DICT"
-                            ),
-                            type(match_result).__name__,
+                    # Convert MatchResult dataclass to dict for widget compatibility
+                    if hasattr(match_result, "to_dict"):
+                        match_result_dict = match_result.to_dict()
+                        title = match_result_dict.get("title", UIConfig.UNKNOWN_TITLE)
+                        logger.info(
+                            "✓ Found match_result in ParsingResult.other_info: %s",
+                            title,
                         )
-                    return match_result
+                        return match_result_dict
+                    else:
+                        # Already a dict
+                        title = (
+                            match_result.get("title")
+                            or match_result.get("name")
+                            or UIConfig.UNKNOWN_TITLE
+                        )
+                        logger.info(
+                            "✓ Found match_result in ParsingResult.other_info: %s",
+                            title,
+                        )
+                        if title == UIConfig.UNKNOWN_TITLE:
+                            logger.warning(
+                                "⚠️ match_result has no title/name! Keys: %s",
+                                list(match_result.keys()),
+                            )
+                        return match_result
                 logger.debug("other_info is dict but no match_result")
             else:
                 logger.debug("other_info is not dict: %s", type(meta.other_info))

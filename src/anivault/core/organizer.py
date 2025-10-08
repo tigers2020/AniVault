@@ -61,18 +61,10 @@ class FileOrganizer:
 
         # Extract series information
         # Priority: TMDB matched title > parsed title > "Unknown Series"
-        series_title = "Unknown Series"
-        
-        # Check for TMDB match result first
         match_result = metadata.other_info.get("match_result")
         if match_result:
-            # Use TMDB matched title (Korean title)
-            if isinstance(match_result, dict):
-                # match_result stored as dict
-                series_title = match_result.get("title") or match_result.get("name", "Unknown Series")
-            else:
-                # match_result is MatchResult dataclass
-                series_title = match_result.title
+            # Use TMDB matched title (Korean title from MatchResult dataclass)
+            series_title = match_result.title
         else:
             # Fallback to parsed title
             series_title = metadata.title or "Unknown Series"

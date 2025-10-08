@@ -102,13 +102,8 @@ class OrganizeController(QObject):
                 season = None
                 episode = None
             
-            # Get title from match_result
-            if isinstance(match_result, dict):
-                # match_result is dict
-                title = match_result.get("title") or match_result.get("name", file_item.file_path.stem)
-            else:
-                # match_result is MatchResult dataclass
-                title = match_result.title
+            # Get title from match_result (MatchResult dataclass)
+            title = match_result.title
             
             # Create ParsingResult with match_result in other_info
             parsing_result = ParsingResult(
