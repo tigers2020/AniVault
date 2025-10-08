@@ -123,10 +123,13 @@ class FileOrganizer:
         # Remove leading/trailing whitespace and dots
         sanitized = sanitized.strip(" .")
 
-        # Replace multiple spaces/underscores with single underscore
+        # Replace multiple spaces with single space, keep underscores as spaces
         import re
 
-        sanitized = re.sub(r"[_\s]+", "_", sanitized)
+        # Replace underscores with spaces
+        sanitized = sanitized.replace("_", " ")
+        # Replace multiple spaces with single space
+        sanitized = re.sub(r"\s+", " ", sanitized)
 
         # Ensure filename is not empty
         if not sanitized:
