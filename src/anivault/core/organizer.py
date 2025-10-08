@@ -95,7 +95,7 @@ class FileOrganizer:
             season_number = 1
         
         season_dir = f"Season {season_number:02d}"
-        series_dir = target_folder / media_type / season_dir / series_title
+        series_dir = target_folder / media_type / series_title / season_dir
 
         # Use original filename (as requested by user)
         original_filename = scanned_file.file_path.name
