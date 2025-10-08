@@ -80,12 +80,14 @@ class FileOrganizer:
         from anivault.config.settings import get_config
         config = get_config()
         
-        # Use folders.target_folder if set, otherwise fallback to organization.target_folder
-        if config.folders and config.folders.target_folder:
+        # Use folders settings (unified configuration)
+        if config.folders:
             target_folder = Path(config.folders.target_folder)
+            media_type = config.folders.media_type
         else:
-            target_folder = Path(config.organization.target_folder)
-        media_type = config.organization.media_type
+            # Fallback defaults
+            target_folder = Path("F:/Anime")
+            media_type = "anime"
         
         if season_number is not None:
             season_dir = f"Season {season_number:02d}"

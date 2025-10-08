@@ -42,14 +42,11 @@ cpu_limit = 4
 enable_profiling = false
 profile_output = "logs/profiling.json"
 
-[organization]
-target_folder = "F:/Anime"
-media_type = "anime"
-structure = "season_##/korean_title/original_filename"
-
 [folders]
 source_folder = "F:/kiwi/애니"
 target_folder = "F:/kiwi/애니분류"
+media_type = "anime"
+structure = "season_##/korean_title/original_filename"
 auto_scan_on_startup = true
 auto_scan_interval_minutes = 0
 include_subdirectories = true

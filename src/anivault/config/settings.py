@@ -300,35 +300,26 @@ class PerformanceConfig(BaseModel):
     )
 
 
-class OrganizationConfig(BaseModel):
-    """File organization configuration."""
-
-    target_folder: str = Field(
-        default="F:/Anime",
-        description="Target folder for organized files",
-    )
-
-    media_type: str = Field(
-        default="anime",
-        description="Media type for organization (anime, movie, etc.)",
-    )
-
-    structure: str = Field(
-        default="season_##/korean_title/original_filename",
-        description="Directory structure template for organization",
-    )
 
 
 class FolderSettings(BaseModel):
-    """Folder and directory settings (from TomlConfig)."""
+    """Folder and directory settings (unified from TomlConfig + OrganizationConfig)."""
 
     source_folder: str = Field(
         default="",
         description="Source folder path for media files to organize",
     )
     target_folder: str = Field(
-        default="",
+        default="F:/Anime",
         description="Target folder path for organized media files",
+    )
+    media_type: str = Field(
+        default="anime",
+        description="Media type for organization (anime, movie, etc.)",
+    )
+    structure: str = Field(
+        default="season_##/korean_title/original_filename",
+        description="Directory structure template for organization",
     )
     auto_scan_on_startup: bool = Field(
         default=False,
@@ -446,7 +437,6 @@ class Settings(BaseSettings):
     file_processing: ScanConfig = Field(default_factory=ScanConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
-    organization: OrganizationConfig = Field(default_factory=OrganizationConfig)
     
     # TomlConfig sections (optional for backward compatibility)
     folders: FolderSettings | None = Field(
