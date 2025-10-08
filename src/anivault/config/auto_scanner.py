@@ -48,6 +48,10 @@ class AutoScanner:
             config = self.config_manager.load_config()
             folder_settings = config.folders
 
+            # Check if folders settings exist (optional field)
+            if not folder_settings:
+                return False, ""
+
             # Check if auto scan is enabled
             if not folder_settings.auto_scan_on_startup:
                 return False, ""
