@@ -300,6 +300,25 @@ class PerformanceConfig(BaseModel):
     )
 
 
+class OrganizationConfig(BaseModel):
+    """File organization configuration."""
+
+    target_folder: str = Field(
+        default="F:/Anime",
+        description="Target folder for organized files",
+    )
+
+    media_type: str = Field(
+        default="anime",
+        description="Media type for organization (anime, movie, etc.)",
+    )
+
+    structure: str = Field(
+        default="season_##/korean_title/original_filename",
+        description="Directory structure template for organization",
+    )
+
+
 class Settings(BaseModel):
     """Main settings model containing all configuration sections."""
 
@@ -333,6 +352,7 @@ class Settings(BaseModel):
     file_processing: ScanConfig = Field(default_factory=ScanConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
+    organization: OrganizationConfig = Field(default_factory=OrganizationConfig)
 
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:

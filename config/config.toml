@@ -37,3 +37,8 @@ memory_limit = "2GB"
 cpu_limit = 4
 enable_profiling = false
 profile_output = "logs/profiling.json"
+
+[organization]
+target_folder = "F:/Anime"
+media_type = "anime"
+structure = "season_##/korean_title/original_filename"

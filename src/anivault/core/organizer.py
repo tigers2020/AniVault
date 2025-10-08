@@ -76,14 +76,19 @@ class FileOrganizer:
         # Clean series title for filesystem compatibility
         series_title = self._sanitize_filename(series_title)
 
-        # Build directory structure: Series/Season XX/
-        base_dir = Path("Anime")  # Base directory for anime files
-
+        # Get organization settings
+        from anivault.config.settings import Settings
+        settings = Settings()
+        
+        # Build directory structure: target_folder/media_type/season_##/korean_title/
+        target_folder = Path(settings.organization.target_folder)
+        media_type = settings.organization.media_type
+        
         if season_number is not None:
             season_dir = f"Season {season_number:02d}"
-            series_dir = base_dir / series_title / season_dir
+            series_dir = target_folder / media_type / season_dir / series_title
         else:
-            series_dir = base_dir / series_title
+            series_dir = target_folder / media_type / series_title
 
         # Build filename
         filename_parts = [series_title]
@@ -171,15 +176,56 @@ class FileOrganizer:
             if scanned_file.file_path.resolve() == destination_path.resolve():
                 continue
 
-            # Create file operation
+            # Create file operation for main file
             operation = FileOperation(
                 operation_type=OperationType.MOVE,
                 source_path=scanned_file.file_path,
                 destination_path=destination_path,
             )
-
             operations.append(operation)
+            
+            # Find and add matching subtitle files
+            subtitle_operations = self._find_matching_subtitles(scanned_file, destination_path)
+            operations.extend(subtitle_operations)
 
+        return operations
+
+    def _find_matching_subtitles(self, scanned_file: ScannedFile, destination_path: Path) -> list[FileOperation]:
+        """Find matching subtitle files for a video file.
+        
+        Args:
+            scanned_file: The video file to find subtitles for
+            destination_path: Destination path for the video file
+            
+        Returns:
+            List of FileOperation objects for matching subtitle files
+        """
+        from anivault.core.subtitle_matcher import SubtitleMatcher
+        
+        operations: list[FileOperation] = []
+        subtitle_matcher = SubtitleMatcher()
+        
+        # Find matching subtitle files
+        matching_subtitles = subtitle_matcher.find_matching_subtitles(scanned_file.file_path)
+        
+        for subtitle_path in matching_subtitles:
+            # Create destination path for subtitle (same directory as video)
+            subtitle_dest = destination_path.parent / subtitle_path.name
+            
+            # Skip if source and destination are the same
+            if subtitle_path.resolve() == subtitle_dest.resolve():
+                continue
+                
+            # Create file operation for subtitle
+            operation = FileOperation(
+                operation_type=OperationType.MOVE,
+                source_path=subtitle_path,
+                destination_path=subtitle_dest,
+            )
+            operations.append(operation)
+            
+            logger.debug("Found matching subtitle: %s -> %s", subtitle_path.name, subtitle_dest)
+        
         return operations
 
     def execute_plan(
