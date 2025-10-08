@@ -23,7 +23,6 @@ rate_limit_rps = 35
 concurrent_requests = 4
 
 [file_processing]
-supported_extensions = [ ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".m4v", ".webm",]
 batch_size = 100
 max_workers = 4
 timeout = 300

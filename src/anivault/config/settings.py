@@ -99,36 +99,7 @@ class FilterConfig(BaseModel):
 class ScanConfig(BaseModel):
     """Configuration for directory scanning."""
 
-    # Supported file extensions (legacy compatibility)
-    supported_extensions: list[str] = Field(
-        default=[
-            # Video files
-            ".mkv",
-            ".mp4",
-            ".avi",
-            ".mov",
-            ".wmv",
-            ".flv",
-            ".m4v",
-            ".webm",
-            ".m2ts",
-            ".ts",
-            # Subtitle files
-            ".srt",
-            ".ass",
-            ".ssa",
-            ".sub",
-            ".idx",
-            ".vtt",
-            ".smi",
-            ".sami",
-            ".mks",
-            ".sup",
-            ".pgs",
-            ".dvb",
-        ],
-        description="Supported file extensions for scanning including video and subtitle files",
-    )
+    # Note: File extensions are now managed by FilterConfig.allowed_extensions
 
     # Batch processing settings
     batch_size: int = Field(
@@ -170,15 +141,6 @@ class ScanConfig(BaseModel):
         alias="filter",
     )
 
-    @field_validator("supported_extensions")
-    @classmethod
-    def validate_supported_extensions(cls, v: list[str]) -> list[str]:
-        """Validate that extensions start with a dot."""
-        for ext in v:
-            if not ext.startswith("."):
-                msg = f"Extension '{ext}' must start with a dot"
-                raise ValueError(msg)
-        return v
 
 
 class AppConfig(BaseModel):
@@ -421,7 +383,6 @@ class Settings(BaseSettings):
                 },
                 "file_processing": {
                     "max_workers": 4,
-                    "supported_extensions": [".mkv", ".mp4"],
                 },
                 "cache": {"enabled": True, "ttl_seconds": 604800},
                 "performance": {"profiling_enabled": False},
