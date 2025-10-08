@@ -10,8 +10,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
+from pathlib import Path
+
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import FolderSettings
+from anivault.config.settings import FolderSettings, Settings, get_config
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -20,13 +22,13 @@ logger = logging.getLogger(__name__)
 class AutoScanner:
     """Handles automatic scanning of configured folders."""
 
-    def __init__(self, config_manager: Any) -> None:
+    def __init__(self, config_path: str | Path = "config/config.toml") -> None:
         """Initialize the auto scanner.
 
         Args:
-            config_manager: Configuration manager instance
+            config_path: Path to configuration file
         """
-        self.config_manager = config_manager
+        self.config_path = Path(config_path)
         self.scan_callback: Callable[[str], None] | None = None
         self._scan_in_progress = False
 
@@ -45,7 +47,7 @@ class AutoScanner:
             Tuple of (should_scan, source_folder_path)
         """
         try:
-            config = self.config_manager.load_config()
+            config = get_config()
             folder_settings = config.folders
 
             # Check if folders settings exist (optional field)
@@ -166,7 +168,7 @@ class AutoScanner:
             ApplicationError: If failed to retrieve folder settings
         """
         try:
-            config = self.config_manager.load_config()
+            config = get_config()
             # Return default FolderSettings if None
             if config.folders is None:
                 return FolderSettings()
@@ -202,7 +204,7 @@ class AutoScanner:
             Tuple of (success, error_message)
         """
         try:
-            config = self.config_manager.load_config()
+            config = get_config()
 
             # Create folders settings if it doesn't exist
             if config.folders is None:
@@ -215,13 +217,8 @@ class AutoScanner:
             config.folders.auto_scan_interval_minutes = auto_scan_interval_minutes
             config.folders.include_subdirectories = include_subdirectories
 
-            # Validate the updated configuration
-            errors = self.config_manager.validate_config()
-            if errors:
-                return False, f"Configuration validation failed: {', '.join(errors)}"
-
             # Save the configuration
-            self.config_manager.save_config(config)
+            config.to_toml_file(self.config_path)
 
             logger.info("Folder settings updated successfully")
             return True, ""

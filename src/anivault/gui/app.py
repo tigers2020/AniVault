@@ -14,7 +14,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 from anivault.config.auto_scanner import AutoScanner
-from anivault.config.manager import ConfigManager
+from anivault.config.settings import load_settings, reload_config
 
 from .main_window import MainWindow
 from .themes import ThemeManager
@@ -29,8 +29,8 @@ class AniVaultGUI:
         self.app: QApplication | None = None
         self.main_window: MainWindow | None = None
         self.theme_manager: ThemeManager | None = None
-        self.config_manager: ConfigManager | None = None
         self.auto_scanner: AutoScanner | None = None
+        self.config_path: Path = Path("config/config.toml")
 
     def initialize(self) -> bool:
         """
@@ -49,11 +49,12 @@ class AniVaultGUI:
             # High DPI scaling is enabled by default in Qt6
             # No need to set deprecated attributes
 
-            # Initialize configuration manager
-            self.config_manager = ConfigManager()
+            # Load configuration (validates and caches globally)
+            load_settings(self.config_path)
+            logger.info("Successfully loaded and validated configuration")
 
             # Initialize auto scanner
-            self.auto_scanner = AutoScanner(self.config_manager)
+            self.auto_scanner = AutoScanner(self.config_path)
 
             # Initialize theme manager
             self.theme_manager = ThemeManager()
@@ -64,8 +65,8 @@ class AniVaultGUI:
             # Create main window
             self.main_window = MainWindow()
 
-            # Set theme managers in main window
-            self.main_window.set_theme_managers(self.theme_manager, self.config_manager)
+            # Set theme manager in main window
+            self.main_window.set_theme_manager(self.theme_manager)
 
             # Setup auto scanner callback
             self._setup_auto_scanner()

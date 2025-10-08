@@ -32,8 +32,7 @@ from PySide6.QtWidgets import (
 
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.manager import ConfigManager
-from anivault.config.settings import Settings
+from anivault.config.settings import Settings, get_config, reload_config
 from anivault.shared.constants.gui_messages import (
     DialogMessages,
     DialogTitles,
@@ -58,25 +57,23 @@ class SettingsDialog(QDialog):
     def __init__(
         self,
         parent: QWidget | None = None,
-        config_manager: ConfigManager | None = None,
+        config_path: str | Path = "config/config.toml",
     ):
         """
         Initialize the settings dialog.
 
         Args:
             parent: Parent widget
-            config_manager: Configuration manager instance
+            config_path: Path to configuration file
         """
         super().__init__(parent)
 
-        self.config_manager = config_manager
-        if self.config_manager is None:
-            self.config_manager = ConfigManager()
+        self.config_path = Path(config_path)
         self.current_api_key = ""
         self._cached_config = None  # Cache for loaded config
 
         # Initialize auto scanner
-        self.auto_scanner = AutoScanner(self.config_manager)
+        self.auto_scanner = AutoScanner(self.config_path)
 
         # Set dialog properties
         self.setWindowTitle("AniVault Settings")
@@ -221,7 +218,7 @@ class SettingsDialog(QDialog):
         try:
             # Load config only once and cache it
             if self._cached_config is None:
-                self._cached_config = self.config_manager.load_config()
+                self._cached_config = get_config()
 
             if self._cached_config.tmdb.api_key:
                 self.current_api_key = self._cached_config.tmdb.api_key
@@ -302,7 +299,7 @@ class SettingsDialog(QDialog):
         try:
             # Use cached config if available, otherwise load
             if self._cached_config is None:
-                self._cached_config = self.config_manager.load_config()
+                self._cached_config = get_config()
 
             # Update API key in cached config
             self._cached_config.tmdb.api_key = api_key
@@ -328,8 +325,7 @@ class SettingsDialog(QDialog):
             config: Configuration object to save
         """
         # Use Settings.to_toml_file() to save all configuration sections
-        config_path = self.config_manager.config_path
-        config.to_toml_file(config_path)
+        config.to_toml_file(self.config_path)
 
     def _show_error(self, title: str, message: str) -> None:
         """

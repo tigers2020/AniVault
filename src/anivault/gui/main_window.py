@@ -74,8 +74,8 @@ class MainWindow(QMainWindow):
 
         # Initialize theme-related attributes
         self.theme_manager = None
-        self.config_manager = None
         self.theme_action_group = None
+        self.config_path = Path("config/config.toml")
 
         # Initialize UI components
         self._setup_ui()
@@ -315,10 +315,9 @@ class MainWindow(QMainWindow):
                 f"Failed to switch theme: {e}",
             )
 
-    def set_theme_managers(self, theme_manager, config_manager) -> None:
-        """Set theme and config managers for theme switching."""
+    def set_theme_manager(self, theme_manager) -> None:
+        """Set theme manager for theme switching."""
         self.theme_manager = theme_manager
-        self.config_manager = config_manager
 
         # Set initial theme selection based on current theme
         if self.theme_manager and self.theme_action_group:
@@ -517,7 +516,7 @@ class MainWindow(QMainWindow):
     def open_settings_dialog(self) -> None:
         """Open the settings dialog for API key configuration."""
         try:
-            dialog = SettingsDialog(self, self.config_manager)
+            dialog = SettingsDialog(self, self.config_path)
 
             # Connect signal
             dialog.api_key_saved.connect(self._on_api_key_saved)
