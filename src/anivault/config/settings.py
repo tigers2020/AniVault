@@ -300,8 +300,6 @@ class PerformanceConfig(BaseModel):
     )
 
 
-
-
 class FolderSettings(BaseModel):
     """Folder and directory settings (unified from TomlConfig + OrganizationConfig)."""
 
@@ -438,7 +436,7 @@ class Settings(BaseSettings):
     cache: CacheConfig = Field(default_factory=CacheConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     
-    # TomlConfig sections (optional for backward compatibility)
+    # Folder settings (unified from TomlConfig + OrganizationConfig)
     folders: FolderSettings | None = Field(
         default=None,
         description="Folder and directory settings (optional)",

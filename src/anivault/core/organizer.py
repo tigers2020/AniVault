@@ -80,12 +80,12 @@ class FileOrganizer:
         from anivault.config.settings import get_config
         config = get_config()
         
-        # Use folders settings (unified configuration)
-        if config.folders:
+        # Use folders.target_folder if set, otherwise fallback to default
+        if config.folders and config.folders.target_folder:
             target_folder = Path(config.folders.target_folder)
             media_type = config.folders.media_type
         else:
-            # Fallback defaults
+            # Fallback to default values
             target_folder = Path("F:/Anime")
             media_type = "anime"
         
