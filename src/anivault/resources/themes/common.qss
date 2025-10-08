@@ -1,0 +1,449 @@
+/* AniVault Common Styles QSS */
+
+/* =============================================================================
+   COMMON STYLES (Color-agnostic)
+   ============================================================================= */
+
+/* =============================================================================
+   LAYOUT & SPACING
+   ============================================================================= */
+
+QMainWindow {
+    /* Common layout properties */
+}
+
+QWidget {
+    /* Common widget properties */
+}
+
+/* =============================================================================
+   DOCK WIDGETS COMMON STYLES
+   ============================================================================= */
+
+QDockWidget {
+    border: 1px solid;
+    titlebar-close-icon: none;
+    titlebar-normal-icon: none;
+}
+
+QDockWidget::title {
+    padding: 8px 12px;
+    border-bottom: 1px solid;
+    font-weight: 500;
+}
+
+QDockWidget::close-button,
+QDockWidget::float-button {
+    background-color: transparent;
+    border: none;
+    padding: 4px;
+    margin: 4px;
+}
+
+QDockWidget::close-button:hover,
+QDockWidget::float-button:hover {
+    border-radius: 4px;
+}
+
+/* =============================================================================
+   TOOLBAR COMMON STYLES
+   ============================================================================= */
+
+QToolBar {
+    border: none;
+    spacing: 8px;
+    padding: 8px;
+}
+
+QToolBar::handle {
+    width: 1px;
+    margin: 8px 0;
+}
+
+QToolBar QToolButton {
+    background: transparent;
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QToolBar QToolButton:hover {
+    border-radius: 6px;
+}
+
+QToolBar QToolButton:pressed {
+    border-radius: 6px;
+}
+
+QToolBar QAction {
+    background-color: transparent;
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QToolBar QAction:hover {
+    border-radius: 6px;
+}
+
+QToolBar QAction:pressed {
+    border-radius: 6px;
+}
+
+/* =============================================================================
+   MENU BAR COMMON STYLES
+   ============================================================================= */
+
+QMenuBar {
+    border-bottom: 1px solid;
+    padding: 4px 0;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+    padding: 8px 12px;
+    margin: 0 4px;
+    border-radius: 4px;
+}
+
+QMenuBar::item:selected {
+    border-radius: 4px;
+}
+
+QMenuBar::item:pressed {
+    border-radius: 4px;
+}
+
+/* =============================================================================
+   STATUS BAR COMMON STYLES
+   ============================================================================= */
+
+QStatusBar {
+    border-top: 1px solid;
+    padding: 4px 12px;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+/* =============================================================================
+   BUTTONS COMMON STYLES
+   ============================================================================= */
+
+QPushButton {
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    min-height: 20px;
+}
+
+QPushButton:hover {
+    border-radius: 6px;
+}
+
+QPushButton:pressed {
+    border-radius: 6px;
+}
+
+QPushButton:disabled {
+    border-radius: 6px;
+}
+
+/* =============================================================================
+   LISTS & TREES COMMON STYLES
+   ============================================================================= */
+
+QListWidget {
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 4px;
+    font-size: 12px;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 2px;
+}
+
+QListWidget::item:selected {
+    border-radius: 4px;
+}
+
+QListWidget::item:hover {
+    border-radius: 4px;
+}
+
+QTreeView {
+    border: 1px solid;
+    border-radius: 6px;
+    padding: 4px;
+    font-size: 12px;
+}
+
+QTreeView::item {
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+QTreeView::item:selected {
+    border-radius: 4px;
+}
+
+QTreeView::item:hover {
+    border-radius: 4px;
+}
+
+/* =============================================================================
+   SCROLL AREAS COMMON STYLES
+   ============================================================================= */
+
+QScrollArea {
+    border: 1px solid;
+    border-radius: 6px;
+}
+
+QScrollBar {
+    border: none;
+    border-radius: 6px;
+    width: 12px;
+    background: transparent;
+}
+
+QScrollBar::handle {
+    border-radius: 6px;
+    min-height: 20px;
+    margin: 2px;
+}
+
+QScrollBar::handle:hover {
+    border-radius: 6px;
+}
+
+QScrollBar::handle:pressed {
+    border-radius: 6px;
+}
+
+QScrollBar::add-line,
+QScrollBar::sub-line {
+    border: none;
+    width: 0px;
+    height: 0px;
+}
+
+QScrollBar::add-page,
+QScrollBar::sub-page {
+    background: transparent;
+}
+
+/* =============================================================================
+   SPLITTER COMMON STYLES
+   ============================================================================= */
+
+QSplitter {
+    border: none;
+}
+
+QSplitter::handle {
+    border: none;
+    width: 1px;
+    height: 1px;
+}
+
+QSplitter::handle:horizontal {
+    width: 1px;
+}
+
+QSplitter::handle:vertical {
+    height: 1px;
+}
+
+/* =============================================================================
+   FRAMES COMMON STYLES
+   ============================================================================= */
+
+QFrame {
+    border: 1px solid;
+    border-radius: 6px;
+}
+
+QFrame[frameShape="4"] { /* Box */
+    border-radius: 6px;
+}
+
+QFrame[frameShape="5"] { /* Panel */
+    border-radius: 6px;
+}
+
+/* =============================================================================
+   LABELS COMMON STYLES
+   ============================================================================= */
+
+QLabel {
+    font-size: 12px;
+    padding: 4px;
+}
+
+/* =============================================================================
+   FOCUS COMMON STYLES
+   ============================================================================= */
+
+*:focus {
+    outline: 2px solid;
+    outline-offset: 1px;
+}
+
+/* Remove focus outline for specific widgets */
+QScrollBar:focus,
+QSplitter:focus {
+    outline: none;
+}
+
+/* =============================================================================
+   OPEN FOLDER ACTION COMMON STYLES
+   ============================================================================= */
+
+QAction#openFolderAction {
+    border: 2px solid;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 120px;
+    min-height: 30px;
+}
+
+QAction#openFolderAction:hover {
+    border-radius: 6px;
+}
+
+QAction#openFolderAction:pressed {
+    border-radius: 6px;
+}
+
+QToolBar QAction#openFolderAction {
+    border: 2px solid;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 120px;
+    min-height: 30px;
+}
+
+/* =============================================================================
+   GROUP CARD WIDGET STYLES
+   ============================================================================= */
+
+/* Group card container */
+QFrame {
+    min-width: 200px;
+    min-height: 150px;
+    max-width: 250px;
+    max-height: 200px;
+}
+
+/* Group title label */
+QLabel#groupTitleLabel {
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 8px;
+}
+
+/* Group count label */
+QLabel#groupCountLabel {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 8px;
+}
+
+/* Anime info labels */
+QLabel#animeInfoLabel {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 8px;
+}
+
+QLabel#animeRatingLabel {
+    font-size: 11px;
+    font-weight: 400;
+    padding: 1px 8px;
+}
+
+QLabel#animeGenreLabel {
+    font-size: 11px;
+    font-weight: 400;
+    padding: 1px 8px;
+}
+
+/* Placeholder and hint labels */
+QLabel#animeInfoPlaceholder {
+    font-size: 11px;
+    font-weight: 400;
+    padding: 2px 8px;
+    font-style: italic;
+}
+
+QLabel#animeInfoHint {
+    font-size: 10px;
+    font-weight: 300;
+    padding: 1px 8px;
+    font-style: italic;
+}
+
+/* =============================================================================
+   DIALOG STYLES
+   ============================================================================= */
+
+/* Dialog title */
+QLabel[class="dialog-title"] {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Dialog subtitle */
+QLabel[class="dialog-subtitle"] {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* Info message */
+QLabel[class="info-message"] {
+    padding: 10px;
+    background-color: var(--info-color);
+    border-radius: 5px;
+    color: white;
+}
+
+/* Stats label */
+QLabel[class="stats-label"] {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Primary button */
+QPushButton[class="primary-button"] {
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+QPushButton[class="primary-button"]:hover {
+    background-color: #0d9d6b;
+}
+
+QPushButton[class="primary-button"]:pressed {
+    background-color: #0a7c56;
+}

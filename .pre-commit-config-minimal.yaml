@@ -1,0 +1,39 @@
+# Minimal pre-commit configuration for gradual adoption
+# This config only includes non-intrusive formatting hooks
+
+repos:
+  # Basic formatting hooks only
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'  # Skip markdown files to preserve intentional trailing spaces
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--allow-multiple-documents']
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-json
+      - id: debug-statements
+
+# Skip virtual environments and build artifacts
+exclude: |
+  (?x)^(
+      \.git/.*|
+      \.venv/.*|
+      venv/.*|
+      \.pytest_cache/.*|
+      build/.*|
+      dist/.*|
+      \.eggs/.*|
+      \.coverage.*|
+      htmlcov/.*|
+      \.tox/.*|
+      \.mypy_cache/.*|
+      \.ruff_cache/.*|
+      __pycache__/.*|
+      .*\.egg-info/.*|
+      node_modules/.*
+  )$

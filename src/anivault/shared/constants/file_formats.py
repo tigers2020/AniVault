@@ -1,0 +1,116 @@
+"""
+File Format Constants
+
+This module contains all constants related to file formats,
+extensions, and file processing configuration.
+"""
+
+from typing import ClassVar
+
+from .system import FileSystem
+
+
+class VideoFormats:
+    """Video format configuration constants."""
+
+    # Core video extensions
+    CORE_EXTENSIONS = (
+        ".mkv",
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".flv",
+        ".webm",
+    )
+
+    # Additional extensions
+    ADDITIONAL_EXTENSIONS: ClassVar[list[str]] = [".m4v", ".m2ts", ".ts"]
+
+    # All supported extensions
+    ALL_EXTENSIONS = CORE_EXTENSIONS + tuple(ADDITIONAL_EXTENSIONS)
+
+    # Command-specific extensions
+    ORGANIZE_EXTENSIONS = ALL_EXTENSIONS  # includes .m4v
+    MATCH_EXTENSIONS = CORE_EXTENSIONS  # excludes .m4v
+
+
+class SubtitleFormats:
+    """Subtitle format configuration constants."""
+
+    EXTENSIONS: ClassVar[list[str]] = [
+        ".srt",
+        ".ass",
+        ".ssa",
+        ".sub",
+        ".idx",
+        ".vtt",
+        ".smi",
+        ".sami",
+        ".mks",
+        ".sup",
+        ".pgs",
+        ".dvb",
+    ]
+
+
+class MetadataConfig:
+    """Metadata file configuration constants."""
+
+    FILENAME = "anivault_metadata.json"
+    EXTENSION = ".json"
+
+
+class FileLimits:
+    """File size and path limits."""
+
+    # File sizes (inherited from system constants)
+    MAX_SIZE = FileSystem.MAX_FILE_SIZE  # 1GB
+    MIN_SIZE = FileSystem.MIN_FILE_SIZE  # 1KB
+
+    # Path limits (inherited from system constants)
+    MAX_FILENAME_LENGTH = FileSystem.MAX_FILENAME_LENGTH  # 255
+    MAX_PATH_LENGTH = FileSystem.MAX_PATH_LENGTH  # 4096
+
+
+class TestConfig:
+    """Test file configuration constants."""
+
+    # Test file extensions
+    EXTENSIONS = VideoFormats.ALL_EXTENSIONS
+
+    # Sample test filename
+    SAMPLE_FILENAME = "[SubsPlease] Jujutsu Kaisen S2 - 23 (1080p) [F02B9643].mkv"
+
+
+class ExclusionPatterns:
+    """File and directory exclusion patterns."""
+
+    # Filename patterns to exclude
+    FILENAME_PATTERNS: ClassVar[list[str]] = [
+        "*sample*",
+        "*trailer*",
+        "*preview*",
+        "*teaser*",
+        "*demo*",
+        "*test*",
+        "*temp*",
+        "*tmp*",
+    ]
+
+    # Directory patterns to exclude
+    DIRECTORY_PATTERNS: ClassVar[list[str]] = [
+        ".git",
+        ".svn",
+        ".hg",
+        "$RECYCLE.BIN",
+        "System Volume Information",
+        "Thumbs.db",
+        "__pycache__",
+        ".pytest_cache",
+        "node_modules",
+        ".vscode",
+        ".idea",
+        ".DS_Store",
+        "lost+found",
+    ]
