@@ -431,11 +431,15 @@ class MainWindow(QMainWindow):
             logger.info("Auto-starting TMDB matching after file grouping")
 
             # Check if API key is configured before starting
-            if not self.config_manager:
-                logger.warning("Skipping auto TMDB match: Config manager not available")
+            from anivault.config.settings import get_config
+            
+            try:
+                config = get_config()
+                api_key = config.tmdb.api_key
+            except Exception:
+                logger.warning("Skipping auto TMDB match: Failed to load config")
                 return
 
-            api_key = self.config_manager.get("tmdb.api_key")
             if api_key and self.state_model.scanned_files:
                 self.start_tmdb_matching()
             else:
@@ -551,9 +555,14 @@ class MainWindow(QMainWindow):
             return
 
         # Check if API key is configured
-        api_key = (
-            self.config_manager.get("tmdb.api_key") if self.config_manager else None
-        )
+        from anivault.config.settings import get_config
+        
+        try:
+            config = get_config()
+            api_key = config.tmdb.api_key
+        except Exception:
+            api_key = None
+        
         if not api_key:
             QMessageBox.warning(
                 self,

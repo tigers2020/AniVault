@@ -6,7 +6,7 @@ debug = false
 
 [logging]
 level = "INFO"
-format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+format_string = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 file = "logs/anivault.log"
 max_bytes = 10485760
 backup_count = 5
@@ -19,12 +19,16 @@ timeout = 30
 retry_attempts = 3
 retry_delay = 1.0
 rate_limit_delay = 0.25
+rate_limit_rps = 35
+concurrent_requests = 4
 
 [file_processing]
 supported_extensions = [ ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".m4v", ".webm",]
 batch_size = 100
 max_workers = 4
 timeout = 300
+enable_parallel_scanning = true
+parallel_threshold = 1000
 
 [cache]
 enabled = true
@@ -42,3 +46,18 @@ profile_output = "logs/profiling.json"
 target_folder = "F:/Anime"
 media_type = "anime"
 structure = "season_##/korean_title/original_filename"
+
+[folders]
+source_folder = "F:/kiwi/애니"
+target_folder = "F:/kiwi/애니분류"
+auto_scan_on_startup = true
+auto_scan_interval_minutes = 0
+include_subdirectories = true
+
+[file_processing.filter_config]
+allowed_extensions = [ ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".m2ts", ".ts", ".m2ts", ".ts", ".mts", ".m2v", ".m1v", ".mpg", ".mpeg", ".mpe", ".mpv", ".mp2", ".mp3", ".mpa", ".mpe", ".mpg", ".mpeg", ".m1v", ".m2v", ".mpv", ".mp2", ".mp3", ".mpa", ".srt", ".ass", ".ssa", ".sub", ".idx", ".vtt", ".smi", ".sami", ".mks", ".sup", ".pgs", ".dvb",]
+min_file_size_mb = 50
+excluded_filename_patterns = [ "*sample*", "*trailer*", "*preview*", "*teaser*", "*demo*", "*test*", "*temp*", "*tmp*",]
+excluded_dir_patterns = [ ".git", ".svn", ".hg", "$RECYCLE.BIN", "System Volume Information", "Thumbs.db", "__pycache__", ".pytest_cache", "node_modules", ".vscode", ".idea", ".DS_Store", "lost+found",]
+skip_hidden_files = true
+skip_system_files = true

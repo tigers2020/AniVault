@@ -108,8 +108,8 @@ class AniVaultGUI:
     def _load_initial_theme(self) -> None:
         """Load and apply the initial theme from configuration."""
         try:
-            # Get saved theme from configuration, default to light
-            saved_theme = self.config_manager.get("theme", ThemeManager.DEFAULT_THEME)
+            # Use default theme (theme preference will be added to Settings later)
+            saved_theme = ThemeManager.DEFAULT_THEME
 
             # Apply the theme
             self.theme_manager.load_and_apply_theme(self.app, saved_theme)

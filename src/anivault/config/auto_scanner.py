@@ -90,8 +90,10 @@ class AutoScanner:
             Scan interval in minutes (0 if disabled)
         """
         try:
-            config = self.config_manager.load_config()
-            return config.folders.auto_scan_interval_minutes
+            config = get_config()
+            if config.folders:
+                return config.folders.auto_scan_interval_minutes
+            return 0
         except Exception:
             logger.exception("Error getting auto scan interval")
             return 0
@@ -109,7 +111,7 @@ class AutoScanner:
             return False, "No scan callback configured"
 
         try:
-            config = self.config_manager.load_config()
+            config = get_config()
             folder_settings = config.folders
 
             # Check if source folder is configured
@@ -139,7 +141,7 @@ class AutoScanner:
             return False, reason
 
         try:
-            config = self.config_manager.load_config()
+            config = get_config()
             source_folder = config.folders.source_folder
 
             logger.info("Starting auto scan for folder: %s", source_folder)
