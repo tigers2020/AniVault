@@ -8,6 +8,7 @@ with real-time status updates and cancellation support.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
