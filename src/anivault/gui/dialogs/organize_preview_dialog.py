@@ -69,7 +69,7 @@ class OrganizePreviewDialog(QDialog):
         info_label = QLabel(
             "다음 파일들이 정리됩니다. 확인 후 '실행' 버튼을 눌러주세요.\n"
             "💡 고해상도 파일은 메인 폴더로, 낮은 해상도는 low_res 폴더로 이동됩니다.\n"
-            "📁 Season 폴더는 파일명에 'S01E01' 형태가 있을 때만 생성됩니다."
+            "📁 Season 폴더는 파일명에 'S01E01' 형태가 있을 때만 생성됩니다.",
         )
         info_label.setWordWrap(True)
         info_label.setProperty("class", "info-message")
@@ -102,7 +102,7 @@ class OrganizePreviewDialog(QDialog):
             # Destination
             dest_path = Path(operation.destination_path)
             dest_item = QTableWidgetItem(str(dest_path))
-            dest_item.setToolTip(f"이동 위치: {str(dest_path)}")
+            dest_item.setToolTip(f"이동 위치: {dest_path!s}")
 
             # Color code based on operation type
             if hasattr(operation, "operation_type"):
@@ -119,13 +119,13 @@ class OrganizePreviewDialog(QDialog):
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # 현재 위치 - 내용에 맞춤
         header.setSectionResizeMode(2, QHeaderView.Fixed)             # 화살표 - 고정
         header.setSectionResizeMode(3, QHeaderView.Interactive)       # 이동 위치 - 수동 조절 가능
-        
+
         # Set column widths with more space for destination
         self.table.setColumnWidth(0, 150)  # 파일명 - 적당히
         self.table.setColumnWidth(1, 150)  # 현재 위치 - 적당히
         self.table.setColumnWidth(2, 30)   # 화살표 - 최소
         self.table.setColumnWidth(3, 500)  # 이동 위치 - 매우 넓게
-        
+
         # Allow horizontal scrolling for very long paths
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
@@ -139,7 +139,7 @@ class OrganizePreviewDialog(QDialog):
         subtitle_count = len(self.plan) - video_count
 
         stats_label = QLabel(
-            f"📊 비디오: {video_count}개 | 자막: {subtitle_count}개"
+            f"📊 비디오: {video_count}개 | 자막: {subtitle_count}개",
         )
         stats_label.setProperty("class", "stats-label")
         summary_layout.addWidget(stats_label)

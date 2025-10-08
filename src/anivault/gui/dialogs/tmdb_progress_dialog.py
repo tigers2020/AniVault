@@ -68,7 +68,7 @@ class TMDBProgressDialog(QProgressDialog):
         # Add custom status label
         self.status_label = QLabel(ProgressMessages.INITIALIZING_TMDB)
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("QLabel { color: #666; font-size: 11px; }")
+        self.status_label.setObjectName("statusLabel")
 
         # Add status label to the dialog
         # Note: QProgressDialog doesn't have a direct way to add custom widgets

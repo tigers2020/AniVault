@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import get_config, reload_config
+from anivault.config.settings import Settings, get_config
 from anivault.shared.constants.gui_messages import (
     DialogMessages,
     DialogTitles,
@@ -70,7 +70,7 @@ class SettingsDialog(QDialog):
 
         self.config_path = Path(config_path)
         self.current_api_key = ""
-        self._cached_config = None  # Cache for loaded config
+        self._cached_config: Settings | None = None  # Cache for loaded config
 
         # Initialize auto scanner
         self.auto_scanner = AutoScanner(self.config_path)
@@ -142,7 +142,7 @@ class SettingsDialog(QDialog):
             "Get your API key from: https://www.themoviedb.org/settings/api",
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #666; font-size: 11px;")
+        info_label.setObjectName("infoLabel")
 
         layout.addLayout(form_layout)
         layout.addWidget(info_label)
@@ -235,7 +235,7 @@ class SettingsDialog(QDialog):
                     folders.auto_scan_interval_minutes,
                 )
                 self.include_subdirs_checkbox.setChecked(folders.include_subdirectories)
-        except Exception as e:
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
             logger.warning("Failed to load current configuration: %s", e)
             # Continue with empty form
 

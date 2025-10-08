@@ -8,12 +8,11 @@ It handles startup scanning and periodic scanning based on configuration setting
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, Callable
 
-from pathlib import Path
-
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import FolderSettings, Settings, get_config
+from anivault.config.settings import FolderSettings, get_config
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -73,7 +72,7 @@ class AutoScanner:
             logger.info("Auto scan on startup enabled for folder: %s", source_folder)
             return True, source_folder
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.exception("Error checking auto scan startup condition")
             context = ErrorContext(operation="should_auto_scan_on_startup")
             raise ApplicationError(
@@ -94,7 +93,7 @@ class AutoScanner:
             if config.folders:
                 return config.folders.auto_scan_interval_minutes
             return 0
-        except Exception:
+        except (ApplicationError, OSError, ValueError):
             logger.exception("Error getting auto scan interval")
             return 0
 
@@ -126,7 +125,7 @@ class AutoScanner:
 
             return True, ""
 
-        except Exception as e:
+        except (ApplicationError, OSError, ValueError) as e:
             return False, f"Configuration error: {e}"
 
     def perform_auto_scan(self) -> tuple[bool, str]:
@@ -154,7 +153,7 @@ class AutoScanner:
             logger.info("Auto scan completed successfully")
             return True, "Auto scan completed"
 
-        except Exception as e:
+        except (ApplicationError, OSError, RuntimeError) as e:
             logger.exception("Auto scan failed")
             return False, f"Auto scan failed: {e}"
         finally:
@@ -175,7 +174,7 @@ class AutoScanner:
             if config.folders is None:
                 return FolderSettings()
             return config.folders
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.exception("Error getting folder settings")
             context = ErrorContext(operation="get_folder_settings")
             raise ApplicationError(
@@ -225,7 +224,7 @@ class AutoScanner:
             logger.info("Folder settings updated successfully")
             return True, ""
 
-        except Exception as e:
+        except (OSError, ValueError, PermissionError) as e:
             logger.exception("Error updating folder settings")
             return False, f"Failed to update folder settings: {e}"
 
@@ -265,7 +264,7 @@ class AutoScanner:
                 "scan_in_progress": self._scan_in_progress,
                 "error": f"Failed to get scan status: {e.message}",
             }
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             # Unexpected errors
             logger.exception("Unexpected error getting scan status")
             return {

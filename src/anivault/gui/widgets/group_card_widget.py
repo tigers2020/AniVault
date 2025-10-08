@@ -10,9 +10,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import requests
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QPixmap
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
 
 from anivault.shared.constants.gui_messages import UIConfig
@@ -40,6 +40,10 @@ class GroupCardWidget(QFrame):
         self.files = files
         self.parent_widget = parent
         self._detail_popup = None
+
+        # Network manager for async poster downloads
+        self._network_manager = QNetworkAccessManager(self)
+        self._pending_replies: dict[str, QNetworkReply] = {}
 
         self._setup_card()
 
@@ -87,7 +91,6 @@ class GroupCardWidget(QFrame):
             title_label.setObjectName("groupTitleLabel")
             title_label.setWordWrap(True)
             title_label.setToolTip(full_title)  # Full title on hover
-            title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
             info_layout.addWidget(title_label)
 
             # Date section
@@ -97,7 +100,6 @@ class GroupCardWidget(QFrame):
             if release_date:
                 date_label = QLabel(release_date)
                 date_label.setObjectName("groupDateLabel")
-                date_label.setStyleSheet("font-size: 11px; color: #888;")
                 info_layout.addWidget(date_label)
 
             # Overview/Description section (2-3 lines with ellipsis)
@@ -110,14 +112,12 @@ class GroupCardWidget(QFrame):
                 overview_label = QLabel(truncated_overview)
                 overview_label.setObjectName("groupOverviewLabel")
                 overview_label.setWordWrap(True)
-                overview_label.setStyleSheet("font-size: 12px; color: #555;")
                 overview_label.setToolTip(overview)  # Full text on hover
                 info_layout.addWidget(overview_label)
 
             # File count at bottom
             count_label = QLabel(f"{UIConfig.FOLDER_ICON} {len(self.files)} files")
             count_label.setObjectName("groupCountLabel")
-            count_label.setStyleSheet("font-size: 11px; color: #666;")
             info_layout.addWidget(count_label)
 
         else:
@@ -127,13 +127,11 @@ class GroupCardWidget(QFrame):
             title_label.setObjectName("groupTitleLabel")
             title_label.setWordWrap(True)
             title_label.setToolTip(f"📁 {self.group_name}")
-            title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
             info_layout.addWidget(title_label)
 
             # File hint
             hint_label = QLabel(f"📝 {self._get_file_hint()}")
             hint_label.setObjectName("animeInfoHint")
-            hint_label.setStyleSheet("font-size: 11px; color: #888;")
             hint_label.setToolTip(
                 "Parsed from filename - TMDB details will load automatically",
             )
@@ -142,15 +140,11 @@ class GroupCardWidget(QFrame):
             # File count
             count_label = QLabel(f"📂 {len(self.files)} files")
             count_label.setObjectName("groupCountLabel")
-            count_label.setStyleSheet("font-size: 12px; color: #666;")
             info_layout.addWidget(count_label)
 
             # Placeholder message
             placeholder_label = QLabel("🔍 Loading TMDB details...")
             placeholder_label.setObjectName("animeInfoPlaceholder")
-            placeholder_label.setStyleSheet(
-                "font-size: 11px; color: #999; font-style: italic;",
-            )
             info_layout.addWidget(placeholder_label)
 
         # Add stretch to push content to top
@@ -176,15 +170,6 @@ class GroupCardWidget(QFrame):
         poster_label.setObjectName("posterLabel")
         poster_label.setFixedSize(QSize(100, 150))  # 2:3 aspect ratio
         poster_label.setAlignment(Qt.AlignCenter)
-        poster_label.setStyleSheet(
-            """
-            QLabel#posterLabel {
-                background-color: #f0f0f0;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-            }
-        """,
-        )
 
         # Try to load poster from TMDB data
         anime_info = self._get_anime_info()
@@ -206,9 +191,10 @@ class GroupCardWidget(QFrame):
 
             # Try to load actual poster image from TMDB
             if poster_path:
-                pixmap = self._load_tmdb_poster(poster_path)
+                # Pass poster_label for async update
+                pixmap = self._load_tmdb_poster(poster_path, poster_label)
                 if pixmap and not pixmap.isNull():
-                    # Successfully loaded poster image
+                    # Successfully loaded cached poster image
                     scaled_pixmap = pixmap.scaled(
                         100,
                         150,
@@ -216,59 +202,30 @@ class GroupCardWidget(QFrame):
                         Qt.SmoothTransformation,
                     )
                     poster_label.setPixmap(scaled_pixmap)
-                    logger.info("✅ Loaded poster image for: %s", title[:30])
+                    logger.info("✅ Loaded cached poster image for: %s", title[:30])
                     return poster_label
+                # If pixmap is None, async download started - show placeholder
+                # and poster will be updated when download completes
 
             # Fallback: Show initial if no poster_path or failed to load
             if title and title not in {UIConfig.UNKNOWN_TITLE, "?"}:
                 initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
+                poster_label.setObjectName("posterInitial")
                 logger.info(
                     "🎨 Set poster to initial '%s' for: %s",
                     initial,
                     title[:30],
                 )
-                poster_label.setStyleSheet(
-                    """
-                    QLabel#posterLabel {
-                        background-color: #007acc;
-                        color: white;
-                        font-size: 36px;
-                        font-weight: bold;
-                        border: 1px solid #005a9e;
-                        border-radius: 5px;
-                    }
-                """,
-                )
             else:
                 # Has poster_path but title is Unknown
                 initial = "?"
                 poster_label.setText(f"🎬\n{initial}")
-                poster_label.setStyleSheet(
-                    """
-                    QLabel#posterLabel {
-                        background-color: #007acc;
-                        color: white;
-                        font-size: 36px;
-                        font-weight: bold;
-                        border: 1px solid #005a9e;
-                        border-radius: 5px;
-                    }
-                """,
-                )
+                poster_label.setObjectName("posterInitial")
         else:
             # No anime info - show folder icon
             poster_label.setText("📁")
-            poster_label.setStyleSheet(
-                """
-                QLabel#posterLabel {
-                    background-color: #e0e0e0;
-                    font-size: 48px;
-                    border: 1px solid #ccc;
-                    border-radius: 5px;
-                }
-            """,
-            )
+            poster_label.setObjectName("posterFolder")
 
         return poster_label
 
@@ -314,13 +271,12 @@ class GroupCardWidget(QFrame):
                         match_result_dict.get("title", UIConfig.UNKNOWN_TITLE),
                     )
                     return match_result_dict
-                else:
-                    # Already a dict
-                    logger.debug(
-                        "Found match result: %s",
-                        match_result.get("title", UIConfig.UNKNOWN_TITLE),
-                    )
-                    return match_result
+                # Already a dict
+                logger.debug(
+                    "Found match result: %s",
+                    match_result.get("title", UIConfig.UNKNOWN_TITLE),
+                )
+                return match_result
             logger.debug("No match_result in metadata dict")
 
         # Case 2: metadata is ParsingResult or similar object
@@ -340,23 +296,22 @@ class GroupCardWidget(QFrame):
                             title,
                         )
                         return match_result_dict
-                    else:
-                        # Already a dict
-                        title = (
-                            match_result.get("title")
-                            or match_result.get("name")
-                            or UIConfig.UNKNOWN_TITLE
+                    # Already a dict
+                    title = (
+                        match_result.get("title")
+                        or match_result.get("name")
+                        or UIConfig.UNKNOWN_TITLE
+                    )
+                    logger.info(
+                        "✓ Found match_result in ParsingResult.other_info: %s",
+                        title,
+                    )
+                    if title == UIConfig.UNKNOWN_TITLE:
+                        logger.warning(
+                            "⚠️ match_result has no title/name! Keys: %s",
+                            list(match_result.keys()),
                         )
-                        logger.info(
-                            "✓ Found match_result in ParsingResult.other_info: %s",
-                            title,
-                        )
-                        if title == UIConfig.UNKNOWN_TITLE:
-                            logger.warning(
-                                "⚠️ match_result has no title/name! Keys: %s",
-                                list(match_result.keys()),
-                            )
-                        return match_result
+                    return match_result
                 logger.debug("other_info is dict but no match_result")
             else:
                 logger.debug("other_info is not dict: %s", type(meta.other_info))
@@ -536,15 +491,16 @@ class GroupCardWidget(QFrame):
         if hasattr(self.parent_widget, "edit_group_name"):
             self.parent_widget.edit_group_name(self.group_name, self.files)
 
-    def _load_tmdb_poster(self, poster_path: str) -> QPixmap | None:
+    def _load_tmdb_poster(self, poster_path: str, poster_label: QLabel) -> QPixmap | None:
         """
-        Load TMDB poster image from cache or download from TMDB.
+        Load TMDB poster image from cache or download asynchronously from TMDB.
 
         Args:
             poster_path: TMDB poster path (e.g., "/abc123.jpg")
+            poster_label: QLabel to update when download completes
 
         Returns:
-            QPixmap if successful, None otherwise
+            QPixmap if cached, None if downloading asynchronously
         """
         try:
             # TMDB image configuration
@@ -559,38 +515,98 @@ class GroupCardWidget(QFrame):
             filename = poster_path.strip("/").replace("/", "_")
             cache_file = cache_dir / filename
 
-            # Check cache first
+            # Check cache first (synchronous - fast)
             if cache_file.exists():
                 logger.debug("📦 Loading poster from cache: %s", filename)
                 pixmap = QPixmap(str(cache_file))
                 if not pixmap.isNull():
                     return pixmap
 
-            # Download from TMDB
+            # Download from TMDB asynchronously (non-blocking)
             image_url = f"{tmdb_image_base_url}{poster_size}{poster_path}"
-            logger.info("⬇️ Downloading poster: %s", image_url)
+            logger.info("⬇️ Downloading poster asynchronously: %s", image_url)
 
-            response = requests.get(image_url, timeout=5)
-            response.raise_for_status()
+            # Create network request
+            request = QNetworkRequest(QUrl(image_url))
+            request.setTransferTimeout(5000)  # 5 second timeout
+
+            # Start async download
+            reply = self._network_manager.get(request)
+
+            # Store reply and cache info for completion handler
+            self._pending_replies[image_url] = reply
+
+            # Connect to finished signal with lambda to pass context
+            reply.finished.connect(
+                lambda: self._on_poster_downloaded(reply, poster_label, cache_file),
+            )
+
+            # Return None - poster will be loaded asynchronously
+            return None
+
+        except Exception:
+            logger.exception("❌ Unexpected error initiating poster download")
+            return None
+
+    def _on_poster_downloaded(
+        self,
+        reply: QNetworkReply,
+        poster_label: QLabel,
+        cache_file: Path,
+    ) -> None:
+        """
+        Handle poster download completion (async callback).
+
+        Args:
+            reply: Network reply with downloaded data
+            poster_label: QLabel to update with poster image
+            cache_file: Path to save cached poster
+        """
+        try:
+            # Remove from pending
+            url = reply.url().toString()
+            self._pending_replies.pop(url, None)
+
+            # Check for errors
+            if reply.error() != QNetworkReply.NetworkError.NoError:
+                logger.warning("❌ Poster download failed: %s", reply.errorString())
+                reply.deleteLater()
+                return
+
+            # Read downloaded data
+            image_data = reply.readAll()
+
+            if not image_data or image_data.isEmpty():
+                logger.warning("❌ Downloaded poster data is empty")
+                reply.deleteLater()
+                return
 
             # Save to cache
-            with open(cache_file, "wb") as f:
-                f.write(response.content)
+            try:
+                cache_file.write_bytes(image_data.data())
+                logger.info("💾 Cached poster: %s", cache_file.name)
+            except Exception as e:
+                logger.warning("❌ Failed to cache poster: %s", e)
 
             # Load into QPixmap
             pixmap = QPixmap()
-            if pixmap.loadFromData(response.content):
-                logger.info("✅ Downloaded and cached poster: %s", filename)
-                return pixmap
-            logger.warning("❌ Failed to load pixmap from downloaded data")
-            return None
+            if pixmap.loadFromData(image_data):
+                # Update poster label with downloaded image
+                scaled_pixmap = pixmap.scaled(
+                    100,
+                    150,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
+                poster_label.setPixmap(scaled_pixmap)
+                logger.info("✅ Downloaded and displayed poster: %s", cache_file.name)
+            else:
+                logger.warning("❌ Failed to load QPixmap from downloaded data")
 
-        except requests.exceptions.RequestException as e:
-            logger.warning("❌ Failed to download poster: %s", str(e))
-            return None
         except Exception:
-            logger.exception("❌ Unexpected error loading poster")
-            return None
+            logger.exception("❌ Error processing downloaded poster")
+        finally:
+            reply.deleteLater()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
         """

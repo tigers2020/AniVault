@@ -371,7 +371,7 @@ class ScanController(QObject):
                         if not parsed_result.other_info:
                             parsed_result.other_info = {}
                         parsed_result.other_info["match_result"] = match_result
-                        
+
                         # Get title from MatchResult dataclass
                         title = match_result.title if hasattr(match_result, "title") else "Unknown"
                         logger.debug(

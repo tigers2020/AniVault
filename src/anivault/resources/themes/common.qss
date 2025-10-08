@@ -447,3 +447,81 @@ QPushButton[class="primary-button"]:hover {
 QPushButton[class="primary-button"]:pressed {
     background-color: #0a7c56;
 }
+
+/* =============================================================================
+   PROGRESS DIALOG STYLES
+   ============================================================================= */
+
+QLabel#dialogTitle {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+QLabel#statusLabel {
+    font-size: 13px;
+}
+
+QLabel#logHeader {
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+QTextEdit#logOutput {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    border: 1px solid;
+    border-radius: 3px;
+}
+
+QPushButton#cancelButton {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+QPushButton#closeButton {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+/* =============================================================================
+   POSTER STYLES
+   ============================================================================= */
+
+QLabel#posterLabel {
+    border: 1px solid;
+    border-radius: 5px;
+}
+
+QLabel#posterInitial {
+    font-size: 36px;
+    font-weight: bold;
+    border: 1px solid;
+    border-radius: 5px;
+}
+
+QLabel#posterFolder {
+    font-size: 48px;
+    border: 1px solid;
+    border-radius: 5px;
+}
+
+/* =============================================================================
+   INFO LABEL STYLES
+   ============================================================================= */
+
+QLabel#infoLabel {
+    font-size: 11px;
+}
+
+QLabel#groupDateLabel {
+    font-size: 11px;
+}
+
+QLabel#groupOverviewLabel {
+    font-size: 12px;
+}

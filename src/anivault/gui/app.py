@@ -14,7 +14,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 from anivault.config.auto_scanner import AutoScanner
-from anivault.config.settings import load_settings, reload_config
+from anivault.config.settings import load_settings
 
 from .main_window import MainWindow
 from .themes import ThemeManager
@@ -110,7 +110,7 @@ class AniVaultGUI:
         try:
             # Get saved theme from configuration
             from anivault.config.settings import get_config
-            
+
             config = get_config()
             saved_theme = config.app.theme
 

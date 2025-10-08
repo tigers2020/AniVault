@@ -1,3 +1,6 @@
+# AniVault Configuration Template
+# Copy this file to config.toml and customize your settings
+
 [app]
 name = "AniVault"
 version = "0.1.0"
@@ -15,7 +18,7 @@ console_output = true
 
 [tmdb]
 base_url = "https://api.themoviedb.org/3"
-api_key = "c479f9ce20ccbcc06dbcce991a238120"
+api_key = ""  # ⚠️ REQUIRED: Get your API key from https://www.themoviedb.org/settings/api
 timeout = 30
 retry_attempts = 3
 retry_delay = 1.0
@@ -43,18 +46,33 @@ enable_profiling = false
 profile_output = "logs/profiling.json"
 
 [folders]
-source_folder = "F:/kiwi/애니"
-target_folder = "F:/kiwi/애니분류"
+source_folder = ""  # Set your anime source folder path
+target_folder = ""  # Set your target folder for organized files
 media_type = "anime"
 structure = "season_##/korean_title/original_filename"
-auto_scan_on_startup = true
+auto_scan_on_startup = false
 auto_scan_interval_minutes = 0
 include_subdirectories = true
 
 [file_processing.filter_config]
-allowed_extensions = [ ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".m2ts", ".ts", ".m2ts", ".ts", ".mts", ".m2v", ".m1v", ".mpg", ".mpeg", ".mpe", ".mpv", ".mp2", ".mp3", ".mpa", ".mpe", ".mpg", ".mpeg", ".m1v", ".m2v", ".mpv", ".mp2", ".mp3", ".mpa", ".srt", ".ass", ".ssa", ".sub", ".idx", ".vtt", ".smi", ".sami", ".mks", ".sup", ".pgs", ".dvb",]
+allowed_extensions = [
+    # Video formats
+    ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v",
+    ".m2ts", ".ts", ".mts", ".m2v", ".m1v", ".mpg", ".mpeg", ".mpe",
+    # Subtitle formats
+    ".srt", ".ass", ".ssa", ".sub", ".idx", ".vtt", ".smi", ".sami",
+    ".mks", ".sup", ".pgs", ".dvb"
+]
 min_file_size_mb = 50
-excluded_filename_patterns = [ "*sample*", "*trailer*", "*preview*", "*teaser*", "*demo*", "*test*", "*temp*", "*tmp*",]
-excluded_dir_patterns = [ ".git", ".svn", ".hg", "$RECYCLE.BIN", "System Volume Information", "Thumbs.db", "__pycache__", ".pytest_cache", "node_modules", ".vscode", ".idea", ".DS_Store", "lost+found",]
+excluded_filename_patterns = [
+    "*sample*", "*trailer*", "*preview*", "*teaser*",
+    "*demo*", "*test*", "*temp*", "*tmp*"
+]
+excluded_dir_patterns = [
+    ".git", ".svn", ".hg", "$RECYCLE.BIN",
+    "System Volume Information", "Thumbs.db",
+    "__pycache__", ".pytest_cache", "node_modules",
+    ".vscode", ".idea", ".DS_Store", "lost+found"
+]
 skip_hidden_files = true
 skip_system_files = true

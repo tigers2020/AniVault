@@ -59,7 +59,7 @@ class OrganizeController(QObject):
         from anivault.config.settings import load_settings
         self.settings = load_settings()
         self.file_organizer = FileOrganizer(self.log_manager, self.settings)
-        
+
         # Initialize parser for filename parsing
         self.parser = AnitopyParser()
 
@@ -77,20 +77,20 @@ class OrganizeController(QObject):
         try:
             # FileItem.metadata is stored as dict by StateModel.set_file_metadata()
             # Format: {"match_result": {...}}
-            
+
             if not file_item.metadata or not isinstance(file_item.metadata, dict):
                 # No metadata - skip this file
                 logger.debug("Skipping file without metadata: %s", file_item.file_path.name)
                 return None
-            
+
             # Extract match_result (the TMDB matching result)
             match_result = file_item.metadata.get("match_result")
-            
+
             if not match_result:
                 # No TMDB match - skip this file
                 logger.debug("Skipping file without TMDB match: %s", file_item.file_path.name)
                 return None
-            
+
             # Parse filename to get season/episode info
             # (This info is not stored in FileItem.metadata)
             try:
@@ -101,10 +101,10 @@ class OrganizeController(QObject):
                 logger.warning("Failed to parse filename %s: %s", file_item.file_path.name, e)
                 season = None
                 episode = None
-            
+
             # Get title from match_result (MatchResult dataclass)
             title = match_result.title
-            
+
             # Create ParsingResult with match_result in other_info
             parsing_result = ParsingResult(
                 title=title,
@@ -112,7 +112,7 @@ class OrganizeController(QObject):
                 episode=episode,
                 other_info={"match_result": match_result},
             )
-            
+
             # Create ScannedFile
             scanned_file = ScannedFile(
                 file_path=file_item.file_path,
@@ -120,11 +120,11 @@ class OrganizeController(QObject):
                 file_size=file_item.file_path.stat().st_size if file_item.file_path.exists() else 0,
                 last_modified=file_item.file_path.stat().st_mtime if file_item.file_path.exists() else 0.0,
             )
-            
+
             return scanned_file
-            
+
         except Exception as e:
-            logger.warning("Failed to convert FileItem to ScannedFile for %s: %s", 
+            logger.warning("Failed to convert FileItem to ScannedFile for %s: %s",
                           file_item.file_path.name, e)
             return None
 

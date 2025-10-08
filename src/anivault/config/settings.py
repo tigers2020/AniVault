@@ -27,9 +27,11 @@ from anivault.shared.constants import (
     Memory,
     SubtitleFormats,
     Timeout,
+    TMDBErrorHandling,
+    VideoFormats,
+    WorkerConfig,
 )
 from anivault.shared.constants import TMDBConfig as TMDBConstants
-from anivault.shared.constants import TMDBErrorHandling, VideoFormats, WorkerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -270,8 +272,8 @@ class FolderSettings(BaseModel):
         description="Source folder path for media files to organize",
     )
     target_folder: str = Field(
-        default="F:/Anime",
-        description="Target folder path for organized media files",
+        default="",
+        description="Target folder path for organized media files (required - must be configured)",
     )
     media_type: str = Field(
         default="anime",
@@ -357,7 +359,7 @@ class SecuritySettings(BaseModel):
 
 class Settings(BaseSettings):
     """Main settings model containing all configuration sections.
-    
+
     Unified configuration class that replaces both Settings and TomlConfig.
     Supports loading from TOML files, environment variables, and provides
     strong security validation.
@@ -396,7 +398,7 @@ class Settings(BaseSettings):
     file_processing: ScanConfig = Field(default_factory=ScanConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
-    
+
     # Folder settings (unified from TomlConfig + OrganizationConfig)
     folders: FolderSettings | None = Field(
         default=None,

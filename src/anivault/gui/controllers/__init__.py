@@ -15,4 +15,4 @@ from .organize_controller import OrganizeController
 from .scan_controller import ScanController
 from .tmdb_controller import TMDBController
 
-__all__ = ["ScanController", "TMDBController", "OrganizeController"]
+__all__ = ["OrganizeController", "ScanController", "TMDBController"]

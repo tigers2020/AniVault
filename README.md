@@ -108,7 +108,7 @@ anivault verify <directory>          # 정리 결과 검증
 ```bash
 git clone https://github.com/tigers2020/AniVault.git
 cd AniVault
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"  # Install with development dependencies
 pre-commit install
 ```
 

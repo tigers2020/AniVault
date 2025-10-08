@@ -11,10 +11,10 @@ import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class FileOrganizer:
         else:
             # Fallback to parsed title
             series_title = metadata.title or "Unknown Series"
-        
+
         season_number = metadata.season
         episode_number = metadata.episode
         episode_title = metadata.other_info.get("episode_title")
@@ -80,26 +80,30 @@ class FileOrganizer:
         # Get organization settings
         from anivault.config.settings import get_config
         config = get_config()
-        
+
         # Use folders.target_folder if set, otherwise fallback to default
         if config.folders and config.folders.target_folder:
             target_folder = Path(config.folders.target_folder)
             media_type = config.folders.media_type
         else:
-            # Fallback to default values
-            target_folder = Path("F:/Anime")
-            media_type = "anime"
-        
+            # No target folder configured - must be set in config
+            from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+            raise ApplicationError(
+                ErrorCode.CONFIGURATION_ERROR,
+                "Target folder not configured. Please set folders.target_folder in config.toml or via GUI settings.",
+                ErrorContext(operation="get_target_folder"),
+            )
+
         # Default to Season 1 if no season specified
         if season_number is None:
             season_number = 1
-        
+
         season_dir = f"Season {season_number:02d}"
         series_dir = target_folder / media_type / series_title / season_dir
 
         # Use original filename (as requested by user)
         original_filename = scanned_file.file_path.name
-        
+
         return series_dir / original_filename
 
     def _sanitize_filename(self, filename: str) -> str:
@@ -156,7 +160,7 @@ class FileOrganizer:
             # Skip files that don't have sufficient metadata
             if not scanned_file.metadata.title:
                 continue
-            
+
             # Skip files without TMDB match result (only organize matched files)
             match_result = scanned_file.metadata.other_info.get("match_result")
             if not match_result:
@@ -177,7 +181,7 @@ class FileOrganizer:
                 destination_path=destination_path,
             )
             operations.append(operation)
-            
+
             # Find and add matching subtitle files
             subtitle_operations = self._find_matching_subtitles(scanned_file, destination_path)
             operations.extend(subtitle_operations)
@@ -186,33 +190,33 @@ class FileOrganizer:
 
     def _find_matching_subtitles(self, scanned_file: ScannedFile, destination_path: Path) -> list[FileOperation]:
         """Find matching subtitle files for a video file.
-        
+
         Args:
             scanned_file: The video file to find subtitles for
             destination_path: Destination path for the video file
-            
+
         Returns:
             List of FileOperation objects for matching subtitle files
         """
         from anivault.core.subtitle_matcher import SubtitleMatcher
-        
+
         operations: list[FileOperation] = []
         subtitle_matcher = SubtitleMatcher()
-        
+
         # Find matching subtitle files
         matching_subtitles = subtitle_matcher.find_matching_subtitles(
             scanned_file,  # Pass ScannedFile object
-            scanned_file.file_path.parent  # Search in video file's directory
+            scanned_file.file_path.parent,  # Search in video file's directory
         )
-        
+
         for subtitle_path in matching_subtitles:
             # Create destination path for subtitle (same directory as video)
             subtitle_dest = destination_path.parent / subtitle_path.name
-            
+
             # Skip if source and destination are the same
             if subtitle_path.resolve() == subtitle_dest.resolve():
                 continue
-                
+
             # Create file operation for subtitle
             operation = FileOperation(
                 operation_type=OperationType.MOVE,
@@ -220,9 +224,9 @@ class FileOrganizer:
                 destination_path=subtitle_dest,
             )
             operations.append(operation)
-            
+
             logger.debug("Found matching subtitle: %s -> %s", subtitle_path.name, subtitle_dest)
-        
+
         return operations
 
     def execute_plan(

@@ -28,13 +28,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.config.settings import get_config
 from anivault.shared.constants.gui_messages import (
     DialogMessages,
     DialogTitles,
 )
-from anivault.config.settings import get_config
+from anivault.shared.errors import ApplicationError
 
-from .controllers import ScanController, TMDBController, OrganizeController
+from .controllers import OrganizeController, ScanController, TMDBController
 from .dialogs.organize_preview_dialog import OrganizePreviewDialog
 from .dialogs.organize_progress_dialog import OrganizeProgressDialog
 from .dialogs.settings_dialog import SettingsDialog
@@ -306,7 +307,7 @@ class MainWindow(QMainWindow):
                 config.app.theme = theme_name
                 config.to_toml_file("config/config.toml")
                 logger.info("Theme preference saved: %s", theme_name)
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 logger.warning("Failed to save theme preference: %s", e)
 
             # Update status bar
@@ -314,7 +315,7 @@ class MainWindow(QMainWindow):
 
             logger.info("Theme switched successfully to: %s", theme_name)
 
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.exception("Failed to switch theme")
             QMessageBox.warning(
                 self,
@@ -444,7 +445,7 @@ class MainWindow(QMainWindow):
             try:
                 config = get_config()
                 api_key = config.tmdb.api_key
-            except Exception:
+            except (ApplicationError, OSError, ValueError):
                 logger.warning("Skipping auto TMDB match: Failed to load config")
                 return
 
@@ -533,7 +534,7 @@ class MainWindow(QMainWindow):
             # Show dialog
             dialog.exec()
 
-        except Exception as e:
+        except (RuntimeError, OSError) as e:
             logger.exception("Failed to open settings dialog")
             QMessageBox.critical(
                 self,
@@ -566,9 +567,9 @@ class MainWindow(QMainWindow):
         try:
             config = get_config()
             api_key = config.tmdb.api_key
-        except Exception:
+        except (ApplicationError, OSError, ValueError):
             api_key = None
-        
+
         if not api_key:
             QMessageBox.warning(
                 self,
@@ -809,19 +810,19 @@ class MainWindow(QMainWindow):
 
         # Connect controller signals to progress dialog
         self.organize_controller.organization_progress.connect(
-            progress_dialog.update_progress
+            progress_dialog.update_progress,
         )
         self.organize_controller.file_organized.connect(
-            progress_dialog.add_file_result
+            progress_dialog.add_file_result,
         )
         self.organize_controller.organization_finished.connect(
             lambda results: progress_dialog.show_completion(
                 len([r for r in results if r]),
                 len(plan),
-            )
+            ),
         )
         self.organize_controller.organization_error.connect(
-            progress_dialog.show_error
+            progress_dialog.show_error,
         )
 
         # Execute plan

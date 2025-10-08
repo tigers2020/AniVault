@@ -640,3 +640,74 @@ QLabel#animeInfoHint {
     color: #94a3b8;
     font-style: italic;
 }
+
+/* =============================================================================
+   PROGRESS DIALOG COLORS
+   ============================================================================= */
+
+QLabel#statusLabel {
+    color: #555555;
+}
+
+QTextEdit#logOutput {
+    background-color: #f5f5f5;
+    border-color: #dddddd;
+}
+
+QPushButton#cancelButton {
+    background-color: #dc3545;
+    color: white;
+}
+
+QPushButton#cancelButton:hover {
+    background-color: #c82333;
+}
+
+QPushButton#cancelButton:disabled {
+    background-color: #cccccc;
+}
+
+QPushButton#closeButton {
+    background-color: #007acc;
+    color: white;
+}
+
+QPushButton#closeButton:hover {
+    background-color: #005a9e;
+}
+
+/* =============================================================================
+   POSTER COLORS
+   ============================================================================= */
+
+QLabel#posterLabel {
+    background-color: #f0f0f0;
+    border-color: #dddddd;
+}
+
+QLabel#posterInitial {
+    background-color: #007acc;
+    color: white;
+    border-color: #005a9e;
+}
+
+QLabel#posterFolder {
+    background-color: #e0e0e0;
+    border-color: #cccccc;
+}
+
+/* =============================================================================
+   INFO LABEL COLORS
+   ============================================================================= */
+
+QLabel#infoLabel {
+    color: #666666;
+}
+
+QLabel#groupDateLabel {
+    color: #888888;
+}
+
+QLabel#groupOverviewLabel {
+    color: #555555;
+}

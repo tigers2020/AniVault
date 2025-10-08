@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -51,7 +50,7 @@ class OrganizeProgressDialog(QDialog):
 
         # Title
         title_label = QLabel("📦 파일 정리 중...")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        title_label.setObjectName("dialogTitle")
         layout.addWidget(title_label)
 
         # Progress bar
@@ -63,25 +62,17 @@ class OrganizeProgressDialog(QDialog):
 
         # Status label
         self.status_label = QLabel(f"0 / {self.total_files} 파일 정리됨")
-        self.status_label.setStyleSheet("font-size: 13px; color: #555;")
+        self.status_label.setObjectName("statusLabel")
         layout.addWidget(self.status_label)
 
         # Log area
         log_header = QLabel("📝 작업 로그:")
-        log_header.setStyleSheet("font-size: 12px; font-weight: bold; margin-top: 10px;")
+        log_header.setObjectName("logHeader")
         layout.addWidget(log_header)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 3px;
-                font-family: 'Consolas', 'Courier New', monospace;
-                font-size: 11px;
-            }
-        """)
+        self.log_text.setObjectName("logOutput")
         layout.addWidget(self.log_text)
 
         # Button layout
@@ -90,22 +81,7 @@ class OrganizeProgressDialog(QDialog):
 
         # Cancel button
         self.cancel_btn = QPushButton("취소")
-        self.cancel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #dc3545;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #c82333;
-            }
-            QPushButton:disabled {
-                background-color: #ccc;
-            }
-        """)
+        self.cancel_btn.setObjectName("cancelButton")
         self.cancel_btn.clicked.connect(self._on_cancel)
         button_layout.addWidget(self.cancel_btn)
 
@@ -142,12 +118,12 @@ class OrganizeProgressDialog(QDialog):
         # Update status label
         self.status_label.setText(
             f"{self.organized_files} / {self.total_files} 파일 정리됨 "
-            f"(실패: {self.failed_files})"
+            f"(실패: {self.failed_files})",
         )
 
         # Scroll to bottom
         self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
+            self.log_text.verticalScrollBar().maximum(),
         )
 
     def show_completion(self, organized_count: int, total_count: int) -> None:
@@ -173,23 +149,11 @@ class OrganizeProgressDialog(QDialog):
 
         # Change cancel button to close
         self.cancel_btn.setText("닫기")
-        self.cancel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007acc;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #005a9e;
-            }
-        """)
+        self.cancel_btn.setObjectName("closeButton")
 
         # Scroll to bottom
         self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
+            self.log_text.verticalScrollBar().maximum(),
         )
 
     def show_error(self, error_msg: str) -> None:
@@ -203,7 +167,7 @@ class OrganizeProgressDialog(QDialog):
 
         # Scroll to bottom
         self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
+            self.log_text.verticalScrollBar().maximum(),
         )
 
     def _on_cancel(self) -> None:
