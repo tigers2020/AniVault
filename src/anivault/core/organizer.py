@@ -77,12 +77,15 @@ class FileOrganizer:
         series_title = self._sanitize_filename(series_title)
 
         # Get organization settings
-        from anivault.config.settings import Settings
-        settings = Settings()
+        from anivault.config.settings import get_config
+        config = get_config()
         
-        # Build directory structure: target_folder/media_type/season_##/korean_title/
-        target_folder = Path(settings.organization.target_folder)
-        media_type = settings.organization.media_type
+        # Use folders.target_folder if set, otherwise fallback to organization.target_folder
+        if config.folders and config.folders.target_folder:
+            target_folder = Path(config.folders.target_folder)
+        else:
+            target_folder = Path(config.organization.target_folder)
+        media_type = config.organization.media_type
         
         if season_number is not None:
             season_dir = f"Season {season_number:02d}"
