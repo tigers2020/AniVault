@@ -274,8 +274,8 @@ class MainWindow(QMainWindow):
 
     def switch_theme(self, action: QAction) -> None:
         """Switch the application theme."""
-        if not self.theme_manager or not self.config_manager:
-            logger.warning("Theme manager or config manager not available")
+        if not self.theme_manager:
+            logger.warning("Theme manager not available")
             return
 
         # Validate action type
@@ -298,9 +298,6 @@ class MainWindow(QMainWindow):
             else:
                 logger.error("No QApplication instance found")
                 return
-
-            # Save theme preference
-            self.config_manager.set("theme", theme_name)
 
             # Update status bar
             self.status_bar.showMessage(f"Theme switched to {theme_name.title()}", 3000)
