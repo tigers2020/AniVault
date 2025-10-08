@@ -56,7 +56,8 @@ class OrganizeController(QObject):
         # Use user's home directory for logs
         log_root_path = Path.home()
         self.log_manager = OperationLogManager(log_root_path)
-        self.settings = Settings.from_environment()
+        from anivault.config.settings import load_settings
+        self.settings = load_settings()
         self.file_organizer = FileOrganizer(self.log_manager, self.settings)
         
         # Initialize parser for filename parsing
