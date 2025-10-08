@@ -758,6 +758,28 @@ class MatchingEngine:
         )
         return partial_matched_candidates
 
+    def _get_candidate_title(self, candidate: dict[str, Any]) -> str:
+        """Safely get title from candidate (supports both movies and TV shows).
+
+        Args:
+            candidate: TMDB candidate dictionary
+
+        Returns:
+            Title string (movie title or TV show name), or empty string if not found
+        """
+        # Try movie title first
+        title = candidate.get(TMDBResponseKeys.TITLE)
+        if title:
+            return str(title)
+
+        # Fall back to TV show name
+        name = candidate.get(TMDBResponseKeys.NAME)
+        if name:
+            return str(name)
+
+        # Return empty string if neither is available
+        return ""
+
     def _apply_genre_filter(
         self,
         candidates: list[dict[str, Any]],
@@ -795,6 +817,9 @@ class MatchingEngine:
             # Apply genre boost for confirmed animation (no penalty to avoid false negatives)
             current_confidence = boosted_candidate.get("confidence_score", 0.0)
 
+            # Safely get title for logging (handles both movies and TV shows)
+            candidate_title = self._get_candidate_title(candidate)[:40]
+
             if GenreConfig.ANIMATION_GENRE_ID in genre_ids:
                 # Boost for animation genre
                 new_confidence = min(
@@ -808,7 +833,7 @@ class MatchingEngine:
                     boosted_candidates.append(boosted_candidate)
                     logger.debug(
                         "✅ Applied animation boost to '%s': %.3f -> %.3f (passed threshold %.1f)",
-                        candidate.get(TMDBResponseKeys.TITLE, "")[:40],
+                        candidate_title,
                         current_confidence,
                         new_confidence,
                         ConfidenceThresholds.ANIMATION_MIN,
@@ -816,7 +841,7 @@ class MatchingEngine:
                 else:
                     logger.debug(
                         "❌ Animation candidate '%s' rejected: %.3f < %.1f",
-                        candidate.get(TMDBResponseKeys.TITLE, "")[:40],
+                        candidate_title,
                         new_confidence,
                         ConfidenceThresholds.ANIMATION_MIN,
                     )
@@ -826,14 +851,14 @@ class MatchingEngine:
                 boosted_candidates.append(boosted_candidate)
                 logger.debug(
                     "✅ Non-animation candidate '%s' accepted: %.3f >= %.1f",
-                    candidate.get(TMDBResponseKeys.TITLE, "")[:40],
+                    candidate_title,
                     current_confidence,
                     ConfidenceThresholds.NON_ANIMATION_MIN,
                 )
             else:
                 logger.debug(
                     "❌ Non-animation candidate '%s' rejected: %.3f < %.1f (genre_ids: %s)",
-                    candidate.get(TMDBResponseKeys.TITLE, "")[:40],
+                    candidate_title,
                     current_confidence,
                     ConfidenceThresholds.NON_ANIMATION_MIN,
                     genre_ids if genre_ids else "empty",
