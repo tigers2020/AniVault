@@ -210,7 +210,11 @@ class FileTreeModel(QStandardItemModel):
                     series_title = "Unknown"
                     if isinstance(match_result, FileMetadata):
                         series_title = match_result.title
+                    elif hasattr(match_result, "title"):
+                        # MatchResult dataclass
+                        series_title = match_result.title
                     elif isinstance(match_result, dict):
+                        # Legacy dict format
                         series_title = match_result.get("title", "Unknown")
 
                     # Update the matched series item

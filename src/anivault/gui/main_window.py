@@ -634,10 +634,12 @@ class MainWindow(QMainWindow):
                     file_path,
                     {"match_result": match_result},
                 )
+                # Get title from MatchResult dataclass
+                title = match_result.title if hasattr(match_result, "title") else "Unknown"
                 logger.debug(
                     "Saved TMDB metadata for: %s - %s",
                     file_name,
-                    match_result.get("title", "Unknown"),
+                    title,
                 )
 
         logger.debug("File matched: %s - %s", file_name, status)

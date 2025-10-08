@@ -203,17 +203,15 @@ class ScanController(QObject):
             for file_item in matched_files:
                 tmdb_title = None
 
-                # Extract title from FileMetadata or legacy dict
+                # Extract title from FileMetadata or dict with MatchResult
                 if isinstance(file_item.metadata, FileMetadata):
                     tmdb_title = file_item.metadata.title
                 elif isinstance(file_item.metadata, dict):
-                    # Legacy dict format (backward compatibility)
+                    # Dict format with match_result (MatchResult dataclass)
                     match_result = file_item.metadata.get("match_result")
                     if match_result:
-                        # Try both title and name fields
-                        tmdb_title = match_result.get("title") or match_result.get(
-                            "name",
-                        )
+                        # match_result is MatchResult dataclass
+                        tmdb_title = match_result.title
 
                 if tmdb_title:
                     if tmdb_title not in grouped_by_tmdb:
@@ -373,10 +371,13 @@ class ScanController(QObject):
                         if not parsed_result.other_info:
                             parsed_result.other_info = {}
                         parsed_result.other_info["match_result"] = match_result
+                        
+                        # Get title from MatchResult dataclass
+                        title = match_result.title if hasattr(match_result, "title") else "Unknown"
                         logger.debug(
                             "Preserved TMDB metadata for: %s - %s",
                             file_item.file_path.name,
-                            match_result.get("title", "Unknown"),
+                            title,
                         )
 
                 # Create ScannedFile object for grouping

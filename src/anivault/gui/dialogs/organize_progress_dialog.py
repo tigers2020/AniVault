@@ -212,3 +212,4 @@ class OrganizeProgressDialog(QDialog):
         else:
             self.reject()
 
+
