@@ -67,8 +67,12 @@ class FileOrganizer:
         match_result = metadata.other_info.get("match_result")
         if match_result:
             # Use TMDB matched title (Korean title)
-            # match_result is MatchResult dataclass
-            series_title = match_result.title
+            if isinstance(match_result, dict):
+                # match_result stored as dict
+                series_title = match_result.get("title") or match_result.get("name", "Unknown Series")
+            else:
+                # match_result is MatchResult dataclass
+                series_title = match_result.title
         else:
             # Fallback to parsed title
             series_title = metadata.title or "Unknown Series"
