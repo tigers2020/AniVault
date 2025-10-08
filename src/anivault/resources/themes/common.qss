@@ -398,3 +398,52 @@ QLabel#animeInfoHint {
     padding: 1px 8px;
     font-style: italic;
 }
+
+/* =============================================================================
+   DIALOG STYLES
+   ============================================================================= */
+
+/* Dialog title */
+QLabel[class="dialog-title"] {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Dialog subtitle */
+QLabel[class="dialog-subtitle"] {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* Info message */
+QLabel[class="info-message"] {
+    padding: 10px;
+    background-color: var(--info-color);
+    border-radius: 5px;
+    color: white;
+}
+
+/* Stats label */
+QLabel[class="stats-label"] {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Primary button */
+QPushButton[class="primary-button"] {
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+QPushButton[class="primary-button"]:hover {
+    background-color: #0d9d6b;
+}
+
+QPushButton[class="primary-button"]:pressed {
+    background-color: #0a7c56;
+}

@@ -54,13 +54,13 @@ class OrganizePreviewDialog(QDialog):
         header_layout = QHBoxLayout()
 
         title_label = QLabel("📦 파일 정리 계획")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        title_label.setProperty("class", "dialog-title")
         header_layout.addWidget(title_label)
 
         header_layout.addStretch()
 
         count_label = QLabel(f"총 {len(self.plan)}개 파일")
-        count_label.setStyleSheet("font-size: 14px; color: #666;")
+        count_label.setProperty("class", "dialog-subtitle")
         header_layout.addWidget(count_label)
 
         layout.addLayout(header_layout)
@@ -71,7 +71,7 @@ class OrganizePreviewDialog(QDialog):
             "💡 고해상도 파일은 메인 폴더로, 낮은 해상도는 low_res 폴더로 이동됩니다."
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("padding: 10px; background-color: #e7f3ff; border-radius: 5px;")
+        info_label.setProperty("class", "info-message")
         layout.addWidget(info_label)
 
         # Table to display operations
@@ -112,13 +112,18 @@ class OrganizePreviewDialog(QDialog):
 
             self.table.setItem(idx, 3, dest_item)
 
-        # Set column widths
+        # Set column widths - better proportions
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.Fixed)
-        header.setSectionResizeMode(3, QHeaderView.Stretch)
-        self.table.setColumnWidth(2, 40)  # Arrow column
+        header.setSectionResizeMode(0, QHeaderView.Stretch)  # 파일명 - 가장 넓게
+        header.setSectionResizeMode(1, QHeaderView.Stretch)  # 현재 위치
+        header.setSectionResizeMode(2, QHeaderView.Fixed)    # 화살표 - 고정
+        header.setSectionResizeMode(3, QHeaderView.Stretch)  # 이동 위치
+        
+        # Set minimum column widths
+        self.table.setColumnWidth(0, 200)  # 파일명 최소 너비
+        self.table.setColumnWidth(1, 150) # 현재 위치 최소 너비  
+        self.table.setColumnWidth(2, 40)   # 화살표 고정 너비
+        self.table.setColumnWidth(3, 150) # 이동 위치 최소 너비
 
         layout.addWidget(self.table)
 
@@ -132,7 +137,7 @@ class OrganizePreviewDialog(QDialog):
         stats_label = QLabel(
             f"📊 비디오: {video_count}개 | 자막: {subtitle_count}개"
         )
-        stats_label.setStyleSheet("font-size: 12px; color: #555;")
+        stats_label.setProperty("class", "stats-label")
         summary_layout.addWidget(stats_label)
 
         summary_layout.addStretch()
@@ -144,20 +149,7 @@ class OrganizePreviewDialog(QDialog):
 
         # Execute button (custom)
         self.execute_btn = QPushButton("✅ 실행")
-        self.execute_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #28a745;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-size: 13px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #218838;
-            }
-        """)
+        self.execute_btn.setProperty("class", "primary-button")
         self.execute_btn.clicked.connect(self._on_execute)
         button_box.addButton(self.execute_btn, QDialogButtonBox.AcceptRole)
 
