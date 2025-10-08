@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
 from anivault.config.manager import ConfigManager
-from anivault.config.validation import TomlConfig
+from anivault.config.settings import Settings
 from anivault.shared.constants.gui_messages import (
     DialogMessages,
     DialogTitles,
@@ -320,7 +320,7 @@ class SettingsDialog(QDialog):
                 ErrorContext(operation="save_api_key"),
             ) from e
 
-    def _write_config_to_file(self, config: TomlConfig) -> None:
+    def _write_config_to_file(self, config: Settings) -> None:
         """
         Write configuration to TOML file.
 

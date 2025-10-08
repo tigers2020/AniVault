@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from anivault.config.validation import TomlConfig
+from anivault.config.settings import Settings
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class ConfigValidator:
         """
         try:
             # Validate using Pydantic model
-            TomlConfig.model_validate(config_dict)
+            Settings.model_validate(config_dict)
             logger.debug("Configuration validation successful")
             return []
 
@@ -53,11 +53,11 @@ class ConfigValidator:
             return [error_msg]
 
     @staticmethod
-    def validate_config_object(config: TomlConfig) -> list[str]:
+    def validate_config_object(config: Settings) -> list[str]:
         """Validate configuration object.
 
         Args:
-            config: TomlConfig object to validate
+            config: Settings object to validate
 
         Returns:
             List of validation error messages. Empty list if valid.
@@ -88,7 +88,7 @@ class ConfigValidator:
             config_dict = {section: {field: value}}
 
             # Validate using the full schema
-            TomlConfig.model_validate(config_dict)
+            Settings.model_validate(config_dict)
             logger.debug("Field validation successful: %s.%s", section, field)
             return []
 
@@ -112,7 +112,7 @@ class ConfigValidator:
             JSON schema for the configuration
         """
         try:
-            schema = TomlConfig.model_json_schema()
+            schema = Settings.model_json_schema()
             logger.debug("Retrieved configuration schema")
             return schema
         except Exception as e:

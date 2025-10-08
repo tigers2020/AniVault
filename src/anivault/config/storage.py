@@ -14,7 +14,7 @@ from typing import Any
 
 import toml
 
-from anivault.config.validation import TomlConfig
+from anivault.config.settings import Settings
 from anivault.shared.constants import Encoding
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
@@ -33,11 +33,11 @@ class ConfigStorage:
         self.config_path = Path(config_path)
         self.backup_path = self.config_path.with_suffix(".toml.backup")
 
-    def save_config(self, config: TomlConfig) -> None:
+    def save_config(self, config: Settings) -> None:
         """Save configuration to TOML file with backup.
 
         Args:
-            config: TomlConfig object to save
+            config: Settings object to save
 
         Raises:
             ApplicationError: If saving fails
@@ -109,7 +109,7 @@ class ConfigStorage:
         """
         try:
             # Create default configuration
-            default_config = TomlConfig.model_validate({})
+            default_config = Settings.model_validate({})
 
             # Save it
             self.save_config(default_config)

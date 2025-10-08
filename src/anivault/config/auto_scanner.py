@@ -11,7 +11,7 @@ import logging
 from typing import Any, Callable
 
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.validation import FolderSettings
+from anivault.config.settings import FolderSettings
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)

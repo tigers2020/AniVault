@@ -13,7 +13,7 @@ from typing import Any
 
 from anivault.config.loader import ConfigLoader
 from anivault.config.storage import ConfigStorage
-from anivault.config.validation import TomlConfig
+from anivault.config.settings import Settings
 from anivault.config.validator import ConfigValidator
 from anivault.shared.constants import Config
 
@@ -42,13 +42,13 @@ class ConfigManager:
         self.storage = ConfigStorage(self.config_path)
         self.validator = ConfigValidator()
 
-    def load_config(self) -> TomlConfig:
+    def load_config(self) -> Settings:
         """Load and validate configuration with proper priority.
 
         Priority: Environment Variables > TOML File > Default Values
 
         Returns:
-            Validated TomlConfig object
+            Validated Settings object
         """
         return self.loader.load_validated_config()
 
@@ -60,11 +60,11 @@ class ConfigManager:
         """
         return self.loader.load_merged_config()
 
-    def save_config(self, config: TomlConfig) -> None:
+    def save_config(self, config: Settings) -> None:
         """Save configuration to TOML file.
 
         Args:
-            config: TomlConfig object to save
+            config: Settings object to save
 
         Raises:
             ValueError: If validation fails

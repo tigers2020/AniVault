@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from anivault.shared.constants import (
     TMDB,
@@ -26,11 +27,9 @@ from anivault.shared.constants import (
     Memory,
     SubtitleFormats,
     Timeout,
-    TMDBErrorHandling,
-    VideoFormats,
-    WorkerConfig,
 )
 from anivault.shared.constants import TMDBConfig as TMDBConstants
+from anivault.shared.constants import TMDBErrorHandling, VideoFormats, WorkerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -319,10 +318,104 @@ class OrganizationConfig(BaseModel):
     )
 
 
-class Settings(BaseModel):
-    """Main settings model containing all configuration sections."""
+class FolderSettings(BaseModel):
+    """Folder and directory settings (from TomlConfig)."""
+
+    source_folder: str = Field(
+        default="",
+        description="Source folder path for media files to organize",
+    )
+    target_folder: str = Field(
+        default="",
+        description="Target folder path for organized media files",
+    )
+    auto_scan_on_startup: bool = Field(
+        default=False,
+        description="Automatically scan source folder when application starts",
+    )
+    auto_scan_interval_minutes: int = Field(
+        default=0,
+        ge=0,
+        le=1440,
+        description="Auto scan interval in minutes (0 = disabled)",
+    )
+    include_subdirectories: bool = Field(
+        default=True,
+        description="Include subdirectories when scanning",
+    )
 
     model_config = ConfigDict(
+        validate_assignment=True,
+    )
+
+    @field_validator("source_folder", "target_folder")
+    @classmethod
+    def validate_folder_path(cls, v: str) -> str:
+        """Validate folder path."""
+        if v and v.strip():
+            path = Path(v.strip())
+            # Basic validation - path should be absolute or resolvable
+            try:
+                resolved_path = path.resolve()
+                # Check if it's a valid path format
+                if not resolved_path.is_absolute():
+                    raise ValueError("Folder path must be absolute")
+            except (OSError, ValueError) as e:
+                msg = f"Invalid folder path: {e}"
+                raise ValueError(msg) from e
+        return v
+
+    @field_validator("auto_scan_interval_minutes")
+    @classmethod
+    def validate_scan_interval(cls, v: int) -> int:
+        """Validate scan interval."""
+        if v < 0:
+            raise ValueError("Scan interval must be non-negative")
+        if v > 0 and v < 1:
+            raise ValueError("Scan interval must be at least 1 minute")
+        return v
+
+
+class SecuritySettings(BaseModel):
+    """Security-related settings (from TomlConfig)."""
+
+    enable_encryption: bool = Field(
+        default=True,
+        description="Enable encryption for sensitive data",
+    )
+    key_rotation_days: int = Field(
+        default=90,
+        ge=1,
+        le=365,
+        description="Key rotation interval in days",
+    )
+    max_pin_attempts: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description="Maximum PIN attempts before lockout",
+    )
+    lockout_duration_minutes: int = Field(
+        default=30,
+        ge=1,
+        le=1440,
+        description="Lockout duration in minutes",
+    )
+
+
+class Settings(BaseSettings):
+    """Main settings model containing all configuration sections.
+    
+    Unified configuration class that replaces both Settings and TomlConfig.
+    Supports loading from TOML files, environment variables, and provides
+    strong security validation.
+    """
+
+    model_config = SettingsConfigDict(
+        # Environment variable configuration
+        env_prefix="ANIVAULT_",
+        env_nested_delimiter="__",
+        env_ignore_empty=True,
         # Optimize JSON serialization for settings performance
         json_encoders={
             # Custom encoders for specific types if needed
@@ -353,6 +446,16 @@ class Settings(BaseModel):
     cache: CacheConfig = Field(default_factory=CacheConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     organization: OrganizationConfig = Field(default_factory=OrganizationConfig)
+    
+    # TomlConfig sections (optional for backward compatibility)
+    folders: FolderSettings | None = Field(
+        default=None,
+        description="Folder and directory settings (optional)",
+    )
+    security: SecuritySettings | None = Field(
+        default=None,
+        description="Security-related settings (optional)",
+    )
 
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:

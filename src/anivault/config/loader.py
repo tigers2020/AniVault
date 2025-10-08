@@ -15,7 +15,7 @@ from typing import Any
 import toml
 from pydantic import ValidationError
 
-from anivault.config.validation import TomlConfig
+from anivault.config.settings import Settings
 from anivault.shared.constants import Config, Encoding
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
@@ -84,7 +84,7 @@ class ConfigLoader:
             ApplicationError: If default configuration creation fails
         """
         try:
-            default_config = TomlConfig.model_validate({}).model_dump()
+            default_config = Settings.model_validate({}).model_dump()
             logger.debug("Successfully created default configuration")
             return default_config
         except ValidationError as e:
@@ -143,21 +143,21 @@ class ConfigLoader:
 
         return result
 
-    def load_validated_config(self) -> TomlConfig:
+    def load_validated_config(self) -> Settings:
         """Load and validate configuration with proper priority.
 
         Priority: Environment Variables > TOML File > Default Values
 
         Returns:
-            Validated TomlConfig object
+            Validated Settings object
 
         Raises:
             ApplicationError: If configuration validation fails or other unexpected error occurs.
         """
         try:
-            # Create TomlConfig instance without any arguments
+            # Create Settings instance without any arguments
             # This allows BaseSettings to read environment variables first
-            settings = TomlConfig()
+            settings = Settings()
 
             # Load TOML configuration
             toml_config = self.load_toml_config()
