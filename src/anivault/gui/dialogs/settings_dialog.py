@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import Settings, get_config, reload_config
+from anivault.config.settings import get_config, reload_config
 from anivault.shared.constants.gui_messages import (
     DialogMessages,
     DialogTitles,

@@ -13,7 +13,6 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Signal
 
-from anivault.config.settings import Settings
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import ScannedFile
 from anivault.core.organizer import FileOrganizer

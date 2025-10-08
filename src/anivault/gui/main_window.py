@@ -32,6 +32,7 @@ from anivault.shared.constants.gui_messages import (
     DialogMessages,
     DialogTitles,
 )
+from anivault.config.settings import get_config
 
 from .controllers import ScanController, TMDBController, OrganizeController
 from .dialogs.organize_preview_dialog import OrganizePreviewDialog
@@ -301,7 +302,6 @@ class MainWindow(QMainWindow):
 
             # Save theme preference to settings
             try:
-                from anivault.config.settings import get_config
                 config = get_config()
                 config.app.theme = theme_name
                 config.to_toml_file("config/config.toml")
@@ -441,8 +441,6 @@ class MainWindow(QMainWindow):
             logger.info("Auto-starting TMDB matching after file grouping")
 
             # Check if API key is configured before starting
-            from anivault.config.settings import get_config
-            
             try:
                 config = get_config()
                 api_key = config.tmdb.api_key
@@ -565,8 +563,6 @@ class MainWindow(QMainWindow):
             return
 
         # Check if API key is configured
-        from anivault.config.settings import get_config
-        
         try:
             config = get_config()
             api_key = config.tmdb.api_key

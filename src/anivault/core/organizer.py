@@ -12,9 +12,9 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from anivault.config.settings import Settings
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class FileOrganizer:
     def __init__(
         self,
         log_manager: OperationLogManager,
-        settings: Settings | None = None,
+        settings: Any | None = None,
     ) -> None:
         """
         Initialize the FileOrganizer.
@@ -40,7 +40,8 @@ class FileOrganizer:
             settings: Settings instance containing configuration. If None, loads default settings.
         """
         self.log_manager = log_manager
-        self.settings = settings or Settings.from_environment()
+        from anivault.config.settings import load_settings
+        self.settings = settings or load_settings()
         self.app_config = self.settings.app
 
     def _construct_destination_path(self, scanned_file: ScannedFile) -> Path:

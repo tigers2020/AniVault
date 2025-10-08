@@ -304,7 +304,7 @@ class TMDBMatchingWorker(QObject):
         Raises:
             SecurityError: If API key is missing or invalid
         """
-        from anivault.config import get_config
+        from anivault.config.settings import get_config
         from anivault.shared.errors import ErrorCode, SecurityError
 
         try:
