@@ -66,6 +66,8 @@ jobs:
       - name: Code quality validation
         run: python scripts/validate_code_quality.py src/
         continue-on-error: false
+        env:
+          PYTHONIOENCODING: 'utf-8'
 
       - name: Run tests with coverage
         run: |
