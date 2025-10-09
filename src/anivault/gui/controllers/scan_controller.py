@@ -373,7 +373,11 @@ class ScanController(QObject):
                         parsed_result.other_info["match_result"] = match_result
 
                         # Get title from MatchResult dataclass
-                        title = match_result.title if hasattr(match_result, "title") else "Unknown"
+                        title = (
+                            match_result.title
+                            if hasattr(match_result, "title")
+                            else "Unknown"
+                        )
                         logger.debug(
                             "Preserved TMDB metadata for: %s - %s",
                             file_item.file_path.name,

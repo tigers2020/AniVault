@@ -12,6 +12,7 @@ from typing import Any
 import typer
 
 from anivault.cli.common.context import get_cli_context
+from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.common.models import OrganizeOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
@@ -212,181 +213,69 @@ def _validate_organize_directory(options: OrganizeOptions, console: Any) -> Path
         ) from e
 
 
+@handle_cli_errors(operation="get_scanned_files", command_name="organize")
 def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -> Any:
     """Get scanned files for organization."""
-    try:
-        from anivault.core.pipeline.main import run_pipeline
-        from anivault.shared.constants import QueueConfig, WorkerConfig
+    from anivault.core.models import ScannedFile
+    from anivault.core.pipeline.main import run_pipeline
+    from anivault.shared.constants import QueueConfig, WorkerConfig
 
-        # Create progress manager (disabled for JSON output)
-        progress_manager = create_progress_manager(
-            disabled=options.json_output,
+    # Create progress manager (disabled for JSON output)
+    progress_manager = create_progress_manager(
+        disabled=options.json_output,
+    )
+
+    # Scan files with progress indication
+    with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
+        file_results = run_pipeline(
+            root_path=str(directory),
+            extensions=options.extensions.split(","),
+            num_workers=WorkerConfig.DEFAULT,
+            max_queue_size=QueueConfig.DEFAULT_SIZE,
         )
 
-        # Scan files with progress indication
-        with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
-            file_results = run_pipeline(
-                root_path=str(directory),
-                extensions=options.extensions.split(","),
-                num_workers=WorkerConfig.DEFAULT,
-                max_queue_size=QueueConfig.DEFAULT_SIZE,
-            )
-
-        if not file_results:
-            if options.json_output is None:
-                console.print(
-                    CLIFormatting.format_colored_message(
-                        CLIMessages.Info.NO_ANIME_FILES_FOUND,
-                        "warning",
-                    ),
-                )
-            return []
-
-        # Convert file results to ScannedFile objects
-        from pathlib import Path
-
-        from anivault.core.models import ScannedFile
-
-        scanned_files = []
-        for result in file_results:
-            if CLIMessages.StatusKeys.PARSING_RESULT in result:
-                scanned_file = ScannedFile(
-                    file_path=Path(result[CLIMessages.StatusKeys.FILE_PATH]),
-                    metadata=result[CLIMessages.StatusKeys.PARSING_RESULT],
-                )
-                scanned_files.append(scanned_file)
-
-        if not scanned_files:
-            if options.json_output is None:
-                console.print(
-                    CLIFormatting.format_colored_message(
-                        "No valid anime files found to organize",
-                        "warning",
-                    ),
-                )
-            return []
-
-        return scanned_files
-
-    except ApplicationError as e:
+    if not file_results:
         if options.json_output is None:
             console.print(
                 CLIFormatting.format_colored_message(
-                    f"Application error during file scanning: {e.message}",
-                    "error",
+                    CLIMessages.Info.NO_ANIME_FILES_FOUND,
+                    "warning",
                 ),
             )
-        logger.exception(
-            "File scanning failed",
-            extra={
-                CLIMessages.StatusKeys.CONTEXT: e.context,
-                CLIMessages.StatusKeys.ERROR_CODE: e.code,
-            },
-        )
-        raise ApplicationError(
-            ErrorCode.CLI_PIPELINE_EXECUTION_FAILED,
-            "Failed to scan files for organization",
-            ErrorContext(
-                operation="get_scanned_files",
-                additional_data={"directory": str(directory)},
-            ),
-            original_error=e,
-        ) from e
-    except InfrastructureError as e:
+        return []
+
+    # Convert file results to ScannedFile objects
+    scanned_files = []
+    for result in file_results:
+        if CLIMessages.StatusKeys.PARSING_RESULT in result:
+            scanned_file = ScannedFile(
+                file_path=Path(result[CLIMessages.StatusKeys.FILE_PATH]),
+                metadata=result[CLIMessages.StatusKeys.PARSING_RESULT],
+            )
+            scanned_files.append(scanned_file)
+
+    if not scanned_files:
         if options.json_output is None:
             console.print(
                 CLIFormatting.format_colored_message(
-                    f"Infrastructure error during file scanning: {e.message}",
-                    "error",
+                    "No valid anime files found to organize",
+                    "warning",
                 ),
             )
-        logger.exception(
-            "File scanning failed",
-            extra={
-                CLIMessages.StatusKeys.CONTEXT: e.context,
-                CLIMessages.StatusKeys.ERROR_CODE: e.code,
-            },
-        )
-        raise InfrastructureError(
-            ErrorCode.CLI_PIPELINE_EXECUTION_FAILED,
-            "Failed to scan files for organization",
-            ErrorContext(
-                operation="get_scanned_files",
-                additional_data={"directory": str(directory)},
-            ),
-            original_error=e,
-        ) from e
-    except Exception as e:
-        if options.json_output is None:
-            console.print(
-                CLIFormatting.format_colored_message(
-                    f"Unexpected error during file scanning: {e}",
-                    "error",
-                ),
-            )
-        logger.exception(CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION)
-        raise ApplicationError(
-            ErrorCode.CLI_PIPELINE_EXECUTION_FAILED,
-            "Failed to scan files for organization",
-            ErrorContext(
-                operation="get_scanned_files",
-                additional_data={"directory": str(directory)},
-            ),
-            original_error=e,
-        ) from e
+        return []
+
+    return scanned_files
 
 
+@handle_cli_errors(operation="generate_organization_plan", command_name="organize")
 def _generate_organization_plan(scanned_files: Any) -> Any:
     """Generate organization plan."""
-    try:
-        from pathlib import Path
+    from anivault.core.log_manager import OperationLogManager
+    from anivault.core.organizer import FileOrganizer
 
-        from anivault.core.log_manager import OperationLogManager
-        from anivault.core.organizer import FileOrganizer
-
-        log_manager = OperationLogManager(Path.cwd())
-        organizer = FileOrganizer(log_manager=log_manager)
-        return organizer.generate_plan(scanned_files)
-
-    except ApplicationError as e:
-        logger.exception(
-            "Organization plan generation failed",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        raise ApplicationError(
-            ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
-            "Failed to generate organization plan",
-            ErrorContext(
-                operation="generate_organization_plan",
-                additional_data={"file_count": len(scanned_files)},
-            ),
-            original_error=e,
-        ) from e
-    except InfrastructureError as e:
-        logger.exception(
-            "Organization plan generation failed",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        raise InfrastructureError(
-            ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
-            "Failed to generate organization plan",
-            ErrorContext(
-                operation="generate_organization_plan",
-                additional_data={"file_count": len(scanned_files)},
-            ),
-            original_error=e,
-        ) from e
-    except Exception as e:
-        logger.exception("Unexpected error during organization plan generation")
-        raise ApplicationError(
-            ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
-            "Failed to generate organization plan",
-            ErrorContext(
-                operation="generate_organization_plan",
-                additional_data={"file_count": len(scanned_files)},
-            ),
-            original_error=e,
-        ) from e
+    log_manager = OperationLogManager(Path.cwd())
+    organizer = FileOrganizer(log_manager=log_manager)
+    return organizer.generate_plan(scanned_files)
 
 
 def _execute_organization_plan(
@@ -436,107 +325,66 @@ def _confirm_organization(console: Any) -> bool:
         return False
 
 
+@handle_cli_errors(operation="perform_organization", command_name="organize")
 def _perform_organization(plan: Any, options: OrganizeOptions) -> int:
     """Perform the actual organization."""
-    try:
-        from datetime import datetime
-        from pathlib import Path
+    from datetime import datetime
 
-        from rich.console import Console
+    from rich.console import Console
 
-        from anivault.core.log_manager import OperationLogManager
-        from anivault.core.organizer import FileOrganizer
+    from anivault.core.log_manager import OperationLogManager
+    from anivault.core.organizer import FileOrganizer
 
-        console = Console()
-        log_manager = OperationLogManager(Path.cwd())
-        organizer = FileOrganizer(log_manager=log_manager)
+    console = Console()
+    log_manager = OperationLogManager(Path.cwd())
+    organizer = FileOrganizer(log_manager=log_manager)
 
-        operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Create progress manager (disabled for JSON output)
-        progress_manager = create_progress_manager(
-            disabled=options.json_output,
+    # Create progress manager (disabled for JSON output)
+    progress_manager = create_progress_manager(
+        disabled=options.json_output,
+    )
+
+    # Execute organization with progress indication
+    with progress_manager.spinner("Organizing files..."):
+        moved_files = organizer.execute_plan(plan, operation_id)
+
+    if options.json_output is not None:
+        # Output results in JSON format
+        organize_data = _collect_organize_data(
+            plan,
+            options,
+            moved_files=moved_files,
+            operation_id=operation_id,
         )
-
-        # Execute organization with progress indication
-        with progress_manager.spinner("Organizing files..."):
-            moved_files = organizer.execute_plan(plan, operation_id)
-
-        if options.json_output is not None:
-            # Output results in JSON format
-            organize_data = _collect_organize_data(
-                plan,
-                options,
-                moved_files=moved_files,
-                operation_id=operation_id,
-            )
-            json_output = format_json_output(
-                success=True,
-                command="organize",
-                data=organize_data,
-            )
-            sys.stdout.buffer.write(json_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
-        elif moved_files:
+        json_output = format_json_output(
+            success=True,
+            command="organize",
+            data=organize_data,
+        )
+        sys.stdout.buffer.write(json_output)
+        sys.stdout.buffer.write(b"\n")
+        sys.stdout.buffer.flush()
+    elif moved_files:
+        console.print(
+            f"[green]Successfully organized {len(moved_files)} files[/green]",
+        )
+        try:
+            saved_log_path = log_manager.save_plan(plan)
             console.print(
-                f"[green]Successfully organized {len(moved_files)} files[/green]",
+                f"[grey62]Operation logged to: {saved_log_path}[/grey62]",
             )
-            try:
-                saved_log_path = log_manager.save_plan(plan)
-                console.print(
-                    f"[grey62]Operation logged to: {saved_log_path}[/grey62]",
-                )
-            except Exception as e:  # noqa: BLE001
-                console.print(
-                    f"[bold yellow]Warning: Could not save operation log: "
-                    f"{e}[/bold yellow]",
-                )
-        else:
-            console.print("[yellow]No files were moved[/yellow]")
+        except Exception as e:  # noqa: BLE001
+            console.print(
+                f"[bold yellow]Warning: Could not save operation log: "
+                f"{e}[/bold yellow]",
+            )
+    else:
+        console.print("[yellow]No files were moved[/yellow]")
 
-        logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="organize"))
-        return 0
-
-    except ApplicationError as e:
-        logger.exception(
-            "Organization execution failed",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        raise ApplicationError(
-            ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
-            "Failed to execute organization plan",
-            ErrorContext(
-                operation="perform_organization",
-                additional_data={"plan_size": len(plan)},
-            ),
-            original_error=e,
-        ) from e
-    except InfrastructureError as e:
-        logger.exception(
-            "Organization execution failed",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        raise InfrastructureError(
-            ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
-            "Failed to execute organization plan",
-            ErrorContext(
-                operation="perform_organization",
-                additional_data={"plan_size": len(plan)},
-            ),
-            original_error=e,
-        ) from e
-    except Exception as e:
-        logger.exception("Unexpected error during organization execution")
-        raise ApplicationError(
-            ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
-            "Failed to execute organization plan",
-            ErrorContext(
-                operation="perform_organization",
-                additional_data={"plan_size": len(plan)},
-            ),
-            original_error=e,
-        ) from e
+    logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="organize"))
+    return 0
 
 
 def _collect_organize_data(
@@ -686,6 +534,7 @@ def _print_execution_plan_impl(plan: Any, console: Any) -> None:
         console.print()
 
 
+@handle_cli_errors(operation="generate_enhanced_organization_plan", command_name="organize")
 def _generate_enhanced_organization_plan(
     scanned_files: list[Any],
     options: OrganizeOptions,
@@ -698,103 +547,90 @@ def _generate_enhanced_organization_plan(
 
     Returns:
         List of file operations for enhanced organization
-
-    Raises:
-        ApplicationError: If plan generation fails
     """
-    try:
-        from anivault.core.file_grouper import FileGrouper
-        from anivault.core.resolution_detector import ResolutionDetector
-        from anivault.core.subtitle_matcher import SubtitleMatcher
-        from anivault.services.tmdb_client import TMDBClient
-        from anivault.shared.constants import Language
+    from anivault.core.file_grouper import FileGrouper
+    from anivault.core.resolution_detector import ResolutionDetector
+    from anivault.core.subtitle_matcher import SubtitleMatcher
+    from anivault.services.tmdb_client import TMDBClient
+    from anivault.shared.constants import Language
 
-        # Initialize components
-        grouper = FileGrouper(similarity_threshold=0.7)
-        resolution_detector = ResolutionDetector()
-        subtitle_matcher = SubtitleMatcher()
+    # Initialize components
+    grouper = FileGrouper(similarity_threshold=0.7)
+    resolution_detector = ResolutionDetector()
+    subtitle_matcher = SubtitleMatcher()
 
-        # Use Korean language for TMDB if enhanced mode
-        tmdb_client = TMDBClient(language=Language.KOREAN)  # noqa: F841
+    # Use Korean language for TMDB if enhanced mode
+    tmdb_client = TMDBClient(language=Language.KOREAN)  # noqa: F841
 
-        # Group files by similarity
-        file_groups = grouper.group_files(scanned_files)
+    # Group files by similarity
+    file_groups = grouper.group_files(scanned_files)
 
-        operations = []
+    operations = []
 
-        for group_key, group_files in file_groups.items():
-            # Find highest resolution file in group
-            best_file = resolution_detector.find_highest_resolution(group_files)
-            if not best_file:
-                continue
+    for group_key, group_files in file_groups.items():
+        # Find highest resolution file in group
+        best_file = resolution_detector.find_highest_resolution(group_files)
+        if not best_file:
+            continue
 
-            # Get TMDB metadata for Korean title
-            # Fallback to group key for now
-            korean_title = group_key  # Fallback to group key for now
+        # Get TMDB metadata for Korean title
+        # Fallback to group key for now
+        korean_title = group_key  # Fallback to group key for now
 
-            # Find matching subtitles
-            subtitles = subtitle_matcher.find_matching_subtitles(
-                best_file,
-                best_file.file_path.parent,
-            )
+        # Find matching subtitles
+        subtitles = subtitle_matcher.find_matching_subtitles(
+            best_file,
+            best_file.file_path.parent,
+        )
 
-            # Generate destination paths
-            destination_base = options.destination if options.destination else "Anime"
-            high_res_path = (
-                Path(destination_base)
-                / korean_title
-                / f"Season {best_file.metadata.season or 1:02d}"
-            )
-            low_res_path = (
-                Path(destination_base)
-                / "low_res"
-                / korean_title
-                / f"Season {best_file.metadata.season or 1:02d}"
-            )
+        # Generate destination paths
+        destination_base = options.destination if options.destination else "Anime"
+        high_res_path = (
+            Path(destination_base)
+            / korean_title
+            / f"Season {best_file.metadata.season or 1:02d}"
+        )
+        low_res_path = (
+            Path(destination_base)
+            / "low_res"
+            / korean_title
+            / f"Season {best_file.metadata.season or 1:02d}"
+        )
 
-            # Create operations for highest resolution file + subtitles
+        # Create operations for highest resolution file + subtitles
+        operations.append(
+            {
+                "source": best_file.file_path,
+                "destination": high_res_path / best_file.file_path.name,
+                "type": "move",
+                "is_highest_resolution": True,
+            },
+        )
+
+        # Add subtitle operations
+        for subtitle in subtitles:
             operations.append(
                 {
-                    "source": best_file.file_path,
-                    "destination": high_res_path / best_file.file_path.name,
+                    "source": subtitle,
+                    "destination": high_res_path / subtitle.name,
                     "type": "move",
-                    "is_highest_resolution": True,
+                    "is_subtitle": True,
                 },
             )
 
-            # Add subtitle operations
-            for subtitle in subtitles:
+        # Create operations for lower resolution files
+        for file in group_files:
+            if file != best_file:
                 operations.append(
                     {
-                        "source": subtitle,
-                        "destination": high_res_path / subtitle.name,
+                        "source": file.file_path,
+                        "destination": low_res_path / file.file_path.name,
                         "type": "move",
-                        "is_subtitle": True,
+                        "is_highest_resolution": False,
                     },
                 )
 
-            # Create operations for lower resolution files
-            for file in group_files:
-                if file != best_file:
-                    operations.append(
-                        {
-                            "source": file.file_path,
-                            "destination": low_res_path / file.file_path.name,
-                            "type": "move",
-                            "is_highest_resolution": False,
-                        },
-                    )
-
-        return operations
-
-    except Exception as e:
-        logger.exception("Failed to generate enhanced organization plan")
-        raise ApplicationError(
-            code=ErrorCode.ORGANIZATION_PLAN_FAILED,
-            message=f"Enhanced organization plan generation failed: {e!s}",
-            context=ErrorContext(operation="generate_enhanced_organization_plan"),
-            original_error=e,
-        ) from e
+    return operations
 
 
 def organize_command(

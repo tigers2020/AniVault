@@ -29,10 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from anivault.config.settings import get_config
-from anivault.shared.constants.gui_messages import (
-    DialogMessages,
-    DialogTitles,
-)
+from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import ApplicationError
 
 from .controllers import OrganizeController, ScanController, TMDBController
@@ -372,7 +369,9 @@ class MainWindow(QMainWindow):
         self.tmdb_controller.cache_stats_updated.connect(self.update_cache_status)
 
         # Connect organize controller signals
-        self.organize_controller.plan_generated.connect(self._on_organize_plan_generated)
+        self.organize_controller.plan_generated.connect(
+            self._on_organize_plan_generated,
+        )
 
     def start_file_scan(self) -> None:
         """Start file scanning using scan controller."""
@@ -614,7 +613,9 @@ class MainWindow(QMainWindow):
             self.tmdb_controller.match_files(self.state_model.scanned_files)
         except (ValueError, RuntimeError) as e:
             logger.exception("Failed to start TMDB matching")
-            self.status_bar.showMessage(DialogMessages.TMDB_MATCHING_ERROR.format(error=e))
+            self.status_bar.showMessage(
+                DialogMessages.TMDB_MATCHING_ERROR.format(error=e),
+            )
             QMessageBox.warning(
                 self,
                 DialogTitles.TMDB_ERROR,
@@ -647,7 +648,9 @@ class MainWindow(QMainWindow):
                     {"match_result": match_result},
                 )
                 # Get title from MatchResult dataclass
-                title = match_result.title if hasattr(match_result, "title") else "Unknown"
+                title = (
+                    match_result.title if hasattr(match_result, "title") else "Unknown"
+                )
                 logger.debug(
                     "Saved TMDB metadata for: %s - %s",
                     file_name,
@@ -754,7 +757,10 @@ class MainWindow(QMainWindow):
             )
             return
 
-        logger.info("Starting file organization for %d files", len(self.state_model.scanned_files))
+        logger.info(
+            "Starting file organization for %d files",
+            len(self.state_model.scanned_files),
+        )
 
         try:
             # Generate organization plan

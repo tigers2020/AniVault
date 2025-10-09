@@ -2,8 +2,8 @@
 
 ## ⚠️ CRITICAL: License Compliance Required
 
-**Date**: 2025-10-08  
-**Project**: AniVault  
+**Date**: 2025-10-08
+**Project**: AniVault
 **Issue**: PySide6 LGPL-3.0 License Compliance
 
 ---
@@ -28,7 +28,7 @@ AniVault uses **PySide6** for GUI functionality, which is licensed under **LGPL-
 
 ### What This Means for PyInstaller:
 
-❌ **Single-file executables** (default PyInstaller mode) are **NOT LGPL-compliant**  
+❌ **Single-file executables** (default PyInstaller mode) are **NOT LGPL-compliant**
 ✅ **Directory-mode distribution** with separate DLLs **IS compliant**
 
 ---
@@ -148,16 +148,16 @@ This software uses the following third-party libraries:
    License: LGPL-3.0
    Copyright: The Qt Company Ltd.
    Source: https://www.qt.io/qt-for-python
-   
+
    PySide6 is licensed under the GNU Lesser General Public License v3.0.
    The full text of the LGPL-3.0 license is available at:
    https://www.gnu.org/licenses/lgpl-3.0.html
-   
+
    Users have the right to:
    - Use this software with PySide6
    - Replace PySide6 with a compatible version
    - Modify PySide6 and use the modified version
-   
+
    PySide6 DLLs are distributed separately in the PySide6/ directory
    to comply with LGPL-3.0 dynamic linking requirements.
 
@@ -257,12 +257,11 @@ cp -r /path/to/custom/PySide6/* anivault/PySide6/
 
 ## ⚖️ Legal Disclaimer
 
-This document provides guidance based on common LGPL-3.0 interpretations. 
-**We are not lawyers**. For legal compliance advice, consult a qualified attorney 
+This document provides guidance based on common LGPL-3.0 interpretations.
+**We are not lawyers**. For legal compliance advice, consult a qualified attorney
 specializing in software licensing.
 
 ---
 
-**Last Updated**: 2025-10-08  
+**Last Updated**: 2025-10-08
 **Next Review**: Before public release
-

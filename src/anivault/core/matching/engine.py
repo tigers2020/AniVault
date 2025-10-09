@@ -18,16 +18,14 @@ from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.tmdb_client import TMDBClient
-from anivault.services.tmdb_models import TMDBSearchResult
+from anivault.services.tmdb_models import ScoredSearchResult, TMDBSearchResult
 from anivault.shared.constants import (
     ConfidenceThresholds,
     DefaultLanguage,
     GenreConfig,
     MatchingCacheConfig,
-    MatchingFieldNames,
     TMDBResponseKeys,
     TMDBSearchKeys,
-    YearMatchingConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -168,96 +166,18 @@ class MatchingEngine:
             )
             return []
 
-    def _score_candidates(
-        self,
-        candidates: list[dict[str, Any]],
-        normalized_title: str,
-    ) -> list[dict[str, Any]]:
-        """Score candidates using fuzzy matching.
-
-        This method iterates through a list of TMDB candidates and calculates
-        a title similarity score for each using fuzzywuzzy.
-
-        Args:
-            candidates: List of TMDB search results
-            normalized_title: Normalized title to match against
-
-        Returns:
-            List of candidates with added 'title_score' field
-        """
-        if not normalized_title:
-            logger.warning("Empty normalized title, returning unscored candidates")
-            return candidates
-
-        scored_candidates = []
-
-        for candidate in candidates:
-            # Extract titles from candidate (try both localized and original)
-            localized_title = candidate.get(
-                TMDBResponseKeys.TITLE,
-                "",
-            ) or candidate.get(TMDBResponseKeys.NAME, "")
-            original_title = candidate.get(
-                TMDBResponseKeys.ORIGINAL_TITLE,
-                "",
-            ) or candidate.get(
-                TMDBResponseKeys.ORIGINAL_NAME,
-                "",
-            )
-
-            if not localized_title and not original_title:
-                logger.debug("Skipping candidate with no title")
-                continue
-
-            # Calculate fuzzy match score against BOTH localized and original titles
-            # Use the higher score (handles both Korean filenames and Japanese romanization)
-            scores = []
-            if localized_title:
-                scores.append(
-                    fuzz.ratio(normalized_title.lower(), localized_title.lower()),
-                )
-            if original_title:
-                scores.append(
-                    fuzz.ratio(normalized_title.lower(), original_title.lower()),
-                )
-
-            title_score = max(scores) if scores else 0
-
-            # Add score to candidate
-            candidate_with_score = candidate.copy()
-            candidate_with_score[MatchingFieldNames.TITLE_SCORE] = title_score
-
-            scored_candidates.append(candidate_with_score)
-
-            logger.debug(
-                "Scored candidate '%s' (original: '%s') against '%s': %d",
-                localized_title,
-                original_title[:30] if original_title else "N/A",
-                normalized_title,
-                title_score,
-            )
-
-        # Sort by title score (highest first)
-        scored_candidates.sort(
-            key=lambda x: x.get(MatchingFieldNames.TITLE_SCORE, 0),
-            reverse=True,
-        )
-
-        logger.debug("Scored %d candidates", len(scored_candidates))
-        return scored_candidates
-
     def _filter_and_sort_by_year(
         self,
-        candidates: list[dict[str, Any]],
+        candidates: list[ScoredSearchResult],
         year_hint: str | None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[ScoredSearchResult]:
         """Filter and sort candidates by year match.
 
         This method processes a list of scored candidates, filtering and sorting
         them based on how well their release year matches the provided year hint.
 
         Args:
-            candidates: List of scored candidates
+            candidates: List of scored candidates (Pydantic models)
             year_hint: Year hint from normalized query (optional)
 
         Returns:
@@ -273,152 +193,120 @@ class MatchingEngine:
             logger.warning("Invalid year hint: %s", year_hint)
             return candidates
 
-        filtered_candidates = []
+        filtered_candidates: list[ScoredSearchResult] = []
 
         for candidate in candidates:
-            # Extract year from candidate
+            # Extract year from candidate using Pydantic model's display_date
             candidate_year = None
 
-            # Try different year fields
-            year_fields = [
-                TMDBResponseKeys.FIRST_AIR_DATE,
-                TMDBResponseKeys.RELEASE_DATE,
-                "year",
-            ]
-            for year_field in year_fields:
-                year_value = candidate.get(year_field)
-                if year_value:
-                    try:
-                        if isinstance(year_value, str):
-                            # Extract year from date string (YYYY-MM-DD)
-                            candidate_year = int(year_value.split("-")[0])
-                        else:
-                            candidate_year = int(year_value)
-                        break
-                    except (ValueError, TypeError, AttributeError):
-                        continue
+            date_str = candidate.display_date
+            if date_str:
+                try:
+                    candidate_year = int(date_str.split("-")[0])
+                except (ValueError, TypeError, AttributeError):
+                    pass
 
             if candidate_year is None:
                 logger.debug(
                     "No year found for candidate: %s",
-                    candidate.get(TMDBResponseKeys.TITLE, ""),
+                    candidate.display_title,
                 )
                 # Include candidates without year but with lower priority
-                candidate_with_year = candidate.copy()
-                candidate_with_year[MatchingFieldNames.YEAR_SCORE] = (
-                    YearMatchingConfig.YEAR_SCORE_UNKNOWN
-                )
-                candidate_with_year[MatchingFieldNames.YEAR_DIFF] = (
-                    YearMatchingConfig.YEAR_DIFF_UNKNOWN
-                )
-                filtered_candidates.append(candidate_with_year)
+                # Note: Year score is just for internal ranking, not stored in model
+                filtered_candidates.append(candidate)
                 continue
 
             # Calculate year difference
             year_diff = abs(candidate_year - target_year)
 
-            # Add year score (lower difference = higher score)
-            candidate_with_year = candidate.copy()
-            candidate_with_year[MatchingFieldNames.YEAR_SCORE] = max(
-                YearMatchingConfig.YEAR_SCORE_UNKNOWN,
-                YearMatchingConfig.YEAR_SCORE_MAX - year_diff,
-            )
-            candidate_with_year[MatchingFieldNames.YEAR_DIFF] = year_diff
+            # Filter by year threshold (only keep reasonably close years)
+            # Allow up to 10 year difference for anime (long-running series, prequels, etc.)
+            if year_diff > 10:
+                logger.debug(
+                    "Candidate '%s' filtered out: year %d too far from %d (diff: %d)",
+                    candidate.display_title,
+                    candidate_year,
+                    target_year,
+                    year_diff,
+                )
+                continue
 
-            filtered_candidates.append(candidate_with_year)
+            filtered_candidates.append(candidate)
 
             logger.debug(
-                "Year match for '%s': %d vs %d (diff: %d, score: %d)",
-                candidate.get(TMDBResponseKeys.TITLE, ""),
+                "Year match for '%s': %d vs %d (diff: %d)",
+                candidate.display_title,
                 candidate_year,
                 target_year,
                 year_diff,
-                candidate_with_year[MatchingFieldNames.YEAR_SCORE],
             )
 
-        # Sort by year score (highest first), then by title score
-        filtered_candidates.sort(
-            key=lambda x: (
-                x.get(MatchingFieldNames.YEAR_SCORE, 0),
-                x.get(MatchingFieldNames.TITLE_SCORE, 0),
-            ),
-            reverse=True,
-        )
+        # Sort by confidence score (already highest first from scoring phase)
+        # No need to re-sort unless we're boosting by year
+        logger.debug("Filtered %d candidates by year", len(filtered_candidates))
+
+        # Keep confidence-sorted order from scoring phase
 
         logger.debug("Filtered %d candidates by year", len(filtered_candidates))
         return filtered_candidates
 
     def _calculate_confidence_scores(
         self,
-        candidates: list[dict[str, Any]],
+        candidates: list[TMDBSearchResult],
         normalized_query: NormalizedQuery,
-    ) -> list[dict[str, Any]]:
+    ) -> list[ScoredSearchResult]:
         """Calculate confidence scores for all candidates.
 
         This method uses the confidence scoring system to evaluate each candidate
-        and add a confidence_score field to each candidate.
+        and return ScoredSearchResult Pydantic models.
 
         Args:
-            candidates: List of TMDB search results as dicts
+            candidates: List of TMDB search results as Pydantic models
             normalized_query: NormalizedQuery domain object
 
         Returns:
-            List of candidates with added 'confidence_score' field
+            List of ScoredSearchResult models sorted by confidence (highest first)
         """
-        scored_candidates = []
+        scored_candidates: list[ScoredSearchResult] = []
 
         for candidate in candidates:
             try:
-                # Type validation for candidate
-                if not isinstance(candidate, dict):
-                    # Skip invalid candidates (unreachable in normal flow)
-                    continue  # type: ignore[unreachable]
-
-                # Convert dict candidate to TMDBSearchResult for scoring
-                # This is a temporary adapter until full end-to-end dataclass flow
-                try:
-                    tmdb_result = TMDBSearchResult.model_validate(candidate)
-                except Exception as e:  # noqa: BLE001
-                    logger.warning(
-                        "Failed to validate candidate as TMDBSearchResult: %s",
-                        str(e),
-                    )
-                    continue
-
-                # Calculate confidence score using dataclass inputs
+                # Calculate confidence score using Pydantic models
                 confidence_score = calculate_confidence_score(
                     normalized_query,
-                    tmdb_result,
+                    candidate,
                 )
 
-                # Add confidence score to candidate
-                candidate_with_confidence = candidate.copy()
-                candidate_with_confidence[MatchingFieldNames.CONFIDENCE_SCORE] = (
-                    confidence_score
+                # Create ScoredSearchResult from candidate
+                scored_result = ScoredSearchResult(
+                    **candidate.model_dump(),
+                    confidence_score=confidence_score,
                 )
 
-                scored_candidates.append(candidate_with_confidence)
+                scored_candidates.append(scored_result)
 
                 logger.debug(
                     "Confidence score for '%s': %.3f",
-                    candidate.get(TMDBResponseKeys.TITLE, ""),
+                    candidate.display_title,
                     confidence_score,
                 )
 
             except Exception as e:  # noqa: BLE001
                 logger.warning(
                     "Error calculating confidence score for candidate '%s': %s",
-                    candidate.get(TMDBResponseKeys.TITLE, ""),
+                    candidate.display_title,
                     str(e),
                 )
                 # Add candidate with 0 confidence score
-                candidate_with_confidence = candidate.copy()
-                candidate_with_confidence[MatchingFieldNames.CONFIDENCE_SCORE] = 0.0
-                scored_candidates.append(candidate_with_confidence)
+                scored_result = ScoredSearchResult(
+                    **candidate.model_dump(),
+                    confidence_score=0.0,
+                )
+                scored_candidates.append(scored_result)
 
         # Sort by confidence score (highest first)
         scored_candidates.sort(
-            key=lambda x: x.get(MatchingFieldNames.CONFIDENCE_SCORE, 0),
+            key=lambda x: x.confidence_score,
             reverse=True,
         )
 
@@ -453,7 +341,7 @@ class MatchingEngine:
                 return None
 
             # Step 3: Score and rank candidates
-            scored_candidates = self._score_and_rank_candidates(
+            scored_candidates: list[ScoredSearchResult] = self._score_and_rank_candidates(
                 candidates,
                 normalized_query,
             )
@@ -461,7 +349,7 @@ class MatchingEngine:
                 return None
 
             # Step 4: Apply fallback strategies if needed
-            best_candidate = self._apply_fallback_if_needed(
+            best_candidate: ScoredSearchResult = self._apply_fallback_if_needed(
                 scored_candidates,
                 normalized_query,
             )
@@ -476,22 +364,8 @@ class MatchingEngine:
                 normalized_query,
             )
 
-            # Record stats using dict version for backward compatibility
-            result_dict = best_candidate.copy()
-            result_dict[MatchingFieldNames.MATCHING_METADATA] = {
-                "original_title": normalized_query.title,
-                "year_hint": normalized_query.year,
-                "total_candidates": len(candidates),
-                "scored_candidates": len(scored_candidates),
-                "confidence_score": match_result.confidence_score,
-                "confidence_level": self._get_confidence_level(
-                    match_result.confidence_score,
-                ),
-                "used_fallback": match_result.confidence_score
-                < ConfidenceThresholds.HIGH,
-            }
-
-            self._record_successful_match(result_dict, candidates)
+            # Record stats using Pydantic model
+            self._record_successful_match(best_candidate, normalized_query, candidates)
             self.statistics.end_timing("matching_operation")
 
             return match_result
@@ -525,15 +399,14 @@ class MatchingEngine:
     async def _search_for_candidates(
         self,
         normalized_query: NormalizedQuery,
-    ) -> list[dict[str, Any]] | None:
+    ) -> list[TMDBSearchResult] | None:
         """Search for TMDB candidates.
 
         Args:
             normalized_query: NormalizedQuery domain object
 
         Returns:
-            List of TMDB candidates as dicts (for compatibility with existing scoring)
-            or None if no candidates found
+            List of TMDB candidates as Pydantic models or None if no candidates found
         """
         search_results = await self._search_tmdb(normalized_query)
 
@@ -541,21 +414,17 @@ class MatchingEngine:
             logger.info("No candidates found for: %s", normalized_query.title)
             return None
 
-        # Convert TMDBSearchResult to dict for compatibility with existing logic
-        # NOTE: Scoring already uses TMDBSearchResult (Task 4 complete)
-        candidates = [result.model_dump() for result in search_results]
-
-        return candidates
+        return search_results
 
     def _score_and_rank_candidates(
         self,
-        candidates: list[dict[str, Any]],
+        candidates: list[TMDBSearchResult],
         normalized_query: NormalizedQuery,
-    ) -> list[dict[str, Any]] | None:
+    ) -> list[ScoredSearchResult]:
         """Score and rank candidates by confidence.
 
         Args:
-            candidates: List of TMDB candidates as dicts
+            candidates: List of TMDB candidates as Pydantic models
             normalized_query: NormalizedQuery domain object
 
         Returns:
@@ -566,17 +435,14 @@ class MatchingEngine:
             normalized_query,
         )
 
-        if not scored_candidates:
-            logger.info("No scored candidates for: %s", normalized_query.title)
-            return None
-
+        # Always return scored candidates (empty list if none)
         return scored_candidates
 
     def _apply_fallback_if_needed(
         self,
-        scored_candidates: list[dict[str, Any]],
+        scored_candidates: list[ScoredSearchResult],
         normalized_query: NormalizedQuery,
-    ) -> dict[str, Any]:
+    ) -> ScoredSearchResult:
         """Apply fallback strategies if confidence is too low.
 
         Args:
@@ -587,12 +453,12 @@ class MatchingEngine:
             Best candidate after applying fallback strategies
         """
         best_candidate = scored_candidates[0]
-        best_confidence = best_candidate.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
+        best_confidence = best_candidate.confidence_score
 
         logger.info(
             "Best candidate for '%s': '%s' (confidence: %.3f)",
             normalized_query.title,
-            best_candidate.get(TMDBResponseKeys.TITLE, ""),
+            best_candidate.display_title,
             best_confidence,
         )
 
@@ -610,12 +476,12 @@ class MatchingEngine:
 
             if fallback_candidates:
                 best_candidate = fallback_candidates[0]
-                best_confidence = best_candidate.get("confidence_score", 0.0)
+                best_confidence = best_candidate.confidence_score
                 logger.info("Fallback improved confidence to %.3f", best_confidence)
 
         return best_candidate
 
-    def _validate_final_confidence(self, best_candidate: dict[str, Any]) -> bool:
+    def _validate_final_confidence(self, best_candidate: ScoredSearchResult) -> bool:
         """Validate that the final confidence meets minimum threshold.
 
         Args:
@@ -624,7 +490,7 @@ class MatchingEngine:
         Returns:
             True if confidence is acceptable, False otherwise
         """
-        best_confidence = best_candidate.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
+        best_confidence = best_candidate.confidence_score
 
         if best_confidence < ConfidenceThresholds.LOW:
             logger.warning(
@@ -638,61 +504,39 @@ class MatchingEngine:
 
     def _create_match_result(
         self,
-        best_candidate: dict[str, Any],
+        best_candidate: ScoredSearchResult,
         normalized_query: NormalizedQuery,
     ) -> MatchResult:
         """Create MatchResult domain object from best candidate.
 
         Args:
-            best_candidate: The best matching candidate dict
+            best_candidate: The best matching ScoredSearchResult
             normalized_query: NormalizedQuery domain object
 
         Returns:
             MatchResult domain object with match details
         """
-        from anivault.shared.constants.tmdb_keys import TMDBResponseKeys
-
-        best_confidence = best_candidate.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
-        tmdb_id = best_candidate.get(TMDBResponseKeys.ID, 0)
-        title = (
-            best_candidate.get(TMDBResponseKeys.TITLE)
-            or best_candidate.get(TMDBResponseKeys.NAME)
-            or "Unknown"
-        )
-
         # Extract year from date fields
         year = None
-        release_date = best_candidate.get(TMDBResponseKeys.RELEASE_DATE)
-        first_air_date = best_candidate.get(TMDBResponseKeys.FIRST_AIR_DATE)
-        date_str = release_date or first_air_date
+        date_str = best_candidate.display_date
         if date_str:
             try:
                 year = int(date_str.split("-")[0])
             except (ValueError, IndexError, AttributeError):
                 pass
 
-        media_type = best_candidate.get(TMDBResponseKeys.MEDIA_TYPE, "unknown")
-
-        # Extract additional TMDB metadata
-        poster_path = best_candidate.get(TMDBResponseKeys.POSTER_PATH)
-        backdrop_path = best_candidate.get(TMDBResponseKeys.BACKDROP_PATH)
-        overview = best_candidate.get(TMDBResponseKeys.OVERVIEW)
-        popularity = best_candidate.get(TMDBResponseKeys.POPULARITY)
-        vote_average = best_candidate.get(TMDBResponseKeys.VOTE_AVERAGE)
-        original_language = best_candidate.get(TMDBResponseKeys.ORIGINAL_LANGUAGE)
-
         match_result = MatchResult(
-            tmdb_id=tmdb_id,
-            title=title,
+            tmdb_id=best_candidate.id,
+            title=best_candidate.display_title,
             year=year,
-            confidence_score=best_confidence,
-            media_type=media_type,
-            poster_path=poster_path,
-            backdrop_path=backdrop_path,
-            overview=overview,
-            popularity=popularity,
-            vote_average=vote_average,
-            original_language=original_language,
+            confidence_score=best_candidate.confidence_score,
+            media_type=best_candidate.media_type,
+            poster_path=best_candidate.poster_path,
+            backdrop_path=best_candidate.backdrop_path,
+            overview=best_candidate.overview,
+            popularity=best_candidate.popularity,
+            vote_average=best_candidate.vote_average,
+            original_language=best_candidate.original_language,
         )
 
         logger.info(
@@ -706,20 +550,19 @@ class MatchingEngine:
 
     def _record_successful_match(
         self,
-        result: dict[str, Any],
-        candidates: list[dict[str, Any]],
+        result: ScoredSearchResult,
+        query: NormalizedQuery,  # noqa: ARG002 - For future metadata extension
+        candidates: list[TMDBSearchResult],
     ) -> None:
         """Record statistics for successful match.
 
         Args:
-            result: The successful match result
+            result: The successful ScoredSearchResult
+            query: The NormalizedQuery used for matching
             candidates: Original list of candidates
         """
-        best_confidence = result.get(MatchingFieldNames.CONFIDENCE_SCORE, 0.0)
-        used_fallback = result.get(MatchingFieldNames.MATCHING_METADATA, {}).get(
-            "used_fallback",
-            False,
-        )
+        best_confidence = result.confidence_score
+        used_fallback = best_confidence < ConfidenceThresholds.HIGH
 
         self.statistics.record_match_success(
             confidence=best_confidence,
@@ -729,9 +572,9 @@ class MatchingEngine:
 
     def _apply_fallback_strategies(
         self,
-        candidates: list[dict[str, Any]],
+        candidates: list[ScoredSearchResult],
         normalized_query: NormalizedQuery,
-    ) -> list[dict[str, Any]]:
+    ) -> list[ScoredSearchResult]:
         """Apply fallback strategies to improve matching.
 
         This method implements various fallback strategies when primary matching
@@ -739,7 +582,7 @@ class MatchingEngine:
         and partial substring matching.
 
         Args:
-            candidates: List of scored candidates
+            candidates: List of scored candidates (Pydantic models)
             normalized_query: NormalizedQuery domain object
 
         Returns:
@@ -752,7 +595,7 @@ class MatchingEngine:
 
         # Check if genre filtering improved confidence
         if genre_filtered_candidates:
-            best_confidence = genre_filtered_candidates[0].get("confidence_score", 0.0)
+            best_confidence = genre_filtered_candidates[0].confidence_score
             if best_confidence >= ConfidenceThresholds.HIGH:
                 logger.debug(
                     "Genre filtering produced high confidence match: %.3f",
@@ -772,39 +615,28 @@ class MatchingEngine:
         )
         return partial_matched_candidates
 
-    def _get_candidate_title(self, candidate: dict[str, Any]) -> str:
+    def _get_candidate_title(self, candidate: TMDBSearchResult | ScoredSearchResult) -> str:
         """Safely get title from candidate (supports both movies and TV shows).
 
         Args:
-            candidate: TMDB candidate dictionary
+            candidate: TMDB search result (Pydantic model)
 
         Returns:
-            Title string (movie title or TV show name), or empty string if not found
+            Title string (movie title or TV show name)
         """
-        # Try movie title first
-        title = candidate.get(TMDBResponseKeys.TITLE)
-        if title:
-            return str(title)
-
-        # Fall back to TV show name
-        name = candidate.get(TMDBResponseKeys.NAME)
-        if name:
-            return str(name)
-
-        # Return empty string if neither is available
-        return ""
+        return candidate.display_title
 
     def _apply_genre_filter(
         self,
-        candidates: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
+        candidates: list[ScoredSearchResult],
+    ) -> list[ScoredSearchResult]:
         """Apply genre-based filtering to boost animation candidates.
 
         This method iterates through candidates and boosts the confidence score
         of any candidate that has the Animation genre (ID 16) in its genre_ids list.
 
         Args:
-            candidates: List of scored candidates
+            candidates: List of scored candidates (Pydantic models)
 
         Returns:
             List of candidates with updated confidence scores, sorted by new scores
@@ -815,24 +647,17 @@ class MatchingEngine:
 
         logger.debug("Applying genre filter to %d candidates", len(candidates))
 
-        boosted_candidates = []
+        boosted_candidates: list[ScoredSearchResult] = []
 
         for candidate in candidates:
-            # Create a copy to avoid modifying the original
-            boosted_candidate = candidate.copy()
+            # Get genre IDs from Pydantic model
+            genre_ids = candidate.genre_ids
 
-            # Check if candidate has genre information
-            genre_ids = candidate.get(TMDBResponseKeys.GENRE_IDS, [])
-            if not genre_ids:
-                # Try to get genre_ids from nested tmdb_data if available
-                tmdb_data = candidate.get("tmdb_data", {})
-                genre_ids = tmdb_data.get(TMDBResponseKeys.GENRE_IDS, [])
+            # Apply genre boost for confirmed animation
+            current_confidence = candidate.confidence_score
 
-            # Apply genre boost for confirmed animation (no penalty to avoid false negatives)
-            current_confidence = boosted_candidate.get("confidence_score", 0.0)
-
-            # Safely get title for logging (handles both movies and TV shows)
-            candidate_title = self._get_candidate_title(candidate)[:40]
+            # Safely get title for logging
+            candidate_title = candidate.display_title[:40]
 
             if GenreConfig.ANIMATION_GENRE_ID in genre_ids:
                 # Boost for animation genre
@@ -840,7 +665,12 @@ class MatchingEngine:
                     GenreConfig.MAX_CONFIDENCE,
                     current_confidence + GenreConfig.ANIMATION_BOOST,
                 )
-                boosted_candidate[MatchingFieldNames.CONFIDENCE_SCORE] = new_confidence
+
+                # Create new ScoredSearchResult with boosted confidence
+                boosted_candidate = ScoredSearchResult(
+                    **candidate.model_dump(exclude={"confidence_score"}),
+                    confidence_score=new_confidence,
+                )
 
                 # Animation threshold: lenient for cross-script fuzzy matching
                 if new_confidence >= ConfidenceThresholds.ANIMATION_MIN:
@@ -862,7 +692,7 @@ class MatchingEngine:
             # Non-animation: require much higher confidence to avoid false positives
             # This filters out quiz shows, variety shows, live-action, etc.
             elif current_confidence >= ConfidenceThresholds.NON_ANIMATION_MIN:
-                boosted_candidates.append(boosted_candidate)
+                boosted_candidates.append(candidate)
                 logger.debug(
                     "✅ Non-animation candidate '%s' accepted: %.3f >= %.1f",
                     candidate_title,
@@ -880,7 +710,7 @@ class MatchingEngine:
 
         # Sort by confidence score (highest first)
         boosted_candidates.sort(
-            key=lambda x: x.get("confidence_score", 0),
+            key=lambda x: x.confidence_score,
             reverse=True,
         )
 
@@ -889,17 +719,17 @@ class MatchingEngine:
 
     def _apply_partial_substring_match(
         self,
-        candidates: list[dict[str, Any]],
+        candidates: list[ScoredSearchResult],
         normalized_query: NormalizedQuery,
-    ) -> list[dict[str, Any]]:
+    ) -> list[ScoredSearchResult]:
         """Apply partial substring matching to improve matching for abbreviated titles.
 
-        This method uses fuzzywuzzy's partial_ratio to calculate new confidence scores
+        This method uses rapidfuzz's partial_ratio to calculate new confidence scores
         for candidates, which is useful for cases like 'OP' matching 'One Piece' or
         'KNY' matching 'Kimetsu no Yaiba'.
 
         Args:
-            candidates: List of scored candidates
+            candidates: List of scored candidates (Pydantic models)
             normalized_query: NormalizedQuery domain object
 
         Returns:
@@ -919,20 +749,14 @@ class MatchingEngine:
             normalized_query.title,
         )
 
-        partial_matched_candidates = []
+        partial_matched_candidates: list[ScoredSearchResult] = []
 
         for candidate in candidates:
-            # Create a copy to avoid modifying the original
-            partial_candidate = candidate.copy()
-
-            # Extract candidate title
-            candidate_title = candidate.get(
-                TMDBResponseKeys.TITLE,
-                "",
-            ) or candidate.get(TMDBResponseKeys.NAME, "")
+            # Extract candidate title from Pydantic model
+            candidate_title = candidate.display_title
             if not candidate_title:
                 logger.debug("Skipping candidate with no title for partial matching")
-                partial_matched_candidates.append(partial_candidate)
+                partial_matched_candidates.append(candidate)
                 continue
 
             # Calculate partial ratio score
@@ -945,18 +769,17 @@ class MatchingEngine:
             partial_confidence = partial_score / 100.0
 
             # Use the higher of the original confidence or partial confidence
-            original_confidence = partial_candidate.get(
-                MatchingFieldNames.CONFIDENCE_SCORE,
-                0.0,
-            )
+            original_confidence = candidate.confidence_score
             new_confidence = max(original_confidence, partial_confidence)
-            partial_candidate[MatchingFieldNames.CONFIDENCE_SCORE] = new_confidence
 
-            # Add partial matching metadata
-            partial_candidate[MatchingFieldNames.PARTIAL_MATCH_SCORE] = partial_score
-            partial_candidate[MatchingFieldNames.USED_PARTIAL_MATCHING] = (
-                new_confidence > original_confidence
-            )
+            # Create new ScoredSearchResult with updated confidence if improved
+            if new_confidence > original_confidence:
+                partial_candidate = ScoredSearchResult(
+                    **candidate.model_dump(exclude={"confidence_score"}),
+                    confidence_score=new_confidence,
+                )
+            else:
+                partial_candidate = candidate
 
             logger.debug(
                 "Partial match for '%s' vs '%s': %d (confidence: %.3f -> %.3f)",
@@ -971,7 +794,7 @@ class MatchingEngine:
 
         # Sort by confidence score (highest first)
         partial_matched_candidates.sort(
-            key=lambda x: x.get(MatchingFieldNames.CONFIDENCE_SCORE, 0),
+            key=lambda x: x.confidence_score,
             reverse=True,
         )
 

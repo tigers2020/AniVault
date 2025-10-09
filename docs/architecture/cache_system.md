@@ -1,7 +1,7 @@
 # TMDB Cache System Architecture
 
-**Version**: 1.0  
-**Last Updated**: 2025-10-06  
+**Version**: 1.0
+**Last Updated**: 2025-10-06
 **Component**: Cache Layer
 
 ---
@@ -64,27 +64,27 @@ The TMDB Cache System is a critical component of AniVault that optimizes API usa
 ```sql
 CREATE TABLE tmdb_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    
+
     -- Cache key information
     cache_key TEXT NOT NULL UNIQUE,
     key_hash TEXT NOT NULL UNIQUE,
-    
+
     -- Cache type (extensible)
     cache_type TEXT NOT NULL,
     endpoint_category TEXT,
-    
+
     -- Response data (JSON BLOB)
     response_data TEXT NOT NULL,
-    
+
     -- TTL and metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     expires_at TIMESTAMP,
-    
+
     -- Statistics
     hit_count INTEGER DEFAULT 0,
     last_accessed_at TIMESTAMP,
     response_size INTEGER,
-    
+
     -- Constraints
     CHECK (length(cache_key) > 0),
     CHECK (length(key_hash) = 64)
@@ -131,7 +131,7 @@ def generate_cache_key(
     params: dict
 ) -> str:
     """Generate normalized cache key."""
-    
+
 def hash_cache_key(key: str) -> str:
     """Generate SHA-256 hash of cache key."""
 ```
@@ -165,7 +165,7 @@ def cache_get(key: str, cache_type: str = "search") -> dict | None:
     if data:
         logger.debug("Cache hit: %s", key)
         return data
-    
+
     # 2. Cache miss - fetch from API
     logger.debug("Cache miss: %s", key)
     return None
@@ -174,7 +174,7 @@ def cache_set(key: str, data: dict, cache_type: str = "search", ttl_seconds: int
     """Store data in SQLite cache with validation."""
     # Security validation
     validate_api_key_not_in_data(data)
-    
+
     # Store in cache
     sqlite_cache.set_cache(key, data, cache_type, ttl_seconds)
     logger.debug("Cached: %s", key)
@@ -274,7 +274,7 @@ class MatchingEngine:
     def __init__(self, tmdb_client, cache_mode="db-only"):
         self.tmdb_client = tmdb_client
         self.cache_mode = cache_mode
-    
+
     def get_cache_stats(self):
         """Get cache statistics for UI."""
         return {
@@ -294,21 +294,21 @@ TMDBClient accepts cache instance:
 class TMDBClient:
     def __init__(self, api_key, cache=None):
         self.cache = cache or SQLiteCacheDB(default_db_path)
-    
+
     async def search_tv(self, query, language="en"):
         # Check cache first
         cache_key = generate_cache_key("search", "tv", query, {"language": language})
         cached = self.cache.get(cache_key, cache_type="search")
-        
+
         if cached:
             return cached
-        
+
         # Fetch from API
         result = await self._api_call(...)
-        
+
         # Store in cache
         self.cache.set_cache(cache_key, result, cache_type="search", ttl_seconds=86400)
-        
+
         return result
 ```
 
@@ -464,7 +464,7 @@ stats = cache.statistics.get_stats()
 def health_check(cache: SQLiteCacheDB) -> dict:
     """Check cache health."""
     info = cache.get_cache_info()
-    
+
     return {
         "healthy": info["total_files"] > 0,
         "total_entries": info["total_files"],
@@ -481,4 +481,3 @@ def health_check(cache: SQLiteCacheDB) -> dict:
 - [TMDB API Documentation](https://developers.themoviedb.org/3)
 - [Performance Benchmark Report](../performance/cache_benchmark.md)
 - [User Guide](../tmdb_cache_db.md)
-

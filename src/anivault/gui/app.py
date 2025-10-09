@@ -119,7 +119,7 @@ class AniVaultGUI:
 
             logger.info("Initial theme loaded: %s", saved_theme)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - GUI theme loading fallback
             logger.warning("Failed to load initial theme, using default: %s", e)
             # Fallback to default theme
             try:

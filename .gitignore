@@ -49,6 +49,11 @@ coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
+
+# Benchmark results (keep baseline only)
+.benchmarks/
+!.benchmarks/.gitkeep
+!.benchmarks/baseline.json
 .pytest_cache/
 
 # Translations
@@ -359,4 +364,4 @@ node_modules/
 
 # Task files
 # tasks.json
-# tasks/
+# tasks/ 

@@ -20,7 +20,7 @@ from anivault.shared.errors import (
 logger = logging.getLogger(__name__)
 
 
-def handle_verify_command(options: VerifyOptions) -> int:
+def handle_verify_command(options: VerifyOptions) -> int:  # noqa: PLR0911
     """Handle the verify command.
 
     Args:

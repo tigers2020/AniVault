@@ -1,2 +1,1 @@
 """Security tests for AniVault."""
-

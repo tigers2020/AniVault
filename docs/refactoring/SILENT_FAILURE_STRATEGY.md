@@ -1,7 +1,7 @@
 # Silent Failure 패턴 리팩토링 전략
 
-**작성일**: 2025-10-07  
-**대상**: 52개 silent failure 패턴  
+**작성일**: 2025-10-07
+**대상**: 52개 silent failure 패턴
 **우선순위**: P1 (HIGH)
 
 ---
@@ -39,20 +39,20 @@ def _get_rollback_log_path(options, console):
 # ✅ AFTER: 명확한 예외 발생
 def _get_rollback_log_path(options: RollbackOptions) -> Path:
     """Get rollback log path.
-    
+
     Args:
         options: Rollback options
-    
+
     Returns:
         Path to rollback log
-    
+
     Raises:
         ApplicationError: If log path cannot be determined
         InfrastructureError: If log file access fails
     """
     from pathlib import Path
     from anivault.core.log_manager import OperationLogManager
-    
+
     # Validation
     if not options.log_id:
         raise ApplicationError(
@@ -60,18 +60,18 @@ def _get_rollback_log_path(options: RollbackOptions) -> Path:
             "Log ID is required for rollback",
             context={"operation": "get_rollback_log_path"}
         )
-    
+
     # Business logic
     log_manager = OperationLogManager(Path.cwd())
     log_path = log_manager.get_log_by_id(options.log_id)
-    
+
     if not log_path.exists():
         raise InfrastructureError(
             ErrorCode.FILE_NOT_FOUND,
             f"Rollback log not found: {log_path}",
             context={"log_id": options.log_id, "path": str(log_path)}
         )
-    
+
     return log_path
 ```
 
@@ -79,26 +79,26 @@ def _get_rollback_log_path(options: RollbackOptions) -> Path:
 ```python
 def _run_rollback_command(options: RollbackOptions) -> int:
     """Run rollback command.
-    
+
     Returns:
         Exit code (0=success, 1=error)
     """
     try:
         console = _setup_rollback_console()
-        
+
         # 헬퍼 함수 호출 (예외 발생 가능)
         log_path = _get_rollback_log_path(options)
         rollback_plan = _generate_rollback_plan(log_path)
-        
+
         # 실행
         return _execute_rollback_plan(rollback_plan, options, console)
-        
+
     except ApplicationError as e:
         # 사용자 친화적 메시지 출력
         console.print(f"[red]❌ {e.message}[/red]")
         if e.context:
             console.print(f"[dim]Details: {e.context}[/dim]")
-        
+
         # 구조화된 로깅
         logger.error(
             "Rollback command failed",
@@ -110,7 +110,7 @@ def _run_rollback_command(options: RollbackOptions) -> int:
             exc_info=True
         )
         return 1
-        
+
     except InfrastructureError as e:
         console.print(f"[red]❌ System error: {e.message}[/red]")
         logger.error(
@@ -119,12 +119,12 @@ def _run_rollback_command(options: RollbackOptions) -> int:
             exc_info=True
         )
         return 1
-        
+
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠️  Operation cancelled by user[/yellow]")
         logger.info("Rollback cancelled by user")
         return 130  # Standard exit code for SIGINT
-        
+
     except Exception as e:
         console.print(f"[red]❌ Unexpected error: {e}[/red]")
         logger.exception("Unexpected error during rollback")
@@ -164,7 +164,7 @@ Result = Union[Ok[T], Err[E]]
 
 def _get_rollback_log_path(options: RollbackOptions) -> Result[Path, ApplicationError]:
     """Get rollback log path.
-    
+
     Returns:
         Result containing Path or ApplicationError
     """
@@ -197,10 +197,10 @@ def test_get_rollback_log_path_success():
     """롤백 로그 경로 조회 성공"""
     # Given
     options = RollbackOptions(log_id="test_log_001")
-    
+
     # When
     log_path = _get_rollback_log_path(options)
-    
+
     # Then
     assert log_path.exists()
     assert log_path.name == "test_log_001.json"
@@ -209,11 +209,11 @@ def test_get_rollback_log_path_missing_log_id():
     """로그 ID 없을 때 ValidationError 발생"""
     # Given
     options = RollbackOptions(log_id=None)
-    
+
     # When & Then
     with pytest.raises(ApplicationError) as exc_info:
         _get_rollback_log_path(options)
-    
+
     assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
     assert "required" in exc_info.value.message.lower()
 
@@ -221,11 +221,11 @@ def test_get_rollback_log_path_file_not_found():
     """로그 파일 없을 때 FileNotFoundError 발생"""
     # Given
     options = RollbackOptions(log_id="nonexistent_log")
-    
+
     # When & Then
     with pytest.raises(InfrastructureError) as exc_info:
         _get_rollback_log_path(options)
-    
+
     assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
 ```
 
@@ -311,7 +311,5 @@ except SpecificError as e:
 
 ---
 
-**승인자**: 윤도현 (CLI), 최로건 (QA)  
+**승인자**: 윤도현 (CLI), 최로건 (QA)
 **검토자**: 니아 오코예 (보안), 정하림 (컴플라이언스)
-
-

@@ -32,16 +32,16 @@ AniVault 프로젝트의 코딩 표준, 품질 가이드라인, 모범 사례 �
 ```python
 # ✅ DO: 명확하고 읽기 쉬운 코드
 def calculate_matching_score(
-    candidate: MediaItem, 
+    candidate: MediaItem,
     target: MediaItem
 ) -> float:
     """매칭 점수 계산."""
     title_similarity = jaccard_similarity(
-        candidate.title, 
+        candidate.title,
         target.title
     )
     year_match = 1.0 if candidate.year == target.year else 0.0
-    
+
     return (title_similarity * 0.6 + year_match * 0.4)
 
 # ❌ DON'T: 모호하고 읽기 어려운 코드
@@ -76,19 +76,19 @@ def match_media_files(
 ) -> List[MatchResult]:
     """
     미디어 파일 매칭.
-    
+
     Args:
         source_path: 소스 파일 경로
         target_path: 타겟 파일 경로
         algorithm: 매칭 알고리즘 ('default', 'advanced')
-        
+
     Returns:
         매칭 결과 리스트
-        
+
     Raises:
         FileNotFoundError: 파일을 찾을 수 없을 때
         ValueError: 잘못된 알고리즘 이름일 때
-        
+
     Example:
         >>> results = match_media_files('/movies', '/target')
         >>> print(len(results))
@@ -194,7 +194,7 @@ def calculate_score(candidate: MediaItem, target: MediaItem) -> float:
     """기본 점수 계산."""
     if not candidate or not target:
         raise ValueError("Both candidate and target must be provided")
-    
+
     title_sim = jaccard_similarity(candidate.title, target.title)
     year_match = 1.0 if candidate.year == target.year else 0.0
     return title_sim * 0.6 + year_match * 0.4
@@ -207,7 +207,7 @@ def test_calculate_score():
     """점수 계산 테스트."""
     candidate = MediaItem("Movie A", 2020, ["Action"])
     target = MediaItem("Movie A", 2020, ["Action"])
-    
+
     score = calculate_score(candidate, target)
     assert score == 1.0  # 완벽한 매칭
 
@@ -224,14 +224,14 @@ def process_media_files(
 ) -> List[ProcessedFile]:
     """
     미디어 파일 처리.
-    
+
     Args:
         file_paths: 처리할 파일 경로 리스트
         options: 처리 옵션
-        
+
     Returns:
         처리된 파일 리스트
-        
+
     Raises:
         FileNotFoundError: 파일을 찾을 수 없을 때
         ProcessingError: 처리 중 오류 발생 시
@@ -278,6 +278,6 @@ def process_media_files(
 
 ---
 
-**문서 버전**: 1.0  
-**최종 업데이트**: 2024-01-XX  
+**문서 버전**: 1.0
+**최종 업데이트**: 2024-01-XX
 **관리자**: AniVault 품질팀

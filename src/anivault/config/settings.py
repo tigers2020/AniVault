@@ -144,7 +144,6 @@ class ScanConfig(BaseModel):
     )
 
 
-
 class AppConfig(BaseModel):
     """Application configuration."""
 

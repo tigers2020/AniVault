@@ -6,7 +6,7 @@
 
 ```toml
 # config/config.toml:18 (4개 커밋에 포함)
-api_key = "c479f9ce20ccbcc06dbcce991a238120"  # 🔴 노출된 키!
+api_key = "c479...0120"  # 🔴 노출된 키! (redacted for security)  # pragma: allowlist secret
 ```
 
 **영향 범위**:
@@ -182,5 +182,5 @@ api_key = "c479f9ce20ccbcc06dbcce991a238120"
 
 ---
 
-**작성일**: 2025-10-08  
+**작성일**: 2025-10-08
 **최종 업데이트**: 2025-10-08

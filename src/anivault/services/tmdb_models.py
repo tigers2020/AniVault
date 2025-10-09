@@ -140,6 +140,49 @@ class TMDBSearchResult(BaseModel):
         return self.first_air_date or self.release_date
 
 
+class ScoredSearchResult(TMDBSearchResult):
+    """TMDB search result with confidence score.
+
+    Extends TMDBSearchResult with a confidence_score field for ranking candidates.
+    Used internally by MatchingEngine after scoring phase.
+
+    Attributes:
+        confidence_score: Confidence score (0.0-1.0) from MatchingEngine
+
+    Example:
+        >>> result = ScoredSearchResult(
+        ...     id=1429,
+        ...     media_type="tv",
+        ...     name="Attack on Titan",
+        ...     confidence_score=0.95
+        ... )
+        >>> result.confidence_score
+        0.95
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    confidence_score: float = Field(0.0, description="Confidence score (0.0-1.0)")
+
+    @property
+    def display_title(self) -> str:
+        """Get display title regardless of media type.
+
+        Returns:
+            Movie title, TV show name, or "Unknown" if both are None
+        """
+        return self.title or self.name or "Unknown"
+
+    @property
+    def display_date(self) -> str | None:
+        """Get display date regardless of media type.
+
+        Returns:
+            TV show first air date or movie release date, None if both are None
+        """
+        return self.first_air_date or self.release_date
+
+
 class TMDBSearchResponse(BaseModel):
     """Complete TMDB search API response.
 

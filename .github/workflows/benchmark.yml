@@ -1,0 +1,82 @@
+name: Benchmark Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for baseline comparison
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      
+      - name: Run benchmarks
+        run: |
+          pytest tests/benchmarks/ \
+            --benchmark-only \
+            --benchmark-json=benchmark-results.json \
+            --benchmark-verbose
+      
+      - name: Store benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+      
+      - name: Compare with baseline (if exists)
+        continue-on-error: true
+        run: |
+          if [ -f .benchmarks/baseline.json ]; then
+            pytest tests/benchmarks/ \
+              --benchmark-only \
+              --benchmark-compare=baseline \
+              --benchmark-compare-fail=min:5%
+          else
+            echo "No baseline found, skipping comparison"
+          fi
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read benchmark results
+            const results = JSON.parse(fs.readFileSync('benchmark-results.json', 'utf8'));
+            
+            // Format results as markdown table
+            let comment = '## 📊 Benchmark Results\n\n';
+            comment += '| Test | Mean | StdDev | Min | Max |\n';
+            comment += '|------|------|--------|-----|-----|\n';
+            
+            results.benchmarks.forEach(bench => {
+              comment += `| ${bench.name} | ${bench.stats.mean.toFixed(4)}s | ${bench.stats.stddev.toFixed(4)}s | ${bench.stats.min.toFixed(4)}s | ${bench.stats.max.toFixed(4)}s |\n`;
+            });
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+

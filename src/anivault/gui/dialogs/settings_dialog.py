@@ -33,10 +33,7 @@ from PySide6.QtWidgets import (
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
 from anivault.config.settings import Settings, get_config
-from anivault.shared.constants.gui_messages import (
-    DialogMessages,
-    DialogTitles,
-)
+from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import AniVaultError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -226,7 +223,10 @@ class SettingsDialog(QDialog):
                 logger.debug("Loaded existing API key from configuration")
 
             # Load folder settings
-            if hasattr(self._cached_config, "folders") and self._cached_config.folders is not None:
+            if (
+                hasattr(self._cached_config, "folders")
+                and self._cached_config.folders is not None
+            ):
                 folders = self._cached_config.folders
                 self.source_folder_input.setText(folders.source_folder)
                 self.target_folder_input.setText(folders.target_folder)

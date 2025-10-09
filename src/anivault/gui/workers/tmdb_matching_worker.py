@@ -144,7 +144,7 @@ class TMDBMatchingWorker(QObject):
             processed_files = 0
 
             # Match once per group instead of per file
-            for group_title, file_items in groups.items():
+            for file_items in groups.values():
                 if self._cancelled:
                     self.matching_cancelled.emit()
                     return
@@ -226,7 +226,7 @@ class TMDBMatchingWorker(QObject):
                     # Failed to parse - use filename as group
                     groups[file_item.file_name] = [file_item]
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - GUI file grouping error fallback
                 logger.warning("Failed to group file %s: %s", file_item.file_name, e)
                 # Add to separate group
                 groups[file_item.file_name] = [file_item]

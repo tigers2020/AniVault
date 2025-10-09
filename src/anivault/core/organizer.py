@@ -41,6 +41,7 @@ class FileOrganizer:
         """
         self.log_manager = log_manager
         from anivault.config.settings import load_settings
+
         self.settings = settings or load_settings()
         self.app_config = self.settings.app
 
@@ -71,14 +72,16 @@ class FileOrganizer:
             series_title = metadata.title or "Unknown Series"
 
         season_number = metadata.season
-        episode_number = metadata.episode
-        episode_title = metadata.other_info.get("episode_title")
+        # episode_number and episode_title available but not currently used in path construction
+        # episode_number = metadata.episode  # noqa: ERA001
+        # episode_title = metadata.other_info.get("episode_title")  # noqa: ERA001
 
         # Clean series title for filesystem compatibility
         series_title = self._sanitize_filename(series_title)
 
         # Get organization settings
         from anivault.config.settings import get_config
+
         config = get_config()
 
         # Use folders.target_folder if set, otherwise fallback to default
@@ -88,6 +91,7 @@ class FileOrganizer:
         else:
             # No target folder configured - must be set in config
             from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+
             raise ApplicationError(
                 ErrorCode.CONFIGURATION_ERROR,
                 "Target folder not configured. Please set folders.target_folder in config.toml or via GUI settings.",
@@ -164,7 +168,10 @@ class FileOrganizer:
             # Skip files without TMDB match result (only organize matched files)
             match_result = scanned_file.metadata.other_info.get("match_result")
             if not match_result:
-                logger.debug("Skipping file without TMDB match: %s", scanned_file.file_path.name)
+                logger.debug(
+                    "Skipping file without TMDB match: %s",
+                    scanned_file.file_path.name,
+                )
                 continue
 
             # Construct destination path
@@ -183,12 +190,19 @@ class FileOrganizer:
             operations.append(operation)
 
             # Find and add matching subtitle files
-            subtitle_operations = self._find_matching_subtitles(scanned_file, destination_path)
+            subtitle_operations = self._find_matching_subtitles(
+                scanned_file,
+                destination_path,
+            )
             operations.extend(subtitle_operations)
 
         return operations
 
-    def _find_matching_subtitles(self, scanned_file: ScannedFile, destination_path: Path) -> list[FileOperation]:
+    def _find_matching_subtitles(
+        self,
+        scanned_file: ScannedFile,
+        destination_path: Path,
+    ) -> list[FileOperation]:
         """Find matching subtitle files for a video file.
 
         Args:
@@ -225,7 +239,11 @@ class FileOrganizer:
             )
             operations.append(operation)
 
-            logger.debug("Found matching subtitle: %s -> %s", subtitle_path.name, subtitle_dest)
+            logger.debug(
+                "Found matching subtitle: %s -> %s",
+                subtitle_path.name,
+                subtitle_dest,
+            )
 
         return operations
 
@@ -386,6 +404,7 @@ class FileOrganizer:
                 ) from e
 
         # Note: All operation types covered above (MOVE, COPY)
+        return None
 
     def _handle_operation_error(
         self,

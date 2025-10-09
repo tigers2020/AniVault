@@ -115,15 +115,24 @@ class OrganizePreviewDialog(QDialog):
 
         # Set column widths - prioritize destination column for long paths
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 파일명 - 내용에 맞춤
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # 현재 위치 - 내용에 맞춤
-        header.setSectionResizeMode(2, QHeaderView.Fixed)             # 화살표 - 고정
-        header.setSectionResizeMode(3, QHeaderView.Interactive)       # 이동 위치 - 수동 조절 가능
+        header.setSectionResizeMode(
+            0,
+            QHeaderView.ResizeToContents,
+        )  # 파일명 - 내용에 맞춤
+        header.setSectionResizeMode(
+            1,
+            QHeaderView.ResizeToContents,
+        )  # 현재 위치 - 내용에 맞춤
+        header.setSectionResizeMode(2, QHeaderView.Fixed)  # 화살표 - 고정
+        header.setSectionResizeMode(
+            3,
+            QHeaderView.Interactive,
+        )  # 이동 위치 - 수동 조절 가능
 
         # Set column widths with more space for destination
         self.table.setColumnWidth(0, 150)  # 파일명 - 적당히
         self.table.setColumnWidth(1, 150)  # 현재 위치 - 적당히
-        self.table.setColumnWidth(2, 30)   # 화살표 - 최소
+        self.table.setColumnWidth(2, 30)  # 화살표 - 최소
         self.table.setColumnWidth(3, 500)  # 이동 위치 - 매우 넓게
 
         # Allow horizontal scrolling for very long paths
@@ -196,5 +205,3 @@ class OrganizePreviewDialog(QDialog):
             List of FileOperation objects
         """
         return self.plan
-
-

@@ -13,10 +13,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import QLabel, QProgressDialog, QWidget
 
-from anivault.shared.constants.gui_messages import (
-    ButtonTexts,
-    ProgressMessages,
-)
+from anivault.shared.constants.gui_messages import ButtonTexts, ProgressMessages
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +92,9 @@ class TMDBProgressDialog(QProgressDialog):
         elif value == 0:
             self.setLabelText(ProgressMessages.STARTING_TMDB)
         elif value < 100:
-            self.setLabelText(ProgressMessages.MATCHING_IN_PROGRESS.format(percent=value))
+            self.setLabelText(
+                ProgressMessages.MATCHING_IN_PROGRESS.format(percent=value),
+            )
         else:
             self.setLabelText(ProgressMessages.MATCHING_COMPLETE)
 

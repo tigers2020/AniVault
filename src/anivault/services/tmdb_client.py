@@ -11,7 +11,6 @@ import asyncio
 import logging
 from typing import Any, Callable
 
-from pydantic import ValidationError
 from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
@@ -30,6 +29,8 @@ from .rate_limiter import TokenBucketRateLimiter
 from .semaphore_manager import SemaphoreManager
 from .state_machine import RateLimitState, RateLimitStateMachine
 from .tmdb_models import TMDBMediaDetails, TMDBSearchResponse, TMDBSearchResult
+from .tmdb_strategies import MovieSearchStrategy, SearchStrategy, TvSearchStrategy
+from .tmdb_utils import generate_shortened_titles
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,16 @@ class TMDBClient:
         self._tv = TV()
         self._movie = Movie()
 
+        # Initialize search strategies
+        self._tv_strategy = TvSearchStrategy(
+            tv_api=self._tv,
+            request_executor=self._make_request,
+        )
+        self._movie_strategy = MovieSearchStrategy(
+            movie_api=self._movie,
+            request_executor=self._make_request,
+        )
+
         # Verify configuration is applied
         logger.info(
             "TMDB Client initialized with language: %s, region: %s",
@@ -101,75 +112,60 @@ class TMDBClient:
             region,
         )
 
-    def _generate_shortened_titles(self, title: str) -> list[str]:
-        """Generate shortened versions of the title for fallback search.
-
-        Args:
-            title: Original title to shorten
+    def _get_strategies(self) -> list[SearchStrategy]:
+        """Get all search strategies to try.
 
         Returns:
-            List of shortened titles, ordered by preference (longest first)
+            List of search strategies (TV and Movie)
         """
-        # Split title into words
-        words = title.strip().split()
-        if len(words) <= 1:
-            return []  # Cannot shorten single word titles
+        return [self._tv_strategy, self._movie_strategy]
 
-        shortened_titles = []
+    async def _search_with_strategies(
+        self,
+        title: str,
+        strategies: list[SearchStrategy] | None = None,
+    ) -> list[TMDBSearchResult]:
+        """Execute search using all strategies and combine results.
 
-        # Remove common suffixes/versions
-        version_patterns = [
-            r"\s+v\d+$",  # v1, v2, etc.
-            r"\s+version\s+\d+$",  # version 1, version 2, etc.
-            r"\s+\d{4}$",  # year at end
-            r"\s+\(.*\)$",  # parentheses at end
-            r"\s+\[.*\]$",  # brackets at end
-            r"\s+ext$",  # ext suffix
-            r"\s+special$",  # special suffix
-            r"\s+ova$",  # ova suffix
-            r"\s+tv$",  # tv suffix
-        ]
+        Args:
+            title: Title to search for
+            strategies: List of strategies to use (defaults to all strategies)
 
-        import re
+        Returns:
+            Combined list of search results from all strategies
+        """
+        if strategies is None:
+            strategies = self._get_strategies()
 
-        base_title = title
-        for pattern in version_patterns:
-            base_title = re.sub(pattern, "", base_title, flags=re.IGNORECASE)
+        all_results: list[TMDBSearchResult] = []
 
-        # Add base title without version patterns
-        if base_title.strip() != title.strip():
-            shortened_titles.append(base_title.strip())
+        for strategy in strategies:
+            try:
+                results = await strategy.search(title)
+                all_results.extend(results)
+            except Exception as e:  # noqa: BLE001
+                # Strategies already log their own errors
+                # Just continue with next strategy
+                logger.debug(
+                    "Strategy %s failed for '%s': %s",
+                    strategy.__class__.__name__,
+                    title,
+                    e,
+                )
+                continue
 
-        # Generate progressive word removal (recursive trimming down to 1 word)
-        # Example: "이세계 묵시록 마이노그라~파멸의 문명에서 시작하는 세계 정복~"  # noqa: ERA001
-        #       → "이세계 묵시록 마이노그라~파멸의 문명에서 시작하는"
-        #       → "이세계 묵시록 마이노그라~파멸의 문명에서"
-        #       → ...
-        #       → "이세계 묵시록 마이노그라~"
-        #       → "이세계 묵시록"
-        #       → "이세계"
-        current_words = words.copy()
-        while (
-            len(current_words) > 1
-        ):  # Changed from > 2 to > 1 for more aggressive fallback
-            current_words.pop()  # Remove last word
-            shortened_titles.append(" ".join(current_words))
-
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_titles = []
-        for title_var in shortened_titles:
-            if title_var.lower() not in seen:
-                seen.add(title_var.lower())
-                unique_titles.append(title_var)
-
-        return unique_titles
+        return all_results
 
     async def search_media(self, title: str) -> TMDBSearchResponse:
         """Search for media (TV shows and movies) by title.
 
-        This method searches both TV shows and movies using the TMDB API
-        and returns a combined response with typed results.
+        Uses Strategy pattern to search both TV and Movie with automatic
+        fallback to shortened titles if no results found.
+
+        This method implements the Template Method pattern:
+        1. Try primary search with all strategies
+        2. If no results, try shortened title variations
+        3. Return combined results or raise error
 
         Args:
             title: Title to search for
@@ -178,292 +174,23 @@ class TMDBClient:
             TMDBSearchResponse with typed search results
 
         Raises:
-            InfrastructureError: If API request fails after all retries
-            ValidationError: If API response doesn't match expected schema
+            InfrastructureError: If API request fails or no media found
         """
         context = ErrorContext(
             operation="search_media",
             additional_data={"title": title},
         )
 
-        result_models: list[TMDBSearchResult] = []
+        # 1. Try primary search with all strategies
+        results = await self._search_with_strategies(title)
 
-        # Search TV shows
-        try:
-            tv_response = await self._make_request(lambda: self._tv.search(title))
-            # Extract results from API response (handle both dict and AsObj)
-            if hasattr(tv_response, "get"):
-                tv_results = tv_response.get("results", [])
-            else:
-                logger.warning(
-                    "TV search returned unexpected response: %s",
-                    type(tv_response),
-                )
-                tv_results = []
-
-            for result in tv_results:
-                try:
-                    # Convert result to dict if needed
-                    if isinstance(result, dict):
-                        result_dict = result
-                    elif hasattr(result, "__dict__"):
-                        # Convert object with attributes to dict
-                        result_dict = {
-                            k: v
-                            for k, v in result.__dict__.items()
-                            if not k.startswith("_")
-                        }
-                    elif hasattr(result, "get"):
-                        # Convert dict-like object to dict
-                        result_dict = dict(result)
-                    else:
-                        # Fallback: create minimal dict
-                        result_dict = {"id": 0, "name": str(result)}
-
-                    # Add media_type for Pydantic model
-                    result_dict["media_type"] = MediaType.TV
-
-                    # Parse into Pydantic model
-                    result_model = TMDBSearchResult(**result_dict)
-                    result_models.append(result_model)
-
-                except ValidationError as e:
-                    # Log validation error but continue processing other results
-                    logger.warning(
-                        "Failed to parse TV search result into Pydantic model: %s",
-                        e,
-                        extra={"result_data": result},
-                    )
-                except Exception as e:  # noqa: BLE001
-                    # Catch-all for unexpected errors
-                    logger.warning(
-                        "Failed to process TV search result %s: %s",
-                        type(result),
-                        e,
-                    )
-        except AniVaultError as e:
-            # Re-raise AniVaultError as-is
-            tv_error = e
-            log_operation_error(
-                logger=logger,
-                error=tv_error,
-                operation="search_tv_shows",
-                additional_context=context.additional_data if context else None,
-            )
-            # Continue with movie search even if TV search fails
-        except Exception as e:  # noqa: BLE001
-            # Convert generic exceptions to InfrastructureError
-            error = InfrastructureError(
-                code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                message=f"TV search failed: {e!s}",
-                context=context,
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="search_tv_shows",
-                additional_context=context.additional_data if context else None,
-            )
-            # Continue with movie search even if TV search fails
-
-        # Search movies
-        try:
-            movie_response = await self._make_request(lambda: self._movie.search(title))
-            # Extract results from API response (handle both dict and AsObj)
-            if hasattr(movie_response, "get"):
-                movie_results = movie_response.get("results", [])
-            else:
-                logger.warning(
-                    "Movie search returned unexpected response: %s",
-                    type(movie_response),
-                )
-                movie_results = []
-
-            for result in movie_results:
-                try:
-                    # Convert result to dict if needed
-                    if isinstance(result, dict):
-                        result_dict = result
-                    elif hasattr(result, "__dict__"):
-                        # Convert object with attributes to dict
-                        result_dict = {
-                            k: v
-                            for k, v in result.__dict__.items()
-                            if not k.startswith("_")
-                        }
-                    elif hasattr(result, "get"):
-                        # Convert dict-like object to dict
-                        result_dict = dict(result)
-                    else:
-                        # Fallback: create minimal dict
-                        result_dict = {"id": 0, "title": str(result)}
-
-                    # Add media_type for Pydantic model
-                    result_dict["media_type"] = MediaType.MOVIE
-
-                    # Parse into Pydantic model
-                    result_model = TMDBSearchResult(**result_dict)
-                    result_models.append(result_model)
-
-                except ValidationError as e:
-                    # Log validation error but continue processing other results
-                    logger.warning(
-                        "Failed to parse Movie search result into Pydantic model: %s",
-                        e,
-                        extra={"result_data": result},
-                    )
-                except Exception as e:  # noqa: BLE001
-                    # Catch-all for unexpected errors
-                    logger.warning(
-                        "Failed to process Movie search result %s: %s",
-                        type(result),
-                        e,
-                    )
-        except AniVaultError as e:
-            # Re-raise AniVaultError as-is
-            movie_error = e
-            log_operation_error(
-                logger=logger,
-                error=movie_error,
-                operation="search_movies",
-                additional_context=context.additional_data if context else None,
-            )
-            # Continue even if movie search fails
-        except Exception as e:  # noqa: BLE001
-            # Convert generic exceptions to InfrastructureError
-            error = InfrastructureError(
-                code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                message=f"Movie search failed: {e!s}",
-                context=context,
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="search_movies",
-                additional_context=context.additional_data if context else None,
-            )
-            # Continue even if movie search fails
-
-        # If both searches failed, try with shortened title
-        if not result_models:
-            shortened_titles = self._generate_shortened_titles(title)
+        # 2. Fallback to shortened titles if no results
+        if not results:
+            shortened_titles = generate_shortened_titles(title)
             for shortened_title in shortened_titles:
                 logger.debug("Trying shortened title: %s", shortened_title)
-                try:
-                    # Try TV search with shortened title
-                    try:
-                        # Use default argument to bind loop variable
-                        tv_response = await self._make_request(
-                            lambda t=shortened_title: self._tv.search(t),  # type: ignore[misc]
-                        )
-                        if hasattr(tv_response, "get"):
-                            tv_results = tv_response.get("results", [])
-                        else:
-                            tv_results = []
-
-                        for result in tv_results:
-                            try:
-                                # Convert result to dict if needed
-                                if isinstance(result, dict):
-                                    result_dict = result
-                                elif hasattr(result, "__dict__"):
-                                    result_dict = {
-                                        k: v
-                                        for k, v in result.__dict__.items()
-                                        if not k.startswith("_")
-                                    }
-                                elif hasattr(result, "get"):
-                                    result_dict = dict(result)
-                                else:
-                                    result_dict = {"id": 0, "name": str(result)}
-
-                                # Add media_type for Pydantic model
-                                result_dict["media_type"] = MediaType.TV
-
-                                # Parse into Pydantic model
-                                result_model = TMDBSearchResult(**result_dict)
-                                result_models.append(result_model)
-
-                            except ValidationError as e:
-                                logger.warning(
-                                    "Failed to parse TV search result (shortened): %s",
-                                    e,
-                                    extra={"result_data": result},
-                                )
-                            except Exception as e:  # noqa: BLE001
-                                logger.warning(
-                                    "Failed to process TV search result (shortened): %s",
-                                    e,
-                                )
-                    except Exception as e:  # noqa: BLE001
-                        # TV search failed, continue with movie search (graceful)
-                        logger.debug(
-                            "TV search failed, continuing with movie search: %s",
-                            str(e),
-                            extra={"title": title, "error_type": type(e).__name__},
-                        )
-
-                    # Try movie search with shortened title
-                    try:
-                        # Use default argument to bind loop variable
-                        movie_response = await self._make_request(
-                            lambda t=shortened_title: self._movie.search(t),  # type: ignore[misc]
-                        )
-                        if hasattr(movie_response, "get"):
-                            movie_results = movie_response.get("results", [])
-                        else:
-                            movie_results = []
-
-                        for result in movie_results:
-                            try:
-                                # Convert result to dict if needed
-                                if isinstance(result, dict):
-                                    result_dict = result
-                                elif hasattr(result, "__dict__"):
-                                    result_dict = {
-                                        k: v
-                                        for k, v in result.__dict__.items()
-                                        if not k.startswith("_")
-                                    }
-                                elif hasattr(result, "get"):
-                                    result_dict = dict(result)
-                                else:
-                                    result_dict = {"id": 0, "title": str(result)}
-
-                                # Add media_type for Pydantic model
-                                result_dict["media_type"] = MediaType.MOVIE
-
-                                # Parse into Pydantic model
-                                result_model = TMDBSearchResult(**result_dict)
-                                result_models.append(result_model)
-
-                            except ValidationError as e:
-                                logger.warning(
-                                    "Failed to parse Movie search result (shortened): %s",
-                                    e,
-                                    extra={"result_data": result},
-                                )
-                            except Exception as e:  # noqa: BLE001
-                                logger.warning(
-                                    "Failed to process Movie search result (shortened): %s",
-                                    e,
-                                )
-                    except Exception as e:  # noqa: BLE001
-                        # Movie search with this shortened title failed, try next (graceful)
-                        logger.debug(
-                            "Movie search failed for shortened title '%s', trying next: %s",
-                            shortened_title,
-                            str(e),
-                            extra={
-                                "original_title": title,
-                                "error_type": type(e).__name__,
-                            },
-                        )
-
-                    # If we found results with shortened title, break
-                    if result_models:
+                results = await self._search_with_strategies(shortened_title)
+                if results:
                         logger.info(
                             "Found results with shortened title '%s' for original '%s'",
                             shortened_title,
@@ -471,19 +198,11 @@ class TMDBClient:
                         )
                         break
 
-                except Exception as e:  # noqa: BLE001
-                    logger.debug(
-                        "Shortened title '%s' also failed: %s",
-                        shortened_title,
-                        e,
-                    )
-                    continue
-
-            # If still no results after trying all shortened titles, raise error
-            if not result_models:
+        # 3. If still no results, raise error
+        if not results:
                 error = InfrastructureError(
                     code=ErrorCode.TMDB_API_MEDIA_NOT_FOUND,
-                    message=f"No media found for title: {title} (tried shortened versions: {shortened_titles})",
+                message=f"No media found for title: {title}",
                     context=context,
                 )
                 log_operation_error(
@@ -497,16 +216,16 @@ class TMDBClient:
         log_operation_success(
             logger=logger,
             operation="search_media",
-            duration_ms=0,  # Duration would be calculated in _make_request
+            duration_ms=0,  # Duration calculated in _make_request
             context=context.additional_data if context else None,
         )
 
-        # Wrap results in TMDBSearchResponse
+        # Return combined results wrapped in response model
         return TMDBSearchResponse(
             page=1,
             total_pages=1,
-            total_results=len(result_models),
-            results=result_models,
+            total_results=len(results),
+            results=results,
         )
 
     async def get_media_details(
@@ -516,6 +235,8 @@ class TMDBClient:
     ) -> TMDBMediaDetails | None:
         """Get detailed information for a specific media item.
 
+        Uses Strategy pattern to delegate to media-type-specific implementation.
+
         Args:
             media_id: TMDB ID of the media item
             media_type: Type of media ('tv' or 'movie')
@@ -524,14 +245,14 @@ class TMDBClient:
             TMDBMediaDetails or None if not found
 
         Raises:
-            InfrastructureError: If API request fails after all retries
-            ValidationError: If API response doesn't match expected schema
+            InfrastructureError: If media_type is invalid or API request fails
         """
         context = ErrorContext(
             operation="get_media_details",
             additional_data={"media_id": media_id, "media_type": media_type},
         )
 
+        # Validate media_type
         if media_type not in ["tv", "movie"]:
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_INVALID_MEDIA_TYPE,
@@ -546,64 +267,29 @@ class TMDBClient:
             )
             raise error
 
+        # Select strategy based on media_type
+        strategy = (
+            self._tv_strategy if media_type == MediaType.TV else self._movie_strategy
+        )
+
         try:
-            if media_type == MediaType.TV:
-                result = await self._make_request(lambda: self._tv.details(media_id))
-            else:  # movie
-                result = await self._make_request(lambda: self._movie.details(media_id))
+            # Delegate to strategy
+            details = await strategy.get_details(media_id)
 
-            # Convert result to dict if needed
-            if isinstance(result, dict):
-                result_dict = result
-            elif hasattr(result, "__dict__"):
-                result_dict = {
-                    k: v for k, v in result.__dict__.items() if not k.startswith("_")
-                }
-            elif hasattr(result, "get"):
-                result_dict = dict(result)
-            else:
-                # Cannot convert to dict, return None
-                logger.warning(
-                    "get_media_details returned unexpected type: %s",
-                    type(result),
+            if details:
+                log_operation_success(
+                    logger=logger,
+                    operation="get_media_details",
+                    duration_ms=0,
+                    context=context.additional_data if context else None,
                 )
-                return None
 
-            # Parse into Pydantic model
-            try:
-                details_model = TMDBMediaDetails(**result_dict)
-            except ValidationError:
-                logger.exception(
-                    "Failed to parse media details into Pydantic model",
-                    extra={
-                        "media_id": media_id,
-                        "media_type": media_type,
-                        "result_data": result_dict,
-                    },
-                )
-                # Return None on validation error (graceful degradation)
-                return None
+            return details
 
-            log_operation_success(
-                logger=logger,
-                operation="get_media_details",
-                duration_ms=0,  # Duration would be calculated in _make_request
-                context=context.additional_data if context else None,
-            )
-            return details_model
-
-        except AniVaultError as e:
-            # Re-raise AniVaultError as-is
-            details_error = e
-            log_operation_error(
-                logger=logger,
-                error=details_error,
-                operation="get_media_details",
-                additional_context=context.additional_data if context else None,
-            )
+        except AniVaultError:
+            # Strategy already logged the error
             raise
         except Exception as e:
-            # Convert generic exceptions to InfrastructureError
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
                 message=f"Media details request failed: {e!s}",
