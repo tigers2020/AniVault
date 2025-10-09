@@ -45,7 +45,59 @@ class FileOrganizer:
         self.settings = settings or load_settings()
         self.app_config = self.settings.app
 
-    def _construct_destination_path(self, scanned_file: ScannedFile) -> Path:
+    def _analyze_series_resolutions(
+        self,
+        scanned_files: list[ScannedFile],
+    ) -> dict[str, bool]:
+        """
+        Analyze which series have mixed resolutions.
+
+        Args:
+            scanned_files: List of ScannedFile objects to analyze
+
+        Returns:
+            Dictionary mapping series title to whether it has mixed resolutions.
+            True = has both high and low resolutions, False = single resolution type
+        """
+        from collections import defaultdict
+
+        from anivault.shared.constants import VideoQuality
+
+        # Group files by series title and collect their resolutions
+        series_resolutions: dict[str, set[bool]] = defaultdict(set)
+
+        for scanned_file in scanned_files:
+            # Skip files without TMDB match
+            match_result = scanned_file.metadata.other_info.get("match_result")
+            if not match_result:
+                continue
+
+            series_title = match_result.title
+            quality = scanned_file.metadata.quality
+
+            # Determine if this file is high or low resolution
+            is_high_res = VideoQuality.is_high_resolution(quality)
+            series_resolutions[series_title].add(is_high_res)
+
+        # Determine which series have mixed resolutions
+        series_has_mixed: dict[str, bool] = {}
+        for series_title, res_types in series_resolutions.items():
+            # Mixed if we have both True (high) and False (low) resolutions
+            series_has_mixed[series_title] = len(res_types) > 1
+
+        logger.debug(
+            "Resolution analysis: %d series, %d with mixed resolutions",
+            len(series_has_mixed),
+            sum(series_has_mixed.values()),
+        )
+
+        return series_has_mixed
+
+    def _construct_destination_path(
+        self,
+        scanned_file: ScannedFile,
+        series_has_mixed_resolutions: bool = False,
+    ) -> Path:
         """
         Construct the destination path for a scanned file.
 
@@ -54,6 +106,8 @@ class FileOrganizer:
 
         Args:
             scanned_file: ScannedFile instance containing file and metadata information.
+            series_has_mixed_resolutions: Whether this series has files with different resolutions.
+                If False (single resolution), all files use normal folder structure regardless of quality.
 
         Returns:
             Path object representing the destination path for the file.
@@ -103,7 +157,36 @@ class FileOrganizer:
             season_number = 1
 
         season_dir = f"Season {season_number:02d}"
-        series_dir = target_folder / media_type / series_title / season_dir
+
+        # Check if organize_by_resolution is enabled AND series has mixed resolutions
+        if (
+            config.folders
+            and config.folders.organize_by_resolution
+            and series_has_mixed_resolutions
+        ):
+            # Import VideoQuality for resolution classification
+            from anivault.shared.constants import VideoQuality
+
+            # Get resolution from metadata
+            resolution = metadata.quality
+
+            # Determine if high or low resolution
+            if VideoQuality.is_high_resolution(resolution):
+                # High resolution: normal folder structure
+                series_dir = target_folder / media_type / series_title / season_dir
+            else:
+                # Low resolution: under low_res folder (only when series has mixed resolutions)
+                series_dir = (
+                    target_folder
+                    / media_type
+                    / VideoQuality.LOW_RES_FOLDER
+                    / series_title
+                    / season_dir
+                )
+        else:
+            # Build path without resolution organization
+            # (either feature disabled OR series has single resolution type)
+            series_dir = target_folder / media_type / series_title / season_dir
 
         # Use original filename (as requested by user)
         original_filename = scanned_file.file_path.name
@@ -160,6 +243,17 @@ class FileOrganizer:
         """
         operations: list[FileOperation] = []
 
+        # Analyze which series have mixed resolutions (only if organize_by_resolution is enabled)
+        from anivault.config.settings import get_config
+
+        config = get_config()
+        series_has_mixed_resolutions: dict[str, bool] = {}
+
+        if config.folders and config.folders.organize_by_resolution:
+            series_has_mixed_resolutions = self._analyze_series_resolutions(
+                scanned_files,
+            )
+
         for scanned_file in scanned_files:
             # Skip files that don't have sufficient metadata
             if not scanned_file.metadata.title:
@@ -174,8 +268,15 @@ class FileOrganizer:
                 )
                 continue
 
-            # Construct destination path
-            destination_path = self._construct_destination_path(scanned_file)
+            # Get series title for resolution analysis
+            series_title = match_result.title if match_result else None
+            has_mixed_res = series_has_mixed_resolutions.get(series_title, False)
+
+            # Construct destination path with mixed resolution info
+            destination_path = self._construct_destination_path(
+                scanned_file,
+                series_has_mixed_resolutions=has_mixed_res,
+            )
 
             # Skip if source and destination are the same
             if scanned_file.file_path.resolve() == destination_path.resolve():

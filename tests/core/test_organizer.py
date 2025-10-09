@@ -480,3 +480,413 @@ class TestExecuteFileOperation:
 
         # Should log error but NOT re-raise
         organizer._handle_operation_error(operation, error)
+
+
+class TestOrganizeByResolution:
+    """Test organize by resolution functionality (high-res vs low-res)."""
+
+    @pytest.fixture
+    def scanned_file_high_res(self, tmp_path):
+        """Create ScannedFile with high resolution (1080p)."""
+        source_file = tmp_path / "test_anime_1080p.mkv"
+        source_file.touch()
+
+        match_result = MatchResult(
+            tmdb_id=1429,
+            title="진격의 거인",
+            year=2013,
+            media_type="tv",
+            confidence_score=0.95,
+        )
+
+        metadata = ParsingResult(
+            title="Attack on Titan",
+            season=1,
+            episode=1,
+            quality="1080p",
+            other_info={"match_result": match_result},
+        )
+
+        return ScannedFile(
+            file_path=source_file,
+            file_size=1024 * 1024,
+            metadata=metadata,
+        )
+
+    @pytest.fixture
+    def scanned_file_low_res(self, tmp_path):
+        """Create ScannedFile with low resolution (720p)."""
+        source_file = tmp_path / "test_anime_720p.mkv"
+        source_file.touch()
+
+        match_result = MatchResult(
+            tmdb_id=1429,
+            title="진격의 거인",
+            year=2013,
+            media_type="tv",
+            confidence_score=0.95,
+        )
+
+        metadata = ParsingResult(
+            title="Attack on Titan",
+            season=1,
+            episode=2,
+            quality="720p",
+            other_info={"match_result": match_result},
+        )
+
+        return ScannedFile(
+            file_path=source_file,
+            file_size=1024 * 1024,
+            metadata=metadata,
+        )
+
+    @pytest.fixture
+    def mock_settings_with_resolution(self):
+        """Create mock settings with organize_by_resolution enabled."""
+        settings = Mock()
+        settings.app = Mock()
+
+        settings.folders = Mock()
+        settings.folders.target_folder = "/anime_target"
+        settings.folders.media_type = "anime"
+        settings.folders.organize_by_resolution = True
+
+        return settings
+
+    @pytest.fixture
+    def mock_settings_without_resolution(self):
+        """Create mock settings with organize_by_resolution disabled."""
+        settings = Mock()
+        settings.app = Mock()
+
+        settings.folders = Mock()
+        settings.folders.target_folder = "/anime_target"
+        settings.folders.media_type = "anime"
+        settings.folders.organize_by_resolution = False
+
+        return settings
+
+    def test_construct_path_high_resolution_mixed_series(
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        scanned_file_high_res,
+        monkeypatch,
+    ):
+        """Test path construction with high resolution when series has mixed resolutions."""
+
+        # Patch get_config to return our mock settings
+        def mock_get_config():
+            return mock_settings_with_resolution
+
+        monkeypatch.setattr("anivault.config.settings.get_config", mock_get_config)
+
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Series has mixed resolutions (both high and low)
+        destination = organizer._construct_destination_path(
+            scanned_file_high_res,
+            series_has_mixed_resolutions=True,
+        )
+
+        # Expected: /anime_target/anime/진격의 거인/Season 01/test_anime_1080p.mkv
+        # Should NOT have "low_res" in path
+        assert "low_res" not in str(destination)
+        assert "진격의 거인" in str(destination)
+        assert "Season 01" in str(destination)
+
+    def test_construct_path_low_resolution_mixed_series(
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        scanned_file_low_res,
+        monkeypatch,
+    ):
+        """Test path construction with low resolution when series has mixed resolutions."""
+
+        # Patch get_config to return our mock settings
+        def mock_get_config():
+            return mock_settings_with_resolution
+
+        monkeypatch.setattr("anivault.config.settings.get_config", mock_get_config)
+
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Series has mixed resolutions (both high and low)
+        destination = organizer._construct_destination_path(
+            scanned_file_low_res,
+            series_has_mixed_resolutions=True,
+        )
+
+        # Expected: /anime_target/anime/low_res/진격의 거인/Season 01/test_anime_720p.mkv
+        assert "low_res" in str(destination)
+        assert "진격의 거인" in str(destination)
+        assert "Season 01" in str(destination)
+
+    def test_construct_path_low_resolution_single_resolution_series(
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        scanned_file_low_res,
+        monkeypatch,
+    ):
+        """Test low resolution uses normal folder when series has single resolution type."""
+
+        # Patch get_config to return our mock settings
+        def mock_get_config():
+            return mock_settings_with_resolution
+
+        monkeypatch.setattr("anivault.config.settings.get_config", mock_get_config)
+
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Series has ONLY low resolution files (no mixed resolutions)
+        destination = organizer._construct_destination_path(
+            scanned_file_low_res,
+            series_has_mixed_resolutions=False,
+        )
+
+        # Expected: /anime_target/anime/진격의 거인/Season 01/test_anime_720p.mkv
+        # Should NOT have "low_res" because all files are same resolution
+        assert "low_res" not in str(destination)
+        assert "진격의 거인" in str(destination)
+        assert "Season 01" in str(destination)
+
+    def test_construct_path_without_resolution_enabled(
+        self,
+        log_manager,
+        mock_settings_without_resolution,
+        scanned_file_high_res,
+        monkeypatch,
+    ):
+        """Test path construction with organize_by_resolution disabled."""
+
+        # Patch get_config to return our mock settings
+        def mock_get_config():
+            return mock_settings_without_resolution
+
+        monkeypatch.setattr("anivault.config.settings.get_config", mock_get_config)
+
+        organizer = FileOrganizer(log_manager, mock_settings_without_resolution)
+
+        destination = organizer._construct_destination_path(scanned_file_high_res)
+
+        # Expected: /anime_target/anime/진격의 거인/Season 01/test_anime_1080p.mkv
+        # Should NOT have "low_res" in path when feature is disabled
+        assert "low_res" not in str(destination)
+        assert "진격의 거인" in str(destination)
+        assert "Season 01" in str(destination)
+
+    def test_construct_path_unknown_resolution(
+        self, log_manager, mock_settings_with_resolution, tmp_path, monkeypatch
+    ):
+        """Test path construction with unknown resolution - should default to high resolution."""
+        source_file = tmp_path / "test_anime_no_res.mkv"
+        source_file.touch()
+
+        match_result = MatchResult(
+            tmdb_id=1429,
+            title="진격의 거인",
+            year=2013,
+            media_type="tv",
+            confidence_score=0.95,
+        )
+
+        metadata = ParsingResult(
+            title="Attack on Titan",
+            season=1,
+            episode=1,
+            quality=None,  # No resolution info
+            other_info={"match_result": match_result},
+        )
+
+        scanned_file = ScannedFile(
+            file_path=source_file,
+            file_size=1024 * 1024,
+            metadata=metadata,
+        )
+
+        # Patch get_config to return our mock settings
+        def mock_get_config():
+            return mock_settings_with_resolution
+
+        monkeypatch.setattr("anivault.config.settings.get_config", mock_get_config)
+
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+        destination = organizer._construct_destination_path(scanned_file)
+
+        # Expected: /anime_target/anime/진격의 거인/Season 01/test_anime_no_res.mkv
+        # Unknown resolution defaults to high resolution (no low_res folder)
+        assert "low_res" not in str(destination)
+        assert "진격의 거인" in str(destination)
+
+    def test_analyze_series_resolutions_single_high(
+        self, log_manager, mock_settings_with_resolution, scanned_file_high_res
+    ):
+        """Test resolution analysis when series has only high resolution files."""
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Create list with only high resolution files
+        files = [scanned_file_high_res]
+
+        result = organizer._analyze_series_resolutions(files)
+
+        # Should have one series with no mixed resolutions
+        assert "진격의 거인" in result
+        assert result["진격의 거인"] is False  # Not mixed
+
+    def test_analyze_series_resolutions_single_low(
+        self, log_manager, mock_settings_with_resolution, scanned_file_low_res
+    ):
+        """Test resolution analysis when series has only low resolution files."""
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Create list with only low resolution files
+        files = [scanned_file_low_res]
+
+        result = organizer._analyze_series_resolutions(files)
+
+        # Should have one series with no mixed resolutions
+        assert "진격의 거인" in result
+        assert result["진격의 거인"] is False  # Not mixed
+
+    def test_analyze_series_resolutions_mixed(
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        scanned_file_high_res,
+        scanned_file_low_res,
+    ):
+        """Test resolution analysis when series has both high and low resolution files."""
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Create list with both high and low resolution files
+        files = [scanned_file_high_res, scanned_file_low_res]
+
+        result = organizer._analyze_series_resolutions(files)
+
+        # Should have one series with mixed resolutions
+        assert "진격의 거인" in result
+        assert result["진격의 거인"] is True  # Mixed!
+
+    def test_generate_plan_single_resolution_all_normal_paths(
+        self, log_manager, mock_settings_with_resolution, tmp_path, monkeypatch
+    ):
+        """Test generate_plan with single resolution - all files use normal paths."""
+
+        # Patch get_config to return our mock settings
+        def mock_get_config():
+            return mock_settings_with_resolution
+
+        monkeypatch.setattr("anivault.config.settings.get_config", mock_get_config)
+
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Create multiple low resolution files for same series
+        files = []
+        for i in range(1, 4):
+            source_file = tmp_path / f"test_anime_ep{i}_720p.mkv"
+            source_file.touch()
+
+            match_result = MatchResult(
+                tmdb_id=1429,
+                title="진격의 거인",
+                year=2013,
+                media_type="tv",
+                confidence_score=0.95,
+            )
+
+            metadata = ParsingResult(
+                title="Attack on Titan",
+                season=1,
+                episode=i,
+                quality="720p",
+                other_info={"match_result": match_result},
+            )
+
+            files.append(
+                ScannedFile(
+                    file_path=source_file,
+                    file_size=1024 * 1024,
+                    metadata=metadata,
+                ),
+            )
+
+        plan = organizer.generate_plan(files)
+
+        # All files should use normal path (no low_res) because series has single resolution
+        for operation in plan:
+            assert "low_res" not in str(operation.destination_path)
+            assert "진격의 거인" in str(operation.destination_path)
+
+    def test_generate_plan_mixed_resolution_separate_paths(
+        self, log_manager, mock_settings_with_resolution, tmp_path, monkeypatch
+    ):
+        """Test generate_plan with mixed resolutions - high/low use different paths."""
+
+        # Patch get_config to return our mock settings
+        def mock_get_config():
+            return mock_settings_with_resolution
+
+        monkeypatch.setattr("anivault.config.settings.get_config", mock_get_config)
+
+        organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
+
+        # Create files with mixed resolutions
+        files = []
+
+        # High resolution file
+        high_res_file = tmp_path / "test_anime_ep1_1080p.mkv"
+        high_res_file.touch()
+        match_result = MatchResult(
+            tmdb_id=1429,
+            title="진격의 거인",
+            year=2013,
+            media_type="tv",
+            confidence_score=0.95,
+        )
+        metadata_high = ParsingResult(
+            title="Attack on Titan",
+            season=1,
+            episode=1,
+            quality="1080p",
+            other_info={"match_result": match_result},
+        )
+        files.append(
+            ScannedFile(
+                file_path=high_res_file,
+                file_size=1024 * 1024,
+                metadata=metadata_high,
+            ),
+        )
+
+        # Low resolution file
+        low_res_file = tmp_path / "test_anime_ep2_720p.mkv"
+        low_res_file.touch()
+        metadata_low = ParsingResult(
+            title="Attack on Titan",
+            season=1,
+            episode=2,
+            quality="720p",
+            other_info={"match_result": match_result},
+        )
+        files.append(
+            ScannedFile(
+                file_path=low_res_file,
+                file_size=1024 * 1024,
+                metadata=metadata_low,
+            ),
+        )
+
+        plan = organizer.generate_plan(files)
+
+        # Find operations for each file
+        high_res_op = next(op for op in plan if "1080p" in op.source_path.name)
+        low_res_op = next(op for op in plan if "720p" in op.source_path.name)
+
+        # High resolution should NOT have low_res
+        assert "low_res" not in str(high_res_op.destination_path)
+
+        # Low resolution SHOULD have low_res
+        assert "low_res" in str(low_res_op.destination_path)

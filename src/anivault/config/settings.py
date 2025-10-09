@@ -280,6 +280,10 @@ class FolderSettings(BaseModel):
         default="season_##/korean_title/original_filename",
         description="Directory structure template for organization",
     )
+    organize_by_resolution: bool = Field(
+        default=False,
+        description="Organize files by resolution (e.g., 1080p, 720p)",
+    )
     auto_scan_on_startup: bool = Field(
         default=False,
         description="Automatically scan source folder when application starts",
