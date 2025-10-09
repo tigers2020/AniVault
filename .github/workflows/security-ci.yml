@@ -109,13 +109,13 @@ jobs:
 
     # Code Formatting
     - name: Check Black Formatting
-      run: black --check --diff src/ tests/
+      run: python -m black --check --diff src/ tests/
 
     - name: Check Ruff Linting
-      run: ruff check src/ tests/ --output-format=github
+      run: python -m ruff check src/ tests/ --output-format=github
 
     - name: Check MyPy Type Checking
-      run: mypy src/ --ignore-missing-imports
+      run: python -m mypy src/ --ignore-missing-imports
 
     # Test Coverage
     - name: Run Tests with Coverage
