@@ -11,6 +11,8 @@ import sys
 from io import BytesIO
 from unittest.mock import patch
 
+import pytest
+
 from anivault.cli.common.error_handler import handle_cli_error
 from anivault.shared.errors import ApplicationError, ErrorCode, create_cli_error
 

@@ -11,6 +11,8 @@ import sys
 from io import BytesIO
 from unittest.mock import patch
 
+import pytest
+
 from anivault.cli.common.error_handler import (
     format_json_output,
     handle_cli_error,
