@@ -79,12 +79,12 @@ class TestTMDBClientCacheIntegration:
                 {"results": []},  # Movie search
             ]
 
-            # Test search - should raise error when no results found
-            with pytest.raises(InfrastructureError) as exc_info:
-                await self.client.search_media("NonExistent")
+            # Test search - returns empty list when no results found
+            results = await self.client.search_media("NonExistent")
 
-            # Verify error when no results
-            assert exc_info.value.code == ErrorCode.TMDB_API_MEDIA_NOT_FOUND
+            # Verify empty results
+            assert isinstance(results, list)
+            assert len(results) == 0
 
     def test_tmdb_client_initialization(self) -> None:
         """Test TMDBClient initialization with default parameters."""
