@@ -55,8 +55,9 @@ line-length = 88
 
 [tool.ruff.lint]
 # Black과 충돌 방지: E501 (line too long) 끄기
+# isort와 충돌 방지: I (isort rules) 제거 - isort를 별도로 사용
 # Security-focused rules added
-select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "RUF"]
+select = ["E", "F", "W", "C90", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "RUF"]
 ignore = [
     "S101", "T201", "PLR0913", "PLR0912", "PLR0915",
     "C901",  # Function too complex
