@@ -14,7 +14,9 @@ from .api import APIConfig
 from .api import CacheConfig as APICacheConfig
 from .api import CacheValidationConstants, TMDBConfig
 from .api_fields import APIFields
-from .cli import BatchConfig
+from .cli import (
+    BatchConfig,
+)
 from .cli import CacheConfig as CLICacheConfig
 from .cli import (
     CLICommands,
@@ -26,7 +28,11 @@ from .cli import (
     ConfidenceConfig,
 )
 from .cli import LogConfig as CLILogConfig
-from .cli import QueueConfig, RunDefaults, WorkerConfig
+from .cli import (
+    QueueConfig,
+    RunDefaults,
+    WorkerConfig,
+)
 from .core import BusinessRules
 from .core import CacheConfig as CoreCacheConfig
 from .core import NormalizationConfig, ProcessingConfig

@@ -76,8 +76,10 @@ ignore = [
     "SIM102",  # Nested if statements (가독성 우선)
     "SIM115",  # Context manager for open (encoding.py 유틸리티)
     "EM101",  # Exception must not use a string literal
-    "TCH001",  # Move application import into type-checking block
-    "TCH003",  # Move standard library import into type-checking block
+    "TCH001",  # Move application import into type-checking block (deprecated)
+    "TCH003",  # Move standard library import into type-checking block (deprecated)
+    "TC001",  # Move application import into type-checking block
+    "TC003",  # Move standard library import into type-checking block
     "RET504",  # Unnecessary assignment before return
     "INP001",  # Implicit namespace package (for scripts/)
     "PLR2004",  # Magic value used in comparison
@@ -221,7 +223,7 @@ media_extensions = [".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".m4v", ".we
 ai_security_mode = "strict"
 prompt_injection_protection = true
 magic_value_detection = true
-secret_exposure_check = true
+secret_exposure_check = true  # pragma: allowlist secret
 duplicate_definition_check = true
 
 # Dependency security
