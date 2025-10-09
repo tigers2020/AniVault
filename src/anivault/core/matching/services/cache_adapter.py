@@ -24,11 +24,16 @@ class CacheAdapterProtocol(Protocol):
     providing a consistent API for cache operations regardless of the underlying
     storage backend.
 
+    Attributes:
+        language: Language code for cache key generation (e.g., 'ko-KR')
+
     Example:
         >>> cache_adapter: CacheAdapterProtocol = SQLiteCacheAdapter(db)
         >>> data = cache_adapter.get("search:movie:test", "search")
         >>> cache_adapter.set("search:movie:test", {"results": [...]}, "search")
     """
+
+    language: str
 
     def get(
         self,
