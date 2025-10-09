@@ -21,7 +21,7 @@ class TestSettingsSecurityFailures:
         # Given: .env 파일이 없는 디렉토리 AND 환경 변수도 없음
         with patch("pathlib.Path.exists") as mock_exists:
             mock_exists.return_value = False
-            
+
             # Clear TMDB_API_KEY from environment
             with patch.dict(os.environ, {}, clear=True):
                 # When & Then: SecurityError 발생해야 함
