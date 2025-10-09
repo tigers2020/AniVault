@@ -534,7 +534,10 @@ def _print_execution_plan_impl(plan: Any, console: Any) -> None:
         console.print()
 
 
-@handle_cli_errors(operation="generate_enhanced_organization_plan", command_name="organize")
+@handle_cli_errors(
+    operation="generate_enhanced_organization_plan",
+    command_name="organize",
+)
 def _generate_enhanced_organization_plan(
     scanned_files: list[Any],
     options: OrganizeOptions,

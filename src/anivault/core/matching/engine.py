@@ -341,9 +341,11 @@ class MatchingEngine:
                 return None
 
             # Step 3: Score and rank candidates
-            scored_candidates: list[ScoredSearchResult] = self._score_and_rank_candidates(
-                candidates,
-                normalized_query,
+            scored_candidates: list[ScoredSearchResult] = (
+                self._score_and_rank_candidates(
+                    candidates,
+                    normalized_query,
+                )
             )
             if not scored_candidates:
                 return None
@@ -615,7 +617,10 @@ class MatchingEngine:
         )
         return partial_matched_candidates
 
-    def _get_candidate_title(self, candidate: TMDBSearchResult | ScoredSearchResult) -> str:
+    def _get_candidate_title(
+        self,
+        candidate: TMDBSearchResult | ScoredSearchResult,
+    ) -> str:
         """Safely get title from candidate (supports both movies and TV shows).
 
         Args:

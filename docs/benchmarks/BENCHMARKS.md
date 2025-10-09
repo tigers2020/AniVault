@@ -168,4 +168,3 @@ When adding new benchmarks:
 - [pytest-benchmark documentation](https://pytest-benchmark.readthedocs.io/)
 - [AniVault Development Protocol](../protocols/DEVELOPMENT_PROTOCOL.md)
 - [Performance Optimization Guide](../performance/cache_benchmark.md)
-

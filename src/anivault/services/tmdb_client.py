@@ -191,27 +191,27 @@ class TMDBClient:
                 logger.debug("Trying shortened title: %s", shortened_title)
                 results = await self._search_with_strategies(shortened_title)
                 if results:
-                        logger.info(
-                            "Found results with shortened title '%s' for original '%s'",
-                            shortened_title,
-                            title,
-                        )
-                        break
+                    logger.info(
+                        "Found results with shortened title '%s' for original '%s'",
+                        shortened_title,
+                        title,
+                    )
+                    break
 
         # 3. If still no results, raise error
         if not results:
-                error = InfrastructureError(
-                    code=ErrorCode.TMDB_API_MEDIA_NOT_FOUND,
+            error = InfrastructureError(
+                code=ErrorCode.TMDB_API_MEDIA_NOT_FOUND,
                 message=f"No media found for title: {title}",
-                    context=context,
-                )
-                log_operation_error(
-                    logger=logger,
-                    error=error,
-                    operation="search_media",
-                    additional_context=context.additional_data if context else None,
-                )
-                raise error
+                context=context,
+            )
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="search_media",
+                additional_context=context.additional_data if context else None,
+            )
+            raise error
 
         log_operation_success(
             logger=logger,

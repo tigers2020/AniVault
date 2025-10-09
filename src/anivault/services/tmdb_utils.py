@@ -74,4 +74,3 @@ def generate_shortened_titles(title: str) -> list[str]:
             unique_titles.append(title_var)
 
     return unique_titles
-

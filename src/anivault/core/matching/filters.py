@@ -134,10 +134,13 @@ def apply_partial_substring_match(
             continue
 
         # Calculate partial ratio (query as substring of candidate)
-        partial_score = fuzz.partial_ratio(
-            query_title.lower(),
-            candidate_title.lower(),
-        ) / 100.0
+        partial_score = (
+            fuzz.partial_ratio(
+                query_title.lower(),
+                candidate_title.lower(),
+            )
+            / 100.0
+        )
 
         if partial_score >= min_similarity:
             matched.append(candidate)
@@ -182,5 +185,10 @@ def _get_candidate_title(candidate: TMDBSearchResult) -> str:
     Returns:
         Title string (prefers localized, falls back to original)
     """
-    return candidate.title or candidate.name or candidate.original_title or candidate.original_name or ""
-
+    return (
+        candidate.title
+        or candidate.name
+        or candidate.original_title
+        or candidate.original_name
+        or ""
+    )

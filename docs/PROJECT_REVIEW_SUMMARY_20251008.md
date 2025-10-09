@@ -1,7 +1,7 @@
 # AniVault 프로젝트 전반 정밀 검토 결과
 
-**작성일**: 2025-10-08  
-**방법론**: PLANNING_PROTOCOL.md (8인 페르소나 + 증거 기반)  
+**작성일**: 2025-10-08
+**방법론**: PLANNING_PROTOCOL.md (8인 페르소나 + 증거 기반)
 **커밋**: 9a586ab
 
 ---
@@ -267,6 +267,6 @@ cp config/config.toml.template config/config.toml
 
 ---
 
-**팀**: 윤도현, 사토미나, 김지유, 리나하트만, 박우석, 최로건, 니아오코예, 정하림  
-**방법론**: Proof-Driven Development + 8-Persona Planning Protocol  
+**팀**: 윤도현, 사토미나, 김지유, 리나하트만, 박우석, 최로건, 니아오코예, 정하림
+**방법론**: Proof-Driven Development + 8-Persona Planning Protocol
 **도구**: Ruff, Mypy, pytest, detect-secrets, MCP Serena

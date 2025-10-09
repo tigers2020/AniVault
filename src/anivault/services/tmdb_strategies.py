@@ -103,9 +103,7 @@ class SearchStrategy(ABC):
             return raw_result
         if hasattr(raw_result, "__dict__"):
             return {
-                k: v
-                for k, v in raw_result.__dict__.items()
-                if not k.startswith("_")
+                k: v for k, v in raw_result.__dict__.items() if not k.startswith("_")
             }
         if hasattr(raw_result, "get"):
             return dict(raw_result)
@@ -399,4 +397,3 @@ class MovieSearchStrategy(SearchStrategy):
             "movie" media type identifier
         """
         return "movie"
-
