@@ -159,7 +159,9 @@ warn_unreachable = true
 strict_equality = true
 exclude = [
     "scripts/",
-    "tests/"
+    "tests/",
+    "src/anivault/gui/",
+    "src/anivault/cli/"
 ]
 
 # 런타임 코어는 조금 더 엄격

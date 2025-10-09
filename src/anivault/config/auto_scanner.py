@@ -112,6 +112,9 @@ class AutoScanner:
         try:
             config = get_config()
             folder_settings = config.folders
+            
+            if folder_settings is None:
+                return False, "No folder settings configured"
 
             # Check if source folder is configured
             source_folder = folder_settings.source_folder
@@ -141,6 +144,8 @@ class AutoScanner:
 
         try:
             config = get_config()
+            if config.folders is None:
+                return False, "No folder settings configured"
             source_folder = config.folders.source_folder
 
             logger.info("Starting auto scan for folder: %s", source_folder)

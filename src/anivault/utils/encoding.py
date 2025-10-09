@@ -155,7 +155,7 @@ def ensure_utf8_string(text: str | bytes, encoding: str = UTF8_ENCODING) -> str:
     if isinstance(text, str):
         # Ensure the string is properly encoded
         return text.encode(encoding).decode(encoding)
-    msg = f"Expected str or bytes, got {type(text)}"
+    msg = f"Expected str or bytes, got {type(text)}"  # type: ignore[unreachable]
     raise TypeError(msg)
 
 
