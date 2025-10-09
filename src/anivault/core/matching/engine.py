@@ -10,11 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from rapidfuzz import fuzz
-
-from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.models import MatchResult, NormalizedQuery
-from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.matching.services import SQLiteCacheAdapter
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
@@ -24,8 +20,6 @@ from anivault.services.tmdb_models import ScoredSearchResult, TMDBSearchResult
 from anivault.shared.constants import (
     ConfidenceThresholds,
     DefaultLanguage,
-    GenreConfig,
-    MatchingCacheConfig,
     TMDBSearchKeys,
 )
 
@@ -68,228 +62,48 @@ class MatchingEngine:
 
         self.tmdb_client = tmdb_client
 
-    async def _search_tmdb(
-        self,
-        normalized_query: NormalizedQuery,
-    ) -> list[TMDBSearchResult]:
-        """Search TMDB with caching support.
-
-        This method first checks the cache for existing search results.
-        On a cache miss, it calls the TMDB API to search for both TV and Movie
-        results, combines them, and stores the combined list in the cache.
-
-        Args:
-            normalized_query: NormalizedQuery domain object with title and year
-
-        Returns:
-            List of TMDBSearchResult objects with media metadata
-        """
-        # Use normalized title as cache key (language handling delegated to adapter)
-        title = normalized_query.title
-
-        # Check cache first (adapter handles language-sensitive key generation)
-        cached_data = self.cache.get(title, "search")
-        if cached_data is not None:
-            logger.debug("Cache hit for search query: %s", title)
-            self.statistics.record_cache_hit("search")
-
-            # Return cached results (already validated by Pydantic!)
-            return cached_data.results
-
-        # Cache miss - search TMDB
-        logger.debug(
-            "Cache miss for search query: %s (language: %s)",
-            title,
-            self.cache.language,
+        # Initialize services
+        from anivault.core.matching.services import (
+            CandidateFilterService,
+            CandidateScoringService,
+            FallbackStrategyService,
+            TMDBSearchService,
         )
-        self.statistics.record_cache_miss("search")
-
-        try:
-            # Search TMDB for both TV and movies (returns TMDBSearchResponse)
-            self.statistics.record_api_call("tmdb_search", success=True)
-            search_response = await self.tmdb_client.search_media(title)
-
-            # Extract TMDBSearchResult list from response
-            results = search_response.results
-
-            # Store results in cache with Pydantic model
-            cached_data = CachedSearchData(
-                results=results,
-                language=self.cache.language,
-            )
-            self.cache.set(
-                key=title,
-                data=cached_data,
-                cache_type=MatchingCacheConfig.CACHE_TYPE_SEARCH,
-                ttl_seconds=MatchingCacheConfig.SEARCH_CACHE_TTL_SECONDS,
-            )
-
-            logger.debug("Found %d results for query: %s", len(results), title)
-            return results
-
-        except Exception:
-            logger.exception("TMDB search failed for query '%s'", title)
-            self.statistics.record_api_call(
-                "tmdb_search",
-                success=False,
-                error="Exception",
-            )
-            return []
-
-    def _filter_and_sort_by_year(
-        self,
-        candidates: list[ScoredSearchResult],
-        year_hint: str | None,
-    ) -> list[ScoredSearchResult]:
-        """Filter and sort candidates by year match.
-
-        This method processes a list of scored candidates, filtering and sorting
-        them based on how well their release year matches the provided year hint.
-
-        Args:
-            candidates: List of scored candidates (Pydantic models)
-            year_hint: Year hint from normalized query (optional)
-
-        Returns:
-            List of candidates filtered and sorted by year match
-        """
-        if not year_hint:
-            logger.debug("No year hint provided, returning candidates as-is")
-            return candidates
-
-        try:
-            target_year = int(year_hint)
-        except (ValueError, TypeError):
-            logger.warning("Invalid year hint: %s", year_hint)
-            return candidates
-
-        filtered_candidates: list[ScoredSearchResult] = []
-
-        for candidate in candidates:
-            # Extract year from candidate using Pydantic model's display_date
-            candidate_year = None
-
-            date_str = candidate.display_date
-            if date_str:
-                try:
-                    candidate_year = int(date_str.split("-")[0])
-                except (ValueError, TypeError, AttributeError):
-                    pass
-
-            if candidate_year is None:
-                logger.debug(
-                    "No year found for candidate: %s",
-                    candidate.display_title,
-                )
-                # Include candidates without year but with lower priority
-                # Note: Year score is just for internal ranking, not stored in model
-                filtered_candidates.append(candidate)
-                continue
-
-            # Calculate year difference
-            year_diff = abs(candidate_year - target_year)
-
-            # Filter by year threshold (only keep reasonably close years)
-            # Allow up to 10 year difference for anime (long-running series, prequels, etc.)
-            if year_diff > 10:
-                logger.debug(
-                    "Candidate '%s' filtered out: year %d too far from %d (diff: %d)",
-                    candidate.display_title,
-                    candidate_year,
-                    target_year,
-                    year_diff,
-                )
-                continue
-
-            filtered_candidates.append(candidate)
-
-            logger.debug(
-                "Year match for '%s': %d vs %d (diff: %d)",
-                candidate.display_title,
-                candidate_year,
-                target_year,
-                year_diff,
-            )
-
-        # Sort by confidence score (already highest first from scoring phase)
-        # No need to re-sort unless we're boosting by year
-        logger.debug("Filtered %d candidates by year", len(filtered_candidates))
-
-        # Keep confidence-sorted order from scoring phase
-
-        logger.debug("Filtered %d candidates by year", len(filtered_candidates))
-        return filtered_candidates
-
-    def _calculate_confidence_scores(
-        self,
-        candidates: list[TMDBSearchResult],
-        normalized_query: NormalizedQuery,
-    ) -> list[ScoredSearchResult]:
-        """Calculate confidence scores for all candidates.
-
-        This method uses the confidence scoring system to evaluate each candidate
-        and return ScoredSearchResult Pydantic models.
-
-        Args:
-            candidates: List of TMDB search results as Pydantic models
-            normalized_query: NormalizedQuery domain object
-
-        Returns:
-            List of ScoredSearchResult models sorted by confidence (highest first)
-        """
-        scored_candidates: list[ScoredSearchResult] = []
-
-        for candidate in candidates:
-            try:
-                # Calculate confidence score using Pydantic models
-                confidence_score = calculate_confidence_score(
-                    normalized_query,
-                    candidate,
-                )
-
-                # Create ScoredSearchResult from candidate
-                scored_result = ScoredSearchResult(
-                    **candidate.model_dump(),
-                    confidence_score=confidence_score,
-                )
-
-                scored_candidates.append(scored_result)
-
-                logger.debug(
-                    "Confidence score for '%s': %.3f",
-                    candidate.display_title,
-                    confidence_score,
-                )
-
-            except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    "Error calculating confidence score for candidate '%s': %s",
-                    candidate.display_title,
-                    str(e),
-                )
-                # Add candidate with 0 confidence score
-                scored_result = ScoredSearchResult(
-                    **candidate.model_dump(),
-                    confidence_score=0.0,
-                )
-                scored_candidates.append(scored_result)
-
-        # Sort by confidence score (highest first)
-        scored_candidates.sort(
-            key=lambda x: x.confidence_score,
-            reverse=True,
+        from anivault.core.matching.strategies import (
+            GenreBoostStrategy,
+            PartialMatchStrategy,
         )
 
-        logger.debug(
-            "Calculated confidence scores for %d candidates",
-            len(scored_candidates),
+        self._search_service = TMDBSearchService(
+            cache=self.cache,
+            tmdb_client=tmdb_client,
+            statistics=self.statistics,
         )
-        return scored_candidates
+        self._scoring_service = CandidateScoringService(statistics=self.statistics)
+        self._filter_service = CandidateFilterService(statistics=self.statistics)
+
+        # Initialize fallback strategies
+        from typing import cast
+
+        from anivault.core.matching.strategies import FallbackStrategy
+
+        fallback_strategies: list[FallbackStrategy] = cast(
+            list[FallbackStrategy],
+            [
+                GenreBoostStrategy(),
+                PartialMatchStrategy(),
+            ],
+        )
+        self._fallback_service = FallbackStrategyService(
+            statistics=self.statistics,
+            strategies=fallback_strategies,
+        )
+
 
     async def find_match(self, anitopy_result: dict[str, Any]) -> MatchResult | None:
         """Find the best match for an anime title using multi-stage matching with fallback strategies.
 
-        This method orchestrates the entire matching process by delegating to specialized methods.
+        This method orchestrates the entire matching process by delegating to service layer.
 
         Args:
             anitopy_result: Result from anitopy.parse() containing anime metadata
@@ -305,38 +119,72 @@ class MatchingEngine:
             if not normalized_query:
                 return None
 
-            # Step 2: Search for candidates
-            candidates = await self._search_for_candidates(normalized_query)
+            # Step 2: Search for candidates (delegate to SearchService)
+            candidates = await self._search_service.search(normalized_query)
             if not candidates:
+                logger.info("No candidates found for query: %s", normalized_query.title)
                 return None
 
-            # Step 3: Score and rank candidates
-            scored_candidates: list[ScoredSearchResult] = (
-                self._score_and_rank_candidates(
-                    candidates,
-                    normalized_query,
-                )
+            # Step 3: Score and rank candidates (delegate to ScoringService)
+            scored_candidates = self._scoring_service.score_candidates(
+                candidates,
+                normalized_query,
             )
             if not scored_candidates:
                 return None
 
-            # Step 4: Apply fallback strategies if needed
-            best_candidate: ScoredSearchResult = self._apply_fallback_if_needed(
+            # Step 4: Apply filters (delegate to FilterService)
+            filtered_candidates = self._filter_service.filter_by_year(
                 scored_candidates,
-                normalized_query,
+                normalized_query.year,
+            )
+            if not filtered_candidates:
+                logger.debug("All candidates filtered out")
+                return None
+
+            # Step 5: Get initial best candidate
+            best_candidate = filtered_candidates[0]
+            best_confidence = best_candidate.confidence_score
+
+            logger.info(
+                "Best candidate for '%s': '%s' (confidence: %.3f)",
+                normalized_query.title,
+                best_candidate.display_title,
+                best_confidence,
             )
 
-            # Step 5: Validate final confidence
+            # Step 6: Apply fallback strategies if confidence < HIGH
+            if best_confidence < ConfidenceThresholds.HIGH:
+                logger.info(
+                    "Confidence below HIGH threshold (%.3f < %.3f), applying fallback",
+                    best_confidence,
+                    ConfidenceThresholds.HIGH,
+                )
+
+                enhanced_candidates = self._fallback_service.apply_strategies(
+                    filtered_candidates,
+                    normalized_query,
+                )
+
+                if enhanced_candidates:
+                    best_candidate = enhanced_candidates[0]
+                    logger.info(
+                        "Fallback improved confidence: %.3f → %.3f",
+                        best_confidence,
+                        best_candidate.confidence_score,
+                    )
+
+            # Step 7: Validate final confidence
             if not self._validate_final_confidence(best_candidate):
                 return None
 
-            # Step 6: Create MatchResult from best_candidate
+            # Step 8: Create MatchResult
             match_result = self._create_match_result(
                 best_candidate,
                 normalized_query,
             )
 
-            # Record stats using Pydantic model
+            # Record stats
             self._record_successful_match(best_candidate, normalized_query, candidates)
             self.statistics.end_timing("matching_operation")
 
@@ -368,90 +216,6 @@ class MatchingEngine:
         logger.info("Searching for match: %s", normalized_query.title)
         return normalized_query
 
-    async def _search_for_candidates(
-        self,
-        normalized_query: NormalizedQuery,
-    ) -> list[TMDBSearchResult] | None:
-        """Search for TMDB candidates.
-
-        Args:
-            normalized_query: NormalizedQuery domain object
-
-        Returns:
-            List of TMDB candidates as Pydantic models or None if no candidates found
-        """
-        search_results = await self._search_tmdb(normalized_query)
-
-        if not search_results:
-            logger.info("No candidates found for: %s", normalized_query.title)
-            return None
-
-        return search_results
-
-    def _score_and_rank_candidates(
-        self,
-        candidates: list[TMDBSearchResult],
-        normalized_query: NormalizedQuery,
-    ) -> list[ScoredSearchResult]:
-        """Score and rank candidates by confidence.
-
-        Args:
-            candidates: List of TMDB candidates as Pydantic models
-            normalized_query: NormalizedQuery domain object
-
-        Returns:
-            List of scored and ranked candidates or None if scoring fails
-        """
-        scored_candidates = self._calculate_confidence_scores(
-            candidates,
-            normalized_query,
-        )
-
-        # Always return scored candidates (empty list if none)
-        return scored_candidates
-
-    def _apply_fallback_if_needed(
-        self,
-        scored_candidates: list[ScoredSearchResult],
-        normalized_query: NormalizedQuery,
-    ) -> ScoredSearchResult:
-        """Apply fallback strategies if confidence is too low.
-
-        Args:
-            scored_candidates: List of scored candidates
-            normalized_query: Normalized query containing title and metadata
-
-        Returns:
-            Best candidate after applying fallback strategies
-        """
-        best_candidate = scored_candidates[0]
-        best_confidence = best_candidate.confidence_score
-
-        logger.info(
-            "Best candidate for '%s': '%s' (confidence: %.3f)",
-            normalized_query.title,
-            best_candidate.display_title,
-            best_confidence,
-        )
-
-        if best_confidence < ConfidenceThresholds.HIGH:
-            logger.info(
-                "Low confidence (%.3f < %.3f), applying fallback strategies",
-                best_confidence,
-                ConfidenceThresholds.HIGH,
-            )
-
-            fallback_candidates = self._apply_fallback_strategies(
-                scored_candidates,
-                normalized_query,
-            )
-
-            if fallback_candidates:
-                best_candidate = fallback_candidates[0]
-                best_confidence = best_candidate.confidence_score
-                logger.info("Fallback improved confidence to %.3f", best_confidence)
-
-        return best_candidate
 
     def _validate_final_confidence(self, best_candidate: ScoredSearchResult) -> bool:
         """Validate that the final confidence meets minimum threshold.
@@ -541,260 +305,6 @@ class MatchingEngine:
             candidates_count=len(candidates),
             used_fallback=used_fallback,
         )
-
-    def _apply_fallback_strategies(
-        self,
-        candidates: list[ScoredSearchResult],
-        normalized_query: NormalizedQuery,
-    ) -> list[ScoredSearchResult]:
-        """Apply fallback strategies to improve matching.
-
-        This method implements various fallback strategies when primary matching
-        yields low confidence results. Strategies include genre-based filtering
-        and partial substring matching.
-
-        Args:
-            candidates: List of scored candidates (Pydantic models)
-            normalized_query: NormalizedQuery domain object
-
-        Returns:
-            List of candidates after applying fallback strategies
-        """
-        logger.debug("Applying fallback strategies to %d candidates", len(candidates))
-
-        # Stage 1: Apply genre-based filtering
-        genre_filtered_candidates = self._apply_genre_filter(candidates)
-
-        # Check if genre filtering improved confidence
-        if genre_filtered_candidates:
-            best_confidence = genre_filtered_candidates[0].confidence_score
-            if best_confidence >= ConfidenceThresholds.HIGH:
-                logger.debug(
-                    "Genre filtering produced high confidence match: %.3f",
-                    best_confidence,
-                )
-                return genre_filtered_candidates
-
-        # Stage 2: Apply partial substring matching
-        partial_matched_candidates = self._apply_partial_substring_match(
-            genre_filtered_candidates,
-            normalized_query,
-        )
-
-        logger.debug(
-            "Fallback strategies completed, returning %d candidates",
-            len(partial_matched_candidates),
-        )
-        return partial_matched_candidates
-
-    def _get_candidate_title(
-        self,
-        candidate: TMDBSearchResult | ScoredSearchResult,
-    ) -> str:
-        """Safely get title from candidate (supports both movies and TV shows).
-
-        Args:
-            candidate: TMDB search result (Pydantic model)
-
-        Returns:
-            Title string (movie title or TV show name)
-        """
-        return candidate.display_title
-
-    def _apply_genre_filter(
-        self,
-        candidates: list[ScoredSearchResult],
-    ) -> list[ScoredSearchResult]:
-        """Apply genre-based filtering to boost animation candidates.
-
-        This method iterates through candidates and boosts the confidence score
-        of any candidate that has the Animation genre (ID 16) in its genre_ids list.
-
-        Args:
-            candidates: List of scored candidates (Pydantic models)
-
-        Returns:
-            List of candidates with updated confidence scores, sorted by new scores
-        """
-        if not candidates:
-            logger.debug("No candidates to apply genre filter to")
-            return candidates
-
-        logger.debug("Applying genre filter to %d candidates", len(candidates))
-
-        boosted_candidates: list[ScoredSearchResult] = []
-
-        for candidate in candidates:
-            # Get genre IDs from Pydantic model
-            genre_ids = candidate.genre_ids
-
-            # Apply genre boost for confirmed animation
-            current_confidence = candidate.confidence_score
-
-            # Safely get title for logging
-            candidate_title = candidate.display_title[:40]
-
-            if GenreConfig.ANIMATION_GENRE_ID in genre_ids:
-                # Boost for animation genre
-                new_confidence = min(
-                    GenreConfig.MAX_CONFIDENCE,
-                    current_confidence + GenreConfig.ANIMATION_BOOST,
-                )
-
-                # Create new ScoredSearchResult with boosted confidence
-                boosted_candidate = ScoredSearchResult(
-                    **candidate.model_dump(exclude={"confidence_score"}),
-                    confidence_score=new_confidence,
-                )
-
-                # Animation threshold: lenient for cross-script fuzzy matching
-                if new_confidence >= ConfidenceThresholds.ANIMATION_MIN:
-                    boosted_candidates.append(boosted_candidate)
-                    logger.debug(
-                        "✅ Applied animation boost to '%s': %.3f -> %.3f (passed threshold %.1f)",
-                        candidate_title,
-                        current_confidence,
-                        new_confidence,
-                        ConfidenceThresholds.ANIMATION_MIN,
-                    )
-                else:
-                    logger.debug(
-                        "❌ Animation candidate '%s' rejected: %.3f < %.1f",
-                        candidate_title,
-                        new_confidence,
-                        ConfidenceThresholds.ANIMATION_MIN,
-                    )
-            # Non-animation: require much higher confidence to avoid false positives
-            # This filters out quiz shows, variety shows, live-action, etc.
-            elif current_confidence >= ConfidenceThresholds.NON_ANIMATION_MIN:
-                boosted_candidates.append(candidate)
-                logger.debug(
-                    "✅ Non-animation candidate '%s' accepted: %.3f >= %.1f",
-                    candidate_title,
-                    current_confidence,
-                    ConfidenceThresholds.NON_ANIMATION_MIN,
-                )
-            else:
-                logger.debug(
-                    "❌ Non-animation candidate '%s' rejected: %.3f < %.1f (genre_ids: %s)",
-                    candidate_title,
-                    current_confidence,
-                    ConfidenceThresholds.NON_ANIMATION_MIN,
-                    genre_ids if genre_ids else "empty",
-                )
-
-        # Sort by confidence score (highest first)
-        boosted_candidates.sort(
-            key=lambda x: x.confidence_score,
-            reverse=True,
-        )
-
-        logger.debug("Genre filter applied to %d candidates", len(boosted_candidates))
-        return boosted_candidates
-
-    def _apply_partial_substring_match(
-        self,
-        candidates: list[ScoredSearchResult],
-        normalized_query: NormalizedQuery,
-    ) -> list[ScoredSearchResult]:
-        """Apply partial substring matching to improve matching for abbreviated titles.
-
-        This method uses rapidfuzz's partial_ratio to calculate new confidence scores
-        for candidates, which is useful for cases like 'OP' matching 'One Piece' or
-        'KNY' matching 'Kimetsu no Yaiba'.
-
-        Args:
-            candidates: List of scored candidates (Pydantic models)
-            normalized_query: NormalizedQuery domain object
-
-        Returns:
-            List of candidates with updated confidence scores based on partial matching
-        """
-        if not candidates:
-            logger.debug("No candidates to apply partial substring matching to")
-            return candidates
-
-        if not normalized_query.title:
-            logger.debug("No title in normalized query for partial substring matching")
-            return candidates
-
-        logger.debug(
-            "Applying partial substring matching to %d candidates for title: %s",
-            len(candidates),
-            normalized_query.title,
-        )
-
-        partial_matched_candidates: list[ScoredSearchResult] = []
-
-        for candidate in candidates:
-            # Extract candidate title from Pydantic model
-            candidate_title = candidate.display_title
-            if not candidate_title:
-                logger.debug("Skipping candidate with no title for partial matching")
-                partial_matched_candidates.append(candidate)
-                continue
-
-            # Calculate partial ratio score
-            partial_score = fuzz.partial_ratio(
-                normalized_query.title.lower(),
-                candidate_title.lower(),
-            )
-
-            # Convert partial score (0-100) to confidence score (0.0-1.0)
-            partial_confidence = partial_score / 100.0
-
-            # Use the higher of the original confidence or partial confidence
-            original_confidence = candidate.confidence_score
-            new_confidence = max(original_confidence, partial_confidence)
-
-            # Create new ScoredSearchResult with updated confidence if improved
-            if new_confidence > original_confidence:
-                partial_candidate = ScoredSearchResult(
-                    **candidate.model_dump(exclude={"confidence_score"}),
-                    confidence_score=new_confidence,
-                )
-            else:
-                partial_candidate = candidate
-
-            logger.debug(
-                "Partial match for '%s' vs '%s': %d (confidence: %.3f -> %.3f)",
-                normalized_query.title,
-                candidate_title,
-                partial_score,
-                original_confidence,
-                new_confidence,
-            )
-
-            partial_matched_candidates.append(partial_candidate)
-
-        # Sort by confidence score (highest first)
-        partial_matched_candidates.sort(
-            key=lambda x: x.confidence_score,
-            reverse=True,
-        )
-
-        logger.debug(
-            "Partial substring matching applied to %d candidates",
-            len(partial_matched_candidates),
-        )
-        return partial_matched_candidates
-
-    def _get_confidence_level(self, confidence_score: float) -> str:
-        """Get confidence level description based on score.
-
-        Args:
-            confidence_score: Confidence score between 0.0 and 1.0
-
-        Returns:
-            Confidence level description
-        """
-        if confidence_score >= ConfidenceThresholds.HIGH:
-            return "high"
-        if confidence_score >= ConfidenceThresholds.MEDIUM:
-            return "medium"
-        if confidence_score >= ConfidenceThresholds.LOW:
-            return "low"
-        return "very_low"
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get comprehensive cache statistics for GUI display.
