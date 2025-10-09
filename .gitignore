@@ -169,8 +169,9 @@ test_data_*/
 test_output/
 test_files/
 test_plan.json
-test_*.py
-test_*.json
+# Ignore test files in root and subdirectories EXCEPT tests/ directory
+/test_*.py
+/test_*.json
 test_*.mkv
 test_*.avi
 test_*.mp4
