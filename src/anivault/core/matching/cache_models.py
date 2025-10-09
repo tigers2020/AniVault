@@ -47,4 +47,3 @@ class CachedSearchData(BaseModel):
     model_config = ConfigDict(
         json_encoders={datetime: lambda v: v.isoformat()},
     )
-

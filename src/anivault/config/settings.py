@@ -381,7 +381,7 @@ class Settings(BaseSettings):
                 "app": {"name": "AniVault", "version": "1.0.0", "debug": False},
                 "logging": {"level": "INFO", "format": "json"},
                 "tmdb": {
-                    "api_key": "your_api_key",
+                    "api_key": "your_api_key",  # pragma: allowlist secret
                     "base_url": "https://api.themoviedb.org/3",
                 },
                 "file_processing": {

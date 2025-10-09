@@ -193,7 +193,9 @@ class TestHandleSpecificExceptions:
         )
 
         exit_code = handle_specific_exceptions(
-            anivault_error, "test-command", json_output=False,
+            anivault_error,
+            "test-command",
+            json_output=False,
         )
 
         assert exit_code == 1
@@ -205,7 +207,9 @@ class TestHandleSpecificExceptions:
         fnf_error = FileNotFoundError("File not found")
 
         exit_code = handle_specific_exceptions(
-            fnf_error, "test-command", json_output=False,
+            fnf_error,
+            "test-command",
+            json_output=False,
         )
 
         assert exit_code == 1
@@ -217,7 +221,9 @@ class TestHandleSpecificExceptions:
         perm_error = PermissionError("Permission denied")
 
         exit_code = handle_specific_exceptions(
-            perm_error, "test-command", json_output=False,
+            perm_error,
+            "test-command",
+            json_output=False,
         )
 
         assert exit_code == 1
@@ -229,7 +235,9 @@ class TestHandleSpecificExceptions:
         data_error = ValueError("Invalid value")
 
         exit_code = handle_specific_exceptions(
-            data_error, "test-command", json_output=False,
+            data_error,
+            "test-command",
+            json_output=False,
         )
 
         assert exit_code == 1
@@ -251,7 +259,9 @@ class TestHandleSpecificExceptions:
         try:
             sys.stdout.buffer.write = mock_write
             exit_code = handle_specific_exceptions(
-                fnf_error, "test-command", json_output=True,
+                fnf_error,
+                "test-command",
+                json_output=True,
             )
 
             assert exit_code == 1
@@ -279,7 +289,7 @@ class TestCliOperationLogging:
         # Check both caplog and stderr output
         captured = capsys.readouterr()
         output_text = caplog.text + captured.err
-        
+
         assert "CLI command 'test-command' completed successfully" in output_text
         assert "123.45ms" in output_text
 

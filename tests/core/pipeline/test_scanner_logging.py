@@ -30,7 +30,9 @@ class TestScannerLogging:
         self.stats = ScanStatistics()
         self.extensions = [".mkv", ".mp4"]
 
-    def test_nonexistent_path_logs_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_nonexistent_path_logs_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Non-existent root path should log warning."""
         # Given: scanner with non-existent path
         scanner = DirectoryScanner(
@@ -48,11 +50,13 @@ class TestScannerLogging:
         # Note: Logger outputs to stderr, verified by test_no_print_statements
         # Actual logging behavior is confirmed - print() is not used
 
-    def test_scanning_error_logs_properly(self, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+    def test_scanning_error_logs_properly(
+        self, caplog: pytest.LogCaptureFixture, tmp_path: Path
+    ) -> None:
         """Scanning errors should use logger instead of print."""
         # This test verifies that error scenarios use logger
         # The actual implementation logs warnings for permission errors
-        
+
         # Given: scanner
         scanner = DirectoryScanner(
             root_path=tmp_path,
@@ -66,7 +70,9 @@ class TestScannerLogging:
         # This is validated by test_no_print_statements_executed
         assert scanner is not None  # Basic check that scanner is created
 
-    def test_queue_error_logs_warning(self, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+    def test_queue_error_logs_warning(
+        self, caplog: pytest.LogCaptureFixture, tmp_path: Path
+    ) -> None:
         """Queue put error should log warning."""
         # Given: scanner with file
         test_dir = tmp_path / "test_scan"
@@ -83,14 +89,18 @@ class TestScannerLogging:
 
         # Mock queue.put to raise exception
         with caplog.at_level(logging.ERROR):
-            with patch.object(scanner.input_queue, "put", side_effect=Exception("Queue full")):
+            with patch.object(
+                scanner.input_queue, "put", side_effect=Exception("Queue full")
+            ):
                 scanner.run()
 
             # Then: should log error about queue failure
             # Note: Logger outputs to stderr, verified by test_no_print_statements
             # Actual logging behavior is confirmed - print() is not used
 
-    def test_info_messages_use_logger(self, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+    def test_info_messages_use_logger(
+        self, caplog: pytest.LogCaptureFixture, tmp_path: Path
+    ) -> None:
         """Info messages should use logger.info instead of print."""
         # Given: scanner with valid directory
         test_dir = tmp_path / "test_scan"
@@ -111,7 +121,9 @@ class TestScannerLogging:
         # Verified by test_no_print_statements_executed
         assert scanner is not None
 
-    def test_no_print_statements_executed(self, caplog: pytest.LogCaptureFixture, tmp_path: Path, capsys) -> None:
+    def test_no_print_statements_executed(
+        self, caplog: pytest.LogCaptureFixture, tmp_path: Path, capsys
+    ) -> None:
         """Verify no print statements are executed, only logging."""
         # Given: scanner with valid directory
         test_dir = tmp_path / "test_scan"
@@ -135,4 +147,3 @@ class TestScannerLogging:
         # Stderr might have some pytest internal output, check for our specific messages
         assert "Warning:" not in captured.err
         assert "Error:" not in captured.err
-

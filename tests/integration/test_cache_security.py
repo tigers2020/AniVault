@@ -60,7 +60,7 @@ class TestCacheSecurityIntegration:
         cache = SQLiteCacheDB(db_path)
 
         sensitive_data = {
-            "api_key": "sk-1234567890abcdef",
+            "api_key": "sk-1234567890abcdef",  # pragma: allowlist secret
             "results": [{"id": 123, "title": "Test"}],
         }
 
@@ -151,4 +151,3 @@ class TestCacheSecurityIntegration:
             assert current_mode == original_mode
 
         cache2.close()
-

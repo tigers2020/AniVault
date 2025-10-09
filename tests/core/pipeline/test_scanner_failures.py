@@ -7,9 +7,9 @@ Note: Some tests verify logger usage. Logger propagation setup may affect
 caplog capture in tests, but actual logging is verified via stderr output.
 """
 
+import logging
 from pathlib import Path
 from unittest.mock import Mock, patch
-import logging
 
 import pytest
 
@@ -37,7 +37,9 @@ class TestShouldIncludeFileLogging:
         test_file = Path("/test/file.mkv")
 
         with caplog.at_level(logging.WARNING):
-            with patch.object(Path, "stat", side_effect=PermissionError("Access denied")):
+            with patch.object(
+                Path, "stat", side_effect=PermissionError("Access denied")
+            ):
                 # When
                 result = scanner._should_include_file(test_file)
 
@@ -142,4 +144,3 @@ class TestEstimateTotalFilesLogging:
 # 투명성을 위해 로깅 추가 필요
 # return False/None/0은 유지 (파일 제외 의미)
 # 하지만 stats 카운터 증가 + logger.debug/warning 추가
-

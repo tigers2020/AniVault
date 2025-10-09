@@ -21,14 +21,20 @@ class TestSearchMediaExceptionHandling:
         # Given
         client = TMDBClient()
         from anivault.services.tmdb_models import TMDBSearchResult
-        
+
         # Mock TV to fail, Movie to succeed (graceful degradation)
         mock_movie_results = [
             TMDBSearchResult(id=2, media_type="movie", title="Attack on Titan Movie")
         ]
 
-        with patch.object(client._tv_strategy, "search", side_effect=Exception("API Error")), \
-             patch.object(client._movie_strategy, "search", return_value=mock_movie_results):
+        with (
+            patch.object(
+                client._tv_strategy, "search", side_effect=Exception("API Error")
+            ),
+            patch.object(
+                client._movie_strategy, "search", return_value=mock_movie_results
+            ),
+        ):
             # When
             result = await client.search_media("Attack on Titan")
 
@@ -45,14 +51,18 @@ class TestSearchMediaExceptionHandling:
         # Given
         client = TMDBClient()
         from anivault.services.tmdb_models import TMDBSearchResult
-        
-        # Mock Movie to fail, TV to succeed (graceful degradation)
-        mock_tv_results = [
-            TMDBSearchResult(id=1, media_type="tv", name="One Piece")
-        ]
 
-        with patch.object(client._movie_strategy, "search", side_effect=ConnectionError("Network error")), \
-             patch.object(client._tv_strategy, "search", return_value=mock_tv_results):
+        # Mock Movie to fail, TV to succeed (graceful degradation)
+        mock_tv_results = [TMDBSearchResult(id=1, media_type="tv", name="One Piece")]
+
+        with (
+            patch.object(
+                client._movie_strategy,
+                "search",
+                side_effect=ConnectionError("Network error"),
+            ),
+            patch.object(client._tv_strategy, "search", return_value=mock_tv_results),
+        ):
             # When
             result = await client.search_media("One Piece")
 
@@ -112,4 +122,3 @@ class TestExtractRetryAfterExceptionHandling:
 # Note: API 클라이언트에서 exception swallowing은 서비스 가용성을 위한 것일 수 있지만
 # 투명성을 위해 로깅 추가 필수
 # 빈 리스트 반환 유지 (graceful degradation) + logger.warning() 추가
-

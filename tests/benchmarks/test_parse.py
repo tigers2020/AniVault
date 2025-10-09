@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from anivault.core.parser.anime_parser import AnimeFilenameParser
 
 
@@ -28,7 +29,7 @@ def test_benchmark_parse_filename(benchmark, parser, test_filenames) -> None:  #
     """Benchmark parsing single filename."""
     filename = test_filenames[0]
     result = benchmark(parser.parse, filename)
-    
+
     # Verify result
     assert result is not None
     assert result.title is not None
@@ -36,9 +37,10 @@ def test_benchmark_parse_filename(benchmark, parser, test_filenames) -> None:  #
 
 def test_benchmark_parse_batch(benchmark, parser, test_filenames) -> None:  # type: ignore[no-untyped-def]
     """Benchmark parsing multiple filenames."""
+
     def parse_batch():  # type: ignore[no-untyped-def]
         return [parser.parse(fn) for fn in test_filenames]
-    
+
     results = benchmark(parse_batch)
     assert len(results) == len(test_filenames)
 
@@ -49,7 +51,6 @@ def test_benchmark_parse_complex_filename(benchmark, parser) -> None:  # type: i
         "[SubGroup] Anime Title - The Very Long Subtitle Part 2 - "
         "S03E24 - Episode Title [1080p][HEVC x265 10bit][AAC 2.0][Dual Audio][Eng Sub].mkv"
     )
-    
+
     result = benchmark(parser.parse, complex_filename)
     assert result is not None
-

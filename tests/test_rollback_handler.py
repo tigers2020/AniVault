@@ -24,9 +24,12 @@ class TestRollbackHandler:
             yes=True,
         )
 
-        with patch("anivault.cli.rollback_handler.get_cli_context") as mock_context, \
-             patch("anivault.cli.rollback_handler._handle_rollback_command_console") as mock_console:
-
+        with (
+            patch("anivault.cli.rollback_handler.get_cli_context") as mock_context,
+            patch(
+                "anivault.cli.rollback_handler._handle_rollback_command_console"
+            ) as mock_console,
+        ):
             mock_context.return_value.is_json_output_enabled.return_value = False
             mock_console.return_value = 0
 
@@ -43,9 +46,12 @@ class TestRollbackHandler:
             yes=True,
         )
 
-        with patch("anivault.cli.rollback_handler.get_cli_context") as mock_context, \
-             patch("anivault.cli.rollback_handler._handle_rollback_command_json") as mock_json:
-
+        with (
+            patch("anivault.cli.rollback_handler.get_cli_context") as mock_context,
+            patch(
+                "anivault.cli.rollback_handler._handle_rollback_command_json"
+            ) as mock_json,
+        ):
             mock_context.return_value.is_json_output_enabled.return_value = True
             mock_json.return_value = 0
 
@@ -62,9 +68,12 @@ class TestRollbackHandler:
             yes=True,
         )
 
-        with patch("anivault.cli.rollback_handler.get_cli_context") as mock_context, \
-             patch("anivault.cli.rollback_handler._handle_rollback_command_console") as mock_console:
-
+        with (
+            patch("anivault.cli.rollback_handler.get_cli_context") as mock_context,
+            patch(
+                "anivault.cli.rollback_handler._handle_rollback_command_console"
+            ) as mock_console,
+        ):
             mock_context.return_value.is_json_output_enabled.return_value = False
             from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
@@ -92,11 +101,16 @@ class TestRollbackHandler:
             Mock(source_path="/test/source2", destination_path="/test/dest2"),
         ]
 
-        with patch("anivault.core.log_manager.OperationLogManager") as mock_log_manager, \
-             patch("anivault.core.rollback_manager.RollbackManager") as mock_rollback_manager:
-
+        with (
+            patch("anivault.core.log_manager.OperationLogManager") as mock_log_manager,
+            patch(
+                "anivault.core.rollback_manager.RollbackManager"
+            ) as mock_rollback_manager,
+        ):
             mock_log_manager.return_value.get_log_by_id.return_value = mock_log_path
-            mock_rollback_manager.return_value.generate_rollback_plan.return_value = mock_rollback_plan
+            mock_rollback_manager.return_value.generate_rollback_plan.return_value = (
+                mock_rollback_plan
+            )
 
             result = _collect_rollback_data(options)
 
@@ -132,11 +146,16 @@ class TestRollbackHandler:
 
         mock_log_path = Path("/test/log.json")
 
-        with patch("anivault.core.log_manager.OperationLogManager") as mock_log_manager, \
-             patch("anivault.core.rollback_manager.RollbackManager") as mock_rollback_manager:
-
+        with (
+            patch("anivault.core.log_manager.OperationLogManager") as mock_log_manager,
+            patch(
+                "anivault.core.rollback_manager.RollbackManager"
+            ) as mock_rollback_manager,
+        ):
             mock_log_manager.return_value.get_log_by_id.return_value = mock_log_path
-            mock_rollback_manager.return_value.generate_rollback_plan.return_value = None
+            mock_rollback_manager.return_value.generate_rollback_plan.return_value = (
+                None
+            )
 
             result = _collect_rollback_data(options)
 
@@ -174,7 +193,9 @@ class TestRollbackHandler:
         assert options.yes is False
 
         # Invalid log_id (too short)
-        with pytest.raises(ValueError, match="Log ID must be at least 10 characters long"):
+        with pytest.raises(
+            ValueError, match="Log ID must be at least 10 characters long"
+        ):
             RollbackOptions(
                 log_id="short",
                 dry_run=False,
@@ -193,7 +214,9 @@ class TestRollbackHandler:
         """Test rollback command Typer integration."""
         from anivault.cli.rollback_handler import rollback_command
 
-        with patch("anivault.cli.rollback_handler.handle_rollback_command") as mock_handler:
+        with patch(
+            "anivault.cli.rollback_handler.handle_rollback_command"
+        ) as mock_handler:
             mock_handler.return_value = 0
 
             # This should not raise an exception

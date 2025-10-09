@@ -107,4 +107,3 @@ class TestCollectLogListDataFailures:
 
 # Note: _collect_log_list_data는 JSON 전용 함수
 # 현재는 에러 시 None 반환하지만, 명확한 예외 발생으로 변경
-

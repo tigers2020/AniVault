@@ -12,11 +12,7 @@ from io import BytesIO
 from unittest.mock import patch
 
 from anivault.cli.common.error_handler import handle_cli_error
-from anivault.shared.errors import (
-    ApplicationError,
-    ErrorCode,
-    create_cli_error,
-)
+from anivault.shared.errors import ApplicationError, ErrorCode, create_cli_error
 
 
 class TestCliErrorHandlingIntegration:
@@ -74,7 +70,9 @@ class TestCliErrorHandlingIntegration:
         """Test handling KeyboardInterrupt in CLI context."""
         keyboard_interrupt = KeyboardInterrupt()
 
-        exit_code = handle_cli_error(keyboard_interrupt, "test-command", json_output=False)
+        exit_code = handle_cli_error(
+            keyboard_interrupt, "test-command", json_output=False
+        )
 
         assert exit_code == 130  # Standard exit code for SIGINT
         captured = capsys.readouterr()

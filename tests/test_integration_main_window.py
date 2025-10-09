@@ -78,7 +78,9 @@ def mock_tmdb_response() -> dict[str, Any]:
     }
 
 
-def test_main_workflow(qtbot, setup_test_environment: Path, mock_tmdb_response: dict[str, Any]):
+def test_main_workflow(
+    qtbot, setup_test_environment: Path, mock_tmdb_response: dict[str, Any]
+):
     """
     Test the complete main workflow of the MainWindow.
 
@@ -105,9 +107,15 @@ def test_main_workflow(qtbot, setup_test_environment: Path, mock_tmdb_response: 
 
     # Mock the file scanning process by directly calling the scan completion handler
     mock_file_items = [
-        FileItem(setup_test_environment / "Series A" / "[Ani] Series A - 01.mkv", "Scanned"),
-        FileItem(setup_test_environment / "Series A" / "[Ani] Series A - 02.mkv", "Scanned"),
-        FileItem(setup_test_environment / "Another Show" / "Another Show - 01.mp4", "Scanned"),
+        FileItem(
+            setup_test_environment / "Series A" / "[Ani] Series A - 01.mkv", "Scanned"
+        ),
+        FileItem(
+            setup_test_environment / "Series A" / "[Ani] Series A - 02.mkv", "Scanned"
+        ),
+        FileItem(
+            setup_test_environment / "Another Show" / "Another Show - 01.mp4", "Scanned"
+        ),
     ]
 
     # Simulate scan completion by directly calling the handler
@@ -141,7 +149,6 @@ def test_main_workflow(qtbot, setup_test_environment: Path, mock_tmdb_response: 
     # Clean up
     main_window.close()
 
-
     def test_file_scanning_workflow(qtbot, setup_test_environment: Path):
         """
         Test file scanning workflow specifically.
@@ -162,7 +169,9 @@ def test_main_workflow(qtbot, setup_test_environment: Path, mock_tmdb_response: 
             mock_thread_class.return_value = mock_thread
 
             # Mock FileScannerWorker
-            with patch("anivault.gui.workers.file_scanner_worker.FileScannerWorker") as mock_worker_class:
+            with patch(
+                "anivault.gui.workers.file_scanner_worker.FileScannerWorker"
+            ) as mock_worker_class:
                 mock_worker = MagicMock()
                 mock_worker_class.return_value = mock_worker
 
@@ -179,8 +188,14 @@ def test_main_workflow(qtbot, setup_test_environment: Path, mock_tmdb_response: 
 
         # Simulate scan completion
         mock_file_items = [
-            FileItem(setup_test_environment / "Series A" / "[Ani] Series A - 01.mkv", "Scanned"),
-            FileItem(setup_test_environment / "Series A" / "[Ani] Series A - 02.mkv", "Scanned"),
+            FileItem(
+                setup_test_environment / "Series A" / "[Ani] Series A - 01.mkv",
+                "Scanned",
+            ),
+            FileItem(
+                setup_test_environment / "Series A" / "[Ani] Series A - 02.mkv",
+                "Scanned",
+            ),
         ]
         main_window.on_scan_finished(mock_file_items)
 

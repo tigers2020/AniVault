@@ -10,22 +10,23 @@ Single Responsibility Principle:
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 from anivault.core.file_grouper import (
+    FileGrouper,
+    GroupNameManager,
     TitleExtractor,
     TitleQualityEvaluator,
-    GroupNameManager,
-    FileGrouper,
 )
 from anivault.core.models import ScannedFile
 from anivault.core.parser.models import ParsingResult
 from anivault.shared.constants.filename_patterns import (
+    TitlePatterns,
     TitleQualityScores,
     TitleSelectionThresholds,
-    TitlePatterns,
 )
 
 
@@ -58,7 +59,9 @@ class TestTitleExtractor:
         """Test extracting title from filename with resolution info."""
         filename = "One Piece - Episode 1000 [1080p] [WEB-DL] [x265] [AAC].mkv"
         result = self.extractor.extract_base_title(filename)
-        assert result == "One Piece - Episode 1000 [WEB-DL]"  # Technical info removed, Episode 1000 kept
+        assert (
+            result == "One Piece - Episode 1000 [WEB-DL]"
+        )  # Technical info removed, Episode 1000 kept
 
     def test_extract_base_title_with_codec_info(self) -> None:
         """Test extracting title from filename with codec information."""
@@ -90,20 +93,20 @@ class TestTitleExtractor:
         result = self.extractor.extract_base_title(None)
         assert result == "unknown"
 
-    @patch('anivault.core.file_grouper.AnitopyParser')
+    @patch("anivault.core.file_grouper.AnitopyParser")
     def test_extract_title_with_parser_success(self, mock_parser_class) -> None:
         """Test title extraction using parser successfully."""
         mock_parser = Mock()
         mock_parser.parse.return_value = {"anime_title": "Attack on Titan"}
         mock_parser_class.return_value = mock_parser
-        
+
         extractor = TitleExtractor()
         result = extractor.extract_title_with_parser("test.mkv")
-        
+
         assert result == "Attack on Titan"
         mock_parser.parse.assert_called_once_with("test.mkv")
 
-    @patch('anivault.core.file_grouper.AnitopyParser')
+    @patch("anivault.core.file_grouper.AnitopyParser")
     def test_extract_title_with_parser_fallback(self, mock_parser_class) -> None:
         """Test title extraction fallback when parser fails."""
         mock_parser = Mock()
@@ -115,7 +118,7 @@ class TestTitleExtractor:
 
         assert result == "Attack on Titan E01"  # S01 removed, E01 kept
 
-    @patch('anivault.core.file_grouper.AnitopyParser')
+    @patch("anivault.core.file_grouper.AnitopyParser")
     def test_extract_title_with_parser_error(self, mock_parser_class) -> None:
         """Test title extraction when parser raises exception."""
         mock_parser = Mock()
@@ -320,15 +323,15 @@ class TestGroupNameManager:
             file_size=3000,
             last_modified=1234567890.0,
         )
-        
+
         grouped_files = {
             "Attack on Titan": [file1],
             "Attack on Titan (1)": [file2],
             "Attack on Titan (2)": [file3],
         }
-        
+
         result = self.manager.merge_similar_group_names(grouped_files)
-        
+
         # Should merge all three groups under "Attack on Titan"
         assert len(result) == 1
         assert "Attack on Titan" in result
@@ -345,10 +348,10 @@ class TestFileGrouper:
     def test_init_default_threshold(self) -> None:
         """Test initialization with default threshold."""
         grouper = FileGrouper()
-        assert hasattr(grouper, 'similarity_threshold')
-        assert hasattr(grouper, 'title_extractor')
-        assert hasattr(grouper, 'quality_evaluator')
-        assert hasattr(grouper, 'group_manager')
+        assert hasattr(grouper, "similarity_threshold")
+        assert hasattr(grouper, "title_extractor")
+        assert hasattr(grouper, "quality_evaluator")
+        assert hasattr(grouper, "group_manager")
 
     def test_init_custom_threshold(self) -> None:
         """Test initialization with custom threshold."""
@@ -391,9 +394,9 @@ class TestFileGrouper:
             file_size=2000,
             last_modified=1234567890.0,
         )
-        
+
         result = self.grouper.group_files([file1, file2])
-        
+
         # Should create separate groups for different episodes
         assert len(result) >= 1
         total_files = sum(len(files) for files in result.values())
@@ -413,9 +416,9 @@ class TestFileGrouper:
             file_size=2000,
             last_modified=1234567890.0,
         )
-        
+
         result = self.grouper.group_files([file1, file2])
-        
+
         # Should group by cleaned titles
         assert len(result) >= 1
         total_files = sum(len(files) for files in result.values())
@@ -436,7 +439,9 @@ class TestFileGrouper:
             last_modified=1234567890.0,
         )
 
-        with patch.object(self.grouper, '_update_group_names_with_parser') as mock_update:
+        with patch.object(
+            self.grouper, "_update_group_names_with_parser"
+        ) as mock_update:
             mock_update.return_value = {"Demon Slayer": [file1]}
 
             result = self.grouper.group_files([file1])
@@ -447,17 +452,23 @@ class TestFileGrouper:
 
     def test_calculate_similarity_identical(self) -> None:
         """Test similarity calculation for identical titles."""
-        similarity = self.grouper._calculate_similarity("Attack on Titan", "Attack on Titan")
+        similarity = self.grouper._calculate_similarity(
+            "Attack on Titan", "Attack on Titan"
+        )
         assert similarity == 1.0
 
     def test_calculate_similarity_different(self) -> None:
         """Test similarity calculation for different titles."""
-        similarity = self.grouper._calculate_similarity("Attack on Titan", "Demon Slayer")
+        similarity = self.grouper._calculate_similarity(
+            "Attack on Titan", "Demon Slayer"
+        )
         assert similarity < 0.5
 
     def test_calculate_similarity_partial(self) -> None:
         """Test similarity calculation for partially similar titles."""
-        similarity = self.grouper._calculate_similarity("Attack on Titan", "Attack on Titan Season 2")
+        similarity = self.grouper._calculate_similarity(
+            "Attack on Titan", "Attack on Titan Season 2"
+        )
         assert 0.5 <= similarity <= 1.0
 
     def test_calculate_similarity_empty(self) -> None:
@@ -483,32 +494,36 @@ class TestFileGrouperIntegration:
         """Test grouping with real-world anime filenames."""
         files = [
             ScannedFile(
-                file_path=Path("[SubsPlease] Attack on Titan - S01E01 [1080p] [x264] [AAC].mkv"),
-            metadata=ParsingResult(title="Attack on Titan"),
-            file_size=1000000000,
-            last_modified=1234567890.0,
+                file_path=Path(
+                    "[SubsPlease] Attack on Titan - S01E01 [1080p] [x264] [AAC].mkv"
+                ),
+                metadata=ParsingResult(title="Attack on Titan"),
+                file_size=1000000000,
+                last_modified=1234567890.0,
             ),
             ScannedFile(
-                file_path=Path("[Erai-raws] Attack on Titan - S01E02 [1080p] [x265] [AAC].mkv"),
-            metadata=ParsingResult(title="Attack on Titan"),
-            file_size=2000000000,
-            last_modified=1234567890.0,
+                file_path=Path(
+                    "[Erai-raws] Attack on Titan - S01E02 [1080p] [x265] [AAC].mkv"
+                ),
+                metadata=ParsingResult(title="Attack on Titan"),
+                file_size=2000000000,
+                last_modified=1234567890.0,
             ),
             ScannedFile(
                 file_path=Path("Attack on Titan - S01E03 [1080p] [WEB-DL].mkv"),
-            metadata=ParsingResult(title="Attack on Titan"),
-            file_size=1500000000,
-            last_modified=1234567890.0,
+                metadata=ParsingResult(title="Attack on Titan"),
+                file_size=1500000000,
+                last_modified=1234567890.0,
             ),
         ]
-        
+
         result = self.grouper.group_files(files)
-        
+
         # Should group all Attack on Titan episodes together
         assert len(result) >= 1
         total_files = sum(len(group_files) for group_files in result.values())
         assert total_files == 3
-        
+
         # Check that files are properly grouped
         for group_name, group_files in result.items():
             assert len(group_files) >= 1
@@ -537,9 +552,9 @@ class TestFileGrouperIntegration:
                 last_modified=1234567890.0,
             ),
         ]
-        
+
         result = self.grouper.group_files(files)
-        
+
         # Should create separate groups for different content
         assert len(result) >= 3
         total_files = sum(len(group_files) for group_files in result.values())
@@ -567,9 +582,9 @@ class TestFileGrouperIntegration:
                 last_modified=1234567890.0,
             ),
         ]
-        
+
         result = self.grouper.group_files(files)
-        
+
         # Should group video and subtitle files together
         assert len(result) >= 1
         total_files = sum(len(group_files) for group_files in result.values())

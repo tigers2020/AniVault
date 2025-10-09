@@ -114,7 +114,9 @@ class FallbackStrategyService:
                 # Record initial state
                 before_count = len(current_candidates)
                 before_top_score = (
-                    current_candidates[0].confidence_score if current_candidates else 0.0
+                    current_candidates[0].confidence_score
+                    if current_candidates
+                    else 0.0
                 )
 
                 # Apply strategy
@@ -123,7 +125,9 @@ class FallbackStrategyService:
                 # Record result
                 after_count = len(current_candidates)
                 after_top_score = (
-                    current_candidates[0].confidence_score if current_candidates else 0.0
+                    current_candidates[0].confidence_score
+                    if current_candidates
+                    else 0.0
                 )
 
                 # Log delta
@@ -183,4 +187,3 @@ class FallbackStrategyService:
             Number of strategies
         """
         return len(self._strategies)
-

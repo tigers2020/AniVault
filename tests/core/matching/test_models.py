@@ -203,4 +203,3 @@ class TestMatchResult:
 
         with pytest.raises((AttributeError, TypeError)):  # Frozen dataclass error
             result.confidence_score = 0.9  # type: ignore[misc]
-

@@ -129,9 +129,7 @@ class TestCandidateScoringService:
 
     # === Exception Handling Tests ===
 
-    def test_score_candidates_exception_assigns_zero_score(
-        self, service, sample_query
-    ):
+    def test_score_candidates_exception_assigns_zero_score(self, service, sample_query):
         """Test scoring exception assigns 0.0 confidence."""
         # Create candidate that will cause scoring error
         invalid_candidate = TMDBSearchResult(
@@ -213,4 +211,3 @@ class TestCandidateScoringService:
 
         # Just below MEDIUM threshold
         assert service.get_confidence_level(ConfidenceThresholds.MEDIUM - 0.01) == "low"
-

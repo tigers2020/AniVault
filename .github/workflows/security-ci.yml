@@ -43,8 +43,8 @@ jobs:
     # Static Analysis Security Testing (SAST)
     - name: Run Bandit Security Scan
       run: |
-        bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/ -f txt
+        bandit -r src/ -ll -f json -o bandit-report.json
+        bandit -r src/ -ll -f txt
 
     - name: Run Safety Check
       run: |

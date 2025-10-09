@@ -152,7 +152,9 @@ class TestSQLiteCacheDBSetAndGet:
         }
 
         # When
-        cache.set_cache(key, complex_data, cache_type=Cache.TYPE_DETAILS, ttl_seconds=7200)
+        cache.set_cache(
+            key, complex_data, cache_type=Cache.TYPE_DETAILS, ttl_seconds=7200
+        )
         result = cache.get(key, cache_type=Cache.TYPE_DETAILS)
 
         # Then
@@ -229,8 +231,12 @@ class TestSQLiteCacheDBPurgeExpired:
         cache = SQLiteCacheDB(db_path)
 
         # Add expired entries with different types
-        cache.set_cache("key1", {"data": "1"}, cache_type=Cache.TYPE_SEARCH, ttl_seconds=0)
-        cache.set_cache("key2", {"data": "2"}, cache_type=Cache.TYPE_DETAILS, ttl_seconds=0)
+        cache.set_cache(
+            "key1", {"data": "1"}, cache_type=Cache.TYPE_SEARCH, ttl_seconds=0
+        )
+        cache.set_cache(
+            "key2", {"data": "2"}, cache_type=Cache.TYPE_DETAILS, ttl_seconds=0
+        )
         time.sleep(0.1)
 
         # When - Purge only search type
@@ -339,4 +345,3 @@ class TestSQLiteCacheDBConcurrency:
         assert result1 == result2 == {"data": "test"}
         cache1.close()
         cache2.close()
-

@@ -73,7 +73,7 @@ class TestValidateApiKeyNotInData:
     def test_api_key_in_root_level(self) -> None:
         """Should raise error if api_key is in root level."""
         # Given
-        data = {"api_key": "sk-1234567890", "title": "Test Anime"}
+        data = {"api_key": "sk-1234567890", "title": "Test Anime"}  # pragma: allowlist secret
 
         # When & Then
         with pytest.raises(ApplicationError) as exc_info:
@@ -87,7 +87,7 @@ class TestValidateApiKeyNotInData:
         # Given
         data = {
             "title": "Test Anime",
-            "metadata": {"api_key": "sk-1234567890", "version": "1.0"},
+            "metadata": {"api_key": "sk-1234567890", "version": "1.0"},  # pragma: allowlist secret
         }
 
         # When & Then
@@ -103,7 +103,7 @@ class TestValidateApiKeyNotInData:
         data = {
             "items": [
                 {"title": "Anime 1"},
-                {"title": "Anime 2", "secret": "confidential"},
+                {"title": "Anime 2", "secret": "confidential"},  # pragma: allowlist secret
             ]
         }
 
@@ -156,4 +156,3 @@ class TestValidateApiKeyNotInData:
 
         # When & Then - Should not raise
         validate_api_key_not_in_data(empty_data)
-

@@ -15,8 +15,8 @@ from .search_service import TMDBSearchService
 __all__ = [
     "CacheAdapterProtocol",
     "CandidateFilterService",
-    "FallbackStrategyService",
     "CandidateScoringService",
+    "FallbackStrategyService",
     "SQLiteCacheAdapter",
     "TMDBSearchService",
 ]

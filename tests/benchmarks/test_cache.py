@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
 
@@ -53,7 +54,7 @@ def test_benchmark_cache_get(benchmark, cache_db, test_cache_entry) -> None:  # 
         cache_type=test_cache_entry["cache_type"],
         ttl_seconds=test_cache_entry["ttl_seconds"],
     )
-    
+
     # Benchmark retrieval
     result = benchmark(cache_db.get, test_cache_entry["key"])
     assert result is not None
@@ -68,7 +69,7 @@ def test_benchmark_cache_roundtrip(benchmark, cache_db) -> None:  # type: ignore
         "cache_type": "search",
         "ttl_seconds": 3600,
     }
-    
+
     def roundtrip():  # type: ignore[no-untyped-def]
         cache_db.set_cache(
             key=test_data["key"],
@@ -77,13 +78,14 @@ def test_benchmark_cache_roundtrip(benchmark, cache_db) -> None:  # type: ignore
             ttl_seconds=test_data["ttl_seconds"],
         )
         return cache_db.get(test_data["key"])
-    
+
     result = benchmark(roundtrip)
     assert result is not None
 
 
 def test_benchmark_cache_batch_operations(benchmark, cache_db) -> None:  # type: ignore[no-untyped-def]
     """Benchmark batch cache operations (100 items)."""
+
     def batch_ops():  # type: ignore[no-untyped-def]
         # Insert 100 entries
         for i in range(100):
@@ -93,14 +95,13 @@ def test_benchmark_cache_batch_operations(benchmark, cache_db) -> None:  # type:
                 cache_type="search",
                 ttl_seconds=3600,
             )
-        
+
         # Retrieve 100 entries
         results = []
         for i in range(100):
             results.append(cache_db.get(f"batch_key_{i}"))
-        
+
         return results
-    
+
     results = benchmark(batch_ops)
     assert len(results) == 100
-

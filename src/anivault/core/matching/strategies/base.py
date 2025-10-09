@@ -57,4 +57,3 @@ class FallbackStrategy(Protocol):
             - May return empty list if no improvements possible
         """
         ...
-

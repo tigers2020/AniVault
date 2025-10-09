@@ -5,9 +5,9 @@ Stage 3.3: Test cache system error handling.
 - delete() method: Raise exceptions instead of returning False
 """
 
+import sqlite3
 from pathlib import Path
 from unittest.mock import Mock, patch
-import sqlite3
 
 import pytest
 
@@ -33,7 +33,13 @@ class TestCacheGetFailures:
                 INSERT INTO tmdb_cache (cache_key, key_hash, response_data, cache_type, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                ("test_key", key_hash, "invalid json{{{", "search", "2025-10-07T10:00:00Z"),
+                (
+                    "test_key",
+                    key_hash,
+                    "invalid json{{{",
+                    "search",
+                    "2025-10-07T10:00:00Z",
+                ),
             )
 
         # When
@@ -97,7 +103,10 @@ class TestCacheDeleteFailures:
         with pytest.raises(InfrastructureError) as exc_info:
             cache_db.delete("test_key", cache_type="search")
 
-        assert exc_info.value.code in [ErrorCode.FILE_ACCESS_ERROR, ErrorCode.APPLICATION_ERROR]
+        assert exc_info.value.code in [
+            ErrorCode.FILE_ACCESS_ERROR,
+            ErrorCode.APPLICATION_ERROR,
+        ]
 
     def test_nonexistent_key_returns_false(self, tmp_path):
         """존재하지 않는 키 삭제 시 False 반환 (정상 동작)."""
@@ -129,4 +138,3 @@ class TestCacheDeleteFailures:
 
 # Note: 캐시 시스템의 get()은 graceful degradation을 위해 None 반환 유지
 # 하지만 delete()는 명확한 실패를 위해 예외 발생으로 변경
-

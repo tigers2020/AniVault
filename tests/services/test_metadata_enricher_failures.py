@@ -152,4 +152,3 @@ class TestFindBestMatchFailures:
 
 # Note: 매칭 알고리즘에서 0.0 점수는 "매칭되지 않음"과 "오류 발생"을 구분할 수 없음
 # 리팩토링 후에는 명확한 예외 발생으로 이 문제 해결
-

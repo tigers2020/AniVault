@@ -67,7 +67,9 @@ class TestCalculateConfidenceScoreFailures:
         )
 
         # Mock _calculate_title_score to raise ValueError
-        with patch("anivault.core.matching.scoring._calculate_title_score") as mock_score:
+        with patch(
+            "anivault.core.matching.scoring._calculate_title_score"
+        ) as mock_score:
             mock_score.side_effect = ValueError("Invalid similarity")
 
             with patch("anivault.core.matching.scoring.logger") as mock_logger:
@@ -141,4 +143,3 @@ class TestCalculateConfidenceScoreFailures:
 
 # Note: graceful degradation 패턴 - 한 후보 실패해도 다른 후보 계속 평가
 # 이건 매칭 알고리즘의 의도된 설계임
-

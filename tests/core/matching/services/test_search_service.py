@@ -104,9 +104,7 @@ class TestTMDBSearchService:
         assert len(results) == 1
         assert isinstance(results[0], TMDBSearchResult)
         assert results[0].id == 1429
-        mock_cache.get.assert_called_once_with(
-            "attack on titan", "search"
-        )
+        mock_cache.get.assert_called_once_with("attack on titan", "search")
         service.statistics.record_cache_hit.assert_called_once_with("search")
 
     @pytest.mark.asyncio
@@ -279,4 +277,3 @@ class TestTMDBSearchService:
         assert len(results) == 2
         assert results[0].media_type == "tv"
         assert results[1].media_type == "movie"
-

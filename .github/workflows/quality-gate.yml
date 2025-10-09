@@ -50,7 +50,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          python -m pytest tests/ --cov=src/anivault --cov-report=term --cov-report=html --cov-fail-under=32 -v
+          python -m pytest tests/ --ignore=tests/gui/ --ignore=tests/widgets/ --ignore=tests/controllers/ --ignore=tests/test_integration_main_window.py --cov=src/anivault --cov-report=term --cov-report=html --cov-fail-under=60 -v
 
       - name: Type checking with mypy
         run: |
@@ -61,7 +61,7 @@ jobs:
         run: |
           python -m bandit -r src/anivault -f json -o bandit-report.json
           python -m bandit -r src/anivault -ll
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4

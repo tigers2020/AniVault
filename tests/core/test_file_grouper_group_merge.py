@@ -1,15 +1,18 @@
 """Tests for FileGrouper group merging functionality."""
 
-import pytest
-from unittest.mock import Mock
 from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
 
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.models import ScannedFile
 from anivault.core.parser.models import ParsingResult
 
 
-@pytest.mark.skip(reason="Refactored - _merge_similar_group_names moved to GroupNameManager")
+@pytest.mark.skip(
+    reason="Refactored - _merge_similar_group_names moved to GroupNameManager"
+)
 class TestFileGrouperGroupMerge:
     """Test group merging functionality in FileGrouper."""
 
@@ -21,20 +24,20 @@ class TestFileGrouperGroupMerge:
                 file_path=Path("test1.mp4"),
                 metadata=ParsingResult(title="test1", parser_used="test"),
                 file_size=1000,
-                last_modified=1234567890.0
+                last_modified=1234567890.0,
             ),
             ScannedFile(
                 file_path=Path("test2.mp4"),
                 metadata=ParsingResult(title="test2", parser_used="test"),
                 file_size=1000,
-                last_modified=1234567890.0
+                last_modified=1234567890.0,
             ),
             ScannedFile(
                 file_path=Path("test3.mkv"),
                 metadata=ParsingResult(title="test3", parser_used="test"),
                 file_size=1000,
-                last_modified=1234567890.0
-            )
+                last_modified=1234567890.0,
+            ),
         ]
 
     def test_merge_similar_group_names_empty_input(self) -> None:
@@ -46,9 +49,9 @@ class TestFileGrouperGroupMerge:
         """Test merging when no numbered groups exist."""
         input_groups = {
             "Anime A": [self.mock_files[0]],
-            "Anime B": [self.mock_files[1]]
+            "Anime B": [self.mock_files[1]],
         }
-        
+
         result = self.grouper._merge_similar_group_names(input_groups)
         assert result == input_groups
 
@@ -57,11 +60,11 @@ class TestFileGrouperGroupMerge:
         input_groups = {
             "Anime A": [self.mock_files[0]],
             "Anime A (1)": [self.mock_files[1]],
-            "Anime B": [self.mock_files[2]]
+            "Anime B": [self.mock_files[2]],
         }
-        
+
         result = self.grouper._merge_similar_group_names(input_groups)
-        
+
         assert len(result) == 2
         assert "Anime A" in result
         assert "Anime B" in result
@@ -74,11 +77,11 @@ class TestFileGrouperGroupMerge:
         input_groups = {
             "Anime A": [self.mock_files[0]],
             "Anime A (1)": [self.mock_files[1]],
-            "Anime A (2)": [self.mock_files[2]]
+            "Anime A (2)": [self.mock_files[2]],
         }
-        
+
         result = self.grouper._merge_similar_group_names(input_groups)
-        
+
         assert len(result) == 1
         assert "Anime A" in result
         assert "Anime A (1)" not in result
@@ -90,11 +93,11 @@ class TestFileGrouperGroupMerge:
         input_groups = {
             "Anime A (1)": [self.mock_files[0]],
             "Anime A (2)": [self.mock_files[1]],
-            "Anime B": [self.mock_files[2]]
+            "Anime B": [self.mock_files[2]],
         }
-        
+
         result = self.grouper._merge_similar_group_names(input_groups)
-        
+
         assert len(result) == 3
         assert "Anime A (1)" in result
         assert "Anime A (2)" in result
@@ -106,11 +109,11 @@ class TestFileGrouperGroupMerge:
         input_groups = {
             "Title A": [self.mock_files[0]],
             "Title A (1)": [self.mock_files[1]],
-            "Title B (1)": [self.mock_files[2]]
+            "Title B (1)": [self.mock_files[2]],
         }
-        
+
         result = self.grouper._merge_similar_group_names(input_groups)
-        
+
         assert len(result) == 2
         assert "Title A" in result
         assert "Title B (1)" in result
@@ -123,11 +126,11 @@ class TestFileGrouperGroupMerge:
         input_groups = {
             "Anime A": [self.mock_files[0]],
             "Anime A (1)": [self.mock_files[1]],  # Normal spacing
-            "Anime A  (2)": [self.mock_files[2]]  # Extra space
+            "Anime A  (2)": [self.mock_files[2]],  # Extra space
         }
-        
+
         result = self.grouper._merge_similar_group_names(input_groups)
-        
+
         assert len(result) == 1
         assert "Anime A" in result
         assert len(result["Anime A"]) == 3
@@ -140,24 +143,24 @@ class TestFileGrouperGroupMerge:
                 file_path=Path("[Group] Title - 01.mkv"),
                 metadata=ParsingResult(title="Title", parser_used="test"),
                 file_size=1000,
-                last_modified=1234567890.0
+                last_modified=1234567890.0,
             ),
             ScannedFile(
                 file_path=Path("[Group] Title - 02.mkv"),
                 metadata=ParsingResult(title="Title", parser_used="test"),
                 file_size=1000,
-                last_modified=1234567890.0
+                last_modified=1234567890.0,
             ),
             ScannedFile(
                 file_path=Path("[Group] Title - 12 END.mkv"),
                 metadata=ParsingResult(title="Title", parser_used="test"),
                 file_size=1000,
-                last_modified=1234567890.0
-            )
+                last_modified=1234567890.0,
+            ),
         ]
-        
+
         result = self.grouper.group_files(test_files)
-        
+
         # Should result in a single merged group
         assert len(result) == 1
         assert "Title" in result
@@ -167,11 +170,11 @@ class TestFileGrouperGroupMerge:
         """Test that merging preserves the order of files."""
         input_groups = {
             "Anime A": [self.mock_files[0]],
-            "Anime A (1)": [self.mock_files[1]]
+            "Anime A (1)": [self.mock_files[1]],
         }
-        
+
         result = self.grouper._merge_similar_group_names(input_groups)
-        
+
         merged_files = result["Anime A"]
         assert len(merged_files) == 2
         assert merged_files[0] == self.mock_files[0]  # Base group files first

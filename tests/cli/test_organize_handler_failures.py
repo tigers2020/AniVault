@@ -44,7 +44,9 @@ class TestValidateOrganizeDirectoryFailures:
         console = Mock()
 
         with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "is_dir", side_effect=PermissionError("Permission denied")):
+            with patch.object(
+                Path, "is_dir", side_effect=PermissionError("Permission denied")
+            ):
                 # When & Then
                 with pytest.raises(InfrastructureError) as exc_info:
                     _validate_organize_directory(options, console)
@@ -153,4 +155,3 @@ class TestCollectOrganizeDataFailures:
 # 리팩토링 후에는 명확한 예외 발생으로 변경
 # _confirm_organization의 KeyboardInterrupt는 정상적인 사용자 취소이므로 False 반환 유지
 # _collect_organize_data의 exception swallowing은 로깅 추가 필요
-

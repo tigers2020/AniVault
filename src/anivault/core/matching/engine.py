@@ -88,7 +88,7 @@ class MatchingEngine:
         from anivault.core.matching.strategies import FallbackStrategy
 
         fallback_strategies: list[FallbackStrategy] = cast(
-            list[FallbackStrategy],
+            "list[FallbackStrategy]",
             [
                 GenreBoostStrategy(),
                 PartialMatchStrategy(),
@@ -99,8 +99,10 @@ class MatchingEngine:
             strategies=fallback_strategies,
         )
 
-
-    async def find_match(self, anitopy_result: dict[str, Any]) -> MatchResult | None:
+    async def find_match(
+        self,
+        anitopy_result: dict[str, Any],
+    ) -> MatchResult | None:
         """Find the best match for an anime title using multi-stage matching with fallback strategies.
 
         This method orchestrates the entire matching process by delegating to service layer.
@@ -215,7 +217,6 @@ class MatchingEngine:
 
         logger.info("Searching for match: %s", normalized_query.title)
         return normalized_query
-
 
     def _validate_final_confidence(self, best_candidate: ScoredSearchResult) -> bool:
         """Validate that the final confidence meets minimum threshold.

@@ -401,7 +401,9 @@ class TestGetCacheStats:
 class TestFallbackStrategies:
     """Test find_match fallback strategies."""
 
-    @pytest.mark.skip(reason="Fallback strategies only boost confidence, don't re-search")
+    @pytest.mark.skip(
+        reason="Fallback strategies only boost confidence, don't re-search"
+    )
     @pytest.mark.asyncio
     async def test_find_match_uses_fallback_on_no_initial_match(
         self,

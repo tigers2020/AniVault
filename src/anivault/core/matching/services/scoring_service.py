@@ -147,4 +147,3 @@ class CandidateScoringService:
         if confidence_score >= ConfidenceThresholds.LOW:
             return "low"
         return "very_low"
-

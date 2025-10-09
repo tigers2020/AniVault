@@ -126,7 +126,9 @@ class TestLoggingHelpers:
 
         with caplog.at_level(logging.INFO):
             log_operation_start(
-                logger, operation="test_op", context={"param": "value"},
+                logger,
+                operation="test_op",
+                context={"param": "value"},
             )
 
         assert len(caplog.records) == 1
@@ -164,4 +166,3 @@ class TestJSONLoggingIntegration:
         assert log_data["message"] == "Test JSON message"
         assert log_data["level"] == "INFO"
         assert "timestamp" in log_data
-

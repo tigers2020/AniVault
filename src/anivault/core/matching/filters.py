@@ -14,12 +14,14 @@ from rapidfuzz import fuzz
 
 from anivault.core.matching.models import NormalizedQuery
 from anivault.services.tmdb_models import TMDBSearchResult
-from anivault.shared.constants import GenreConfig, YearMatchingConfig
+from anivault.shared.constants import GenreConfig
 
 logger = logging.getLogger(__name__)
 
 # Year tolerance for filtering (years)
-YEAR_FILTER_TOLERANCE = 10  # Allow ±10 years for anime (long-running series, prequels, etc.)
+YEAR_FILTER_TOLERANCE = (
+    10  # Allow ±10 years for anime (long-running series, prequels, etc.)
+)
 
 
 def filter_and_sort_by_year(

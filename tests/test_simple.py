@@ -2,6 +2,7 @@
 
 import pytest
 from typer.testing import CliRunner
+
 from anivault.cli.typer_app import app
 
 

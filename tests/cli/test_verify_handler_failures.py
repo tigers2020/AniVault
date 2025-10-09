@@ -30,9 +30,11 @@ class TestCollectVerifyDataFailures:
         # Mock TMDBClient
         with patch("anivault.services.TMDBClient") as mock_client_class:
             mock_client = Mock()
+
             # search_media 실패
             async def mock_search_fail(query):
                 raise ValueError("Invalid stats")
+
             mock_client.search_media = mock_search_fail
             mock_client_class.return_value = mock_client
 
@@ -54,9 +56,11 @@ class TestCollectVerifyDataFailures:
         # Mock TMDBClient
         with patch("anivault.services.TMDBClient") as mock_client_class:
             mock_client = Mock()
+
             # search_media는 async이므로 coroutine 반환
             async def mock_search(query):
                 return []
+
             mock_client.search_media = mock_search
             mock_client_class.return_value = mock_client
 
@@ -71,4 +75,3 @@ class TestCollectVerifyDataFailures:
 
 # Note: _collect_verify_data는 검증 도구이므로 내부 에러는
 # graceful degradation으로 처리하고, 외부 I/O 에러만 예외 발생.
-

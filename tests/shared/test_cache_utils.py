@@ -83,7 +83,9 @@ class TestGenerateCacheKey:
     def test_basic_search_key(self) -> None:
         """Test basic search cache key generation."""
         key, key_hash = generate_cache_key(
-            "search", None, {"query": "titan", "lang": "ko"},
+            "search",
+            None,
+            {"query": "titan", "lang": "ko"},
         )
         assert key == "search:lang=ko:query=titan"
         assert len(key_hash) == 64  # SHA-256 hash length
@@ -103,13 +105,19 @@ class TestGenerateCacheKey:
     def test_parameter_order_independence(self) -> None:
         """Test that parameter order doesn't affect cache key."""
         key1, hash1 = generate_cache_key(
-            "search", None, {"lang": "ko", "query": "titan", "page": 1},
+            "search",
+            None,
+            {"lang": "ko", "query": "titan", "page": 1},
         )
         key2, hash2 = generate_cache_key(
-            "search", None, {"query": "titan", "page": 1, "lang": "ko"},
+            "search",
+            None,
+            {"query": "titan", "page": 1, "lang": "ko"},
         )
         key3, hash3 = generate_cache_key(
-            "search", None, {"page": 1, "lang": "ko", "query": "titan"},
+            "search",
+            None,
+            {"page": 1, "lang": "ko", "query": "titan"},
         )
 
         assert key1 == key2 == key3
@@ -118,13 +126,19 @@ class TestGenerateCacheKey:
     def test_case_insensitivity(self) -> None:
         """Test that parameter keys and string values are case-insensitive."""
         key1, hash1 = generate_cache_key(
-            "search", None, {"Lang": "KO", "Query": "TITAN"},
+            "search",
+            None,
+            {"Lang": "KO", "Query": "TITAN"},
         )
         key2, hash2 = generate_cache_key(
-            "search", None, {"lang": "ko", "query": "titan"},
+            "search",
+            None,
+            {"lang": "ko", "query": "titan"},
         )
         key3, hash3 = generate_cache_key(
-            "search", None, {"LANG": "ko", "QUERY": "Titan"},
+            "search",
+            None,
+            {"LANG": "ko", "QUERY": "Titan"},
         )
 
         assert key1 == key2 == key3
@@ -133,10 +147,14 @@ class TestGenerateCacheKey:
     def test_none_removal(self) -> None:
         """Test that None values are removed from cache key."""
         key1, hash1 = generate_cache_key(
-            "search", None, {"lang": "ko", "query": "titan", "page": None},
+            "search",
+            None,
+            {"lang": "ko", "query": "titan", "page": None},
         )
         key2, hash2 = generate_cache_key(
-            "search", None, {"lang": "ko", "query": "titan"},
+            "search",
+            None,
+            {"lang": "ko", "query": "titan"},
         )
 
         assert key1 == key2
@@ -145,10 +163,14 @@ class TestGenerateCacheKey:
     def test_empty_string_removal(self) -> None:
         """Test that empty strings are removed from cache key."""
         key1, hash1 = generate_cache_key(
-            "search", None, {"lang": "ko", "query": "titan", "filter": ""},
+            "search",
+            None,
+            {"lang": "ko", "query": "titan", "filter": ""},
         )
         key2, hash2 = generate_cache_key(
-            "search", None, {"lang": "ko", "query": "titan"},
+            "search",
+            None,
+            {"lang": "ko", "query": "titan"},
         )
 
         assert key1 == key2
@@ -217,7 +239,9 @@ class TestGenerateCacheKey:
     def test_real_world_search_example(self) -> None:
         """Test real-world search example from documentation."""
         key, _ = generate_cache_key(
-            "search", None, {"query": "Attack on Titan", "lang": "ko-KR"},
+            "search",
+            None,
+            {"query": "Attack on Titan", "lang": "ko-KR"},
         )
         # Should be normalized
         assert key == "search:lang=ko-kr:query=attack on titan"
@@ -230,8 +254,9 @@ class TestGenerateCacheKey:
     def test_real_world_discover_example(self) -> None:
         """Test real-world discover example from documentation."""
         key, _ = generate_cache_key(
-            "discover", None, {"genre": "16", "sort": "popularity.desc"},
+            "discover",
+            None,
+            {"genre": "16", "sort": "popularity.desc"},
         )
         # Parameters sorted
         assert key == "discover:genre=16:sort=popularity.desc"
-

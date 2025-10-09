@@ -5,20 +5,21 @@ These tests verify that the application properly handles various error scenarios
 at the entrypoint level, ensuring consistent error reporting and exit codes.
 """
 
-import pytest
 import sys
-from unittest.mock import patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from anivault.cli.common.error_handler import handle_cli_error
+from anivault.shared.constants import CLIDefaults
 from anivault.shared.errors import (
     AniVaultError,
     ApplicationError,
-    InfrastructureError,
     CliError,
     ErrorCode,
+    InfrastructureError,
 )
-from anivault.shared.constants import CLIDefaults
 
 
 class TestApplicationEntrypointErrorHandling:
@@ -107,7 +108,9 @@ class TestApplicationEntrypointErrorHandling:
         command = "test-command"
 
         # When
-        with patch("sys.stdout.buffer.write", side_effect=Exception("JSON write failed")):
+        with patch(
+            "sys.stdout.buffer.write", side_effect=Exception("JSON write failed")
+        ):
             with patch("sys.stderr") as mock_stderr:
                 exit_code = handle_cli_error(original_error, command, json_output=True)
 
@@ -208,7 +211,9 @@ class TestApplicationEntrypointErrorHandling:
         # Then
         assert exit_code == CLIDefaults.EXIT_ERROR
         # Verify error message was written to stderr (with prefix from error handler)
-        mock_stderr.write.assert_called_with("Error: Application error: Test application error\n")
+        mock_stderr.write.assert_called_with(
+            "Error: Application error: Test application error\n"
+        )
 
     def test_handle_cli_error_structured_context(self):
         """Test that structured context is properly created."""

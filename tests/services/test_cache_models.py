@@ -79,7 +79,9 @@ class TestCacheEntry:
     def test_cache_entry_invalid_cache_type(self) -> None:
         """Test CacheEntry raises ValidationError for invalid cache_type."""
         # When & Then
-        with pytest.raises(ValidationError, match=r"Input should be 'search' or 'details'"):
+        with pytest.raises(
+            ValidationError, match=r"Input should be 'search' or 'details'"
+        ):
             CacheEntry(
                 cache_key="test",
                 key_hash="d" * 64,
@@ -92,7 +94,8 @@ class TestCacheEntry:
         """Test CacheEntry raises ValidationError for key_hash too short."""
         # When & Then
         with pytest.raises(
-            ValidationError, match=r"String should have at least 64 characters",
+            ValidationError,
+            match=r"String should have at least 64 characters",
         ):
             CacheEntry(
                 cache_key="test",
@@ -106,7 +109,8 @@ class TestCacheEntry:
         """Test CacheEntry raises ValidationError for key_hash too long."""
         # When & Then
         with pytest.raises(
-            ValidationError, match=r"String should have at most 64 characters",
+            ValidationError,
+            match=r"String should have at most 64 characters",
         ):
             CacheEntry(
                 cache_key="test",
@@ -120,7 +124,8 @@ class TestCacheEntry:
         """Test CacheEntry raises ValueError for non-hexadecimal key_hash."""
         # When & Then
         with pytest.raises(
-            ValidationError, match=r"key_hash must be a valid hexadecimal string",
+            ValidationError,
+            match=r"key_hash must be a valid hexadecimal string",
         ):
             CacheEntry(
                 cache_key="test",
@@ -152,7 +157,8 @@ class TestCacheEntry:
         """Test CacheEntry raises ValidationError for negative hit_count."""
         # When & Then
         with pytest.raises(
-            ValidationError, match=r"Input should be greater than or equal to 0",
+            ValidationError,
+            match=r"Input should be greater than or equal to 0",
         ):
             CacheEntry(
                 cache_key="test",
@@ -167,7 +173,8 @@ class TestCacheEntry:
         """Test CacheEntry raises ValidationError for negative response_size."""
         # When & Then
         with pytest.raises(
-            ValidationError, match=r"Input should be greater than or equal to 0",
+            ValidationError,
+            match=r"Input should be greater than or equal to 0",
         ):
             CacheEntry(
                 cache_key="test",
@@ -186,7 +193,8 @@ class TestCacheEntry:
 
         # When & Then
         with pytest.raises(
-            ValidationError, match=r"expires_at .* must not be before created_at",
+            ValidationError,
+            match=r"expires_at .* must not be before created_at",
         ):
             CacheEntry(
                 cache_key="test",
@@ -271,7 +279,8 @@ class TestCacheEntry:
         """Test CacheEntry raises ValidationError for empty cache_key."""
         # When & Then
         with pytest.raises(
-            ValidationError, match=r"String should have at least 1 character",
+            ValidationError,
+            match=r"String should have at least 1 character",
         ):
             CacheEntry(
                 cache_key="",
@@ -297,4 +306,3 @@ class TestCacheEntry:
 
         # Then
         assert entry.cache_key == "test"  # Whitespace stripped
-

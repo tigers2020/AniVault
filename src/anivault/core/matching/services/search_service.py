@@ -142,4 +142,3 @@ class TMDBSearchService:
                 error="Exception",
             )
             return []
-

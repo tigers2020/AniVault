@@ -92,9 +92,7 @@ class TestFallbackStrategyService:
 
     # === Strategy Application Tests ===
 
-    def test_apply_strategies_empty_candidates(
-        self, mock_statistics, sample_query
-    ):
+    def test_apply_strategies_empty_candidates(self, mock_statistics, sample_query):
         """Test strategy application with empty candidate list."""
         strategies = [GenreBoostStrategy()]
         service = FallbackStrategyService(mock_statistics, strategies)
@@ -209,4 +207,3 @@ class TestFallbackStrategyService:
 
         service.register_strategy(PartialMatchStrategy())
         assert service.strategy_count == 2
-

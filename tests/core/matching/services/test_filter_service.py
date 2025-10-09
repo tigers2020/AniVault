@@ -230,4 +230,3 @@ class TestCandidateFilterService:
         assert [c.id for c in sample_scored_candidates] == original_ids
         # Filtered is different
         assert filtered is not sample_scored_candidates
-

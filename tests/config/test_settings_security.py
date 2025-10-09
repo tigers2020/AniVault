@@ -2,14 +2,15 @@
 
 Failure-First Testing for .env loading security.
 """
+
 import os
 from pathlib import Path
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
 
 import pytest
 
 from anivault.config.settings import _load_env_file, load_settings
-from anivault.shared.errors import SecurityError, ErrorCode, InfrastructureError
+from anivault.shared.errors import ErrorCode, InfrastructureError, SecurityError
 
 
 class TestSettingsSecurityFailures:
@@ -20,11 +21,11 @@ class TestSettingsSecurityFailures:
         # Given: .env 파일이 없는 디렉토리
         with patch("pathlib.Path.exists") as mock_exists:
             mock_exists.return_value = False
-            
+
             # When & Then: SecurityError 발생해야 함
             with pytest.raises(SecurityError) as exc_info:
                 _load_env_file()
-            
+
             assert exc_info.value.code == ErrorCode.MISSING_CONFIG
             assert ".env" in str(exc_info.value.message).lower()
             assert "env.template" in str(exc_info.value.message).lower()
@@ -33,15 +34,14 @@ class TestSettingsSecurityFailures:
         """API 키 없을 때 에러 발생 테스트."""
         # Given: TMDB_API_KEY가 없는 .env 파일
         env_content = "OTHER_KEY=value\n"
-        
+
         with patch("builtins.open", mock_open(read_data=env_content)):
             with patch("pathlib.Path.exists", return_value=True):
                 with patch.dict(os.environ, {}, clear=True):
-                    
                     # When & Then: SecurityError 발생해야 함
                     with pytest.raises(SecurityError) as exc_info:
                         _load_env_file()
-                    
+
                     assert exc_info.value.code == ErrorCode.MISSING_CONFIG
                     assert "TMDB_API_KEY" in str(exc_info.value.message)
 
@@ -49,32 +49,33 @@ class TestSettingsSecurityFailures:
         """빈 API 키일 때 에러 발생 테스트."""
         # Given: 빈 TMDB_API_KEY
         env_content = "TMDB_API_KEY=\n"
-        
+
         with patch("builtins.open", mock_open(read_data=env_content)):
             with patch("pathlib.Path.exists", return_value=True):
                 with patch.dict(os.environ, {}, clear=True):
-                    
                     # When & Then: SecurityError 발생해야 함 (빈 값은 MISSING으로 처리됨)
                     with pytest.raises(SecurityError) as exc_info:
                         _load_env_file()
-                    
+
                     # 빈 문자열도 MISSING_CONFIG로 처리
-                    assert exc_info.value.code in [ErrorCode.MISSING_CONFIG, ErrorCode.INVALID_CONFIG]
+                    assert exc_info.value.code in [
+                        ErrorCode.MISSING_CONFIG,
+                        ErrorCode.INVALID_CONFIG,
+                    ]
                     assert "TMDB_API_KEY" in str(exc_info.value.message)
 
     def test_load_env_file_invalid_api_key_format(self, tmp_path):
         """잘못된 API 키 형식일 때 에러 발생 테스트."""
         # Given: 너무 짧은 API 키
         env_content = "TMDB_API_KEY=abc123\n"  # < 20자
-        
+
         with patch("builtins.open", mock_open(read_data=env_content)):
             with patch("pathlib.Path.exists", return_value=True):
                 with patch.dict(os.environ, {}, clear=True):
-                    
                     # When & Then: SecurityError 발생해야 함
                     with pytest.raises(SecurityError) as exc_info:
                         _load_env_file()
-                    
+
                     assert exc_info.value.code == ErrorCode.INVALID_CONFIG
                     assert "short" in str(exc_info.value.message).lower()
 
@@ -84,46 +85,48 @@ class TestSettingsSecurityFailures:
         with patch("builtins.open") as mock_file:
             mock_file.side_effect = PermissionError("Permission denied")
             with patch("pathlib.Path.exists", return_value=True):
-                
                 # When & Then: InfrastructureError 발생해야 함
                 with pytest.raises(InfrastructureError) as exc_info:
                     _load_env_file()
-                
+
                 assert exc_info.value.code == ErrorCode.FILE_PERMISSION_DENIED
                 assert "permission" in str(exc_info.value.message).lower()
 
     def test_load_env_file_success(self, tmp_path):
         """정상적인 .env 로딩 테스트."""
         # Given: 유효한 .env 파일
-        env_content = "TMDB_API_KEY=valid_api_key_with_sufficient_length_12345\n"
-        
+        env_content = "TMDB_API_KEY=valid_api_key_with_sufficient_length_12345\n"  # pragma: allowlist secret
+
         with patch("builtins.open", mock_open(read_data=env_content)):
             with patch("pathlib.Path.exists", return_value=True):
                 with patch.dict(os.environ, {}, clear=True):
-                    
                     # When: .env 로딩
                     _load_env_file()
-                    
+
                     # Then: API 키가 환경 변수에 설정됨
-                    assert os.getenv("TMDB_API_KEY") == "valid_api_key_with_sufficient_length_12345"
+                    assert (
+                        os.getenv("TMDB_API_KEY")
+                        == "valid_api_key_with_sufficient_length_12345"
+                    )
 
     def test_load_env_file_dotenv_not_installed(self):
         """python-dotenv 미설치 시 fallback 테스트."""
         # Given: python-dotenv 미설치지만 유효한 .env 파일
         env_content = "TMDB_API_KEY=valid_api_key_with_sufficient_length_12345\n"
-        
+
         with patch("builtins.open", mock_open(read_data=env_content)):
             with patch("pathlib.Path.exists", return_value=True):
                 with patch.dict(os.environ, {}, clear=True):
                     with patch("importlib.import_module") as mock_import:
-                        mock_import.side_effect = ImportError("No module named 'dotenv'")
-                        
+                        mock_import.side_effect = ImportError(
+                            "No module named 'dotenv'"
+                        )
+
                         # When: Fallback으로 manual parsing
                         _load_env_file()
-                        
+
                         # Then: API 키가 환경 변수에 설정됨
-                        assert os.getenv("TMDB_API_KEY") == "valid_api_key_with_sufficient_length_12345"
-
-
-
-
+                        assert (
+                            os.getenv("TMDB_API_KEY")
+                            == "valid_api_key_with_sufficient_length_12345"
+                        )

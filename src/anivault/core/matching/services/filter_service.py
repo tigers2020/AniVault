@@ -8,10 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from anivault.core.matching.filters import (
-    apply_genre_filter,
-    filter_and_sort_by_year,
-)
+from anivault.core.matching.filters import apply_genre_filter, filter_and_sort_by_year
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.tmdb_models import ScoredSearchResult, TMDBSearchResult
@@ -165,4 +162,3 @@ class CandidateFilterService:
             if scored.id == tmdb_id:
                 return scored
         return None
-
