@@ -1,7 +1,7 @@
 # AniVault 종합 리팩토링 계획서 (최종안)
 
-**작성일**: 2025-10-07  
-**프로토콜**: Persona-Driven Planning v3.0  
+**작성일**: 2025-10-07
+**프로토콜**: Persona-Driven Planning v3.0
 **승인**: 8인 전문가 팀 전원 합의
 
 ---
@@ -35,7 +35,7 @@
 # 제안: 통합 에러 처리 래퍼
 class CLIErrorHandler:
     """CLI 통합 에러 처리기."""
-    
+
     @staticmethod
     def handle_error(
         error: Exception,
@@ -50,7 +50,7 @@ class CLIErrorHandler:
         else:
             message = str(error)
             code = "UNKNOWN_ERROR"
-        
+
         if json_output:
             output = format_json_output(
                 success=False,
@@ -61,7 +61,7 @@ class CLIErrorHandler:
             sys.stdout.buffer.write(output)
         else:
             console.print(f"[red]❌ {message}[/red]")
-        
+
         logger.error(f"Command failed: {command}", extra={"error": message})
         return 1
 ```
@@ -88,11 +88,11 @@ class MatchingThresholds:
     MIN_CONFIDENCE: float = 0.7
     HIGH_CONFIDENCE: float = 0.9
     PERFECT_MATCH: float = 1.0
-    
+
     # 제목 유사도
     TITLE_SIMILARITY_MIN: float = 0.6
     TITLE_SIMILARITY_GOOD: float = 0.8
-    
+
     # 년도 차이 허용
     MAX_YEAR_DIFFERENCE: int = 1
 
@@ -202,32 +202,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install -r requirements-dev.txt
-      
+
       - name: Run pre-commit
         run: |
           pre-commit run --all-files
-      
+
       - name: Validate magic values
         run: |
           python scripts/validate_magic_values.py src/anivault
-      
+
       - name: Validate function length
         run: |
           python scripts/validate_function_length.py src/anivault
-      
+
       - name: Validate error handling
         run: |
           python scripts/validate_error_handling.py src/anivault --severity=high
-      
+
       - name: Run tests
         run: |
           pytest tests/ --cov=src/anivault --cov-fail-under=32
@@ -249,37 +249,37 @@ jobs:
 # tests/test_rollback_handler_failures.py (신규)
 class TestRollbackHandlerFailures:
     """Rollback handler 실패 케이스 테스트."""
-    
+
     def test_collect_rollback_data_oserror(self):
         """OSError 발생 시 None 반환 테스트."""
         options = RollbackOptions(log_id="test", dry_run=False, yes=True)
-        
+
         with patch("anivault.core.log_manager.OperationLogManager") as mock:
             mock.side_effect = OSError("Disk full")
-            
+
             result = _collect_rollback_data(options)
-            
+
             # 현재: None 반환 (silent failure)
             assert result is None  # ❌ BAD
-            
+
             # 목표: 예외 발생
             # with pytest.raises(InfrastructureError):
             #     _collect_rollback_data(options)
-    
+
     def test_get_rollback_log_path_application_error(self):
         """ApplicationError 발생 시 None 반환 테스트."""
         options = RollbackOptions(log_id="test", dry_run=False, yes=True)
         console = Mock()
-        
+
         with patch("anivault.core.log_manager.OperationLogManager") as mock:
             from anivault.shared.errors import ApplicationError, ErrorCode
             mock.side_effect = ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 "Test error"
             )
-            
+
             result = _get_rollback_log_path(options, console)
-            
+
             # 현재: None 반환 (silent failure)
             assert result is None  # ❌ 테스트가 현재 동작을 검증
 ```
@@ -307,7 +307,7 @@ def _load_env_file(self):
 # ✅ 필수: .env 로딩 실패 시 앱 종료
 def _load_env_file(self):
     """Load environment file.
-    
+
     Raises:
         SecurityError: If .env file cannot be loaded
     """
@@ -317,9 +317,9 @@ def _load_env_file(self):
                 "Environment file .env not found. "
                 "Copy env.template to .env and configure API keys."
             )
-        
+
         load_dotenv()
-        
+
         # API 키 검증
         if not os.getenv("TMDB_API_KEY"):
             raise SecurityError(
@@ -366,7 +366,7 @@ pip-licenses --format=markdown --output-file=LICENSES.md
 ### 충돌점 및 해결
 
 #### 충돌 1: 전면 리팩토링 vs 점진적 개선
-**윤도현**: "통합 에러 처리 레이어 도입으로 전면 리팩토링"  
+**윤도현**: "통합 에러 처리 레이어 도입으로 전면 리팩토링"
 **최로건**: "테스트 보강 후 점진적 개선"
 
 **해결**: 하이브리드 접근
@@ -374,7 +374,7 @@ pip-licenses --format=markdown --output-file=LICENSES.md
 - Week 3+: 통합 레이어 도입 후 점진적 마이그레이션
 
 #### 충돌 2: 테스트 우선 vs 구현 우선
-**최로건**: "모든 케이스에 테스트 먼저 작성"  
+**최로건**: "모든 케이스에 테스트 먼저 작성"
 **윤도현**: "간단한 케이스는 바로 수정"
 
 **해결**: 심각도 기반 접근
@@ -397,8 +397,8 @@ pip-licenses --format=markdown --output-file=LICENSES.md
 - gui/workers/tmdb_matching_worker.py:323  # API 키 검증
 ```
 
-**예상 공수**: 1일  
-**테스트**: 각 케이스당 2-3개 Failure 테스트 추가  
+**예상 공수**: 1일
+**테스트**: 각 케이스당 2-3개 Failure 테스트 추가
 **책임자**: 니아 (보안) + 윤도현 (구현)
 
 #### Task 1.2: Pre-commit + CI/CD 설정 ⚡
@@ -410,7 +410,7 @@ python -m pre_commit install
 # .github/workflows/quality-gate.yml 생성
 ```
 
-**예상 공수**: 0.5일  
+**예상 공수**: 0.5일
 **책임자**: 박우석 (빌드) + 최로건 (검증)
 
 ---
@@ -427,7 +427,7 @@ class UnifiedCLIErrorHandler:
     # ... (위 윤도현 제안 코드)
 ```
 
-**예상 공수**: 2일  
+**예상 공수**: 2일
 **책임자**: 윤도현 (CLI)
 
 #### Task 2.2: Silent Failure 제거 (52개)
@@ -440,7 +440,7 @@ class UnifiedCLIErrorHandler:
 5. sqlite_cache_db.py (3개) - 1일 (김지유 감독)
 6. 기타 26개 - 3일
 
-**예상 공수**: 10일 (2주)  
+**예상 공수**: 10일 (2주)
 **책임자**: 윤도현 (구현) + 최로건 (테스트) + 김지유 (데이터 검증)
 
 #### Task 2.3: Exception Swallowing 제거 (7개)
@@ -450,7 +450,7 @@ class UnifiedCLIErrorHandler:
 2. config/settings.py (1개) - 0.5일 (보안 즉시)
 3. 기타 3개 - 0.5일
 
-**예상 공수**: 2일  
+**예상 공수**: 2일
 **책임자**: 윤도현 (구현) + 니아 (보안 검토)
 
 ---
@@ -473,7 +473,7 @@ class UnifiedCLIErrorHandler:
 # └── system.py       # 시스템 설정 (~100개)
 ```
 
-**예상 공수**: 2일  
+**예상 공수**: 2일
 **책임자**: 윤도현 (설계) + 사토 미나 (알고리즘 상수)
 
 #### Task 3.2: 자동 마이그레이션 스크립트 작성
@@ -484,7 +484,7 @@ class UnifiedCLIErrorHandler:
 # - Rollback 기능
 ```
 
-**예상 공수**: 3일  
+**예상 공수**: 3일
 **책임자**: 윤도현 (스크립트) + 최로건 (검증)
 
 #### Task 3.3: 모듈별 마이그레이션
@@ -492,7 +492,7 @@ class UnifiedCLIErrorHandler:
 - Week 5: GUI 모듈 (400개) + API (300개)
 - Week 6: Matching (200개) + 기타 (130개)
 
-**예상 공수**: 3주  
+**예상 공수**: 3주
 **책임자**: 모듈별 담당 페르소나
 
 ---
@@ -506,21 +506,21 @@ class UnifiedCLIErrorHandler:
 - match_handler.py (9개) - 1일
 - 기타 30개 - 3일
 
-**예상 공수**: 6일  
+**예상 공수**: 6일
 **책임자**: 윤도현 (리팩토링) + 최로건 (테스트)
 
 #### Task 4.2: 복잡도 감소 + 책임 분리 (89개)
 - 복잡도 10+ (50개) - 3일
 - 책임 혼재 (39개) - 3일
 
-**예상 공수**: 6일  
+**예상 공수**: 6일
 **책임자**: 윤도현 (리팩토링)
 
 #### Task 4.3: 테스트 커버리지 향상 (병렬)
 - 각 리팩토링 단계마다 테스트 추가
 - 목표: Week 4 (40%), Week 6 (60%), Week 8 (80%)
 
-**예상 공수**: 병렬 진행  
+**예상 공수**: 병렬 진행
 **책임자**: 최로건 (QA)
 
 ---
@@ -647,7 +647,7 @@ class UnifiedCLIErrorHandler:
 | 회귀 버그 70% ↓ | 월 5건 → 1.5건 | 직접 계산 어려움 | 500만원+ |
 | **총 절감 효과** | - | - | **1,280만원/년** |
 
-**ROI**: (1,280 - 400) / 400 = **220%** 
+**ROI**: (1,280 - 400) / 400 = **220%**
 
 ---
 
@@ -665,8 +665,6 @@ class UnifiedCLIErrorHandler:
 
 ---
 
-**승인일**: 2025-10-07  
-**승인자**: AniVault 8인 전문가 팀 전원  
+**승인일**: 2025-10-07
+**승인자**: AniVault 8인 전문가 팀 전원
 **다음 리뷰**: 매주 금요일 17:00 (주간 진행 상황 점검)
-
-

@@ -179,7 +179,7 @@ def scan_command(
         raise typer.Exit(CLIDefaults.EXIT_ERROR) from e
 
 
-def _handle_scan_command(args: Any) -> int:  # noqa: PLR0911
+def _handle_scan_command(args: Any) -> int:
     """Handle the scan command.
 
     Args:

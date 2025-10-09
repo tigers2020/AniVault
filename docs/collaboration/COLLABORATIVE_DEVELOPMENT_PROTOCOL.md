@@ -286,7 +286,7 @@ mcp_sequential-thinking_sequentialthinking --thought "CLI 사용자 경험을 �
 
 ---
 
-**문서 버전**: 1.0  
-**최종 업데이트**: 2024-01-XX  
-**다음 검토 예정일**: 2024-04-XX  
+**문서 버전**: 1.0
+**최종 업데이트**: 2024-01-XX
+**다음 검토 예정일**: 2024-04-XX
 **관리자**: AniVault 협업팀

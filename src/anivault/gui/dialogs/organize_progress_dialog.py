@@ -140,9 +140,7 @@ class OrganizeProgressDialog(QDialog):
             self.log_text.append(f"\n{message}")
         else:
             failed_count = total_count - organized_count
-            message = (
-                f"⚠️ 완료! {organized_count}개 성공, {failed_count}개 실패"
-            )
+            message = f"⚠️ 완료! {organized_count}개 성공, {failed_count}개 실패"
             self.log_text.append(f"\n{message}")
 
         self.status_label.setText(message)
@@ -176,5 +174,3 @@ class OrganizeProgressDialog(QDialog):
             self.accept()
         else:
             self.reject()
-
-

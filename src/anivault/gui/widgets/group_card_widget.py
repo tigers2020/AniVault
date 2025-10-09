@@ -24,7 +24,7 @@ class GroupCardWidget(QFrame):
     """Card widget for displaying a file group."""
 
     # Signal emitted when card is clicked with group_name and files
-    cardClicked = Signal(str, list)  # noqa: N815 (Qt signal naming convention)
+    cardClicked = Signal(str, list)
 
     def __init__(self, group_name: str, files: list, parent: QWidget | None = None):
         """
@@ -491,7 +491,11 @@ class GroupCardWidget(QFrame):
         if hasattr(self.parent_widget, "edit_group_name"):
             self.parent_widget.edit_group_name(self.group_name, self.files)
 
-    def _load_tmdb_poster(self, poster_path: str, poster_label: QLabel) -> QPixmap | None:
+    def _load_tmdb_poster(
+        self,
+        poster_path: str,
+        poster_label: QLabel,
+    ) -> QPixmap | None:
         """
         Load TMDB poster image from cache or download asynchronously from TMDB.
 
@@ -585,7 +589,7 @@ class GroupCardWidget(QFrame):
             try:
                 cache_file.write_bytes(image_data.data())
                 logger.info("💾 Cached poster: %s", cache_file.name)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - GUI poster cache error fallback
                 logger.warning("❌ Failed to cache poster: %s", e)
 
             # Load into QPixmap

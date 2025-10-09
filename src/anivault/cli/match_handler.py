@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -86,7 +86,7 @@ def handle_match_command(options: MatchOptions) -> int:
         return 1
 
 
-async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR0911
+async def _run_match_command_impl(options: MatchOptions) -> int:
     """Run the match command with advanced matching engine.
 
     Args:
@@ -118,7 +118,7 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
 
             directory = validate_directory(str(options.directory))
         except ApplicationError as e:
-            if options.json_output is not None:
+            if options.json_output:
                 json_output = format_json_output(
                     success=False,
                     command=CLIMessages.CommandNames.MATCH,
@@ -144,7 +144,7 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
             )
             return 1
         except InfrastructureError as e:
-            if options.json_output is not None:
+            if options.json_output:
                 json_output = format_json_output(
                     success=False,
                     command=CLIMessages.CommandNames.MATCH,
@@ -170,7 +170,7 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
             )
             return 1
         except Exception as e:
-            if options.json_output is not None:
+            if options.json_output:
                 json_output = format_json_output(
                     success=False,
                     command=CLIMessages.CommandNames.MATCH,
@@ -229,9 +229,9 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
             anime_files.extend(directory.rglob(f"*{ext}"))
 
         if not anime_files:
-            if options.json_output is not None:
+            if options.json_output:
                 # Return empty results in JSON format
-                match_data = _collect_match_data([], directory)
+                match_data = _collect_match_data([], str(directory))
                 json_output = format_json_output(
                     success=True,
                     command=CLIMessages.CommandNames.MATCH,
@@ -270,7 +270,7 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
             # Create semaphore for concurrent processing
             semaphore = asyncio.Semaphore(4)  # Default workers
 
-            async def process_with_semaphore(file_path: Path) -> dict:
+            async def process_with_semaphore(file_path: Path) -> dict[str, Any]:
                 """Process a file with semaphore control."""
                 async with semaphore:
                     result = await _process_file_impl(
@@ -318,9 +318,9 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
             processed_results_final: list[dict[str, str]] = processed_results
 
         # Check if JSON output is requested
-        if options.json_output is not None:
+        if options.json_output:
             # Collect match data for JSON output
-            match_data = _collect_match_data(processed_results_final, directory)
+            match_data = _collect_match_data(processed_results_final, str(directory))
 
             # Output JSON to stdout
             json_output = format_json_output(
@@ -337,7 +337,7 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         return 0
 
     except ApplicationError as e:
-        if options.json_output is not None:
+        if options.json_output:
             json_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.MATCH,
@@ -358,7 +358,7 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         )
         return 1
     except InfrastructureError as e:
-        if options.json_output is not None:
+        if options.json_output:
             json_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.MATCH,
@@ -381,7 +381,7 @@ async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR091
         )
         return 1
     except Exception as e:
-        if options.json_output is not None:
+        if options.json_output:
             json_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.MATCH,
@@ -402,7 +402,7 @@ async def _process_file_impl(
     parser: AnitopyParser,
     matching_engine: MatchingEngine,
     console: Console,
-) -> dict:
+) -> dict[str, Any]:
     """Process a single anime file through the matching pipeline.
 
     Args:
@@ -456,7 +456,10 @@ async def _process_file_impl(
         }
 
 
-def _display_match_results_impl(results: list, console: Console) -> None:
+def _display_match_results_impl(
+    results: list[dict[str, Any]],
+    console: Console,
+) -> None:
     """Display match results in a formatted table.
 
     Args:
@@ -523,7 +526,10 @@ def _display_match_results_impl(results: list, console: Console) -> None:
     console.print(table)
 
 
-def _collect_match_data(results, directory):
+def _collect_match_data(
+    results: list[dict[str, Any]],
+    directory: str,
+) -> dict[str, Any]:
     """Collect match data for JSON output.
 
     Args:
@@ -543,7 +549,7 @@ def _collect_match_data(results, directory):
     low_confidence_matches = 0
     errors = 0
     total_size = 0
-    file_counts_by_extension = {}
+    file_counts_by_extension: dict[str, int] = {}
     scanned_paths = []
 
     # Process each result
@@ -637,7 +643,7 @@ def _collect_match_data(results, directory):
         file_data.append(file_info)
 
     # Format total size in human-readable format
-    def format_size(size_bytes):
+    def format_size(size_bytes: float) -> str:
         """Convert bytes to human-readable format."""
         for unit in ["B", "KB", "MB", "GB", "TB"]:
             if size_bytes < 1024.0:

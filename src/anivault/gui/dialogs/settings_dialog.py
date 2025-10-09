@@ -33,10 +33,7 @@ from PySide6.QtWidgets import (
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
 from anivault.config.settings import Settings, get_config
-from anivault.shared.constants.gui_messages import (
-    DialogMessages,
-    DialogTitles,
-)
+from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import AniVaultError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -187,6 +184,13 @@ class SettingsDialog(QDialog):
         target_row_layout.addWidget(self.target_folder_btn)
         target_layout.addRow("Target Folder:", target_row_layout)
 
+        # Resolution-based organization
+        self.organize_by_resolution_checkbox = QCheckBox(
+            "Organize by resolution (1080p, 720p, etc.)",
+        )
+        self.organize_by_resolution_checkbox.setChecked(False)
+        target_layout.addRow(self.organize_by_resolution_checkbox)
+
         # Auto Scan Group
         auto_scan_group = QGroupBox("Auto Scan Settings")
         auto_scan_layout = QFormLayout(auto_scan_group)
@@ -226,10 +230,16 @@ class SettingsDialog(QDialog):
                 logger.debug("Loaded existing API key from configuration")
 
             # Load folder settings
-            if hasattr(self._cached_config, "folders") and self._cached_config.folders is not None:
+            if (
+                hasattr(self._cached_config, "folders")
+                and self._cached_config.folders is not None
+            ):
                 folders = self._cached_config.folders
                 self.source_folder_input.setText(folders.source_folder)
                 self.target_folder_input.setText(folders.target_folder)
+                self.organize_by_resolution_checkbox.setChecked(
+                    folders.organize_by_resolution,
+                )
                 self.auto_scan_startup_checkbox.setChecked(folders.auto_scan_on_startup)
                 self.auto_scan_interval_spinbox.setValue(
                     folders.auto_scan_interval_minutes,
@@ -378,6 +388,7 @@ class SettingsDialog(QDialog):
         try:
             source_folder = self.source_folder_input.text().strip()
             target_folder = self.target_folder_input.text().strip()
+            organize_by_resolution = self.organize_by_resolution_checkbox.isChecked()
             auto_scan_startup = self.auto_scan_startup_checkbox.isChecked()
             auto_scan_interval = self.auto_scan_interval_spinbox.value()
             include_subdirs = self.include_subdirs_checkbox.isChecked()
@@ -386,6 +397,7 @@ class SettingsDialog(QDialog):
             success, error = self.auto_scanner.update_folder_settings(
                 source_folder=source_folder,
                 target_folder=target_folder,
+                organize_by_resolution=organize_by_resolution,
                 auto_scan_on_startup=auto_scan_startup,
                 auto_scan_interval_minutes=auto_scan_interval,
                 include_subdirectories=include_subdirs,
@@ -424,6 +436,7 @@ class SettingsDialog(QDialog):
         return {
             "source_folder": self.source_folder_input.text().strip(),
             "target_folder": self.target_folder_input.text().strip(),
+            "organize_by_resolution": self.organize_by_resolution_checkbox.isChecked(),
             "auto_scan_on_startup": self.auto_scan_startup_checkbox.isChecked(),
             "auto_scan_interval_minutes": self.auto_scan_interval_spinbox.value(),
             "include_subdirectories": self.include_subdirs_checkbox.isChecked(),

@@ -112,6 +112,8 @@ class AutoScanner:
         try:
             config = get_config()
             folder_settings = config.folders
+            if folder_settings is None:
+                return False, "No folder settings configured"
 
             # Check if source folder is configured
             source_folder = folder_settings.source_folder
@@ -141,6 +143,8 @@ class AutoScanner:
 
         try:
             config = get_config()
+            if config.folders is None:
+                return False, "No folder settings configured"
             source_folder = config.folders.source_folder
 
             logger.info("Starting auto scan for folder: %s", source_folder)
@@ -188,6 +192,7 @@ class AutoScanner:
         self,
         source_folder: str = "",
         target_folder: str = "",
+        organize_by_resolution: bool = False,
         auto_scan_on_startup: bool = False,
         auto_scan_interval_minutes: int = 0,
         include_subdirectories: bool = True,
@@ -197,6 +202,7 @@ class AutoScanner:
         Args:
             source_folder: Source folder path
             target_folder: Target folder path
+            organize_by_resolution: Organize files by resolution
             auto_scan_on_startup: Enable auto scan on startup
             auto_scan_interval_minutes: Auto scan interval in minutes
             include_subdirectories: Include subdirectories when scanning
@@ -214,6 +220,7 @@ class AutoScanner:
             # Update folder settings
             config.folders.source_folder = source_folder
             config.folders.target_folder = target_folder
+            config.folders.organize_by_resolution = organize_by_resolution
             config.folders.auto_scan_on_startup = auto_scan_on_startup
             config.folders.auto_scan_interval_minutes = auto_scan_interval_minutes
             config.folders.include_subdirectories = include_subdirectories

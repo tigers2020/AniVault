@@ -160,7 +160,7 @@ class ResolutionDetector:
 
     def _detect_from_file_properties(
         self,
-        file_path: Path,
+        file_path: Path,  # noqa: ARG002 - Future implementation
     ) -> ResolutionInfo:
         """Detect resolution from file properties (placeholder for future implementation).
 

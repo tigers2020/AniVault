@@ -10,19 +10,19 @@ This document contains the licenses for third-party software used in AniVault.
    License: LGPL-3.0
    Copyright: The Qt Company Ltd.
    Website: https://www.qt.io/qt-for-python
-   
+
    PySide6 is licensed under the GNU Lesser General Public License v3.0.
-   
+
    In compliance with LGPL-3.0, AniVault distributes PySide6 libraries as
    separate DLL files (dynamic linking) to allow users to replace them with
    modified versions.
-   
+
    Users have the right to:
    - Use this software with PySide6
    - Replace PySide6 with a compatible version
    - Modify PySide6 and use the modified version
    - Access PySide6 source code at: https://code.qt.io/cgit/pyside/pyside-setup.git
-   
+
    Full LGPL-3.0 license text:
    https://www.gnu.org/licenses/lgpl-3.0.html
 
@@ -52,7 +52,7 @@ This document contains the licenses for third-party software used in AniVault.
    License: Apache-2.0
    Copyright: igorcmoura
    Website: https://github.com/igorcmoura/anitopy
-   
+
    NOTICE: This product includes software developed by igorcmoura.
 
 7. Rich
@@ -64,7 +64,7 @@ This document contains the licenses for third-party software used in AniVault.
    License: Apache-2.0 / BSD-3-Clause (dual licensed)
    Copyright: Individual contributors
    Website: https://cryptography.io/
-   
+
    NOTICE: This product includes cryptographic software written by
    Eric Young (eay@cryptsoft.com) and software written by Tim Hudson (tjh@cryptsoft.com).
 
@@ -102,7 +102,7 @@ This document contains the licenses for third-party software used in AniVault.
     License: GPL-2.0 with special exception for generated executables
     Copyright: PyInstaller Development Team
     Website: https://www.pyinstaller.org/
-    
+
     NOTE: PyInstaller's license allows generated executables to be distributed
     under any license. This exception means AniVault executables built with
     PyInstaller can be distributed under the MIT license.
@@ -146,13 +146,13 @@ In compliance with Apache-2.0, we provide the following notice:
 
    Copyright notices and license texts for Apache-2.0 licensed components
    are preserved in their original form within the distributed packages.
-   
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use these files except in compliance with the License.
    You may obtain a copy of the License at:
-   
+
        http://www.apache.org/licenses/LICENSE-2.0
-   
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.

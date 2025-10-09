@@ -54,8 +54,8 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        ruff check src/ tests/
-        ruff format --check src/ tests/
+        python -m ruff check src/ tests/
+        python -m ruff format --check src/ tests/
 
     - name: Run magic values validation
       run: |
@@ -75,7 +75,7 @@ jobs:
     - name: Run comprehensive code quality validation
       run: |
         python scripts/validate_code_quality.py --format json --output code-quality-report.json src/
-      continue-on-error: true
+      continue-on-error: false
 
     - name: Upload code quality report
       uses: actions/upload-artifact@v3

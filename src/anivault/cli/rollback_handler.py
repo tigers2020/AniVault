@@ -99,6 +99,7 @@ def handle_rollback_command(options: RollbackOptions) -> int:
             )
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
+        return 1
     except (ValueError, KeyError, TypeError, AttributeError) as e:
         # Handle data processing errors
         logger.exception("Data processing error in rollback command")
@@ -111,6 +112,7 @@ def handle_rollback_command(options: RollbackOptions) -> int:
             )
             sys.stdout.buffer.write(error_output)
             sys.stdout.buffer.write(b"\n")
+        return 1
     except Exception as e:
         # Handle unexpected errors
         logger.exception("Unexpected error in rollback command")
@@ -137,16 +139,6 @@ def _handle_rollback_command_json(options: RollbackOptions) -> int:
     """
     try:
         rollback_data = _collect_rollback_data(options)
-        if rollback_data is None:
-            error_output = format_json_output(
-                success=False,
-                command=CLIMessages.CommandNames.ROLLBACK,
-                errors=["Failed to collect rollback data"],
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-            return 1
-
         output = format_json_output(
             success=True,
             command=CLIMessages.CommandNames.ROLLBACK,
@@ -216,14 +208,18 @@ def _handle_rollback_command_console(options: RollbackOptions) -> int:
         return 1
 
 
-def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
+def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any]:
     """Collect rollback data for JSON output.
 
     Args:
         options: Validated rollback options
 
     Returns:
-        Dictionary containing rollback data, or None if error
+        Dictionary containing rollback data
+
+    Raises:
+        ApplicationError: If validation or processing fails
+        InfrastructureError: If file system access fails
     """
     try:
         from pathlib import Path
@@ -236,24 +232,20 @@ def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
         log_path = log_manager.get_log_by_id(options.log_id)
 
         if log_path is None:
-            return {
-                "error": f"Log with ID {options.log_id} not found",
-                "rollback_plan": [],
-                "executable_plan": [],
-                "skipped_operations": [],
-            }
+            raise ApplicationError(
+                ErrorCode.VALIDATION_ERROR,
+                f"Log with ID {options.log_id} not found",
+            )
 
         # Generate rollback plan
         rollback_manager = RollbackManager(log_manager)
         rollback_plan = rollback_manager.generate_rollback_plan(str(log_path))
 
         if rollback_plan is None:
-            return {
-                "error": "Failed to generate rollback plan",
-                "rollback_plan": [],
-                "executable_plan": [],
-                "skipped_operations": [],
-            }
+            raise ApplicationError(
+                ErrorCode.APPLICATION_ERROR,
+                "Failed to generate rollback plan",
+            )
 
         if not rollback_plan:
             return {
@@ -312,14 +304,24 @@ def _collect_rollback_data(options: RollbackOptions) -> dict[str, Any] | None:
             "dry_run": options.dry_run,
         }
 
-    except (OSError, ValueError, KeyError, AttributeError):
+    except (OSError, ValueError, KeyError, AttributeError) as e:
         # Handle specific I/O and data processing errors
         logger.exception("Error collecting rollback data")
-        return None
-    except Exception:
+        raise InfrastructureError(
+            code=ErrorCode.FILE_READ_ERROR,
+            message=f"Failed to collect rollback data: {e}",
+            context=ErrorContext(operation="collect_rollback_data"),
+            original_error=e,
+        ) from e
+    except Exception as e:
         # Handle unexpected errors
         logger.exception("Unexpected error collecting rollback data")
-        return None
+        raise ApplicationError(
+            code=ErrorCode.APPLICATION_ERROR,
+            message=f"Unexpected error collecting rollback data: {e}",
+            context=ErrorContext(operation="collect_rollback_data"),
+            original_error=e,
+        ) from e
 
 
 def _validate_rollback_plan_for_json(
@@ -447,19 +449,25 @@ def _get_rollback_log_path(options: RollbackOptions, console: Any) -> Path:
         raise InfrastructureError(
             code=ErrorCode.FILE_ACCESS_ERROR,
             message=f"Failed to access rollback log: {e}",
-            context={"log_id": options.log_id, "operation": "get_rollback_log_path"},
+            context=ErrorContext(
+                operation="get_rollback_log_path",
+                additional_data={"log_id": options.log_id},
+            ),
             original_error=e,
         ) from e
     except Exception as e:
         raise ApplicationError(
             code=ErrorCode.APPLICATION_ERROR,
             message=f"Unexpected error getting rollback log path: {e}",
-            context={"log_id": options.log_id, "operation": "get_rollback_log_path"},
+            context=ErrorContext(
+                operation="get_rollback_log_path",
+                additional_data={"log_id": options.log_id},
+            ),
             original_error=e,
         ) from e
 
 
-def _generate_rollback_plan(log_path: Path, console: Any) -> list:
+def _generate_rollback_plan(log_path: Path, console: Any) -> list[Any]:
     """Generate rollback plan.
 
     Args:
@@ -481,16 +489,16 @@ def _generate_rollback_plan(log_path: Path, console: Any) -> list:
     try:
         log_manager = OperationLogManager(Path.cwd())
         rollback_manager = RollbackManager(log_manager)
-        rollback_plan = rollback_manager.generate_rollback_plan(log_path)
+        rollback_plan = rollback_manager.generate_rollback_plan(str(log_path))
 
         if rollback_plan is None:
             raise ApplicationError(
                 code=ErrorCode.DATA_PROCESSING_ERROR,
                 message=f"Failed to generate rollback plan from log: {log_path}",
-                context={
-                    "log_path": str(log_path),
-                    "operation": "generate_rollback_plan",
-                },
+                context=ErrorContext(
+                    file_path=str(log_path),
+                    operation="generate_rollback_plan",
+                ),
             )
 
         return rollback_plan
@@ -502,14 +510,20 @@ def _generate_rollback_plan(log_path: Path, console: Any) -> list:
         raise InfrastructureError(
             code=ErrorCode.FILE_READ_ERROR,
             message=f"Failed to read rollback log file: {e}",
-            context={"log_path": str(log_path), "operation": "generate_rollback_plan"},
+            context=ErrorContext(
+                file_path=str(log_path),
+                operation="generate_rollback_plan",
+            ),
             original_error=e,
         ) from e
     except Exception as e:
         raise ApplicationError(
             code=ErrorCode.APPLICATION_ERROR,
             message=f"Unexpected error generating rollback plan: {e}",
-            context={"log_path": str(log_path), "operation": "generate_rollback_plan"},
+            context=ErrorContext(
+                file_path=str(log_path),
+                operation="generate_rollback_plan",
+            ),
             original_error=e,
         ) from e
 

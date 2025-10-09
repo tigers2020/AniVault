@@ -40,7 +40,7 @@ def test_matching_algorithm():
     """매칭 알고리즘 정확성 테스트."""
     candidate = MediaItem("Movie A", 2020, ["Action"])
     target = MediaItem("Movie A", 2020, ["Action"])
-    
+
     score = calculate_matching_score(candidate, target)
     assert score == 1.0  # 완벽한 매칭
 ```
@@ -57,7 +57,7 @@ def test_tmdb_api_integration():
     """TMDB API 통합 테스트."""
     enricher = MetadataEnricher()
     result = enricher.enrich_metadata("Movie Title", 2020)
-    
+
     assert result.title == "Movie Title"
     assert result.year == 2020
     assert result.tmdb_id is not None
@@ -77,7 +77,7 @@ def test_full_workflow():
         "anivault", "scan", "--path", "test_data/",
         "--match", "--organize"
     ], capture_output=True, text=True)
-    
+
     assert result.returncode == 0
     assert "Processing completed" in result.stdout
 ```
@@ -204,6 +204,6 @@ jobs:
 
 ---
 
-**문서 버전**: 1.0  
-**최종 업데이트**: 2024-01-XX  
+**문서 버전**: 1.0
+**최종 업데이트**: 2024-01-XX
 **관리자**: AniVault QA팀 (최로건)

@@ -216,7 +216,7 @@ def example_usage():
         ),
         next_action="proceed"
     )
-    
+
     template = """### ToT Round {{ round_number }} — Complexity: {{ complexity }}
 **Steward**: {{ steward.role }} ({{ steward.name }})
 **Question**: {{ question }}
@@ -228,10 +228,10 @@ def example_usage():
 {% endif %}
 **Decision (by Steward)**: {{ decision.selected }}. {% if decision.rejected %}_rejected: {{ decision.rejected | join(', ') }}_. {% endif %}**Rationale**: {{ decision.rationale }}
 **Next**: {{ next_action }}"""
-    
+
     markdown_output = generate_expert_log(round_data, template)
     json_output = export_json_summary(round_data)
-    
+
     return markdown_output, json_output
 ```
 

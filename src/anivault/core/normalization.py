@@ -309,7 +309,7 @@ def _normalize_characters(title: str) -> str:
     return normalized
 
 
-def _detect_language(title: str) -> str:  # noqa: PLR0911
+def _detect_language(title: str) -> str:
     """Detect the language of a title string.
 
     This function performs basic language detection based on character

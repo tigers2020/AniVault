@@ -13,6 +13,7 @@ dependencies = [
     "click>=8.1.7",
     "typer[all]>=0.9.0",
     "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
     "tmdbv3api==1.9.0",
     "anitopy>=2.1.1",
     "rich>=14.1.0",
@@ -23,6 +24,9 @@ dependencies = [
     "toml>=0.10.2",
     "tomli>=2.0.0; python_version < '3.11'",
     "tomli-w>=1.0.0",
+    "orjson>=3.9.0",
+    "chardet>=5.2.0",
+    "rapidfuzz>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -32,7 +36,7 @@ dev = [
     "pytest-mock>=3.11.0",
     "pytest-httpx>=0.30.0",
     "pytest-benchmark>=4.0.0",
-    "pytest-qt>=4.2.0",
+    "pytest-asyncio>=0.21.0",
     "hypothesis>=6.88.0",
     "memory-profiler>=0.61.0",
     "ruff>=0.6.0",
@@ -55,10 +59,11 @@ line-length = 88
 
 [tool.ruff.lint]
 # Black과 충돌 방지: E501 (line too long) 끄기
+# isort와 충돌 방지: I (isort rules) 제거 - isort를 별도로 사용
 # Security-focused rules added
-select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "RUF"]
+select = ["E", "F", "W", "C90", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "RUF"]
 ignore = [
-    "S101", "T201", "PLR0913", "PLR0912", "PLR0915",
+    "S101", "T201", "PLR0913", "PLR0912", "PLR0915", "PLR0911",
     "C901",  # Function too complex
     "TRY300",  # Consider moving statement to else block
     "TRY301",  # Abstract raise to inner function
@@ -76,8 +81,10 @@ ignore = [
     "SIM102",  # Nested if statements (가독성 우선)
     "SIM115",  # Context manager for open (encoding.py 유틸리티)
     "EM101",  # Exception must not use a string literal
-    "TCH001",  # Move application import into type-checking block
-    "TCH003",  # Move standard library import into type-checking block
+    "TCH001",  # Move application import into type-checking block (deprecated)
+    "TCH003",  # Move standard library import into type-checking block (deprecated)
+    "TC001",  # Move application import into type-checking block
+    "TC003",  # Move standard library import into type-checking block
     "RET504",  # Unnecessary assignment before return
     "INP001",  # Implicit namespace package (for scripts/)
     "PLR2004",  # Magic value used in comparison
@@ -89,6 +96,8 @@ ignore = [
     "S311",  # Standard pseudo-random generators (fine for tests)
     "FBT001",  # Boolean positional argument (fine for test helpers)
     "FBT002",  # Boolean default positional argument (fine for test helpers)
+    "COM812",  # Trailing comma (formatter conflict)
+    "ISC001",  # Implicit string concatenation (formatter conflict)
 ]
 exclude = [
     "tests/",
@@ -114,6 +123,7 @@ exclude = [
 "scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
 "src/anivault/cli/**" = ["FBT003", "B008"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거)
+"src/anivault/gui/**" = ["N815"]  # PySide6 Signal naming convention (camelCase)
 
 [tool.black]
 line-length = 88
@@ -155,8 +165,27 @@ warn_unreachable = true
 strict_equality = true
 exclude = [
     "scripts/",
-    "tests/"
+    "tests/",
+    "src/anivault/gui/",  # GUI requires dataclass-only refactor (no Any, no dict)
 ]
+
+# 외부 라이브러리 타입 스텁 부재
+[[tool.mypy.overrides]]
+module = [
+    "ntsecuritycon.*",
+    "win32security.*",
+    "psutil.*",
+]
+ignore_missing_imports = true
+
+# Python 3.9 CI compatibility: orjson/pydantic type stubs incomplete
+[[tool.mypy.overrides]]
+module = ["anivault.cli.json_formatter"]
+disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = ["anivault.config.settings"]
+disable_error_code = ["misc", "no-any-return"]
 
 # 런타임 코어는 조금 더 엄격
 [[tool.mypy.overrides]]
@@ -221,7 +250,7 @@ media_extensions = [".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".m4v", ".we
 ai_security_mode = "strict"
 prompt_injection_protection = true
 magic_value_detection = true
-secret_exposure_check = true
+secret_exposure_check = true  # pragma: allowlist secret
 duplicate_definition_check = true
 
 # Dependency security

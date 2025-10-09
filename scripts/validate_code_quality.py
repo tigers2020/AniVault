@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
+import subprocess  # nosec B404 - Safe usage in validation scripts
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -91,10 +91,12 @@ class CodeQualityValidator:
         """매직 값 검증 실행"""
         try:
             cmd = [sys.executable, str(self.magic_values_script), *paths]
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - Trusted internal validation script
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 cwd=self.project_root,
                 check=False,
             )
@@ -108,7 +110,7 @@ class CodeQualityValidator:
                 self.results["validations"]["magic_values"]["error"] = result.stderr
                 print("   ❌ Magic values found")
                 print(f"   📝 Output: {result.stdout.strip()}")
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
             self.results["validations"]["magic_values"]["status"] = "error"
             self.results["validations"]["magic_values"]["error"] = str(e)
             print(f"   ⚠️ Error running magic values validation: {e}")
@@ -123,10 +125,12 @@ class CodeQualityValidator:
             cmd = [sys.executable, str(self.function_length_script), *paths]
             if exclude_patterns:
                 cmd.extend(["--exclude", *exclude_patterns])
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - Trusted internal validation script
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 cwd=self.project_root,
                 check=False,
             )
@@ -140,7 +144,7 @@ class CodeQualityValidator:
                 self.results["validations"]["function_length"]["error"] = result.stderr
                 print("   ❌ Function length/complexity violations found")
                 print(f"   📝 Output: {result.stdout.strip()}")
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
             self.results["validations"]["function_length"]["status"] = "error"
             self.results["validations"]["function_length"]["error"] = str(e)
             print(f"   ⚠️ Error running function length validation: {e}")
@@ -155,10 +159,12 @@ class CodeQualityValidator:
             cmd = [sys.executable, str(self.error_handling_script), *paths]
             if exclude_patterns:
                 cmd.extend(["--exclude", *exclude_patterns])
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - Trusted internal validation script
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 cwd=self.project_root,
                 check=False,
             )
@@ -172,7 +178,7 @@ class CodeQualityValidator:
                 self.results["validations"]["error_handling"]["error"] = result.stderr
                 print("   ❌ Error handling violations found")
                 print(f"   📝 Output: {result.stdout.strip()}")
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
             self.results["validations"]["error_handling"]["status"] = "error"
             self.results["validations"]["error_handling"]["error"] = str(e)
             print(f"   ⚠️ Error running error handling validation: {e}")
@@ -215,7 +221,7 @@ class CodeQualityValidator:
                             count = int(match.group(1))
                             total_violations += count
                             violations_by_type[validation_name] = count
-                    except:
+                    except (ValueError, AttributeError):
                         pass
 
         self.results["summary"]["total_violations"] = total_violations
@@ -231,7 +237,7 @@ class CodeQualityValidator:
                     match = re.search(r"Analyzed (\d+) files", validation["output"])
                     if match:
                         analyzed_files = max(analyzed_files, int(match.group(1)))
-                except:
+                except (ValueError, AttributeError):
                     pass
 
         self.results["summary"]["total_files_analyzed"] = analyzed_files

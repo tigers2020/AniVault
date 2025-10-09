@@ -10,11 +10,15 @@ to eliminate duplication and provide a single source of truth.
 """
 
 # Import all constant classes for direct access
-from .api import APIConfig, CacheValidationConstants, TMDBConfig
+from .api import APIConfig
 from .api import CacheConfig as APICacheConfig
+from .api import CacheValidationConstants, TMDBConfig
 from .api_fields import APIFields
 from .cli import (
     BatchConfig,
+)
+from .cli import CacheConfig as CLICacheConfig
+from .cli import (
     CLICommands,
     CLIDefaults,
     CLIFormatting,
@@ -22,14 +26,16 @@ from .cli import (
     CLIMessages,
     CLIOptions,
     ConfidenceConfig,
+)
+from .cli import LogConfig as CLILogConfig
+from .cli import (
     QueueConfig,
     RunDefaults,
     WorkerConfig,
 )
-from .cli import CacheConfig as CLICacheConfig
-from .cli import LogConfig as CLILogConfig
-from .core import BusinessRules, NormalizationConfig, ProcessingConfig
+from .core import BusinessRules
 from .core import CacheConfig as CoreCacheConfig
+from .core import NormalizationConfig, ProcessingConfig
 from .error_keys import ErrorCategoryValues, ErrorContextKeys, StatusValues
 from .file_formats import (
     ExclusionPatterns,
@@ -38,6 +44,7 @@ from .file_formats import (
     SubtitleFormats,
     TestConfig,
     VideoFormats,
+    VideoQuality,
 )
 from .gui_messages import (
     ButtonTexts,
@@ -50,8 +57,9 @@ from .gui_messages import (
     UIConfig,
 )
 from .http_codes import ContentTypes, HTTPHeaders, HTTPStatusCodes
-from .logging import ErrorLogging, LogLevels, LogMessages, LogPaths, PerformanceLogging
+from .logging import ErrorLogging
 from .logging import LogConfig as LoggingConfig
+from .logging import LogLevels, LogMessages, LogPaths, PerformanceLogging
 from .logging_keys import LogContextKeys, LogFieldNames, LogOperationNames
 from .matching import CacheConfig as MatchingCacheConfig
 from .matching import (
@@ -188,6 +196,7 @@ __all__ = [
     "ValidationConfig",
     "ValidationConstants",
     "VideoFormats",
+    "VideoQuality",
     "WorkerConfig",
     "YearMatchingConfig",
 ]

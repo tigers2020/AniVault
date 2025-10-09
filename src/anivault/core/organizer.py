@@ -41,10 +41,63 @@ class FileOrganizer:
         """
         self.log_manager = log_manager
         from anivault.config.settings import load_settings
+
         self.settings = settings or load_settings()
         self.app_config = self.settings.app
 
-    def _construct_destination_path(self, scanned_file: ScannedFile) -> Path:
+    def _analyze_series_resolutions(
+        self,
+        scanned_files: list[ScannedFile],
+    ) -> dict[str, bool]:
+        """
+        Analyze which series have mixed resolutions.
+
+        Args:
+            scanned_files: List of ScannedFile objects to analyze
+
+        Returns:
+            Dictionary mapping series title to whether it has mixed resolutions.
+            True = has both high and low resolutions, False = single resolution type
+        """
+        from collections import defaultdict
+
+        from anivault.shared.constants import VideoQuality
+
+        # Group files by series title and collect their resolutions
+        series_resolutions: dict[str, set[bool]] = defaultdict(set)
+
+        for scanned_file in scanned_files:
+            # Skip files without TMDB match
+            match_result = scanned_file.metadata.other_info.get("match_result")
+            if not match_result:
+                continue
+
+            series_title = match_result.title
+            quality = scanned_file.metadata.quality
+
+            # Determine if this file is high or low resolution
+            is_high_res = VideoQuality.is_high_resolution(quality)
+            series_resolutions[series_title].add(is_high_res)
+
+        # Determine which series have mixed resolutions
+        series_has_mixed: dict[str, bool] = {}
+        for series_title, res_types in series_resolutions.items():
+            # Mixed if we have both True (high) and False (low) resolutions
+            series_has_mixed[series_title] = len(res_types) > 1
+
+        logger.debug(
+            "Resolution analysis: %d series, %d with mixed resolutions",
+            len(series_has_mixed),
+            sum(series_has_mixed.values()),
+        )
+
+        return series_has_mixed
+
+    def _construct_destination_path(
+        self,
+        scanned_file: ScannedFile,
+        series_has_mixed_resolutions: bool = False,
+    ) -> Path:
         """
         Construct the destination path for a scanned file.
 
@@ -53,6 +106,8 @@ class FileOrganizer:
 
         Args:
             scanned_file: ScannedFile instance containing file and metadata information.
+            series_has_mixed_resolutions: Whether this series has files with different resolutions.
+                If False (single resolution), all files use normal folder structure regardless of quality.
 
         Returns:
             Path object representing the destination path for the file.
@@ -71,14 +126,16 @@ class FileOrganizer:
             series_title = metadata.title or "Unknown Series"
 
         season_number = metadata.season
-        episode_number = metadata.episode
-        episode_title = metadata.other_info.get("episode_title")
+        # episode_number and episode_title available but not currently used in path construction
+        # episode_number = metadata.episode  # noqa: ERA001
+        # episode_title = metadata.other_info.get("episode_title")  # noqa: ERA001
 
         # Clean series title for filesystem compatibility
         series_title = self._sanitize_filename(series_title)
 
         # Get organization settings
         from anivault.config.settings import get_config
+
         config = get_config()
 
         # Use folders.target_folder if set, otherwise fallback to default
@@ -88,6 +145,7 @@ class FileOrganizer:
         else:
             # No target folder configured - must be set in config
             from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+
             raise ApplicationError(
                 ErrorCode.CONFIGURATION_ERROR,
                 "Target folder not configured. Please set folders.target_folder in config.toml or via GUI settings.",
@@ -99,12 +157,42 @@ class FileOrganizer:
             season_number = 1
 
         season_dir = f"Season {season_number:02d}"
-        series_dir = target_folder / media_type / series_title / season_dir
+
+        # Check if organize_by_resolution is enabled AND series has mixed resolutions
+        if (
+            config.folders
+            and config.folders.organize_by_resolution
+            and series_has_mixed_resolutions
+        ):
+            # Import VideoQuality for resolution classification
+            from anivault.shared.constants import VideoQuality
+
+            # Get resolution from metadata
+            resolution = metadata.quality
+
+            # Determine if high or low resolution
+            if VideoQuality.is_high_resolution(resolution):
+                # High resolution: normal folder structure
+                series_dir = target_folder / media_type / series_title / season_dir
+            else:
+                # Low resolution: under low_res folder (only when series has mixed resolutions)
+                series_dir = (
+                    target_folder
+                    / media_type
+                    / VideoQuality.LOW_RES_FOLDER
+                    / series_title
+                    / season_dir
+                )
+        else:
+            # Build path without resolution organization
+            # (either feature disabled OR series has single resolution type)
+            series_dir = target_folder / media_type / series_title / season_dir
 
         # Use original filename (as requested by user)
-        original_filename = scanned_file.file_path.name
+        original_filename: str = scanned_file.file_path.name
 
-        return series_dir / original_filename
+        result: Path = series_dir / original_filename
+        return result
 
     def _sanitize_filename(self, filename: str) -> str:
         """
@@ -156,6 +244,17 @@ class FileOrganizer:
         """
         operations: list[FileOperation] = []
 
+        # Analyze which series have mixed resolutions (only if organize_by_resolution is enabled)
+        from anivault.config.settings import get_config
+
+        config = get_config()
+        series_has_mixed_resolutions: dict[str, bool] = {}
+
+        if config.folders and config.folders.organize_by_resolution:
+            series_has_mixed_resolutions = self._analyze_series_resolutions(
+                scanned_files,
+            )
+
         for scanned_file in scanned_files:
             # Skip files that don't have sufficient metadata
             if not scanned_file.metadata.title:
@@ -164,11 +263,21 @@ class FileOrganizer:
             # Skip files without TMDB match result (only organize matched files)
             match_result = scanned_file.metadata.other_info.get("match_result")
             if not match_result:
-                logger.debug("Skipping file without TMDB match: %s", scanned_file.file_path.name)
+                logger.debug(
+                    "Skipping file without TMDB match: %s",
+                    scanned_file.file_path.name,
+                )
                 continue
 
-            # Construct destination path
-            destination_path = self._construct_destination_path(scanned_file)
+            # Get series title for resolution analysis
+            series_title: str = match_result.title if match_result else ""
+            has_mixed_res: bool = series_has_mixed_resolutions.get(series_title, False)
+
+            # Construct destination path with mixed resolution info
+            destination_path = self._construct_destination_path(
+                scanned_file,
+                series_has_mixed_resolutions=has_mixed_res,
+            )
 
             # Skip if source and destination are the same
             if scanned_file.file_path.resolve() == destination_path.resolve():
@@ -183,12 +292,19 @@ class FileOrganizer:
             operations.append(operation)
 
             # Find and add matching subtitle files
-            subtitle_operations = self._find_matching_subtitles(scanned_file, destination_path)
+            subtitle_operations = self._find_matching_subtitles(
+                scanned_file,
+                destination_path,
+            )
             operations.extend(subtitle_operations)
 
         return operations
 
-    def _find_matching_subtitles(self, scanned_file: ScannedFile, destination_path: Path) -> list[FileOperation]:
+    def _find_matching_subtitles(
+        self,
+        scanned_file: ScannedFile,
+        destination_path: Path,
+    ) -> list[FileOperation]:
         """Find matching subtitle files for a video file.
 
         Args:
@@ -225,7 +341,11 @@ class FileOrganizer:
             )
             operations.append(operation)
 
-            logger.debug("Found matching subtitle: %s -> %s", subtitle_path.name, subtitle_dest)
+            logger.debug(
+                "Found matching subtitle: %s -> %s",
+                subtitle_path.name,
+                subtitle_dest,
+            )
 
         return operations
 
@@ -385,7 +505,10 @@ class FileOrganizer:
                     msg,
                 ) from e
 
-        # Note: All operation types covered above (MOVE, COPY)
+        # All operation types covered above (MOVE, COPY)
+        # This line should never be reached due to exhaustive enum handling
+        msg = f"Unreachable: Unknown operation type {operation.operation_type}"  # type: ignore[unreachable]
+        raise AssertionError(msg)
 
     def _handle_operation_error(
         self,

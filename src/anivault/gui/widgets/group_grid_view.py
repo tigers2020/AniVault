@@ -28,7 +28,10 @@ class GroupGridViewWidget(QScrollArea):
     """Grid view widget for displaying file groups as cards."""
 
     # Signal emitted when a group card is clicked
-    groupSelected = Signal(str, list)  # group_name, files
+    groupSelected = Signal(
+        str,
+        list,
+    )  # group_name, files
 
     def __init__(self, parent: QWidget | None = None):
         """

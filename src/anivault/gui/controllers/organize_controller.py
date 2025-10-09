@@ -57,6 +57,7 @@ class OrganizeController(QObject):
         log_root_path = Path.home()
         self.log_manager = OperationLogManager(log_root_path)
         from anivault.config.settings import load_settings
+
         self.settings = load_settings()
         self.file_organizer = FileOrganizer(self.log_manager, self.settings)
 
@@ -65,7 +66,10 @@ class OrganizeController(QObject):
 
         logger.debug("OrganizeController initialized")
 
-    def _convert_fileitem_to_scannedfile(self, file_item: FileItem) -> ScannedFile | None:
+    def _convert_fileitem_to_scannedfile(
+        self,
+        file_item: FileItem,
+    ) -> ScannedFile | None:
         """Convert GUI FileItem to core ScannedFile.
 
         Args:
@@ -76,11 +80,12 @@ class OrganizeController(QObject):
         """
         try:
             # FileItem.metadata is stored as dict by StateModel.set_file_metadata()
-            # Format: {"match_result": {...}}
-
             if not file_item.metadata or not isinstance(file_item.metadata, dict):
                 # No metadata - skip this file
-                logger.debug("Skipping file without metadata: %s", file_item.file_path.name)
+                logger.debug(
+                    "Skipping file without metadata: %s",
+                    file_item.file_path.name,
+                )
                 return None
 
             # Extract match_result (the TMDB matching result)
@@ -88,7 +93,10 @@ class OrganizeController(QObject):
 
             if not match_result:
                 # No TMDB match - skip this file
-                logger.debug("Skipping file without TMDB match: %s", file_item.file_path.name)
+                logger.debug(
+                    "Skipping file without TMDB match: %s",
+                    file_item.file_path.name,
+                )
                 return None
 
             # Parse filename to get season/episode info
@@ -97,8 +105,12 @@ class OrganizeController(QObject):
                 parsed = self.parser.parse(file_item.file_path.name)
                 season = parsed.season
                 episode = parsed.episode
-            except Exception as e:
-                logger.warning("Failed to parse filename %s: %s", file_item.file_path.name, e)
+            except Exception as e:  # noqa: BLE001 - GUI parsing error fallback
+                logger.warning(
+                    "Failed to parse filename %s: %s",
+                    file_item.file_path.name,
+                    e,
+                )
                 season = None
                 episode = None
 
@@ -117,15 +129,26 @@ class OrganizeController(QObject):
             scanned_file = ScannedFile(
                 file_path=file_item.file_path,
                 metadata=parsing_result,
-                file_size=file_item.file_path.stat().st_size if file_item.file_path.exists() else 0,
-                last_modified=file_item.file_path.stat().st_mtime if file_item.file_path.exists() else 0.0,
+                file_size=(
+                    file_item.file_path.stat().st_size
+                    if file_item.file_path.exists()
+                    else 0
+                ),
+                last_modified=(
+                    file_item.file_path.stat().st_mtime
+                    if file_item.file_path.exists()
+                    else 0.0
+                ),
             )
 
             return scanned_file
 
-        except Exception as e:
-            logger.warning("Failed to convert FileItem to ScannedFile for %s: %s",
-                          file_item.file_path.name, e)
+        except Exception as e:  # noqa: BLE001 - GUI file conversion error fallback
+            logger.warning(
+                "Failed to convert FileItem to ScannedFile for %s: %s",
+                file_item.file_path.name,
+                e,
+            )
             return None
 
     def organize_files(
@@ -163,14 +186,20 @@ class OrganizeController(QObject):
             self.organization_error.emit("정리할 파일이 없습니다.")
             return
 
-        logger.info("Starting file organization for %d files (dry_run=%s)", len(scanned_files), dry_run)
+        logger.info(
+            "Starting file organization for %d files (dry_run=%s)",
+            len(scanned_files),
+            dry_run,
+        )
 
         try:
             # Generate organization plan
             plan = self.file_organizer.generate_plan(scanned_files)
 
             if not plan:
-                logger.info("No files need organizing (all files already in correct locations)")
+                logger.info(
+                    "No files need organizing (all files already in correct locations)",
+                )
                 self.organization_error.emit("모든 파일이 이미 올바른 위치에 있습니다.")
                 return
 
@@ -205,6 +234,7 @@ class OrganizeController(QObject):
                 try:
                     # Execute operation through FileOrganizer
                     from datetime import datetime
+
                     operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
                     result = self.file_organizer.execute_plan(
                         [operation],
@@ -215,20 +245,24 @@ class OrganizeController(QObject):
                     if result:
                         moved_files.extend(result)
                         # Emit progress
-                        self.file_organized.emit({
-                            "source": str(operation.source_path),
-                            "destination": str(operation.destination_path),
-                            "status": "success",
-                        })
+                        self.file_organized.emit(
+                            {
+                                "source": str(operation.source_path),
+                                "destination": str(operation.destination_path),
+                                "status": "success",
+                            },
+                        )
 
                 except Exception as e:
                     logger.exception("Failed to execute operation: %s", operation)
-                    self.file_organized.emit({
-                        "source": str(operation.source_path),
-                        "destination": str(operation.destination_path),
-                        "status": "failed",
-                        "error": str(e),
-                    })
+                    self.file_organized.emit(
+                        {
+                            "source": str(operation.source_path),
+                            "destination": str(operation.destination_path),
+                            "status": "failed",
+                            "error": str(e),
+                        },
+                    )
 
                 # Update progress
                 progress = int((idx + 1) * 100 / total_operations)
@@ -259,5 +293,3 @@ class OrganizeController(QObject):
             List of FileOperation objects
         """
         return self.current_plan
-
-

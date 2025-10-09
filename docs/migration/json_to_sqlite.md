@@ -1,12 +1,12 @@
 # Migration Guide: JSONCacheV2 to SQLiteCacheDB
 
-**Version**: 1.0  
-**Last Updated**: 2025-10-06  
-**Status**: ❌ **DEPRECATED** - Migration Complete, JSON cache removed  
+**Version**: 1.0
+**Last Updated**: 2025-10-06
+**Status**: ❌ **DEPRECATED** - Migration Complete, JSON cache removed
 **Migration Strategy**: ~~Gradual with Rollback Support~~
 
-> ⚠️ **Note**: This guide is now for historical reference only.  
-> AniVault has completed migration to SQLite-only cache.  
+> ⚠️ **Note**: This guide is now for historical reference only.
+> AniVault has completed migration to SQLite-only cache.
 > JSONCacheV2 has been removed from the codebase.
 
 ---
@@ -261,22 +261,22 @@ def migrate_cache():
     # Initialize both caches
     json_cache_path = Path.home() / ".anivault" / "json_cache"
     sqlite_cache_path = Path.home() / ".anivault" / "tmdb_cache.db"
-    
+
     json_cache = JSONCacheV2(json_cache_path)
     sqlite_cache = SQLiteCacheDB(sqlite_cache_path)
-    
+
     migrated = 0
     errors = 0
-    
+
     # Migrate search cache
     for cache_file in (json_cache_path / "search").glob("*.json"):
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 entry = json.load(f)
-            
+
             # Extract key from filename (hash)
             key_hash = cache_file.stem
-            
+
             # Store in SQLite
             sqlite_cache.set_cache(
                 key=key_hash,  # Use hash as key
@@ -284,40 +284,40 @@ def migrate_cache():
                 cache_type="search",
                 ttl_seconds=86400  # 24 hours default
             )
-            
+
             migrated += 1
-            
+
         except Exception as e:
             print(f"Error migrating {cache_file}: {e}")
             errors += 1
-    
+
     # Migrate details cache
     for cache_file in (json_cache_path / "details").glob("*.json"):
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 entry = json.load(f)
-            
+
             key_hash = cache_file.stem
-            
+
             sqlite_cache.set_cache(
                 key=key_hash,
                 data=entry.get("data", {}),
                 cache_type="details",
                 ttl_seconds=1209600  # 14 days default
             )
-            
+
             migrated += 1
-            
+
         except Exception as e:
             print(f"Error migrating {cache_file}: {e}")
             errors += 1
-    
+
     sqlite_cache.close()
-    
+
     print(f"\n✅ Migration complete!")
     print(f"Migrated: {migrated} files")
     print(f"Errors: {errors} files")
-    
+
     return migrated, errors
 
 if __name__ == "__main__":
@@ -416,7 +416,7 @@ cache.close()
 1. Check key generation:
    ```python
    from anivault.shared.cache_utils import generate_cache_key
-   
+
    key = generate_cache_key("search", "tv", "test", {"language": "ko"})
    print(key)  # Verify format
    ```
@@ -475,4 +475,3 @@ If you encounter issues during migration:
 - [Cache System User Guide](../tmdb_cache_db.md)
 - [Architecture Documentation](../architecture/cache_system.md)
 - [Performance Benchmarks](../performance/cache_benchmark.md)
-

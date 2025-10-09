@@ -13,7 +13,7 @@ The error hierarchy follows these principles:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -97,9 +97,9 @@ class ErrorCode(str, Enum):
     CONFIG_INVALID = "CONFIG_INVALID"  # Alias for consistency
 
     # Security Errors
-    INVALID_TOKEN = "INVALID_TOKEN"  # noqa: S105  # Error code, not actual password
-    TOKEN_EXPIRED = "TOKEN_EXPIRED"  # noqa: S105  # Error code, not actual password
-    TOKEN_MALFORMED = "TOKEN_MALFORMED"  # noqa: S105  # Error code, not actual password
+    INVALID_TOKEN = "INVALID_TOKEN"  # noqa: S105  # nosec B105 - Error code constant
+    TOKEN_EXPIRED = "TOKEN_EXPIRED"  # noqa: S105  # nosec B105 - Error code constant
+    TOKEN_MALFORMED = "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
     ENCRYPTION_FAILED = "ENCRYPTION_FAILED"
     DECRYPTION_FAILED = "DECRYPTION_FAILED"
 
@@ -162,7 +162,7 @@ class ErrorCode(str, Enum):
     COLLECTOR_ERROR = "COLLECTOR_ERROR"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ErrorContext:
     """Context information for errors.
 
@@ -173,7 +173,7 @@ class ErrorContext:
     file_path: str | None = None
     operation: str | None = None
     user_id: str | None = None
-    additional_data: dict[str, Any] | None = None
+    additional_data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary for logging."""
@@ -343,7 +343,7 @@ def create_validation_error(
     original_error: Exception | None = None,
 ) -> DomainError:
     """Create a validation error with context."""
-    additional_data = {"field": field} if field else None
+    additional_data = {"field": field} if field else {}
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -399,7 +399,7 @@ def create_config_error(
     original_error: Exception | None = None,
 ) -> ApplicationError:
     """Create a configuration error with context."""
-    additional_data = {"config_key": config_key} if config_key else None
+    additional_data = {"config_key": config_key} if config_key else {}
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -419,7 +419,7 @@ def create_data_processing_error(
     original_error: Exception | None = None,
 ) -> DataProcessingError:
     """Create a data processing error with context."""
-    additional_data = {"field": field} if field else None
+    additional_data = {"field": field} if field else {}
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -459,7 +459,7 @@ def create_cli_error(
     """Create a CLI error with context."""
     context = ErrorContext(
         operation=operation,
-        additional_data={"command": command} if command else None,
+        additional_data={"command": command} if command else {},
     )
     return CliError(
         ErrorCode.CLI_UNEXPECTED_ERROR,

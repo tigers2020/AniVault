@@ -27,11 +27,13 @@ from anivault.shared.constants import (
     Memory,
     SubtitleFormats,
     Timeout,
+)
+from anivault.shared.constants import TMDBConfig as TMDBConstants
+from anivault.shared.constants import (
     TMDBErrorHandling,
     VideoFormats,
     WorkerConfig,
 )
-from anivault.shared.constants import TMDBConfig as TMDBConstants
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +144,6 @@ class ScanConfig(BaseModel):
         description="Smart filtering configuration",
         alias="filter",
     )
-
 
 
 class AppConfig(BaseModel):
@@ -283,6 +284,10 @@ class FolderSettings(BaseModel):
         default="season_##/korean_title/original_filename",
         description="Directory structure template for organization",
     )
+    organize_by_resolution: bool = Field(
+        default=False,
+        description="Organize files by resolution (e.g., 1080p, 720p)",
+    )
     auto_scan_on_startup: bool = Field(
         default=False,
         description="Automatically scan source folder when application starts",
@@ -380,7 +385,7 @@ class Settings(BaseSettings):
                 "app": {"name": "AniVault", "version": "1.0.0", "debug": False},
                 "logging": {"level": "INFO", "format": "json"},
                 "tmdb": {
-                    "api_key": "your_api_key",
+                    "api_key": "your_api_key",  # pragma: allowlist secret
                     "base_url": "https://api.themoviedb.org/3",
                 },
                 "file_processing": {
@@ -559,9 +564,13 @@ def _load_env_file() -> None:
         SecurityError,
     )
 
-    # Check if .env file exists
+    # Check if .env file exists - but allow missing .env if TMDB_API_KEY already set (CI/tests)
     env_file = Path(".env")
     if not env_file.exists():
+        # If TMDB_API_KEY is already in environment (CI/tests), allow missing .env
+        if "TMDB_API_KEY" in os.environ:
+            return
+
         raise SecurityError(
             code=ErrorCode.MISSING_CONFIG,
             message=(
