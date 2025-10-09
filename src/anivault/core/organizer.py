@@ -189,9 +189,10 @@ class FileOrganizer:
             series_dir = target_folder / media_type / series_title / season_dir
 
         # Use original filename (as requested by user)
-        original_filename = scanned_file.file_path.name
+        original_filename: str = scanned_file.file_path.name
 
-        return series_dir / original_filename
+        result: Path = series_dir / original_filename
+        return result
 
     def _sanitize_filename(self, filename: str) -> str:
         """
@@ -269,8 +270,8 @@ class FileOrganizer:
                 continue
 
             # Get series title for resolution analysis
-            series_title = match_result.title if match_result else None
-            has_mixed_res = series_has_mixed_resolutions.get(series_title, False)
+            series_title: str = match_result.title if match_result else ""
+            has_mixed_res: bool = series_has_mixed_resolutions.get(series_title, False)
 
             # Construct destination path with mixed resolution info
             destination_path = self._construct_destination_path(
@@ -504,8 +505,10 @@ class FileOrganizer:
                     msg,
                 ) from e
 
-        # Note: All operation types covered above (MOVE, COPY)
-        return None
+        # All operation types covered above (MOVE, COPY)
+        # This line should never be reached due to exhaustive enum handling
+        msg = f"Unreachable: Unknown operation type {operation.operation_type}"  # type: ignore[unreachable]
+        raise AssertionError(msg)
 
     def _handle_operation_error(
         self,
