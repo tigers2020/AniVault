@@ -29,7 +29,7 @@ from anivault.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def handle_run_command(options: RunOptions) -> int:  # noqa: PLR0911  # noqa: PLR0911
+def handle_run_command(options: RunOptions) -> int:
     """
     Handle the run command which orchestrates scan, match, and organize.
 

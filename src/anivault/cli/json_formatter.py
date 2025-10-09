@@ -94,7 +94,7 @@ def format_json_output(
         )
 
 
-def safe_json_serialize(obj: Any) -> Any:  # noqa: PLR0911
+def safe_json_serialize(obj: Any) -> Any:
     """
     Safely serialize an object to JSON-serializable format.
 

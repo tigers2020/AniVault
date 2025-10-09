@@ -24,7 +24,7 @@ class GroupCardWidget(QFrame):
     """Card widget for displaying a file group."""
 
     # Signal emitted when card is clicked with group_name and files
-    cardClicked = Signal(str, list)  # noqa: N815 (Qt signal naming convention)
+    cardClicked = Signal(str, list)
 
     def __init__(self, group_name: str, files: list, parent: QWidget | None = None):
         """
@@ -229,7 +229,7 @@ class GroupCardWidget(QFrame):
 
         return poster_label
 
-    def _get_anime_info(self) -> dict | None:  # noqa: PLR0911
+    def _get_anime_info(self) -> dict | None:
         """
         Get anime information from the first file's metadata.
 

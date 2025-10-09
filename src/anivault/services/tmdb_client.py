@@ -520,7 +520,7 @@ class TMDBClient:
         )
         raise error
 
-    def _convert_tmdb_exception(  # noqa: PLR0911
+    def _convert_tmdb_exception(
         self,
         exception: TMDbException,
     ) -> tuple[ErrorCode, str]:

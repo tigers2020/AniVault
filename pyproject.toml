@@ -59,7 +59,7 @@ line-length = 88
 # Security-focused rules added
 select = ["E", "F", "W", "C90", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "RUF"]
 ignore = [
-    "S101", "T201", "PLR0913", "PLR0912", "PLR0915",
+    "S101", "T201", "PLR0913", "PLR0912", "PLR0915", "PLR0911",
     "C901",  # Function too complex
     "TRY300",  # Consider moving statement to else block
     "TRY301",  # Abstract raise to inner function
@@ -117,6 +117,7 @@ exclude = [
 "scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
 "src/anivault/cli/**" = ["FBT003", "B008"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거)
+"src/anivault/gui/**" = ["N815"]  # PySide6 Signal naming convention (camelCase)
 
 [tool.black]
 line-length = 88

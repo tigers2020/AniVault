@@ -86,7 +86,7 @@ def handle_match_command(options: MatchOptions) -> int:
         return 1
 
 
-async def _run_match_command_impl(options: MatchOptions) -> int:  # noqa: PLR0911
+async def _run_match_command_impl(options: MatchOptions) -> int:
     """Run the match command with advanced matching engine.
 
     Args:
