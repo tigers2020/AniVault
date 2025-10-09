@@ -35,7 +35,6 @@ dev = [
     "pytest-mock>=3.11.0",
     "pytest-httpx>=0.30.0",
     "pytest-benchmark>=4.0.0",
-    "pytest-qt>=4.2.0",
     "hypothesis>=6.88.0",
     "memory-profiler>=0.61.0",
     "ruff>=0.6.0",
