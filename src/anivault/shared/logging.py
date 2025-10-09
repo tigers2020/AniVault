@@ -21,7 +21,7 @@ class StructuredFormatter(logging.Formatter):
     JSON 형태로 구조화된 로그를 출력하는 포맷터.
     """
 
-    def format_record(self, record: logging.LogRecord) -> str:
+    def format(self, record: logging.LogRecord) -> str:
         """
         로그 레코드를 JSON 형태로 포맷팅합니다.
 
