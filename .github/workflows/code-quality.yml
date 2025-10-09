@@ -54,8 +54,8 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        ruff check src/ tests/
-        ruff format --check src/ tests/
+        python -m ruff check src/ tests/
+        python -m ruff format --check src/ tests/
 
     - name: Run magic values validation
       run: |
