@@ -83,17 +83,28 @@ class TestSettingsSecurityFailures:
 
     def test_load_env_file_permission_denied(self, tmp_path):
         """권한 없을 때 에러 발생 테스트."""
-        # Given: 접근 권한 없는 .env 파일
-        with patch("builtins.open") as mock_file:
-            mock_file.side_effect = PermissionError("Permission denied")
-            with patch("pathlib.Path.exists", return_value=True):
-                with patch.dict(os.environ, {}, clear=True):  # Clear env vars
+        # Given: 접근 권한 없는 .env 파일 (TMDB_API_KEY env var도 제거)
+        
+        # Store original env var
+        original_key = os.environ.get("TMDB_API_KEY")
+        try:
+            # Remove TMDB_API_KEY temporarily
+            if "TMDB_API_KEY" in os.environ:
+                del os.environ["TMDB_API_KEY"]
+            
+            with patch("builtins.open") as mock_file:
+                mock_file.side_effect = PermissionError("Permission denied")
+                with patch("pathlib.Path.exists", return_value=True):
                     # When & Then: InfrastructureError 발생해야 함
                     with pytest.raises(InfrastructureError) as exc_info:
                         _load_env_file()
 
                     assert exc_info.value.code == ErrorCode.FILE_PERMISSION_DENIED
                     assert "permission" in str(exc_info.value.message).lower()
+        finally:
+            # Restore original env var
+            if original_key:
+                os.environ["TMDB_API_KEY"] = original_key
 
     def test_load_env_file_success(self, tmp_path):
         """정상적인 .env 로딩 테스트 (env에서 이미 설정된 경우도 포함)."""
