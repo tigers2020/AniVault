@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.models import MatchResult, NormalizedQuery
 from anivault.core.statistics import StatisticsCollector
@@ -179,23 +180,11 @@ class TestFindMatchBasic:
         sample_tmdb_result,
     ):
         """Test find_match checks cache before TMDB search."""
-        # Mock cache to return cached result
-        cached_data = {
-            "results": [
-                {
-                    "id": 1429,
-                    "name": "Attack on Titan",
-                    "media_type": "tv",
-                    "first_air_date": "2013-04-07",
-                    "popularity": 100.5,
-                    "vote_average": 8.5,
-                    "vote_count": 5000,
-                    "overview": "Cached",
-                    "original_language": "ja",
-                    "genre_ids": [16],
-                },
-            ],
-        }
+        # Mock cache to return Pydantic model
+        cached_data = CachedSearchData(
+            results=[sample_tmdb_result],
+            language="ko-KR",
+        )
         mock_cache.get = Mock(return_value=cached_data)
 
         # Also mock TMDB in case cache miss
@@ -324,22 +313,19 @@ class TestSearchTMDB:
             year=2013,
         )
 
-        cached_data = {
-            "results": [
-                {
-                    "id": 1429,
-                    "name": "Attack on Titan",
-                    "media_type": "tv",
-                    "first_air_date": "2013-04-07",
-                    "popularity": 100.5,
-                    "vote_average": 8.5,
-                    "vote_count": 5000,
-                    "overview": "Cached",
-                    "original_language": "ja",
-                    "genre_ids": [16],
-                }
-            ]
-        }
+        sample_result = TMDBSearchResult(
+            id=1429,
+            name="Attack on Titan",
+            media_type="tv",
+            first_air_date="2013-04-07",
+            popularity=100.5,
+            vote_average=8.5,
+            vote_count=5000,
+            overview="Cached",
+            original_language="ja",
+            genre_ids=[16],
+        )
+        cached_data = CachedSearchData(results=[sample_result], language="ko-KR")
         mock_cache.get = Mock(return_value=cached_data)
 
         results = await engine._search_tmdb(normalized_query)

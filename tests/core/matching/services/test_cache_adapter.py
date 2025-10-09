@@ -9,11 +9,13 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.services.cache_adapter import (
     CacheAdapterProtocol,
     SQLiteCacheAdapter,
 )
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
+from anivault.services.tmdb_models import TMDBSearchResult
 
 
 class TestCacheAdapterProtocol:
@@ -64,9 +66,21 @@ class TestSQLiteCacheAdapter:
         assert result is None
 
     def test_set_and_get_round_trip(self, adapter: SQLiteCacheAdapter) -> None:
-        """Test setting and retrieving cache data."""
+        """Test setting and retrieving cache data with Pydantic model."""
         test_key = "search:movie:test"
-        test_data = {"results": [{"id": 1, "title": "Test Movie"}]}
+        test_result = TMDBSearchResult(
+            id=1,
+            name="Test Movie",
+            media_type="movie",
+            release_date="2024-01-01",
+            popularity=10.0,
+            vote_average=7.0,
+            vote_count=100,
+            overview="Test",
+            original_language="en",
+            genre_ids=[],
+        )
+        test_data = CachedSearchData(results=[test_result], language="ko-KR")
 
         # Set data
         adapter.set(test_key, test_data, "search")
@@ -75,20 +89,24 @@ class TestSQLiteCacheAdapter:
         result = adapter.get(test_key, "search")
 
         assert result is not None
-        assert result == test_data
-        assert result["results"][0]["title"] == "Test Movie"
+        assert isinstance(result, CachedSearchData)
+        assert len(result.results) == 1
+        assert result.results[0].name == "Test Movie"
+        assert result.language == "ko-KR"
 
     def test_set_with_ttl(self, adapter: SQLiteCacheAdapter) -> None:
         """Test setting cache data with TTL."""
         test_key = "search:movie:ttl_test"
-        test_data = {"results": []}
+        test_data = CachedSearchData(results=[], language="ko-KR")
 
         # Should not raise exception
         adapter.set(test_key, test_data, "search", ttl_seconds=3600)
 
         # Verify data is stored
         result = adapter.get(test_key, "search")
-        assert result == test_data
+        assert result is not None
+        assert isinstance(result, CachedSearchData)
+        assert len(result.results) == 0
 
     def test_validate_key_short_key_unchanged(
         self, adapter: SQLiteCacheAdapter
@@ -148,8 +166,20 @@ class TestSQLiteCacheAdapter:
 
     def test_get_different_cache_types(self, adapter: SQLiteCacheAdapter) -> None:
         """Test get/set with different cache types."""
-        search_data = {"results": [{"id": 1}]}
-        details_data = {"title": "Test", "year": 2024}
+        test_result = TMDBSearchResult(
+            id=1,
+            name="Test",
+            media_type="tv",
+            first_air_date="2024-01-01",
+            popularity=10.0,
+            vote_average=7.0,
+            vote_count=100,
+            overview="Test",
+            original_language="en",
+            genre_ids=[],
+        )
+        search_data = CachedSearchData(results=[test_result], language="ko-KR")
+        details_data = CachedSearchData(results=[], language="en-US")
 
         # Set data with different cache types
         adapter.set("key1", search_data, "search")
@@ -159,8 +189,12 @@ class TestSQLiteCacheAdapter:
         search_result = adapter.get("key1", "search")
         details_result = adapter.get("key2", "details")
 
-        assert search_result == search_data
-        assert details_result == details_data
+        assert search_result is not None
+        assert isinstance(search_result, CachedSearchData)
+        assert search_result.results[0].id == 1
+
+        assert details_result is not None
+        assert isinstance(details_result, CachedSearchData)
 
         # Wrong cache type should return None
         wrong_type_result = adapter.get("key1", "details")
@@ -169,7 +203,19 @@ class TestSQLiteCacheAdapter:
     def test_delete_removes_cached_data(self, adapter: SQLiteCacheAdapter) -> None:
         """Test delete removes cached data."""
         test_key = "search:movie:delete_test"
-        test_data = {"results": [{"id": 1}]}
+        test_result = TMDBSearchResult(
+            id=1,
+            name="Test",
+            media_type="tv",
+            first_air_date="2024-01-01",
+            popularity=10.0,
+            vote_average=7.0,
+            vote_count=100,
+            overview="Test",
+            original_language="en",
+            genre_ids=[],
+        )
+        test_data = CachedSearchData(results=[test_result], language="ko-KR")
 
         # Set data first
         adapter.set(test_key, test_data, "search")
@@ -208,24 +254,30 @@ class TestSQLiteCacheAdapter:
         assert callable(adapter.set)
         assert callable(adapter.delete)
 
-    def test_get_returns_dict_copy_not_reference(
-        self, adapter: SQLiteCacheAdapter
-    ) -> None:
-        """Test that get returns a copy of cached data, not a reference."""
-        test_key = "search:movie:copy_test"
-        test_data = {"results": [{"id": 1, "mutable": "original"}]}
+    def test_pydantic_model_immutability(self, adapter: SQLiteCacheAdapter) -> None:
+        """Test that Pydantic models provide proper isolation."""
+        test_key = "search:movie:immutability_test"
+        test_result = TMDBSearchResult(
+            id=1,
+            name="Original",
+            media_type="tv",
+            first_air_date="2024-01-01",
+            popularity=10.0,
+            vote_average=7.0,
+            vote_count=100,
+            overview="Test",
+            original_language="en",
+            genre_ids=[],
+        )
+        test_data = CachedSearchData(results=[test_result], language="ko-KR")
 
         # Set data
         adapter.set(test_key, test_data, "search")
 
-        # Get data twice
-        result1 = adapter.get(test_key, "search")
-        result2 = adapter.get(test_key, "search")
+        # Get data - should return new Pydantic instance each time
+        result = adapter.get(test_key, "search")
 
-        # Modify first result
-        if result1:
-            result1["results"][0]["mutable"] = "modified"
-
-        # Second result should be unaffected (not a reference)
-        assert result2 is not None
-        assert result2["results"][0]["mutable"] == "original"
+        # Verify proper deserialization
+        assert result is not None
+        assert isinstance(result, CachedSearchData)
+        assert result.results[0].name == "Original"

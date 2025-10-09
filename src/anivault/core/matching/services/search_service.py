@@ -8,8 +8,9 @@ cache hit/miss logic, and result validation.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.tmdb_models import TMDBSearchResult
@@ -98,13 +99,8 @@ class TMDBSearchService:
             logger.debug("Cache hit for search query: %s", title)
             self.statistics.record_cache_hit("search")
 
-            # Validate and return cached results
-            cached_results = self._validate_cached_results(cached_data, title)
-            if cached_results is not None:
-                return cached_results
-
-            # Invalid cache: fall through to API call
-            logger.warning("Invalid cached data, falling back to API call")
+            # Return cached results (already validated by Pydantic!)
+            return cached_data.results
 
         # Cache miss - search TMDB
         logger.debug(
@@ -122,8 +118,17 @@ class TMDBSearchService:
             # Extract results
             results = search_response.results
 
-            # Store in cache
-            self._store_results_in_cache(title, results)
+            # Store in cache with Pydantic model
+            cached_data = CachedSearchData(
+                results=results,
+                language=self.cache.language,
+            )
+            self.cache.set(
+                key=title,
+                data=cached_data,
+                cache_type=MatchingCacheConfig.CACHE_TYPE_SEARCH,
+                ttl_seconds=MatchingCacheConfig.SEARCH_CACHE_TTL_SECONDS,
+            )
 
             logger.debug("Found %d results for query: %s", len(results), title)
             return results
@@ -137,77 +142,4 @@ class TMDBSearchService:
                 error="Exception",
             )
             return []
-
-    def _validate_cached_results(
-        self,
-        cached_data: dict[str, Any],
-        title: str,
-    ) -> list[TMDBSearchResult] | None:
-        """Validate and convert cached data to TMDBSearchResult objects.
-
-        Args:
-            cached_data: Raw cached data from cache adapter
-            title: Original query title (for cache invalidation on error)
-
-        Returns:
-            List of TMDBSearchResult objects, or None if validation fails
-        """
-        # Check structure
-        if "results" not in cached_data:
-            logger.warning("Cached data missing 'results' key, invalidating")
-            self.cache.delete(title, MatchingCacheConfig.CACHE_TYPE_SEARCH)
-            return None
-
-        cached_results = cached_data["results"]
-
-        # Type validation
-        if not isinstance(cached_results, list):
-            logger.warning(
-                "Invalid cached results type: %s, expected list, invalidating",
-                type(cached_results),
-            )
-            self.cache.delete(title, MatchingCacheConfig.CACHE_TYPE_SEARCH)
-            return None
-
-        # Convert to TMDBSearchResult objects
-        try:
-            search_results = [
-                (
-                    TMDBSearchResult(**item)
-                    if isinstance(item, dict)
-                    else item
-                )
-                for item in cached_results
-            ]
-            return search_results
-
-        except Exception:
-            logger.exception(
-                "Failed to convert cached results to TMDBSearchResult, invalidating",
-            )
-            self.cache.delete(title, MatchingCacheConfig.CACHE_TYPE_SEARCH)
-            return None
-
-    def _store_results_in_cache(
-        self,
-        title: str,
-        results: list[TMDBSearchResult],
-    ) -> None:
-        """Store TMDB search results in cache with TTL.
-
-        Args:
-            title: Query title (used as cache key)
-            results: List of TMDBSearchResult objects to cache
-        """
-        # Convert to dict for caching
-        results_dicts = [result.model_dump() for result in results]
-        cache_data = {"results": results_dicts}
-
-        # Store with configured TTL
-        self.cache.set(
-            key=title,
-            data=cache_data,
-            cache_type=MatchingCacheConfig.CACHE_TYPE_SEARCH,
-            ttl_seconds=MatchingCacheConfig.SEARCH_CACHE_TTL_SECONDS,
-        )
 

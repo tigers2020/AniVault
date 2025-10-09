@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.services.search_service import TMDBSearchService
 from anivault.core.statistics import StatisticsCollector
@@ -92,8 +93,8 @@ class TestTMDBSearchService:
         self, service, mock_cache, sample_query, sample_result
     ):
         """Test search returns cached results on cache hit."""
-        # Setup: mock cache hit
-        cached_data = {"results": [sample_result.model_dump()]}
+        # Setup: mock cache hit with Pydantic model
+        cached_data = CachedSearchData(results=[sample_result], language="ko-KR")
         mock_cache.get = Mock(return_value=cached_data)
 
         # Execute
@@ -113,8 +114,8 @@ class TestTMDBSearchService:
         self, service, mock_cache, mock_tmdb_client, sample_query, sample_result
     ):
         """Test cache hit prevents unnecessary TMDB API calls."""
-        # Setup: mock cache hit
-        cached_data = {"results": [sample_result.model_dump()]}
+        # Setup: mock cache hit with Pydantic model
+        cached_data = CachedSearchData(results=[sample_result], language="ko-KR")
         mock_cache.get = Mock(return_value=cached_data)
 
         # Execute
@@ -160,64 +161,39 @@ class TestTMDBSearchService:
         # Execute
         await service.search(sample_query)
 
-        # Verify cache set was called
+        # Verify cache set was called with Pydantic model
         mock_cache.set.assert_called_once()
         call_args = mock_cache.set.call_args
         assert call_args[1]["key"] == "attack on titan"
-        assert "results" in call_args[1]["data"]
+        # Verify data is CachedSearchData instance
+        cached_data_arg = call_args[1]["data"]
+        assert isinstance(cached_data_arg, CachedSearchData)
+        assert len(cached_data_arg.results) == 1
         assert call_args[1]["cache_type"] == "search"
 
     # === Invalid Cache Tests ===
 
     @pytest.mark.asyncio
-    async def test_search_invalid_cache_structure_fallback_to_api(
+    async def test_search_pydantic_validation_failure_returns_cache_miss(
         self, service, mock_cache, mock_tmdb_client, sample_query, sample_result
     ):
-        """Test invalid cache structure triggers API fallback."""
-        # Setup: invalid cache data (missing 'results')
-        mock_cache.get = Mock(return_value={"invalid": "structure"})
+        """Test Pydantic validation failure in adapter returns None (cache miss).
+
+        Note: Adapter's CachedSearchData.model_validate() failure is caught
+        and logged, returning None. Service treats this as cache miss.
+        """
+        # Setup: adapter.get() returns None (validation failed internally)
+        mock_cache.get = Mock(return_value=None)
         mock_response = TMDBSearchResponse(results=[sample_result])
         mock_tmdb_client.search_media = AsyncMock(return_value=mock_response)
 
         # Execute
         results = await service.search(sample_query)
 
-        # Verify: should call TMDB API and delete invalid cache
+        # Verify: treats as cache miss, calls TMDB API
         assert len(results) == 1
-        mock_cache.delete.assert_called_with("attack on titan", "search")
         mock_tmdb_client.search_media.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_search_invalid_cached_results_type(
-        self, service, mock_cache, sample_query
-    ):
-        """Test invalid cached results type (not list) invalidates cache."""
-        # Setup: cached results is not a list
-        mock_cache.get = Mock(return_value={"results": "not a list"})
-
-        # Execute
-        results = await service.search(sample_query)
-
-        # Verify: cache should be invalidated
-        mock_cache.delete.assert_called_with("attack on titan", "search")
-        assert results == []  # Falls back to API (which returns [])
-
-    @pytest.mark.asyncio
-    async def test_search_pydantic_validation_failure_invalidates_cache(
-        self, service, mock_cache, sample_query
-    ):
-        """Test Pydantic validation failure invalidates cache."""
-        # Setup: cached data with invalid structure
-        mock_cache.get = Mock(
-            return_value={"results": [{"id": "invalid_id_type"}]}  # Missing fields
-        )
-
-        # Execute
-        results = await service.search(sample_query)
-
-        # Verify: invalid cache should be deleted
-        mock_cache.delete.assert_called_with("attack on titan", "search")
-        assert results == []
+        service.statistics.record_cache_miss.assert_called_once_with("search")
 
     # === Error Handling Tests ===
 

@@ -12,6 +12,7 @@ from typing import Any
 
 from rapidfuzz import fuzz
 
+from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.models import MatchResult, NormalizedQuery
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.matching.services import SQLiteCacheAdapter
@@ -25,7 +26,6 @@ from anivault.shared.constants import (
     DefaultLanguage,
     GenreConfig,
     MatchingCacheConfig,
-    TMDBResponseKeys,
     TMDBSearchKeys,
 )
 
@@ -93,40 +93,8 @@ class MatchingEngine:
             logger.debug("Cache hit for search query: %s", title)
             self.statistics.record_cache_hit("search")
 
-            # Extract results from cached dict
-            if (
-                isinstance(cached_data, dict)
-                and TMDBResponseKeys.RESULTS in cached_data
-            ):
-                cached_results = cached_data[TMDBResponseKeys.RESULTS]
-
-                # Type validation for cached results
-                if not isinstance(cached_results, list):
-                    logger.warning(
-                        "Invalid cached results type: %s, expected list, clearing cache",
-                        type(cached_results),
-                    )
-                    self.cache.delete(title, "search")
-                    return []
-
-                # Convert cached dicts to TMDBSearchResult objects
-                try:
-                    search_results = [
-                        TMDBSearchResult(**item) if isinstance(item, dict) else item
-                        for item in cached_results
-                    ]
-                    return search_results
-                except Exception as e:  # noqa: BLE001
-                    logger.warning(
-                        "Failed to convert cached results to TMDBSearchResult: %s, clearing cache",
-                        str(e),
-                    )
-                    self.cache.delete(title, "search")
-                    return []
-
-            logger.warning("Invalid cached data structure, clearing cache")
-            self.cache.delete(title, "search")
-            return []
+            # Return cached results (already validated by Pydantic!)
+            return cached_data.results
 
         # Cache miss - search TMDB
         logger.debug(
@@ -144,13 +112,14 @@ class MatchingEngine:
             # Extract TMDBSearchResult list from response
             results = search_response.results
 
-            # Store results in cache
-            # Convert TMDBSearchResult to dict for caching
-            results_dicts = [result.model_dump() for result in results]
-            cache_data = {"results": results_dicts}
+            # Store results in cache with Pydantic model
+            cached_data = CachedSearchData(
+                results=results,
+                language=self.cache.language,
+            )
             self.cache.set(
                 key=title,
-                data=cache_data,
+                data=cached_data,
                 cache_type=MatchingCacheConfig.CACHE_TYPE_SEARCH,
                 ttl_seconds=MatchingCacheConfig.SEARCH_CACHE_TTL_SECONDS,
             )

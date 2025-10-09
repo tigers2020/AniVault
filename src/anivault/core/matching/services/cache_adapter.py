@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any, Protocol
+from typing import Protocol
 
+from anivault.core.matching.cache_models import CachedSearchData
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.shared.constants import Cache
 
@@ -39,7 +40,7 @@ class CacheAdapterProtocol(Protocol):
         self,
         key: str,
         cache_type: str = Cache.TYPE_SEARCH,
-    ) -> dict[str, Any] | None:
+    ) -> CachedSearchData | None:
         """Retrieve cached data by key.
 
         Args:
@@ -47,7 +48,7 @@ class CacheAdapterProtocol(Protocol):
             cache_type: Type of cache (e.g., 'search', 'details')
 
         Returns:
-            Cached data as dictionary, or None if not found or expired
+            Strongly-typed cached data model, or None if not found or expired
         """
         ...
 
@@ -63,7 +64,7 @@ class CacheAdapterProtocol(Protocol):
     def set(
         self,
         key: str,
-        data: dict[str, Any],
+        data: CachedSearchData,
         cache_type: str = Cache.TYPE_SEARCH,
         ttl_seconds: int | None = None,
     ) -> None:
@@ -71,7 +72,7 @@ class CacheAdapterProtocol(Protocol):
 
         Args:
             key: Cache key identifier
-            data: Dictionary containing the data to cache
+            data: Strongly-typed cached data model
             cache_type: Type of cache (e.g., 'search', 'details')
             ttl_seconds: Time-to-live in seconds (None for default TTL)
         """
@@ -119,7 +120,7 @@ class SQLiteCacheAdapter:
         self,
         key: str,
         cache_type: str = Cache.TYPE_SEARCH,
-    ) -> dict[str, Any] | None:
+    ) -> CachedSearchData | None:
         """Retrieve cached data by key.
 
         Args:
@@ -127,28 +128,30 @@ class SQLiteCacheAdapter:
             cache_type: Type of cache (default: 'search')
 
         Returns:
-            Cached data as dictionary, or None if not found or expired
+            Strongly-typed cached data model, or None if not found or expired
 
         Example:
             >>> data = adapter.get("attack on titan", "search")
             >>> if data:
-            ...     results = data.get("results", [])
+            ...     for result in data.results:
+            ...         print(result.title)
         """
         # Enhance key with language for language-sensitive caching
         enhanced_key = self._enhance_key_with_language(key)
         validated_key = self._validate_key(enhanced_key)
 
         try:
-            cached_data = self.backend.get(validated_key, cache_type)
+            cached_dict = self.backend.get(validated_key, cache_type)
 
-            if cached_data is not None:
+            if cached_dict is not None:
                 logger.debug(
                     "Cache hit: key=%s (length=%d), type=%s",
                     key[:50],  # Log only first 50 chars
                     len(key),
                     cache_type,
                 )
-                return dict(cached_data)
+                # Deserialize dict to Pydantic model (type-safe!)
+                return CachedSearchData.model_validate(cached_dict)
 
             logger.debug(
                 "Cache miss: key=%s (length=%d), type=%s",
@@ -160,6 +163,7 @@ class SQLiteCacheAdapter:
 
         except Exception:
             # Graceful degradation: log error and return None (cache miss)
+            # Includes Pydantic validation errors
             logger.exception(
                 "Cache get operation failed for key=%s, type=%s",
                 key[:50],
@@ -202,7 +206,7 @@ class SQLiteCacheAdapter:
     def set(
         self,
         key: str,
-        data: dict[str, Any],
+        data: CachedSearchData,
         cache_type: str = Cache.TYPE_SEARCH,
         ttl_seconds: int | None = None,
     ) -> None:
@@ -210,26 +214,26 @@ class SQLiteCacheAdapter:
 
         Args:
             key: Cache key identifier (will be enhanced with language)
-            data: Dictionary containing the data to cache
+            data: Strongly-typed cached data model
             cache_type: Type of cache (default: 'search')
             ttl_seconds: Time-to-live in seconds (None for default TTL)
 
         Example:
-            >>> adapter.set(
-            ...     "attack on titan",
-            ...     {"results": [{"id": 1, "title": "Test"}]},
-            ...     "search",
-            ...     3600
-            ... )
+            >>> from anivault.core.matching.cache_models import CachedSearchData
+            >>> cached_data = CachedSearchData(results=[], language="ko-KR")
+            >>> adapter.set("attack on titan", cached_data, "search", 3600)
         """
         # Enhance key with language for language-sensitive caching
         enhanced_key = self._enhance_key_with_language(key)
         validated_key = self._validate_key(enhanced_key)
 
         try:
+            # Serialize Pydantic model to dict for backend storage
+            data_dict = data.model_dump(mode="json")
+
             self.backend.set_cache(
                 key=validated_key,
-                data=data,
+                data=data_dict,
                 cache_type=cache_type,
                 ttl_seconds=ttl_seconds,
             )
