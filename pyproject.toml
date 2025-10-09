@@ -172,6 +172,15 @@ module = [
 ]
 ignore_missing_imports = true
 
+# Python 3.9 CI compatibility: orjson/pydantic type stubs incomplete
+[[tool.mypy.overrides]]
+module = ["anivault.cli.json_formatter"]
+disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = ["anivault.config.settings"]
+disable_error_code = ["misc", "no-any-return"]
+
 # 런타임 코어는 조금 더 엄격
 [[tool.mypy.overrides]]
 module = "anivault.*"
