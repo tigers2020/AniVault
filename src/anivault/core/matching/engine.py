@@ -14,6 +14,7 @@ from rapidfuzz import fuzz
 
 from anivault.core.matching.models import MatchResult, NormalizedQuery
 from anivault.core.matching.scoring import calculate_confidence_score
+from anivault.core.matching.services import SQLiteCacheAdapter
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
@@ -59,9 +60,13 @@ class MatchingEngine:
             tmdb_client: TMDB client for API calls
             statistics: Optional statistics collector for performance tracking
         """
-        self.cache = cache
-        self.tmdb_client = tmdb_client
         self.statistics = statistics or StatisticsCollector()
+
+        # Create cache adapter with language from TMDB client
+        language = getattr(tmdb_client, TMDBSearchKeys.LANGUAGE, DefaultLanguage.KOREAN)
+        self.cache = SQLiteCacheAdapter(backend=cache, language=language)
+
+        self.tmdb_client = tmdb_client
 
     async def _search_tmdb(
         self,
@@ -79,21 +84,13 @@ class MatchingEngine:
         Returns:
             List of TMDBSearchResult objects with media metadata
         """
-        # Use normalized title + language as cache key (language-sensitive caching)
+        # Use normalized title as cache key (language handling delegated to adapter)
         title = normalized_query.title
 
-        # Include language in cache key to avoid serving wrong-language cached results
-        language = getattr(
-            self.tmdb_client,
-            TMDBSearchKeys.LANGUAGE,
-            DefaultLanguage.KOREAN,
-        )
-        cache_key = f"{title}:lang={language}"
-
-        # Check cache first
-        cached_data = self.cache.get(cache_key, "search")
+        # Check cache first (adapter handles language-sensitive key generation)
+        cached_data = self.cache.get(title, "search")
         if cached_data is not None:
-            logger.debug("Cache hit for search query: %s", cache_key)
+            logger.debug("Cache hit for search query: %s", title)
             self.statistics.record_cache_hit("search")
 
             # Extract results from cached dict
@@ -109,7 +106,7 @@ class MatchingEngine:
                         "Invalid cached results type: %s, expected list, clearing cache",
                         type(cached_results),
                     )
-                    self.cache.delete(cache_key, "search")
+                    self.cache.delete(title, "search")
                     return []
 
                 # Convert cached dicts to TMDBSearchResult objects
@@ -124,15 +121,19 @@ class MatchingEngine:
                         "Failed to convert cached results to TMDBSearchResult: %s, clearing cache",
                         str(e),
                     )
-                    self.cache.delete(cache_key, "search")
+                    self.cache.delete(title, "search")
                     return []
 
             logger.warning("Invalid cached data structure, clearing cache")
-            self.cache.delete(cache_key, "search")
+            self.cache.delete(title, "search")
             return []
 
         # Cache miss - search TMDB
-        logger.debug("Cache miss for search query: %s (language: %s)", title, language)
+        logger.debug(
+            "Cache miss for search query: %s (language: %s)",
+            title,
+            self.cache.language,
+        )
         self.statistics.record_cache_miss("search")
 
         try:
@@ -147,8 +148,8 @@ class MatchingEngine:
             # Convert TMDBSearchResult to dict for caching
             results_dicts = [result.model_dump() for result in results]
             cache_data = {"results": results_dicts}
-            self.cache.set_cache(
-                key=cache_key,
+            self.cache.set(
+                key=title,
                 data=cache_data,
                 cache_type=MatchingCacheConfig.CACHE_TYPE_SEARCH,
                 ttl_seconds=MatchingCacheConfig.SEARCH_CACHE_TTL_SECONDS,
@@ -843,11 +844,11 @@ class MatchingEngine:
             self.statistics.metrics.cache_hits + self.statistics.metrics.cache_misses
         )
 
-        # Get cache item count from SQLite if available
+        # Get cache item count from SQLite backend if available
         cache_items = 0
-        if hasattr(self, "db_cache") and self.db_cache:
+        if hasattr(self.cache, "backend"):
             try:
-                cache_info = self.db_cache.get_cache_info()
+                cache_info = self.cache.backend.get_cache_info()
                 cache_items = cache_info.get("total_files", 0)
             except OSError as e:
                 logger.warning("Failed to get cache item count: %s", e)
