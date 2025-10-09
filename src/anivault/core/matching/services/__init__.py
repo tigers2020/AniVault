@@ -7,11 +7,13 @@ of the matching engine, following the Single Responsibility Principle.
 from __future__ import annotations
 
 from .cache_adapter import CacheAdapterProtocol, SQLiteCacheAdapter
+from .filter_service import CandidateFilterService
 from .scoring_service import CandidateScoringService
 from .search_service import TMDBSearchService
 
 __all__ = [
     "CacheAdapterProtocol",
+    "CandidateFilterService",
     "CandidateScoringService",
     "SQLiteCacheAdapter",
     "TMDBSearchService",

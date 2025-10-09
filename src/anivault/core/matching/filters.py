@@ -18,6 +18,9 @@ from anivault.shared.constants import GenreConfig, YearMatchingConfig
 
 logger = logging.getLogger(__name__)
 
+# Year tolerance for filtering (years)
+YEAR_FILTER_TOLERANCE = 10  # Allow ±10 years for anime (long-running series, prequels, etc.)
+
 
 def filter_and_sort_by_year(
     candidates: list[TMDBSearchResult],
@@ -54,7 +57,7 @@ def filter_and_sort_by_year(
 
         # Check year difference
         year_diff = abs(candidate_year - query_year)
-        if year_diff <= YearMatchingConfig.TOLERANCE:
+        if year_diff <= YEAR_FILTER_TOLERANCE:
             filtered.append(candidate)
             logger.debug(
                 "Year match: query=%s, candidate=%s (diff=%s)",
@@ -90,7 +93,7 @@ def apply_genre_filter(
         Filtered list containing only candidates with anime/animation genres
     """
     if genre_ids is None:
-        genre_ids = GenreConfig.ANIMATION_GENRE_IDS
+        genre_ids = [GenreConfig.ANIMATION_GENRE_ID]
 
     filtered = []
     for candidate in candidates:
