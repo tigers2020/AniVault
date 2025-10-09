@@ -75,9 +75,6 @@ def _handle_log_command_json(options: LogOptions) -> int:
     try:
         if options.log_command == "list":
             log_data = _collect_log_list_data(options)
-            if log_data is None:
-                return 1
-
             output = format_json_output(
                 success=True,
                 command="log",

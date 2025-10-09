@@ -106,24 +106,28 @@ class TestCollectRollbackDataFailures:
     """_collect_rollback_data() 실패 케이스 테스트."""
 
     def test_log_not_found_returns_error_dict(self):
-        """로그 없을 때 error 포함 dict 반환 (JSON용 함수)."""
+        """로그 없을 때 ApplicationError 발생."""
         # Given
+        from anivault.shared.errors import ApplicationError, ErrorCode
+
         options = RollbackOptions(log_id="nonexistent", dry_run=False, yes=True)
 
         with patch("anivault.core.log_manager.OperationLogManager") as mock_log_mgr:
             mock_log_mgr.return_value.get_log_by_id.return_value = None
 
-            # When
-            result = _collect_rollback_data(options)
+            # When & Then
+            with pytest.raises(ApplicationError) as exc_info:
+                _collect_rollback_data(options)
 
-            # Then: JSON용 함수는 error dict 반환 (None 아님)
-            assert result is not None
-            assert "error" in result
-            assert "not found" in result["error"].lower()
+            # ApplicationError로 래핑되어 발생
+            assert exc_info.value.code == ErrorCode.APPLICATION_ERROR
+            assert "not found" in str(exc_info.value.message).lower()
 
     def test_rollback_plan_generation_failed_returns_error_dict(self):
-        """플랜 생성 실패 시 error dict 반환."""
+        """플랜 생성 실패 시 ApplicationError 발생."""
         # Given: Valid log_id
+        from anivault.shared.errors import ApplicationError, ErrorCode
+
         options = RollbackOptions(log_id="test_log_12345", dry_run=False, yes=True)
         mock_log_path = Path("/tmp/test.json")
 
@@ -132,26 +136,27 @@ class TestCollectRollbackDataFailures:
                 mock_log_mgr.return_value.get_log_by_id.return_value = mock_log_path
                 mock_rb_mgr.return_value.generate_rollback_plan.return_value = None
 
-                # When
-                result = _collect_rollback_data(options)
+                # When & Then
+                with pytest.raises(ApplicationError) as exc_info:
+                    _collect_rollback_data(options)
 
-                # Then
-                assert result is not None
-                assert "error" in result
+                assert exc_info.value.code == ErrorCode.APPLICATION_ERROR
 
-    def test_os_error_returns_none(self):
-        """OSError 발생 시 None 반환 (현재 동작)."""
+    def test_os_error_raises_infrastructure_error(self):
+        """OSError 발생 시 InfrastructureError 발생."""
         # Given: Valid log_id
+        from anivault.shared.errors import ErrorCode, InfrastructureError
+
         options = RollbackOptions(log_id="test_log_12345", dry_run=False, yes=True)
 
         with patch("anivault.core.log_manager.OperationLogManager") as mock_log_mgr:
             mock_log_mgr.side_effect = OSError("Disk error")
 
-            # When
-            result = _collect_rollback_data(options)
+            # When & Then
+            with pytest.raises(InfrastructureError) as exc_info:
+                _collect_rollback_data(options)
 
-            # Then: 현재는 None 반환
-            assert result is None  # 현재 동작 (리팩토링 후 예외 발생으로 변경 예정)
+            assert exc_info.value.code == ErrorCode.FILE_READ_ERROR
 
 
 # Note: _collect_rollback_data는 JSON 전용 함수로

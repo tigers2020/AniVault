@@ -377,7 +377,7 @@ def _create_scan_args(options: RunOptions, directory: Path) -> Any:
     """Create scan command arguments from run arguments."""
 
     class ScanArgs:
-        def __init__(self, run_options, directory):
+        def __init__(self, run_options: Any, directory: str) -> None:
             self.directory = str(directory)
             self.extensions = run_options.extensions
             self.recursive = True
@@ -402,14 +402,14 @@ def _create_scan_args(options: RunOptions, directory: Path) -> Any:
             )
             self.output = None  # Default to no output file
 
-    return ScanArgs(options, directory)
+    return ScanArgs(options, str(directory))
 
 
 def _create_match_args(options: RunOptions, directory: Path) -> Any:
     """Create match command arguments from run arguments."""
 
     class MatchArgs:
-        def __init__(self, run_options, directory):
+        def __init__(self, run_options: Any, directory: str) -> None:
             self.directory = str(directory)
             self.extensions = run_options.extensions
             self.recursive = True
@@ -435,14 +435,14 @@ def _create_match_args(options: RunOptions, directory: Path) -> Any:
                 RunDefaults.DEFAULT_MAX_WORKERS,
             )
 
-    return MatchArgs(options, directory)
+    return MatchArgs(options, str(directory))
 
 
 def _create_organize_args(options: RunOptions, directory: Path) -> Any:
     """Create organize command arguments from run arguments."""
 
     class OrganizeArgs:
-        def __init__(self, run_options, directory):
+        def __init__(self, run_options: Any, directory: str) -> None:
             self.directory = str(directory)
             self.extensions = run_options.extensions
             self.dry_run = run_options.dry_run
@@ -451,7 +451,7 @@ def _create_organize_args(options: RunOptions, directory: Path) -> Any:
             self.log_level = getattr(run_options, "log_level", "INFO")
             self.json = getattr(run_options, "json_output", False)
 
-    return OrganizeArgs(options, directory)
+    return OrganizeArgs(options, str(directory))
 
 
 def _handle_run_error(

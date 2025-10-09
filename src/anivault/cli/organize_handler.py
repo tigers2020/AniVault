@@ -49,7 +49,7 @@ def handle_organize_command(options: OrganizeOptions) -> int:
 
         scanned_files = _get_scanned_files(options, directory, console)
         if not scanned_files:
-            if options.json_output is not None:
+            if options.json_output:
                 # Return empty results in JSON format
                 organize_data = _collect_organize_data([], options, is_dry_run=False)
                 json_output = format_json_output(
@@ -71,7 +71,15 @@ def handle_organize_command(options: OrganizeOptions) -> int:
         return _execute_organization_plan(plan, options, console)
 
     except ApplicationError as e:
-        if options.json_output is not None:
+        logger.exception(
+            "%sin organize command",
+            CLIMessages.Error.APPLICATION_ERROR,
+            extra={
+                CLIMessages.StatusKeys.CONTEXT: e.context,
+                CLIMessages.StatusKeys.ERROR_CODE: e.code,
+            },
+        )
+        if options.json_output:
             json_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.ORGANIZE,
@@ -94,17 +102,17 @@ def handle_organize_command(options: OrganizeOptions) -> int:
                     "error",
                 ),
             )
+        return 1
+    except InfrastructureError as e:
         logger.exception(
             "%sin organize command",
-            CLIMessages.Error.APPLICATION_ERROR,
+            CLIMessages.Error.INFRASTRUCTURE_ERROR,
             extra={
                 CLIMessages.StatusKeys.CONTEXT: e.context,
                 CLIMessages.StatusKeys.ERROR_CODE: e.code,
             },
         )
-        return 1
-    except InfrastructureError as e:
-        if options.json_output is not None:
+        if options.json_output:
             json_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.ORGANIZE,
@@ -127,17 +135,10 @@ def handle_organize_command(options: OrganizeOptions) -> int:
                     "error",
                 ),
             )
-        logger.exception(
-            "%sin organize command",
-            CLIMessages.Error.INFRASTRUCTURE_ERROR,
-            extra={
-                CLIMessages.StatusKeys.CONTEXT: e.context,
-                CLIMessages.StatusKeys.ERROR_CODE: e.code,
-            },
-        )
         return 1
     except Exception as e:
-        if options.json_output is not None:
+        logger.exception("%sin organize command", CLIMessages.Error.UNEXPECTED_ERROR)
+        if options.json_output:
             json_output = format_json_output(
                 success=False,
                 command=CLIMessages.CommandNames.ORGANIZE,
@@ -157,7 +158,6 @@ def handle_organize_command(options: OrganizeOptions) -> int:
                     "error",
                 ),
             )
-        logger.exception("%sin organize command", CLIMessages.Error.UNEXPECTED_ERROR)
         return 1
 
 
@@ -186,7 +186,7 @@ def _validate_organize_directory(options: OrganizeOptions, console: Any) -> Path
 
     try:
         directory = validate_directory(str(options.directory))
-        if options.json_output is None:
+        if not options.json_output:
             console.print(
                 CLIFormatting.format_colored_message(
                     f"Organizing files in: {directory}",
@@ -235,7 +235,7 @@ def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -
         )
 
     if not file_results:
-        if options.json_output is None:
+        if not options.json_output:
             console.print(
                 CLIFormatting.format_colored_message(
                     CLIMessages.Info.NO_ANIME_FILES_FOUND,
@@ -255,7 +255,7 @@ def _get_scanned_files(options: OrganizeOptions, directory: Any, console: Any) -
             scanned_files.append(scanned_file)
 
     if not scanned_files:
-        if options.json_output is None:
+        if not options.json_output:
             console.print(
                 CLIFormatting.format_colored_message(
                     "No valid anime files found to organize",
@@ -285,7 +285,7 @@ def _execute_organization_plan(
 ) -> int:
     """Execute organization plan."""
     if options.dry_run:
-        if options.json_output is not None:
+        if options.json_output:
             # Output dry run plan in JSON format
             organize_data = _collect_organize_data(plan, options, is_dry_run=True)
             json_output = format_json_output(
@@ -301,10 +301,10 @@ def _execute_organization_plan(
         logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="organize"))
         return 0
 
-    if options.json_output is None:
+    if not options.json_output:
         _print_execution_plan_impl(plan, console)
 
-    if not options.yes and options.json_output is None:
+    if not options.yes and not options.json_output:
         if not _confirm_organization(console):
             return 0
 
@@ -350,7 +350,7 @@ def _perform_organization(plan: Any, options: OrganizeOptions) -> int:
     with progress_manager.spinner("Organizing files..."):
         moved_files = organizer.execute_plan(plan, operation_id)
 
-    if options.json_output is not None:
+    if options.json_output:
         # Output results in JSON format
         organize_data = _collect_organize_data(
             plan,
