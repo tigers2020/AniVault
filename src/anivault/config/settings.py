@@ -564,9 +564,13 @@ def _load_env_file() -> None:
         SecurityError,
     )
 
-    # Check if .env file exists
+    # Check if .env file exists - but allow missing .env if TMDB_API_KEY already set (CI/tests)
     env_file = Path(".env")
     if not env_file.exists():
+        # If TMDB_API_KEY is already in environment (CI/tests), allow missing .env
+        if "TMDB_API_KEY" in os.environ:
+            return
+        
         raise SecurityError(
             code=ErrorCode.MISSING_CONFIG,
             message=(

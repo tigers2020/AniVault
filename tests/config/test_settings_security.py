@@ -18,17 +18,19 @@ class TestSettingsSecurityFailures:
 
     def test_load_env_file_missing_file(self, tmp_path):
         """환경 파일 없을 때 에러 발생 테스트."""
-        # Given: .env 파일이 없는 디렉토리
+        # Given: .env 파일이 없는 디렉토리 AND 환경 변수도 없음
         with patch("pathlib.Path.exists") as mock_exists:
             mock_exists.return_value = False
+            
+            # Clear TMDB_API_KEY from environment
+            with patch.dict(os.environ, {}, clear=True):
+                # When & Then: SecurityError 발생해야 함
+                with pytest.raises(SecurityError) as exc_info:
+                    _load_env_file()
 
-            # When & Then: SecurityError 발생해야 함
-            with pytest.raises(SecurityError) as exc_info:
-                _load_env_file()
-
-            assert exc_info.value.code == ErrorCode.MISSING_CONFIG
-            assert ".env" in str(exc_info.value.message).lower()
-            assert "env.template" in str(exc_info.value.message).lower()
+                assert exc_info.value.code == ErrorCode.MISSING_CONFIG
+                assert ".env" in str(exc_info.value.message).lower()
+                assert "env.template" in str(exc_info.value.message).lower()
 
     def test_load_env_file_missing_api_key(self, tmp_path):
         """API 키 없을 때 에러 발생 테스트."""
