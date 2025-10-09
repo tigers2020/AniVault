@@ -463,7 +463,7 @@ class TestExecuteFileOperation:
             destination_path=tmp_path / "dest.mkv",
         )
 
-        error = IOError("Test error")
+        error = OSError("Test error")
 
         # Should log error but NOT re-raise
         organizer._handle_operation_error(operation, error)
@@ -679,7 +679,11 @@ class TestOrganizeByResolution:
         assert "Season 01" in str(destination)
 
     def test_construct_path_unknown_resolution(
-        self, log_manager, mock_settings_with_resolution, tmp_path, monkeypatch
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        tmp_path,
+        monkeypatch,
     ):
         """Test path construction with unknown resolution - should default to high resolution."""
         source_file = tmp_path / "test_anime_no_res.mkv"
@@ -722,7 +726,10 @@ class TestOrganizeByResolution:
         assert "진격의 거인" in str(destination)
 
     def test_analyze_series_resolutions_single_high(
-        self, log_manager, mock_settings_with_resolution, scanned_file_high_res
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        scanned_file_high_res,
     ):
         """Test resolution analysis when series has only high resolution files."""
         organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
@@ -737,7 +744,10 @@ class TestOrganizeByResolution:
         assert result["진격의 거인"] is False  # Not mixed
 
     def test_analyze_series_resolutions_single_low(
-        self, log_manager, mock_settings_with_resolution, scanned_file_low_res
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        scanned_file_low_res,
     ):
         """Test resolution analysis when series has only low resolution files."""
         organizer = FileOrganizer(log_manager, mock_settings_with_resolution)
@@ -771,7 +781,11 @@ class TestOrganizeByResolution:
         assert result["진격의 거인"] is True  # Mixed!
 
     def test_generate_plan_single_resolution_all_normal_paths(
-        self, log_manager, mock_settings_with_resolution, tmp_path, monkeypatch
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        tmp_path,
+        monkeypatch,
     ):
         """Test generate_plan with single resolution - all files use normal paths."""
 
@@ -821,7 +835,11 @@ class TestOrganizeByResolution:
             assert "진격의 거인" in str(operation.destination_path)
 
     def test_generate_plan_mixed_resolution_separate_paths(
-        self, log_manager, mock_settings_with_resolution, tmp_path, monkeypatch
+        self,
+        log_manager,
+        mock_settings_with_resolution,
+        tmp_path,
+        monkeypatch,
     ):
         """Test generate_plan with mixed resolutions - high/low use different paths."""
 

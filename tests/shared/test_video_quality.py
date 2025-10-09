@@ -1,7 +1,5 @@
 """Tests for VideoQuality classification."""
 
-import pytest
-
 from anivault.shared.constants import VideoQuality
 
 

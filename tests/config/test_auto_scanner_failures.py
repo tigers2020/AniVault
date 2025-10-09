@@ -83,7 +83,8 @@ class TestShouldAutoScanOnStartupFailures:
         mock_config.folders = mock_folders
 
         monkeypatch.setattr(
-            "anivault.config.auto_scanner.get_config", lambda: mock_config
+            "anivault.config.auto_scanner.get_config",
+            lambda: mock_config,
         )
 
         # Mock FolderValidator to return valid
@@ -106,7 +107,8 @@ class TestShouldAutoScanOnStartupFailures:
         mock_config.folders = mock_folders
 
         monkeypatch.setattr(
-            "anivault.config.auto_scanner.get_config", lambda: mock_config
+            "anivault.config.auto_scanner.get_config",
+            lambda: mock_config,
         )
 
         # When
@@ -180,7 +182,8 @@ class TestGetFolderSettingsFailures:
         mock_config.folders = mock_folders
 
         monkeypatch.setattr(
-            "anivault.config.auto_scanner.get_config", lambda: mock_config
+            "anivault.config.auto_scanner.get_config",
+            lambda: mock_config,
         )
 
         # When
@@ -202,7 +205,8 @@ class TestGetScanStatusErrorHandling:
         self.scanner = AutoScanner(config_path)
 
     def test_folder_settings_error_returns_error_dict_with_details(
-        self, monkeypatch
+        self,
+        monkeypatch,
     ) -> None:
         """When get_folder_settings raises error, should return error dict with details."""
 
@@ -232,7 +236,9 @@ class TestAutoScanStartupCallerHandling:
     """Test that GUI app properly handles auto_scanner errors."""
 
     def test_check_auto_scan_startup_catches_application_error(
-        self, tmp_path, monkeypatch
+        self,
+        tmp_path,
+        monkeypatch,
     ) -> None:
         """_check_auto_scan_startup should catch ApplicationError and log, not crash."""
         # This is a documentation test - showing expected behavior
