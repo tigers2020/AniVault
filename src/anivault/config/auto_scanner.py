@@ -112,7 +112,7 @@ class AutoScanner:
         try:
             config = get_config()
             folder_settings = config.folders
-            
+
             if folder_settings is None:
                 return False, "No folder settings configured"
 
