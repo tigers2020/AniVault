@@ -18,18 +18,13 @@ import pytest
 from anivault.shared.constants import FileSystem
 
 
-@pytest.fixture(scope="session", autouse=True)
-def mock_env_for_ci():
-    """Mock environment variables for CI environments without .env file."""
-    # Only set if not already present (allows local .env to take precedence)
-    if "TMDB_API_KEY" not in os.environ:
-        os.environ["TMDB_API_KEY"] = "test_api_key_for_ci_testing_only"
-    if "TMDB_LANGUAGE" not in os.environ:
-        os.environ["TMDB_LANGUAGE"] = "ko"
-    if "TMDB_REGION" not in os.environ:
-        os.environ["TMDB_REGION"] = "KR"
-    yield
-    # Cleanup is optional as these are test values
+# Set environment variables BEFORE any imports (for CI without .env)
+if "TMDB_API_KEY" not in os.environ:
+    os.environ["TMDB_API_KEY"] = "test_api_key_for_ci_testing_only"
+if "TMDB_LANGUAGE" not in os.environ:
+    os.environ["TMDB_LANGUAGE"] = "ko"
+if "TMDB_REGION" not in os.environ:
+    os.environ["TMDB_REGION"] = "KR"
 
 
 @pytest.fixture
