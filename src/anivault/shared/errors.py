@@ -99,7 +99,9 @@ class ErrorCode(str, Enum):
     # Security Errors
     INVALID_TOKEN = "INVALID_TOKEN"  # noqa: S105  # nosec B105 - Error code constant
     TOKEN_EXPIRED = "TOKEN_EXPIRED"  # noqa: S105  # nosec B105 - Error code constant
-    TOKEN_MALFORMED = "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
+    TOKEN_MALFORMED = (
+        "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
+    )
     ENCRYPTION_FAILED = "ENCRYPTION_FAILED"
     DECRYPTION_FAILED = "DECRYPTION_FAILED"
 
