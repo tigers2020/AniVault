@@ -9,15 +9,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from anivault.shared.constants import CacheValidationConstants
+from anivault.shared.types.base import BaseTypeModel
 
 # Explicitly export for mypy
 __all__ = ["CacheEntry", "CacheValidationConstants"]
 
 
-class CacheEntry(BaseModel):
+class CacheEntry(BaseTypeModel):
     """SQLite cache entry domain model.
 
     Represents a single cache entry in the SQLite database with
@@ -91,8 +92,9 @@ class CacheEntry(BaseModel):
         description="Optional endpoint category",
     )
 
+    # Override model_config to add whitespace stripping
     model_config = ConfigDict(
-        extra="ignore",
+        **BaseTypeModel.model_config,
         validate_assignment=True,
         str_strip_whitespace=True,
     )
