@@ -15,13 +15,6 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.common.models import (
-    DirectoryPath,
-    MatchOptions,
-    OrganizeOptions,
-    RunOptions,
-    ScanOptions,
-)
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.match_handler import handle_match_command
@@ -29,6 +22,13 @@ from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.scan_handler import handle_scan_command
 from anivault.shared.constants import CLI, CLIDefaults
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
+from anivault.shared.types.cli import (
+    CLIDirectoryPath,
+    MatchOptions,
+    OrganizeOptions,
+    RunOptions,
+    ScanOptions,
+)
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -165,7 +165,7 @@ def _execute_scan_step(
     """
     try:
         scan_options = ScanOptions(
-            directory=DirectoryPath(path=directory),
+            directory=CLIDirectoryPath(path=directory),
             recursive=True,
             include_subtitles=options.include_subtitles,
             include_metadata=options.include_metadata,
@@ -214,7 +214,7 @@ def _execute_match_step(
     """
     try:
         match_options = MatchOptions(
-            directory=DirectoryPath(path=directory),
+            directory=CLIDirectoryPath(path=directory),
             recursive=True,
             include_subtitles=options.include_subtitles,
             include_metadata=options.include_metadata,
@@ -264,7 +264,7 @@ def _execute_organize_step(
     """
     try:
         organize_options = OrganizeOptions(
-            directory=DirectoryPath(path=directory),
+            directory=CLIDirectoryPath(path=directory),
             dry_run=options.dry_run,
             yes=options.yes,
             enhanced=False,  # Default to standard organization
@@ -438,7 +438,7 @@ def run_command(
 
         # Validate arguments using Pydantic model
         run_options = RunOptions(
-            directory=DirectoryPath(path=directory),
+            directory=CLIDirectoryPath(path=directory),
             recursive=recursive,
             include_subtitles=include_subtitles,
             include_metadata=include_metadata,

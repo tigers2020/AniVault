@@ -24,29 +24,43 @@ from .api import ISODate, LanguageCode, NonEmptyStr, TMDBId
 from .base import BaseTypeModel, StrictModel
 from .cache import CacheKey, Timestamp
 from .cli import (
+    CLIDirectoryPath,
+    CLIFilePath,
+    LogOptions,
+    MatchOptions,
     NonNegativeInt,
+    OrganizeOptions,
     PortNumber,
     PositiveInt,
-    ValidDirectoryPath,
-    ValidFilePath,
+    RollbackOptions,
+    RunOptions,
+    ScanOptions,
+    VerifyOptions,
 )
 from .conversion import ModelConverter
 
 __all__ = [
     "BaseTypeModel",
+    "CLIDirectoryPath",
+    "CLIFilePath",
     "CacheKey",
     "ISODate",
     "LanguageCode",
+    "LogOptions",
+    "MatchOptions",
     "ModelConverter",
     "NonEmptyStr",
     "NonNegativeInt",
+    "OrganizeOptions",
     "PortNumber",
     "PositiveInt",
+    "RollbackOptions",
+    "RunOptions",
+    "ScanOptions",
     "StrictModel",
     "TMDBId",
     "Timestamp",
-    "ValidDirectoryPath",
-    "ValidFilePath",
+    "VerifyOptions",
 ]
 
 __version__ = "0.1.0"

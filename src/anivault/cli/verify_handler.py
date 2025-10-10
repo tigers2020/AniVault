@@ -14,7 +14,6 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.common.models import VerifyOptions
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.verify import (
     collect_verify_data,
@@ -22,6 +21,7 @@ from anivault.cli.helpers.verify import (
 )
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI, CLIDefaults
+from anivault.shared.types.cli import VerifyOptions
 
 if TYPE_CHECKING:
     from rich.console import Console

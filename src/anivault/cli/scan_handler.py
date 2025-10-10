@@ -17,7 +17,6 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.common.models import DirectoryPath, ScanOptions
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.scan import (
     collect_scan_data,
@@ -29,6 +28,7 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI, CLIDefaults
 from anivault.shared.constants.cli import CLIHelp, CLIMessages, CLIOptions
 from anivault.shared.constants.logging import LogConfig
+from anivault.shared.types.cli import CLIDirectoryPath, ScanOptions
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +248,7 @@ def scan_command(
     try:
         # Validate arguments using Pydantic model
         scan_options = ScanOptions(
-            directory=DirectoryPath(path=directory),
+            directory=CLIDirectoryPath(path=directory),
             recursive=recursive,
             include_subtitles=include_subtitles,
             include_metadata=include_metadata,

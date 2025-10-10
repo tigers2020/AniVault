@@ -15,11 +15,11 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.common.models import DirectoryPath, LogOptions
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.log import collect_log_list_data, print_log_list
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI, CLIDefaults, FileSystem
+from anivault.shared.types.cli import CLIDirectoryPath, LogOptions
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -129,7 +129,7 @@ def log_command(
         # Create and validate options using Pydantic
         options = LogOptions(
             log_command=command,
-            log_dir=DirectoryPath(path=log_dir),
+            log_dir=CLIDirectoryPath(path=log_dir),
         )
 
         # Call the handler with validated options

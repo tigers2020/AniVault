@@ -1,24 +1,250 @@
 """
 CLI-related Type Definitions
 
-This module provides type aliases for CLI option validation and parsing.
+This module provides Pydantic models for CLI option validation and parsing.
 
-These types ensure CLI arguments are validated at the boundary,
+These models ensure CLI arguments are validated at the boundary,
 preventing invalid data from propagating into the core logic.
+
+Models are migrated from cli/common/models.py for centralization under
+the One Source of Truth principle.
 """
 
 from __future__ import annotations
 
-from pydantic import DirectoryPath, FilePath, conint
+import os
+from pathlib import Path
 
-# File system types
+from pydantic import Field, conint, field_validator
+
+from anivault.shared.constants import FileSystem, RunDefaults
+from anivault.shared.types.base import BaseTypeModel
+
+# CLI option type aliases
 # Note: Using simple assignment instead of TypeAlias for Python 3.9 compatibility
-ValidDirectoryPath = DirectoryPath
-ValidFilePath = FilePath
-
-# CLI option types
 PositiveInt = conint(gt=0)
 NonNegativeInt = conint(ge=0)
 PortNumber = conint(ge=1, le=65535)
 
-# NOTE: Specific CLI option models will be added in Task 3 (CLI Type Safety)
+
+class CLIDirectoryPath(BaseTypeModel):
+    """Validated directory path model for CLI options."""
+
+    path: Path = Field(..., description="Directory path")
+
+    @field_validator("path")
+    @classmethod
+    def validate_directory(cls, v: Path) -> Path:
+        """Validate that the path exists and is a directory."""
+        if not v.exists():
+            msg = f"Directory does not exist: {v}"
+            raise ValueError(msg)
+        if not v.is_dir():
+            msg = f"Path is not a directory: {v}"
+            raise ValueError(msg)
+        if not os.access(v, os.R_OK):
+            msg = f"Directory is not readable: {v}"
+            raise ValueError(msg)
+        return v
+
+
+class CLIFilePath(BaseTypeModel):
+    """Validated file path model for CLI options."""
+
+    path: Path = Field(..., description="File path")
+
+    @field_validator("path")
+    @classmethod
+    def validate_file(cls, v: Path) -> Path:
+        """Validate that the path exists and is a file."""
+        if not v.exists():
+            msg = f"File does not exist: {v}"
+            raise ValueError(msg)
+        if not v.is_file():
+            msg = f"Path is not a file: {v}"
+            raise ValueError(msg)
+        if not os.access(v, os.R_OK):
+            msg = f"File is not readable: {v}"
+            raise ValueError(msg)
+        return v
+
+
+class ScanOptions(BaseTypeModel):
+    """Scan command options validation model."""
+
+    directory: CLIDirectoryPath = Field(..., description="Directory to scan")
+    recursive: bool = Field(default=True, description="Scan recursively")
+    include_subtitles: bool = Field(default=True, description="Include subtitle files")
+    include_metadata: bool = Field(default=True, description="Include metadata files")
+    output: Path | None = Field(default=None, description="Output file path")
+    json_output: bool = Field(
+        default=False,
+        description="Output results in JSON format",
+    )
+
+    @field_validator("output")
+    @classmethod
+    def validate_output_path(cls, v: Path | None) -> Path | None:
+        """Validate output path if provided."""
+        if v is None:
+            return v
+
+        # Ensure parent directory exists
+        v.parent.mkdir(parents=True, exist_ok=True)
+
+        # Check if parent directory is writable
+        if not os.access(v.parent, os.W_OK):
+            msg = f"Output directory is not writable: {v.parent}"
+            raise ValueError(msg)
+
+        return v
+
+
+class OrganizeOptions(BaseTypeModel):
+    """Organize command options validation model."""
+
+    directory: CLIDirectoryPath = Field(..., description="Directory to organize")
+    dry_run: bool = Field(default=False, description="Preview changes without applying")
+    yes: bool = Field(default=False, description="Skip confirmation prompts")
+    enhanced: bool = Field(default=False, description="Use enhanced organization")
+    destination: str = Field(default="Anime", description="Destination directory")
+    extensions: str = Field(
+        default="mkv,mp4,avi,mov,wmv,flv,webm,m4v",
+        description="File extensions",
+    )
+    json_output: bool = Field(default=False, description="JSON output format")
+    verbose: bool = Field(default=False, description="Verbose output")
+
+
+class MatchOptions(BaseTypeModel):
+    """Match command options validation model."""
+
+    directory: CLIDirectoryPath = Field(..., description="Directory to match")
+    output: Path | None = Field(default=None, description="Output file path")
+    force: bool = Field(
+        default=False,
+        description="Force re-matching of existing files",
+    )
+    recursive: bool = Field(default=True, description="Recursive matching")
+    include_subtitles: bool = Field(default=True, description="Include subtitles")
+    include_metadata: bool = Field(default=True, description="Include metadata")
+    json_output: bool = Field(default=False, description="JSON output format")
+    verbose: bool = Field(default=False, description="Verbose output")
+
+    @field_validator("output")
+    @classmethod
+    def validate_output_path(cls, v: Path | None) -> Path | None:
+        """Validate output path if provided."""
+        if v is None:
+            return v
+
+        # Ensure parent directory exists
+        v.parent.mkdir(parents=True, exist_ok=True)
+
+        # Check if parent directory is writable
+        if not os.access(v.parent, os.W_OK):
+            msg = f"Output directory is not writable: {v.parent}"
+            raise ValueError(msg)
+
+        return v
+
+
+class LogOptions(BaseTypeModel):
+    """Log command options validation model."""
+
+    log_command: str = Field(
+        ...,
+        description="Log command to execute (list, show, tail)",
+    )
+    log_dir: CLIDirectoryPath = Field(
+        default_factory=lambda: CLIDirectoryPath(path=Path(FileSystem.LOG_DIRECTORY)),
+        description="Directory containing log files",
+    )
+
+    @field_validator("log_command")
+    @classmethod
+    def validate_log_command(cls, v: str) -> str:
+        """Validate log command."""
+        valid_commands = ["list", "show", "tail"]
+        if v not in valid_commands:
+            msg = f"Invalid log command '{v}'. Must be one of: {', '.join(valid_commands)}"
+            raise ValueError(msg)
+        return v
+
+
+class RollbackOptions(BaseTypeModel):
+    """Rollback command options validation model."""
+
+    log_id: str = Field(..., description="ID of the operation log to rollback")
+    dry_run: bool = Field(
+        default=False,
+        description="Preview rollback without applying",
+    )
+    yes: bool = Field(default=False, description="Skip confirmation prompts")
+
+    @field_validator("log_id")
+    @classmethod
+    def validate_log_id(cls, v: str) -> str:
+        """Validate log ID format."""
+        if not v:
+            raise ValueError("Log ID cannot be empty")
+
+        # Basic validation for log ID format (timestamp-like)
+        if len(v) < 10:
+            raise ValueError("Log ID must be at least 10 characters long")
+
+        return v
+
+
+class VerifyOptions(BaseTypeModel):
+    """Verify command options validation model."""
+
+    tmdb: bool = Field(default=False, description="Verify TMDB API connectivity")
+    all_components: bool = Field(
+        default=False,
+        description="Verify all components",
+        alias="all",
+    )
+
+    @field_validator("tmdb", "all_components", mode="before")
+    @classmethod
+    def validate_verify_options(cls, v: bool) -> bool:
+        """Validate verify options."""
+        return bool(v)
+
+
+class RunOptions(BaseTypeModel):
+    """Run command options validation model."""
+
+    directory: CLIDirectoryPath = Field(description="Directory to process")
+    recursive: bool = Field(default=True, description="Process files recursively")
+    include_subtitles: bool = Field(default=True, description="Include subtitle files")
+    include_metadata: bool = Field(default=True, description="Include metadata files")
+    dry_run: bool = Field(default=False, description="Preview changes without applying")
+    yes: bool = Field(default=False, description="Skip confirmation prompts")
+    enhanced: bool = Field(default=False, description="Use enhanced organization")
+    destination: str = Field(
+        default=RunDefaults.DEFAULT_DESTINATION,
+        description="Destination directory for organized files",
+    )
+    extensions: list[str] = Field(
+        default_factory=lambda: RunDefaults.DEFAULT_EXTENSIONS,
+        description="Video file extensions to process",
+    )
+    skip_scan: bool = Field(default=False, description="Skip scanning step")
+    skip_match: bool = Field(default=False, description="Skip matching step")
+    skip_organize: bool = Field(default=False, description="Skip organization step")
+    max_workers: int = Field(
+        default=RunDefaults.DEFAULT_MAX_WORKERS,
+        description="Maximum number of worker threads",
+    )
+    batch_size: int = Field(
+        default=RunDefaults.DEFAULT_BATCH_SIZE,
+        description="Batch size for processing",
+    )
+    json_output: bool = Field(
+        default=False,
+        description="Output results in JSON format",
+    )
+    verbose: int = Field(default=0, description="Verbosity level")
+    output: Path | None = Field(default=None, description="Output file path")

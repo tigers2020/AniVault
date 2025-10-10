@@ -15,7 +15,6 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.common.models import DirectoryPath, OrganizeOptions
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.organize import (
     collect_organize_data,
@@ -27,6 +26,7 @@ from anivault.cli.helpers.organize import (
 from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI
 from anivault.shared.constants.cli import CLIMessages
+from anivault.shared.types.cli import CLIDirectoryPath, OrganizeOptions
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +147,7 @@ def organize_command(
         context = get_cli_context()
 
         organize_options = OrganizeOptions(
-            directory=DirectoryPath(path=directory),
+            directory=CLIDirectoryPath(path=directory),
             dry_run=dry_run,
             yes=yes,
             enhanced=enhanced,

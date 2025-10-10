@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.common.models import OrganizeOptions
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.file_grouper import FileGrouper
@@ -27,6 +26,7 @@ from anivault.core.subtitle_matcher import SubtitleMatcher
 from anivault.services.tmdb_client import TMDBClient
 from anivault.shared.constants import Language, QueueConfig, WorkerConfig
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
+from anivault.shared.types.cli import OrganizeOptions
 
 logger = logging.getLogger(__name__)
 
