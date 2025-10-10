@@ -47,6 +47,13 @@ from .scan import (
     run_scan_pipeline,
 )
 
+# Re-export verify helpers
+from .verify import (
+    collect_verify_data,
+    print_tmdb_verification_result,
+    verify_tmdb_connectivity,
+)
+
 __all__ = [
     # Match helpers
     "collect_match_data",
@@ -77,4 +84,5 @@ __all__ = [
     "run_match_pipeline",
     "run_scan_pipeline",
     "validate_rollback_plan",
+    "verify_tmdb_connectivity",
 ]

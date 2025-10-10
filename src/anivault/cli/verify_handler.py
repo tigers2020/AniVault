@@ -1,127 +1,63 @@
+"""Verify command handler for AniVault CLI.
+
+Refactored to use decorator pattern for cleaner, more maintainable code.
+Core logic moved to cli.helpers.verify module.
+"""
+
 from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 
 from anivault.cli.common.context import get_cli_context
+from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.common.models import VerifyOptions
-from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants import CLI
-from anivault.shared.errors import (
-    ApplicationError,
-    ErrorCode,
-    ErrorContext,
-    InfrastructureError,
+from anivault.cli.common.setup_decorator import setup_handler
+from anivault.cli.helpers.verify import (
+    collect_verify_data,
+    print_tmdb_verification_result,
 )
+from anivault.cli.json_formatter import format_json_output
+from anivault.shared.constants import CLI, CLIDefaults
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 logger = logging.getLogger(__name__)
 
 
-def handle_verify_command(options: VerifyOptions) -> int:
+@setup_handler(supports_json=True)
+@handle_cli_errors(operation="handle_verify", command_name="verify")
+def handle_verify_command(options: VerifyOptions, **kwargs: Any) -> int:
     """Handle the verify command.
 
     Args:
-        options: VerifyOptions containing command arguments
+        options: Validated verify command options
+        **kwargs: Injected by decorators (console, logger_adapter)
 
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI.INFO_COMMAND_STARTED.format(command="verify"))
+    from rich.console import Console as RichConsole
 
-    try:
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            return _handle_verify_command_json(options)
-        return _handle_verify_command_console(options)
+    console: Console = kwargs.get("console") or RichConsole()
+    logger_adapter = kwargs.get("logger_adapter", logger)
 
-    except ApplicationError as e:
-        logger.exception(
-            "Application error in verify command",
-            extra={"context": e.context, "error_code": e.code},
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command="verify"))
+
+    # Check if JSON output is enabled
+    context = get_cli_context()
+    is_json_output = bool(context and context.is_json_output_enabled())
+
+    # Handle JSON output
+    if is_json_output:
+        verify_data = collect_verify_data(
+            verify_tmdb=options.tmdb,
+            verify_all=options.all_components,
         )
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            error_output = format_json_output(
-                success=False,
-                command="verify",
-                errors=[f"Application error: {e.message}"],
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-        return 1
-    except InfrastructureError as e:
-        logger.exception(
-            "Infrastructure error in verify command",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            error_output = format_json_output(
-                success=False,
-                command="verify",
-                errors=[f"Infrastructure error: {e.message}"],
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-        return 1
-    except (FileNotFoundError, PermissionError, OSError) as e:
-        # Handle file system errors
-        logger.exception("File system error in verify command")
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            error_output = format_json_output(
-                success=False,
-                command="verify",
-                errors=[f"File system error: {e}"],
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-        return 1
-    except (ValueError, KeyError, TypeError, AttributeError) as e:
-        # Handle data processing errors
-        logger.exception("Data processing error in verify command")
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            error_output = format_json_output(
-                success=False,
-                command="verify",
-                errors=[f"Data processing error: {e}"],
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-        return 1
-    except Exception as e:
-        # Handle unexpected errors
-        logger.exception("Unexpected error in verify command")
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            error_output = format_json_output(
-                success=False,
-                command="verify",
-                errors=[f"Unexpected error: {e}"],
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-        return 1
-
-
-def _handle_verify_command_json(options: VerifyOptions) -> int:
-    """Handle verify command with JSON output.
-
-    Args:
-        options: VerifyOptions containing command arguments
-
-    Returns:
-        Exit code (0 for success, non-zero for error)
-    """
-    try:
-        verify_data = _collect_verify_data(options)
-        if verify_data is None:
-            return 1
-
         output = format_json_output(
             success=True,
             command="verify",
@@ -129,213 +65,24 @@ def _handle_verify_command_json(options: VerifyOptions) -> int:
         )
         sys.stdout.buffer.write(output)
         sys.stdout.buffer.write(b"\n")
-        return 0
-    except (OSError, ValueError, KeyError):
-        # Handle specific I/O and data processing errors
-        sys.stdout.buffer.write(b"\n")
-        logger.exception("Error in verify command JSON output")
-        return 1
-    except Exception:
-        # Handle unexpected errors
-        sys.stdout.buffer.write(b"\n")
-        logger.exception("Unexpected error in verify command JSON output")
-        return 1
+        sys.stdout.buffer.flush()
+        return CLIDefaults.EXIT_SUCCESS
 
+    # Handle console output
+    exit_code = print_tmdb_verification_result(
+        console,
+        verify_tmdb=options.tmdb or options.all_components,
+    )
 
-def _handle_verify_command_console(options: VerifyOptions) -> int:
-    """Handle verify command with console output.
+    if exit_code != CLIDefaults.EXIT_SUCCESS:
+        return exit_code
 
-    Args:
-        options: VerifyOptions containing command arguments
+    if options.all_components:
+        console.print("[blue]Verifying all components...[/blue]")
+        console.print("[green]✓ All components verified[/green]")
 
-    Returns:
-        Exit code (0 for success, non-zero for error)
-    """
-    try:
-        import asyncio
-
-        from rich.console import Console
-
-        console = Console()
-
-        if options.tmdb or options.all_components:
-            console.print("[blue]Verifying TMDB API connectivity...[/blue]")
-
-            # Test TMDB client
-            from anivault.services import TMDBClient
-
-            client = TMDBClient()
-
-            # Test search functionality
-            try:
-                asyncio.run(client.search_media("test"))
-                console.print("[green]✓ TMDB API connectivity verified[/green]")
-            except ApplicationError as e:
-                from anivault.shared.constants.system import CLI
-
-                console.print(
-                    f"[red]Application error: {e.message}[/red]",
-                )
-                logger.exception(
-                    "TMDB API verification failed",
-                    extra={"context": e.context, "error_code": e.code},
-                )
-                return 1
-            except InfrastructureError as e:
-                from anivault.shared.constants.system import CLI
-
-                console.print(
-                    f"[red]Infrastructure error: {e.message}[/red]",
-                )
-                logger.exception(
-                    "TMDB API verification failed",
-                    extra={"context": e.context, "error_code": e.code},
-                )
-                return 1
-            except Exception as e:
-                from anivault.shared.constants.system import CLI
-
-                console.print(
-                    f"[red]{CLI.ERROR_TMDB_CONNECTIVITY_FAILED.format(error=e)}[/red]",
-                )
-                logger.exception("Unexpected error during TMDB API verification")
-                return 1
-
-        if options.all_components:
-            console.print("[blue]Verifying all components...[/blue]")
-            # Add more verification checks here
-            console.print("[green]✓ All components verified[/green]")
-
-        from anivault.shared.constants.system import CLI
-
-        logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="verify"))
-        return 0
-
-    except ApplicationError as e:
-        from rich.console import Console
-
-        console = Console()
-        console.print(f"[red]Application error: {e.message}[/red]")
-        logger.exception(
-            "Application error in verify command",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        return 1
-    except InfrastructureError as e:
-        from anivault.shared.constants.system import CLI
-
-        console.print(f"[red]Infrastructure error: {e.message}[/red]")
-        logger.exception(
-            "Infrastructure error in verify command",
-            extra={"context": e.context, "error_code": e.code},
-        )
-        return 1
-    except Exception as e:
-        from anivault.shared.constants.system import CLI
-
-        console.print(f"[red]{CLI.ERROR_VERIFICATION_FAILED.format(error=e)}[/red]")
-        logger.exception("Unexpected error in verify command")
-        return 1
-
-
-def _collect_verify_data(options: VerifyOptions) -> dict[str, Any] | None:
-    """Collect verify data for JSON output.
-
-    Args:
-        options: VerifyOptions containing command arguments
-
-    Returns:
-        Dictionary containing verify data, or None if error
-    """
-    try:
-        verify_results: dict[str, dict[str, str] | str | None] = {
-            "tmdb_api": None,
-            "all_components": None,
-            "verification_status": "PENDING",
-        }
-
-        if options.tmdb or options.all_components:
-            # Test TMDB client
-            from anivault.services import TMDBClient
-
-            client = TMDBClient()
-
-            # Test search functionality
-            try:
-                import asyncio
-
-                asyncio.run(client.search_media("test"))
-                verify_results["tmdb_api"] = {
-                    "status": "SUCCESS",
-                    "message": "TMDB API connectivity verified",
-                }
-            except ApplicationError as e:
-                verify_results["tmdb_api"] = {
-                    "status": "FAILED",
-                    "message": f"Application error: {e.message}",
-                    "error_code": str(e.code),
-                }
-                verify_results["verification_status"] = "FAILED"
-            except InfrastructureError as e:
-                verify_results["tmdb_api"] = {
-                    "status": "FAILED",
-                    "message": f"Infrastructure error: {e.message}",
-                    "error_code": str(e.code),
-                }
-                verify_results["verification_status"] = "FAILED"
-            except Exception as e:  # noqa: BLE001
-                verify_results["tmdb_api"] = {
-                    "status": "FAILED",
-                    "message": f"Unexpected error: {e}",
-                }
-                verify_results["verification_status"] = "FAILED"
-
-        if options.all_components:
-            # Add more verification checks here
-            verify_results["all_components"] = {
-                "status": "SUCCESS",
-                "message": "All components verified",
-            }
-
-        # Set overall status
-        if verify_results["verification_status"] == "PENDING":
-            verify_results["verification_status"] = "SUCCESS"
-
-        return verify_results
-
-    except OSError as e:
-        # File system I/O error
-        raise InfrastructureError(
-            code=ErrorCode.FILE_ACCESS_ERROR,
-            message=f"Failed to access verification data: {e}",
-            context=ErrorContext(
-                operation="collect_verify_data",
-                additional_data={"error_type": type(e).__name__},
-            ),
-            original_error=e,
-        ) from e
-    except (ValueError, KeyError, AttributeError) as e:
-        # Data processing error
-        raise ApplicationError(
-            code=ErrorCode.DATA_PROCESSING_ERROR,
-            message=f"Failed to process verification data: {e}",
-            context=ErrorContext(
-                operation="collect_verify_data",
-                additional_data={"error_type": type(e).__name__},
-            ),
-            original_error=e,
-        ) from e
-    except Exception as e:
-        # Unexpected error
-        raise ApplicationError(
-            code=ErrorCode.APPLICATION_ERROR,
-            message=f"Unexpected error collecting verification data: {e}",
-            context=ErrorContext(
-                operation="collect_verify_data",
-                additional_data={"error_type": type(e).__name__},
-            ),
-            original_error=e,
-        ) from e
+    logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command="verify"))
+    return CLIDefaults.EXIT_SUCCESS
 
 
 def verify_command(
@@ -348,8 +95,7 @@ def verify_command(
         help="Verify all components",
     ),
 ) -> None:
-    """
-    Verify system components and connectivity.
+    """Verify system components and connectivity.
 
     This command allows you to verify that various system components are working
     correctly, including TMDB API connectivity and other system dependencies.
@@ -368,11 +114,12 @@ def verify_command(
         # Create VerifyOptions from command arguments
         options = VerifyOptions(tmdb=tmdb, all=all_components)
 
-        # Call the existing handler with options
+        # Call the handler with validated options
         exit_code = handle_verify_command(options)
 
-        if exit_code != 0:
+        if exit_code != CLIDefaults.EXIT_SUCCESS:
             raise typer.Exit(exit_code)
+
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1) from e
+        raise typer.Exit(CLIDefaults.EXIT_ERROR) from e
