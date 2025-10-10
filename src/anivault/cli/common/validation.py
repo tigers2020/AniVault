@@ -3,15 +3,22 @@ Pydantic validation utilities for CLI commands.
 
 This module provides reusable validation models and Typer callbacks
 for consistent argument validation across CLI commands.
+
+Enhanced validation functions integrate with error_messages module
+for standardized error handling and reporting.
 """
 
 from __future__ import annotations
 
+import os
 import re
+from pathlib import Path
 from typing import Any, Callable
 
 import typer
 from pydantic import BaseModel, ValidationError, field_validator
+
+from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 
 def create_validator(model: type[BaseModel]) -> Callable[[Any], Any]:
@@ -126,3 +133,245 @@ class NamingFormat(BaseModel):
             )
 
         return format_str
+
+
+# ============================================================================
+# Enhanced Validation Functions
+# ============================================================================
+
+
+def validate_directory_with_context(
+    path_str: str | Path,
+    operation: str,
+) -> Path:
+    """Validate directory path with proper error context.
+
+    Args:
+        path_str: Directory path to validate
+        operation: Operation name for error context
+
+    Returns:
+        Validated Path object
+
+    Raises:
+        ApplicationError: If directory is invalid with proper error code
+
+    Example:
+        >>> directory = validate_directory_with_context(
+        ...     "/path/to/anime",
+        ...     "scan_files"
+        ... )
+    """
+    path = Path(path_str)
+
+    # Check if path exists
+    if not path.exists():
+        raise ApplicationError(
+            ErrorCode.DIRECTORY_NOT_FOUND,
+            f"Directory does not exist: {path}",
+            ErrorContext(
+                operation=operation,
+                additional_data={"file_path": str(path)},
+            ),
+        )
+
+    # Check if it's actually a directory
+    if not path.is_dir():
+        raise ApplicationError(
+            ErrorCode.INVALID_PATH,
+            f"Path is not a directory: {path}",
+            ErrorContext(
+                operation=operation,
+                additional_data={"file_path": str(path)},
+            ),
+        )
+
+    # Check if readable
+    if not os.access(path, os.R_OK):
+        raise ApplicationError(
+            ErrorCode.FILE_PERMISSION_DENIED,
+            f"Directory is not readable: {path}",
+            ErrorContext(
+                operation=operation,
+                additional_data={"file_path": str(path)},
+            ),
+        )
+
+    return path
+
+
+def validate_file_path(
+    path_str: str | Path,
+    operation: str,
+    must_exist: bool = True,
+) -> Path:
+    """Validate file path with proper error context.
+
+    Args:
+        path_str: File path to validate
+        operation: Operation name for error context
+        must_exist: Whether file must exist (default: True)
+
+    Returns:
+        Validated Path object
+
+    Raises:
+        ApplicationError: If file is invalid with proper error code
+
+    Example:
+        >>> file_path = validate_file_path(
+        ...     "output.json",
+        ...     "write_results",
+        ...     must_exist=False
+        ... )
+    """
+    path = Path(path_str)
+
+    # Check existence if required
+    if must_exist:
+        if not path.exists():
+            raise ApplicationError(
+                ErrorCode.FILE_NOT_FOUND,
+                f"File does not exist: {path}",
+                ErrorContext(
+                    operation=operation,
+                    additional_data={"file_path": str(path)},
+                ),
+            )
+
+        if not path.is_file():
+            raise ApplicationError(
+                ErrorCode.INVALID_PATH,
+                f"Path is not a file: {path}",
+                ErrorContext(
+                    operation=operation,
+                    additional_data={"file_path": str(path)},
+                ),
+            )
+
+        # Check if readable
+        if not os.access(path, os.R_OK):
+            raise ApplicationError(
+                ErrorCode.FILE_PERMISSION_DENIED,
+                f"File is not readable: {path}",
+                ErrorContext(
+                    operation=operation,
+                    additional_data={"file_path": str(path)},
+                ),
+            )
+
+    # For output files, check if parent directory is writable
+    else:
+        parent = path.parent
+        if not parent.exists():
+            # Try to create parent directory
+            try:
+                parent.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                raise ApplicationError(
+                    ErrorCode.DIRECTORY_CREATION_FAILED,
+                    f"Failed to create output directory: {parent}",
+                    ErrorContext(
+                        operation=operation,
+                        additional_data={"file_path": str(parent)},
+                    ),
+                    original_error=e,
+                ) from e
+
+        # Check if writable
+        if not os.access(parent, os.W_OK):
+            raise ApplicationError(
+                ErrorCode.FILE_PERMISSION_DENIED,
+                f"Output directory is not writable: {parent}",
+                ErrorContext(
+                    operation=operation,
+                    additional_data={"file_path": str(parent)},
+                ),
+            )
+
+    return path
+
+
+def ensure_json_mode_consistency(
+    options: Any,
+    operation: str,
+) -> None:
+    """Ensure JSON mode and console options are consistent.
+
+    Validates that incompatible option combinations are not used together.
+
+    Args:
+        options: CLI options object with json_output attribute
+        operation: Operation name for error context
+
+    Raises:
+        ApplicationError: If options are inconsistent
+
+    Example:
+        >>> ensure_json_mode_consistency(options, "organize_files")
+    """
+    # Check for conflicting flags
+    if hasattr(options, "json_output") and hasattr(options, "verbose"):
+        if options.json_output and options.verbose:
+            raise ApplicationError(
+                ErrorCode.VALIDATION_ERROR,
+                "Cannot use --json with --verbose (mutually exclusive)",
+                ErrorContext(
+                    operation=operation,
+                    additional_data={
+                        "json_output": options.json_output,
+                        "verbose": options.verbose,
+                    },
+                ),
+            )
+
+    # Validate dry-run with yes flag
+    if hasattr(options, "dry_run") and hasattr(options, "yes"):
+        if options.dry_run and options.yes:
+            raise ApplicationError(
+                ErrorCode.VALIDATION_ERROR,
+                "Cannot use --dry-run with --yes (--yes has no effect in dry-run mode)",
+                ErrorContext(
+                    operation=operation,
+                    additional_data={
+                        "dry_run": options.dry_run,
+                        "yes": options.yes,
+                    },
+                ),
+            )
+
+
+def normalize_extensions_list(extensions: str | list[str]) -> list[str]:
+    """Normalize file extensions to consistent format.
+
+    Args:
+        extensions: Comma-separated string or list of extensions
+
+    Returns:
+        List of normalized extensions (lowercase, with leading dot)
+
+    Example:
+        >>> normalize_extensions_list("mkv,MP4,avi")
+        ['.mkv', '.mp4', '.avi']
+        >>> normalize_extensions_list([".MKV", "mp4"])
+        ['.mkv', '.mp4']
+    """
+    # Convert to list if string
+    if isinstance(extensions, str):
+        ext_list = [ext.strip() for ext in extensions.split(",")]
+    else:
+        ext_list = list(extensions)
+
+    # Normalize each extension
+    normalized = []
+    for ext in ext_list:
+        ext = ext.strip().lower()
+
+        # Add leading dot if missing
+        if ext and not ext.startswith("."):
+            ext = f".{ext}"
+
+        if ext:  # Skip empty strings
+            normalized.append(ext)
+
+    return normalized

@@ -5,19 +5,19 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from anivault.cli.organize_handler import _generate_enhanced_organization_plan
+from anivault.cli.helpers.organize import generate_enhanced_organization_plan
 from anivault.core.models import ParsingResult, ScannedFile
 
 
 class TestEnhancedOrganize:
     """Test cases for enhanced organize command."""
 
-    def test_generate_enhanced_organization_plan_empty(self):
+    def testgenerate_enhanced_organization_plan_empty(self) -> None:
         """Test enhanced organization plan with empty file list."""
-        result = _generate_enhanced_organization_plan([], Mock())
+        result = generate_enhanced_organization_plan([], Mock())
         assert result == []
 
-    def test_generate_enhanced_organization_plan_single_file(self):
+    def testgenerate_enhanced_organization_plan_single_file(self) -> None:
         """Test enhanced organization plan with single file."""
         # Create a proper ParsingResult object instead of using Mock
         metadata = ParsingResult(title="Attack on Titan", season=1, episode=1)
@@ -30,11 +30,11 @@ class TestEnhancedOrganize:
         args.similarity_threshold = 0.7
 
         with (
-            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch("anivault.cli.helpers.organize.FileGrouper") as mock_grouper,
             patch(
-                "anivault.core.resolution_detector.ResolutionDetector"
+                "anivault.cli.helpers.organize.ResolutionDetector"
             ) as mock_resolution,
-            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+            patch("anivault.cli.helpers.organize.SubtitleMatcher") as mock_subtitle,
         ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [file]
@@ -46,10 +46,10 @@ class TestEnhancedOrganize:
             }
             mock_subtitle.return_value.find_matching_subtitles.return_value = []
 
-            result = _generate_enhanced_organization_plan([file], args)
+            result = generate_enhanced_organization_plan([file], args)
             assert len(result) == 1
 
-    def test_generate_enhanced_organization_plan_multiple_files(self):
+    def testgenerate_enhanced_organization_plan_multiple_files(self) -> None:
         """Test enhanced organization plan with multiple files."""
         files = [
             ScannedFile(
@@ -66,11 +66,11 @@ class TestEnhancedOrganize:
         args.similarity_threshold = 0.7
 
         with (
-            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch("anivault.cli.helpers.organize.FileGrouper") as mock_grouper,
             patch(
-                "anivault.core.resolution_detector.ResolutionDetector"
+                "anivault.cli.helpers.organize.ResolutionDetector"
             ) as mock_resolution,
-            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+            patch("anivault.cli.helpers.organize.SubtitleMatcher") as mock_subtitle,
         ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": files
@@ -82,10 +82,10 @@ class TestEnhancedOrganize:
             }
             mock_subtitle.return_value.find_matching_subtitles.return_value = []
 
-            result = _generate_enhanced_organization_plan(files, args)
+            result = generate_enhanced_organization_plan(files, args)
             assert len(result) == 2
 
-    def test_generate_enhanced_organization_plan_with_subtitles(self):
+    def testgenerate_enhanced_organization_plan_with_subtitles(self) -> None:
         """Test enhanced organization plan with subtitle files."""
         video_file = ScannedFile(
             file_path=Path("Attack on Titan - 01.mkv"),
@@ -98,11 +98,11 @@ class TestEnhancedOrganize:
         args.similarity_threshold = 0.7
 
         with (
-            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch("anivault.cli.helpers.organize.FileGrouper") as mock_grouper,
             patch(
-                "anivault.core.resolution_detector.ResolutionDetector"
+                "anivault.cli.helpers.organize.ResolutionDetector"
             ) as mock_resolution,
-            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+            patch("anivault.cli.helpers.organize.SubtitleMatcher") as mock_subtitle,
         ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [video_file]
@@ -119,10 +119,10 @@ class TestEnhancedOrganize:
                 video_file
             )
 
-            result = _generate_enhanced_organization_plan([video_file], args)
+            result = generate_enhanced_organization_plan([video_file], args)
             assert len(result) == 2  # Video + subtitle
 
-    def test_generate_enhanced_organization_plan_resolution_sorting(self):
+    def testgenerate_enhanced_organization_plan_resolution_sorting(self) -> None:
         """Test enhanced organization plan with resolution-based sorting."""
         high_res_file = ScannedFile(
             file_path=Path("Attack on Titan - 01 (1080p).mkv"),
@@ -138,11 +138,11 @@ class TestEnhancedOrganize:
         args.similarity_threshold = 0.7
 
         with (
-            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch("anivault.cli.helpers.organize.FileGrouper") as mock_grouper,
             patch(
-                "anivault.core.resolution_detector.ResolutionDetector"
+                "anivault.cli.helpers.organize.ResolutionDetector"
             ) as mock_resolution,
-            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+            patch("anivault.cli.helpers.organize.SubtitleMatcher") as mock_subtitle,
         ):
             mock_grouper.return_value.group_files.return_value = {
                 "Attack on Titan": [high_res_file, low_res_file]
@@ -156,12 +156,12 @@ class TestEnhancedOrganize:
             )
             mock_subtitle.return_value.find_matching_subtitles.return_value = []
 
-            result = _generate_enhanced_organization_plan(
+            result = generate_enhanced_organization_plan(
                 [high_res_file, low_res_file], args
             )
             assert len(result) == 2
 
-    def test_generate_enhanced_organization_plan_korean_titles(self):
+    def testgenerate_enhanced_organization_plan_korean_titles(self) -> None:
         """Test enhanced organization plan with Korean titles."""
         file = ScannedFile(
             file_path=Path("Attack on Titan - 01.mkv"),
@@ -173,11 +173,11 @@ class TestEnhancedOrganize:
         args.similarity_threshold = 0.7
 
         with (
-            patch("anivault.core.file_grouper.FileGrouper") as mock_grouper,
+            patch("anivault.cli.helpers.organize.FileGrouper") as mock_grouper,
             patch(
-                "anivault.core.resolution_detector.ResolutionDetector"
+                "anivault.cli.helpers.organize.ResolutionDetector"
             ) as mock_resolution,
-            patch("anivault.core.subtitle_matcher.SubtitleMatcher") as mock_subtitle,
+            patch("anivault.cli.helpers.organize.SubtitleMatcher") as mock_subtitle,
             patch(
                 "anivault.services.metadata_enricher.MetadataEnricher"
             ) as mock_enricher,
@@ -198,10 +198,10 @@ class TestEnhancedOrganize:
             mock_enriched.korean_title = "진격의 거인"
             mock_enricher.return_value.enrich_metadata.return_value = mock_enriched
 
-            result = _generate_enhanced_organization_plan([file], args)
+            result = generate_enhanced_organization_plan([file], args)
             assert len(result) == 1
 
-    def test_generate_enhanced_organization_plan_error_handling(self):
+    def testgenerate_enhanced_organization_plan_error_handling(self) -> None:
         """Test enhanced organization plan error handling."""
         file = ScannedFile(
             file_path=Path("Attack on Titan - 01.mkv"),
@@ -212,8 +212,13 @@ class TestEnhancedOrganize:
         args.destination = "Anime"
         args.similarity_threshold = 0.7
 
-        with patch("anivault.core.file_grouper.FileGrouper") as mock_grouper:
+        # NOTE: Function now uses @handle_cli_errors decorator
+        # Exceptions are converted to ApplicationError and re-raised
+        from anivault.shared.errors import ApplicationError
+
+        with patch("anivault.cli.helpers.organize.FileGrouper") as mock_grouper:
             mock_grouper.return_value.group_files.side_effect = Exception("Test error")
 
-            with pytest.raises(Exception):
-                _generate_enhanced_organization_plan([file], args)
+            # Decorator converts Exception to ApplicationError
+            with pytest.raises(ApplicationError):
+                generate_enhanced_organization_plan([file], args)

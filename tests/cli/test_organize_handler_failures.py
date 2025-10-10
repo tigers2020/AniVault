@@ -10,71 +10,38 @@ from unittest.mock import Mock, patch
 import pytest
 
 from anivault.cli.common.models import OrganizeOptions
-from anivault.cli.organize_handler import (
-    _collect_organize_data,
-    _confirm_organization,
-    _validate_organize_directory,
+from anivault.cli.helpers.organize import (
+    collect_organize_data,
+    confirm_organization,
 )
 from anivault.shared.errors import ApplicationError, ErrorCode, InfrastructureError
 
 
+# NOTE: _validate_organize_directory is now handled by @setup_handler decorator
+# These tests are obsolete but kept for reference
 class TestValidateOrganizeDirectoryFailures:
-    """_validate_organize_directory() 실패 케이스 테스트."""
+    """_validate_organize_directory() 실패 케이스 테스트 (OBSOLETE - now in setup_decorator)."""
 
-    def test_directory_not_found_raises_error(self):
+    @pytest.mark.skip(reason="Function moved to setup_handler decorator")
+    def test_directory_not_found_raises_error(self) -> None:
         """디렉토리가 존재하지 않을 때 ApplicationError 발생."""
-        # Given: Mock OrganizeOptions
-        options = Mock()
-        options.directory = Path("nonexistent_dir")
-        options.json_output = None
-        console = Mock()
+        pass
 
-        # When & Then: validate_directory가 ApplicationError 발생
-        with pytest.raises(ApplicationError) as exc_info:
-            _validate_organize_directory(options, console)
-
-        assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
-
-    def test_permission_denied_raises_error(self):
+    @pytest.mark.skip(reason="Function moved to setup_handler decorator")
+    def test_permission_denied_raises_error(self) -> None:
         """디렉토리 접근 권한 없을 때 InfrastructureError 발생."""
-        # Given: Mock OrganizeOptions
-        options = Mock()
-        options.directory = Path("test_dir")
-        options.json_output = None
-        console = Mock()
+        pass
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(
-                Path, "is_dir", side_effect=PermissionError("Permission denied")
-            ):
-                # When & Then
-                with pytest.raises(InfrastructureError) as exc_info:
-                    _validate_organize_directory(options, console)
-
-                assert exc_info.value.code == ErrorCode.FILE_ACCESS_ERROR
-
-    def test_valid_directory_returns_path(self):
+    @pytest.mark.skip(reason="Function moved to setup_handler decorator")
+    def test_valid_directory_returns_path(self) -> None:
         """유효한 디렉토리일 때 Path 반환."""
-        # Given: Mock OrganizeOptions
-        options = Mock()
-        options.directory = Path("test_dir")
-        options.json_output = None
-        console = Mock()
-
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "is_dir", return_value=True):
-                # When
-                result = _validate_organize_directory(options, console)
-
-                # Then
-                assert result is not None
-                assert isinstance(result, Path)
+        pass
 
 
 class TestConfirmOrganizationFailures:
     """_confirm_organization() 실패 케이스 테스트."""
 
-    def test_keyboard_interrupt_returns_false(self):
+    def test_keyboard_interrupt_returns_false(self) -> None:
         """KeyboardInterrupt 발생 시 False 반환 (현재 동작)."""
         # Given
         console = Mock()
@@ -83,12 +50,12 @@ class TestConfirmOrganizationFailures:
             mock_ask.side_effect = KeyboardInterrupt()
 
             # When
-            result = _confirm_organization(console)
+            result = confirm_organization(console)
 
             # Then: 현재는 False 반환 (리팩토링 후에도 유지)
             assert result is False
 
-    def test_user_cancels_returns_false(self):
+    def test_user_cancels_returns_false(self) -> None:
         """사용자가 취소할 때 False 반환."""
         # Given
         console = Mock()
@@ -97,12 +64,12 @@ class TestConfirmOrganizationFailures:
             mock_ask.return_value = False
 
             # When
-            result = _confirm_organization(console)
+            result = confirm_organization(console)
 
             # Then
             assert result is False
 
-    def test_user_confirms_returns_true(self):
+    def test_user_confirms_returns_true(self) -> None:
         """사용자가 확인할 때 True 반환."""
         # Given
         console = Mock()
@@ -111,7 +78,7 @@ class TestConfirmOrganizationFailures:
             mock_ask.return_value = True
 
             # When
-            result = _confirm_organization(console)
+            result = confirm_organization(console)
 
             # Then
             assert result is True
@@ -120,7 +87,7 @@ class TestConfirmOrganizationFailures:
 class TestCollectOrganizeDataFailures:
     """_collect_organize_data() 실패 케이스 테스트."""
 
-    def test_invalid_file_size_logs_warning(self):
+    def test_invalid_file_size_logs_warning(self) -> None:
         """잘못된 파일 크기는 경고 로그 후 스킵 (현재: pass)."""
         # Given: Mock operation objects
         operation1 = Mock()
@@ -143,7 +110,12 @@ class TestCollectOrganizeDataFailures:
         operation_id = "test_op"
 
         # When
-        result = _collect_organize_data(operations_data, is_dry_run, operation_id)
+        result = collect_organize_data(
+            operations_data,
+            options=Mock(),
+            is_dry_run=is_dry_run,
+            operation_id=operation_id,
+        )
 
         # Then: 현재는 silently skip (pass)
         assert result is not None

@@ -2,6 +2,8 @@
 
 This module provides a decorator for standardizing error handling in CLI functions,
 eliminating repetitive try-except blocks across command handlers.
+
+Refactored to use error_messages module for unified output formatting.
 """
 
 from __future__ import annotations
@@ -11,8 +13,12 @@ import logging
 import sys
 from typing import Any, Callable, TypeVar
 
-from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants.cli import CLIFormatting, CLIMessages
+from anivault.cli.common.error_messages import (
+    ErrorMessageContext,
+    build_console_message,
+    build_json_payload,
+    build_log_context,
+)
 from anivault.shared.errors import (
     ApplicationError,
     ErrorCode,
@@ -104,6 +110,31 @@ def _extract_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     return MockOptions()
 
 
+def _output_error_message(
+    context: ErrorMessageContext,
+    options: Any,
+) -> None:
+    """Output error message to JSON or Rich console.
+
+    Args:
+        context: Error message context
+        options: CLI options (for json_output check)
+    """
+    if options.json_output is not None:
+        # JSON output mode
+        payload = build_json_payload(context)
+        sys.stdout.buffer.write(payload)
+        sys.stdout.buffer.write(b"\n")
+        sys.stdout.buffer.flush()
+    else:
+        # Rich console output mode
+        from rich.console import Console
+
+        console = Console()
+        message = build_console_message(context)
+        console.print(message, markup=False)
+
+
 def _handle_application_error(
     error: ApplicationError,
     options: Any,
@@ -121,42 +152,25 @@ def _handle_application_error(
     Raises:
         ApplicationError: Always re-raises with CLI-specific error code
     """
-    if options.json_output is not None:
-        # JSON output mode
-        json_output = format_json_output(
-            success=False,
-            command=command_name,
-            errors=[f"{CLIMessages.Error.APPLICATION_ERROR}{error.message}"],
-            data={
-                CLIMessages.StatusKeys.ERROR_CODE: error.code,
-                CLIMessages.StatusKeys.CONTEXT: error.context,
-            },
-        )
-        sys.stdout.buffer.write(json_output)
-        sys.stdout.buffer.write(b"\n")
-        sys.stdout.buffer.flush()
-    else:
-        # Rich console output
-        from rich.console import Console
-
-        console = Console()
-        console.print(
-            CLIFormatting.format_colored_message(
-                f"Application error during {operation}: {error.message}",
-                "error",
-            ),
-        )
-
-    logger.exception(
-        "%s in %s",
-        CLIMessages.Error.APPLICATION_ERROR,
-        operation,
-        extra={
-            CLIMessages.StatusKeys.CONTEXT: error.context,
-            CLIMessages.StatusKeys.ERROR_CODE: error.code,
-        },
+    # Create error message context
+    context = ErrorMessageContext(
+        error=error,
+        operation=operation,
+        command_name=command_name,
     )
 
+    # Output error message (JSON or Rich console)
+    _output_error_message(context, options)
+
+    # Log with structured context
+    log_context = build_log_context(context)
+    logger.exception(
+        "Application error in %s",
+        operation,
+        extra=log_context,
+    )
+
+    # Re-raise with CLI-specific error code
     raise ApplicationError(
         ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
         f"Failed during {operation}",
@@ -185,41 +199,25 @@ def _handle_infrastructure_error(
     Raises:
         InfrastructureError: Always re-raises with CLI-specific error code
     """
-    if options.json_output is not None:
-        # JSON output mode
-        json_output = format_json_output(
-            success=False,
-            command=command_name,
-            errors=[f"Infrastructure error: {error.message}"],
-            data={
-                CLIMessages.StatusKeys.ERROR_CODE: error.code,
-                CLIMessages.StatusKeys.CONTEXT: error.context,
-            },
-        )
-        sys.stdout.buffer.write(json_output)
-        sys.stdout.buffer.write(b"\n")
-        sys.stdout.buffer.flush()
-    else:
-        # Rich console output
-        from rich.console import Console
+    # Create error message context
+    context = ErrorMessageContext(
+        error=error,
+        operation=operation,
+        command_name=command_name,
+    )
 
-        console = Console()
-        console.print(
-            CLIFormatting.format_colored_message(
-                f"Infrastructure error during {operation}: {error.message}",
-                "error",
-            ),
-        )
+    # Output error message (JSON or Rich console)
+    _output_error_message(context, options)
 
+    # Log with structured context
+    log_context = build_log_context(context)
     logger.exception(
         "Infrastructure error in %s",
         operation,
-        extra={
-            CLIMessages.StatusKeys.CONTEXT: error.context,
-            CLIMessages.StatusKeys.ERROR_CODE: error.code,
-        },
+        extra=log_context,
     )
 
+    # Re-raise with CLI-specific error code
     raise InfrastructureError(
         ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
         f"Failed during {operation}",
@@ -248,37 +246,25 @@ def _handle_unexpected_error(
     Raises:
         ApplicationError: Always re-raises as ApplicationError
     """
-    if options.json_output is not None:
-        # JSON output mode
-        json_output = format_json_output(
-            success=False,
-            command=command_name,
-            errors=[f"Unexpected error: {error!s}"],
-            data={
-                CLIMessages.StatusKeys.ERROR_CODE: ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
-            },
-        )
-        sys.stdout.buffer.write(json_output)
-        sys.stdout.buffer.write(b"\n")
-        sys.stdout.buffer.flush()
-    else:
-        # Rich console output
-        from rich.console import Console
-
-        console = Console()
-        console.print(
-            CLIFormatting.format_colored_message(
-                f"Unexpected error during {operation}: {error}",
-                "error",
-            ),
-        )
-
-    logger.exception(
-        "%s during %s",
-        CLIMessages.Error.UNEXPECTED_ERROR_DURING_VALIDATION,
-        operation,
+    # Create error message context
+    context = ErrorMessageContext(
+        error=error,
+        operation=operation,
+        command_name=command_name,
     )
 
+    # Output error message (JSON or Rich console)
+    _output_error_message(context, options)
+
+    # Log with structured context
+    log_context = build_log_context(context)
+    logger.exception(
+        "Unexpected error during %s",
+        operation,
+        extra=log_context,
+    )
+
+    # Re-raise as ApplicationError with CLI-specific error code
     raise ApplicationError(
         ErrorCode.CLI_FILE_ORGANIZATION_FAILED,
         f"Failed during {operation}",
