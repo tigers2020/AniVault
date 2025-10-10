@@ -3,18 +3,20 @@
 This module defines Pydantic models for TMDB API responses to ensure
 type safety and validation at the external API boundary.
 
-These models use ConfigDict(extra='ignore') to gracefully handle
-new fields added by the TMDB API without breaking validation.
+These models inherit from BaseTypeModel which provides ConfigDict(extra='ignore')
+to gracefully handle new fields added by the TMDB API without breaking validation.
 """
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from anivault.shared.types.base import BaseTypeModel
 
 
-class TMDBGenre(BaseModel):
+class TMDBGenre(BaseTypeModel):
     """TMDB genre information.
 
     Represents a single genre as returned by TMDB API.
@@ -32,13 +34,11 @@ class TMDBGenre(BaseModel):
         'Animation'
     """
 
-    model_config = ConfigDict(extra="ignore")
-
     id: int = Field(..., description="TMDB genre ID")
     name: str = Field(..., description="Genre name (localized)")
 
 
-class TMDBSearchResult(BaseModel):
+class TMDBSearchResult(BaseTypeModel):
     """Single search result from TMDB API.
 
     Represents either a movie or TV show from search results.
@@ -82,8 +82,6 @@ class TMDBSearchResult(BaseModel):
         ...     release_date="2024-01-01"
         ... )
     """
-
-    model_config = ConfigDict(extra="ignore")
 
     # Required fields
     id: int = Field(..., description="TMDB media ID")
@@ -160,8 +158,6 @@ class ScoredSearchResult(TMDBSearchResult):
         0.95
     """
 
-    model_config = ConfigDict(extra="ignore")
-
     confidence_score: float = Field(0.0, description="Confidence score (0.0-1.0)")
 
     @property
@@ -183,7 +179,7 @@ class ScoredSearchResult(TMDBSearchResult):
         return self.first_air_date or self.release_date
 
 
-class TMDBSearchResponse(BaseModel):
+class TMDBSearchResponse(BaseTypeModel):
     """Complete TMDB search API response.
 
     Top-level response structure returned by TMDB search endpoints.
@@ -211,8 +207,6 @@ class TMDBSearchResponse(BaseModel):
         100
     """
 
-    model_config = ConfigDict(extra="ignore")
-
     page: int = Field(1, description="Current page number")
     total_pages: int = Field(1, description="Total pages available")
     total_results: int = Field(0, description="Total results count")
@@ -222,7 +216,7 @@ class TMDBSearchResponse(BaseModel):
     )
 
 
-class TMDBEpisode(BaseModel):
+class TMDBEpisode(BaseTypeModel):
     """TMDB TV show episode information.
 
     Represents a single episode from a TV show season.
@@ -251,8 +245,6 @@ class TMDBEpisode(BaseModel):
         28
     """
 
-    model_config = ConfigDict(extra="ignore")
-
     # Required fields
     id: int = Field(..., description="TMDB episode ID")
     name: str = Field(..., description="Episode title")
@@ -268,7 +260,7 @@ class TMDBEpisode(BaseModel):
     still_path: str | None = Field(None, description="Still image path")
 
 
-class TMDBMediaDetails(BaseModel):
+class TMDBMediaDetails(BaseTypeModel):
     """TMDB media details (movie or TV show).
 
     Comprehensive details about a specific media item.
@@ -307,8 +299,6 @@ class TMDBMediaDetails(BaseModel):
         >>> tv_details.number_of_seasons
         4
     """
-
-    model_config = ConfigDict(extra="ignore")
 
     # Required fields
     id: int = Field(..., description="TMDB media ID")

@@ -18,7 +18,6 @@ from typing import Any, Literal
 from pydantic import ValidationError
 
 from anivault.services.tmdb_models import TMDBMediaDetails, TMDBSearchResult
-from anivault.shared.constants import MediaType
 
 logger = logging.getLogger(__name__)
 
@@ -84,67 +83,57 @@ class SearchStrategy(ABC):
         """
         ...
 
-    def _to_dict(self, raw_result: Any) -> dict[str, Any]:
-        """Convert raw API result to dict.
-
-        TODO(Task 4): Replace with ModelConverter.to_dict() after TMDB API
-        response models are migrated to Pydantic. This manual conversion
-        will be obsolete once TMDBSearchResult uses BaseTypeModel.
-
-        Handles various result formats returned by TMDB API:
-        - dict: Direct use
-        - Object with __dict__: Extract attributes
-        - dict-like object: Convert to dict
-        - Other: Create fallback minimal dict
-
-        Args:
-            raw_result: Raw result from TMDB API
-
-        Returns:
-            Dictionary representation of the result
-        """
-        if isinstance(raw_result, dict):
-            return raw_result
-        if hasattr(raw_result, "__dict__"):
-            return {
-                k: v for k, v in raw_result.__dict__.items() if not k.startswith("_")
-            }
-        if hasattr(raw_result, "get"):
-            return dict(raw_result)
-
-        # Fallback
-        logger.warning(
-            "Unexpected result type: %s, creating fallback dict",
-            type(raw_result),
-        )
-        return self._create_fallback_dict(raw_result)
-
     def _to_search_result(self, raw_result: Any) -> TMDBSearchResult:
         """Convert raw API result to TMDBSearchResult model.
 
-        Uses _to_dict() for normalization, adds media_type,
-        and validates with Pydantic.
+        Directly validates raw API response using Pydantic model_validate,
+        which handles dict, dict-like objects, and objects with __dict__.
 
         Args:
-            raw_result: Raw result from TMDB API
+            raw_result: Raw result from TMDB API (dict or dict-like object)
 
         Returns:
             Validated TMDBSearchResult model
 
         Raises:
             ValidationError: If result data doesn't match TMDBSearchResult schema
-        """
-        # Step 1: Normalize to dict
-        data = self._to_dict(raw_result)
 
-        # Step 2: Add media_type
+        Note:
+            BaseTypeModel (via extra="ignore") gracefully handles unknown fields
+            from TMDB API, so no manual normalization is needed.
+        """
+        # Convert to dict if needed
+        if isinstance(raw_result, dict):
+            data = raw_result
+        elif hasattr(raw_result, "__dict__"):
+            data = {
+                k: v for k, v in raw_result.__dict__.items() if not k.startswith("_")
+            }
+        elif hasattr(raw_result, "get"):
+            data = dict(raw_result)
+        else:
+            # Fallback for unexpected types
+            logger.warning(
+                "Unexpected result type: %s, creating minimal fallback",
+                type(raw_result),
+            )
+            media_type = self.get_media_type()
+            data = {
+                "id": 0,
+                "media_type": media_type,
+                "name" if media_type == "tv" else "title": str(raw_result),
+            }
+
+        # Add media_type field
         data["media_type"] = self.get_media_type()
 
-        # Step 3: Validate with Pydantic (extra='ignore' handles unknown fields)
-        return TMDBSearchResult(**data)
+        # Direct Pydantic validation (extra='ignore' handles unknown fields)
+        return TMDBSearchResult.model_validate(data)
 
     def _to_details_model(self, raw_result: Any) -> TMDBMediaDetails | None:
         """Convert raw API details result to TMDBMediaDetails model.
+
+        Directly validates raw API response using Pydantic model_validate.
 
         Args:
             raw_result: Raw details result from TMDB API
@@ -153,11 +142,26 @@ class SearchStrategy(ABC):
             Validated TMDBMediaDetails model or None if validation fails
         """
         try:
-            # Normalize to dict
-            data = self._to_dict(raw_result)
+            # Convert to dict if needed
+            if isinstance(raw_result, dict):
+                data = raw_result
+            elif hasattr(raw_result, "__dict__"):
+                data = {
+                    k: v
+                    for k, v in raw_result.__dict__.items()
+                    if not k.startswith("_")
+                }
+            elif hasattr(raw_result, "get"):
+                data = dict(raw_result)
+            else:
+                logger.warning(
+                    "Unexpected details type: %s",
+                    type(raw_result),
+                )
+                return None
 
-            # Validate with Pydantic
-            return TMDBMediaDetails(**data)
+            # Direct Pydantic validation
+            return TMDBMediaDetails.model_validate(data)
 
         except ValidationError:
             logger.exception(
@@ -165,20 +169,6 @@ class SearchStrategy(ABC):
                 extra={"raw_result": raw_result},
             )
             return None
-
-    def _create_fallback_dict(self, raw_result: Any) -> dict[str, Any]:
-        """Create a minimal fallback dict for unexpected result types.
-
-        Args:
-            raw_result: Unexpected result object
-
-        Returns:
-            Minimal dict with id and title/name field based on media type
-        """
-        media_type = self.get_media_type()
-        if media_type == MediaType.TV:
-            return {"id": 0, "name": str(raw_result)}
-        return {"id": 0, "title": str(raw_result)}
 
 
 class TvSearchStrategy(SearchStrategy):
