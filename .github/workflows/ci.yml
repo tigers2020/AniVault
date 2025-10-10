@@ -2,9 +2,9 @@ name: CI - Quality Gate
 
 on:
   push:
-    branches: [main, develop, "refactor/*", "feature/*"]
+    branches: [main, master, develop, "refactor/*", "feature/*"]
   pull_request:
-    branches: [main, develop]
+    branches: [main, master, develop]
 
 jobs:
   quality-gate:
