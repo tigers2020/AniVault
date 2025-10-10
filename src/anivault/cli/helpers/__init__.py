@@ -27,13 +27,25 @@ from .organize import (
     print_execution_plan,
 )
 
+# Re-export scan helpers
+from .scan import (
+    collect_scan_data,
+    display_scan_results,
+    enrich_metadata,
+    run_scan_pipeline,
+)
+
 __all__ = [
     # Match helpers
     "collect_match_data",
     # Organize helpers
     "collect_organize_data",
+    # Scan helpers
+    "collect_scan_data",
     "confirm_organization",
     "display_match_results",
+    "display_scan_results",
+    "enrich_metadata",
     "execute_organization_plan",
     "generate_enhanced_organization_plan",
     "generate_organization_plan",
@@ -43,4 +55,5 @@ __all__ = [
     "print_execution_plan",
     "process_file_for_matching",
     "run_match_pipeline",
+    "run_scan_pipeline",
 ]

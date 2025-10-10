@@ -426,7 +426,7 @@ class SettingsDialog(QDialog):
         """
         return self.api_key_input.text().strip()
 
-    def get_folder_settings(self) -> dict:
+    def get_folder_settings(self):
         """
         Get current folder settings.
 
