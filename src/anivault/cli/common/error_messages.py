@@ -251,24 +251,24 @@ def mask_sensitive_paths(path_str: str) -> str:
 
 
 def _mask_context_paths(context: ErrorContext) -> dict[str, Any]:
-    """Mask paths in error context.
+    """Mask paths in error context with PII protection.
+
+    Uses safe_dict() for automatic PII masking (e.g., user_id),
+    then additionally masks file paths for security.
 
     Args:
         context: Error context with potential file paths
 
     Returns:
-        Context dictionary with masked paths
+        Context dictionary with masked paths and PII
     """
-    context_dict: dict[str, Any] = {}
+    # Use safe_dict for PII masking (user_id auto-masked)
+    context_dict = context.safe_dict()
 
-    # Add operation
-    if context.operation:
-        context_dict["operation"] = context.operation
-
-    # Process additional_data
-    if context.additional_data:
+    # Additional path masking for additional_data
+    if context_dict.get("additional_data"):
         masked_data = {}
-        for key, value in context.additional_data.items():
+        for key, value in context_dict["additional_data"].items():
             # Mask path-like values
             if isinstance(value, (str, Path)) and (
                 "path" in key.lower() or "file" in key.lower()
@@ -277,6 +277,10 @@ def _mask_context_paths(context: ErrorContext) -> dict[str, Any]:
             else:
                 masked_data[key] = value
         context_dict["additional_data"] = masked_data
+
+    # Also mask file_path field if present
+    if "file_path" in context_dict:
+        context_dict["file_path"] = mask_sensitive_paths(context_dict["file_path"])
 
     return context_dict
 

@@ -13,9 +13,20 @@ The error hierarchy follows these principles:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from decimal import Decimal
 from enum import Enum
-from typing import Any
+from pathlib import Path
+from typing import Any, Union
+
+from pydantic import ConfigDict, field_validator
+
+from anivault.shared.types.base import BaseTypeModel
+
+# Type alias for primitive context values (str, int, float, bool only)
+PrimitiveContextValue = Union[str, int, float, bool]
+
+# Default keys to mask in safe_dict for PII protection
+SAFE_DICT_MASK_KEYS: tuple[str, ...] = ("user_id",)
 
 
 class ErrorCode(str, Enum):
@@ -163,31 +174,113 @@ class ErrorCode(str, Enum):
     COLLECTOR_ERROR = "COLLECTOR_ERROR"
 
 
-@dataclass(frozen=True)
-class ErrorContext:
+class ErrorContextModel(BaseTypeModel):
     """Context information for errors.
 
     This class provides additional context information that helps
     with debugging and user-friendly error reporting.
+
+    Uses Pydantic BaseTypeModel for type safety and automatic validation.
+    Only primitive types (str, int, float, bool) are allowed in additional_data
+    to ensure safe serialization and prevent sensitive data leakage.
+
+    Attributes:
+        file_path: Optional file path associated with the error
+        operation: Optional operation name that caused the error
+        user_id: Optional user ID (should be masked in logs)
+        additional_data: Optional dict with primitive values only
     """
+
+    model_config = ConfigDict(
+        extra="forbid",  # Strict mode: reject unknown fields
+        frozen=True,  # Immutable: cannot modify after creation
+        populate_by_name=True,  # Accept both field names and aliases
+        str_strip_whitespace=True,  # Auto-strip whitespace from strings
+    )
 
     file_path: str | None = None
     operation: str | None = None
     user_id: str | None = None
-    additional_data: dict[str, Any] = field(default_factory=dict)
+    additional_data: dict[str, PrimitiveContextValue] | None = None
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert context to dictionary for logging.
+    @field_validator("additional_data", mode="before")
+    @classmethod
+    def _coerce_primitives(
+        cls, value: dict[str, Any] | None
+    ) -> dict[str, PrimitiveContextValue] | None:
+        """Coerce additional_data values to primitives.
 
-        TODO(Task 6): Replace with model_dump() after migrating ErrorContext
-        to Pydantic BaseTypeModel. This manual conversion will be obsolete.
+        Converts Path, Enum, Decimal to primitive types.
+        Raises ValueError for unconvertible types (wrapped in ValidationError by Pydantic).
+
+        Args:
+            value: Input dictionary or None
+
+        Returns:
+            Dictionary with primitive values only, or None
+
+        Raises:
+            ValueError: If value is not a dict or contains unconvertible types
         """
-        return {
-            "file_path": self.file_path,
-            "operation": self.operation,
-            "user_id": self.user_id,
-            "additional_data": self.additional_data,
-        }
+        if value is None:
+            return None
+
+        if not isinstance(value, dict):
+            error_msg = f"additional_data must be dict, got {type(value).__name__}"
+            raise ValueError(error_msg)  # noqa: TRY004 - Pydantic validator pattern
+
+        coerced: dict[str, PrimitiveContextValue] = {}
+        for key, val in value.items():
+            if isinstance(val, (str, int, float, bool)):
+                coerced[key] = val
+            elif isinstance(val, Path):
+                coerced[key] = str(val)
+            elif isinstance(val, Enum):
+                coerced[key] = val.value
+            elif isinstance(val, Decimal):
+                coerced[key] = float(val)
+            else:
+                error_msg = (
+                    f"Cannot coerce {type(val).__name__} to primitive type. "
+                    f"Only str, int, float, bool, Path, Enum, Decimal are allowed."
+                )
+                raise ValueError(error_msg)  # noqa: TRY004 - Pydantic validator pattern
+
+        return coerced
+
+    def safe_dict(self, *, mask_keys: tuple[str, ...] | None = None) -> dict[str, Any]:
+        """Export context as dict with PII masking.
+
+        This method provides safe serialization for logging and error reporting
+        by excluding sensitive fields and ensuring additional_data is never None.
+
+        Args:
+            mask_keys: Fields to exclude from output. Defaults to SAFE_DICT_MASK_KEYS.
+
+        Returns:
+            Dictionary with masked sensitive fields and guaranteed additional_data key.
+
+        Example:
+            >>> context = ErrorContext(user_id="12345", file_path="/test")
+            >>> context.safe_dict()
+            {'file_path': '/test', 'operation': None, 'additional_data': {}}
+            >>> # user_id is masked by default
+        """
+        if mask_keys is None:
+            mask_keys = SAFE_DICT_MASK_KEYS
+
+        data = self.model_dump(mode="python", exclude_none=True, exclude=set(mask_keys))
+
+        # Ensure additional_data is always present (never None) for consumers
+        if "additional_data" not in data or data.get("additional_data") is None:
+            data["additional_data"] = {}
+
+        return data
+
+
+# Legacy alias for backwards compatibility
+# NOTE: Deprecated - Use ErrorContextModel directly in new code
+ErrorContext = ErrorContextModel
 
 
 class AniVaultError(Exception):
@@ -226,15 +319,19 @@ class AniVaultError(Exception):
         return f"{self.code.value}: {self.message}"
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert error to dictionary for logging.
+        """Convert error to dictionary for logging with PII masking.
 
-        TODO(Task 6): Replace with model_dump() after migrating error classes
-        to Pydantic BaseTypeModel. This manual conversion will be obsolete.
+        Uses ErrorContextModel.safe_dict() for automatic serialization
+        with sensitive field masking (e.g., user_id).
+
+        Returns:
+            Dictionary representation of the error with code, message,
+            masked context, and original_error (if present)
         """
         return {
             "code": self.code.value,
             "message": self.message,
-            "context": self.context.to_dict(),
+            "context": self.context.safe_dict(),
             "original_error": str(self.original_error) if self.original_error else None,
         }
 
@@ -352,7 +449,9 @@ def create_validation_error(
     original_error: Exception | None = None,
 ) -> DomainError:
     """Create a validation error with context."""
-    additional_data = {"field": field} if field else {}
+    additional_data: dict[str, PrimitiveContextValue] | None = (
+        {"field": field} if field else None
+    )
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -408,7 +507,9 @@ def create_config_error(
     original_error: Exception | None = None,
 ) -> ApplicationError:
     """Create a configuration error with context."""
-    additional_data = {"config_key": config_key} if config_key else {}
+    additional_data: dict[str, PrimitiveContextValue] | None = (
+        {"config_key": config_key} if config_key else None
+    )
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -428,7 +529,9 @@ def create_data_processing_error(
     original_error: Exception | None = None,
 ) -> DataProcessingError:
     """Create a data processing error with context."""
-    additional_data = {"field": field} if field else {}
+    additional_data: dict[str, PrimitiveContextValue] | None = (
+        {"field": field} if field else None
+    )
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -466,9 +569,12 @@ def create_cli_error(
     exit_code: int = 1,
 ) -> CliError:
     """Create a CLI error with context."""
+    additional_data: dict[str, PrimitiveContextValue] | None = (
+        {"command": command} if command else None
+    )
     context = ErrorContext(
         operation=operation,
-        additional_data={"command": command} if command else {},
+        additional_data=additional_data,
     )
     return CliError(
         ErrorCode.CLI_UNEXPECTED_ERROR,
@@ -487,12 +593,15 @@ def create_cli_output_error(
     original_error: Exception | None = None,
 ) -> CliError:
     """Create a CLI output error with context."""
+    additional_data: dict[str, PrimitiveContextValue] = {}
+    if command is not None:
+        additional_data["command"] = command
+    if output_type is not None:
+        additional_data["output_type"] = output_type
+
     context = ErrorContext(
         operation="cli_output",
-        additional_data={
-            "command": command,
-            "output_type": output_type,
-        },
+        additional_data=additional_data if additional_data else None,
     )
     return CliError(
         ErrorCode.CLI_OUTPUT_ERROR,
@@ -591,7 +700,7 @@ def create_type_coercion_error(
         ...         original_error=e
         ...     )
     """
-    additional_data = {
+    additional_data: dict[str, PrimitiveContextValue] = {
         "model_name": model_name,
         "validation_error_count": len(validation_errors) if validation_errors else 0,
     }

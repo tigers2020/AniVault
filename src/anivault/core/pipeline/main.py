@@ -137,7 +137,7 @@ def _create_pipeline_components(
         operation="create_pipeline_components",
         additional_data={
             "root_path": root_path,
-            "extensions": extensions,
+            "extensions_count": len(extensions),
             "num_workers": num_workers,
             "max_queue_size": max_queue_size,
         },
@@ -181,7 +181,7 @@ def _create_pipeline_components(
             logger=logger,
             operation="create_pipeline_components",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
         return (
@@ -207,7 +207,7 @@ def _create_pipeline_components(
             logger=logger,
             error=infrastructure_error,
             operation="create_pipeline_components",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
         raise InfrastructureError(
             ErrorCode.PIPELINE_INITIALIZATION_ERROR,
@@ -254,7 +254,7 @@ def _start_pipeline_components(
             logger=logger,
             operation="start_pipeline_components",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
     except Exception as e:
@@ -268,7 +268,7 @@ def _start_pipeline_components(
             logger=logger,
             error=infrastructure_error,
             operation="start_pipeline_components",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
         raise InfrastructureError(
             ErrorCode.PIPELINE_EXECUTION_ERROR,
@@ -305,7 +305,7 @@ def _wait_for_scanner_completion(
             logger=logger,
             operation="wait_for_scanner_completion",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
     except Exception as e:
@@ -319,7 +319,7 @@ def _wait_for_scanner_completion(
             logger=logger,
             error=infrastructure_error,
             operation="wait_for_scanner_completion",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
         raise InfrastructureError(
             ErrorCode.SCANNER_ERROR,
@@ -359,7 +359,7 @@ def _signal_parser_shutdown(
             logger=logger,
             operation="signal_parser_shutdown",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
     except Exception as e:
@@ -373,7 +373,7 @@ def _signal_parser_shutdown(
             logger=logger,
             error=infrastructure_error,
             operation="signal_parser_shutdown",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
         raise InfrastructureError(
             ErrorCode.QUEUE_OPERATION_ERROR,
@@ -413,7 +413,7 @@ def _wait_for_parser_completion(
             logger=logger,
             operation="wait_for_parser_completion",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
     except Exception as e:
@@ -427,7 +427,7 @@ def _wait_for_parser_completion(
             logger=logger,
             error=infrastructure_error,
             operation="wait_for_parser_completion",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
         raise InfrastructureError(
             ErrorCode.PARSER_ERROR,
@@ -458,7 +458,7 @@ def _signal_collector_shutdown(
             logger=logger,
             operation="signal_collector_shutdown",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
     except Exception as e:
@@ -472,7 +472,7 @@ def _signal_collector_shutdown(
             logger=logger,
             error=infrastructure_error,
             operation="signal_collector_shutdown",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
         raise InfrastructureError(
             ErrorCode.QUEUE_OPERATION_ERROR,
@@ -520,7 +520,7 @@ def _wait_for_collector_completion(
             logger=logger,
             operation="wait_for_collector_completion",
             duration_ms=0.0,
-            context={**context.to_dict(), "result_count": result_count},
+            context={**context.safe_dict(), "result_count": result_count},
         )
 
         return result_count
@@ -536,7 +536,7 @@ def _wait_for_collector_completion(
             logger=logger,
             error=infrastructure_error,
             operation="wait_for_collector_completion",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
         raise InfrastructureError(
             ErrorCode.COLLECTOR_ERROR,
@@ -570,7 +570,7 @@ def _graceful_shutdown(
             logger=logger,
             operation="graceful_shutdown",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
     except Exception as e:  # noqa: BLE001
@@ -584,7 +584,7 @@ def _graceful_shutdown(
             logger=logger,
             error=infrastructure_error,
             operation="graceful_shutdown",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
 
@@ -620,7 +620,7 @@ def _force_shutdown_if_needed(
             logger=logger,
             operation="force_shutdown_if_needed",
             duration_ms=0.0,
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
     except Exception as e:  # noqa: BLE001
@@ -634,7 +634,7 @@ def _force_shutdown_if_needed(
             logger=logger,
             error=infrastructure_error,
             operation="force_shutdown_if_needed",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
 
@@ -669,7 +669,7 @@ def run_pipeline(
         operation="run_pipeline",
         additional_data={
             "root_path": root_path,
-            "extensions": extensions,
+            "extensions_count": len(extensions),
             "num_workers": num_workers,
             "max_queue_size": max_queue_size,
         },
@@ -749,7 +749,7 @@ def run_pipeline(
             operation="run_pipeline",
             duration_ms=total_duration * 1000,
             context={
-                **context.to_dict(),
+                **context.safe_dict(),
                 "total_duration": total_duration,
                 "result_count": result_count,
             },
@@ -768,7 +768,7 @@ def run_pipeline(
             logger=logger,
             error=infrastructure_error,
             operation="run_pipeline",
-            context=context.to_dict(),
+            context=context.safe_dict(),
         )
 
         # Attempt graceful shutdown

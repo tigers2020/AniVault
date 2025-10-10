@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 import orjson
 from pydantic import TypeAdapter, ValidationError
 
-from anivault.shared.errors import create_type_coercion_error
 from anivault.shared.types.base import BaseTypeModel
 
 if TYPE_CHECKING:
@@ -120,6 +119,9 @@ class ModelConverter:
                 f"Failed to convert dict to {model_name}: "
                 f"{error_count} validation error(s)"
             )
+            # Lazy import to avoid circular dependency
+            from anivault.shared.errors import create_type_coercion_error
+
             raise create_type_coercion_error(
                 message=error_msg,
                 model_name=model_name,

@@ -725,7 +725,7 @@ class MetadataEnricher:
                     operation="calculate_match_score",
                     additional_data={
                         "file_title": file_info.title,
-                        "tmdb_keys": list(tmdb_result.keys()),
+                        "tmdb_keys_count": len(tmdb_result.keys()),
                     },
                 ),
             )

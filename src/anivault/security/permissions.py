@@ -153,11 +153,14 @@ def validate_api_key_not_in_data(data: dict[str, Any]) -> None:
         "refresh_token",
     }
 
+    # Prepare context with primitive-only additional_data
+    additional_data: dict[str, str | int | float | bool] = {}
+    if isinstance(data, dict):
+        additional_data["data_keys_count"] = len(data.keys())
+
     context = ErrorContext(
         operation="validate_api_key",
-        additional_data={
-            "data_keys": list(data.keys()) if isinstance(data, dict) else None,
-        },
+        additional_data=additional_data if additional_data else None,
     )
 
     def check_dict(d: dict[str, Any], path: str = "") -> None:

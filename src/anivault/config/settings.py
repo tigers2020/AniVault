@@ -601,7 +601,7 @@ def _load_env_file() -> None:
             ),
             context=ErrorContext(
                 operation="load_env",
-                additional_data={"file_path": str(env_file.absolute())},
+                additional_data={"file_name": env_file.name},
             ),
         )
 
@@ -630,7 +630,7 @@ def _load_env_file() -> None:
             message=f"Permission denied reading .env file: {env_file}",
             context=ErrorContext(
                 operation="load_env",
-                additional_data={"file_path": str(env_file.absolute())},
+                additional_data={"file_name": env_file.name},
             ),
             original_error=e,
         ) from e
@@ -640,7 +640,7 @@ def _load_env_file() -> None:
             message=f"Failed to read .env file: {e}",
             context=ErrorContext(
                 operation="load_env",
-                additional_data={"file_path": str(env_file.absolute())},
+                additional_data={"file_name": env_file.name},
             ),
             original_error=e,
         ) from e
@@ -655,7 +655,7 @@ def _load_env_file() -> None:
             ),
             context=ErrorContext(
                 operation="validate_api_key",
-                additional_data={"env_file": str(env_file.absolute())},
+                additional_data={"env_file_name": env_file.name},
             ),
         )
 
@@ -667,7 +667,7 @@ def _load_env_file() -> None:
             message="TMDB_API_KEY is empty in .env file",
             context=ErrorContext(
                 operation="validate_api_key",
-                additional_data={"env_file": str(env_file.absolute())},
+                additional_data={"env_file_name": env_file.name},
             ),
         )
 
@@ -681,7 +681,7 @@ def _load_env_file() -> None:
             context=ErrorContext(
                 operation="validate_api_key",
                 additional_data={
-                    "env_file": str(env_file.absolute()),
+                    "env_file_name": env_file.name,
                     "key_length": len(api_key),
                 },
             ),
