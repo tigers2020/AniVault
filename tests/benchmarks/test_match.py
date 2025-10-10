@@ -11,9 +11,9 @@ from anivault.services.sqlite_cache_db import SQLiteCacheDB
 
 
 @pytest.fixture
-def cache_db(tmp_path):
+def cache_db():
     """Create in-memory cache database."""
-    cache_path = tmp_path / ":memory:"
+    cache_path = Path(":memory:")
     return SQLiteCacheDB(cache_path)
 
 
@@ -34,54 +34,46 @@ def test_anitopy_result():
     }
 
 
-def test_benchmark_find_match(benchmark, matching_engine, test_anitopy_result):
+def test_benchmark_find_match(benchmark, matching_engine, test_anitopy_result):  # type: ignore[no-untyped-def]
     """Benchmark MatchingEngine.find_match() performance."""
 
     # Note: This will fail without cache/API, but measures overhead
-    def run_find_match():
+    def run_find_match():  # type: ignore[no-untyped-def]
         try:
             return matching_engine.find_match(test_anitopy_result)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return None
 
-    result = benchmark(run_find_match)
+    benchmark(run_find_match)
     # Result may be None if no cache/API available
 
 
 @pytest.mark.asyncio
 async def test_benchmark_find_match_async(
-    benchmark, matching_engine, test_anitopy_result
-):
+    benchmark,
+    matching_engine,
+    test_anitopy_result,  # type: ignore[no-untyped-def]
+):  # type: ignore[misc]
     """Benchmark async find_match."""
 
     @benchmark
-    async def run():
+    async def run():  # type: ignore[no-untyped-def]
         try:
             return await matching_engine.find_match(test_anitopy_result)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return None
 
     # Result may be None if no cache/API available
 
 
-def test_benchmark_confidence_scoring(benchmark, matching_engine):
+def test_benchmark_confidence_scoring(benchmark, matching_engine):  # type: ignore[no-untyped-def]
     """Benchmark confidence score calculation."""
-    parsed_data = {
-        "anime_title": "Attack on Titan",
-        "episode_number": "01",
-    }
+    # NOTE: This test is a placeholder for confidence scoring benchmark
+    # Actual implementation would require matching_engine to expose
+    # a confidence calculation method
 
-    tmdb_result = {
-        "id": 1429,
-        "name": "Attack on Titan",
-        "original_name": "進撃の巨人",
-        "first_air_date": "2013-04-07",
-    }
-
-    # Assume matching_engine has a method to calculate confidence
-    # This is a placeholder - adjust to actual implementation
-    def calculate_score():
-        # Mock confidence calculation
+    # Mock confidence calculation
+    def calculate_score():  # type: ignore[no-untyped-def]
         return 0.95
 
     result = benchmark(calculate_score)
