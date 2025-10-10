@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import typing
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -36,6 +37,27 @@ from anivault.shared.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Type Safety Feature Flags
+# -------------------------
+# These flags control gradual migration from dict/Any to typed Pydantic models.
+# WARNING: DO NOT change these values in production without thorough testing.
+
+USE_LEGACY_DICT_TYPES: typing.Final[bool] = False
+"""Enable legacy dict/Any types for backward compatibility.
+
+This flag supports gradual migration from untyped dict structures
+to type-safe Pydantic models. When False (default), the application
+uses strict type checking with Pydantic models.
+
+Security Note:
+    Setting this to True disables type safety guarantees and should
+    ONLY be used during migration phases with appropriate safeguards.
+    The default False value follows the "secure by default" principle.
+
+Default: False (type-safe mode)
+Recommended: Keep False in production environments
+"""
 
 
 class FilterConfig(BaseModel):
@@ -629,8 +651,7 @@ def _load_env_file() -> None:
         raise SecurityError(
             code=ErrorCode.MISSING_CONFIG,
             message=(
-                "TMDB_API_KEY not found in environment. "
-                "Set TMDB_API_KEY in .env file."
+                "TMDB_API_KEY not found in environment. Set TMDB_API_KEY in .env file."
             ),
             context=ErrorContext(
                 operation="validate_api_key",

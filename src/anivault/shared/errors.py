@@ -74,6 +74,7 @@ class ErrorCode(str, Enum):
     INVALID_FILE_FORMAT = "INVALID_FILE_FORMAT"
     INVALID_METADATA = "INVALID_METADATA"
     MISSING_REQUIRED_FIELD = "MISSING_REQUIRED_FIELD"
+    TYPE_COERCION_ERROR = "TYPE_COERCION_ERROR"
 
     # Parsing Errors
     PARSING_ERROR = "PARSING_ERROR"
@@ -99,9 +100,7 @@ class ErrorCode(str, Enum):
     # Security Errors
     INVALID_TOKEN = "INVALID_TOKEN"  # noqa: S105  # nosec B105 - Error code constant
     TOKEN_EXPIRED = "TOKEN_EXPIRED"  # noqa: S105  # nosec B105 - Error code constant
-    TOKEN_MALFORMED = (
-        "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
-    )
+    TOKEN_MALFORMED = "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
     ENCRYPTION_FAILED = "ENCRYPTION_FAILED"
     DECRYPTION_FAILED = "DECRYPTION_FAILED"
 
@@ -178,7 +177,11 @@ class ErrorContext:
     additional_data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert context to dictionary for logging."""
+        """Convert context to dictionary for logging.
+
+        TODO(Task 6): Replace with model_dump() after migrating ErrorContext
+        to Pydantic BaseTypeModel. This manual conversion will be obsolete.
+        """
         return {
             "file_path": self.file_path,
             "operation": self.operation,
@@ -223,7 +226,11 @@ class AniVaultError(Exception):
         return f"{self.code.value}: {self.message}"
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert error to dictionary for logging."""
+        """Convert error to dictionary for logging.
+
+        TODO(Task 6): Replace with model_dump() after migrating error classes
+        to Pydantic BaseTypeModel. This manual conversion will be obsolete.
+        """
         return {
             "code": self.code.value,
             "message": self.message,
@@ -494,4 +501,109 @@ def create_cli_output_error(
         original_error,
         command,
         exit_code=1,
+    )
+
+
+class TypeCoercionError(DomainError):
+    """Exception raised when type conversion/coercion fails.
+
+    This exception wraps Pydantic ValidationError and provides
+    structured context for debugging type conversion failures.
+
+    Attributes:
+        code: Error code (TYPE_COERCION_ERROR)
+        message: Human-readable error message
+        context: ErrorContext with model and data details
+        original_error: Original Pydantic ValidationError
+        model_name: Name of the target Pydantic model
+        validation_errors: List of field-level validation errors
+
+    Example:
+        >>> from pydantic import ValidationError
+        >>> try:
+        ...     # Conversion attempt
+        ...     pass
+        ... except ValidationError as e:
+        ...     raise TypeCoercionError(
+        ...         code=ErrorCode.TYPE_COERCION_ERROR,
+        ...         message="Failed to convert dict to TMDBGenre",
+        ...         context=ErrorContext(operation="dict_to_model"),
+        ...         original_error=e,
+        ...         model_name="TMDBGenre",
+        ...         validation_errors=e.errors()
+        ...     )
+    """
+
+    def __init__(
+        self,
+        code: ErrorCode,
+        message: str,
+        context: ErrorContext | None = None,
+        original_error: Exception | None = None,
+        model_name: str | None = None,
+        validation_errors: list[dict[str, Any]] | None = None,
+    ):
+        """Initialize TypeCoercionError.
+
+        Args:
+            code: Error code
+            message: Error message
+            context: Error context
+            original_error: Original exception
+            model_name: Target model class name
+            validation_errors: Pydantic validation error details
+        """
+        super().__init__(code, message, context, original_error)
+        self.model_name = model_name
+        self.validation_errors = validation_errors or []
+
+
+def create_type_coercion_error(
+    message: str,
+    model_name: str,
+    validation_errors: list[dict[str, Any]] | None = None,
+    operation: str | None = None,
+    original_error: Exception | None = None,
+) -> TypeCoercionError:
+    """Create a type coercion error with context.
+
+    Args:
+        message: Error message
+        model_name: Target Pydantic model name
+        validation_errors: Pydantic validation error details
+        operation: Operation being performed
+        original_error: Original ValidationError
+
+    Returns:
+        TypeCoercionError instance
+
+    Example:
+        >>> from pydantic import ValidationError
+        >>> try:
+        ...     # Validation
+        ...     pass
+        ... except ValidationError as e:
+        ...     error = create_type_coercion_error(
+        ...         message="Invalid data for TMDBGenre",
+        ...         model_name="TMDBGenre",
+        ...         validation_errors=e.errors(),
+        ...         operation="dict_to_model",
+        ...         original_error=e
+        ...     )
+    """
+    additional_data = {
+        "model_name": model_name,
+        "validation_error_count": len(validation_errors) if validation_errors else 0,
+    }
+    context = ErrorContext(
+        operation=operation or "type_conversion",
+        additional_data=additional_data,
+    )
+    return TypeCoercionError(
+        code=ErrorCode.TYPE_COERCION_ERROR,
+        message=message,
+        context=context,
+        original_error=original_error,
+        model_name=model_name,
+        validation_errors=validation_errors,
     )

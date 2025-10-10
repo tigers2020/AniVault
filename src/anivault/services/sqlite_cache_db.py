@@ -42,6 +42,10 @@ def _convert_to_serializable(obj: Any) -> Any:
     """
     Convert objects to JSON-serializable format.
 
+    TODO(Task 5): Replace with ModelConverter.to_dict() and orjson.dumps()
+    after cache models are migrated to Pydantic. This manual conversion
+    will be obsolete once type migration is complete.
+
     Handles custom objects (like tmdbv3api's AsObj) by converting them to dicts.
     Recursively processes nested structures.
 

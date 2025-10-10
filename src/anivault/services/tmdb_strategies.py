@@ -87,6 +87,10 @@ class SearchStrategy(ABC):
     def _to_dict(self, raw_result: Any) -> dict[str, Any]:
         """Convert raw API result to dict.
 
+        TODO(Task 4): Replace with ModelConverter.to_dict() after TMDB API
+        response models are migrated to Pydantic. This manual conversion
+        will be obsolete once TMDBSearchResult uses BaseTypeModel.
+
         Handles various result formats returned by TMDB API:
         - dict: Direct use
         - Object with __dict__: Extract attributes

@@ -36,6 +36,10 @@ def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
     suitable for JSON output, maintaining backward compatibility with
     existing CLI JSON output format.
 
+    TODO(Task 3-5): Replace with ModelConverter.to_dict() after FileMetadata
+    is migrated to Pydantic BaseTypeModel. This manual conversion will be
+    obsolete once type migration is complete.
+
     Args:
         metadata: FileMetadata instance to convert
 
