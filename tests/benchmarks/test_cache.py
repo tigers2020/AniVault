@@ -35,7 +35,7 @@ def test_cache_entry() -> dict[str, any]:  # type: ignore[valid-type]
 
 def test_benchmark_cache_set(benchmark, cache_db, test_cache_entry) -> None:  # type: ignore[no-untyped-def]
     """Benchmark cache SET operation (serialization + write)."""
-    result = benchmark(
+    benchmark(
         cache_db.set_cache,
         key=test_cache_entry["key"],
         data=test_cache_entry["data"],
@@ -55,10 +55,15 @@ def test_benchmark_cache_get(benchmark, cache_db, test_cache_entry) -> None:  # 
         ttl_seconds=test_cache_entry["ttl_seconds"],
     )
 
-    # Benchmark retrieval
-    result = benchmark(cache_db.get, test_cache_entry["key"])
+    # Benchmark retrieval (pass cache_type to match stored type)
+    result = benchmark(
+        cache_db.get,
+        test_cache_entry["key"],
+        test_cache_entry["cache_type"],
+    )
     assert result is not None
     assert result["id"] == 1429
+    assert result["name"] == "Attack on Titan"
 
 
 def test_benchmark_cache_roundtrip(benchmark, cache_db) -> None:  # type: ignore[no-untyped-def]
