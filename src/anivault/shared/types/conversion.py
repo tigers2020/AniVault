@@ -114,7 +114,7 @@ class ModelConverter:
             error_count = len(e.errors())
             # Convert ErrorDetails to dict for compatibility
             validation_errors = cast(
-                list[dict[str, Any]], [dict(err) for err in e.errors()]
+                "list[dict[str, Any]]", [dict(err) for err in e.errors()]
             )
             error_msg = (
                 f"Failed to convert dict to {model_name}: "
