@@ -237,3 +237,4 @@ class RunOptions(BaseModel):
         description="Output results in JSON format",
     )
     verbose: int = Field(default=0, description="Verbosity level")
+    output: Path | None = Field(default=None, description="Output file path")
