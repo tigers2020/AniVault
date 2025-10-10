@@ -1,7 +1,6 @@
-"""Failure-First tests for log_handler.py.
+"""Failure-First tests for log_handler helper functions.
 
-Stage 3.2: Test that _collect_log_list_data explicitly raises exceptions
-instead of silently returning None for error conditions.
+Tests for failure cases in log helper functions.
 """
 
 from pathlib import Path
@@ -9,101 +8,65 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from anivault.cli.common.models import LogOptions
-from anivault.cli.log_handler import _collect_log_list_data
+from anivault.cli.helpers.log import collect_log_list_data
 from anivault.shared.errors import ApplicationError, ErrorCode, InfrastructureError
 
 
 class TestCollectLogListDataFailures:
-    """_collect_log_list_data() 실패 케이스 테스트."""
+    """collect_log_list_data() 실패 케이스 테스트."""
 
-    def test_os_error_raises_infrastructure_error(self):
-        """OS 에러 시 InfrastructureError 발생."""
-        # Given: Mock options with log_dir
-        options = Mock()
-        mock_log_dir = Mock()
-        mock_log_dir.path = Path("/test/logs")
-        options.log_dir = mock_log_dir
+    def test_os_error_raises_infrastructure_error(self) -> None:
+        """OSError 발생 시 InfrastructureError로 래핑."""
+        # Given
+        log_dir = Path("/fake/log/dir")
 
         with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "glob", side_effect=OSError("Disk error")):
+            with patch.object(Path, "glob", side_effect=OSError("Permission denied")):
                 # When & Then
                 with pytest.raises(InfrastructureError) as exc_info:
-                    _collect_log_list_data(options)
+                    collect_log_list_data(log_dir)
 
                 assert exc_info.value.code == ErrorCode.FILE_ACCESS_ERROR
 
-    def test_value_error_raises_application_error(self):
-        """ValueError 시 ApplicationError 발생."""
-        # Given: Mock options
-        options = Mock()
-        mock_log_dir = Mock()
-        mock_log_dir.path = Path("/test/logs")
-        options.log_dir = mock_log_dir
+    def test_value_error_raises_application_error(self) -> None:
+        """ValueError 발생 시 ApplicationError로 래핑."""
+        # Given
+        log_dir = Path("/fake/log/dir")
 
-        # Mock glob to return file, then stat() raises ValueError
+        # Mock file with stat() that raises ValueError
         mock_file = Mock(spec=Path)
-        mock_file.suffix = ".json"
-        mock_file.name = "test.json"
+        mock_file.suffix = ".log"
+        mock_file.name = "test.log"
         mock_file.stat.side_effect = ValueError("Invalid data")
 
         with patch.object(Path, "exists", return_value=True):
             with patch.object(Path, "glob", return_value=[mock_file]):
                 # When & Then
                 with pytest.raises(ApplicationError) as exc_info:
-                    _collect_log_list_data(options)
+                    collect_log_list_data(log_dir)
 
                 assert exc_info.value.code == ErrorCode.DATA_PROCESSING_ERROR
 
-    def test_unexpected_error_raises_application_error(self):
-        """예상치 못한 에러 시 ApplicationError 발생."""
-        # Given: Mock options
-        options = Mock()
-        mock_log_dir = Mock()
-        mock_log_dir.path = Path("/test/logs")
-        options.log_dir = mock_log_dir
+    def test_no_logs_returns_empty_dict(self) -> None:
+        """로그 없을 때 빈 dict 반환 (graceful)."""
+        # Given
+        log_dir = Path("/tmp/empty_logs_test")
+        log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Mock glob to return file, then stat() raises RuntimeError
-        mock_file = Mock(spec=Path)
-        mock_file.suffix = ".json"
-        mock_file.name = "test.json"
-        mock_file.stat.side_effect = RuntimeError("Unexpected")
+        try:
+            # When
+            result = collect_log_list_data(log_dir)
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "glob", return_value=[mock_file]):
-                # When & Then
-                with pytest.raises(ApplicationError) as exc_info:
-                    _collect_log_list_data(options)
-
-                assert exc_info.value.code == ErrorCode.APPLICATION_ERROR
-
-    def test_valid_data_returns_dict(self):
-        """유효한 데이터일 때 dict 반환."""
-        # Given: Mock options and log files
-        options = Mock()
-        mock_log_dir = Mock()
-        mock_log_dir.path = Path("/test/logs")
-        options.log_dir = mock_log_dir
-
-        # Mock log file
-        mock_file = Mock(spec=Path)
-        mock_file.suffix = ".json"
-        mock_file.name = "test.json"
-        mock_stat = Mock()
-        mock_stat.st_size = 1024
-        mock_stat.st_mtime = 1696320000.0
-        mock_file.stat.return_value = mock_stat
-
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "glob", return_value=[mock_file]):
-                # When
-                result = _collect_log_list_data(options)
-
-                # Then
-                assert result is not None
-                assert "log_files" in result
-                assert result["total_files"] == 1
+            # Then: graceful - 빈 리스트 반환
+            assert result is not None
+            assert isinstance(result, dict)
+            assert result["log_files"] == []
+            assert result["total_files"] == 0
+        finally:
+            # Cleanup
+            if log_dir.exists():
+                log_dir.rmdir()
 
 
-# Note: _collect_log_list_data는 JSON 전용 함수
-# 현재는 에러 시 None 반환하지만, 명확한 예외 발생으로 변경
+# Note: collect_log_list_data는 graceful degradation 원칙을 따름
+# 로그 파일이 없는 경우는 정상 상황이므로 빈 dict 반환

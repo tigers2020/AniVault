@@ -6,6 +6,12 @@ for better code organization and reusability.
 
 from __future__ import annotations
 
+# Re-export log helpers
+from .log import (
+    collect_log_list_data,
+    print_log_list,
+)
+
 # Re-export match helpers
 from .match import (
     collect_match_data,
