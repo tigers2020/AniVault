@@ -70,6 +70,7 @@ repos:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
         exclude: '\.secrets\.baseline$'
+        stages: [commit, push]  # Run on both commit and push
 
   # Safety dependency vulnerability scanner
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety

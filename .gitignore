@@ -260,13 +260,9 @@ test_dir_*/
 # Security & Environment
 # ===========================================
 
-# Environment variables and secrets
+# Environment variables and secrets (consolidated patterns)
 .env
-.env.local
-.env.production
-.env.staging
-.env.development
-.env.test
+.env.*
 *.env
 secrets.json
 api_keys.txt
@@ -286,6 +282,9 @@ vulnerability-report.json
 
 # Configuration files with secrets
 config/config.toml
+config/*.local.toml
+config/*.secret.toml
+config/config.local.*
 
 # ===========================================
 # Database & Logs

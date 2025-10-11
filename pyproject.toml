@@ -43,7 +43,6 @@ dev = [
     "mypy>=1.10.0",
     "pre-commit>=3.7.0",
     "pyinstaller==6.16.0",
-    "pyyaml>=6.0.0",
 ]
 
 [project.scripts]

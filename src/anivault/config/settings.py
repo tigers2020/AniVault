@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import typing
 from pathlib import Path
 
@@ -16,7 +17,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from anivault.shared.constants import (
-    TMDB,
     APIConfig,
     Application,
     Batch,
@@ -203,12 +203,11 @@ class LoggingConfig(BaseModel):
 
 
 class TMDBConfig(BaseModel):
-    """TMDB API configuration."""
+    """TMDB API configuration.
 
-    base_url: str = Field(
-        default=TMDB.API_BASE_URL,
-        description="TMDB API base URL",
-    )
+    Note: base_url is managed internally by tmdbv3api library.
+    """
+
     api_key: str = Field(
         default="",
         description="TMDB API key (required for API access)",
@@ -397,6 +396,8 @@ class Settings(BaseSettings):
         env_prefix="ANIVAULT_",
         env_nested_delimiter="__",
         env_ignore_empty=True,
+        # Ignore unknown fields for backward compatibility
+        extra="ignore",
         # Optimize JSON serialization for settings performance
         json_encoders={
             # Custom encoders for specific types if needed
@@ -408,7 +409,7 @@ class Settings(BaseSettings):
                 "logging": {"level": "INFO", "format": "json"},
                 "tmdb": {
                     "api_key": "your_api_key",  # pragma: allowlist secret
-                    "base_url": "https://api.themoviedb.org/3",
+                    # Note: base_url managed by tmdbv3api
                 },
                 "file_processing": {
                     "max_workers": 4,
@@ -484,10 +485,7 @@ class Settings(BaseSettings):
                     == "true",
                 },
                 "tmdb": {
-                    "base_url": os.getenv(
-                        "TMDB_BASE_URL",
-                        TMDB.API_BASE_URL,
-                    ),
+                    # Note: base_url is managed by tmdbv3api library
                     "api_key": os.getenv("TMDB_API_KEY", ""),
                     "timeout": int(
                         os.getenv("TMDB_TIMEOUT", str(Timeout.TMDB)),
@@ -721,30 +719,115 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     return Settings.from_environment()
 
 
-# Global settings instance
+# Global settings instance (thread-safe)
 _settings: Settings | None = None
+_settings_lock = threading.RLock()
 
 
 def get_config() -> Settings:
-    """Get the global settings instance.
+    """Get the global settings instance (thread-safe).
+
+    Uses double-checked locking pattern to ensure thread-safety
+    while minimizing lock overhead.
 
     Returns:
         The global Settings instance, loading it if necessary.
     """
     global _settings
-    # Always ensure .env file is loaded before getting settings
-    _load_env_file()
+
+    # First check (without lock for performance)
     if _settings is None:
-        _settings = load_settings()
+        # Second check (with lock for thread-safety)
+        with _settings_lock:
+            if _settings is None:
+                # Load .env file before loading settings
+                _load_env_file()
+                _settings = load_settings()
+
     return _settings
 
 
 def reload_config() -> Settings:
-    """Reload the global settings instance from configuration files.
+    """Reload the global settings instance from configuration files (thread-safe).
+
+    Forces a reload of the configuration, useful after configuration
+    changes are saved to disk.
 
     Returns:
         The reloaded Settings instance.
     """
     global _settings
-    _settings = load_settings()
+
+    with _settings_lock:
+        # Load .env file before loading settings
+        _load_env_file()
+        _settings = load_settings()
+
     return _settings
+
+
+def update_and_save_config(
+    updater: typing.Callable[[Settings], None],
+    config_path: Path | str = Path("config/config.toml"),
+) -> None:
+    """Update configuration, validate, save to file, and reload global cache (thread-safe).
+
+    This function provides a safe way to update configuration by:
+    1. Creating a deep copy of current settings
+    2. Applying the update function
+    3. Validating the updated settings
+    4. Saving to file if valid
+    5. Reloading the global cache
+
+    Args:
+        updater: Callable that modifies Settings object in-place
+        config_path: Path to save the configuration file
+
+    Raises:
+        ApplicationError: If validation fails or save operation fails
+
+    Example:
+        >>> def update_tmdb_timeout(cfg: Settings) -> None:
+        ...     cfg.tmdb.timeout = 60
+        >>> update_and_save_config(update_tmdb_timeout)
+    """
+    from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+
+    global _settings
+    config_path = Path(config_path)
+
+    with _settings_lock:
+        try:
+            # 1. Get current config (will load if needed)
+            current = get_config()
+
+            # 2. Create deep copy for validation
+            updated = current.model_copy(deep=True)
+
+            # 3. Apply updater function
+            updater(updated)
+
+            # 4. Validate updated settings
+            updated.model_validate(updated.model_dump())
+
+            # 5. Save to file
+            updated.to_toml_file(config_path)
+
+            # 6. Update global cache
+            _settings = updated
+
+            logger.info(
+                "Configuration updated and saved successfully to %s", config_path
+            )
+
+        except Exception as e:
+            logger.exception("Failed to update and save configuration")
+            raise ApplicationError(
+                code=ErrorCode.CONFIGURATION_ERROR,
+                message=f"Configuration update failed: {e}",
+                context=ErrorContext(
+                    operation="update_and_save_config",
+                    additional_data={"config_path": str(config_path)},
+                ),
+                original_error=e,
+            ) from e
