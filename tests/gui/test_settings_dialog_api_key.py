@@ -46,7 +46,7 @@ def test_save_api_key_to_env_file_update_existing(temp_env_file: Path):
     """Test updating existing TMDB_API_KEY in .env file."""
     # Create existing .env with old key
     old_key = "old_key_12345678901234567890"  # pragma: allowlist secret
-    temp_env_file.write_text(f"TMDB_API_KEY={old_key}\n" "OTHER_VAR=value\n")
+    temp_env_file.write_text(f"TMDB_API_KEY={old_key}\nOTHER_VAR=value\n")
 
     # Setup
     with patch("pathlib.Path") as mock_path:

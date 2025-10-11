@@ -439,7 +439,11 @@ class Settings(BaseSettings):
 
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:
-        """Load settings from a TOML file.
+        """Load settings from a TOML file, with environment variable overrides.
+
+        Environment variables take precedence over TOML values.
+        Specifically, if TMDB_API_KEY is set in environment, it will override
+        any value (including empty string) in the TOML file.
 
         Args:
             file_path: Path to the TOML configuration file
@@ -462,6 +466,15 @@ class Settings(BaseSettings):
 
         with open(file_path, encoding=Encoding.DEFAULT) as f:
             data = toml.load(f)
+
+        # Override with environment variables (if set)
+        # Priority: env vars > TOML file
+        env_api_key = os.getenv("TMDB_API_KEY")
+        if env_api_key:
+            if "tmdb" not in data:
+                data["tmdb"] = {}
+            data["tmdb"]["api_key"] = env_api_key
+            logger.debug("Loaded TMDB API key from environment variable")
 
         return cls.model_validate(data)
 

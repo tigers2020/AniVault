@@ -11,7 +11,11 @@ import logging
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.tmdb_models import ScoredSearchResult, TMDBSearchResult
+from anivault.services.tmdb_models import (
+    ScoredSearchResult,
+    TMDBCandidate,
+    TMDBSearchResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +52,22 @@ class CandidateScoringService:
             statistics: Statistics collector for performance tracking
         """
         self.statistics = statistics
+
+    @staticmethod
+    def _candidate_sort_key(candidate: ScoredSearchResult) -> tuple[float, float]:
+        """Generate sort key for ranking candidates.
+
+        Candidates are sorted by:
+        1. Confidence score (descending)
+        2. Popularity (descending, tie-breaker)
+
+        Args:
+            candidate: Scored candidate to generate key for
+
+        Returns:
+            Tuple of (confidence_score, popularity) for sorting
+        """
+        return (candidate.confidence_score, candidate.popularity)
 
     def score_candidates(
         self,
@@ -112,7 +132,7 @@ class CandidateScoringService:
 
         # Sort by confidence (desc) with popularity as tie-breaker
         scored_candidates.sort(
-            key=lambda x: (x.confidence_score, x.popularity),
+            key=self._candidate_sort_key,
             reverse=True,
         )
 
@@ -122,6 +142,58 @@ class CandidateScoringService:
         )
 
         return scored_candidates
+
+    def rank_candidates(
+        self,
+        candidates: list[TMDBCandidate],
+    ) -> list[TMDBCandidate]:
+        """Re-rank candidates by confidence score.
+
+        This method is critical after filtering operations that may disrupt
+        the original confidence-based ranking (e.g., year filtering that
+        sorts by year proximity instead of confidence).
+
+        Use this method when:
+        - Candidates have been filtered (CandidateFilterService)
+        - The original confidence-based order may have been lost
+        - You need to ensure the best candidate (by confidence) is first
+
+        Args:
+            candidates: List of scored candidates to re-rank
+
+        Returns:
+            Same candidates sorted by confidence (desc) + popularity (desc tie-breaker)
+            Returns empty list if input is empty
+
+        Example:
+            >>> filtered = filter_service.filter_by_year(candidates, query_year)
+            >>> ranked = scoring_service.rank_candidates(filtered)  # Re-sort!
+            >>> best_match = ranked[0] if ranked else None
+
+        Note:
+            This method does NOT re-calculate confidence scores. It only
+            re-sorts existing scored candidates. Use score_candidates() first
+            if candidates don't have confidence_score yet.
+        """
+        if not candidates:
+            logger.debug("No candidates to rank (empty input)")
+            return []
+
+        # Re-sort by confidence (desc) with popularity as tie-breaker
+        ranked_candidates = sorted(
+            candidates,
+            key=self._candidate_sort_key,
+            reverse=True,
+        )
+
+        logger.debug(
+            "Re-ranked %d candidates; best match: '%s' (confidence=%.3f)",
+            len(ranked_candidates),
+            ranked_candidates[0].display_title,
+            ranked_candidates[0].confidence_score,
+        )
+
+        return ranked_candidates
 
     def get_confidence_level(self, confidence_score: float) -> str:
         """Get confidence level label from score.

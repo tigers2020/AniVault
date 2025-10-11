@@ -14,7 +14,6 @@ from typing import Any, Callable
 from anivault.config.folder_validator import FolderValidator
 from anivault.config.settings import (
     FolderSettings,
-    Settings,
     get_config,
     update_and_save_config,
 )

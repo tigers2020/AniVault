@@ -146,8 +146,20 @@ class MatchingEngine:
                 logger.debug("All candidates filtered out")
                 return None
 
-            # Step 5: Get initial best candidate
-            best_candidate = filtered_candidates[0]
+            # Step 5: Re-rank candidates after filtering
+            # CRITICAL: Year filtering may sort by year proximity instead of confidence,
+            # breaking the original confidence-based ranking from score_candidates().
+            # We must re-sort filtered candidates to ensure the highest confidence
+            # candidate is selected as best_match.
+            ranked_candidates = self._scoring_service.rank_candidates(
+                filtered_candidates
+            )
+            if not ranked_candidates:
+                logger.debug("No candidates after re-ranking")
+                return None
+
+            # Step 6: Get best candidate from re-ranked list
+            best_candidate = ranked_candidates[0]
             best_confidence = best_candidate.confidence_score
 
             logger.debug(
@@ -157,7 +169,7 @@ class MatchingEngine:
                 best_confidence,
             )
 
-            # Step 6: Apply fallback strategies if confidence < HIGH
+            # Step 7: Apply fallback strategies if confidence < HIGH
             if best_confidence < ConfidenceThresholds.HIGH:
                 logger.debug(
                     "Confidence below HIGH threshold (%.3f < %.3f), applying fallback",
@@ -166,7 +178,7 @@ class MatchingEngine:
                 )
 
                 enhanced_candidates = self._fallback_service.apply_strategies(
-                    filtered_candidates,
+                    ranked_candidates,
                     normalized_query,
                 )
 
@@ -178,11 +190,11 @@ class MatchingEngine:
                         best_candidate.confidence_score,
                     )
 
-            # Step 7: Validate final confidence
+            # Step 8: Validate final confidence
             if not self._validate_final_confidence(best_candidate):
                 return None
 
-            # Step 8: Create MatchResult
+            # Step 9: Create MatchResult
             match_result = self._create_match_result(
                 best_candidate,
                 normalized_query,

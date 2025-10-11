@@ -179,6 +179,10 @@ class ScoredSearchResult(TMDBSearchResult):
         return self.first_air_date or self.release_date
 
 
+# Type alias for TMDB matching candidates (used by CandidateScoringService)
+TMDBCandidate = ScoredSearchResult
+
+
 class TMDBSearchResponse(BaseTypeModel):
     """Complete TMDB search API response.
 
