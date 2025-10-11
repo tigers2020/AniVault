@@ -242,12 +242,7 @@ class MainWindow(QMainWindow):
             logger.info("Switching to theme: %s", theme_name)
 
             # Apply the theme
-            app = QApplication.instance()
-            if app:
-                self.theme_manager.load_and_apply_theme(app, theme_name)
-            else:
-                logger.error("No QApplication instance found")
-                return
+            self.theme_manager.apply_theme(theme_name)
 
             # Save theme preference to settings
             self._save_theme_preference(theme_name)

@@ -440,35 +440,29 @@ class ThemeManager:
     def load_and_apply_theme(self, app: QApplication, theme_name: str) -> None:
         """Load and apply a theme to the application.
 
+        DEPRECATED: Use apply_theme() instead. This method is kept for backward
+        compatibility and delegates to apply_theme().
+
         Args:
-            app: QApplication instance
+            app: QApplication instance (unused, kept for compatibility)
             theme_name: Name of the theme to load and apply
         """
+        logger.warning(
+            "load_and_apply_theme() is deprecated, use apply_theme() instead"
+        )
         try:
-            # Load theme content
-            qss_content = self.load_theme_content(theme_name)
-
-            # Apply to application
-            app.setStyleSheet(qss_content)
-            self.current_theme = theme_name
-
-            logger.info("Loaded and applied theme: %s", theme_name)
-
-        except Exception as e:
-            logger.exception("Failed to load and apply theme %s", theme_name)
+            self.apply_theme(theme_name)
+        except ApplicationError:
             # Fallback to default theme if available
             if theme_name != self.DEFAULT_THEME:
                 logger.warning("Falling back to default theme: %s", self.DEFAULT_THEME)
                 try:
-                    self.load_and_apply_theme(app, self.DEFAULT_THEME)
-                except Exception:
+                    self.apply_theme(self.DEFAULT_THEME)
+                except Exception as fallback_error:
                     logger.exception("Failed to apply fallback theme")
                     raise ApplicationError(
                         ErrorCode.APPLICATION_ERROR,
-                        f"Failed to apply any theme: {e}",
-                    ) from e
+                        f"Failed to apply any theme: {fallback_error}",
+                    ) from fallback_error
             else:
-                raise ApplicationError(
-                    ErrorCode.APPLICATION_ERROR,
-                    f"Failed to apply theme {theme_name}: {e}",
-                ) from e
+                raise

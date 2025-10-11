@@ -44,4 +44,3 @@ def get_resource_path(relative_path: str) -> Path:
     resource_path = base_path / relative_path
     logger.debug("Resolved resource path: %s -> %s", relative_path, resource_path)
     return resource_path
-

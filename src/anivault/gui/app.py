@@ -115,7 +115,7 @@ class AniVaultGUI:
             saved_theme = config.app.theme
 
             # Apply the theme
-            self.theme_manager.load_and_apply_theme(self.app, saved_theme)
+            self.theme_manager.apply_theme(saved_theme)
 
             logger.info("Initial theme loaded: %s", saved_theme)
 
@@ -123,10 +123,7 @@ class AniVaultGUI:
             logger.warning("Failed to load initial theme, using default: %s", e)
             # Fallback to default theme
             try:
-                self.theme_manager.load_and_apply_theme(
-                    self.app,
-                    ThemeManager.DEFAULT_THEME,
-                )
+                self.theme_manager.apply_theme(ThemeManager.DEFAULT_THEME)
             except Exception:
                 logger.exception("Failed to apply fallback theme")
 
