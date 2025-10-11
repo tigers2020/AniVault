@@ -38,6 +38,7 @@ from .dialogs.organize_progress_dialog import OrganizeProgressDialog
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.tmdb_progress_dialog import TMDBProgressDialog
 from .state_model import StateModel
+from .themes import ThemeManager
 from .widgets import GroupGridViewWidget
 
 logger = logging.getLogger(__name__)
@@ -258,7 +259,7 @@ class MainWindow(QMainWindow):
             self,
             "Open Folder",
             str(Path.home()),
-            QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks,
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
         )
 
         if directory:
@@ -320,7 +321,7 @@ class MainWindow(QMainWindow):
                 f"Failed to switch theme: {e}",
             )
 
-    def set_theme_manager(self, theme_manager) -> None:
+    def set_theme_manager(self, theme_manager: ThemeManager) -> None:
         """Set theme manager for theme switching."""
         self.theme_manager = theme_manager
 
