@@ -36,7 +36,6 @@ from anivault.config.settings import Settings, get_config, update_and_save_confi
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import (
     AniVaultError,
-    ApplicationError,
     ErrorCode,
     ErrorContext,
 )
@@ -284,11 +283,16 @@ class SettingsDialog(QDialog):
             self.api_key_saved.emit(api_key)
             self.folder_settings_changed.emit()
 
-            # Show success message
+            # Show success message with .env file notice
+            success_message = (
+                f"{DialogMessages.API_KEY_SAVED}\n\n"
+                "🔒 보안 알림: API 키는 .env 파일에 안전하게 저장되었습니다.\n"
+                "(config.toml에는 저장되지 않음)"
+            )
             QMessageBox.information(
                 self,
                 DialogTitles.SETTINGS_SAVED,
-                DialogMessages.API_KEY_SAVED,
+                success_message,
             )
 
             # Close dialog
@@ -303,11 +307,10 @@ class SettingsDialog(QDialog):
 
     def _save_api_key_to_config(self, api_key: str) -> None:
         """
-        Save API key to configuration file.
+        Save API key to .env file (SECURE).
 
-        WARNING: This method is deprecated. API keys should be stored in .env file only.
-        This will save to config.toml for backward compatibility, but please migrate
-        to using environment variables: TMDB_API_KEY=your_key in .env file.
+        API keys are stored in .env file for security, not in config.toml.
+        This prevents accidental commits of sensitive information.
 
         Args:
             api_key: The API key to save
@@ -316,22 +319,66 @@ class SettingsDialog(QDialog):
             AniVaultError: If saving fails
         """
         try:
-            # Define updater function
+            # 1. Save to .env file (SECURE)
+            self._save_api_key_to_env_file(api_key)
+
+            # 2. Update memory cache (for current session)
             def update_api_key(cfg: Settings) -> None:
                 cfg.tmdb.api_key = api_key
 
-            # Use thread-safe update helper
+            # Note: This updates memory only, NOT saved to config.toml
+            # to_toml_file() excludes api_key for security
             update_and_save_config(update_api_key, self.config_path)
 
-            logger.info("API key saved successfully")
+            logger.info("API key saved successfully to .env file")
 
-        except ApplicationError as e:
-            logger.exception("Failed to save API key to configuration")
+        except (OSError, PermissionError) as e:
+            logger.exception("Failed to save API key")
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save API key: {e!s}",
                 ErrorContext(operation="save_api_key"),
             ) from e
+
+    def _save_api_key_to_env_file(self, api_key: str) -> None:
+        """
+        Save API key to .env file.
+
+        Args:
+            api_key: The API key to save
+
+        Raises:
+            OSError: If file write fails
+        """
+        import os
+
+        env_file = Path(".env")
+        env_lines = []
+
+        # Read existing .env file if it exists
+        if env_file.exists():
+            with open(env_file, encoding="utf-8") as f:
+                env_lines = f.readlines()
+
+        # Update or add TMDB_API_KEY
+        found = False
+        for i, line in enumerate(env_lines):
+            if line.startswith("TMDB_API_KEY="):
+                env_lines[i] = f"TMDB_API_KEY={api_key}\n"
+                found = True
+                break
+
+        if not found:
+            env_lines.append(f"TMDB_API_KEY={api_key}\n")
+
+        # Write back to .env file
+        with open(env_file, "w", encoding="utf-8") as f:
+            f.writelines(env_lines)
+
+        # Set environment variable for current process
+        os.environ["TMDB_API_KEY"] = api_key
+
+        logger.info("API key saved to .env file")
 
     def _show_error(self, title: str, message: str) -> None:
         """
