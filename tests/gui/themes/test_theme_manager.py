@@ -5,6 +5,8 @@ This module contains tests for the ThemeManager class to ensure
 proper theme loading and application functionality.
 """
 
+import os
+import sys
 from pathlib import Path
 from unittest.mock import Mock, mock_open, patch
 
@@ -98,7 +100,7 @@ class TestThemeManager:
         with pytest.raises(ApplicationError) as exc_info:
             self.theme_manager.load_theme_content("nonexistent")
 
-        assert exc_info.value.code == ErrorCode.FILE_READ_ERROR
+        assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
 
     def test_load_theme_content_read_error(self):
         """Test loading theme content with read error."""
@@ -106,7 +108,12 @@ class TestThemeManager:
         qss_path = self.test_themes_dir / "light.qss"
         qss_path.write_text("test")
 
-        with patch("builtins.open", side_effect=IOError("Read error")):
+        # Mock _read_file_with_imports to simulate IOError
+        with patch.object(
+            self.theme_manager,
+            "_read_file_with_imports",
+            side_effect=IOError("Read error"),
+        ):
             with pytest.raises(ApplicationError) as exc_info:
                 self.theme_manager.load_theme_content("light")
 
@@ -222,3 +229,212 @@ class TestThemeManager:
         assert ThemeManager.LIGHT_THEME == "light"
         assert ThemeManager.DARK_THEME == "dark"
         assert ThemeManager.DEFAULT_THEME == "light"
+
+
+class TestThemeManagerPyInstallerBundle:
+    """Test cases for ThemeManager in PyInstaller bundle environment."""
+
+    def test_bundle_mode_detection(self, tmp_path):
+        """Test bundle mode detection via sys._MEIPASS."""
+        # Setup: Simulate PyInstaller bundle
+        bundle_dir = tmp_path / "bundle"
+        bundle_dir.mkdir()
+
+        # Patch sys._MEIPASS
+        with patch.object(sys, "_MEIPASS", str(bundle_dir), create=True):
+            # Verify _is_bundle() detects bundle mode
+            theme_manager = ThemeManager()
+            assert theme_manager._is_bundle()
+
+    def test_bundle_mode_paths(self, tmp_path):
+        """Test path resolution in PyInstaller bundle mode."""
+        # Setup: Simulate bundle environment
+        bundle_dir = tmp_path / "bundle"
+        bundle_dir.mkdir()
+        (bundle_dir / "anivault" / "resources" / "themes").mkdir(parents=True)
+
+        # Patch sys._MEIPASS
+        with patch.object(sys, "_MEIPASS", str(bundle_dir), create=True):
+            # Create theme manager
+            theme_manager = ThemeManager()
+
+            # Verify paths
+            assert "AniVault" in str(theme_manager.user_theme_dir)
+            assert str(bundle_dir) in str(theme_manager.base_theme_dir)
+
+    def test_readonly_bundle_directory(self, tmp_path):
+        """Test that bundle directory is not written to in bundle mode."""
+        # Setup: Simulate read-only bundle
+        bundle_dir = tmp_path / "bundle"
+        bundle_dir.mkdir()
+        (bundle_dir / "anivault" / "resources" / "themes").mkdir(parents=True)
+        bundle_dir.chmod(0o444)  # Read-only
+
+        # Patch sys._MEIPASS
+        with patch.object(sys, "_MEIPASS", str(bundle_dir), create=True):
+            # Should create user_theme_dir without error
+            theme_manager = ThemeManager()
+
+            # Verify user directory exists (not bundle directory)
+            assert theme_manager.user_theme_dir.exists()
+
+    @pytest.mark.parametrize(
+        "platform,expected_substring",
+        [
+            ("win32", "AppData"),
+            ("darwin", "Library"),
+            ("linux", ".local"),
+        ],
+    )
+    def test_user_theme_dir_by_platform(
+        self, monkeypatch, platform, expected_substring
+    ):
+        """Test OS-specific user theme directory resolution."""
+        # Setup: Mock platform
+        monkeypatch.setattr(sys, "platform", platform)
+
+        if platform == "win32":
+            monkeypatch.setenv("APPDATA", "C:\\Users\\Test\\AppData\\Roaming")
+
+        # Create theme manager
+        theme_manager = ThemeManager()
+
+        # Verify OS-specific path
+        user_dir_str = str(theme_manager._get_user_theme_dir())
+        assert expected_substring in user_dir_str
+        assert "AniVault" in user_dir_str
+        assert "themes" in user_dir_str
+
+
+class TestThemeManagerSecurity:
+    """Test cases for ThemeManager security features."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_themes_dir = Path("test_themes_security")
+        self.theme_manager = ThemeManager(self.test_themes_dir)
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if self.test_themes_dir.exists():
+            import shutil
+
+            shutil.rmtree(self.test_themes_dir)
+
+    @pytest.mark.parametrize(
+        "malicious_theme_name",
+        [
+            "../etc/passwd",
+            "..\\Windows\\System32\\config\\SAM",
+            "../../sensitive_data",
+            "theme/../../../etc/shadow",
+            "theme/../../Windows/System32",
+        ],
+    )
+    def test_path_traversal_prevention(self, malicious_theme_name):
+        """Test path traversal attack prevention."""
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.get_qss_path(malicious_theme_name)
+
+        assert exc_info.value.code == ErrorCode.SECURITY_VIOLATION
+        assert "Invalid theme name" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "invalid_theme_name",
+        [
+            "theme/subdir",
+            "theme\\subdir",
+            "theme/../other",
+        ],
+    )
+    def test_directory_separator_rejection(self, invalid_theme_name):
+        """Test rejection of theme names with directory separators."""
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.get_qss_path(invalid_theme_name)
+
+        assert exc_info.value.code == ErrorCode.SECURITY_VIOLATION
+
+
+class TestThemeManagerUserThemePriority:
+    """Test cases for user theme prioritization over bundled themes."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_themes_dir = Path("test_themes_priority")
+        self.test_themes_dir.mkdir(exist_ok=True)
+        self.user_themes_dir = Path("test_user_themes")
+        self.user_themes_dir.mkdir(exist_ok=True)
+
+        # Create theme manager with explicit paths for testing
+        self.theme_manager = ThemeManager(self.test_themes_dir)
+        # Manually override user_theme_dir for testing
+        self.theme_manager.user_theme_dir = self.user_themes_dir
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        if self.test_themes_dir.exists():
+            shutil.rmtree(self.test_themes_dir)
+        if self.user_themes_dir.exists():
+            shutil.rmtree(self.user_themes_dir)
+
+    def test_user_theme_priority_over_bundled(self):
+        """Test that user themes take priority over bundled themes."""
+        # Create bundled theme
+        bundled_theme = self.test_themes_dir / "light.qss"
+        bundled_theme.write_text("/* Bundled theme */")
+
+        # Create user theme with same name
+        user_theme = self.user_themes_dir / "light.qss"
+        user_theme.write_text("/* User custom theme */")
+
+        # Get QSS path
+        qss_path = self.theme_manager.get_qss_path("light")
+
+        # Should return user theme
+        assert qss_path == user_theme
+        assert "User custom theme" in qss_path.read_text()
+
+    def test_fallback_to_bundled_theme(self):
+        """Test fallback to bundled theme when user theme doesn't exist."""
+        # Create only bundled theme
+        bundled_theme = self.test_themes_dir / "dark.qss"
+        bundled_theme.write_text("/* Bundled dark theme */")
+
+        # Get QSS path
+        qss_path = self.theme_manager.get_qss_path("dark")
+
+        # Should return bundled theme
+        assert qss_path == bundled_theme
+        assert "Bundled dark theme" in qss_path.read_text()
+
+    def test_theme_not_found_in_either_location(self):
+        """Test error when theme not found in both locations."""
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.get_qss_path("nonexistent")
+
+        assert exc_info.value.code == ErrorCode.FILE_NOT_FOUND
+        assert "Theme file not found" in str(exc_info.value)
+
+
+class TestThemeManagerDirectoryCreation:
+    """Test cases for theme directory creation logic."""
+
+    def test_directory_creation_failure(self, monkeypatch, tmp_path):
+        """Test directory creation failure handling."""
+
+        # Setup: Mock mkdir to fail
+        def mock_mkdir_failure(*args, **kwargs):
+            raise OSError("Permission denied")
+
+        # Create theme manager with invalid path
+        invalid_path = tmp_path / "invalid"
+
+        # Patch Path.mkdir to fail
+        with patch("pathlib.Path.mkdir", side_effect=mock_mkdir_failure):
+            with pytest.raises(ApplicationError) as exc_info:
+                ThemeManager(invalid_path)
+
+            assert exc_info.value.code == ErrorCode.DIRECTORY_CREATION_FAILED
+            assert "Failed to create themes directory" in str(exc_info.value)
