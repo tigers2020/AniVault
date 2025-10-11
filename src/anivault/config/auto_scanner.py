@@ -12,7 +12,12 @@ from pathlib import Path
 from typing import Any, Callable
 
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import FolderSettings, get_config, update_and_save_config
+from anivault.config.settings import (
+    FolderSettings,
+    Settings,
+    get_config,
+    update_and_save_config,
+)
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -212,7 +217,7 @@ class AutoScanner:
         """
         try:
             # Define updater function
-            def update_folders(cfg):
+            def update_folders(cfg: Config) -> None:
                 # Create folders settings if it doesn't exist
                 if cfg.folders is None:
                     cfg.folders = FolderSettings()
