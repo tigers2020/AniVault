@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QSplitter,
-    QStatusBar,
     QVBoxLayout,
     QWidget,
 )
@@ -37,6 +36,7 @@ from .dialogs.organize_preview_dialog import OrganizePreviewDialog
 from .dialogs.organize_progress_dialog import OrganizeProgressDialog
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.tmdb_progress_dialog import TMDBProgressDialog
+from .managers import MenuManager, SignalCoordinator, StatusManager
 from .state_model import StateModel
 from .themes import ThemeManager
 from .widgets import GroupGridViewWidget
@@ -74,17 +74,20 @@ class MainWindow(QMainWindow):
 
         # Initialize theme-related attributes
         self.theme_manager = None
-        self.theme_action_group = None
         self.config_path = Path("config/config.toml")
 
         # Initialize UI components
         self._setup_ui()
-        self._setup_menu()
-        self._setup_toolbar()
-        self._setup_status_bar()
 
-        # Connect signals
-        self._connect_signals()
+        # Initialize managers
+        self.menu_manager = MenuManager(self)
+        self.menu_manager.setup_all()
+
+        self.status_manager = StatusManager(self.statusBar())
+        self.status_manager.setup_status_bar()
+
+        self.signal_coordinator = SignalCoordinator(self)
+        self.signal_coordinator.connect_all()
 
         logger.info("MainWindow initialized successfully")
 
@@ -123,135 +126,82 @@ class MainWindow(QMainWindow):
         # Set splitter proportions (top: 80%, bottom: 20% = 4:1 ratio)
         splitter.setSizes([960, 240])
 
-    def _setup_menu(self) -> None:
-        """Set up the menu bar."""
-        menubar = self.menuBar()
-
-        # File menu
-        file_menu = menubar.addMenu("&File")
-
-        # Open Folder action
-        self.open_folder_action = QAction("&Open Folder", self)
-        self.open_folder_action.setShortcut("Ctrl+O")
-        self.open_folder_action.setObjectName("openFolderAction")
-        self.open_folder_action.triggered.connect(self.open_folder)
-        file_menu.addAction(self.open_folder_action)
-
-        file_menu.addSeparator()
-
-        # Organize Files action
-        self.organize_action = QAction("📦 &Organize Files...", self)
-        self.organize_action.setShortcut("Ctrl+Shift+O")
-        self.organize_action.setObjectName("organizeFilesAction")
-        self.organize_action.triggered.connect(self.organize_files)
-        self.organize_action.setEnabled(False)  # Enabled after matching
-        file_menu.addAction(self.organize_action)
-
-        file_menu.addSeparator()
-
-        # Exit action
-        exit_action = QAction("E&xit", self)
-        exit_action.setShortcut("Ctrl+Q")
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-
-        # Settings menu
-        settings_menu = menubar.addMenu("&Settings")
-
-        # API Key action
-        self.api_key_action = QAction("Configure &API Key...", self)
-        self.api_key_action.setShortcut("Ctrl+K")
-        self.api_key_action.triggered.connect(self.open_settings_dialog)
-        settings_menu.addAction(self.api_key_action)
-
-        # View menu
-        view_menu = menubar.addMenu("&View")
-
-        # Theme submenu
-        theme_menu = view_menu.addMenu("&Theme")
-
-        # Create theme action group for exclusive selection
-        self.theme_action_group = QActionGroup(self)
-        self.theme_action_group.setExclusive(True)
-
-        # Light theme action
-        light_theme_action = QAction("&Light", self)
-        light_theme_action.setCheckable(True)
-        light_theme_action.setData("light")
-        light_theme_action.triggered.connect(
-            lambda: self.switch_theme(light_theme_action),
-        )
-        self.theme_action_group.addAction(light_theme_action)
-        theme_menu.addAction(light_theme_action)
-
-        # Dark theme action
-        dark_theme_action = QAction("&Dark", self)
-        dark_theme_action.setCheckable(True)
-        dark_theme_action.setData("dark")
-        dark_theme_action.triggered.connect(
-            lambda: self.switch_theme(dark_theme_action),
-        )
-        self.theme_action_group.addAction(dark_theme_action)
-        theme_menu.addAction(dark_theme_action)
-
-        # Help menu
-        help_menu = menubar.addMenu("&Help")
-
-        about_action = QAction("&About", self)
-        about_action.triggered.connect(self.show_about)
-        help_menu.addAction(about_action)
-
-    def _setup_toolbar(self) -> None:
-        """Set up the toolbar."""
-        toolbar = self.addToolBar("Main Toolbar")
-
-        # Open Folder button - use the same action from menu
-        toolbar.addAction(self.open_folder_action)
-
-        toolbar.addSeparator()
-
-        # Organize Files button
-        toolbar.addAction(self.organize_action)
-
-        toolbar.addSeparator()
-
-        # Placeholder for future actions
-        toolbar.addWidget(QWidget())  # Spacer
-
-    def _setup_status_bar(self) -> None:
-        """Set up the status bar."""
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready")
-
-        # Add cache status label as permanent widget
-        self.cache_status_label = QLabel("캐시: 초기화 중...")
-        self.cache_status_label.setToolTip("캐시 히트율 및 항목 수 정보")
-        self.status_bar.addPermanentWidget(self.cache_status_label)
-
     def update_cache_status(self, stats: dict[str, Any]) -> None:
         """Update cache status display in status bar.
 
+        Delegates to StatusManager for actual display logic.
+
         Args:
-            stats: Dictionary containing cache statistics:
-                - hit_ratio: Cache hit ratio percentage (0.0-100.0)
-                - total_requests: Total cache requests (hits + misses)
-                - cache_items: Total items in cache
-                - cache_type: Primary cache type (SQLite/JSON/Hybrid)
+            stats: Dictionary containing cache statistics from TMDB controller
         """
-        if not isinstance(stats, dict):
-            logger.warning("Invalid stats type: %s", type(stats))
+        self.status_manager.update_cache_status(stats)
+
+    def _get_api_key(self) -> str | None:
+        """Get TMDB API key from config.
+
+        Returns:
+            API key string if configured, None otherwise
+        """
+        try:
+            config = get_config()
+            return config.tmdb.api_key
+        except (ApplicationError, OSError, ValueError):
+            return None
+
+    def _setup_tmdb_progress_dialog(self) -> None:
+        """Setup and show TMDB progress dialog."""
+        # Clean up any existing progress dialog
+        if self.tmdb_progress_dialog:
+            self.tmdb_progress_dialog.close()
+            self.tmdb_progress_dialog = None
+
+        # Create and show new progress dialog
+        self.tmdb_progress_dialog = TMDBProgressDialog(self)
+        self.tmdb_progress_dialog.cancelled.connect(self._on_tmdb_matching_cancelled)
+        self.tmdb_progress_dialog.show()
+
+    def _regroup_by_tmdb_title(self) -> None:
+        """Re-group files by TMDB title after matching completes."""
+        if not hasattr(self, "scan_controller") or not self.scan_controller:
             return
 
-        hit_ratio = stats.get("hit_ratio", 0.0)
-        cache_items = stats.get("cache_items", 0)
-        cache_type = stats.get("cache_type", "Unknown")
+        try:
+            # Set flag to prevent auto-start during regroup
+            self._is_regrouping = True
 
-        # Format: 캐시: 87.3% 히트율 (1,247 항목) [SQLite]
-        status_text = (
-            f"캐시: {hit_ratio:.1f}% 히트율 ({cache_items:,} 항목) [{cache_type}]"
-        )
-        self.cache_status_label.setText(status_text)
+            # Get file items with updated metadata
+            file_items = (
+                self.state_model._scanned_files
+                if hasattr(self.state_model, "_scanned_files")
+                else self.state_model.scanned_files
+            )
+
+            if file_items:
+                self.scan_controller.group_files_by_tmdb_title(file_items)
+                logger.info(
+                    "Re-grouped %d files by TMDB title (merging groups with same match)",
+                    len(file_items),
+                )
+        except Exception:
+            logger.exception("Failed to re-group files after TMDB matching")
+            # Non-critical error, don't show to user
+        finally:
+            # Reset flag after regroup is complete
+            self._is_regrouping = False
+
+    def _save_theme_preference(self, theme_name: str) -> None:
+        """Save theme preference to config file.
+
+        Args:
+            theme_name: Name of the theme to save
+        """
+        try:
+            config = get_config()
+            config.app.theme = theme_name
+            config.to_toml_file("config/config.toml")
+            logger.info("Theme preference saved: %s", theme_name)
+        except (OSError, ValueError) as e:
+            logger.warning("Failed to save theme preference: %s", e)
 
     def open_folder(self) -> None:
         """Open folder selection dialog."""
@@ -264,7 +214,7 @@ class MainWindow(QMainWindow):
 
         if directory:
             logger.info("Folder opened: %s", directory)
-            self.status_bar.showMessage(f"Opened: {directory}")
+            self.status_manager.show_message(f"Opened: {directory}")
 
             # Update state model
             self.state_model.selected_directory = Path(directory)
@@ -300,16 +250,12 @@ class MainWindow(QMainWindow):
                 return
 
             # Save theme preference to settings
-            try:
-                config = get_config()
-                config.app.theme = theme_name
-                config.to_toml_file("config/config.toml")
-                logger.info("Theme preference saved: %s", theme_name)
-            except (OSError, ValueError) as e:
-                logger.warning("Failed to save theme preference: %s", e)
+            self._save_theme_preference(theme_name)
 
             # Update status bar
-            self.status_bar.showMessage(f"Theme switched to {theme_name.title()}", 3000)
+            self.status_manager.show_message(
+                f"Theme switched to {theme_name.title()}", 3000
+            )
 
             logger.info("Theme switched successfully to: %s", theme_name)
 
@@ -326,13 +272,16 @@ class MainWindow(QMainWindow):
         self.theme_manager = theme_manager
 
         # Set initial theme selection based on current theme
-        if self.theme_manager and self.theme_action_group:
+        if self.theme_manager and self.menu_manager:
             current_theme = self.theme_manager.get_current_theme()
             if current_theme:
-                for action in self.theme_action_group.actions():
-                    if action.data() == current_theme:
-                        action.setChecked(True)
-                        break
+                # Get theme action group from MenuManager
+                theme_action_group = self.menu_manager._theme_action_group
+                if theme_action_group:
+                    for action in theme_action_group.actions():
+                        if action.data() == current_theme:
+                            action.setChecked(True)
+                            break
 
     def show_about(self) -> None:
         """Show about dialog."""
@@ -342,36 +291,6 @@ class MainWindow(QMainWindow):
             "AniVault - Anime File Organizer\n\n"
             "A tool for organizing anime files using TMDB metadata.\n\n"
             "Version: 1.0.0",
-        )
-
-    def _connect_signals(self) -> None:
-        """Connect signals between components."""
-        # Connect state model signals
-        self.state_model.files_updated.connect(self.on_files_updated)
-        self.state_model.file_status_changed.connect(self.on_file_status_changed)
-
-        # Connect group view signal
-        self.group_view.groupSelected.connect(self.on_group_selected)
-
-        # Connect scan controller signals
-        self.scan_controller.scan_started.connect(self.on_scan_started)
-        self.scan_controller.scan_progress.connect(self.on_scan_progress)
-        self.scan_controller.scan_finished.connect(self.on_scan_finished)
-        self.scan_controller.scan_error.connect(self.on_scan_error)
-        self.scan_controller.files_grouped.connect(self.on_files_grouped)
-
-        # Connect TMDB controller signals
-        self.tmdb_controller.matching_started.connect(self.on_tmdb_matching_started)
-        self.tmdb_controller.file_matched.connect(self.on_tmdb_file_matched)
-        self.tmdb_controller.matching_progress.connect(self.on_tmdb_matching_progress)
-        self.tmdb_controller.matching_finished.connect(self.on_tmdb_matching_finished)
-        self.tmdb_controller.matching_error.connect(self.on_tmdb_matching_error)
-        self.tmdb_controller.matching_cancelled.connect(self.on_tmdb_matching_cancelled)
-        self.tmdb_controller.cache_stats_updated.connect(self.update_cache_status)
-
-        # Connect organize controller signals
-        self.organize_controller.plan_generated.connect(
-            self._on_organize_plan_generated,
         )
 
     def start_file_scan(self) -> None:
@@ -384,7 +303,7 @@ class MainWindow(QMainWindow):
             self.scan_controller.scan_directory(self.state_model.selected_directory)
         except ValueError as e:
             logger.exception("Failed to start file scan")
-            self.status_bar.showMessage(DialogMessages.SCAN_ERROR.format(error=e))
+            self.status_manager.show_message(DialogMessages.SCAN_ERROR.format(error=e))
             QMessageBox.warning(
                 self,
                 DialogTitles.SCAN_ERROR,
@@ -393,19 +312,21 @@ class MainWindow(QMainWindow):
 
     def on_scan_started(self) -> None:
         """Handle scan started signal."""
-        self.status_bar.showMessage("Scanning for media files...")
+        self.status_manager.show_message("Scanning for media files...")
         logger.info("File scan started")
 
     def on_scan_progress(self, progress: int) -> None:
         """Handle scan progress signal."""
-        self.status_bar.showMessage(f"Scanning... {progress}%")
+        self.status_manager.show_message(f"Scanning... {progress}%")
 
     def on_scan_finished(self, file_items: list) -> None:
         """Handle scan finished signal."""
         # Update state model
         self.state_model.add_scanned_files(file_items)
 
-        self.status_bar.showMessage(f"Scan complete. Found {len(file_items)} files")
+        self.status_manager.show_message(
+            f"Scan complete. Found {len(file_items)} files"
+        )
         logger.info("File scan completed successfully")
 
         # Start file grouping after scan completion
@@ -414,11 +335,11 @@ class MainWindow(QMainWindow):
                 self.scan_controller.group_files(file_items)
             except ValueError as e:
                 logger.exception("File grouping failed")
-                self.status_bar.showMessage(f"Grouping failed: {e}")
+                self.status_manager.show_message(f"Grouping failed: {e}")
 
     def on_scan_error(self, error_msg: str) -> None:
         """Handle scan error signal."""
-        self.status_bar.showMessage(f"Scan error: {error_msg}")
+        self.status_manager.show_message(f"Scan error: {error_msg}")
         logger.error("File scan error: %s", error_msg)
 
         # Show error dialog
@@ -442,13 +363,7 @@ class MainWindow(QMainWindow):
             logger.info("Auto-starting TMDB matching after file grouping")
 
             # Check if API key is configured before starting
-            try:
-                config = get_config()
-                api_key = config.tmdb.api_key
-            except (ApplicationError, OSError, ValueError):
-                logger.warning("Skipping auto TMDB match: Failed to load config")
-                return
-
+            api_key = self._get_api_key()
             if api_key and self.state_model.scanned_files:
                 self.start_tmdb_matching()
             else:
@@ -521,7 +436,7 @@ class MainWindow(QMainWindow):
             self.group_view.add_group("All Files", file_items)
 
         logger.info("Updated group view with %d files (ungrouped)", len(files))
-        self.status_bar.showMessage(f"Found {len(files)} files")
+        self.status_manager.show_message(f"Found {len(files)} files")
 
     def open_settings_dialog(self) -> None:
         """Open the settings dialog for API key configuration."""
@@ -550,7 +465,7 @@ class MainWindow(QMainWindow):
             _api_key: The saved API key (unused, required by signal signature)
         """
         logger.info("API key saved successfully")
-        self.status_bar.showMessage("API key saved successfully")
+        self.status_manager.show_message("API key saved successfully")
 
     def start_tmdb_matching(self) -> None:
         """Start TMDB matching process for scanned files."""
@@ -564,12 +479,7 @@ class MainWindow(QMainWindow):
             return
 
         # Check if API key is configured
-        try:
-            config = get_config()
-            api_key = config.tmdb.api_key
-        except (ApplicationError, OSError, ValueError):
-            api_key = None
-
+        api_key = self._get_api_key()
         if not api_key:
             QMessageBox.warning(
                 self,
@@ -587,23 +497,14 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Clean up any existing progress dialog
-        if self.tmdb_progress_dialog:
-            self.tmdb_progress_dialog.close()
-            self.tmdb_progress_dialog = None
-
         # Set API key in controller
         self.tmdb_controller.set_api_key(api_key)
 
-        # Create and show progress dialog
-        self.tmdb_progress_dialog = TMDBProgressDialog(self)
-        self.tmdb_progress_dialog.cancelled.connect(self._on_tmdb_matching_cancelled)
-
-        # Show dialog
-        self.tmdb_progress_dialog.show()
+        # Setup progress dialog
+        self._setup_tmdb_progress_dialog()
 
         # Update status bar
-        self.status_bar.showMessage("Starting TMDB matching...")
+        self.status_manager.show_message("Starting TMDB matching...")
         logger.info(
             "TMDB matching started - %d files to process",
             len(self.state_model.scanned_files),
@@ -614,7 +515,7 @@ class MainWindow(QMainWindow):
             self.tmdb_controller.match_files(self.state_model.scanned_files)
         except (ValueError, RuntimeError) as e:
             logger.exception("Failed to start TMDB matching")
-            self.status_bar.showMessage(
+            self.status_manager.show_message(
                 DialogMessages.TMDB_MATCHING_ERROR.format(error=e),
             )
             QMessageBox.warning(
@@ -628,7 +529,7 @@ class MainWindow(QMainWindow):
 
     def on_tmdb_matching_started(self) -> None:
         """Handle TMDB matching started signal."""
-        self.status_bar.showMessage("TMDB matching started...")
+        self.status_manager.show_message("TMDB matching started...")
         logger.info("TMDB matching started")
 
     def on_tmdb_file_matched(self, result: dict) -> None:
@@ -664,7 +565,7 @@ class MainWindow(QMainWindow):
         """Handle TMDB matching progress signal."""
         if self.tmdb_progress_dialog:
             self.tmdb_progress_dialog.update_progress(progress)
-        self.status_bar.showMessage(f"TMDB matching... {progress}%")
+        self.status_manager.show_message(f"TMDB matching... {progress}%")
 
     def on_tmdb_matching_finished(self, _results: list) -> None:
         """Handle TMDB matching finished signal.
@@ -678,7 +579,7 @@ class MainWindow(QMainWindow):
         if self.tmdb_progress_dialog:
             self.tmdb_progress_dialog.show_completion(matched_count, total_count)
 
-        self.status_bar.showMessage(
+        self.status_manager.show_message(
             f"TMDB matching completed: {matched_count}/{total_count} matched",
         )
         logger.info(
@@ -689,41 +590,20 @@ class MainWindow(QMainWindow):
 
         # Enable organize button if any files matched
         if matched_count > 0:
-            self.organize_action.setEnabled(True)
+            organize_action = self.menu_manager.get_action("organize")
+            if organize_action:
+                organize_action.setEnabled(True)
             logger.debug("Organize button enabled (%d files matched)", matched_count)
 
         # Update UI with match results - re-group files with updated TMDB metadata
-        if hasattr(self, "scan_controller") and self.scan_controller:
-            try:
-                # Set flag to prevent auto-start during regroup
-                self._is_regrouping = True
-
-                # Re-group files by TMDB title (merge groups with same TMDB match)
-                # Use internal _scanned_files to get updated metadata (scanned_files property returns copy)
-                file_items = (
-                    self.state_model._scanned_files
-                    if hasattr(self.state_model, "_scanned_files")
-                    else self.state_model.scanned_files
-                )
-                if file_items:
-                    self.scan_controller.group_files_by_tmdb_title(file_items)
-                    logger.info(
-                        "Re-grouped %d files by TMDB title (merging groups with same match)",
-                        len(file_items),
-                    )
-            except Exception:
-                logger.exception("Failed to re-group files after TMDB matching")
-                # Non-critical error, don't show to user
-            finally:
-                # Reset flag after regroup is complete
-                self._is_regrouping = False
+        self._regroup_by_tmdb_title()
 
     def on_tmdb_matching_error(self, error_msg: str) -> None:
         """Handle TMDB matching error signal."""
         if self.tmdb_progress_dialog:
             self.tmdb_progress_dialog.show_error(error_msg)
 
-        self.status_bar.showMessage(f"TMDB matching error: {error_msg}")
+        self.status_manager.show_message(f"TMDB matching error: {error_msg}")
         logger.error("TMDB matching error: %s", error_msg)
 
         # Show error dialog
@@ -738,7 +618,7 @@ class MainWindow(QMainWindow):
         if self.tmdb_progress_dialog:
             self.tmdb_progress_dialog.close()
             self.tmdb_progress_dialog = None
-        self.status_bar.showMessage("TMDB matching cancelled")
+        self.status_manager.show_message("TMDB matching cancelled")
         logger.info("TMDB matching cancelled by user")
 
     def _on_tmdb_matching_cancelled(self) -> None:
@@ -803,7 +683,7 @@ class MainWindow(QMainWindow):
             self._execute_organization_plan(plan)
         else:
             logger.info("User cancelled file organization")
-            self.status_bar.showMessage("파일 정리가 취소되었습니다.")
+            self.status_manager.show_message("파일 정리가 취소되었습니다.")
 
     def _execute_organization_plan(self, plan: list) -> None:
         """Execute the file organization plan.
@@ -892,7 +772,7 @@ class MainWindow(QMainWindow):
         )
 
         # Update status bar with rescanning message
-        self.status_bar.showMessage("파일 정리 완료, 디렉토리 다시 스캔 중...")
+        self.status_manager.show_message("파일 정리 완료, 디렉토리 다시 스캔 중...")
 
         # Trigger a fresh scan of the directory
         # This will automatically update the UI through the scan controller
