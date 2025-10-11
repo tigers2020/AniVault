@@ -32,9 +32,14 @@ from PySide6.QtWidgets import (
 
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import Settings, get_config
+from anivault.config.settings import Settings, get_config, update_and_save_config
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
-from anivault.shared.errors import AniVaultError, ErrorCode, ErrorContext
+from anivault.shared.errors import (
+    AniVaultError,
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -300,6 +305,10 @@ class SettingsDialog(QDialog):
         """
         Save API key to configuration file.
 
+        WARNING: This method is deprecated. API keys should be stored in .env file only.
+        This will save to config.toml for backward compatibility, but please migrate
+        to using environment variables: TMDB_API_KEY=your_key in .env file.
+
         Args:
             api_key: The API key to save
 
@@ -307,35 +316,22 @@ class SettingsDialog(QDialog):
             AniVaultError: If saving fails
         """
         try:
-            # Use cached config if available, otherwise load
-            if self._cached_config is None:
-                self._cached_config = get_config()
+            # Define updater function
+            def update_api_key(cfg: Settings) -> None:
+                cfg.tmdb.api_key = api_key
 
-            # Update API key in cached config
-            self._cached_config.tmdb.api_key = api_key
-
-            # Save to TOML file
-            self._write_config_to_file(self._cached_config)
+            # Use thread-safe update helper
+            update_and_save_config(update_api_key, self.config_path)
 
             logger.info("API key saved successfully")
 
-        except Exception as e:
-            logger.exception("Failed to save API key to configuration: %s")
+        except ApplicationError as e:
+            logger.exception("Failed to save API key to configuration")
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save API key: {e!s}",
                 ErrorContext(operation="save_api_key"),
             ) from e
-
-    def _write_config_to_file(self, config: Settings) -> None:
-        """
-        Write configuration to TOML file.
-
-        Args:
-            config: Configuration object to save
-        """
-        # Use Settings.to_toml_file() to save all configuration sections
-        config.to_toml_file(self.config_path)
 
     def _show_error(self, title: str, message: str) -> None:
         """

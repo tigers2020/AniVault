@@ -255,7 +255,7 @@ class ErrorContextModel(BaseTypeModel):
         by excluding sensitive fields and ensuring additional_data is never None.
 
         Args:
-            mask_keys: Fields to exclude from output. Defaults to SAFE_DICT_MASK_KEYS.
+            mask_keys: Fields to exclude from output. Defaults to SAFE_DICT_MASK_KEYS.1
 
         Returns:
             Dictionary with masked sensitive fields and guaranteed additional_data key.

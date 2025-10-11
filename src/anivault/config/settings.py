@@ -551,6 +551,9 @@ class Settings(BaseSettings):
     def to_toml_file(self, file_path: str | Path) -> None:
         """Save settings to a TOML file.
 
+        SECURITY: API keys and other secrets are excluded from file output.
+        Use environment variables (.env file) to configure sensitive values.
+
         Args:
             file_path: Path where to save the TOML configuration file
         """
@@ -559,11 +562,15 @@ class Settings(BaseSettings):
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Exclude sensitive fields (API keys, secrets)
+        data = self.model_dump(
+            exclude_defaults=False,
+            exclude_none=True,
+            exclude={"tmdb": {"api_key"}},  # Never save API keys to file
+        )
+
         with open(file_path, "w", encoding=Encoding.DEFAULT) as f:
-            toml.dump(
-                self.model_dump(exclude_defaults=False, exclude_none=True),
-                f,
-            )
+            toml.dump(data, f)
 
 
 def _load_env_file() -> None:

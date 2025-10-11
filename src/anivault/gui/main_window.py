@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from anivault.config.settings import get_config
+from anivault.config.settings import get_config, update_and_save_config
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import ApplicationError
 
@@ -300,11 +300,14 @@ class MainWindow(QMainWindow):
 
             # Save theme preference to settings
             try:
-                config = get_config()
-                config.app.theme = theme_name
-                config.to_toml_file("config/config.toml")
+                # Define updater function
+                def update_theme(cfg):
+                    cfg.app.theme = theme_name
+
+                # Use thread-safe update helper
+                update_and_save_config(update_theme)
                 logger.info("Theme preference saved: %s", theme_name)
-            except (OSError, ValueError) as e:
+            except ApplicationError as e:
                 logger.warning("Failed to save theme preference: %s", e)
 
             # Update status bar
