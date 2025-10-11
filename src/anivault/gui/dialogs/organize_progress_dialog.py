@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 class OrganizeProgressDialog(QDialog):
     """Dialog showing file organization progress."""
 
-    def __init__(self, total_files: int, parent=None):
+    def __init__(self, total_files: int, parent: QWidget | None = None) -> None:
         """Initialize organize progress dialog.
 
         Args:
@@ -87,15 +88,28 @@ class OrganizeProgressDialog(QDialog):
 
         layout.addLayout(button_layout)
 
-    def update_progress(self, progress: int) -> None:
-        """Update progress bar.
+    def update_progress(self, progress: int, current_file: str = "") -> None:
+        """Update progress bar and current file status.
 
         Args:
             progress: Progress percentage (0-100)
+            current_file: Name of the file currently being processed
         """
         self.progress_bar.setValue(progress)
 
-    def add_file_result(self, result: dict) -> None:
+        # Update status label with current file
+        if current_file:
+            self.status_label.setText(
+                f"{self.organized_files + self.failed_files} / {self.total_files} "
+                f"파일 정리 중... (현재: {current_file})",
+            )
+        else:
+            self.status_label.setText(
+                f"{self.organized_files + self.failed_files} / {self.total_files} "
+                f"파일 정리됨",
+            )
+
+    def add_file_result(self, result: dict[str, str]) -> None:
         """Add file organization result to log.
 
         Args:
@@ -138,6 +152,7 @@ class OrganizeProgressDialog(QDialog):
         if organized_count == total_count:
             message = f"✅ 완료! {organized_count}개 파일 정리 성공"
             self.log_text.append(f"\n{message}")
+            self.log_text.append("🗑️ 빈 폴더 정리 중...")
         else:
             failed_count = total_count - organized_count
             message = f"⚠️ 완료! {organized_count}개 성공, {failed_count}개 실패"

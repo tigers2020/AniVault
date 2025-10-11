@@ -124,7 +124,9 @@ class MatchingEngine:
             # Step 2: Search for candidates (delegate to SearchService)
             candidates = await self._search_service.search(normalized_query)
             if not candidates:
-                logger.info("No candidates found for query: %s", normalized_query.title)
+                logger.debug(
+                    "No candidates found for query: %s", normalized_query.title
+                )
                 return None
 
             # Step 3: Score and rank candidates (delegate to ScoringService)
@@ -148,7 +150,7 @@ class MatchingEngine:
             best_candidate = filtered_candidates[0]
             best_confidence = best_candidate.confidence_score
 
-            logger.info(
+            logger.debug(
                 "Best candidate for '%s': '%s' (confidence: %.3f)",
                 normalized_query.title,
                 best_candidate.display_title,
@@ -157,7 +159,7 @@ class MatchingEngine:
 
             # Step 6: Apply fallback strategies if confidence < HIGH
             if best_confidence < ConfidenceThresholds.HIGH:
-                logger.info(
+                logger.debug(
                     "Confidence below HIGH threshold (%.3f < %.3f), applying fallback",
                     best_confidence,
                     ConfidenceThresholds.HIGH,
@@ -170,7 +172,7 @@ class MatchingEngine:
 
                 if enhanced_candidates:
                     best_candidate = enhanced_candidates[0]
-                    logger.info(
+                    logger.debug(
                         "Fallback improved confidence: %.3f → %.3f",
                         best_confidence,
                         best_candidate.confidence_score,
@@ -215,7 +217,7 @@ class MatchingEngine:
             logger.warning("Failed to normalize query from anitopy result")
             return None
 
-        logger.info("Searching for match: %s", normalized_query.title)
+        logger.debug("Searching for match: %s", normalized_query.title)
         return normalized_query
 
     def _validate_final_confidence(self, best_candidate: ScoredSearchResult) -> bool:
@@ -276,7 +278,7 @@ class MatchingEngine:
             original_language=best_candidate.original_language,
         )
 
-        logger.info(
+        logger.debug(
             "Found best match for '%s': '%s' (confidence: %.3f)",
             normalized_query.title,
             match_result.title,

@@ -36,6 +36,14 @@
     --error-color: #ef4444;
     --info-color: #3b82f6;
 
+    /* Resolution classification colors */
+    --quality-high-bg: #22c55e;
+    --quality-high-text: #ffffff;
+    --quality-low-bg: #f59e0b;
+    --quality-low-text: #ffffff;
+    --quality-unknown-bg: #64748b;
+    --quality-unknown-text: #ffffff;
+
     /* Placeholder colors */
     --placeholder-color: #64748b;
     --placeholder-hint: #475569;

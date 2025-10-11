@@ -173,7 +173,7 @@ class GroupCardWidget(QFrame):
 
         # Try to load poster from TMDB data
         anime_info = self._get_anime_info()
-        logger.info(
+        logger.debug(
             "🎨 Creating poster for group '%s': anime_info=%s",
             self.group_name[:30],
             "YES" if anime_info else "NO",
@@ -183,7 +183,7 @@ class GroupCardWidget(QFrame):
             poster_path = anime_info.get("poster_path")
             # Try both 'title' and 'name' fields (TMDB uses different fields for movies vs TV)
             title = anime_info.get("title") or anime_info.get("name") or "?"
-            logger.info(
+            logger.debug(
                 "🎨 Poster widget - title: '%s', poster_path: %s",
                 title[:30] if title and title != "?" else "None",
                 poster_path[:30] if poster_path else "None",
@@ -202,7 +202,7 @@ class GroupCardWidget(QFrame):
                         Qt.SmoothTransformation,
                     )
                     poster_label.setPixmap(scaled_pixmap)
-                    logger.info("✅ Loaded cached poster image for: %s", title[:30])
+                    logger.debug("✅ Loaded cached poster image for: %s", title[:30])
                     return poster_label
                 # If pixmap is None, async download started - show placeholder
                 # and poster will be updated when download completes
@@ -212,7 +212,7 @@ class GroupCardWidget(QFrame):
                 initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
                 poster_label.setObjectName("posterInitial")
-                logger.info(
+                logger.debug(
                     "🎨 Set poster to initial '%s' for: %s",
                     initial,
                     title[:30],
@@ -291,7 +291,7 @@ class GroupCardWidget(QFrame):
                     if hasattr(match_result, "to_dict"):
                         match_result_dict = match_result.to_dict()
                         title = match_result_dict.get("title", UIConfig.UNKNOWN_TITLE)
-                        logger.info(
+                        logger.debug(
                             "✓ Found match_result in ParsingResult.other_info: %s",
                             title,
                         )
@@ -302,7 +302,7 @@ class GroupCardWidget(QFrame):
                         or match_result.get("name")
                         or UIConfig.UNKNOWN_TITLE
                     )
-                    logger.info(
+                    logger.debug(
                         "✓ Found match_result in ParsingResult.other_info: %s",
                         title,
                     )
@@ -528,7 +528,7 @@ class GroupCardWidget(QFrame):
 
             # Download from TMDB asynchronously (non-blocking)
             image_url = f"{tmdb_image_base_url}{poster_size}{poster_path}"
-            logger.info("⬇️ Downloading poster asynchronously: %s", image_url)
+            logger.debug("⬇️ Downloading poster asynchronously: %s", image_url)
 
             # Create network request
             request = QNetworkRequest(QUrl(image_url))
@@ -588,7 +588,7 @@ class GroupCardWidget(QFrame):
             # Save to cache
             try:
                 cache_file.write_bytes(image_data.data())
-                logger.info("💾 Cached poster: %s", cache_file.name)
+                logger.debug("💾 Cached poster: %s", cache_file.name)
             except Exception as e:  # noqa: BLE001 - GUI poster cache error fallback
                 logger.warning("❌ Failed to cache poster: %s", e)
 
@@ -603,7 +603,7 @@ class GroupCardWidget(QFrame):
                     Qt.SmoothTransformation,
                 )
                 poster_label.setPixmap(scaled_pixmap)
-                logger.info("✅ Downloaded and displayed poster: %s", cache_file.name)
+                logger.debug("✅ Downloaded and displayed poster: %s", cache_file.name)
             else:
                 logger.warning("❌ Failed to load QPixmap from downloaded data")
 

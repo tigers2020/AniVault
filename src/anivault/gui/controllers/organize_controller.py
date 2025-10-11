@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import ScannedFile
@@ -19,6 +19,7 @@ from anivault.core.organizer import FileOrganizer
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingResult
 from anivault.gui.models import FileItem
+from anivault.gui.workers.organize_worker import OrganizeWorker
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class OrganizeController(QObject):
     plan_generated = Signal(list)  # FileOperation list
     organization_started = Signal()
     file_organized = Signal(dict)  # operation result
-    organization_progress = Signal(int)  # progress percentage
+    organization_progress = Signal(int, str)  # (progress %, current filename)
     organization_finished = Signal(list)  # results
     organization_error = Signal(str)  # error message
     organization_cancelled = Signal()
@@ -63,6 +64,10 @@ class OrganizeController(QObject):
 
         # Initialize parser for filename parsing
         self.parser = AnitopyParser()
+
+        # Initialize worker thread
+        self._organize_thread: QThread | None = None
+        self._organize_worker: OrganizeWorker | None = None
 
         logger.debug("OrganizeController initialized")
 
@@ -218,73 +223,85 @@ class OrganizeController(QObject):
             self.organization_error.emit(f"파일 정리 실패: {e}")
 
     def _execute_organization_plan(self, plan: list[Any]) -> None:
-        """Execute the organization plan.
+        """Execute the organization plan in a background thread.
 
         Args:
             plan: List of FileOperation objects to execute
         """
+        # Cleanup previous worker if exists
+        if self._organize_thread and self._organize_thread.isRunning():
+            logger.warning("Previous organization still running, stopping it first")
+            self.cancel_organization()
+            self._organize_thread.wait()
+
+        # Create new thread and worker
+        self._organize_thread = QThread()
+        self._organize_worker = OrganizeWorker()
+
+        # Set plan and services
+        self._organize_worker.set_plan(plan)
+        self._organize_worker.set_services(self.log_manager, self.file_organizer)
+
+        # Move worker to thread
+        self._organize_worker.moveToThread(self._organize_thread)
+
+        # Connect worker signals to controller signals (relay to UI)
+        self._organize_worker.organization_started.connect(self._on_worker_started)
+        self._organize_worker.file_organized.connect(self.file_organized.emit)
+        self._organize_worker.organization_progress.connect(
+            self.organization_progress.emit,
+        )
+        self._organize_worker.organization_finished.connect(self._on_worker_finished)
+        self._organize_worker.organization_error.connect(self.organization_error.emit)
+        self._organize_worker.organization_cancelled.connect(
+            self.organization_cancelled.emit,
+        )
+
+        # Connect thread signals
+        self._organize_thread.started.connect(self._organize_worker.run)
+        self._organize_thread.finished.connect(self._cleanup_worker)
+
+        # Start the thread
+        logger.info("Starting organization worker thread for %d operations", len(plan))
+        self._organize_thread.start()
+
+    def _on_worker_started(self) -> None:
+        """Handle worker started signal."""
         self.is_organizing = True
         self.organization_started.emit()
 
-        try:
-            total_operations = len(plan)
-            moved_files = []
+    def _on_worker_finished(self, results: list[Any]) -> None:
+        """Handle worker finished signal.
 
-            for idx, operation in enumerate(plan):
-                try:
-                    # Execute operation through FileOrganizer
-                    from datetime import datetime
+        Args:
+            results: List of moved files
+        """
+        self.is_organizing = False
+        self.organization_finished.emit(results)
+        logger.info("File organization completed: %d files moved", len(results))
 
-                    operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    result = self.file_organizer.execute_plan(
-                        [operation],
-                        operation_id,
-                        no_log=False,
-                    )
+        # Stop the thread
+        if self._organize_thread:
+            self._organize_thread.quit()
 
-                    if result:
-                        moved_files.extend(result)
-                        # Emit progress
-                        self.file_organized.emit(
-                            {
-                                "source": str(operation.source_path),
-                                "destination": str(operation.destination_path),
-                                "status": "success",
-                            },
-                        )
+    def _cleanup_worker(self) -> None:
+        """Clean up worker and thread after completion."""
+        if self._organize_worker:
+            self._organize_worker.deleteLater()
+            self._organize_worker = None
 
-                except Exception as e:
-                    logger.exception("Failed to execute operation: %s", operation)
-                    self.file_organized.emit(
-                        {
-                            "source": str(operation.source_path),
-                            "destination": str(operation.destination_path),
-                            "status": "failed",
-                            "error": str(e),
-                        },
-                    )
+        if self._organize_thread:
+            self._organize_thread.deleteLater()
+            self._organize_thread = None
 
-                # Update progress
-                progress = int((idx + 1) * 100 / total_operations)
-                self.organization_progress.emit(progress)
-
-            # Emit completion
-            self.organization_finished.emit(moved_files)
-            logger.info("File organization completed: %d files moved", len(moved_files))
-
-        except Exception as e:
-            logger.exception("Error during file organization")
-            self.organization_error.emit(f"정리 중 오류 발생: {e}")
-
-        finally:
-            self.is_organizing = False
+        logger.debug("OrganizeWorker cleaned up")
 
     def cancel_organization(self) -> None:
         """Cancel ongoing file organization."""
-        if self.is_organizing:
+        if self.is_organizing and self._organize_worker:
             logger.info("Cancelling file organization")
-            self.is_organizing = False
-            self.organization_cancelled.emit()
+            self._organize_worker.cancel()
+            # Note: is_organizing will be set to False in _on_worker_finished
 
     def get_current_plan(self) -> list[Any]:
         """Get the current organization plan.

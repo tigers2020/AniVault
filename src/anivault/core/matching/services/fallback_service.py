@@ -59,7 +59,7 @@ class FallbackStrategyService:
         if strategies:
             # Sort strategies by priority (ascending = lower priority first)
             self._strategies = sorted(strategies, key=lambda s: s.priority)
-            logger.info(
+            logger.debug(
                 "Initialized with %d strategies: %s",
                 len(self._strategies),
                 [type(s).__name__ for s in self._strategies],
@@ -100,7 +100,7 @@ class FallbackStrategyService:
         # Start with original candidates
         current_candidates = candidates
 
-        logger.info(
+        logger.debug(
             "Applying %d fallback strategies to %d candidates",
             len(self._strategies),
             len(candidates),
@@ -134,7 +134,7 @@ class FallbackStrategyService:
                 count_delta = after_count - before_count
                 score_delta = after_top_score - before_top_score
 
-                logger.info(
+                logger.debug(
                     "Strategy applied: %s (count: %d→%d [%+d], top_score: %.3f→%.3f [%+.3f])",
                     strategy_name,
                     before_count,
@@ -153,7 +153,7 @@ class FallbackStrategyService:
                 )
                 # Keep current candidates unchanged
 
-        logger.info(
+        logger.debug(
             "Completed fallback strategies: %d candidates, top score: %.3f",
             len(current_candidates),
             current_candidates[0].confidence_score if current_candidates else 0.0,
@@ -173,7 +173,7 @@ class FallbackStrategyService:
         self._strategies.append(strategy)
         self._strategies.sort(key=lambda s: s.priority)
 
-        logger.info(
+        logger.debug(
             "Registered strategy: %s (priority: %d)",
             type(strategy).__name__,
             strategy.priority,

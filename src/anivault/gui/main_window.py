@@ -823,14 +823,79 @@ class MainWindow(QMainWindow):
             progress_dialog.add_file_result,
         )
         self.organize_controller.organization_finished.connect(
-            lambda results: progress_dialog.show_completion(
-                len([r for r in results if r]),
-                len(plan),
+            lambda results: self._on_organization_complete(
+                results,
+                plan,
+                progress_dialog,
             ),
         )
         self.organize_controller.organization_error.connect(
             progress_dialog.show_error,
         )
+        self.organize_controller.organization_cancelled.connect(
+            lambda: progress_dialog.show_error("사용자에 의해 취소되었습니다."),
+        )
+
+        # Connect cancel button to controller
+        progress_dialog.rejected.connect(
+            self.organize_controller.cancel_organization,
+        )
 
         # Execute plan
         self.organize_controller._execute_organization_plan(plan)
+
+    def _on_organization_complete(
+        self,
+        results: list[Any],
+        plan: list[Any],
+        progress_dialog: OrganizeProgressDialog,
+    ) -> None:
+        """Handle organization completion.
+
+        Args:
+            results: List of successfully moved files
+            plan: Original organization plan
+            progress_dialog: Progress dialog instance
+        """
+        # Show completion in progress dialog
+        progress_dialog.show_completion(
+            len([r for r in results if r]),
+            len(plan),
+        )
+
+        # Update main file list by removing organized files
+        if results:
+            self._remove_organized_files_from_list(plan)
+
+    def _remove_organized_files_from_list(self, plan: list[Any]) -> None:
+        """Rescan source directory after file organization.
+
+        This method triggers a fresh scan of the source directory to update
+        the file list, removing organized files and showing any new files.
+
+        Args:
+            plan: List of FileOperation objects that were executed
+        """
+        # Get the source directory from the current state
+        source_directory = self.state_model.selected_directory
+
+        if not source_directory:
+            logger.warning("No source directory set, cannot rescan")
+            return
+
+        removed_count = len(plan)
+
+        logger.info(
+            "Rescanning source directory after organizing %d files: %s",
+            removed_count,
+            source_directory,
+        )
+
+        # Update status bar with rescanning message
+        self.status_bar.showMessage("파일 정리 완료, 디렉토리 다시 스캔 중...")
+
+        # Trigger a fresh scan of the directory
+        # This will automatically update the UI through the scan controller
+        self.scan_controller.scan_directory(source_directory)
+
+        # Final status message will be set by scan completion handler

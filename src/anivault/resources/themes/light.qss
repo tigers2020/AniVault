@@ -4,6 +4,20 @@
 @import url("common.qss");
 
 /* =============================================================================
+   ROOT VARIABLES
+   ============================================================================= */
+
+* {
+    /* Resolution classification colors */
+    --quality-high-bg: #22c55e;
+    --quality-high-text: #ffffff;
+    --quality-low-bg: #f59e0b;
+    --quality-low-text: #ffffff;
+    --quality-unknown-bg: #64748b;
+    --quality-unknown-text: #ffffff;
+}
+
+/* =============================================================================
    LIGHT THEME STYLES
    ============================================================================= */
 

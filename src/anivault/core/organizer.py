@@ -52,6 +52,9 @@ class FileOrganizer:
         """
         Analyze which series have mixed resolutions.
 
+        This function analyzes both TMDB-matched files and filename-based resolution detection
+        to determine which series have mixed resolution types (both high and low resolution files).
+
         Args:
             scanned_files: List of ScannedFile objects to analyze
 
@@ -59,6 +62,7 @@ class FileOrganizer:
             Dictionary mapping series title to whether it has mixed resolutions.
             True = has both high and low resolutions, False = single resolution type
         """
+        import re
         from collections import defaultdict
 
         from anivault.shared.constants import VideoQuality
@@ -67,17 +71,157 @@ class FileOrganizer:
         series_resolutions: dict[str, set[bool]] = defaultdict(set)
 
         for scanned_file in scanned_files:
-            # Skip files without TMDB match
+            series_title = None
+            is_high_res = None
+
+            # Method 1: Try TMDB match result first (preferred)
             match_result = scanned_file.metadata.other_info.get("match_result")
-            if not match_result:
-                continue
+            if match_result:
+                series_title = match_result.title
+                quality = scanned_file.metadata.quality
 
-            series_title = match_result.title
-            quality = scanned_file.metadata.quality
+                # If metadata has quality, use it; otherwise extract from filename
+                if quality:
+                    is_high_res = VideoQuality.is_high_resolution(quality)
+                    logger.debug(
+                        "TMDB metadata resolution: %s = %s (%s)",
+                        series_title,
+                        quality,
+                        "high" if is_high_res else "low",
+                    )
+                else:
+                    # No quality in metadata, extract from filename
+                    filename = scanned_file.file_path.name
 
-            # Determine if this file is high or low resolution
-            is_high_res = VideoQuality.is_high_resolution(quality)
-            series_resolutions[series_title].add(is_high_res)
+                    # Extract resolution from filename using multiple patterns
+                    patterns = [
+                        r"\[(\d+p|4K|UHD|SD)\]",  # [1080p], [4K]
+                        r"\((\d+p|4K|UHD|SD)\)",  # (1080p), (4K)
+                        r"\b(\d+p|4K|UHD|SD)\b",  # 1080p, 4K (word boundary)
+                        r"(\d+p|4K|UHD|SD)\.",  # 1080p.mkv, 4K.mp4
+                        r"(\d+p|4K|UHD|SD)\s",  # 1080p BluRay, 4K HDR
+                        r"(\d+p|4K|UHD|SD)$",  # 1080p at end of filename
+                    ]
+
+                    resolution = None
+                    for pattern in patterns:
+                        resolution_match = re.search(pattern, filename, re.IGNORECASE)
+                        if resolution_match:
+                            resolution = resolution_match.group(1).upper()
+                            break
+
+                    # Additional pattern: resolution as width x height (e.g., 1920x1080, 640x480)
+                    if not resolution:
+                        dimension_match = re.search(
+                            r"(\d{3,4})\s*x\s*(\d{3,4})",
+                            filename,
+                            re.IGNORECASE,
+                        )
+                        if dimension_match:
+                            width = int(dimension_match.group(1))
+                            height = int(dimension_match.group(2))
+
+                            # Map dimension to standard resolution
+                            if width >= 1920 or height >= 1080:
+                                resolution = "1080P"
+                            elif width >= 1280 or height >= 720:
+                                resolution = "720P"
+                            elif width >= 854 or height >= 480:
+                                resolution = "480P"
+                            else:
+                                resolution = "SD"
+
+                    if resolution:
+                        is_high_res = VideoQuality.is_high_resolution(resolution)
+                        logger.debug(
+                            "TMDB file + filename resolution: %s = %s (%s) from '%s'",
+                            series_title,
+                            resolution,
+                            "high" if is_high_res else "low",
+                            filename[:50] + "..." if len(filename) > 50 else filename,
+                        )
+                    else:
+                        # No resolution found, skip this file
+                        logger.debug(
+                            "TMDB file, no resolution: %s from '%s'",
+                            series_title,
+                            filename[:50] + "..." if len(filename) > 50 else filename,
+                        )
+                        continue
+            else:
+                # Method 2: Fallback to filename-based resolution detection
+                filename = scanned_file.file_path.name
+
+                # Extract series title from filename (basic heuristic)
+                # Remove common patterns and get the main title part
+                title_match = re.search(
+                    r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", filename
+                )
+                if title_match:
+                    series_title = title_match.group(1) or title_match.group(2)
+                    series_title = series_title.strip()
+                else:
+                    # Fallback: use filename without extension
+                    series_title = scanned_file.file_path.stem
+
+                # Extract resolution from filename using multiple patterns
+                patterns = [
+                    r"\[(\d+p|4K|UHD|SD)\]",  # [1080p], [4K]
+                    r"\((\d+p|4K|UHD|SD)\)",  # (1080p), (4K)
+                    r"\b(\d+p|4K|UHD|SD)\b",  # 1080p, 4K (word boundary)
+                    r"(\d+p|4K|UHD|SD)\.",  # 1080p.mkv, 4K.mp4
+                    r"(\d+p|4K|UHD|SD)\s",  # 1080p BluRay, 4K HDR
+                    r"(\d+p|4K|UHD|SD)$",  # 1080p at end of filename
+                ]
+
+                resolution = None
+                for pattern in patterns:
+                    resolution_match = re.search(pattern, filename, re.IGNORECASE)
+                    if resolution_match:
+                        resolution = resolution_match.group(1).upper()
+                        break
+
+                # Additional pattern: resolution as width x height (e.g., 1920x1080, 640x480)
+                if not resolution:
+                    dimension_match = re.search(
+                        r"(\d{3,4})\s*x\s*(\d{3,4})",
+                        filename,
+                        re.IGNORECASE,
+                    )
+                    if dimension_match:
+                        width = int(dimension_match.group(1))
+                        height = int(dimension_match.group(2))
+
+                        # Map dimension to standard resolution
+                        if width >= 1920 or height >= 1080:
+                            resolution = "1080P"
+                        elif width >= 1280 or height >= 720:
+                            resolution = "720P"
+                        elif width >= 854 or height >= 480:
+                            resolution = "480P"
+                        else:
+                            resolution = "SD"
+
+                if resolution:
+                    is_high_res = VideoQuality.is_high_resolution(resolution)
+                    logger.debug(
+                        "Filename-based resolution: %s = %s (%s) from '%s'",
+                        series_title,
+                        resolution,
+                        "high" if is_high_res else "low",
+                        filename[:50] + "..." if len(filename) > 50 else filename,
+                    )
+                else:
+                    # If no resolution found in filename, skip this file
+                    logger.debug(
+                        "No resolution found in filename: %s",
+                        filename[:50] + "..." if len(filename) > 50 else filename,
+                    )
+                    continue
+
+            # Add to series resolution tracking
+            if series_title and is_high_res is not None:
+                series_resolutions[series_title].add(is_high_res)
 
         # Determine which series have mixed resolutions
         series_has_mixed: dict[str, bool] = {}
@@ -85,11 +229,21 @@ class FileOrganizer:
             # Mixed if we have both True (high) and False (low) resolutions
             series_has_mixed[series_title] = len(res_types) > 1
 
-        logger.debug(
+        logger.info(
             "Resolution analysis: %d series, %d with mixed resolutions",
             len(series_has_mixed),
             sum(series_has_mixed.values()),
         )
+
+        # Log detailed results for debugging
+        for series_title, has_mixed in series_has_mixed.items():
+            res_types = series_resolutions[series_title]
+            logger.debug(
+                "Series '%s': mixed=%s, resolutions=%s",
+                series_title,
+                has_mixed,
+                sorted(res_types),
+            )
 
         return series_has_mixed
 
@@ -116,14 +270,31 @@ class FileOrganizer:
         metadata = scanned_file.metadata
 
         # Extract series information
-        # Priority: TMDB matched title > parsed title > "Unknown Series"
+        # Priority: TMDB matched title > parsed title > filename-based title > "Unknown Series"
         match_result = metadata.other_info.get("match_result")
         if match_result:
             # Use TMDB matched title (Korean title from MatchResult dataclass)
             series_title = match_result.title
         else:
-            # Fallback to parsed title
-            series_title = metadata.title or "Unknown Series"
+            # Fallback to parsed title or filename-based title
+            series_title = metadata.title
+            if not series_title:
+                # Extract from filename as last resort
+                import re
+
+                filename = scanned_file.file_path.name
+                title_match = re.search(
+                    r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", filename
+                )
+                if title_match:
+                    series_title = (
+                        title_match.group(1) or title_match.group(2)
+                    ).strip()
+                else:
+                    series_title = scanned_file.file_path.stem
+
+            if not series_title:
+                series_title = "Unknown Series"
 
         season_number = metadata.season
         # episode_number and episode_title available but not currently used in path construction
@@ -165,15 +336,73 @@ class FileOrganizer:
             and series_has_mixed_resolutions
         ):
             # Import VideoQuality for resolution classification
+            import re
+
             from anivault.shared.constants import VideoQuality
 
-            # Get resolution from metadata
+            # Get resolution from metadata (TMDB-based) or filename
             resolution = metadata.quality
 
+            # If no resolution from metadata, try to extract from filename
+            if not resolution:
+                filename = scanned_file.file_path.name
+
+                # Try multiple patterns for resolution detection
+                patterns = [
+                    r"\[(\d+p|4K|UHD|SD)\]",  # [1080p], [4K]
+                    r"\((\d+p|4K|UHD|SD)\)",  # (1080p), (4K)
+                    r"\b(\d+p|4K|UHD|SD)\b",  # 1080p, 4K (word boundary)
+                    r"(\d+p|4K|UHD|SD)\.",  # 1080p.mkv, 4K.mp4
+                    r"(\d+p|4K|UHD|SD)\s",  # 1080p BluRay, 4K HDR
+                    r"(\d+p|4K|UHD|SD)$",  # 1080p at end of filename
+                ]
+
+                for pattern in patterns:
+                    resolution_match = re.search(pattern, filename, re.IGNORECASE)
+                    if resolution_match:
+                        resolution = resolution_match.group(1).upper()
+                        logger.debug(
+                            "Extracted resolution from filename: %s = %s (pattern: %s)",
+                            filename[:50] + "..." if len(filename) > 50 else filename,
+                            resolution,
+                            pattern,
+                        )
+                        break
+
+                # Additional pattern: resolution as width x height (e.g., 1920x1080, 640x480)
+                if not resolution:
+                    dimension_match = re.search(
+                        r"(\d{3,4})\s*x\s*(\d{3,4})",
+                        filename,
+                        re.IGNORECASE,
+                    )
+                    if dimension_match:
+                        width = int(dimension_match.group(1))
+                        height = int(dimension_match.group(2))
+
+                        # Map dimension to standard resolution
+                        if width >= 1920 or height >= 1080:
+                            resolution = "1080P"
+                        elif width >= 1280 or height >= 720:
+                            resolution = "720P"
+                        elif width >= 854 or height >= 480:
+                            resolution = "480P"
+                        else:
+                            resolution = "SD"
+
+                        logger.debug(
+                            "Extracted resolution from dimensions: %s = %s",
+                            filename[:50] + "..." if len(filename) > 50 else filename,
+                            resolution,
+                        )
+
             # Determine if high or low resolution
-            if VideoQuality.is_high_resolution(resolution):
+            if resolution and VideoQuality.is_high_resolution(resolution):
                 # High resolution: normal folder structure
                 series_dir = target_folder / media_type / series_title / season_dir
+                logger.debug(
+                    "High resolution detected: %s -> %s", resolution, series_dir
+                )
             else:
                 # Low resolution: under low_res folder (only when series has mixed resolutions)
                 series_dir = (
@@ -183,10 +412,18 @@ class FileOrganizer:
                     / series_title
                     / season_dir
                 )
+                logger.debug(
+                    "Low resolution detected: %s -> %s",
+                    resolution or "unknown",
+                    series_dir,
+                )
         else:
             # Build path without resolution organization
             # (either feature disabled OR series has single resolution type)
             series_dir = target_folder / media_type / series_title / season_dir
+            logger.debug(
+                "No resolution organization: %s -> %s", series_title, series_dir
+            )
 
         # Use original filename (as requested by user)
         original_filename: str = scanned_file.file_path.name
@@ -260,17 +497,37 @@ class FileOrganizer:
             if not scanned_file.metadata.title:
                 continue
 
-            # Skip files without TMDB match result (only organize matched files)
+            # Try to get TMDB match result, but don't skip if not available
             match_result = scanned_file.metadata.other_info.get("match_result")
-            if not match_result:
-                logger.debug(
-                    "Skipping file without TMDB match: %s",
-                    scanned_file.file_path.name,
-                )
-                continue
 
             # Get series title for resolution analysis
-            series_title: str = match_result.title if match_result else ""
+            if match_result:
+                series_title: str = match_result.title
+                logger.debug(
+                    "Processing file with TMDB match: %s -> %s",
+                    scanned_file.file_path.name,
+                    series_title,
+                )
+            else:
+                # Fallback to filename-based title extraction
+                import re
+
+                filename = scanned_file.file_path.name
+                title_match = re.search(
+                    r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", filename
+                )
+                if title_match:
+                    series_title = (
+                        title_match.group(1) or title_match.group(2)
+                    ).strip()
+                else:
+                    series_title = scanned_file.file_path.stem
+                logger.debug(
+                    "Processing file without TMDB match (filename-based): %s -> %s",
+                    scanned_file.file_path.name,
+                    series_title,
+                )
+
             has_mixed_res: bool = series_has_mixed_resolutions.get(series_title, False)
 
             # Construct destination path with mixed resolution info
