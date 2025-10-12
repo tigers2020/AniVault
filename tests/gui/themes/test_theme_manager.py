@@ -222,3 +222,191 @@ class TestThemeManager:
         assert ThemeManager.LIGHT_THEME == "light"
         assert ThemeManager.DARK_THEME == "dark"
         assert ThemeManager.DEFAULT_THEME == "light"
+
+
+class TestThemeManagerQSSImport:
+    """Test cases for QSS @import functionality (Task 2.5)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_themes_dir = Path("test_themes_import")
+        self.theme_manager = ThemeManager(self.test_themes_dir)
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if self.test_themes_dir.exists():
+            import shutil
+
+            shutil.rmtree(self.test_themes_dir)
+
+    def test_import_directive_normal(self):
+        """Test normal @import resolution."""
+        # Create common.qss
+        common_content = """/* Common styles */
+QWidget { font-family: Arial; }"""
+        (self.test_themes_dir / "common.qss").write_text(common_content)
+
+        # Create light.qss with @import
+        light_content = """/* Light theme */
+@import url("common.qss");
+QMainWindow { background: white; }"""
+        (self.test_themes_dir / "light.qss").write_text(light_content)
+
+        # Load theme
+        content = self.theme_manager.load_theme_content("light")
+
+        # Verify @import was resolved
+        assert "font-family: Arial" in content
+        assert "background: white" in content
+        assert "@import" not in content  # Import directive should be replaced
+
+    def test_import_circular_detection(self):
+        """Test circular import detection."""
+        # Create a.qss importing b.qss
+        (self.test_themes_dir / "a.qss").write_text(
+            '@import url("b.qss");\nQWidget { color: red; }'
+        )
+
+        # Create b.qss importing a.qss (circular!)
+        (self.test_themes_dir / "b.qss").write_text(
+            '@import url("a.qss");\nQWidget { color: blue; }'
+        )
+
+        # Should raise error
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.load_theme_content("a")
+
+        # Error is wrapped in FILE_READ_ERROR, check message
+        assert "Circular" in str(exc_info.value)
+
+    def test_import_path_traversal(self):
+        """Test path traversal attack prevention."""
+        # Create malicious theme trying to import outside themes dir
+        malicious_content = """/* Malicious theme */
+@import url("../../etc/passwd");
+QWidget { color: red; }"""
+        (self.test_themes_dir / "malicious.qss").write_text(malicious_content)
+
+        # Should raise security error
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.load_theme_content("malicious")
+
+        # Error is wrapped in FILE_READ_ERROR, check message
+        assert "outside" in str(exc_info.value).lower()
+
+    def test_import_max_depth(self):
+        """Test maximum import depth limit."""
+        # Create chain of imports exceeding MAX_IMPORT_DEPTH
+        for i in range(15):
+            if i == 14:
+                content = "QWidget { color: red; }"
+            else:
+                content = f'@import url("level{i+1}.qss");\nQWidget {{ color: red; }}'
+            (self.test_themes_dir / f"level{i}.qss").write_text(content)
+
+        # Should raise error (MAX_IMPORT_DEPTH = 10)
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.load_theme_content("level0")
+
+        # Error is wrapped in FILE_READ_ERROR, check message
+        assert "depth" in str(exc_info.value).lower()
+
+    def test_import_file_not_found(self):
+        """Test missing import file."""
+        # Create theme with non-existent import
+        (self.test_themes_dir / "broken.qss").write_text(
+            '@import url("nonexistent.qss");'
+        )
+
+        # Should raise error
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.load_theme_content("broken")
+
+        # Error is wrapped in FILE_READ_ERROR, check message
+        assert "not found" in str(exc_info.value).lower()
+
+
+class TestThemeManagerInputValidation:
+    """Test cases for theme name input validation (Task 2.6)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_themes_dir = Path("test_themes_validation")
+        self.theme_manager = ThemeManager(self.test_themes_dir)
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if self.test_themes_dir.exists():
+            import shutil
+
+            shutil.rmtree(self.test_themes_dir)
+
+    def test_validate_theme_name_valid(self):
+        """Test valid theme names."""
+        valid_names = ["light", "dark", "custom", "my-theme", "my_theme", "theme123"]
+
+        for name in valid_names:
+            # Should not raise
+            validated = self.theme_manager._validate_theme_name(name)
+            assert validated == name, f"Failed for name: {name}"
+
+    def test_validate_theme_name_empty(self):
+        """Test empty theme name."""
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager._validate_theme_name("")
+
+        assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
+        assert "empty" in str(exc_info.value).lower()
+
+    def test_validate_theme_name_too_long(self):
+        """Test theme name exceeding length limit."""
+        long_name = "a" * 51  # MAX = 50
+
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager._validate_theme_name(long_name)
+
+        assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
+        assert "too long" in str(exc_info.value).lower()
+
+    def test_validate_theme_name_path_separators(self):
+        """Test theme name with path separators."""
+        invalid_names = ["../theme", "theme/name", "theme\\name", ".."]
+
+        for name in invalid_names:
+            with pytest.raises(ApplicationError, match="VALIDATION_ERROR") as exc_info:
+                self.theme_manager._validate_theme_name(name)
+
+            assert (
+                exc_info.value.code == ErrorCode.VALIDATION_ERROR
+            ), f"Failed for name: {name}"
+            assert (
+                "path" in str(exc_info.value).lower()
+                or "separator" in str(exc_info.value).lower()
+            ), f"Failed for name: {name}"
+
+    def test_validate_theme_name_special_characters(self):
+        """Test theme name with invalid special characters."""
+        invalid_names = [
+            "theme!",
+            "theme@home",
+            "theme#1",
+            "theme$",
+            "theme%",
+            "theme&",
+        ]
+
+        for name in invalid_names:
+            with pytest.raises(ApplicationError, match="VALIDATION_ERROR") as exc_info:
+                self.theme_manager._validate_theme_name(name)
+
+            assert (
+                exc_info.value.code == ErrorCode.VALIDATION_ERROR
+            ), f"Failed for name: {name}"
+
+    def test_get_qss_path_with_invalid_name(self):
+        """Test get_qss_path with invalid theme name."""
+        # Path traversal attempt
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.get_qss_path("../../../etc/passwd")
+
+        assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
