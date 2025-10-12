@@ -68,18 +68,20 @@ class TMDBClient:
         self.config = get_config()
 
         # Initialize components
+        # Migrated to new Settings structure (Task 12: API compatibility)
+        # Old: self.config.tmdb → New: self.config.api.tmdb
         self.rate_limiter = rate_limiter or TokenBucketRateLimiter(
-            capacity=int(self.config.tmdb.rate_limit_rps),
-            refill_rate=int(self.config.tmdb.rate_limit_rps),
+            capacity=int(self.config.api.tmdb.rate_limit_rps),
+            refill_rate=int(self.config.api.tmdb.rate_limit_rps),
         )
         self.semaphore_manager = semaphore_manager or SemaphoreManager(
-            concurrency_limit=self.config.tmdb.concurrent_requests,
+            concurrency_limit=self.config.api.tmdb.concurrent_requests,
         )
         self.state_machine = state_machine or RateLimitStateMachine()
 
         # Initialize TMDB API client - MUST be configured before creating TV/Movie objects
         self._tmdb = TMDb()
-        self._tmdb.api_key = self.config.tmdb.api_key
+        self._tmdb.api_key = self.config.api.tmdb.api_key
         self._tmdb.language = language  # Set language BEFORE creating TV/Movie objects
         self._tmdb.region = region
         self._tmdb.debug = (
@@ -321,7 +323,7 @@ class TMDBClient:
         """
         context = ErrorContext(
             operation="make_tmdb_request",
-            additional_data={"retry_attempts": self.config.tmdb.retry_attempts},
+            additional_data={"retry_attempts": self.config.api.tmdb.retry_attempts},
         )
 
         # Check if we should make the request based on state machine
@@ -391,7 +393,7 @@ class TMDBClient:
         """
         last_exception = None
 
-        for attempt in range(self.config.tmdb.retry_attempts + 1):
+        for attempt in range(self.config.api.tmdb.retry_attempts + 1):
             try:
                 # Make the API call
                 result = api_call()
@@ -434,8 +436,8 @@ class TMDBClient:
         await self._process_error_response(exception, context)
 
         # Apply exponential backoff for retries
-        if attempt < self.config.tmdb.retry_attempts:
-            backoff_delay = self.config.tmdb.retry_delay * (2**attempt)
+        if attempt < self.config.api.tmdb.retry_attempts:
+            backoff_delay = self.config.api.tmdb.retry_delay * (2**attempt)
             await asyncio.sleep(backoff_delay)
 
     async def _process_error_response(
@@ -496,7 +498,7 @@ class TMDBClient:
             error_code, error_message = self._convert_tmdb_exception(last_exception)
             final_error = InfrastructureError(
                 code=error_code,
-                message=f"{error_message} (after {self.config.tmdb.retry_attempts} retries)",
+                message=f"{error_message} (after {self.config.api.tmdb.retry_attempts} retries)",
                 context=context,
                 original_error=last_exception,
             )

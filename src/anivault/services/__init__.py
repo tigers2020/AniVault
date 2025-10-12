@@ -11,7 +11,8 @@ from .state_machine import RateLimitState, RateLimitStateMachine
 
 # Import these conditionally to avoid circular dependencies
 try:
-    from .metadata_enricher import EnrichedMetadata, MetadataEnricher
+    from .enricher import MetadataEnricher
+    from .metadata_enricher.models import EnrichedMetadata
     from .tmdb_client import TMDBClient
 
     _HAS_DEPENDENCIES = True

@@ -21,6 +21,7 @@ class ParsingResult:
         title: The anime title extracted from the filename.
         episode: Episode number (None if not found or not applicable).
         season: Season number (None if not found or single season).
+        year: Release year (None if not found).
         quality: Video quality indicator (e.g., "1080p", "720p").
         source: Release source (e.g., "BluRay", "WEB", "HDTV").
         codec: Video codec (e.g., "H.264", "HEVC", "x265").
@@ -34,6 +35,7 @@ class ParsingResult:
     title: str
     episode: int | None = None
     season: int | None = None
+    year: int | None = None
     quality: str | None = None
     source: str | None = None
     codec: str | None = None

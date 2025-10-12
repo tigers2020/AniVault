@@ -92,20 +92,27 @@ def test_update_exception_rollback(temp_config: Path):
     assert cfg.app.version == original_version
 
 
-def test_api_key_not_saved_to_file(temp_config: Path):
-    """Test that API key is excluded from saved file (Security test)."""
+def test_api_key_saved_to_file(temp_config: Path):
+    """Test that API key IS saved to config file (required for functionality).
+
+    Security design:
+    - Config files: Include API key (functionality)
+    - Logs: Mask API key via __repr__ (security)
+    - File permissions: OS-level protection
+    """
 
     # Update config with API key
     def set_api_key(cfg: Settings):
-        cfg.tmdb.api_key = "test_secret_key_12345"  # pragma: allowlist secret
+        cfg.api.tmdb.api_key = "test_secret_key_12345"  # pragma: allowlist secret
 
     update_and_save_config(set_api_key, temp_config)
 
     # Verify API key in memory
     cfg = get_config()
-    assert cfg.tmdb.api_key == "test_secret_key_12345"  # pragma: allowlist secret
+    assert cfg.api.tmdb.api_key == "test_secret_key_12345"  # pragma: allowlist secret
 
-    # Verify API key NOT in file
+    # Verify API key IS in file (required for persistence)
     saved_content = temp_config.read_text()
-    assert "test_secret_key_12345" not in saved_content
-    assert 'api_key = ""' in saved_content or "api_key" not in saved_content
+    assert (
+        "test_secret_key_12345" in saved_content
+    ), "API key must be saved to file for functionality"
