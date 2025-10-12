@@ -59,14 +59,15 @@ class AniVaultGUI:
             # Initialize theme manager
             self.theme_manager = ThemeManager()
 
-            # Load and apply initial theme
-            self._load_initial_theme()
-
-            # Create main window
+            # Create main window BEFORE applying theme
+            # (theme application requires existing widgets to repolish)
             self.main_window = MainWindow()
 
             # Set theme manager in main window
             self.main_window.set_theme_manager(self.theme_manager)
+
+            # Load and apply initial theme AFTER window creation
+            self._load_initial_theme()
 
             # Setup auto scanner callback
             self._setup_auto_scanner()
