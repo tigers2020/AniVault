@@ -503,20 +503,20 @@ QPushButton#closeButton {
    ============================================================================= */
 
 QLabel#posterLabel {
-    border: 1px solid;
+    border: none;  /* No border for modern flat design */
     border-radius: 5px;
 }
 
 QLabel#posterInitial {
     font-size: 36px;
     font-weight: bold;
-    border: 1px solid;
+    border: none;  /* No border for modern flat design */
     border-radius: 5px;
 }
 
 QLabel#posterFolder {
     font-size: 48px;
-    border: 1px solid;
+    border: none;  /* No border for modern flat design */
     border-radius: 5px;
 }
 

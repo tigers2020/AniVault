@@ -656,18 +656,18 @@ QPushButton#closeButton:hover {
 
 QLabel#posterLabel {
     background-color: #1e293b;
-    border-color: #334155;
+    /* border-color removed - no border in modern design */
 }
 
 QLabel#posterInitial {
     background-color: #007acc;
     color: white;
-    border-color: #005a9e;
+    /* border-color removed - no border in modern design */
 }
 
 QLabel#posterFolder {
     background-color: #334155;
-    border-color: #475569;
+    /* border-color removed - no border in modern design */
 }
 
 /* =============================================================================
