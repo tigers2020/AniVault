@@ -675,3 +675,72 @@ class TestThemeManagerCache:
         # Cached load should be significantly faster
         assert cached_load_ms < first_load_ms
         assert cached_load_ms < 10  # Cache hit should be < 10ms
+
+
+class TestThemeManagerBundle:
+    """Test cases for PyInstaller bundle environment detection (Task 5.1)."""
+
+    def test_bundled_environment_detection(self, tmp_path):
+        """Test that _is_bundled correctly detects PyInstaller environment."""
+        import sys
+
+        # Mock PyInstaller bundle environment
+        mock_meipass = tmp_path / "meipass"
+        mock_meipass.mkdir()
+        (mock_meipass / "resources" / "themes").mkdir(parents=True)
+
+        # Manually set _MEIPASS
+        sys._MEIPASS = str(mock_meipass)
+
+        try:
+            # Create theme manager
+            theme_manager = ThemeManager()
+
+            # Verify bundle detection
+            assert theme_manager._is_bundled is True
+            assert theme_manager.themes_dir == mock_meipass / "resources" / "themes"
+        finally:
+            # Cleanup
+            if hasattr(sys, "_MEIPASS"):
+                delattr(sys, "_MEIPASS")
+
+    def test_development_environment_detection(self):
+        """Test that _is_bundled correctly detects development environment."""
+        import sys
+
+        # Ensure _MEIPASS doesn't exist
+        if hasattr(sys, "_MEIPASS"):
+            delattr(sys, "_MEIPASS")
+
+        # Create theme manager
+        theme_manager = ThemeManager()
+
+        # Verify development detection
+        assert theme_manager._is_bundled is False
+        # Check that themes_dir contains resources/themes (platform-agnostic)
+        assert theme_manager.themes_dir.parts[-2:] == ("resources", "themes")
+
+    def test_custom_themes_dir_overrides_bundle_detection(self, tmp_path):
+        """Test that custom themes_dir overrides bundle detection."""
+        import sys
+
+        # Mock bundle environment
+        mock_meipass = tmp_path / "meipass"
+        mock_meipass.mkdir()
+        sys._MEIPASS = str(mock_meipass)
+
+        try:
+            # Custom themes directory
+            custom_dir = tmp_path / "custom_themes"
+            custom_dir.mkdir()
+
+            # Create theme manager with custom dir
+            theme_manager = ThemeManager(themes_dir=custom_dir)
+
+            # Verify custom dir is used despite bundle environment
+            assert theme_manager._is_bundled is True  # Bundle detected
+            assert theme_manager.themes_dir == custom_dir  # But custom dir used
+        finally:
+            # Cleanup
+            if hasattr(sys, "_MEIPASS"):
+                delattr(sys, "_MEIPASS")

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sys
 from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
@@ -40,14 +41,24 @@ class ThemeManager:
     def __init__(self, themes_dir: Path | None = None) -> None:
         """Initialize the ThemeManager.
 
+        Detects PyInstaller bundle environment and sets up appropriate
+        theme directories (bundled + user-writable).
+
         Args:
             themes_dir: Optional path to themes directory. If None, uses
-                      default path in resources/themes/
+                      default path based on environment (bundle/development)
         """
+        # Detect PyInstaller bundle environment
+        self._is_bundled = hasattr(sys, "_MEIPASS")
+
         if themes_dir is None:
-            # Get the package directory and construct themes path
-            package_dir = Path(__file__).parent.parent.parent
-            self.themes_dir = package_dir / "resources" / "themes"
+            if self._is_bundled:
+                # PyInstaller bundle: read-only embedded resources
+                self.themes_dir = Path(sys._MEIPASS) / "resources" / "themes"
+            else:
+                # Development: package-relative path
+                package_dir = Path(__file__).parent.parent.parent
+                self.themes_dir = package_dir / "resources" / "themes"
         else:
             self.themes_dir = Path(themes_dir)
 
