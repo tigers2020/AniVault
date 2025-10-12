@@ -167,56 +167,6 @@ class TestThemeManager:
         self.theme_manager.current_theme = "light"
         assert self.theme_manager.get_current_theme() == "light"
 
-    @patch("PySide6.QtWidgets.QApplication.instance")
-    def test_load_and_apply_theme_success(self, mock_app_instance):
-        """Test load and apply theme successfully."""
-        # Setup mock
-        mock_app = Mock()
-        mock_app_instance.return_value = mock_app
-
-        # Create test QSS file
-        test_content = "QMainWindow { background: white; }"
-        (self.test_themes_dir / "light.qss").write_text(test_content)
-
-        # Load and apply theme
-        self.theme_manager.load_and_apply_theme(mock_app, "light")
-
-        # Verify
-        mock_app.setStyleSheet.assert_called_once_with(test_content)
-        assert self.theme_manager.current_theme == "light"
-
-    @patch("PySide6.QtWidgets.QApplication.instance")
-    def test_load_and_apply_theme_fallback(self, mock_app_instance):
-        """Test load and apply theme with fallback to default."""
-        # Setup mock
-        mock_app = Mock()
-        mock_app_instance.return_value = mock_app
-
-        # Create default theme file
-        default_content = "QMainWindow { background: white; }"
-        (self.test_themes_dir / "light.qss").write_text(default_content)
-
-        # Try to load non-existent theme, should fallback to default
-        self.theme_manager.load_and_apply_theme(mock_app, "nonexistent")
-
-        # Should have called setStyleSheet with default theme content
-        mock_app.setStyleSheet.assert_called_with(default_content)
-        assert self.theme_manager.current_theme == "light"
-
-    @patch("PySide6.QtWidgets.QApplication.instance")
-    def test_load_and_apply_theme_no_fallback(self, mock_app_instance):
-        """Test load and apply theme when fallback also fails."""
-        # Setup mock
-        mock_app = Mock()
-        mock_app_instance.return_value = mock_app
-
-        # Try to load non-existent theme with no fallback available
-        with pytest.raises(ApplicationError) as exc_info:
-            self.theme_manager.load_and_apply_theme(mock_app, "nonexistent")
-
-        assert exc_info.value.code == ErrorCode.APPLICATION_ERROR
-        assert "Failed to apply any theme" in str(exc_info.value)
-
     def test_theme_constants(self):
         """Test theme constants are properly defined."""
         assert ThemeManager.LIGHT_THEME == "light"

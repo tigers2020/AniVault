@@ -492,35 +492,20 @@ class ThemeManager:
     def load_and_apply_theme(self, app: QApplication, theme_name: str) -> None:
         """Load and apply a theme to the application.
 
+        .. deprecated:: 0.1.0
+            Use :meth:`apply_theme` instead. This method is a compatibility
+            wrapper that delegates to the new unified apply_theme method.
+
         Args:
             app: QApplication instance
             theme_name: Name of the theme to load and apply
         """
-        try:
-            # Load theme content
-            qss_content = self.load_theme_content(theme_name)
+        import warnings
 
-            # Apply to application
-            app.setStyleSheet(qss_content)
-            self.current_theme = theme_name
-
-            logger.info("Loaded and applied theme: %s", theme_name)
-
-        except Exception as e:
-            logger.exception("Failed to load and apply theme %s", theme_name)
-            # Fallback to default theme if available
-            if theme_name != self.DEFAULT_THEME:
-                logger.warning("Falling back to default theme: %s", self.DEFAULT_THEME)
-                try:
-                    self.load_and_apply_theme(app, self.DEFAULT_THEME)
-                except Exception:
-                    logger.exception("Failed to apply fallback theme")
-                    raise ApplicationError(
-                        ErrorCode.APPLICATION_ERROR,
-                        f"Failed to apply any theme: {e}",
-                    ) from e
-            else:
-                raise ApplicationError(
-                    ErrorCode.APPLICATION_ERROR,
-                    f"Failed to apply theme {theme_name}: {e}",
-                ) from e
+        warnings.warn(
+            "load_and_apply_theme is deprecated, use apply_theme instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Delegate to new unified method
+        self.apply_theme(theme_name, app=app)
