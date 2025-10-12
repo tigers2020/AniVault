@@ -711,3 +711,44 @@ QLabel#groupDateLabel {
 QLabel#groupOverviewLabel {
     color: #555555;
 }
+
+/* =============================================================================
+   ANIME DETAIL POPUP (HOVER TOOLTIP) - Light Theme Colors
+   ============================================================================= */
+
+QWidget#animeDetailPopup {
+    background-color: #ffffff;
+    border: 2px solid #3b82f6;
+}
+
+QLabel#popupTitleLabel {
+    color: #0f172a;
+}
+
+QLabel#popupRatingLabel {
+    color: #d97706;
+}
+
+QLabel#popupStatusLabel {
+    color: #475569;
+}
+
+QLabel#popupDateLabel {
+    color: #475569;
+}
+
+QLabel#popupGenreLabel {
+    color: #64748b;
+}
+
+QLabel#popupCompanyLabel {
+    color: #64748b;
+}
+
+QLabel#popupOverviewLabel {
+    color: #1e293b;
+}
+
+QLabel#popupPopularityLabel {
+    color: #64748b;
+}
