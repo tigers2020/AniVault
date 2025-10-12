@@ -525,3 +525,55 @@ QLabel#groupDateLabel {
 QLabel#groupOverviewLabel {
     font-size: 12px;
 }
+
+/* =============================================================================
+   ANIME DETAIL POPUP (HOVER TOOLTIP)
+   ============================================================================= */
+
+QWidget#animeDetailPopup {
+    background-color: #2d2d2d;
+    border: 2px solid #3b82f6;
+    border-radius: 8px;
+    padding: 5px;
+}
+
+QLabel#popupTitleLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+QLabel#popupRatingLabel {
+    font-size: 12px;
+    color: #fbbf24;
+}
+
+QLabel#popupStatusLabel {
+    font-size: 11px;
+    color: #cbd5e1;
+}
+
+QLabel#popupDateLabel {
+    font-size: 11px;
+    color: #cbd5e1;
+}
+
+QLabel#popupGenreLabel {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+QLabel#popupCompanyLabel {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+QLabel#popupOverviewLabel {
+    font-size: 12px;
+    color: #e2e8f0;
+}
+
+QLabel#popupPopularityLabel {
+    font-size: 11px;
+    color: #94a3b8;
+}
