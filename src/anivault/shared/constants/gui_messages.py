@@ -169,6 +169,18 @@ class UIConfig:
         300  # Overview/description truncation (increased to show more context)
     )
 
+    # Group card layout constraints
+    GROUP_CARD_OVERVIEW_MIN_HEIGHT = 50  # Minimum height for overview text (px)
+    GROUP_CARD_OVERVIEW_MAX_HEIGHT = 80  # Maximum height to limit visible lines (px)
+
+    # Anime detail popup dimensions
+    POPUP_MIN_WIDTH = 400  # Minimum popup width (px)
+    POPUP_MAX_WIDTH = 600  # Maximum popup width (px)
+    POPUP_MIN_HEIGHT = 200  # Minimum popup height (px)
+    POPUP_MAX_HEIGHT = 800  # Maximum popup height (px)
+    POPUP_OVERVIEW_MIN_HEIGHT = 40  # Minimum height for overview label (px)
+    POPUP_OVERVIEW_MAX_CHARS = 600  # Maximum characters for overview text
+
     # Default/fallback values
     UNKNOWN_TITLE = "Unknown"
     NO_OVERVIEW = ""

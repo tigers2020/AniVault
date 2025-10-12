@@ -12,6 +12,8 @@ import logging
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
+from anivault.shared.constants.gui_messages import UIConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,10 +38,10 @@ class AnimeDetailPopup(QFrame):
     def _setup_ui(self) -> None:
         """Set up the popup UI."""
         self.setObjectName("animeDetailPopup")
-        self.setMinimumWidth(400)
-        self.setMaximumWidth(600)
-        self.setMinimumHeight(200)
-        self.setMaximumHeight(800)
+        self.setMinimumWidth(UIConfig.POPUP_MIN_WIDTH)
+        self.setMaximumWidth(UIConfig.POPUP_MAX_WIDTH)
+        self.setMinimumHeight(UIConfig.POPUP_MIN_HEIGHT)
+        self.setMaximumHeight(UIConfig.POPUP_MAX_HEIGHT)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
@@ -101,17 +103,17 @@ class AnimeDetailPopup(QFrame):
             company_label.setWordWrap(True)
             layout.addWidget(company_label)
 
-        # Overview (show full text with word wrap, max 600 chars)
+        # Overview (show full text with word wrap)
         overview = self.anime_info.get("overview")
         if overview:
             # Allow longer overview text to show more context
-            if len(overview) > 600:
-                overview = overview[:597] + "..."
+            if len(overview) > UIConfig.POPUP_OVERVIEW_MAX_CHARS:
+                overview = overview[: UIConfig.POPUP_OVERVIEW_MAX_CHARS - 3] + "..."
             overview_label = QLabel(overview)
             overview_label.setObjectName("popupOverviewLabel")
             overview_label.setWordWrap(True)
             # Allow label to expand vertically for longer text
-            overview_label.setMinimumHeight(40)
+            overview_label.setMinimumHeight(UIConfig.POPUP_OVERVIEW_MIN_HEIGHT)
             layout.addWidget(overview_label)
 
         # Popularity score (if available)
