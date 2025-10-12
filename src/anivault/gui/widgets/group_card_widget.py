@@ -113,9 +113,7 @@ class GroupCardWidget(QFrame):
                 overview_label = QLabel(truncated_overview)
                 overview_label.setObjectName("groupOverviewLabel")
                 overview_label.setWordWrap(True)
-                # Limit height to show only 3-4 lines of text
-                overview_label.setMinimumHeight(UIConfig.GROUP_CARD_OVERVIEW_MIN_HEIGHT)
-                overview_label.setMaximumHeight(UIConfig.GROUP_CARD_OVERVIEW_MAX_HEIGHT)
+                # Height constraints defined in QSS (common.qss: max-height: 72px)
                 overview_label.setToolTip(overview)  # Full text on hover
                 info_layout.addWidget(overview_label)
 

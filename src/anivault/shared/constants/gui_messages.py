@@ -169,13 +169,8 @@ class UIConfig:
         180  # Overview/description truncation (~3-4 lines at 12px font)
     )
 
-    # Group card layout constraints
-    GROUP_CARD_OVERVIEW_MIN_HEIGHT = 40  # Minimum height for overview text (px)
-    GROUP_CARD_OVERVIEW_MAX_HEIGHT = (
-        72  # Maximum height to limit visible lines (~4 lines)
-    )
-
     # Anime detail popup dimensions
+    # Note: Group card height constraints (min/max) are defined in QSS (common.qss)
     POPUP_MIN_WIDTH = 400  # Minimum popup width (px)
     POPUP_MAX_WIDTH = 600  # Maximum popup width (px)
     POPUP_MIN_HEIGHT = 200  # Minimum popup height (px)
