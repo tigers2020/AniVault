@@ -244,32 +244,87 @@ class ThemeManager:
 
         return theme_name
 
-    def get_qss_path(self, theme_name: str) -> Path:
-        """Get the path to a theme's QSS file.
+    def get_qss_path(self, theme_name: str) -> Path | None:
+        """Get the path to a theme's QSS file with fallback priority.
+
+        Search priority (bundle mode):
+        1. User theme directory (~/.anivault/themes)
+        2. Bundle base directory (PyInstaller bundle resources)
+        3. Fallback to default theme (light.qss)
+        4. Return None if all searches fail
 
         Args:
             theme_name: Name of the theme
 
         Returns:
-            Path to the QSS file
+            Path to the QSS file, or None if not found after all fallbacks
 
         Raises:
-            ApplicationError: If theme file doesn't exist or invalid theme name
+            ApplicationError: If theme name is invalid (security)
         """
         # Validate theme name first (security)
         theme_name = self._validate_theme_name(theme_name)
 
-        qss_path = self.themes_dir / f"{theme_name}.qss"
+        # 1. Try user theme directory first (writable location)
+        user_path = self.user_theme_dir / f"{theme_name}.qss"
+        if user_path.exists():
+            logger.debug("Found theme in user directory: %s", user_path)
+            return user_path
 
-        if not qss_path.exists():
-            logger.error("Theme file not found: %s", qss_path)
-            raise ApplicationError(
-                ErrorCode.FILE_NOT_FOUND,
-                f"Theme file not found: {qss_path}",
-                ErrorContext(file_path=str(qss_path)),
+        # Log user directory miss (info level, not error)
+        logger.info(
+            "Theme not found in user directory: %s",
+            theme_name,
+            extra=ErrorContext(
+                file_path=str(user_path),
+                additional_data={"stage": "user-theme", "theme_name": theme_name},
+            ).model_dump(),
+        )
+
+        # 2. Try bundle base directory (read-only resources)
+        base_path = self.base_theme_dir / f"{theme_name}.qss"
+        if base_path.exists():
+            logger.debug("Found theme in bundle directory: %s", base_path)
+            return base_path
+
+        # Log bundle directory miss
+        logger.warning(
+            "Theme not found in bundle directory: %s",
+            theme_name,
+            extra=ErrorContext(
+                file_path=str(base_path),
+                additional_data={"stage": "bundle-theme", "theme_name": theme_name},
+            ).model_dump(),
+        )
+
+        # 3. Fallback to default theme (light.qss) if not already trying it
+        if theme_name != self.LIGHT_THEME:
+            logger.info(
+                "Falling back to default theme: %s",
+                self.LIGHT_THEME,
+                extra=ErrorContext(
+                    file_path=str(base_path),
+                    additional_data={
+                        "stage": "bundle-theme",
+                        "theme_name": theme_name,
+                        "fallback": self.LIGHT_THEME,
+                    },
+                ).model_dump(),
             )
+            # Recursive call with default theme
+            return self.get_qss_path(self.LIGHT_THEME)
 
-        return qss_path
+        # 4. Final failure: even default theme not found
+        logger.error(
+            "Critical: Default theme not found: %s",
+            theme_name,
+            extra=ErrorContext(
+                file_path=str(base_path),
+                additional_data={"stage": "default-fallback", "theme_name": theme_name},
+            ).model_dump(),
+        )
+
+        return None
 
     def _validate_import_path(self, qss_path: Path) -> Path:
         """Validate QSS import path for security.
@@ -430,14 +485,19 @@ class ThemeManager:
         Performance monitoring: Logs DEBUG timing for all loads,
         WARNING if loading exceeds 50ms (potential performance issue).
 
+        If theme file cannot be found after all fallback attempts,
+        returns empty string to allow application to continue with
+        minimal styling.
+
         Args:
             theme_name: Name of the theme to load
 
         Returns:
-            QSS content as string with all imports resolved
+            QSS content as string with all imports resolved,
+            or empty string if theme not found (safe fallback)
 
         Raises:
-            ApplicationError: If theme file cannot be read
+            ApplicationError: If theme file read fails (not file-not-found)
         """
         import time
 
@@ -446,6 +506,22 @@ class ThemeManager:
 
         try:
             qss_path = self.get_qss_path(theme_name)
+
+            # Handle None return (all fallbacks exhausted)
+            if qss_path is None:
+                logger.warning(
+                    "No theme file found for %s after all fallbacks, using empty stylesheet",
+                    theme_name,
+                    extra=ErrorContext(
+                        file_path=f"{theme_name}.qss",
+                        additional_data={
+                            "stage": "final-fallback",
+                            "theme_name": theme_name,
+                            "fallback_result": "empty-stylesheet",
+                        },
+                    ).model_dump(),
+                )
+                return ""  # Safe fallback: empty stylesheet
 
             # Use cached @import-aware reader (mtime-based)
             content = self._get_cached_theme(qss_path)
@@ -469,6 +545,23 @@ class ThemeManager:
 
             return content
 
+        except ApplicationError as e:
+            # Re-raise ApplicationError (not file-not-found, but read errors)
+            if e.code == ErrorCode.FILE_NOT_FOUND:
+                logger.warning(
+                    "Theme file not found: %s, using empty stylesheet",
+                    theme_name,
+                    extra=ErrorContext(
+                        file_path=str(qss_path) if qss_path else f"{theme_name}.qss",
+                        additional_data={
+                            "stage": "load-error",
+                            "theme_name": theme_name,
+                            "error_code": e.code.value,
+                        },
+                    ).model_dump(),
+                )
+                return ""  # Safe fallback for file-not-found
+            raise  # Re-raise other ApplicationErrors
         except Exception as e:
             logger.exception("Failed to load theme content for %s", theme_name)
             raise ApplicationError(
@@ -618,7 +711,7 @@ class ThemeManager:
                 # Don't raise error in safe mode - allow app to continue
                 return
             except Exception as safe_mode_error:  # noqa: BLE001
-                # Safe mode also failed - this is critical
+                # Safe mode also failed - this is critical (broad catch necessary for safety)
                 logger.critical(
                     "Safe mode failed: %s",
                     safe_mode_error,
