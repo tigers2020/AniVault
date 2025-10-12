@@ -276,6 +276,11 @@ QFrame {
     border-radius: 6px;
 }
 
+/* Exception: GroupCardWidget manages its own borders via QSS themes */
+GroupCardWidget {
+    border: none;
+}
+
 QFrame[frameShape="4"] { /* Box */
     border-radius: 6px;
 }
