@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from anivault.gui.themes import ThemeManager
+from anivault.gui.themes.path_resolver import ThemePathResolver
 from anivault.shared.errors import ApplicationError, ErrorCode
 
 
@@ -815,14 +816,20 @@ class TestThemeManagerBundleFallback:
         sys._MEIPASS = str(mock_meipass)  # type: ignore[attr-defined]
 
         try:
-            # Mock _ensure_bundle_themes to prevent auto-copy to real home directory
-            monkeypatch.setattr(ThemeManager, "_ensure_bundle_themes", lambda _: None)
+            # Mock ensure_bundle_themes to prevent auto-copy to real home directory
+            monkeypatch.setattr(
+                ThemePathResolver, "ensure_bundle_themes", lambda _: None
+            )
 
             # Given: Theme manager in bundle mode
             theme_manager = ThemeManager()
+            # Update both ThemeManager and PathResolver paths
             theme_manager.user_theme_dir = user_themes
             theme_manager.base_theme_dir = bundle_themes
             theme_manager.themes_dir = user_themes
+            theme_manager._path_resolver.user_theme_dir = user_themes
+            theme_manager._path_resolver.base_theme_dir = bundle_themes
+            theme_manager._path_resolver.themes_dir = user_themes
 
             # Test Case 1: User theme exists → return user path
             user_dark = user_themes / "dark.qss"
