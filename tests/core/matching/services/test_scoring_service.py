@@ -211,3 +211,151 @@ class TestCandidateScoringService:
 
         # Just below MEDIUM threshold
         assert service.get_confidence_level(ConfidenceThresholds.MEDIUM - 0.01) == "low"
+
+    # =============================================================================
+    # rank_candidates() Tests
+    # =============================================================================
+
+    @pytest.fixture
+    def scored_candidates_unordered(self):
+        """Create scored candidates with mixed confidence order."""
+        return [
+            ScoredSearchResult(
+                id=1,
+                name="Low Confidence",
+                first_air_date="2013-01-01",
+                media_type="tv",
+                popularity=50.0,
+                confidence_score=0.6,
+                vote_average=8.0,
+                vote_count=1000,
+                overview="Test",
+                original_language="ja",
+                genre_ids=[16],
+            ),
+            ScoredSearchResult(
+                id=2,
+                name="High Confidence",
+                first_air_date="2013-01-01",
+                media_type="tv",
+                popularity=80.0,
+                confidence_score=0.95,
+                vote_average=8.5,
+                vote_count=2000,
+                overview="Test",
+                original_language="ja",
+                genre_ids=[16],
+            ),
+            ScoredSearchResult(
+                id=3,
+                name="Medium Confidence",
+                first_air_date="2013-01-01",
+                media_type="tv",
+                popularity=60.0,
+                confidence_score=0.75,
+                vote_average=8.2,
+                vote_count=1500,
+                overview="Test",
+                original_language="ja",
+                genre_ids=[16],
+            ),
+        ]
+
+    def test_rank_candidates_empty_list(self, service):
+        """Test rank_candidates with empty list returns empty."""
+        result = service.rank_candidates([])
+        assert result == []
+
+    def test_rank_candidates_sorts_by_confidence(
+        self, service, scored_candidates_unordered
+    ):
+        """Test rank_candidates sorts by confidence score (descending)."""
+        ranked = service.rank_candidates(scored_candidates_unordered)
+
+        # Verify order: High (0.95) > Medium (0.75) > Low (0.6)
+        assert len(ranked) == 3
+        assert ranked[0].id == 2  # High Confidence
+        assert ranked[0].confidence_score == 0.95
+        assert ranked[1].id == 3  # Medium Confidence
+        assert ranked[1].confidence_score == 0.75
+        assert ranked[2].id == 1  # Low Confidence
+        assert ranked[2].confidence_score == 0.6
+
+    def test_rank_candidates_popularity_tiebreaker(self, service):
+        """Test rank_candidates uses popularity as tie-breaker for equal confidence."""
+        candidates = [
+            ScoredSearchResult(
+                id=1,
+                name="Same Confidence, Low Popularity",
+                first_air_date="2013-01-01",
+                media_type="tv",
+                popularity=40.0,  # Lower
+                confidence_score=0.8,  # Same
+                vote_average=8.0,
+                vote_count=1000,
+                overview="Test",
+                original_language="ja",
+                genre_ids=[16],
+            ),
+            ScoredSearchResult(
+                id=2,
+                name="Same Confidence, High Popularity",
+                first_air_date="2013-01-01",
+                media_type="tv",
+                popularity=90.0,  # Higher
+                confidence_score=0.8,  # Same
+                vote_average=8.5,
+                vote_count=2000,
+                overview="Test",
+                original_language="ja",
+                genre_ids=[16],
+            ),
+        ]
+
+        ranked = service.rank_candidates(candidates)
+
+        # Higher popularity should win tie-breaker
+        assert ranked[0].id == 2  # High Popularity
+        assert ranked[0].popularity == 90.0
+        assert ranked[1].id == 1  # Low Popularity
+        assert ranked[1].popularity == 40.0
+
+    def test_rank_candidates_single_candidate(self, service):
+        """Test rank_candidates with single candidate returns same."""
+        candidate = ScoredSearchResult(
+            id=1,
+            name="Only One",
+            first_air_date="2013-01-01",
+            media_type="tv",
+            popularity=50.0,
+            confidence_score=0.8,
+            vote_average=8.0,
+            vote_count=1000,
+            overview="Test",
+            original_language="ja",
+            genre_ids=[16],
+        )
+
+        ranked = service.rank_candidates([candidate])
+
+        assert len(ranked) == 1
+        assert ranked[0].id == 1
+        assert ranked[0].confidence_score == 0.8
+
+    def test_rank_candidates_preserves_all_fields(
+        self, service, scored_candidates_unordered
+    ):
+        """Test rank_candidates preserves all candidate fields."""
+        ranked = service.rank_candidates(scored_candidates_unordered)
+
+        # Verify all original fields are preserved
+        high_conf = ranked[0]  # Should be ID=2
+        assert high_conf.id == 2
+        assert high_conf.name == "High Confidence"
+        assert high_conf.first_air_date == "2013-01-01"
+        assert high_conf.media_type == "tv"
+        assert high_conf.popularity == 80.0
+        assert high_conf.confidence_score == 0.95
+        assert high_conf.vote_average == 8.5
+        assert high_conf.vote_count == 2000
+        assert high_conf.genre_ids == [16]

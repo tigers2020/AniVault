@@ -94,14 +94,14 @@ class ResultCollector(threading.Thread):
                     logger=logger,
                     error=infrastructure_error,
                     operation="poll_once",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             elif isinstance(e, AniVaultError):
                 log_operation_error(
                     logger=logger,
                     error=e,
                     operation="poll_once",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             else:
                 error = InfrastructureError(
@@ -114,7 +114,7 @@ class ResultCollector(threading.Thread):
                     logger=logger,
                     error=error,
                     operation="poll_once",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             raise InfrastructureError(
                 ErrorCode.COLLECTOR_ERROR,
@@ -137,14 +137,18 @@ class ResultCollector(threading.Thread):
             get_timeout: Timeout for queue.get() calls.
         """
         logger = logging.getLogger(__name__)
+        additional_data: dict[str, str | int | float | bool] = {
+            "collector_id": self.collector_id,
+            "idle_sleep": idle_sleep,
+        }
+        if max_idle_loops is not None:
+            additional_data["max_idle_loops"] = max_idle_loops
+        if get_timeout is not None:
+            additional_data["get_timeout"] = get_timeout
+
         context = ErrorContext(
             operation="collector_run",
-            additional_data={
-                "collector_id": self.collector_id,
-                "max_idle_loops": max_idle_loops,
-                "idle_sleep": idle_sleep,
-                "get_timeout": get_timeout,
-            },
+            additional_data=additional_data,
         )
 
         start_time = time.time()
@@ -190,7 +194,7 @@ class ResultCollector(threading.Thread):
                     "collector_id": self.collector_id,
                     "items_processed": len(self._results),
                 },
-                context=context.to_dict(),
+                context=context.safe_dict(),
             )
 
         except Exception as e:
@@ -207,14 +211,14 @@ class ResultCollector(threading.Thread):
                     logger=logger,
                     error=infrastructure_error,
                     operation="collector_run",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             elif isinstance(e, AniVaultError):
                 log_operation_error(
                     logger=logger,
                     error=e,
                     operation="collector_run",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             else:
                 error = InfrastructureError(
@@ -227,7 +231,7 @@ class ResultCollector(threading.Thread):
                     logger=logger,
                     error=error,
                     operation="collector_run",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             raise InfrastructureError(
                 ErrorCode.COLLECTOR_ERROR,
@@ -329,7 +333,7 @@ class ResultCollector(threading.Thread):
                 operation="store_result",
                 duration_ms=0.0,
                 result_info={"result_status": result.get("status", "unknown")},
-                context=context.to_dict(),
+                context=context.safe_dict(),
             )
         except Exception as e:
             # Convert regular exception to InfrastructureError for logging
@@ -344,14 +348,14 @@ class ResultCollector(threading.Thread):
                     logger=logger,
                     error=infrastructure_error,
                     operation="store_result",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             elif isinstance(e, AniVaultError):
                 log_operation_error(
                     logger=logger,
                     error=e,
                     operation="store_result",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             else:
                 error = InfrastructureError(
@@ -364,7 +368,7 @@ class ResultCollector(threading.Thread):
                     logger=logger,
                     error=error,
                     operation="store_result",
-                    context=context.to_dict(),
+                    context=context.safe_dict(),
                 )
             raise InfrastructureError(
                 ErrorCode.COLLECTOR_ERROR,
@@ -411,14 +415,14 @@ class ResultCollector(threading.Thread):
                 logger=logger,
                 error=infrastructure_error,
                 operation="queue_operation",
-                context=context.to_dict(),
+                context=context.safe_dict(),
             )
         elif isinstance(error, AniVaultError):
             log_operation_error(
                 logger=logger,
                 error=error,
                 operation="queue_operation",
-                context=context.to_dict(),
+                context=context.safe_dict(),
             )
         else:
             infrastructure_error = InfrastructureError(
@@ -431,7 +435,7 @@ class ResultCollector(threading.Thread):
                 logger=logger,
                 error=infrastructure_error,
                 operation="queue_operation",
-                context=context.to_dict(),
+                context=context.safe_dict(),
             )
 
         # For critical errors, re-raise as InfrastructureError

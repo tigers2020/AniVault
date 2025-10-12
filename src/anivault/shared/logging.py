@@ -127,24 +127,26 @@ def log_operation_error(
         operation: 작업 이름 (선택사항)
         context: 추가 컨텍스트 정보 (선택사항)
     """
-    # 컨텍스트 정보 준비
+    # 컨텍스트 정보 준비 with PII masking
     context_dict: dict[str, Any] = {}
 
-    # 에러의 기본 컨텍스트 정보 추가
+    # 에러의 기본 컨텍스트 정보 추가 (safe_dict for PII masking)
     if error.context:
-        context_dict.update(error.context.to_dict())
+        context_dict.update(error.context.safe_dict())
 
     # 추가 컨텍스트 정보 병합
     if context:
-        if hasattr(context, "to_dict"):
-            context_dict.update(context.to_dict())
+        if hasattr(context, "safe_dict"):
+            context_dict.update(context.safe_dict())
+        elif hasattr(context, "model_dump"):
+            context_dict.update(context.model_dump(exclude_none=True))
         else:
             context_dict.update(context)
 
     # additional_context 정보 병합
     if additional_context:
         if isinstance(additional_context, ErrorContext):
-            context_dict.update(additional_context.to_dict())
+            context_dict.update(additional_context.safe_dict())
         else:
             context_dict.update(additional_context)
 
@@ -180,15 +182,20 @@ def log_operation_success(
         result_info: 결과 정보 (선택사항)
         context: 컨텍스트 정보 (선택사항)
     """
-    # 컨텍스트를 딕셔너리로 변환
+    # 컨텍스트를 딕셔너리로 변환 with PII masking
     context_dict: dict[str, Any] = {}
     if context:
-        context_dict = context.to_dict() if hasattr(context, "to_dict") else context
+        if hasattr(context, "safe_dict"):
+            context_dict = context.safe_dict()
+        elif hasattr(context, "model_dump"):
+            context_dict = context.model_dump(exclude_none=True)
+        else:
+            context_dict = context
 
     # additional_context 정보 병합
     if additional_context:
         if isinstance(additional_context, ErrorContext):
-            context_dict.update(additional_context.to_dict())
+            context_dict.update(additional_context.safe_dict())
         else:
             context_dict.update(additional_context)
 

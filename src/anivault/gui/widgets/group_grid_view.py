@@ -19,6 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.shared.constants.gui_messages import UIConfig
+
 from .group_card_widget import GroupCardWidget
 
 logger = logging.getLogger(__name__)
@@ -49,8 +51,13 @@ class GroupGridViewWidget(QScrollArea):
 
         # Main grid layout
         self.grid_layout = QGridLayout(self.scroll_content)
-        self.grid_layout.setSpacing(10)
-        self.grid_layout.setContentsMargins(10, 10, 10, 10)
+        self.grid_layout.setSpacing(UIConfig.GRID_SPACING)
+        self.grid_layout.setContentsMargins(
+            UIConfig.GRID_MARGIN,
+            UIConfig.GRID_MARGIN,
+            UIConfig.GRID_MARGIN,
+            UIConfig.GRID_MARGIN,
+        )
 
         # Configure scroll area
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)

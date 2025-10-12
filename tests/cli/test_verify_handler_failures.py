@@ -13,22 +13,17 @@ from unittest.mock import Mock, patch
 import pytest
 
 from anivault.cli.common.models import VerifyOptions
-from anivault.cli.verify_handler import _collect_verify_data
+from anivault.cli.helpers.verify import collect_verify_data
 from anivault.shared.errors import ApplicationError, ErrorCode, InfrastructureError
 
 
 class TestCollectVerifyDataFailures:
     """_collect_verify_data() 실패 케이스 테스트."""
 
-    def test_search_error_returns_failed_status(self):
+    def test_search_error_returns_failed_status(self) -> None:
         """search_media 에러 시 FAILED 상태로 반환 (graceful)."""
-        # Given: Mock options
-        options = Mock()
-        options.tmdb = True
-        options.all_components = False
-
         # Mock TMDBClient
-        with patch("anivault.services.TMDBClient") as mock_client_class:
+        with patch("anivault.cli.helpers.verify.TMDBClient") as mock_client_class:
             mock_client = Mock()
 
             # search_media 실패
@@ -39,22 +34,17 @@ class TestCollectVerifyDataFailures:
             mock_client_class.return_value = mock_client
 
             # When
-            result = _collect_verify_data(options)
+            result = collect_verify_data(verify_tmdb=True, verify_all=False)
 
             # Then: graceful degradation - FAILED 상태 반환
             assert result is not None
             assert result["tmdb_api"]["status"] == "FAILED"
             assert result["verification_status"] == "FAILED"
 
-    def test_valid_verification_returns_dict(self):
+    def test_valid_verification_returns_dict(self) -> None:
         """유효한 검증 시 dict 반환."""
-        # Given: Mock options
-        options = Mock()
-        options.tmdb = True
-        options.all_components = False
-
         # Mock TMDBClient
-        with patch("anivault.services.TMDBClient") as mock_client_class:
+        with patch("anivault.cli.helpers.verify.TMDBClient") as mock_client_class:
             mock_client = Mock()
 
             # search_media는 async이므로 coroutine 반환
@@ -65,7 +55,7 @@ class TestCollectVerifyDataFailures:
             mock_client_class.return_value = mock_client
 
             # When
-            result = _collect_verify_data(options)
+            result = collect_verify_data(verify_tmdb=True, verify_all=False)
 
             # Then
             assert result is not None

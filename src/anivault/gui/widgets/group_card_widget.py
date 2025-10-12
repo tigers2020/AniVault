@@ -49,14 +49,20 @@ class GroupCardWidget(QFrame):
 
     def _setup_card(self) -> None:
         """Set up the card layout and styling (TMDB-style horizontal layout)."""
-        self.setFrameStyle(QFrame.Box | QFrame.Raised)
-        self.setLineWidth(1)
+        # Explicitly set NoFrame to remove QFrame's default border
+        # QSS themes will control borders (none by default, visible on hover/selected)
+        self.setFrameShape(QFrame.NoFrame)
         # Note: Size is now handled by the central QSS theme system
 
         # Main horizontal layout (TMDB style: poster on left, info on right)
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+        )
+        main_layout.setSpacing(UIConfig.GROUP_CARD_MAIN_SPACING)
 
         # Left: Poster image
         poster_label = self._create_poster_widget()
@@ -64,7 +70,7 @@ class GroupCardWidget(QFrame):
 
         # Right: Information layout
         info_layout = QVBoxLayout()
-        info_layout.setSpacing(5)
+        info_layout.setSpacing(UIConfig.GROUP_CARD_INFO_SPACING)
 
         # Get anime info first to determine what to display
         anime_info = self._get_anime_info()
@@ -82,7 +88,7 @@ class GroupCardWidget(QFrame):
                 full_title = title_text
 
             # Truncate title for display (keep full title in tooltip)
-            display_title = self._truncate_group_name(
+            display_title = self._truncate_text(
                 full_title,
                 max_length=UIConfig.GROUP_CARD_TITLE_MAX_LENGTH,
             )
@@ -102,7 +108,7 @@ class GroupCardWidget(QFrame):
                 date_label.setObjectName("groupDateLabel")
                 info_layout.addWidget(date_label)
 
-            # Overview/Description section (2-3 lines with ellipsis)
+            # Overview/Description section (3-4 lines with ellipsis)
             overview = anime_info.get("overview", UIConfig.NO_OVERVIEW)
             if overview:
                 truncated_overview = self._truncate_text(
@@ -112,6 +118,7 @@ class GroupCardWidget(QFrame):
                 overview_label = QLabel(truncated_overview)
                 overview_label.setObjectName("groupOverviewLabel")
                 overview_label.setWordWrap(True)
+                # Height constraints defined in QSS (common.qss: max-height: 72px)
                 overview_label.setToolTip(overview)  # Full text on hover
                 info_layout.addWidget(overview_label)
 
@@ -122,7 +129,9 @@ class GroupCardWidget(QFrame):
 
         else:
             # No TMDB data - show file-based info
-            display_name = self._truncate_group_name(self.group_name, max_length=40)
+            display_name = self._truncate_text(
+                self.group_name, max_length=UIConfig.GROUP_CARD_NAME_MAX_LENGTH
+            )
             title_label = QLabel(f"📁 {display_name}")
             title_label.setObjectName("groupTitleLabel")
             title_label.setWordWrap(True)
@@ -168,14 +177,20 @@ class GroupCardWidget(QFrame):
         """
         poster_label = QLabel()
         poster_label.setObjectName("posterLabel")
-        poster_label.setFixedSize(QSize(100, 150))  # 2:3 aspect ratio
+        poster_label.setFixedSize(
+            QSize(UIConfig.POSTER_WIDTH, UIConfig.POSTER_HEIGHT)
+        )  # 2:3 aspect ratio
         poster_label.setAlignment(Qt.AlignCenter)
+
+        # Explicitly remove any frame styling (QLabel inherits from QFrame)
+        poster_label.setFrameShape(QFrame.NoFrame)
+        poster_label.setLineWidth(0)
 
         # Try to load poster from TMDB data
         anime_info = self._get_anime_info()
-        logger.info(
+        logger.debug(
             "🎨 Creating poster for group '%s': anime_info=%s",
-            self.group_name[:30],
+            self.group_name[: UIConfig.LOG_TRUNCATE_LENGTH],
             "YES" if anime_info else "NO",
         )
 
@@ -183,10 +198,18 @@ class GroupCardWidget(QFrame):
             poster_path = anime_info.get("poster_path")
             # Try both 'title' and 'name' fields (TMDB uses different fields for movies vs TV)
             title = anime_info.get("title") or anime_info.get("name") or "?"
-            logger.info(
+            logger.debug(
                 "🎨 Poster widget - title: '%s', poster_path: %s",
-                title[:30] if title and title != "?" else "None",
-                poster_path[:30] if poster_path else "None",
+                (
+                    title[: UIConfig.LOG_TRUNCATE_LENGTH]
+                    if title and title != "?"
+                    else "None"
+                ),
+                (
+                    poster_path[: UIConfig.LOG_TRUNCATE_LENGTH]
+                    if poster_path
+                    else "None"
+                ),
             )
 
             # Try to load actual poster image from TMDB
@@ -196,13 +219,16 @@ class GroupCardWidget(QFrame):
                 if pixmap and not pixmap.isNull():
                     # Successfully loaded cached poster image
                     scaled_pixmap = pixmap.scaled(
-                        100,
-                        150,
+                        UIConfig.POSTER_WIDTH,
+                        UIConfig.POSTER_HEIGHT,
                         Qt.KeepAspectRatio,
                         Qt.SmoothTransformation,
                     )
                     poster_label.setPixmap(scaled_pixmap)
-                    logger.info("✅ Loaded cached poster image for: %s", title[:30])
+                    logger.debug(
+                        "✅ Loaded cached poster image for: %s",
+                        title[: UIConfig.LOG_TRUNCATE_LENGTH],
+                    )
                     return poster_label
                 # If pixmap is None, async download started - show placeholder
                 # and poster will be updated when download completes
@@ -212,10 +238,10 @@ class GroupCardWidget(QFrame):
                 initial = title[0].upper()
                 poster_label.setText(f"🎬\n{initial}")
                 poster_label.setObjectName("posterInitial")
-                logger.info(
+                logger.debug(
                     "🎨 Set poster to initial '%s' for: %s",
                     initial,
-                    title[:30],
+                    title[: UIConfig.LOG_TRUNCATE_LENGTH],
                 )
             else:
                 # Has poster_path but title is Unknown
@@ -291,7 +317,7 @@ class GroupCardWidget(QFrame):
                     if hasattr(match_result, "to_dict"):
                         match_result_dict = match_result.to_dict()
                         title = match_result_dict.get("title", UIConfig.UNKNOWN_TITLE)
-                        logger.info(
+                        logger.debug(
                             "✓ Found match_result in ParsingResult.other_info: %s",
                             title,
                         )
@@ -302,7 +328,7 @@ class GroupCardWidget(QFrame):
                         or match_result.get("name")
                         or UIConfig.UNKNOWN_TITLE
                     )
-                    logger.info(
+                    logger.debug(
                         "✓ Found match_result in ParsingResult.other_info: %s",
                         title,
                     )
@@ -357,7 +383,7 @@ class GroupCardWidget(QFrame):
         if meta:
             parsed_title = getattr(meta, "title", None)
             if parsed_title and parsed_title.strip():
-                return self._truncate_text(parsed_title, 20)
+                return self._truncate_text(parsed_title, UIConfig.FILE_HINT_MAX_LENGTH)
 
         # Fallback to filename stem
         file_path = getattr(first_file, "file_path", None)
@@ -367,12 +393,14 @@ class GroupCardWidget(QFrame):
             stem = stem.replace(".", " ").replace("_", " ").replace("-", " ")
             stem = " ".join(stem.split())  # Remove extra whitespace
             if stem:
-                return self._truncate_text(stem, 20)
+                return self._truncate_text(stem, UIConfig.FILE_HINT_MAX_LENGTH)
 
         # Final fallback
         return "Unknown title"
 
-    def _truncate_text(self, text: str, max_length: int = 30) -> str:
+    def _truncate_text(
+        self, text: str, max_length: int = UIConfig.DEFAULT_TRUNCATE_LENGTH
+    ) -> str:
         """
         Truncate text to specified length with ellipsis.
 
@@ -421,7 +449,9 @@ class GroupCardWidget(QFrame):
 
         # Position popup to the right of the card
         card_pos = self.mapToGlobal(self.rect().topRight())
-        self._detail_popup.move(card_pos.x() + 10, card_pos.y())
+        self._detail_popup.move(
+            card_pos.x() + UIConfig.POPUP_POSITION_OFFSET, card_pos.y()
+        )
 
         # Ensure popup is on top
         self._detail_popup.raise_()
@@ -440,23 +470,6 @@ class GroupCardWidget(QFrame):
             self._detail_popup.deleteLater()
             self._detail_popup = None
             logger.debug("Hiding anime detail popup")
-
-    def _truncate_group_name(self, group_name: str, max_length: int = 25) -> str:
-        """
-        Truncate group name to specified length with ellipsis.
-
-        Args:
-            group_name: Group name to truncate
-            max_length: Maximum length before truncation
-
-        Returns:
-            Truncated group name with ellipsis if needed
-        """
-        if len(group_name) <= max_length:
-            return group_name
-
-        # Truncate and add ellipsis
-        return group_name[: max_length - 3] + "..."
 
     def _show_context_menu(self, position) -> None:
         """
@@ -509,7 +522,7 @@ class GroupCardWidget(QFrame):
         try:
             # TMDB image configuration
             tmdb_image_base_url = "https://image.tmdb.org/t/p/"
-            poster_size = "w185"  # Small poster size for cards
+            poster_size = UIConfig.TMDB_POSTER_SIZE  # Small poster size for cards
 
             # Create cache directory
             cache_dir = Path.home() / ".anivault" / "cache" / "posters"
@@ -528,11 +541,11 @@ class GroupCardWidget(QFrame):
 
             # Download from TMDB asynchronously (non-blocking)
             image_url = f"{tmdb_image_base_url}{poster_size}{poster_path}"
-            logger.info("⬇️ Downloading poster asynchronously: %s", image_url)
+            logger.debug("⬇️ Downloading poster asynchronously: %s", image_url)
 
             # Create network request
             request = QNetworkRequest(QUrl(image_url))
-            request.setTransferTimeout(5000)  # 5 second timeout
+            request.setTransferTimeout(UIConfig.NETWORK_TIMEOUT_MS)  # Network timeout
 
             # Start async download
             reply = self._network_manager.get(request)
@@ -588,7 +601,7 @@ class GroupCardWidget(QFrame):
             # Save to cache
             try:
                 cache_file.write_bytes(image_data.data())
-                logger.info("💾 Cached poster: %s", cache_file.name)
+                logger.debug("💾 Cached poster: %s", cache_file.name)
             except Exception as e:  # noqa: BLE001 - GUI poster cache error fallback
                 logger.warning("❌ Failed to cache poster: %s", e)
 
@@ -597,13 +610,13 @@ class GroupCardWidget(QFrame):
             if pixmap.loadFromData(image_data):
                 # Update poster label with downloaded image
                 scaled_pixmap = pixmap.scaled(
-                    100,
-                    150,
+                    UIConfig.POSTER_WIDTH,
+                    UIConfig.POSTER_HEIGHT,
                     Qt.KeepAspectRatio,
                     Qt.SmoothTransformation,
                 )
                 poster_label.setPixmap(scaled_pixmap)
-                logger.info("✅ Downloaded and displayed poster: %s", cache_file.name)
+                logger.debug("✅ Downloaded and displayed poster: %s", cache_file.name)
             else:
                 logger.warning("❌ Failed to load QPixmap from downloaded data")
 

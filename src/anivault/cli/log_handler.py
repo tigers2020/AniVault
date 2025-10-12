@@ -1,7 +1,7 @@
 """Log command handler for AniVault CLI.
 
-This module contains the business logic for the log command,
-separated for better maintainability and single responsibility principle.
+Refactored to use decorator pattern for cleaner, more maintainable code.
+Core logic moved to cli.helpers.log module.
 """
 
 from __future__ import annotations
@@ -9,72 +9,58 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 
 from anivault.cli.common.context import get_cli_context
-from anivault.cli.common.models import DirectoryPath, LogOptions
+from anivault.cli.common.error_decorator import handle_cli_errors
+from anivault.cli.common.setup_decorator import setup_handler
+from anivault.cli.helpers.log import collect_log_list_data, print_log_list
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants import CLI, FileSystem
-from anivault.shared.errors import (
-    ApplicationError,
-    ErrorCode,
-    ErrorContext,
-    InfrastructureError,
-)
+from anivault.shared.constants import CLI, CLIDefaults, FileSystem
+from anivault.shared.types.cli import CLIDirectoryPath, LogOptions
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 logger = logging.getLogger(__name__)
 
 
-def handle_log_command(options: LogOptions) -> int:
+@setup_handler(supports_json=True)
+@handle_cli_errors(operation="handle_log", command_name="log")
+def handle_log_command(options: LogOptions, **kwargs: Any) -> int:
     """Handle the log command.
 
     Args:
         options: Validated log command options
+        **kwargs: Injected by decorators (console, logger_adapter)
 
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    logger.info(CLI.INFO_COMMAND_STARTED.format(command="log"))
+    from rich.console import Console as RichConsole
 
-    try:
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            return _handle_log_command_json(options)
-        return _handle_log_command_console(options)
+    console: Console = kwargs.get("console") or RichConsole()
+    logger_adapter = kwargs.get("logger_adapter", logger)
 
-    except Exception as e:
-        context = get_cli_context()
-        if context and context.is_json_output_enabled():
-            error_output = format_json_output(
-                success=False,
-                command="log",
-                errors=[f"Error during log operation: {e}"],
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-        else:
-            from rich.console import Console
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command="log"))
 
-            console = Console()
-            console.print(f"[red]Error during log operation: {e}[/red]")
-        logger.exception("Error in log command")
-        return 1
+    # Extract log directory path
+    log_dir = (
+        options.log_dir.path
+        if hasattr(options.log_dir, "path")
+        else Path(str(options.log_dir))
+    )
 
+    # Check if JSON output is enabled
+    context = get_cli_context()
+    is_json_output = bool(context and context.is_json_output_enabled())
 
-def _handle_log_command_json(options: LogOptions) -> int:
-    """Handle log command with JSON output.
-
-    Args:
-        options: Validated log command options
-
-    Returns:
-        Exit code (0 for success, non-zero for error)
-    """
-    try:
-        if options.log_command == "list":
-            log_data = _collect_log_list_data(options)
+    # Handle list command
+    if options.log_command == "list":
+        if is_json_output:
+            log_data = collect_log_list_data(log_dir)
             output = format_json_output(
                 success=True,
                 command="log",
@@ -82,7 +68,16 @@ def _handle_log_command_json(options: LogOptions) -> int:
             )
             sys.stdout.buffer.write(output)
             sys.stdout.buffer.write(b"\n")
-            return 0
+            sys.stdout.buffer.flush()
+            return CLIDefaults.EXIT_SUCCESS
+
+        exit_code = print_log_list(log_dir, console)
+        if exit_code == CLIDefaults.EXIT_SUCCESS:
+            logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command="log"))
+        return exit_code
+
+    # Unknown command
+    if is_json_output:
         error_output = format_json_output(
             success=False,
             command="log",
@@ -90,240 +85,11 @@ def _handle_log_command_json(options: LogOptions) -> int:
         )
         sys.stdout.buffer.write(error_output)
         sys.stdout.buffer.write(b"\n")
-        return 1
+        sys.stdout.buffer.flush()
+    else:
+        console.print("[red]Error: No log command specified[/red]")
 
-    except Exception as e:
-        error_output = format_json_output(
-            success=False,
-            command="log",
-            errors=[f"Error during log operation: {e}"],
-        )
-        sys.stdout.buffer.write(error_output)
-        sys.stdout.buffer.write(b"\n")
-        logger.exception("Error in log command JSON output")
-        return 1
-
-
-def _handle_log_command_console(options: LogOptions) -> int:
-    """Handle log command with console output.
-
-    Args:
-        options: Validated log command options
-
-    Returns:
-        Exit code (0 for success, non-zero for error)
-    """
-    try:
-        from rich.console import Console
-
-        console = Console()
-
-        if options.log_command == "list":
-            result = _run_log_list_command_impl(options, console)
-        else:
-            console.print("[red]Error: No log command specified[/red]")
-            result = 1
-
-        if result == 0:
-            logger.info(CLI.INFO_COMMAND_COMPLETED.format(command="log"))
-        else:
-            logger.error("Log command failed with exit code %s", result)
-
-        return result
-
-    except Exception as e:
-        from rich.console import Console
-
-        console = Console()
-        console.print(f"[red]Error during log operation: {e}[/red]")
-        logger.exception("Error in log command")
-        return 1
-
-
-def _collect_log_list_data(options: LogOptions) -> dict[str, Any]:
-    """Collect log list data for JSON output.
-
-    Args:
-        options: Validated log command options
-
-    Returns:
-        Dictionary containing log list data
-
-    Raises:
-        InfrastructureError: If file system access fails
-        ApplicationError: If data processing fails
-    """
-    try:
-        # Get log directory
-        log_dir = options.log_dir.path
-        if not log_dir.exists():
-            return {
-                "error": f"Log directory does not exist: {log_dir}",
-                "log_files": [],
-                "total_files": 0,
-            }
-
-        # Find log files
-        log_files = list(log_dir.glob(FileSystem.LOG_FILE_PATTERN))
-        if not log_files:
-            return {
-                "message": "No log files found",
-                "log_files": [],
-                "total_files": 0,
-            }
-
-        # Sort by modification time (newest first)
-        log_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-
-        # Collect file information
-        log_data = []
-        for log_file in log_files:
-            stat = log_file.stat()
-            size = stat.st_size
-            modified = stat.st_mtime
-
-            # Format size
-            if size < 1024:
-                size_str = f"{size} B"
-            elif size < 1024 * 1024:
-                size_str = f"{size / 1024:.1f} KB"
-            else:
-                size_str = f"{size / (1024 * 1024):.1f} MB"
-
-            # Format modification time
-            from datetime import datetime, timezone
-
-            modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S",
-            )
-
-            log_data.append(
-                {
-                    "file": log_file.name,
-                    "size": size_str,
-                    "size_bytes": size,
-                    "modified": modified_str,
-                    "modified_timestamp": modified,
-                },
-            )
-
-        return {
-            "log_files": log_data,
-            "total_files": len(log_data),
-        }
-
-    except OSError as e:
-        # File system I/O error
-        raise InfrastructureError(
-            code=ErrorCode.FILE_ACCESS_ERROR,
-            message=f"Failed to access log files: {e}",
-            context=ErrorContext(
-                operation="collect_log_list_data",
-                additional_data={
-                    "log_dir": str(options.log_dir.path),
-                    "error_type": type(e).__name__,
-                },
-            ),
-            original_error=e,
-        ) from e
-    except (ValueError, KeyError, AttributeError) as e:
-        # Data processing error
-        raise ApplicationError(
-            code=ErrorCode.DATA_PROCESSING_ERROR,
-            message=f"Failed to process log data: {e}",
-            context=ErrorContext(
-                operation="collect_log_list_data",
-                additional_data={
-                    "log_dir": str(options.log_dir.path),
-                    "error_type": type(e).__name__,
-                },
-            ),
-            original_error=e,
-        ) from e
-    except Exception as e:
-        # Unexpected error
-        raise ApplicationError(
-            code=ErrorCode.APPLICATION_ERROR,
-            message=f"Unexpected error collecting log list data: {e}",
-            context=ErrorContext(
-                operation="collect_log_list_data",
-                additional_data={
-                    "log_dir": str(options.log_dir.path),
-                    "error_type": type(e).__name__,
-                },
-            ),
-            original_error=e,
-        ) from e
-
-
-def _run_log_list_command_impl(options: LogOptions, console: Any) -> int:
-    """Run the log list command.
-
-    Args:
-        options: Validated log command options
-        console: Rich console instance
-
-    Returns:
-        Exit code (0 for success, non-zero for error)
-    """
-    try:
-        from rich.table import Table
-
-        # Get log directory
-        log_dir = options.log_dir.path
-        if not log_dir.exists():
-            console.print(f"[red]Log directory does not exist: {log_dir}[/red]")
-            return 1
-
-        # Find log files
-        log_files = list(log_dir.glob(FileSystem.LOG_FILE_PATTERN))
-        if not log_files:
-            console.print("[yellow]No log files found[/yellow]")
-            return 0
-
-        # Create table
-        table = Table(title="Log Files")
-        table.add_column("File", style="cyan")
-        table.add_column("Size", style="blue")
-        table.add_column("Modified", style="green")
-
-        # Sort by modification time (newest first)
-        log_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-
-        # Add rows
-        for log_file in log_files:
-            stat = log_file.stat()
-            size = stat.st_size
-            modified = stat.st_mtime
-
-            # Format size
-            if size < 1024:
-                size_str = f"{size} B"
-            elif size < 1024 * 1024:
-                size_str = f"{size / 1024:.1f} KB"
-            else:
-                size_str = f"{size / (1024 * 1024):.1f} MB"
-
-            # Format modification time
-            from datetime import datetime, timezone
-
-            modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S",
-            )
-
-            table.add_row(
-                log_file.name,
-                size_str,
-                modified_str,
-            )
-
-        console.print(table)
-        return 0
-
-    except Exception as e:
-        console.print(f"[red]Error listing log files: {e}[/red]")
-        logger.exception("Log list error")
-        return 1
+    return CLIDefaults.EXIT_ERROR
 
 
 def log_command(
@@ -341,8 +107,7 @@ def log_command(
         readable=True,
     ),
 ) -> None:
-    """
-    Manage and view log files.
+    """Manage and view log files.
 
     This command provides utilities for viewing and managing AniVault log files.
     It can list available log files, show log contents, and tail log files in real-time.
@@ -364,13 +129,13 @@ def log_command(
         # Create and validate options using Pydantic
         options = LogOptions(
             log_command=command,
-            log_dir=DirectoryPath(path=log_dir),
+            log_dir=CLIDirectoryPath(path=log_dir),
         )
 
         # Call the handler with validated options
         exit_code = handle_log_command(options)
 
-        if exit_code != 0:
+        if exit_code != CLIDefaults.EXIT_SUCCESS:
             raise typer.Exit(exit_code)
 
     except Exception as e:
@@ -379,4 +144,4 @@ def log_command(
 
         console = Console()
         console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1) from e
+        raise typer.Exit(CLIDefaults.EXIT_ERROR) from e

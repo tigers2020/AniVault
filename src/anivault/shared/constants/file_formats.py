@@ -125,7 +125,7 @@ class VideoQuality:
             True if high resolution, False otherwise
         """
         if not quality:
-            return True  # Default to high resolution if unknown
+            return False  # Default to low resolution if unknown
 
         quality_upper = quality.upper()
 
@@ -139,8 +139,8 @@ class VideoQuality:
             if low_res.upper() in quality_upper:
                 return False
 
-        # Default to high resolution if pattern not recognized
-        return True
+        # Default to low resolution if pattern not recognized
+        return False
 
 
 class ExclusionPatterns:

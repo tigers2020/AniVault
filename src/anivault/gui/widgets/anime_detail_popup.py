@@ -12,6 +12,8 @@ import logging
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
+from anivault.shared.constants.gui_messages import UIConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,12 +38,19 @@ class AnimeDetailPopup(QFrame):
     def _setup_ui(self) -> None:
         """Set up the popup UI."""
         self.setObjectName("animeDetailPopup")
-        self.setMinimumWidth(300)
-        self.setMaximumWidth(400)
+        self.setMinimumWidth(UIConfig.POPUP_MIN_WIDTH)
+        self.setMaximumWidth(UIConfig.POPUP_MAX_WIDTH)
+        self.setMinimumHeight(UIConfig.POPUP_MIN_HEIGHT)
+        self.setMaximumHeight(UIConfig.POPUP_MAX_HEIGHT)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+        layout.setContentsMargins(
+            UIConfig.POPUP_CONTENT_MARGIN,
+            UIConfig.POPUP_CONTENT_MARGIN,
+            UIConfig.POPUP_CONTENT_MARGIN,
+            UIConfig.POPUP_CONTENT_MARGIN,
+        )
+        layout.setSpacing(UIConfig.POPUP_CONTENT_SPACING)
 
         # Title
         title = self.anime_info.get("title") or self.anime_info.get("name") or "Unknown"
@@ -99,14 +108,17 @@ class AnimeDetailPopup(QFrame):
             company_label.setWordWrap(True)
             layout.addWidget(company_label)
 
-        # Overview (truncate if too long, max 200 chars)
+        # Overview (show full text with word wrap)
         overview = self.anime_info.get("overview")
         if overview:
-            if len(overview) > 200:
-                overview = overview[:197] + "..."
+            # Allow longer overview text to show more context
+            if len(overview) > UIConfig.POPUP_OVERVIEW_MAX_CHARS:
+                overview = overview[: UIConfig.POPUP_OVERVIEW_MAX_CHARS - 3] + "..."
             overview_label = QLabel(overview)
             overview_label.setObjectName("popupOverviewLabel")
             overview_label.setWordWrap(True)
+            # Allow label to expand vertically for longer text
+            overview_label.setMinimumHeight(UIConfig.POPUP_OVERVIEW_MIN_HEIGHT)
             layout.addWidget(overview_label)
 
         # Popularity score (if available)

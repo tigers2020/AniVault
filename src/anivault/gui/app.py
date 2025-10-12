@@ -59,14 +59,15 @@ class AniVaultGUI:
             # Initialize theme manager
             self.theme_manager = ThemeManager()
 
-            # Load and apply initial theme
-            self._load_initial_theme()
-
-            # Create main window
+            # Create main window BEFORE applying theme
+            # (theme application requires existing widgets to repolish)
             self.main_window = MainWindow()
 
             # Set theme manager in main window
             self.main_window.set_theme_manager(self.theme_manager)
+
+            # Load and apply initial theme AFTER window creation
+            self._load_initial_theme()
 
             # Setup auto scanner callback
             self._setup_auto_scanner()
@@ -114,21 +115,14 @@ class AniVaultGUI:
             config = get_config()
             saved_theme = config.app.theme
 
-            # Apply the theme
-            self.theme_manager.load_and_apply_theme(self.app, saved_theme)
+            # Apply the theme (app parameter is optional, auto-detected)
+            self.theme_manager.apply_theme(saved_theme, app=self.app)
 
             logger.info("Initial theme loaded: %s", saved_theme)
 
-        except Exception as e:  # noqa: BLE001 - GUI theme loading fallback
-            logger.warning("Failed to load initial theme, using default: %s", e)
-            # Fallback to default theme
-            try:
-                self.theme_manager.load_and_apply_theme(
-                    self.app,
-                    ThemeManager.DEFAULT_THEME,
-                )
-            except Exception:
-                logger.exception("Failed to apply fallback theme")
+        except Exception:
+            # Exception already handled by apply_theme's fallback chain
+            logger.exception("Theme loading failed, fallback applied")
 
     def _setup_auto_scanner(self) -> None:
         """Setup auto scanner with callback to main window."""

@@ -162,8 +162,51 @@ class UIConfig:
     """UI layout and display configuration constants."""
 
     # Text truncation limits
-    GROUP_CARD_TITLE_MAX_LENGTH = 50  # Group card title truncation
-    GROUP_CARD_OVERVIEW_MAX_LENGTH = 150  # Overview/description truncation
+    GROUP_CARD_TITLE_MAX_LENGTH = (
+        60  # Group card title truncation (increased for longer titles)
+    )
+    GROUP_CARD_OVERVIEW_MAX_LENGTH = (
+        180  # Overview/description truncation (~3-4 lines at 12px font)
+    )
+
+    # Group card poster dimensions
+    POSTER_WIDTH = 100  # Poster width (px) - 2:3 aspect ratio
+    POSTER_HEIGHT = 150  # Poster height (px) - 2:3 aspect ratio
+
+    # Anime detail popup dimensions
+    # Note: Group card height constraints (min/max) are defined in QSS (common.qss)
+    POPUP_MIN_WIDTH = 400  # Minimum popup width (px)
+    POPUP_MAX_WIDTH = 600  # Maximum popup width (px)
+    POPUP_MIN_HEIGHT = 200  # Minimum popup height (px)
+    POPUP_MAX_HEIGHT = 800  # Maximum popup height (px)
+    POPUP_OVERVIEW_MIN_HEIGHT = 40  # Minimum height for overview label (px)
+    POPUP_OVERVIEW_MAX_CHARS = 600  # Maximum characters for overview text
+
+    # Layout spacing constants
+    POPUP_CONTENT_MARGIN = 15  # Popup content margin (px)
+    POPUP_CONTENT_SPACING = 10  # Popup vertical spacing between elements (px)
+
+    # Group card layout spacing
+    GROUP_CARD_CONTENT_MARGIN = 10  # Card main layout margins (px)
+    GROUP_CARD_MAIN_SPACING = 15  # Card horizontal spacing between poster and info (px)
+    GROUP_CARD_INFO_SPACING = 5  # Card info vertical spacing between elements (px)
+
+    # Group grid layout spacing
+    GRID_SPACING = 10  # Grid spacing between cards (px)
+    GRID_MARGIN = 10  # Grid container margins (px)
+
+    # Text truncation defaults
+    DEFAULT_TRUNCATE_LENGTH = 30  # Default text truncation length
+    GROUP_CARD_NAME_MAX_LENGTH = 40  # File-based group name display length
+    FILE_HINT_MAX_LENGTH = 20  # File hint display length
+    LOG_TRUNCATE_LENGTH = 30  # Log output truncation length
+
+    # Popup positioning
+    POPUP_POSITION_OFFSET = 10  # Horizontal offset from card (px)
+
+    # TMDB API constants
+    TMDB_POSTER_SIZE = "w185"  # TMDB poster size for cards
+    NETWORK_TIMEOUT_MS = 5000  # Network request timeout (ms)
 
     # Default/fallback values
     UNKNOWN_TITLE = "Unknown"

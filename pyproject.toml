@@ -37,13 +37,13 @@ dev = [
     "pytest-httpx>=0.30.0",
     "pytest-benchmark>=4.0.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-xdist>=3.5.0",
     "hypothesis>=6.88.0",
     "memory-profiler>=0.61.0",
     "ruff>=0.6.0",
     "mypy>=1.10.0",
     "pre-commit>=3.7.0",
     "pyinstaller==6.16.0",
-    "pyyaml>=6.0.0",
 ]
 
 [project.scripts]
@@ -145,7 +145,9 @@ extend-exclude = '''
 
 [tool.mypy]
 python_version = "3.9"
+# TODO: Re-enable pydantic.mypy plugin after completing type migration (Task 1)
 # plugins = ["pydantic.mypy"]  # Temporarily disabled due to dependency issues
+# Required for full Pydantic v2 type checking integration with BaseTypeModel
 namespace_packages = true
 explicit_package_bases = true  # Enable to fix module path conflicts
 mypy_path = "src"

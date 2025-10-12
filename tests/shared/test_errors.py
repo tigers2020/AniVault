@@ -5,9 +5,12 @@ This module contains comprehensive unit tests for the error hierarchy
 defined in anivault.shared.errors module.
 """
 
-import dataclasses
+from decimal import Decimal
+from enum import Enum
+from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from anivault.shared.errors import (
     AniVaultError,
@@ -34,7 +37,7 @@ class TestErrorContext:
         assert context.file_path is None
         assert context.operation is None
         assert context.user_id is None
-        assert context.additional_data == {}  # Now returns empty dict instead of None
+        assert context.additional_data is None  # Pydantic model: None is default
 
     def test_context_with_data(self):
         """Test creating ErrorContext with data."""
@@ -51,8 +54,8 @@ class TestErrorContext:
         assert context.user_id == "user123"
         assert context.additional_data == additional_data
 
-    def test_asdict_serialization(self):
-        """Test converting ErrorContext to dictionary using asdict()."""
+    def test_model_dump_serialization(self):
+        """Test converting ErrorContext to dictionary using model_dump()."""
         additional_data = {"key": "value"}
         context = ErrorContext(
             file_path="/test/path",
@@ -61,7 +64,7 @@ class TestErrorContext:
             additional_data=additional_data,
         )
 
-        result = dataclasses.asdict(context)
+        result = context.model_dump()
         expected = {
             "file_path": "/test/path",
             "operation": "test_operation",
@@ -74,28 +77,28 @@ class TestErrorContext:
         """Test that ErrorContext is immutable (frozen)."""
         context = ErrorContext(file_path="/test/path")
 
-        # Attempting to modify any attribute should raise FrozenInstanceError
-        with pytest.raises(dataclasses.FrozenInstanceError):
+        # Attempting to modify any attribute should raise ValidationError (Pydantic frozen)
+        with pytest.raises(ValidationError):
             context.file_path = "/new/path"
 
-        with pytest.raises(dataclasses.FrozenInstanceError):
+        with pytest.raises(ValidationError):
             context.operation = "new_operation"
 
-        with pytest.raises(dataclasses.FrozenInstanceError):
+        with pytest.raises(ValidationError):
             context.additional_data = {"new": "data"}
 
-    def test_additional_data_factory(self):
-        """Test that each ErrorContext instance gets its own additional_data dict."""
+    def test_additional_data_none_default(self):
+        """Test that ErrorContext with no additional_data defaults to None."""
         context1 = ErrorContext()
         context2 = ErrorContext()
 
-        # Each instance should have its own dict
-        assert id(context1.additional_data) != id(context2.additional_data)
+        # Both should be None by default (not shared empty dict)
+        assert context1.additional_data is None
+        assert context2.additional_data is None
 
-        # Modifying one shouldn't affect the other
-        # (Note: The dict itself is mutable, but the field reference is immutable)
-        context1.additional_data["key"] = "value1"
-        assert "key" not in context2.additional_data
+        # Creating with explicit dict works
+        context3 = ErrorContext(additional_data={"key": "value"})
+        assert context3.additional_data == {"key": "value"}
 
     def test_equality_comparison(self):
         """Test that two ErrorContext instances with same data are equal."""
@@ -122,6 +125,190 @@ class TestErrorContext:
         assert "ErrorContext" in repr_str
         assert "file_path='/test/path'" in repr_str
         assert "operation='test_op'" in repr_str
+
+
+class TestErrorContextSafeDict:
+    """Test cases for ErrorContext safe_dict PII masking."""
+
+    def test_safe_dict_masks_user_id_by_default(self):
+        """Test that user_id is masked by default."""
+        context = ErrorContext(
+            user_id="sensitive_user_123",
+            file_path="/test/path",
+            operation="test_op",
+        )
+
+        safe = context.safe_dict()
+        assert "user_id" not in safe
+        assert safe["file_path"] == "/test/path"
+        assert safe["operation"] == "test_op"
+
+    def test_safe_dict_ensures_additional_data_present(self):
+        """Test that additional_data is always present (never None)."""
+        context1 = ErrorContext()
+        assert "additional_data" in context1.safe_dict()
+        assert context1.safe_dict()["additional_data"] == {}
+
+        context2 = ErrorContext(additional_data=None)
+        assert "additional_data" in context2.safe_dict()
+        assert context2.safe_dict()["additional_data"] == {}
+
+    def test_safe_dict_preserves_additional_data(self):
+        """Test that existing additional_data is preserved."""
+        context = ErrorContext(additional_data={"key": "value", "count": 42})
+
+        safe = context.safe_dict()
+        assert safe["additional_data"] == {"key": "value", "count": 42}
+
+    def test_safe_dict_custom_mask_keys(self):
+        """Test custom mask keys."""
+        context = ErrorContext(
+            user_id="user123",
+            file_path="/secret/path",
+            operation="secret_op",
+        )
+
+        # Mask file_path and operation instead
+        safe = context.safe_dict(mask_keys=("file_path", "operation"))
+        assert "file_path" not in safe
+        assert "operation" not in safe
+        assert safe["user_id"] == "user123"  # Not masked
+
+    def test_safe_dict_empty_mask_keys(self):
+        """Test with empty mask keys (no masking)."""
+        context = ErrorContext(
+            user_id="user123", file_path="/test", operation="test_op"
+        )
+
+        safe = context.safe_dict(mask_keys=())
+        assert safe["user_id"] == "user123"
+        assert safe["file_path"] == "/test"
+        assert safe["operation"] == "test_op"
+
+    def test_safe_dict_excludes_none_values(self):
+        """Test that None values are excluded by default."""
+        context = ErrorContext(file_path="/test", operation=None)
+
+        safe = context.safe_dict()
+        assert "file_path" in safe
+        assert "operation" not in safe  # None excluded
+        assert "user_id" not in safe  # None and masked
+
+
+class TestErrorContextValidator:
+    """Test cases for ErrorContext validator (_coerce_primitives)."""
+
+    def test_primitive_types_passthrough(self):
+        """Test that primitive types pass through unchanged."""
+        context = ErrorContext(
+            additional_data={
+                "str_value": "test",
+                "int_value": 42,
+                "float_value": 3.14,
+                "bool_value": True,
+            }
+        )
+
+        assert context.additional_data["str_value"] == "test"
+        assert context.additional_data["int_value"] == 42
+        assert context.additional_data["float_value"] == 3.14
+        assert context.additional_data["bool_value"] is True
+
+    def test_path_conversion(self):
+        """Test that Path objects are converted to strings."""
+        test_path = Path("/test/path/file.txt")
+        context = ErrorContext(additional_data={"file_path": test_path})
+
+        # Path is converted to string (OS-dependent format)
+        assert context.additional_data["file_path"] == str(test_path)
+        assert isinstance(context.additional_data["file_path"], str)
+
+    def test_enum_conversion(self):
+        """Test that Enum values are converted to their values."""
+
+        class TestEnum(Enum):
+            VALUE_A = "a"
+            VALUE_B = 42
+
+        context = ErrorContext(
+            additional_data={"enum_str": TestEnum.VALUE_A, "enum_int": TestEnum.VALUE_B}
+        )
+
+        assert context.additional_data["enum_str"] == "a"
+        assert context.additional_data["enum_int"] == 42
+
+    def test_decimal_conversion(self):
+        """Test that Decimal values are converted to floats."""
+        decimal_value = Decimal("123.456")
+        context = ErrorContext(additional_data={"decimal_value": decimal_value})
+
+        assert context.additional_data["decimal_value"] == 123.456
+        assert isinstance(context.additional_data["decimal_value"], float)
+
+    def test_mixed_types_conversion(self):
+        """Test conversion of mixed types in additional_data."""
+
+        class Status(Enum):
+            PENDING = "pending"
+
+        test_path = Path("/test/path")
+        context = ErrorContext(
+            additional_data={
+                "str_val": "test",
+                "int_val": 42,
+                "path_val": test_path,
+                "enum_val": Status.PENDING,
+                "decimal_val": Decimal("99.99"),
+            }
+        )
+
+        assert context.additional_data["str_val"] == "test"
+        assert context.additional_data["int_val"] == 42
+        assert context.additional_data["path_val"] == str(test_path)
+        assert context.additional_data["enum_val"] == "pending"
+        assert context.additional_data["decimal_val"] == 99.99
+
+    def test_none_additional_data(self):
+        """Test that None additional_data is preserved."""
+        context = ErrorContext(additional_data=None)
+        assert context.additional_data is None
+
+    def test_invalid_dict_type_raises_error(self):
+        """Test that non-dict additional_data raises TypeError via ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            ErrorContext(additional_data="not a dict")
+
+        errors = exc_info.value.errors()
+        # TypeError is now raised instead of ValueError
+        assert any("additional_data must be dict" in str(err) for err in errors)
+
+    def test_unconvertible_type_raises_error(self):
+        """Test that unconvertible types raise TypeError."""
+
+        class CustomClass:
+            pass
+
+        with pytest.raises(ValidationError) as exc_info:
+            ErrorContext(additional_data={"custom": CustomClass()})
+
+        errors = exc_info.value.errors()
+        assert any("Cannot coerce" in str(err) for err in errors)
+
+    def test_list_in_additional_data_raises_error(self):
+        """Test that list values raise TypeError."""
+        with pytest.raises(ValidationError) as exc_info:
+            ErrorContext(additional_data={"list_val": [1, 2, 3]})
+
+        errors = exc_info.value.errors()
+        assert any("Cannot coerce" in str(err) for err in errors)
+
+    def test_dict_in_additional_data_raises_error(self):
+        """Test that nested dict values raise TypeError."""
+        with pytest.raises(ValidationError) as exc_info:
+            ErrorContext(additional_data={"nested": {"key": "value"}})
+
+        errors = exc_info.value.errors()
+        assert any("Cannot coerce" in str(err) for err in errors)
 
 
 class TestAniVaultError:
@@ -161,7 +348,7 @@ class TestAniVaultError:
         assert str(error) == expected
 
     def test_to_dict(self):
-        """Test converting AniVaultError to dictionary."""
+        """Test converting AniVaultError to dictionary with safe_dict PII masking."""
         context = ErrorContext(file_path="/test/path")
         original = ValueError("Original error")
         error = AniVaultError(
@@ -172,10 +359,21 @@ class TestAniVaultError:
         expected = {
             "code": "API_REQUEST_FAILED",
             "message": "API request failed",
-            "context": dataclasses.asdict(context),
+            "context": context.safe_dict(),
             "original_error": "Original error",
         }
         assert result == expected
+
+    def test_to_dict_masks_user_id(self):
+        """Test that to_dict masks user_id via safe_dict."""
+        context = ErrorContext(user_id="sensitive_user", file_path="/test/path")
+        error = AniVaultError(ErrorCode.VALIDATION_ERROR, "Test error", context)
+
+        result = error.to_dict()
+        # user_id should be masked
+        assert "user_id" not in result["context"]
+        assert result["context"]["file_path"] == "/test/path"
+        assert result["context"]["additional_data"] == {}
 
     def test_to_dict_without_original_error(self):
         """Test converting AniVaultError to dictionary without original error."""

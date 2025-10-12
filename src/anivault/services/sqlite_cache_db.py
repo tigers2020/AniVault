@@ -42,6 +42,10 @@ def _convert_to_serializable(obj: Any) -> Any:
     """
     Convert objects to JSON-serializable format.
 
+    TODO(Task 5): Replace with ModelConverter.to_dict() and orjson.dumps()
+    after cache models are migrated to Pydantic. This manual conversion
+    will be obsolete once type migration is complete.
+
     Handles custom objects (like tmdbv3api's AsObj) by converting them to dicts.
     Recursively processes nested structures.
 
@@ -290,13 +294,16 @@ class SQLiteCacheDB:
             InfrastructureError: If database operation fails
             DomainError: If data validation fails
         """
+        additional_data: dict[str, str | int | float | bool] = {
+            "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
+            "cache_type": cache_type,
+        }
+        if ttl_seconds is not None:
+            additional_data["ttl_seconds"] = ttl_seconds
+
         context = ErrorContext(
             operation="cache_set",
-            additional_data={
-                "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
-                "cache_type": cache_type,
-                "ttl_seconds": ttl_seconds,
-            },
+            additional_data=additional_data,
         )
 
         if self.conn is None:
@@ -675,9 +682,13 @@ class SQLiteCacheDB:
         Raises:
             InfrastructureError: If database operation fails
         """
+        additional_data: dict[str, str | int | float | bool] = {}
+        if cache_type is not None:
+            additional_data["cache_type"] = cache_type
+
         context = ErrorContext(
             operation="purge_expired",
-            additional_data={"cache_type": cache_type},
+            additional_data=additional_data if additional_data else None,
         )
 
         if self.conn is None:
@@ -745,9 +756,13 @@ class SQLiteCacheDB:
         Raises:
             InfrastructureError: If database operation fails
         """
+        additional_data: dict[str, str | int | float | bool] = {}
+        if cache_type is not None:
+            additional_data["cache_type"] = cache_type
+
         context = ErrorContext(
             operation="cache_clear",
-            additional_data={"cache_type": cache_type},
+            additional_data=additional_data if additional_data else None,
         )
 
         if self.conn is None:

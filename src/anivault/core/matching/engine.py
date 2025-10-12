@@ -124,7 +124,9 @@ class MatchingEngine:
             # Step 2: Search for candidates (delegate to SearchService)
             candidates = await self._search_service.search(normalized_query)
             if not candidates:
-                logger.info("No candidates found for query: %s", normalized_query.title)
+                logger.debug(
+                    "No candidates found for query: %s", normalized_query.title
+                )
                 return None
 
             # Step 3: Score and rank candidates (delegate to ScoringService)
@@ -144,43 +146,55 @@ class MatchingEngine:
                 logger.debug("All candidates filtered out")
                 return None
 
-            # Step 5: Get initial best candidate
-            best_candidate = filtered_candidates[0]
+            # Step 5: Re-rank candidates after filtering
+            # CRITICAL: Year filtering may sort by year proximity instead of confidence,
+            # breaking the original confidence-based ranking from score_candidates().
+            # We must re-sort filtered candidates to ensure the highest confidence
+            # candidate is selected as best_match.
+            ranked_candidates = self._scoring_service.rank_candidates(
+                filtered_candidates
+            )
+            if not ranked_candidates:
+                logger.debug("No candidates after re-ranking")
+                return None
+
+            # Step 6: Get best candidate from re-ranked list
+            best_candidate = ranked_candidates[0]
             best_confidence = best_candidate.confidence_score
 
-            logger.info(
+            logger.debug(
                 "Best candidate for '%s': '%s' (confidence: %.3f)",
                 normalized_query.title,
                 best_candidate.display_title,
                 best_confidence,
             )
 
-            # Step 6: Apply fallback strategies if confidence < HIGH
+            # Step 7: Apply fallback strategies if confidence < HIGH
             if best_confidence < ConfidenceThresholds.HIGH:
-                logger.info(
+                logger.debug(
                     "Confidence below HIGH threshold (%.3f < %.3f), applying fallback",
                     best_confidence,
                     ConfidenceThresholds.HIGH,
                 )
 
                 enhanced_candidates = self._fallback_service.apply_strategies(
-                    filtered_candidates,
+                    ranked_candidates,
                     normalized_query,
                 )
 
                 if enhanced_candidates:
                     best_candidate = enhanced_candidates[0]
-                    logger.info(
+                    logger.debug(
                         "Fallback improved confidence: %.3f → %.3f",
                         best_confidence,
                         best_candidate.confidence_score,
                     )
 
-            # Step 7: Validate final confidence
+            # Step 8: Validate final confidence
             if not self._validate_final_confidence(best_candidate):
                 return None
 
-            # Step 8: Create MatchResult
+            # Step 9: Create MatchResult
             match_result = self._create_match_result(
                 best_candidate,
                 normalized_query,
@@ -215,7 +229,7 @@ class MatchingEngine:
             logger.warning("Failed to normalize query from anitopy result")
             return None
 
-        logger.info("Searching for match: %s", normalized_query.title)
+        logger.debug("Searching for match: %s", normalized_query.title)
         return normalized_query
 
     def _validate_final_confidence(self, best_candidate: ScoredSearchResult) -> bool:
@@ -276,7 +290,7 @@ class MatchingEngine:
             original_language=best_candidate.original_language,
         )
 
-        logger.info(
+        logger.debug(
             "Found best match for '%s': '%s' (confidence: %.3f)",
             normalized_query.title,
             match_result.title,

@@ -1,8 +1,6 @@
-"""
-AniVault Shared Module
+"""AniVault Shared Module.
 
-This module contains shared utilities, constants, and common functionality
-used across the AniVault application.
+This package contains shared utilities, types, and error handling used across AniVault.
 """
 
-__version__ = "0.1.0"
+__all__ = ["errors", "logging", "types"]

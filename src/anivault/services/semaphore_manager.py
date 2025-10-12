@@ -102,13 +102,16 @@ class SemaphoreManager:
         Raises:
             ApplicationError: If semaphore acquisition fails
         """
+        additional_data: dict[str, str | int | float | bool] = {
+            "concurrency_limit": self.concurrency_limit,
+            "active_count": self._active_count,
+        }
+        if timeout is not None:
+            additional_data["timeout"] = timeout
+
         context = ErrorContext(
             operation="semaphore_acquire",
-            additional_data={
-                "concurrency_limit": self.concurrency_limit,
-                "timeout": timeout,
-                "active_count": self._active_count,
-            },
+            additional_data=additional_data,
         )
 
         try:

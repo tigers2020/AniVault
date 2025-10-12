@@ -78,7 +78,7 @@ def calculate_confidence_score(
         if localized_title:
             localized_score = _calculate_title_score(query_title, localized_title)
             title_scores.append(localized_score)
-            logger.info(
+            logger.debug(
                 "📊 Localized title score: %.3f ('%s' vs '%s')",
                 localized_score,
                 query_title[:30],
@@ -87,7 +87,7 @@ def calculate_confidence_score(
         if original_title:
             original_score = _calculate_title_score(query_title, original_title)
             title_scores.append(original_score)
-            logger.info(
+            logger.debug(
                 "📊 Original title score: %.3f ('%s' vs '%s')",
                 original_score,
                 query_title[:30],
@@ -95,7 +95,7 @@ def calculate_confidence_score(
             )
 
         title_score = max(title_scores) if title_scores else 0.0
-        logger.info("🎯 Final title score (max): %.3f", title_score)
+        logger.debug("🎯 Final title score (max): %.3f", title_score)
         year_score = _calculate_year_score(
             normalized_query.year,
             tmdb_result.display_date,  # Uses release_date or first_air_date property

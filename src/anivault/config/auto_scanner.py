@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import FolderSettings, get_config
+from anivault.config.settings import (
+    FolderSettings,
+    get_config,
+    update_and_save_config,
+)
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -211,27 +215,27 @@ class AutoScanner:
             Tuple of (success, error_message)
         """
         try:
-            config = get_config()
+            # Define updater function
+            def update_folders(cfg: Config) -> None:
+                # Create folders settings if it doesn't exist
+                if cfg.folders is None:
+                    cfg.folders = FolderSettings()
 
-            # Create folders settings if it doesn't exist
-            if config.folders is None:
-                config.folders = FolderSettings()
+                # Update folder settings
+                cfg.folders.source_folder = source_folder
+                cfg.folders.target_folder = target_folder
+                cfg.folders.organize_by_resolution = organize_by_resolution
+                cfg.folders.auto_scan_on_startup = auto_scan_on_startup
+                cfg.folders.auto_scan_interval_minutes = auto_scan_interval_minutes
+                cfg.folders.include_subdirectories = include_subdirectories
 
-            # Update folder settings
-            config.folders.source_folder = source_folder
-            config.folders.target_folder = target_folder
-            config.folders.organize_by_resolution = organize_by_resolution
-            config.folders.auto_scan_on_startup = auto_scan_on_startup
-            config.folders.auto_scan_interval_minutes = auto_scan_interval_minutes
-            config.folders.include_subdirectories = include_subdirectories
-
-            # Save the configuration
-            config.to_toml_file(self.config_path)
+            # Use new thread-safe update helper
+            update_and_save_config(update_folders, self.config_path)
 
             logger.info("Folder settings updated successfully")
             return True, ""
 
-        except (OSError, ValueError, PermissionError) as e:
+        except ApplicationError as e:
             logger.exception("Error updating folder settings")
             return False, f"Failed to update folder settings: {e}"
 

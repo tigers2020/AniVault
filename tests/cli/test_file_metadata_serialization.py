@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from anivault.cli.scan_handler import _file_metadata_to_dict
+from anivault.cli.helpers.scan import _file_metadata_to_dict
 from anivault.shared.metadata_models import FileMetadata
 
 

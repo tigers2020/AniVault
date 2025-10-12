@@ -32,9 +32,13 @@ from PySide6.QtWidgets import (
 
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import Settings, get_config
+from anivault.config.settings import Settings, get_config, update_and_save_config
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
-from anivault.shared.errors import AniVaultError, ErrorCode, ErrorContext
+from anivault.shared.errors import (
+    AniVaultError,
+    ErrorCode,
+    ErrorContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -279,11 +283,16 @@ class SettingsDialog(QDialog):
             self.api_key_saved.emit(api_key)
             self.folder_settings_changed.emit()
 
-            # Show success message
+            # Show success message with .env file notice
+            success_message = (
+                f"{DialogMessages.API_KEY_SAVED}\n\n"
+                "🔒 보안 알림: API 키는 .env 파일에 안전하게 저장되었습니다.\n"
+                "(config.toml에는 저장되지 않음)"
+            )
             QMessageBox.information(
                 self,
                 DialogTitles.SETTINGS_SAVED,
-                DialogMessages.API_KEY_SAVED,
+                success_message,
             )
 
             # Close dialog
@@ -298,7 +307,10 @@ class SettingsDialog(QDialog):
 
     def _save_api_key_to_config(self, api_key: str) -> None:
         """
-        Save API key to configuration file.
+        Save API key to .env file (SECURE).
+
+        API keys are stored in .env file for security, not in config.toml.
+        This prevents accidental commits of sensitive information.
 
         Args:
             api_key: The API key to save
@@ -307,35 +319,66 @@ class SettingsDialog(QDialog):
             AniVaultError: If saving fails
         """
         try:
-            # Use cached config if available, otherwise load
-            if self._cached_config is None:
-                self._cached_config = get_config()
+            # 1. Save to .env file (SECURE)
+            self._save_api_key_to_env_file(api_key)
 
-            # Update API key in cached config
-            self._cached_config.tmdb.api_key = api_key
+            # 2. Update memory cache (for current session)
+            def update_api_key(cfg: Settings) -> None:
+                cfg.tmdb.api_key = api_key
 
-            # Save to TOML file
-            self._write_config_to_file(self._cached_config)
+            # Note: This updates memory only, NOT saved to config.toml
+            # to_toml_file() excludes api_key for security
+            update_and_save_config(update_api_key, self.config_path)
 
-            logger.info("API key saved successfully")
+            logger.info("API key saved successfully to .env file")
 
-        except Exception as e:
-            logger.exception("Failed to save API key to configuration: %s")
+        except (OSError, PermissionError) as e:
+            logger.exception("Failed to save API key")
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save API key: {e!s}",
                 ErrorContext(operation="save_api_key"),
             ) from e
 
-    def _write_config_to_file(self, config: Settings) -> None:
+    def _save_api_key_to_env_file(self, api_key: str) -> None:
         """
-        Write configuration to TOML file.
+        Save API key to .env file.
 
         Args:
-            config: Configuration object to save
+            api_key: The API key to save
+
+        Raises:
+            OSError: If file write fails
         """
-        # Use Settings.to_toml_file() to save all configuration sections
-        config.to_toml_file(self.config_path)
+        import os
+
+        env_file = Path(".env")
+        env_lines = []
+
+        # Read existing .env file if it exists
+        if env_file.exists():
+            with open(env_file, encoding="utf-8") as f:
+                env_lines = f.readlines()
+
+        # Update or add TMDB_API_KEY
+        found = False
+        for i, line in enumerate(env_lines):
+            if line.startswith("TMDB_API_KEY="):
+                env_lines[i] = f"TMDB_API_KEY={api_key}\n"
+                found = True
+                break
+
+        if not found:
+            env_lines.append(f"TMDB_API_KEY={api_key}\n")
+
+        # Write back to .env file
+        with open(env_file, "w", encoding="utf-8") as f:
+            f.writelines(env_lines)
+
+        # Set environment variable for current process
+        os.environ["TMDB_API_KEY"] = api_key
+
+        logger.info("API key saved to .env file")
 
     def _show_error(self, title: str, message: str) -> None:
         """
@@ -426,7 +469,7 @@ class SettingsDialog(QDialog):
         """
         return self.api_key_input.text().strip()
 
-    def get_folder_settings(self) -> dict:
+    def get_folder_settings(self):
         """
         Get current folder settings.
 

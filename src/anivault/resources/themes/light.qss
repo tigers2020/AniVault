@@ -467,28 +467,20 @@ QLabel#groupDetailsLabel {
     background-color: transparent;
 }
 
-/* Group Card Widget */
+/* Group Card Widget - Light Theme Colors */
 GroupCardWidget {
     background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px;
-    min-width: 200px;
-    min-height: 120px;
-    max-width: 250px;
-    max-height: 150px;
+    border: none;
 }
 
 GroupCardWidget:hover {
-    background-color: #f1f5f9;
-    border-color: #cbd5e1;
+    background-color: #f8fafc;
+    border: 1px solid #3b82f6;
 }
 
 GroupCardWidget:selected {
-    background-color: #2563eb;
-    color: #0f172a;
-    border-color: #2563eb;
+    background-color: #dbeafe;
+    border: 2px solid #3b82f6;
 }
 
 /* Group Card Widget Labels */
@@ -682,18 +674,18 @@ QPushButton#closeButton:hover {
 
 QLabel#posterLabel {
     background-color: #f0f0f0;
-    border-color: #dddddd;
+    /* border-color removed - no border in modern design */
 }
 
 QLabel#posterInitial {
     background-color: #007acc;
     color: white;
-    border-color: #005a9e;
+    /* border-color removed - no border in modern design */
 }
 
 QLabel#posterFolder {
     background-color: #e0e0e0;
-    border-color: #cccccc;
+    /* border-color removed - no border in modern design */
 }
 
 /* =============================================================================
@@ -710,4 +702,45 @@ QLabel#groupDateLabel {
 
 QLabel#groupOverviewLabel {
     color: #555555;
+}
+
+/* =============================================================================
+   ANIME DETAIL POPUP (HOVER TOOLTIP) - Light Theme Colors
+   ============================================================================= */
+
+QWidget#animeDetailPopup {
+    background-color: #ffffff;
+    border: 2px solid #3b82f6;
+}
+
+QLabel#popupTitleLabel {
+    color: #0f172a;
+}
+
+QLabel#popupRatingLabel {
+    color: #d97706;
+}
+
+QLabel#popupStatusLabel {
+    color: #475569;
+}
+
+QLabel#popupDateLabel {
+    color: #475569;
+}
+
+QLabel#popupGenreLabel {
+    color: #64748b;
+}
+
+QLabel#popupCompanyLabel {
+    color: #64748b;
+}
+
+QLabel#popupOverviewLabel {
+    color: #1e293b;
+}
+
+QLabel#popupPopularityLabel {
+    color: #64748b;
 }

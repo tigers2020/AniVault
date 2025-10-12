@@ -2,76 +2,89 @@
 
 ## 🎨 테마 시스템
 
-### 테마 구조
+### 테마 구조 (개발 환경)
 ```
 src/anivault/resources/themes/
 ├── light.qss          # 라이트 테마
 ├── dark.qss           # 다크 테마
-└── common.qss         # 공통 스타일
+└── common.qss         # 공통 레이아웃 스타일
 ```
 
-### 테마 토큰 시스템
-테마에서 사용할 색상 토큰을 정의하여 일관성을 보장합니다:
+### 테마 구조 (PyInstaller 번들)
+```
+# 번들 내 읽기 전용 테마 (기본값)
+<bundle>/resources/themes/
+├── light.qss
+├── dark.qss
+└── common.qss
+
+# 사용자 테마 디렉터리 (우선순위)
+~/.anivault/themes/
+├── light.qss          # 사용자 커스터마이징
+├── dark.qss
+└── common.qss
+```
+
+**폴백 우선순위**: 사용자 테마 → 번들 테마 → 기본 테마 (light) → 빈 스타일시트
+
+### QSS @import 지원
+Qt QSS는 기본적으로 `@import`를 지원하지 않지만, ThemeManager가 자체 파싱으로 해결합니다.
 
 ```css
-/* common.qss - 색상 토큰 정의 */
-:root {
-    --primary-color: #007acc;
-    --secondary-color: #6c757d;
-    --success-color: #28a745;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
-    --info-color: #17a2b8;
+/* light.qss */
+@import url("common.qss");  /* 공통 레이아웃 import */
 
-    /* 배경색 */
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #e9ecef;
-
-    /* 텍스트 색상 */
-    --text-primary: #212529;
-    --text-secondary: #6c757d;
-    --text-muted: #adb5bd;
-
-    /* 테두리 색상 */
-    --border-color: #dee2e6;
-    --border-focus: #007acc;
+QMainWindow {
+    background-color: #ffffff;
+    color: #000000;
 }
 
-/* 다크 테마 오버라이드 */
-[data-theme="dark"] {
-    --bg-primary: #1e1e1e;
-    --bg-secondary: #2d2d30;
-    --bg-tertiary: #3c3c3c;
-    --text-primary: #ffffff;
-    --text-secondary: #cccccc;
-    --text-muted: #999999;
-    --border-color: #555555;
-    --border-focus: #007acc;
+/* dark.qss */
+@import url("common.qss");  /* 동일한 레이아웃 재사용 */
+
+QMainWindow {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+/* common.qss - 레이아웃만 정의 */
+QFrame {
+    border: none;
+    border-radius: 6px;
 }
 ```
+
+**주의사항**:
+- CSS Variables (`--var-name`)는 Qt QSS에서 지원되지 않음
+- 대신 직접 색상 값 사용: `#007acc`, `rgba(0, 122, 204, 0.8)`
+- Import depth 제한: 최대 10 레벨 (보안 및 성능)
+- 순환 import 자동 탐지 및 방지
 
 ### 테마 적용 및 동기화
 ```python
-class ThemeManager:
-    """테마 관리자 - 단일 소스 원칙 적용"""
+from anivault.gui.themes import ThemeManager
 
-    def apply_theme(self, theme_name: str) -> None:
-        """테마 적용 및 위젯 동기화"""
-        # 1. 이전 스타일 제거
-        app.setStyleSheet("")
-        app.setPalette(app.style().standardPalette())
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        # ThemeManager 초기화 (자동으로 번들/개발 환경 감지)
+        self.theme_manager = ThemeManager()
 
-        # 2. 새 스타일 적용
-        qss_content = self.load_theme_content(theme_name)
-        app.setStyleSheet(qss_content)
+        # 테마 적용 (3-level fallback + 캐싱)
+        self.theme_manager.apply_theme("dark")
 
-        # 3. 모든 위젯 리폴리시
-        self._repolish_all_widgets(app)
-
-        # 4. 상태 저장
-        self.current_theme = theme_name
+    def switch_theme(self, theme_name: str):
+        """사용자 테마 전환"""
+        self.theme_manager.apply_theme(theme_name)
 ```
+
+**ThemeManager 핵심 기능**:
+- **자동 환경 감지**: PyInstaller 번들 vs 개발 환경
+- **3-level 폴백**: 요청 테마 → 기본 테마 → 빈 스타일시트
+- **@import 해석**: 재귀적 파일 로딩, 순환 탐지, 경로 검증
+- **mtime 기반 캐싱**: 파일 변경 시 자동 무효화
+- **성능 모니터링**: 50ms 초과 시 경고 로그
+- **보안 로깅**: 절대 경로 마스킹 (`~/.anivault/...`)
 
 ## 🖼️ 스냅샷 테스트
 

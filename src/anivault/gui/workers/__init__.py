@@ -6,6 +6,7 @@ using PySide6's QThread and signal/slot mechanism.
 """
 
 from .file_scanner_worker import FileScannerWorker
+from .organize_worker import OrganizeWorker
 from .tmdb_matching_worker import TMDBMatchingWorker
 
-__all__ = ["FileScannerWorker", "TMDBMatchingWorker"]
+__all__ = ["FileScannerWorker", "OrganizeWorker", "TMDBMatchingWorker"]

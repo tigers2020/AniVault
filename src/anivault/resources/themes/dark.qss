@@ -4,63 +4,6 @@
 @import url("common.qss");
 
 /* =============================================================================
-   ROOT VARIABLES
-   ============================================================================= */
-
-* {
-    /* Color Palette */
-    --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
-    --primary-active: #1d4ed8;
-
-    --secondary-color: #64748b;
-    --secondary-hover: #475569;
-    --secondary-active: #334155;
-
-    --background-color: #0f172a;
-    --surface-color: #1e293b;
-    --surface-hover: #334155;
-    --surface-active: #475569;
-
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --text-disabled: #64748b;
-
-    --border-color: #334155;
-    --border-hover: #475569;
-    --border-active: #64748b;
-
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --error-color: #ef4444;
-    --info-color: #3b82f6;
-
-    /* Placeholder colors */
-    --placeholder-color: #64748b;
-    --placeholder-hint: #475569;
-
-    /* Spacing */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 12px;
-    --spacing-lg: 16px;
-    --spacing-xl: 24px;
-
-    /* Border Radius */
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
-
-    /* Font Sizes */
-    --font-xs: 11px;
-    --font-sm: 12px;
-    --font-md: 14px;
-    --font-lg: 16px;
-    --font-xl: 18px;
-}
-
-/* =============================================================================
    MAIN WINDOW
    ============================================================================= */
 
@@ -505,24 +448,20 @@ QStatusBar::item {
    CUSTOM WIDGETS
    ============================================================================= */
 
-/* Group Card Widget */
+/* Group Card Widget - Dark Theme Colors */
 GroupCardWidget {
     background-color: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px;
+    border: none;
 }
 
 GroupCardWidget:hover {
     background-color: #334155;
-    border-color: #475569;
+    border: 1px solid #3b82f6;
 }
 
 GroupCardWidget:selected {
-    background-color: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+    background-color: #1e3a8a;
+    border: 2px solid #60a5fa;
 }
 
 /* Group Card Widget Labels */
@@ -717,18 +656,18 @@ QPushButton#closeButton:hover {
 
 QLabel#posterLabel {
     background-color: #1e293b;
-    border-color: #334155;
+    /* border-color removed - no border in modern design */
 }
 
 QLabel#posterInitial {
     background-color: #007acc;
     color: white;
-    border-color: #005a9e;
+    /* border-color removed - no border in modern design */
 }
 
 QLabel#posterFolder {
     background-color: #334155;
-    border-color: #475569;
+    /* border-color removed - no border in modern design */
 }
 
 /* =============================================================================
@@ -745,4 +684,45 @@ QLabel#groupDateLabel {
 
 QLabel#groupOverviewLabel {
     color: #cbd5e1;
+}
+
+/* =============================================================================
+   ANIME DETAIL POPUP (HOVER TOOLTIP) - Dark Theme Colors
+   ============================================================================= */
+
+QWidget#animeDetailPopup {
+    background-color: #1e293b;
+    border: 2px solid #3b82f6;
+}
+
+QLabel#popupTitleLabel {
+    color: #f8fafc;
+}
+
+QLabel#popupRatingLabel {
+    color: #fbbf24;
+}
+
+QLabel#popupStatusLabel {
+    color: #cbd5e1;
+}
+
+QLabel#popupDateLabel {
+    color: #cbd5e1;
+}
+
+QLabel#popupGenreLabel {
+    color: #94a3b8;
+}
+
+QLabel#popupCompanyLabel {
+    color: #94a3b8;
+}
+
+QLabel#popupOverviewLabel {
+    color: #e2e8f0;
+}
+
+QLabel#popupPopularityLabel {
+    color: #94a3b8;
 }

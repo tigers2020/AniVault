@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import typing
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from anivault.shared.constants import (
-    TMDB,
     APIConfig,
     Application,
     Batch,
@@ -36,6 +37,27 @@ from anivault.shared.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Type Safety Feature Flags
+# -------------------------
+# These flags control gradual migration from dict/Any to typed Pydantic models.
+# WARNING: DO NOT change these values in production without thorough testing.
+
+USE_LEGACY_DICT_TYPES: typing.Final[bool] = False
+"""Enable legacy dict/Any types for backward compatibility.
+
+This flag supports gradual migration from untyped dict structures
+to type-safe Pydantic models. When False (default), the application
+uses strict type checking with Pydantic models.
+
+Security Note:
+    Setting this to True disables type safety guarantees and should
+    ONLY be used during migration phases with appropriate safeguards.
+    The default False value follows the "secure by default" principle.
+
+Default: False (type-safe mode)
+Recommended: Keep False in production environments
+"""
 
 
 class FilterConfig(BaseModel):
@@ -181,12 +203,11 @@ class LoggingConfig(BaseModel):
 
 
 class TMDBConfig(BaseModel):
-    """TMDB API configuration."""
+    """TMDB API configuration.
 
-    base_url: str = Field(
-        default=TMDB.API_BASE_URL,
-        description="TMDB API base URL",
-    )
+    Note: base_url is managed internally by tmdbv3api library.
+    """
+
     api_key: str = Field(
         default="",
         description="TMDB API key (required for API access)",
@@ -375,6 +396,8 @@ class Settings(BaseSettings):
         env_prefix="ANIVAULT_",
         env_nested_delimiter="__",
         env_ignore_empty=True,
+        # Ignore unknown fields for backward compatibility
+        extra="ignore",
         # Optimize JSON serialization for settings performance
         json_encoders={
             # Custom encoders for specific types if needed
@@ -386,7 +409,7 @@ class Settings(BaseSettings):
                 "logging": {"level": "INFO", "format": "json"},
                 "tmdb": {
                     "api_key": "your_api_key",  # pragma: allowlist secret
-                    "base_url": "https://api.themoviedb.org/3",
+                    # Note: base_url managed by tmdbv3api
                 },
                 "file_processing": {
                     "max_workers": 4,
@@ -416,7 +439,11 @@ class Settings(BaseSettings):
 
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:
-        """Load settings from a TOML file.
+        """Load settings from a TOML file, with environment variable overrides.
+
+        Environment variables take precedence over TOML values.
+        Specifically, if TMDB_API_KEY is set in environment, it will override
+        any value (including empty string) in the TOML file.
 
         Args:
             file_path: Path to the TOML configuration file
@@ -440,6 +467,15 @@ class Settings(BaseSettings):
         with open(file_path, encoding=Encoding.DEFAULT) as f:
             data = toml.load(f)
 
+        # Override with environment variables (if set)
+        # Priority: env vars > TOML file
+        env_api_key = os.getenv("TMDB_API_KEY")
+        if env_api_key:
+            if "tmdb" not in data:
+                data["tmdb"] = {}
+            data["tmdb"]["api_key"] = env_api_key
+            logger.debug("Loaded TMDB API key from environment variable")
+
         return cls.model_validate(data)
 
     @classmethod
@@ -462,10 +498,7 @@ class Settings(BaseSettings):
                     == "true",
                 },
                 "tmdb": {
-                    "base_url": os.getenv(
-                        "TMDB_BASE_URL",
-                        TMDB.API_BASE_URL,
-                    ),
+                    # Note: base_url is managed by tmdbv3api library
                     "api_key": os.getenv("TMDB_API_KEY", ""),
                     "timeout": int(
                         os.getenv("TMDB_TIMEOUT", str(Timeout.TMDB)),
@@ -531,6 +564,9 @@ class Settings(BaseSettings):
     def to_toml_file(self, file_path: str | Path) -> None:
         """Save settings to a TOML file.
 
+        SECURITY: API keys and other secrets are excluded from file output.
+        Use environment variables (.env file) to configure sensitive values.
+
         Args:
             file_path: Path where to save the TOML configuration file
         """
@@ -539,11 +575,15 @@ class Settings(BaseSettings):
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Exclude sensitive fields (API keys, secrets)
+        data = self.model_dump(
+            exclude_defaults=False,
+            exclude_none=True,
+            exclude={"tmdb": {"api_key"}},  # Never save API keys to file
+        )
+
         with open(file_path, "w", encoding=Encoding.DEFAULT) as f:
-            toml.dump(
-                self.model_dump(exclude_defaults=False, exclude_none=True),
-                f,
-            )
+            toml.dump(data, f)
 
 
 def _load_env_file() -> None:
@@ -579,7 +619,7 @@ def _load_env_file() -> None:
             ),
             context=ErrorContext(
                 operation="load_env",
-                additional_data={"file_path": str(env_file.absolute())},
+                additional_data={"file_name": env_file.name},
             ),
         )
 
@@ -608,7 +648,7 @@ def _load_env_file() -> None:
             message=f"Permission denied reading .env file: {env_file}",
             context=ErrorContext(
                 operation="load_env",
-                additional_data={"file_path": str(env_file.absolute())},
+                additional_data={"file_name": env_file.name},
             ),
             original_error=e,
         ) from e
@@ -618,7 +658,7 @@ def _load_env_file() -> None:
             message=f"Failed to read .env file: {e}",
             context=ErrorContext(
                 operation="load_env",
-                additional_data={"file_path": str(env_file.absolute())},
+                additional_data={"file_name": env_file.name},
             ),
             original_error=e,
         ) from e
@@ -629,12 +669,11 @@ def _load_env_file() -> None:
         raise SecurityError(
             code=ErrorCode.MISSING_CONFIG,
             message=(
-                "TMDB_API_KEY not found in environment. "
-                "Set TMDB_API_KEY in .env file."
+                "TMDB_API_KEY not found in environment. Set TMDB_API_KEY in .env file."
             ),
             context=ErrorContext(
                 operation="validate_api_key",
-                additional_data={"env_file": str(env_file.absolute())},
+                additional_data={"env_file_name": env_file.name},
             ),
         )
 
@@ -646,7 +685,7 @@ def _load_env_file() -> None:
             message="TMDB_API_KEY is empty in .env file",
             context=ErrorContext(
                 operation="validate_api_key",
-                additional_data={"env_file": str(env_file.absolute())},
+                additional_data={"env_file_name": env_file.name},
             ),
         )
 
@@ -660,7 +699,7 @@ def _load_env_file() -> None:
             context=ErrorContext(
                 operation="validate_api_key",
                 additional_data={
-                    "env_file": str(env_file.absolute()),
+                    "env_file_name": env_file.name,
                     "key_length": len(api_key),
                 },
             ),
@@ -700,30 +739,115 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     return Settings.from_environment()
 
 
-# Global settings instance
+# Global settings instance (thread-safe)
 _settings: Settings | None = None
+_settings_lock = threading.RLock()
 
 
 def get_config() -> Settings:
-    """Get the global settings instance.
+    """Get the global settings instance (thread-safe).
+
+    Uses double-checked locking pattern to ensure thread-safety
+    while minimizing lock overhead.
 
     Returns:
         The global Settings instance, loading it if necessary.
     """
     global _settings
-    # Always ensure .env file is loaded before getting settings
-    _load_env_file()
+
+    # First check (without lock for performance)
     if _settings is None:
-        _settings = load_settings()
+        # Second check (with lock for thread-safety)
+        with _settings_lock:
+            if _settings is None:
+                # Load .env file before loading settings
+                _load_env_file()
+                _settings = load_settings()
+
     return _settings
 
 
 def reload_config() -> Settings:
-    """Reload the global settings instance from configuration files.
+    """Reload the global settings instance from configuration files (thread-safe).
+
+    Forces a reload of the configuration, useful after configuration
+    changes are saved to disk.
 
     Returns:
         The reloaded Settings instance.
     """
     global _settings
-    _settings = load_settings()
+
+    with _settings_lock:
+        # Load .env file before loading settings
+        _load_env_file()
+        _settings = load_settings()
+
     return _settings
+
+
+def update_and_save_config(
+    updater: typing.Callable[[Settings], None],
+    config_path: Path | str = Path("config/config.toml"),
+) -> None:
+    """Update configuration, validate, save to file, and reload global cache (thread-safe).
+
+    This function provides a safe way to update configuration by:
+    1. Creating a deep copy of current settings
+    2. Applying the update function
+    3. Validating the updated settings
+    4. Saving to file if valid
+    5. Reloading the global cache
+
+    Args:
+        updater: Callable that modifies Settings object in-place
+        config_path: Path to save the configuration file
+
+    Raises:
+        ApplicationError: If validation fails or save operation fails
+
+    Example:
+        >>> def update_tmdb_timeout(cfg: Settings) -> None:
+        ...     cfg.tmdb.timeout = 60
+        >>> update_and_save_config(update_tmdb_timeout)
+    """
+    from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+
+    global _settings
+    config_path = Path(config_path)
+
+    with _settings_lock:
+        try:
+            # 1. Get current config (will load if needed)
+            current = get_config()
+
+            # 2. Create deep copy for validation
+            updated = current.model_copy(deep=True)
+
+            # 3. Apply updater function
+            updater(updated)
+
+            # 4. Validate updated settings
+            updated.model_validate(updated.model_dump())
+
+            # 5. Save to file
+            updated.to_toml_file(config_path)
+
+            # 6. Update global cache
+            _settings = updated
+
+            logger.info(
+                "Configuration updated and saved successfully to %s", config_path
+            )
+
+        except Exception as e:
+            logger.exception("Failed to update and save configuration")
+            raise ApplicationError(
+                code=ErrorCode.CONFIGURATION_ERROR,
+                message=f"Configuration update failed: {e}",
+                context=ErrorContext(
+                    operation="update_and_save_config",
+                    additional_data={"config_path": str(config_path)},
+                ),
+                original_error=e,
+            ) from e
