@@ -49,8 +49,9 @@ class GroupCardWidget(QFrame):
 
     def _setup_card(self) -> None:
         """Set up the card layout and styling (TMDB-style horizontal layout)."""
-        # Frame style removed - now controlled by QSS themes (border: none by default)
-        # Border will only appear on hover/selected states as defined in theme QSS
+        # Explicitly set NoFrame to remove QFrame's default border
+        # QSS themes will control borders (none by default, visible on hover/selected)
+        self.setFrameShape(QFrame.NoFrame)
         # Note: Size is now handled by the central QSS theme system
 
         # Main horizontal layout (TMDB style: poster on left, info on right)
