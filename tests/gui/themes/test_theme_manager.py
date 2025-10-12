@@ -640,3 +640,38 @@ class TestThemeManagerCache:
         # light should still be cached
         light_path = self.test_themes_dir / "light.qss"
         assert light_path in self.theme_manager._qss_cache
+
+    def test_performance_measurement_works(self):
+        """Test that performance measurement doesn't break functionality."""
+        # Create theme
+        (self.test_themes_dir / "light.qss").write_text("QWidget { color: white; }")
+
+        # Load theme (should complete without errors)
+        content = self.theme_manager.load_theme_content("light")
+
+        # Verify content loaded correctly
+        assert "QWidget" in content
+        assert "white" in content
+
+    def test_performance_logging_with_cache(self):
+        """Test that cached loads are fast (< 50ms)."""
+        import time
+
+        # Create theme
+        (self.test_themes_dir / "light.qss").write_text(
+            "QWidget { color: white; }" * 100
+        )  # Larger content
+
+        # First load (cache miss)
+        start = time.perf_counter()
+        self.theme_manager.load_theme_content("light")
+        first_load_ms = (time.perf_counter() - start) * 1000
+
+        # Second load (cache hit)
+        start = time.perf_counter()
+        self.theme_manager.load_theme_content("light")
+        cached_load_ms = (time.perf_counter() - start) * 1000
+
+        # Cached load should be significantly faster
+        assert cached_load_ms < first_load_ms
+        assert cached_load_ms < 10  # Cache hit should be < 10ms

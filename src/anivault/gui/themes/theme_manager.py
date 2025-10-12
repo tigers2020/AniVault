@@ -328,6 +328,9 @@ class ThemeManager:
         Resolves @import directives recursively and includes circular
         import detection and path security validation.
 
+        Performance monitoring: Logs DEBUG timing for all loads,
+        WARNING if loading exceeds 50ms (potential performance issue).
+
         Args:
             theme_name: Name of the theme to load
 
@@ -337,14 +340,34 @@ class ThemeManager:
         Raises:
             ApplicationError: If theme file cannot be read
         """
+        import time
+
+        start_time = time.perf_counter()
         qss_path = None
+
         try:
             qss_path = self.get_qss_path(theme_name)
 
             # Use cached @import-aware reader (mtime-based)
             content = self._get_cached_theme(qss_path)
 
-            logger.debug("Loaded theme content for: %s (with imports)", theme_name)
+            # Performance monitoring
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+
+            # Log performance metrics
+            if elapsed_ms > 50:
+                logger.warning(
+                    "Theme loading exceeded 50ms threshold: %s (%.2fms)",
+                    theme_name,
+                    elapsed_ms,
+                )
+            else:
+                logger.debug(
+                    "Loaded theme content for: %s (%.2fms, with imports)",
+                    theme_name,
+                    elapsed_ms,
+                )
+
             return content
 
         except Exception as e:
