@@ -355,28 +355,51 @@ class ThemeManager:
                 ),
             ) from e
 
-    def apply_theme(self, theme_name: str) -> None:
-        """Apply a theme to the application.
+    def apply_theme(
+        self,
+        theme_name: str,
+        app: QApplication | None = None,
+        _fallback_attempted: bool = False,
+    ) -> None:
+        """Apply a theme with automatic fallback and recursion prevention.
+
+        Implements 3-level fallback strategy:
+        - Level 1: Try requested theme
+        - Level 2: On failure, try DEFAULT_THEME (light) if different
+        - Level 3: On failure, apply empty stylesheet (safe mode)
 
         Args:
             theme_name: Name of the theme to apply
+            app: QApplication instance (None = auto-detect)
+            _fallback_attempted: Internal flag to prevent infinite recursion
+                                (DO NOT SET MANUALLY)
 
         Raises:
-            ApplicationError: If theme cannot be applied
+            ApplicationError: If theme cannot be applied and all fallbacks fail
         """
+        # Validate theme name (security)
+        theme_name = self._validate_theme_name(theme_name)
+
+        # Get QApplication instance
+        if app is None:
+            app = QApplication.instance()
+
+        if app is None:
+            logger.error("No QApplication instance found")
+            raise ApplicationError(
+                ErrorCode.APPLICATION_ERROR,
+                "No QApplication instance found",
+                ErrorContext(operation="apply_theme"),
+            )
+
+        # Level 1: Try requested theme
         try:
+            logger.info("Applying theme: %s", theme_name)
+
             # Load theme content
             qss_content = self.load_theme_content(theme_name)
 
             # Apply to application
-            app = QApplication.instance()
-            if app is None:
-                logger.error("No QApplication instance found")
-                raise ApplicationError(
-                    ErrorCode.APPLICATION_ERROR,
-                    "No QApplication instance found",
-                )
-
             # 1) 이전 스타일 제거 + 플랫폼 기본 팔레트로 리셋
             app.setStyleSheet("")
             app.setPalette(app.style().standardPalette())
@@ -388,14 +411,68 @@ class ThemeManager:
             # 3) 위젯 리폴리시 (툴바/메뉴/상태바까지 강제 반영)
             self._repolish_all_top_levels(app)
 
-            logger.info("Applied theme: %s", theme_name)
+            logger.info("Successfully applied theme: %s", theme_name)
+            return  # Success!
 
-        except Exception as e:
-            logger.exception("Failed to apply theme %s", theme_name)
-            raise ApplicationError(
-                ErrorCode.APPLICATION_ERROR,
-                f"Failed to apply theme {theme_name}: {e}",
-            ) from e
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "Failed to apply theme %s: %s",
+                theme_name,
+                e,
+                exc_info=True,
+            )
+
+            # Level 2: Fallback to default theme (if not already trying default)
+            if not _fallback_attempted and theme_name != self.DEFAULT_THEME:
+                logger.warning(
+                    "Falling back to default theme: %s",
+                    self.DEFAULT_THEME,
+                )
+                try:
+                    # Recursive call with fallback flag
+                    self.apply_theme(
+                        self.DEFAULT_THEME,
+                        app=app,
+                        _fallback_attempted=True,
+                    )
+                    return  # Fallback success!
+                except Exception:
+                    logger.exception(
+                        "Failed to apply fallback theme %s",
+                        self.DEFAULT_THEME,
+                    )
+
+            # Level 3: Safe mode - apply empty stylesheet
+            logger.error(  # noqa: TRY400
+                "All theme loading failed. Entering safe mode (empty stylesheet)."
+            )
+            try:
+                app.setStyleSheet("")
+                app.setPalette(app.style().standardPalette())
+                self._repolish_all_top_levels(app)
+                self.current_theme = None  # No theme applied
+                logger.warning("Safe mode activated: using default system styles")
+                # Don't raise error in safe mode - allow app to continue
+                return
+            except Exception as safe_mode_error:  # noqa: BLE001
+                # Safe mode also failed - this is critical
+                logger.critical(
+                    "Safe mode failed: %s",
+                    safe_mode_error,
+                    exc_info=True,
+                )
+                raise ApplicationError(
+                    ErrorCode.APPLICATION_ERROR,
+                    f"Failed to apply theme and all fallbacks: {e}",
+                    ErrorContext(
+                        operation="apply_theme",
+                        additional_data={
+                            "requested_theme": theme_name,
+                            "fallback_theme": self.DEFAULT_THEME,
+                            "safe_mode": True,
+                        },
+                    ),
+                ) from e
 
     def _repolish_all_top_levels(self, app: QApplication) -> None:
         """Repolish all top-level widgets to ensure theme changes are applied."""

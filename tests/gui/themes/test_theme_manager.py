@@ -301,7 +301,7 @@ QWidget { color: red; }"""
             if i == 14:
                 content = "QWidget { color: red; }"
             else:
-                content = f'@import url("level{i+1}.qss");\nQWidget {{ color: red; }}'
+                content = f'@import url("level{i + 1}.qss");\nQWidget {{ color: red; }}'
             (self.test_themes_dir / f"level{i}.qss").write_text(content)
 
         # Should raise error (MAX_IMPORT_DEPTH = 10)
@@ -410,3 +410,107 @@ class TestThemeManagerInputValidation:
             self.theme_manager.get_qss_path("../../../etc/passwd")
 
         assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
+
+
+class TestThemeManagerFallback:
+    """Test cases for theme fallback logic (Task 4.2)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_themes_dir = Path("test_themes_fallback")
+        self.theme_manager = ThemeManager(self.test_themes_dir)
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if self.test_themes_dir.exists():
+            import shutil
+
+            shutil.rmtree(self.test_themes_dir)
+
+    @patch("anivault.gui.themes.theme_manager.QApplication.instance")
+    def test_fallback_to_default_theme(self, mock_app_instance):
+        """Test fallback to default theme on failure."""
+        # Create light.qss (default) but not dark.qss
+        (self.test_themes_dir / "light.qss").write_text("QWidget { color: white; }")
+
+        # Setup mock app
+        mock_app = Mock()
+        mock_app_instance.return_value = mock_app
+        mock_app.topLevelWidgets.return_value = []
+
+        # Try to apply non-existent dark theme
+        # Should fallback to light
+        self.theme_manager.apply_theme("dark")
+
+        # Verify fallback to light theme
+        assert self.theme_manager.current_theme == "light"
+
+    @patch("anivault.gui.themes.theme_manager.QApplication.instance")
+    def test_safe_mode_when_all_fail(self, mock_app_instance):
+        """Test safe mode when all themes fail."""
+        # No theme files exist
+        mock_app = Mock()
+        mock_app_instance.return_value = mock_app
+        mock_app.topLevelWidgets.return_value = []
+
+        # Try to apply theme - should enter safe mode
+        self.theme_manager.apply_theme("dark")
+
+        # Verify safe mode (empty stylesheet, no theme)
+        assert self.theme_manager.current_theme is None
+        mock_app.setStyleSheet.assert_called_with("")
+
+    @patch("anivault.gui.themes.theme_manager.QApplication.instance")
+    def test_no_recursion_when_default_fails(self, mock_app_instance):
+        """Test no infinite recursion when default theme fails."""
+        # No theme files exist
+        mock_app = Mock()
+        mock_app_instance.return_value = mock_app
+        mock_app.topLevelWidgets.return_value = []
+
+        # Try to apply default theme directly - should go to safe mode
+        self.theme_manager.apply_theme("light")
+
+        # Should not raise error, enter safe mode
+        assert self.theme_manager.current_theme is None
+
+    @patch("anivault.gui.themes.theme_manager.QApplication.instance")
+    def test_app_parameter_override(self, mock_app_instance):
+        """Test QApplication parameter override."""
+        # Create test theme
+        (self.test_themes_dir / "light.qss").write_text("QWidget { color: white; }")
+
+        # Setup mocks
+        mock_app_global = Mock()
+        mock_app_param = Mock()
+        mock_app_instance.return_value = mock_app_global
+        mock_app_param.topLevelWidgets.return_value = []
+
+        # Pass app parameter - should use it instead of instance()
+        self.theme_manager.apply_theme("light", app=mock_app_param)
+
+        # Verify parameter app was used
+        mock_app_param.setStyleSheet.assert_called()
+        mock_app_global.setStyleSheet.assert_not_called()
+
+    @patch("anivault.gui.themes.theme_manager.QApplication.instance")
+    def test_validation_before_fallback(self, mock_app_instance):
+        """Test theme name validation happens before fallback."""
+        mock_app = Mock()
+        mock_app_instance.return_value = mock_app
+
+        # Invalid theme name should raise immediately (no fallback)
+        with pytest.raises(ApplicationError, match="VALIDATION_ERROR"):
+            self.theme_manager.apply_theme("../../../etc/passwd")
+
+    @patch("anivault.gui.themes.theme_manager.QApplication.instance")
+    def test_no_app_instance(self, mock_app_instance):
+        """Test error when no QApplication instance available."""
+        mock_app_instance.return_value = None
+
+        # Should raise error
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.apply_theme("light")
+
+        assert exc_info.value.code == ErrorCode.APPLICATION_ERROR
+        assert "QApplication" in str(exc_info.value)
