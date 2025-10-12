@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -17,6 +18,9 @@ from PySide6.QtWidgets import QApplication
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
+
+# Required theme files for bundle initialization
+REQUIRED_THEME_FILES = ["light.qss", "dark.qss", "common.qss"]
 
 # Regular expression to detect @import directives in QSS files
 # Matches: @import url("path/to/file.qss"); or @import url('path/to/file.qss');
@@ -54,18 +58,31 @@ class ThemeManager:
         if themes_dir is None:
             if self._is_bundled:
                 # PyInstaller bundle: read-only embedded resources
-                self.themes_dir = Path(sys._MEIPASS) / "resources" / "themes"
+                self.base_theme_dir = Path(sys._MEIPASS) / "resources" / "themes"  # type: ignore[attr-defined]
+                # User-writable directory for theme files
+                self.user_theme_dir = Path.home() / ".anivault" / "themes"
+                # Use user directory as primary themes_dir
+                self.themes_dir = self.user_theme_dir
             else:
                 # Development: package-relative path
                 package_dir = Path(__file__).parent.parent.parent
                 self.themes_dir = package_dir / "resources" / "themes"
+                # In development, base and user are the same
+                self.base_theme_dir = self.themes_dir
+                self.user_theme_dir = self.themes_dir
         else:
             self.themes_dir = Path(themes_dir)
+            self.base_theme_dir = self.themes_dir
+            self.user_theme_dir = self.themes_dir
 
         self.current_theme: str | None = None
         # QSS content cache: {Path: (mtime_ns, content)}
         self._qss_cache: dict[Path, tuple[int, str]] = {}
         self._ensure_themes_directory()
+
+        # Initialize bundle themes if running as PyInstaller bundle
+        if self._is_bundled:
+            self._ensure_bundle_themes()
 
     def _ensure_themes_directory(self) -> None:
         """Ensure the themes directory exists."""
@@ -79,6 +96,77 @@ class ThemeManager:
                 f"Failed to create themes directory: {e}",
                 ErrorContext(file_path=str(self.themes_dir)),
             ) from e
+
+    def _ensure_bundle_themes(self) -> None:
+        """Copy required theme files from bundle to user directory if missing.
+
+        This method is only called when running as a PyInstaller bundle.
+        It ensures that all required theme files exist in the user-writable
+        directory by copying them from the read-only bundle resources.
+
+        Does not raise exceptions - logs errors and continues to allow
+        the application to run with potentially incomplete themes.
+        """
+        for theme_file_name in REQUIRED_THEME_FILES:
+            target = self.user_theme_dir / theme_file_name
+            source = self.base_theme_dir / theme_file_name
+
+            # Skip if file already exists
+            if target.exists():
+                logger.debug(
+                    "Theme file already exists, skipping: %s",
+                    theme_file_name,
+                )
+                continue
+
+            # Copy theme file from bundle to user directory
+            try:
+                shutil.copy2(source, target)
+                logger.info(
+                    "Copied bundle theme file to user directory: %s -> %s",
+                    source,
+                    target,
+                )
+            except PermissionError as e:
+                logger.warning(
+                    "Permission denied copying theme file: %s (source: %s, target: %s)",
+                    e,
+                    source,
+                    target,
+                    extra=ErrorContext(
+                        file_path=str(target),
+                        additional_data={
+                            "source_path": str(source),
+                            "bundle_dir": str(self.base_theme_dir),
+                        },
+                    ).model_dump(),
+                )
+            except FileNotFoundError:
+                logger.error(  # noqa: TRY400
+                    "Source theme file not found in bundle: %s",
+                    source,
+                    extra=ErrorContext(
+                        file_path=str(source),
+                        additional_data={
+                            "bundle_dir": str(self.base_theme_dir),
+                            "theme_file": theme_file_name,
+                        },
+                    ).model_dump(),
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.error(  # noqa: TRY400
+                    "Unexpected error copying theme file %s: %s",
+                    theme_file_name,
+                    e,
+                    extra=ErrorContext(
+                        file_path=str(source),
+                        additional_data={
+                            "target_path": str(target),
+                            "bundle_dir": str(self.base_theme_dir),
+                            "error_type": type(e).__name__,
+                        },
+                    ).model_dump(),
+                )
 
     def get_available_themes(self) -> list[str]:
         """Get list of available theme names.
