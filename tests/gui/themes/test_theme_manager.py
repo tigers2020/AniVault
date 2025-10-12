@@ -6,11 +6,9 @@ proper theme loading and application functionality.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
 
 from anivault.gui.themes import ThemeManager
 from anivault.shared.errors import ApplicationError, ErrorCode
@@ -106,7 +104,7 @@ class TestThemeManager:
         qss_path = self.test_themes_dir / "light.qss"
         qss_path.write_text("test")
 
-        with patch("builtins.open", side_effect=IOError("Read error")):
+        with patch("builtins.open", side_effect=OSError("Read error")):
             with pytest.raises(ApplicationError) as exc_info:
                 self.theme_manager.load_theme_content("light")
 
@@ -744,3 +742,205 @@ class TestThemeManagerBundle:
             # Cleanup
             if hasattr(sys, "_MEIPASS"):
                 delattr(sys, "_MEIPASS")
+
+
+class TestThemeManagerBundleFallback:
+    """Test cases for bundle fallback scenarios and path masking (Task 5.5)."""
+
+    @pytest.mark.parametrize(
+        ("input_path", "expected_output"),
+        [
+            # Home directory masking
+            (
+                Path.home() / ".anivault" / "themes" / "dark.qss",
+                "~/.anivault/themes/dark.qss",
+            ),
+            (Path.home() / "custom" / "theme.qss", "~/custom/theme.qss"),
+            # Non-home paths should remain unchanged (name only)
+            (Path("/tmp") / "themes" / "light.qss", "light.qss"),  # noqa: S108
+            (Path("/var") / "app" / "theme.qss", "theme.qss"),
+            # Edge case: path with no name
+            (Path("/"), "/"),
+        ],
+    )
+    def test_mask_home_path_variants(
+        self, input_path: Path, expected_output: str
+    ) -> None:
+        """Test that _mask_home_path correctly masks home directory paths."""
+        # Given: A theme manager instance
+        theme_manager = ThemeManager()
+
+        # When: Masking a path
+        result = theme_manager._mask_home_path(input_path)
+
+        # Then: Home paths are masked with ~, others show name only
+        if "~/" in expected_output:
+            # For home paths, check Unix-style path format
+            assert result == expected_output.replace("\\", "/")
+        elif expected_output == "/":
+            # Edge case: root path on Windows returns "\" on Unix returns "/"
+            assert result in ("/", "\\", str(input_path))
+        else:
+            # For non-home paths, just check the name
+            assert result == expected_output
+
+    def test_get_qss_path_fallback_priority(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test 3-tier fallback priority: user → bundle → light.qss."""
+        import logging
+        import sys
+
+        caplog.set_level(logging.INFO, logger="anivault.gui.themes.theme_manager")
+
+        # Setup: Create mock bundle structure
+        mock_meipass = tmp_path / "meipass"
+        bundle_themes = mock_meipass / "resources" / "themes"
+        bundle_themes.mkdir(parents=True)
+
+        # Create bundle theme files
+        (bundle_themes / "light.qss").write_text("/* Bundle light theme */")
+        (bundle_themes / "dark.qss").write_text("/* Bundle dark theme */")
+
+        # Create user themes directory
+        user_themes = tmp_path / "user_themes"
+        user_themes.mkdir()
+
+        sys._MEIPASS = str(mock_meipass)  # type: ignore[attr-defined]
+
+        try:
+            # Mock _ensure_bundle_themes to prevent auto-copy to real home directory
+            monkeypatch.setattr(ThemeManager, "_ensure_bundle_themes", lambda _: None)
+
+            # Given: Theme manager in bundle mode
+            theme_manager = ThemeManager()
+            theme_manager.user_theme_dir = user_themes
+            theme_manager.base_theme_dir = bundle_themes
+            theme_manager.themes_dir = user_themes
+
+            # Test Case 1: User theme exists → return user path
+            user_dark = user_themes / "dark.qss"
+            user_dark.write_text("/* User dark theme */")
+
+            result = theme_manager.get_qss_path("dark")
+            assert result == user_dark, "Should return user theme when it exists"
+
+            # Test Case 2: User theme missing, bundle exists → return bundle path
+            result = theme_manager.get_qss_path("light")
+            assert (
+                result == bundle_themes / "light.qss"
+            ), "Should fallback to bundle theme when user theme missing"
+
+            # Test Case 3: Both missing, non-default theme → fallback to light.qss
+            result = theme_manager.get_qss_path("nonexistent")
+            assert (
+                result == bundle_themes / "light.qss"
+            ), "Should fallback to default theme when requested theme missing"
+
+            # Test Case 4: Default theme (light) missing → return None
+            (bundle_themes / "light.qss").unlink()  # Remove default theme
+            result = theme_manager.get_qss_path("light")
+            assert (
+                result is None
+            ), "Should return None when default theme is missing (critical failure)"
+
+        finally:
+            # Cleanup
+            if hasattr(sys, "_MEIPASS"):
+                delattr(sys, "_MEIPASS")
+
+    def test_ensure_bundle_themes_permission_error(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that _ensure_bundle_themes handles permission errors gracefully."""
+        import logging
+        import shutil
+        import sys
+        from typing import Any
+
+        caplog.set_level(logging.WARNING, logger="anivault.gui.themes.theme_manager")
+
+        # Setup: Create mock bundle structure
+        mock_meipass = tmp_path / "meipass"
+        bundle_themes = mock_meipass / "resources" / "themes"
+        bundle_themes.mkdir(parents=True)
+
+        # Create required theme files in bundle
+        (bundle_themes / "light.qss").write_text("/* Bundle light */")
+        (bundle_themes / "dark.qss").write_text("/* Bundle dark */")
+        (bundle_themes / "common.qss").write_text("/* Bundle common */")
+
+        # Create user themes directory
+        user_themes = tmp_path / "user_themes"
+        user_themes.mkdir()
+
+        sys._MEIPASS = str(mock_meipass)  # type: ignore[attr-defined]
+
+        try:
+            # Mock shutil.copy2 to raise PermissionError
+            def mock_copy2_permission_error(
+                src: Any, dst: Any, *args: Any, **kwargs: Any
+            ) -> None:
+                msg = f"Permission denied: {dst}"
+                raise PermissionError(msg)
+
+            monkeypatch.setattr(shutil, "copy2", mock_copy2_permission_error)
+
+            # When: Creating theme manager (triggers _ensure_bundle_themes)
+            # This should NOT raise an exception despite PermissionError
+            theme_manager = ThemeManager()
+
+            # Then: Theme manager is created successfully despite permission errors
+            assert theme_manager._is_bundled is True, "Bundle mode should be detected"
+            assert (
+                theme_manager.base_theme_dir == bundle_themes
+            ), "Base theme dir should be set correctly"
+
+            # Verify theme manager remains functional (can get themes from bundle)
+            qss_path = theme_manager.get_qss_path("light")
+            assert (
+                qss_path is not None
+            ), "Should still be able to get themes from bundle"
+            assert qss_path.exists(), "Bundle theme file should exist"
+
+        finally:
+            # Cleanup
+            if hasattr(sys, "_MEIPASS"):
+                delattr(sys, "_MEIPASS")
+
+    def test_mask_home_path_security_no_absolute_paths_in_logs(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that absolute paths are never logged, only masked versions."""
+        import logging
+
+        caplog.set_level(logging.INFO)
+
+        # Given: Theme manager with custom user directory
+        user_themes = tmp_path / "user_themes"
+        user_themes.mkdir()
+
+        theme_manager = ThemeManager()
+        theme_manager.user_theme_dir = user_themes
+        theme_manager.themes_dir = user_themes
+
+        # When: Requesting non-existent theme (triggers logging)
+        _ = theme_manager.get_qss_path("nonexistent")
+
+        # Then: Absolute paths should not appear in logs
+        # Check log records (JSON logger doesn't populate caplog.text)
+        messages = [rec.message for rec in caplog.records]
+        log_text = " ".join(messages)
+
+        assert str(tmp_path) not in log_text, "Absolute path leaked in logs!"
+        assert str(user_themes) not in log_text, "User directory path leaked in logs!"
+
+        # If path is under home, it should be masked with ~/
+        if user_themes.is_relative_to(Path.home()):
+            assert "~/" in log_text, "Home paths should be masked with ~/"
