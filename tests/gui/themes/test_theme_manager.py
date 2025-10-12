@@ -287,14 +287,14 @@ class TestThemeManagerInputValidation:
         valid_names = ["light", "dark", "custom", "my-theme", "my_theme", "theme123"]
 
         for name in valid_names:
-            # Should not raise
-            validated = self.theme_manager._validate_theme_name(name)
+            # Should not raise (now uses ThemeValidator)
+            validated = self.theme_manager._validator.validate_theme_name(name)
             assert validated == name, f"Failed for name: {name}"
 
     def test_validate_theme_name_empty(self):
         """Test empty theme name."""
         with pytest.raises(ApplicationError) as exc_info:
-            self.theme_manager._validate_theme_name("")
+            self.theme_manager._validator.validate_theme_name("")
 
         assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
         assert "empty" in str(exc_info.value).lower()
@@ -304,7 +304,7 @@ class TestThemeManagerInputValidation:
         long_name = "a" * 51  # MAX = 50
 
         with pytest.raises(ApplicationError) as exc_info:
-            self.theme_manager._validate_theme_name(long_name)
+            self.theme_manager._validator.validate_theme_name(long_name)
 
         assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
         assert "too long" in str(exc_info.value).lower()
@@ -315,7 +315,7 @@ class TestThemeManagerInputValidation:
 
         for name in invalid_names:
             with pytest.raises(ApplicationError, match="VALIDATION_ERROR") as exc_info:
-                self.theme_manager._validate_theme_name(name)
+                self.theme_manager._validator.validate_theme_name(name)
 
             assert (
                 exc_info.value.code == ErrorCode.VALIDATION_ERROR
@@ -338,7 +338,7 @@ class TestThemeManagerInputValidation:
 
         for name in invalid_names:
             with pytest.raises(ApplicationError, match="VALIDATION_ERROR") as exc_info:
-                self.theme_manager._validate_theme_name(name)
+                self.theme_manager._validator.validate_theme_name(name)
 
             assert (
                 exc_info.value.code == ErrorCode.VALIDATION_ERROR

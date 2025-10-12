@@ -17,6 +17,8 @@ from PySide6.QtWidgets import QApplication
 
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
+from .theme_validator import ThemeValidator
+
 logger = logging.getLogger(__name__)
 
 # Required theme files for bundle initialization
@@ -74,6 +76,12 @@ class ThemeManager:
             self.themes_dir = Path(themes_dir)
             self.base_theme_dir = self.themes_dir
             self.user_theme_dir = self.themes_dir
+
+        # Initialize validator with theme directories
+        self._validator = ThemeValidator(
+            themes_dir=self.themes_dir,
+            base_theme_dir=self.base_theme_dir,
+        )
 
         self.current_theme: str | None = None
         # QSS content cache: {Path: (mtime_ns, content)}
@@ -185,65 +193,6 @@ class ThemeManager:
             logger.exception("Failed to get available themes")
             return []
 
-    def _validate_theme_name(self, theme_name: str) -> str:
-        """Validate and sanitize theme name input.
-
-        Args:
-            theme_name: Raw theme name from user input
-
-        Returns:
-            str: Validated theme name (unchanged if valid)
-
-        Raises:
-            ApplicationError with ErrorCode.VALIDATION_ERROR if:
-                - theme_name is empty or None
-                - length > 50 characters
-                - contains invalid characters (only alphanumeric, hyphen, underscore allowed)
-                - contains path separators (/, \\, ..)
-        """
-        if not theme_name:
-            raise ApplicationError(
-                ErrorCode.VALIDATION_ERROR,
-                "Theme name cannot be empty",
-                ErrorContext(operation="_validate_theme_name"),
-            )
-
-        if len(theme_name) > 50:
-            raise ApplicationError(
-                ErrorCode.VALIDATION_ERROR,
-                f"Theme name too long (max 50 characters): {len(theme_name)}",
-                ErrorContext(
-                    operation="_validate_theme_name",
-                    additional_data={"theme_name": theme_name[:50]},
-                ),
-            )
-
-        # Security: Prevent path traversal attacks
-        if any(char in theme_name for char in ["/", "\\", ".."]):
-            logger.error("Invalid theme name (path traversal attempt): %s", theme_name)
-            raise ApplicationError(
-                ErrorCode.VALIDATION_ERROR,
-                f"Invalid theme name (contains path separators): {theme_name}",
-                ErrorContext(
-                    operation="_validate_theme_name",
-                    additional_data={"theme_name": theme_name},
-                ),
-            )
-
-        # Only allow alphanumeric, hyphen, and underscore
-        if not re.match(r"^[a-zA-Z0-9_-]+$", theme_name):
-            logger.error("Invalid theme name (invalid characters): %s", theme_name)
-            raise ApplicationError(
-                ErrorCode.VALIDATION_ERROR,
-                f"Invalid theme name (only alphanumeric, hyphen, underscore allowed): {theme_name}",
-                ErrorContext(
-                    operation="_validate_theme_name",
-                    additional_data={"theme_name": theme_name},
-                ),
-            )
-
-        return theme_name
-
     def _mask_home_path(self, path: Path) -> str:
         """Mask home directory in path for secure logging.
 
@@ -288,7 +237,7 @@ class ThemeManager:
             ApplicationError: If theme name is invalid (security)
         """
         # Validate theme name first (security)
-        theme_name = self._validate_theme_name(theme_name)
+        theme_name = self._validator.validate_theme_name(theme_name)
 
         # 1. Try user theme directory first (writable location)
         user_path = self.user_theme_dir / f"{theme_name}.qss"
@@ -351,48 +300,6 @@ class ThemeManager:
 
         return None
 
-    def _validate_import_path(self, qss_path: Path) -> Path:
-        """Validate QSS import path for security.
-
-        Ensures the path is within the themes directory to prevent
-        directory traversal attacks.
-
-        Args:
-            qss_path: Path to validate
-
-        Returns:
-            Resolved absolute path
-
-        Raises:
-            ApplicationError: If path is outside allowed directory
-        """
-        # Resolve to absolute path
-        resolved_path = qss_path.resolve()
-        themes_dir_resolved = self.themes_dir.resolve()
-
-        # Check if path is within themes directory
-        try:
-            if resolved_path.is_relative_to(themes_dir_resolved):
-                logger.debug("Import path validated: %s", resolved_path)
-                return resolved_path
-        except (ValueError, AttributeError):
-            pass
-
-        # Path is outside allowed directory
-        logger.error("Import path outside themes directory: %s", resolved_path)
-        raise ApplicationError(
-            ErrorCode.VALIDATION_ERROR,
-            f"QSS import path outside themes directory: {qss_path}",
-            ErrorContext(
-                operation="_validate_import_path",
-                additional_data={
-                    "requested_path": str(qss_path),
-                    "resolved_path": str(resolved_path),
-                    "allowed_dir": str(themes_dir_resolved),
-                },
-            ),
-        )
-
     def _read_file_with_imports(
         self, qss_path: Path, visited: set[Path] | None = None
     ) -> str:
@@ -429,7 +336,7 @@ class ThemeManager:
             )
 
         # Validate and resolve path
-        resolved_path = self._validate_import_path(qss_path)
+        resolved_path = self._validator.validate_import_path(qss_path)
 
         # Check for circular imports
         if resolved_path in visited:
@@ -660,7 +567,7 @@ class ThemeManager:
             ApplicationError: If theme cannot be applied and all fallbacks fail
         """
         # Validate theme name (security)
-        theme_name = self._validate_theme_name(theme_name)
+        theme_name = self._validator.validate_theme_name(theme_name)
 
         # Get QApplication instance
         if app is None:
@@ -800,7 +707,7 @@ class ThemeManager:
             logger.debug("Cleared entire theme cache (%d entries)", count)
         else:
             # Validate theme name
-            theme_name = self._validate_theme_name(theme_name)
+            theme_name = self._validator.validate_theme_name(theme_name)
 
             # Clear specific theme entries
             # Match by Path.stem (filename without extension)
