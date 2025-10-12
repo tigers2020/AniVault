@@ -448,17 +448,10 @@ QStatusBar::item {
    CUSTOM WIDGETS
    ============================================================================= */
 
-/* Group Card Widget */
+/* Group Card Widget - Dark Theme Colors */
 GroupCardWidget {
     background-color: #1e293b;
     border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px;
-    min-width: 300px;
-    min-height: 120px;
-    max-width: 450px;
-    max-height: 150px;
 }
 
 GroupCardWidget:hover {

@@ -467,17 +467,10 @@ QLabel#groupDetailsLabel {
     background-color: transparent;
 }
 
-/* Group Card Widget */
+/* Group Card Widget - Light Theme Colors */
 GroupCardWidget {
     background-color: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px;
-    min-width: 300px;
-    min-height: 120px;
-    max-width: 450px;
-    max-height: 150px;
 }
 
 GroupCardWidget:hover {
