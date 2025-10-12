@@ -476,9 +476,8 @@ class ThemeManager:
             qss_content = self.load_theme_content(theme_name)
 
             # Apply to application
-            # 1) 이전 스타일 제거 + 플랫폼 기본 팔레트로 리셋
+            # 1) 이전 스타일 제거
             app.setStyleSheet("")
-            app.setPalette(app.style().standardPalette())
 
             # 2) 새 스타일 적용
             app.setStyleSheet(qss_content)
