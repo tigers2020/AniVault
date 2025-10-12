@@ -185,7 +185,6 @@ class ThemeManager:
                     )
 
             # Level 3: Safe mode
-            # noqa: TRY400 - intentionally using error (no traceback for clean message)
             logger.error("All theme loading failed. Entering safe mode.")
             try:
                 app.setStyleSheet("")
@@ -194,7 +193,7 @@ class ThemeManager:
                 self.current_theme = None
                 logger.warning("Safe mode activated: using default system styles")
                 return
-            except Exception as safe_mode_error:  # noqa: BLE001
+            except Exception as safe_mode_error:
                 logger.critical("Safe mode failed: %s", safe_mode_error, exc_info=True)
 
             raise ApplicationError(

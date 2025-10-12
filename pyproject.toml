@@ -124,6 +124,7 @@ exclude = [
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
 "src/anivault/cli/**" = ["FBT003", "B008"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거)
 "src/anivault/gui/**" = ["N815"]  # PySide6 Signal naming convention (camelCase)
+"src/anivault/gui/themes/theme_manager.py" = ["TRY400", "BLE001"]  # Safe mode error handling
 
 [tool.black]
 line-length = 88
