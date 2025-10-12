@@ -346,6 +346,7 @@ QToolBar QAction#openFolderAction {
 
 /* Group Card Widget - Common Layout */
 GroupCardWidget {
+    border: none;  /* No border by default - only on hover/selected */
     border-radius: 8px;
     padding: 12px;
     margin: 8px;
