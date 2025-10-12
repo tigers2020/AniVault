@@ -512,8 +512,8 @@ class TestThemeManagerCache:
         self.theme_manager.load_theme_content("light")
 
         # Check cache structure
-        assert theme_path in self.theme_manager._qss_cache
-        mtime, content = self.theme_manager._qss_cache[theme_path]
+        assert theme_path in self.theme_manager._cache
+        mtime, content = self.theme_manager._cache._cache[theme_path]
         assert isinstance(mtime, int)
         assert mtime > 0
         assert content == "QWidget { color: white; }"
@@ -569,13 +569,13 @@ class TestThemeManagerCache:
         self.theme_manager.load_theme_content("dark")
 
         # Verify cache has entries
-        assert len(self.theme_manager._qss_cache) > 0
+        assert len(self.theme_manager._cache) > 0
 
         # Clear all cache
         self.theme_manager.refresh_theme_cache()
 
         # Verify cache is empty
-        assert len(self.theme_manager._qss_cache) == 0
+        assert len(self.theme_manager._cache) == 0
 
     def test_refresh_cache_specific_theme(self):
         """Test clearing cache for specific theme."""
@@ -589,15 +589,15 @@ class TestThemeManagerCache:
         self.theme_manager.load_theme_content("dark")
 
         # Verify both cached
-        assert len(self.theme_manager._qss_cache) == 2
+        assert len(self.theme_manager._cache) == 2
 
         # Clear only light theme
         self.theme_manager.refresh_theme_cache("light")
 
         # Verify only dark remains
-        assert len(self.theme_manager._qss_cache) == 1
-        assert dark_path in self.theme_manager._qss_cache
-        assert light_path not in self.theme_manager._qss_cache
+        assert len(self.theme_manager._cache) == 1
+        assert dark_path in self.theme_manager._cache
+        assert light_path not in self.theme_manager._cache
 
     def test_refresh_cache_with_imports(self):
         """Test clearing cache for theme with imports."""
@@ -610,7 +610,7 @@ class TestThemeManagerCache:
         # Load theme (caches both light.qss and common.qss)
         self.theme_manager.load_theme_content("light")
 
-        initial_count = len(self.theme_manager._qss_cache)
+        initial_count = len(self.theme_manager._cache)
         assert initial_count >= 1  # At least light.qss
 
         # Clear light theme
@@ -618,7 +618,7 @@ class TestThemeManagerCache:
 
         # Light should be removed
         light_path = self.test_themes_dir / "light.qss"
-        assert light_path not in self.theme_manager._qss_cache
+        assert light_path not in self.theme_manager._cache
 
     def test_refresh_cache_invalid_name(self):
         """Test that invalid theme name raises validation error."""
@@ -638,7 +638,7 @@ class TestThemeManagerCache:
 
         # light should still be cached
         light_path = self.test_themes_dir / "light.qss"
-        assert light_path in self.theme_manager._qss_cache
+        assert light_path in self.theme_manager._cache
 
     def test_performance_measurement_works(self):
         """Test that performance measurement doesn't break functionality."""

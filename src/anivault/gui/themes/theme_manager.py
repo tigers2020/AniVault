@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QApplication
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 from .path_resolver import ThemePathResolver
+from .theme_cache import ThemeCache
 from .theme_validator import ThemeValidator
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,9 @@ class ThemeManager:
         # Update path resolver's validator reference
         self._path_resolver._validator = self._validator
 
+        # Initialize theme cache with validator
+        self._cache = ThemeCache(self._validator)
+
         # Expose commonly used path properties for backward compatibility
         self.themes_dir = self._path_resolver.themes_dir
         self.base_theme_dir = self._path_resolver.base_theme_dir
@@ -75,8 +79,6 @@ class ThemeManager:
         self._is_bundled = self._path_resolver.is_bundled
 
         self.current_theme: str | None = None
-        # QSS content cache: {Path: (mtime_ns, content)}
-        self._qss_cache: dict[Path, tuple[int, str]] = {}
 
         # Initialize bundle themes if running as PyInstaller bundle
         if self._path_resolver.is_bundled:
@@ -284,7 +286,7 @@ class ThemeManager:
                 return ""  # Safe fallback: empty stylesheet
 
             # Use cached @import-aware reader (mtime-based)
-            content = self._get_cached_theme(qss_path)
+            content = self._cache.get_or_load(qss_path, self._read_file_with_imports)
 
             # Performance monitoring
             elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -332,46 +334,6 @@ class ThemeManager:
                 ),
             ) from e
 
-    def _get_cached_theme(self, path: Path) -> str:
-        """Get theme content from cache or load and cache it.
-
-        Implements mtime-based cache validation:
-        - Cache hit: If mtime matches, return cached content
-        - Cache miss: Load content, cache with new mtime
-
-        Args:
-            path: Path to the QSS file
-
-        Returns:
-            QSS content as string
-
-        Raises:
-            ApplicationError: If file cannot be read
-        """
-        # Get current mtime
-        try:
-            mtime_ns = path.stat().st_mtime_ns
-        except OSError as e:
-            logger.exception("Failed to stat theme file: %s", path)
-            raise ApplicationError(
-                ErrorCode.FILE_NOT_FOUND,
-                f"Theme file not accessible: {path}",
-                ErrorContext(file_path=str(path)),
-            ) from e
-
-        # Check cache
-        cached = self._qss_cache.get(path)
-        if cached and cached[0] == mtime_ns:
-            logger.debug("Cache hit for theme: %s", path.name)
-            return cached[1]
-
-        # Cache miss - load and cache
-        logger.debug("Cache miss for theme: %s (loading)", path.name)
-        content = self._read_file_with_imports(path)
-        self._qss_cache[path] = (mtime_ns, content)
-
-        return content
-
     def apply_theme(
         self,
         theme_name: str,
@@ -399,15 +361,19 @@ class ThemeManager:
 
         # Get QApplication instance
         if app is None:
-            app = QApplication.instance()
-
-            if app is None:
+            # QApplication.instance() returns QCoreApplication | None
+            # We need to cast it to QApplication for type checker
+            instance = QApplication.instance()
+            if instance is None:
                 logger.error("No QApplication instance found")
                 raise ApplicationError(
                     ErrorCode.APPLICATION_ERROR,
                     "No QApplication instance found",
                     ErrorContext(operation="apply_theme"),
                 )
+            # Type assertion: instance is guaranteed to be QApplication here
+            # because QCoreApplication.instance() returns the QApplication if one exists
+            app = instance  # type: ignore[assignment]
 
         # Level 1: Try requested theme
         try:
@@ -508,51 +474,12 @@ class ThemeManager:
     def refresh_theme_cache(self, theme_name: str | None = None) -> None:
         """Invalidate and refresh theme cache.
 
-        This is a manual cache invalidation method for development/debugging.
-        Normal theme operations automatically handle cache invalidation via
-        mtime-based validation.
+        Delegates to ThemeCache for cache management.
 
         Args:
             theme_name: Specific theme to refresh, or None for all themes
-
-        Usage:
-            # Development: Clear all cache after editing QSS files
-            theme_manager.refresh_theme_cache()
-
-            # Clear specific theme cache
-            theme_manager.refresh_theme_cache("dark")
-
-        Notes:
-            - This is a PUBLIC method for power users and development tools
-            - NOT exposed in GUI menu (internal/dev feature)
-            - Can be called from CLI debug mode or test fixtures
-            - Automatic mtime validation usually makes this unnecessary
         """
-        if theme_name is None:
-            # Clear entire cache
-            count = len(self._qss_cache)
-            self._qss_cache.clear()
-            logger.debug("Cleared entire theme cache (%d entries)", count)
-        else:
-            # Validate theme name
-            theme_name = self._validator.validate_theme_name(theme_name)
-
-            # Clear specific theme entries
-            # Match by Path.stem (filename without extension)
-            to_remove = [
-                path
-                for path in self._qss_cache
-                if path.stem == theme_name or path.name == f"{theme_name}.qss"
-            ]
-
-            for path in to_remove:
-                del self._qss_cache[path]
-
-            logger.debug(
-                "Cleared cache for theme '%s' (%d entries)",
-                theme_name,
-                len(to_remove),
-            )
+        self._cache.refresh(theme_name)
 
     def load_and_apply_theme(self, app: QApplication, theme_name: str) -> None:
         """Load and apply a theme to the application.
