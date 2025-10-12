@@ -56,8 +56,13 @@ class GroupCardWidget(QFrame):
 
         # Main horizontal layout (TMDB style: poster on left, info on right)
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+            UIConfig.GROUP_CARD_CONTENT_MARGIN,
+        )
+        main_layout.setSpacing(UIConfig.GROUP_CARD_MAIN_SPACING)
 
         # Left: Poster image
         poster_label = self._create_poster_widget()
@@ -65,7 +70,7 @@ class GroupCardWidget(QFrame):
 
         # Right: Information layout
         info_layout = QVBoxLayout()
-        info_layout.setSpacing(5)
+        info_layout.setSpacing(UIConfig.GROUP_CARD_INFO_SPACING)
 
         # Get anime info first to determine what to display
         anime_info = self._get_anime_info()
@@ -124,7 +129,9 @@ class GroupCardWidget(QFrame):
 
         else:
             # No TMDB data - show file-based info
-            display_name = self._truncate_text(self.group_name, max_length=40)
+            display_name = self._truncate_text(
+                self.group_name, max_length=UIConfig.GROUP_CARD_NAME_MAX_LENGTH
+            )
             title_label = QLabel(f"📁 {display_name}")
             title_label.setObjectName("groupTitleLabel")
             title_label.setWordWrap(True)
@@ -183,7 +190,7 @@ class GroupCardWidget(QFrame):
         anime_info = self._get_anime_info()
         logger.debug(
             "🎨 Creating poster for group '%s': anime_info=%s",
-            self.group_name[:30],
+            self.group_name[: UIConfig.LOG_TRUNCATE_LENGTH],
             "YES" if anime_info else "NO",
         )
 
@@ -193,8 +200,16 @@ class GroupCardWidget(QFrame):
             title = anime_info.get("title") or anime_info.get("name") or "?"
             logger.debug(
                 "🎨 Poster widget - title: '%s', poster_path: %s",
-                title[:30] if title and title != "?" else "None",
-                poster_path[:30] if poster_path else "None",
+                (
+                    title[: UIConfig.LOG_TRUNCATE_LENGTH]
+                    if title and title != "?"
+                    else "None"
+                ),
+                (
+                    poster_path[: UIConfig.LOG_TRUNCATE_LENGTH]
+                    if poster_path
+                    else "None"
+                ),
             )
 
             # Try to load actual poster image from TMDB
@@ -210,7 +225,10 @@ class GroupCardWidget(QFrame):
                         Qt.SmoothTransformation,
                     )
                     poster_label.setPixmap(scaled_pixmap)
-                    logger.debug("✅ Loaded cached poster image for: %s", title[:30])
+                    logger.debug(
+                        "✅ Loaded cached poster image for: %s",
+                        title[: UIConfig.LOG_TRUNCATE_LENGTH],
+                    )
                     return poster_label
                 # If pixmap is None, async download started - show placeholder
                 # and poster will be updated when download completes
@@ -223,7 +241,7 @@ class GroupCardWidget(QFrame):
                 logger.debug(
                     "🎨 Set poster to initial '%s' for: %s",
                     initial,
-                    title[:30],
+                    title[: UIConfig.LOG_TRUNCATE_LENGTH],
                 )
             else:
                 # Has poster_path but title is Unknown
@@ -365,7 +383,7 @@ class GroupCardWidget(QFrame):
         if meta:
             parsed_title = getattr(meta, "title", None)
             if parsed_title and parsed_title.strip():
-                return self._truncate_text(parsed_title, 20)
+                return self._truncate_text(parsed_title, UIConfig.FILE_HINT_MAX_LENGTH)
 
         # Fallback to filename stem
         file_path = getattr(first_file, "file_path", None)
@@ -375,12 +393,14 @@ class GroupCardWidget(QFrame):
             stem = stem.replace(".", " ").replace("_", " ").replace("-", " ")
             stem = " ".join(stem.split())  # Remove extra whitespace
             if stem:
-                return self._truncate_text(stem, 20)
+                return self._truncate_text(stem, UIConfig.FILE_HINT_MAX_LENGTH)
 
         # Final fallback
         return "Unknown title"
 
-    def _truncate_text(self, text: str, max_length: int = 30) -> str:
+    def _truncate_text(
+        self, text: str, max_length: int = UIConfig.DEFAULT_TRUNCATE_LENGTH
+    ) -> str:
         """
         Truncate text to specified length with ellipsis.
 
@@ -429,7 +449,9 @@ class GroupCardWidget(QFrame):
 
         # Position popup to the right of the card
         card_pos = self.mapToGlobal(self.rect().topRight())
-        self._detail_popup.move(card_pos.x() + 10, card_pos.y())
+        self._detail_popup.move(
+            card_pos.x() + UIConfig.POPUP_POSITION_OFFSET, card_pos.y()
+        )
 
         # Ensure popup is on top
         self._detail_popup.raise_()
@@ -500,7 +522,7 @@ class GroupCardWidget(QFrame):
         try:
             # TMDB image configuration
             tmdb_image_base_url = "https://image.tmdb.org/t/p/"
-            poster_size = "w185"  # Small poster size for cards
+            poster_size = UIConfig.TMDB_POSTER_SIZE  # Small poster size for cards
 
             # Create cache directory
             cache_dir = Path.home() / ".anivault" / "cache" / "posters"
@@ -523,7 +545,7 @@ class GroupCardWidget(QFrame):
 
             # Create network request
             request = QNetworkRequest(QUrl(image_url))
-            request.setTransferTimeout(5000)  # 5 second timeout
+            request.setTransferTimeout(UIConfig.NETWORK_TIMEOUT_MS)  # Network timeout
 
             # Start async download
             reply = self._network_manager.get(request)

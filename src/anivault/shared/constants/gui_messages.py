@@ -186,6 +186,28 @@ class UIConfig:
     POPUP_CONTENT_MARGIN = 15  # Popup content margin (px)
     POPUP_CONTENT_SPACING = 10  # Popup vertical spacing between elements (px)
 
+    # Group card layout spacing
+    GROUP_CARD_CONTENT_MARGIN = 10  # Card main layout margins (px)
+    GROUP_CARD_MAIN_SPACING = 15  # Card horizontal spacing between poster and info (px)
+    GROUP_CARD_INFO_SPACING = 5  # Card info vertical spacing between elements (px)
+
+    # Group grid layout spacing
+    GRID_SPACING = 10  # Grid spacing between cards (px)
+    GRID_MARGIN = 10  # Grid container margins (px)
+
+    # Text truncation defaults
+    DEFAULT_TRUNCATE_LENGTH = 30  # Default text truncation length
+    GROUP_CARD_NAME_MAX_LENGTH = 40  # File-based group name display length
+    FILE_HINT_MAX_LENGTH = 20  # File hint display length
+    LOG_TRUNCATE_LENGTH = 30  # Log output truncation length
+
+    # Popup positioning
+    POPUP_POSITION_OFFSET = 10  # Horizontal offset from card (px)
+
+    # TMDB API constants
+    TMDB_POSTER_SIZE = "w185"  # TMDB poster size for cards
+    NETWORK_TIMEOUT_MS = 5000  # Network request timeout (ms)
+
     # Default/fallback values
     UNKNOWN_TITLE = "Unknown"
     NO_OVERVIEW = ""
