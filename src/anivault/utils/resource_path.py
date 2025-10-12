@@ -37,8 +37,8 @@ def get_resource_path(relative_path: str) -> Path:
         logger.debug("Running as PyInstaller bundle, base path: %s", base_path)
     except AttributeError:
         # Development mode - use package directory
-        # Go up from utils -> anivault -> src
-        base_path = Path(__file__).parent.parent.parent
+        # Go up from utils -> anivault -> src -> project root
+        base_path = Path(__file__).parent.parent.parent.parent
         logger.debug("Running in development mode, base path: %s", base_path)
 
     resource_path = base_path / relative_path

@@ -114,7 +114,6 @@ class ErrorCode(str, Enum):
     TOKEN_MALFORMED = "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
     ENCRYPTION_FAILED = "ENCRYPTION_FAILED"
     DECRYPTION_FAILED = "DECRYPTION_FAILED"
-    SECURITY_VIOLATION = "SECURITY_VIOLATION"
 
     # Dependency Errors
     DEPENDENCY_MISSING = "DEPENDENCY_MISSING"
@@ -207,7 +206,7 @@ class ErrorContextModel(BaseTypeModel):
     @field_validator("additional_data", mode="before")
     @classmethod
     def _coerce_primitives(
-        cls, value: dict[str, Any] | None
+        cls, value: Any | None
     ) -> dict[str, PrimitiveContextValue] | None:
         """Coerce additional_data values to primitives.
 
