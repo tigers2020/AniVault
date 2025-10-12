@@ -529,6 +529,8 @@ QLabel#groupDateLabel {
 
 QLabel#groupOverviewLabel {
     font-size: 12px;
+    max-height: 72px;  /* ~4 lines at 12px font + line spacing */
+    min-height: 40px;  /* Minimum 2-3 lines */
 }
 
 /* =============================================================================
