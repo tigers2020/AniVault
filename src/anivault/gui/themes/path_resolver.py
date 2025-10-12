@@ -95,6 +95,22 @@ class ThemePathResolver:
         """Check if running in PyInstaller bundle mode."""
         return self._is_bundled
 
+    def get_available_themes(self) -> list[str]:
+        """Get list of available theme names.
+
+        Returns:
+            List of available theme names (QSS file stems)
+        """
+        themes = []
+        try:
+            for qss_file in self.themes_dir.glob("*.qss"):
+                themes.append(qss_file.stem)
+            logger.debug("Available themes: %s", themes)
+            return themes
+        except Exception:
+            logger.exception("Failed to get available themes")
+            return []
+
     def _ensure_themes_directory(self) -> None:
         """Ensure the themes directory exists."""
         try:

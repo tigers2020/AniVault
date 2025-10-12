@@ -770,12 +770,12 @@ class TestThemeManagerBundleFallback:
     def test_mask_home_path_variants(
         self, input_path: Path, expected_output: str
     ) -> None:
-        """Test that _mask_home_path correctly masks home directory paths."""
+        """Test that mask_home_path correctly masks home directory paths."""
         # Given: A theme manager instance
         theme_manager = ThemeManager()
 
-        # When: Masking a path
-        result = theme_manager._mask_home_path(input_path)
+        # When: Masking a path via PathResolver
+        result = theme_manager._path_resolver.mask_home_path(input_path)
 
         # Then: Home paths are masked with ~, others show name only
         if "~/" in expected_output:

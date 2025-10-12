@@ -31,37 +31,25 @@ class ThemeManager:
     DEFAULT_THEME = LIGHT_THEME
 
     def __init__(self, themes_dir: Path | None = None) -> None:
-        """Initialize the ThemeManager.
-
-        Detects PyInstaller bundle environment and sets up appropriate
-        theme directories (bundled + user-writable).
+        """Initialize ThemeManager with modular components.
 
         Args:
-            themes_dir: Optional path to themes directory. If None, uses
-                      default path based on environment (bundle/development)
+            themes_dir: Optional themes directory (defaults to bundle/dev mode)
         """
-        # Initialize path resolver (handles all path-related logic)
-        # Note: ThemeValidator is created inside ThemePathResolver for validation
-        # We create a temporary validator first for the path resolver
-        temp_validator = ThemeValidator(
-            themes_dir=Path.home() / ".anivault" / "themes",  # temporary
-            base_theme_dir=Path.home() / ".anivault" / "themes",  # temporary
-        )
+        # Create path resolver (determines all directories)
+        temp_dir = Path.home() / ".anivault" / "themes"
+        temp_validator = ThemeValidator(themes_dir=temp_dir, base_theme_dir=temp_dir)
         self._path_resolver = ThemePathResolver(themes_dir, temp_validator)
 
-        # Now create the proper validator with actual paths from resolver
+        # Create proper validator with resolved paths
         self._validator = ThemeValidator(
             themes_dir=self._path_resolver.themes_dir,
             base_theme_dir=self._path_resolver.base_theme_dir,
         )
-
-        # Update path resolver's validator reference
         self._path_resolver._validator = self._validator
 
-        # Initialize theme cache with validator
+        # Initialize components with dependencies
         self._cache = ThemeCache(self._validator)
-
-        # Initialize QSS loader with all dependencies
         self._qss_loader = QSSLoader(
             validator=self._validator,
             path_resolver=self._path_resolver,
@@ -69,47 +57,20 @@ class ThemeManager:
             logger=logger,
         )
 
-        # Expose commonly used path properties for backward compatibility
+        # Expose paths for backward compatibility
         self.themes_dir = self._path_resolver.themes_dir
         self.base_theme_dir = self._path_resolver.base_theme_dir
         self.user_theme_dir = self._path_resolver.user_theme_dir
         self._is_bundled = self._path_resolver.is_bundled
-
         self.current_theme: str | None = None
 
-        # Initialize bundle themes if running as PyInstaller bundle
+        # Initialize bundle themes if needed
         if self._path_resolver.is_bundled:
             self._path_resolver.ensure_bundle_themes()
 
     def get_available_themes(self) -> list[str]:
-        """Get list of available theme names.
-
-        Returns:
-            List of available theme names
-        """
-        themes = []
-        try:
-            for qss_file in self.themes_dir.glob("*.qss"):
-                theme_name = qss_file.stem
-                themes.append(theme_name)
-            logger.debug("Available themes: %s", themes)
-            return themes
-        except Exception:
-            logger.exception("Failed to get available themes")
-            return []
-
-    def _mask_home_path(self, path: Path) -> str:
-        """Mask home directory in path for secure logging.
-
-        Delegates to ThemePathResolver for path masking.
-
-        Args:
-            path: Path to mask
-
-        Returns:
-            String path with home directory masked
-        """
-        return self._path_resolver.mask_home_path(path)
+        """Get list of available theme names."""
+        return self._path_resolver.get_available_themes()
 
     def get_qss_path(self, theme_name: str) -> Path | None:
         """Get the path to a theme's QSS file with fallback priority.
@@ -150,109 +111,67 @@ class ThemeManager:
         app: QApplication | None = None,
         _fallback_attempted: bool = False,
     ) -> None:
-        """Apply a theme with automatic fallback and recursion prevention.
-
-        Implements 3-level fallback strategy:
-        - Level 1: Try requested theme
-        - Level 2: On failure, try DEFAULT_THEME (light) if different
-        - Level 3: On failure, apply empty stylesheet (safe mode)
+        """Apply theme with 3-level fallback: requested → default → safe mode.
 
         Args:
-            theme_name: Name of the theme to apply
-            app: QApplication instance (None = auto-detect)
-            _fallback_attempted: Internal flag to prevent infinite recursion
-                                (DO NOT SET MANUALLY)
+            theme_name: Theme to apply
+            app: QApplication (None = auto-detect)
+            _fallback_attempted: Internal recursion guard
 
         Raises:
-            ApplicationError: If theme cannot be applied and all fallbacks fail
+            ApplicationError: If all fallbacks fail
         """
-        # Validate theme name (security)
         theme_name = self._validator.validate_theme_name(theme_name)
 
         # Get QApplication instance
         if app is None:
-            # QApplication.instance() returns QCoreApplication | None
-            # We need to cast it to QApplication for type checker
             instance = QApplication.instance()
             if instance is None:
-                logger.error("No QApplication instance found")
                 raise ApplicationError(
                     ErrorCode.APPLICATION_ERROR,
                     "No QApplication instance found",
                     ErrorContext(operation="apply_theme"),
                 )
-            # Type assertion: instance is guaranteed to be QApplication here
-            # because QCoreApplication.instance() returns the QApplication if one exists
             app = instance  # type: ignore[assignment]
 
         # Level 1: Try requested theme
         try:
             logger.info("Applying theme: %s", theme_name)
-
-            # Load theme content
             qss_content = self.load_theme_content(theme_name)
-
-            # Apply to application
-            # 1) 이전 스타일 제거
             app.setStyleSheet("")
-
-            # 2) 새 스타일 적용
             app.setStyleSheet(qss_content)
             self.current_theme = theme_name
-
-            # 3) 위젯 리폴리시 (툴바/메뉴/상태바까지 강제 반영)
             self._repolish_all_top_levels(app)
-
             logger.info("Successfully applied theme: %s", theme_name)
-            return  # Success!
+            return
 
         except Exception as e:
-            logger.warning(
-                "Failed to apply theme %s: %s",
-                theme_name,
-                e,
-                exc_info=True,
-            )
+            logger.warning("Failed to apply theme %s: %s", theme_name, e, exc_info=True)
 
-            # Level 2: Fallback to default theme (if not already trying default)
+            # Level 2: Fallback to default
             if not _fallback_attempted and theme_name != self.DEFAULT_THEME:
-                logger.warning(
-                    "Falling back to default theme: %s",
-                    self.DEFAULT_THEME,
-                )
+                logger.warning("Falling back to default theme: %s", self.DEFAULT_THEME)
                 try:
-                    # Recursive call with fallback flag
-                    self.apply_theme(
-                        self.DEFAULT_THEME,
-                        app=app,
-                        _fallback_attempted=True,
-                    )
-                    return  # Fallback success!
+                    self.apply_theme(self.DEFAULT_THEME, app, _fallback_attempted=True)
+                    return
                 except Exception:
                     logger.exception(
-                        "Failed to apply fallback theme %s",
-                        self.DEFAULT_THEME,
+                        "Failed to apply fallback theme %s", self.DEFAULT_THEME
                     )
 
-            # Level 3: Safe mode - apply empty stylesheet
-            logger.error(  # noqa: TRY400
-                "All theme loading failed. Entering safe mode (empty stylesheet)."
-            )
+            # Level 3: Safe mode
+
+            logger.error("All theme loading failed. Entering safe mode.")
             try:
                 app.setStyleSheet("")
                 app.setPalette(app.style().standardPalette())
                 self._repolish_all_top_levels(app)
-                self.current_theme = None  # No theme applied
+                self.current_theme = None
                 logger.warning("Safe mode activated: using default system styles")
-                # Don't raise error in safe mode - allow app to continue
                 return
             except Exception as safe_mode_error:  # noqa: BLE001
-                # Safe mode also failed - this is critical (broad catch necessary for safety)
-                logger.critical(
-                    "Safe mode failed: %s",
-                    safe_mode_error,
-                    exc_info=True,
-                )
+                logger.critical("Safe mode failed: %s", safe_mode_error, exc_info=True)
+
             raise ApplicationError(
                 ErrorCode.APPLICATION_ERROR,
                 f"Failed to apply theme and all fallbacks: {e}",
@@ -290,24 +209,3 @@ class ThemeManager:
             theme_name: Specific theme to refresh, or None for all themes
         """
         self._cache.refresh(theme_name)
-
-    def load_and_apply_theme(self, app: QApplication, theme_name: str) -> None:
-        """Load and apply a theme to the application.
-
-        .. deprecated:: 0.1.0
-            Use :meth:`apply_theme` instead. This method is a compatibility
-            wrapper that delegates to the new unified apply_theme method.
-
-        Args:
-            app: QApplication instance
-            theme_name: Name of the theme to load and apply
-        """
-        import warnings
-
-        warnings.warn(
-            "load_and_apply_theme is deprecated, use apply_theme instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Delegate to new unified method
-        self.apply_theme(theme_name, app=app)
