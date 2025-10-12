@@ -43,7 +43,7 @@ update_and_save_config(update_timeout)
 ```toml
 # config/config.toml
 [tmdb]
-api_key = "your_key_here"  # ❌ Never do this!
+api_key = "your_key_here"  # ❌ Never do this!  # pragma: allowlist secret
 ```
 
 **After (✅ SECURE):**

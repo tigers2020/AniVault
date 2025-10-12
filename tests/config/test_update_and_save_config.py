@@ -103,7 +103,7 @@ def test_api_key_not_saved_to_file(temp_config: Path):
 
     # Verify API key in memory
     cfg = get_config()
-    assert cfg.tmdb.api_key == "test_secret_key_12345"
+    assert cfg.tmdb.api_key == "test_secret_key_12345"  # pragma: allowlist secret
 
     # Verify API key NOT in file
     saved_content = temp_config.read_text()
