@@ -281,6 +281,13 @@ GroupCardWidget {
     border: none;
 }
 
+/* Exception: Poster labels (QLabel inherits QFrame) */
+QLabel#posterLabel,
+QLabel#posterInitial,
+QLabel#posterFolder {
+    border: none;
+}
+
 QFrame[frameShape="4"] { /* Box */
     border-radius: 6px;
 }
