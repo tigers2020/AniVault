@@ -29,6 +29,9 @@ QSS_IMPORT_PATTERN = re.compile(
 # Maximum recursion depth for @import resolution (security limit)
 MAX_IMPORT_DEPTH = 10
 
+# Performance monitoring threshold (milliseconds)
+PERFORMANCE_THRESHOLD_MS = 50
+
 
 class QSSLoader:
     """Loads QSS files with @import resolution and caching.
@@ -129,9 +132,10 @@ class QSSLoader:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
 
             # Log performance metrics
-            if elapsed_ms > 50:
+            if elapsed_ms > PERFORMANCE_THRESHOLD_MS:
                 self._logger.warning(
-                    "Theme loading exceeded 50ms threshold: %s (%.2fms)",
+                    "Theme loading exceeded %dms threshold: %s (%.2fms)",
+                    PERFORMANCE_THRESHOLD_MS,
                     theme_name,
                     elapsed_ms,
                 )
@@ -145,18 +149,19 @@ class QSSLoader:
             return content
 
         except ApplicationError as e:
-            # Only catch FILE_NOT_FOUND from get_qss_path (not from imports)
-            # Import errors should be raised, not swallowed
-            if e.code == ErrorCode.FILE_NOT_FOUND and qss_path is not None:
-                # This is an import error, not a theme file error - re-raise
-                raise
+            # Handle FILE_NOT_FOUND errors differently based on context
             if e.code == ErrorCode.FILE_NOT_FOUND:
-                # Theme file itself not found - safe fallback
+                # If qss_path is set, this is an import error (re-raise)
+                # If qss_path is None, this is a theme file error (safe fallback)
+                if qss_path is not None:
+                    raise  # Import error - propagate to caller
+
+                # Theme file not found - safe fallback
                 self._logger.warning(
                     "Theme file not found: %s, using empty stylesheet",
                     theme_name,
                     extra=ErrorContext(
-                        file_path=str(qss_path) if qss_path else f"{theme_name}.qss",
+                        file_path=f"{theme_name}.qss",
                         additional_data={
                             "stage": "load-error",
                             "theme_name": theme_name,
@@ -164,7 +169,8 @@ class QSSLoader:
                         },
                     ).model_dump(),
                 )
-                return ""  # Safe fallback for theme file not found
+                return ""  # Safe fallback
+
             raise  # Re-raise other ApplicationErrors
         except Exception as e:
             self._logger.exception("Failed to load theme content for %s", theme_name)

@@ -68,8 +68,9 @@ class ThemePathResolver:
         if themes_dir is None:
             if self._is_bundled:
                 # PyInstaller bundle: read-only embedded resources
+                # Match the bundled path structure from AniVault.spec
                 self.base_theme_dir = (
-                    Path(sys._MEIPASS) / "resources" / "themes"  # type: ignore[attr-defined]
+                    Path(sys._MEIPASS) / "anivault" / "resources" / "themes"  # type: ignore[attr-defined]
                 )
                 # User-writable directory for theme files
                 self.user_theme_dir = Path.home() / ".anivault" / "themes"
@@ -94,6 +95,17 @@ class ThemePathResolver:
     def is_bundled(self) -> bool:
         """Check if running in PyInstaller bundle mode."""
         return self._is_bundled
+
+    def set_validator(self, validator: ThemeValidator) -> None:
+        """Update the validator instance.
+
+        This is a public setter to allow ThemeManager to update the validator
+        after path resolution without directly accessing protected members.
+
+        Args:
+            validator: New ThemeValidator instance
+        """
+        self._validator = validator
 
     def get_available_themes(self) -> list[str]:
         """Get list of available theme names.

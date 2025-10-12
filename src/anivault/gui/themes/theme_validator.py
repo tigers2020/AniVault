@@ -15,6 +15,9 @@ from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
 
+# Maximum theme name length (security limit)
+MAX_THEME_NAME_LENGTH = 50
+
 
 class ThemeValidator:
     """Validates theme names and import paths for security.
@@ -66,10 +69,10 @@ class ThemeValidator:
                 ErrorContext(operation="validate_theme_name"),
             )
 
-        if len(theme_name) > 50:
+        if len(theme_name) > MAX_THEME_NAME_LENGTH:
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
-                f"Theme name too long (max 50 characters): {len(theme_name)}",
+                f"Theme name too long (max {MAX_THEME_NAME_LENGTH} characters): {len(theme_name)}",
                 ErrorContext(
                     operation="validate_theme_name",
                     additional_data={"theme_name": theme_name[:50]},

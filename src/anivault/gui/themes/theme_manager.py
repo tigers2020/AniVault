@@ -30,25 +30,50 @@ class ThemeManager:
     DARK_THEME = "dark"
     DEFAULT_THEME = LIGHT_THEME
 
-    def __init__(self, themes_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        themes_dir: Path | None = None,
+        validator: ThemeValidator | None = None,
+        path_resolver: ThemePathResolver | None = None,
+    ) -> None:
         """Initialize ThemeManager with modular components.
+
+        This constructor supports dependency injection for testing and
+        uses a factory-like pattern to resolve the circular dependency
+        between ThemeValidator and ThemePathResolver.
 
         Args:
             themes_dir: Optional themes directory (defaults to bundle/dev mode)
+            validator: Optional ThemeValidator (for testing/DI)
+            path_resolver: Optional ThemePathResolver (for testing/DI)
         """
-        # Create path resolver (determines all directories)
-        temp_dir = Path.home() / ".anivault" / "themes"
-        temp_validator = ThemeValidator(themes_dir=temp_dir, base_theme_dir=temp_dir)
-        self._path_resolver = ThemePathResolver(themes_dir, temp_validator)
+        # Factory pattern: Create components in dependency order
+        # Step 1: Create PathResolver (determines all directories)
+        if path_resolver is None:
+            # Create minimal validator for PathResolver initialization
+            # (PathResolver only needs validator for get_qss_path validation)
+            temp_dir = Path.home() / ".anivault" / "themes"
+            temp_validator = ThemeValidator(
+                themes_dir=temp_dir, base_theme_dir=temp_dir
+            )
+            self._path_resolver = ThemePathResolver(themes_dir, temp_validator)
+        else:
+            self._path_resolver = path_resolver
 
-        # Create proper validator with resolved paths
-        self._validator = ThemeValidator(
-            themes_dir=self._path_resolver.themes_dir,
-            base_theme_dir=self._path_resolver.base_theme_dir,
-        )
-        self._path_resolver._validator = self._validator
+        # Step 2: Create proper validator with resolved paths
+        if validator is None:
+            self._validator = ThemeValidator(
+                themes_dir=self._path_resolver.themes_dir,
+                base_theme_dir=self._path_resolver.base_theme_dir,
+            )
+        else:
+            self._validator = validator
 
-        # Initialize components with dependencies
+        # Step 3: Update PathResolver's validator reference
+        # Use public setter method to avoid protected member access
+        self._path_resolver.set_validator(self._validator)
+
+        # Step 4: Initialize remaining components with dependencies
         self._cache = ThemeCache(self._validator)
         self._qss_loader = QSSLoader(
             validator=self._validator,
@@ -160,7 +185,6 @@ class ThemeManager:
                     )
 
             # Level 3: Safe mode
-
             logger.error("All theme loading failed. Entering safe mode.")
             try:
                 app.setStyleSheet("")

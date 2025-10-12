@@ -686,7 +686,8 @@ class TestThemeManagerBundle:
         # Mock PyInstaller bundle environment
         mock_meipass = tmp_path / "meipass"
         mock_meipass.mkdir()
-        (mock_meipass / "resources" / "themes").mkdir(parents=True)
+        # Match PyInstaller bundle structure from AniVault.spec
+        (mock_meipass / "anivault" / "resources" / "themes").mkdir(parents=True)
 
         # Manually set _MEIPASS
         sys._MEIPASS = str(mock_meipass)
@@ -698,7 +699,10 @@ class TestThemeManagerBundle:
             # Verify bundle detection
             assert theme_manager._is_bundled is True
             # In bundle mode, base_theme_dir is bundle, themes_dir is user-writable
-            assert theme_manager.base_theme_dir == mock_meipass / "resources" / "themes"
+            assert (
+                theme_manager.base_theme_dir
+                == mock_meipass / "anivault" / "resources" / "themes"
+            )
             assert theme_manager.themes_dir == Path.home() / ".anivault" / "themes"
             assert theme_manager.user_theme_dir == Path.home() / ".anivault" / "themes"
         finally:
@@ -802,7 +806,8 @@ class TestThemeManagerBundleFallback:
 
         # Setup: Create mock bundle structure
         mock_meipass = tmp_path / "meipass"
-        bundle_themes = mock_meipass / "resources" / "themes"
+        # Match PyInstaller bundle structure from AniVault.spec
+        bundle_themes = mock_meipass / "anivault" / "resources" / "themes"
         bundle_themes.mkdir(parents=True)
 
         # Create bundle theme files
@@ -878,7 +883,8 @@ class TestThemeManagerBundleFallback:
 
         # Setup: Create mock bundle structure
         mock_meipass = tmp_path / "meipass"
-        bundle_themes = mock_meipass / "resources" / "themes"
+        # Match PyInstaller bundle structure from AniVault.spec
+        bundle_themes = mock_meipass / "anivault" / "resources" / "themes"
         bundle_themes.mkdir(parents=True)
 
         # Create required theme files in bundle
