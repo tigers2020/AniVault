@@ -18,7 +18,7 @@ Options:
 import argparse
 import logging
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -52,7 +52,7 @@ class AniVaultBuilder:
         dirs_to_clean = [self.build_dir, self.dist_dir]
         for dir_path in dirs_to_clean:
             if dir_path.exists():
-                logger.info(f"Removing {dir_path}")
+                logger.info("Removing %s", dir_path)
                 shutil.rmtree(dir_path)
 
         logger.info("Clean completed")
@@ -68,25 +68,25 @@ class AniVaultBuilder:
         try:
             import PyInstaller
 
-            logger.info(f"PyInstaller version: {PyInstaller.__version__}")
+            logger.info("PyInstaller version: %s", PyInstaller.__version__)
         except ImportError:
-            logger.error("PyInstaller is not installed")
+            logger.exception("PyInstaller is not installed")
             logger.info("Install it with: pip install pyinstaller==6.16.0")
             return False
 
         try:
             import PySide6
 
-            logger.info(f"PySide6 version: {PySide6.__version__}")
+            logger.info("PySide6 version: %s", PySide6.__version__)
         except ImportError:
-            logger.error("PySide6 is not installed")
+            logger.exception("PySide6 is not installed")
             logger.info("Install dependencies with: pip install -e .[dev]")
             return False
 
         logger.info("All dependencies are available")
         return True
 
-    def build(self, onedir: bool = False, debug: bool = False) -> bool:
+    def build(self, onedir: bool = False, debug: bool = False) -> bool:  # noqa: ARG002
         """Build the application.
 
         Args:
@@ -99,7 +99,7 @@ class AniVaultBuilder:
         logger.info("Starting build process...")
 
         if not self.spec_file.exists():
-            logger.error(f"Spec file not found: {self.spec_file}")
+            logger.error("Spec file not found: %s", self.spec_file)
             return False
 
         # Build PyInstaller command
@@ -117,34 +117,34 @@ class AniVaultBuilder:
 
         # Run PyInstaller
         try:
-            logger.info(f"Running: {' '.join(cmd)}")
-            result = subprocess.run(
+            logger.info("Running: %s", " ".join(cmd))
+            result = subprocess.run(  # nosec B603  # noqa: S603
                 cmd, cwd=self.root_dir, check=True, capture_output=True, text=True
             )
 
             logger.info("Build output:")
             for line in result.stdout.splitlines():
-                logger.info(f"  {line}")
+                logger.info("  %s", line)
 
             if result.stderr:
                 logger.warning("Build warnings/errors:")
                 for line in result.stderr.splitlines():
-                    logger.warning(f"  {line}")
+                    logger.warning("  %s", line)
 
             logger.info("Build completed successfully")
             return True
 
         except subprocess.CalledProcessError as e:
-            logger.error("Build failed")
-            logger.error(f"Exit code: {e.returncode}")
+            logger.exception("Build failed")
+            logger.exception("Exit code: %s", e.returncode)
             if e.stdout:
-                logger.error("Output:")
+                logger.exception("Output:")
                 for line in e.stdout.splitlines():
-                    logger.error(f"  {line}")
+                    logger.exception("  %s", line)
             if e.stderr:
-                logger.error("Errors:")
+                logger.exception("Errors:")
                 for line in e.stderr.splitlines():
-                    logger.error(f"  {line}")
+                    logger.exception("  %s", line)
             return False
 
     def verify_build(self) -> bool:
@@ -158,12 +158,12 @@ class AniVaultBuilder:
         exe_path = self.dist_dir / "AniVault.exe"
 
         if not exe_path.exists():
-            logger.error(f"Executable not found: {exe_path}")
+            logger.error("Executable not found: %s", exe_path)
             return False
 
         file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
-        logger.info(f"Executable created: {exe_path}")
-        logger.info(f"Executable size: {file_size:.2f} MB")
+        logger.info("Executable created: %s", exe_path)
+        logger.info("Executable size: %.2f MB", file_size)
 
         return True
 
@@ -224,7 +224,7 @@ Examples:
 
         logger.info("=" * 60)
         logger.info("Build completed successfully!")
-        logger.info(f"Executable location: {builder.dist_dir / 'AniVault.exe'}")
+        logger.info("Executable location: %s", builder.dist_dir / "AniVault.exe")
         logger.info("=" * 60)
 
         return 0
@@ -233,8 +233,8 @@ Examples:
         logger.info("Build interrupted by user")
         return 1
 
-    except Exception as e:
-        logger.exception(f"Unexpected error during build: {e}")
+    except Exception:
+        logger.exception("Unexpected error during build")
         return 1
 
 

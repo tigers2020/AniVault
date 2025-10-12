@@ -15,7 +15,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 # Import and run the GUI application
-from anivault.gui.app import main
+from anivault.gui.app import main  # noqa: E402
 
 if __name__ == "__main__":
     sys.exit(main())
