@@ -412,13 +412,13 @@ QLabel[class="dialog-title"] {
 /* Dialog subtitle */
 QLabel[class="dialog-subtitle"] {
     font-size: 14px;
-    color: var(--text-secondary);
+    color: #666666;
 }
 
 /* Info message */
 QLabel[class="info-message"] {
     padding: 10px;
-    background-color: var(--info-color);
+    background-color: #3b82f6;
     border-radius: 5px;
     color: white;
 }
@@ -426,12 +426,12 @@ QLabel[class="info-message"] {
 /* Stats label */
 QLabel[class="stats-label"] {
     font-size: 12px;
-    color: var(--text-muted);
+    color: #999999;
 }
 
 /* Primary button */
 QPushButton[class="primary-button"] {
-    background-color: var(--success-color);
+    background-color: #10b981;
     color: white;
     border: none;
     padding: 8px 16px;
