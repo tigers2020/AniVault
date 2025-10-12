@@ -103,7 +103,7 @@ class GroupCardWidget(QFrame):
                 date_label.setObjectName("groupDateLabel")
                 info_layout.addWidget(date_label)
 
-            # Overview/Description section (2-3 lines with ellipsis)
+            # Overview/Description section (3-4 lines with ellipsis)
             overview = anime_info.get("overview", UIConfig.NO_OVERVIEW)
             if overview:
                 truncated_overview = self._truncate_text(
@@ -113,6 +113,9 @@ class GroupCardWidget(QFrame):
                 overview_label = QLabel(truncated_overview)
                 overview_label.setObjectName("groupOverviewLabel")
                 overview_label.setWordWrap(True)
+                overview_label.setMinimumHeight(
+                    50
+                )  # Allow more vertical space for multi-line text
                 overview_label.setToolTip(overview)  # Full text on hover
                 info_layout.addWidget(overview_label)
 

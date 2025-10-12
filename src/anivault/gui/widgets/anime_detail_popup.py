@@ -36,8 +36,10 @@ class AnimeDetailPopup(QFrame):
     def _setup_ui(self) -> None:
         """Set up the popup UI."""
         self.setObjectName("animeDetailPopup")
-        self.setMinimumWidth(300)
-        self.setMaximumWidth(400)
+        self.setMinimumWidth(400)
+        self.setMaximumWidth(600)
+        self.setMinimumHeight(200)
+        self.setMaximumHeight(800)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
@@ -99,14 +101,17 @@ class AnimeDetailPopup(QFrame):
             company_label.setWordWrap(True)
             layout.addWidget(company_label)
 
-        # Overview (truncate if too long, max 200 chars)
+        # Overview (show full text with word wrap, max 600 chars)
         overview = self.anime_info.get("overview")
         if overview:
-            if len(overview) > 200:
-                overview = overview[:197] + "..."
+            # Allow longer overview text to show more context
+            if len(overview) > 600:
+                overview = overview[:597] + "..."
             overview_label = QLabel(overview)
             overview_label.setObjectName("popupOverviewLabel")
             overview_label.setWordWrap(True)
+            # Allow label to expand vertically for longer text
+            overview_label.setMinimumHeight(40)
             layout.addWidget(overview_label)
 
         # Popularity score (if available)

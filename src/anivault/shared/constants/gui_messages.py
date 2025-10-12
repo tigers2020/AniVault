@@ -162,8 +162,12 @@ class UIConfig:
     """UI layout and display configuration constants."""
 
     # Text truncation limits
-    GROUP_CARD_TITLE_MAX_LENGTH = 50  # Group card title truncation
-    GROUP_CARD_OVERVIEW_MAX_LENGTH = 150  # Overview/description truncation
+    GROUP_CARD_TITLE_MAX_LENGTH = (
+        60  # Group card title truncation (increased for longer titles)
+    )
+    GROUP_CARD_OVERVIEW_MAX_LENGTH = (
+        300  # Overview/description truncation (increased to show more context)
+    )
 
     # Default/fallback values
     UNKNOWN_TITLE = "Unknown"
