@@ -470,18 +470,17 @@ QLabel#groupDetailsLabel {
 /* Group Card Widget - Light Theme Colors */
 GroupCardWidget {
     background-color: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: none;
 }
 
 GroupCardWidget:hover {
-    background-color: #f1f5f9;
-    border-color: #cbd5e1;
+    background-color: #f8fafc;
+    border: 1px solid #3b82f6;
 }
 
 GroupCardWidget:selected {
-    background-color: #2563eb;
-    color: #0f172a;
-    border-color: #2563eb;
+    background-color: #dbeafe;
+    border: 2px solid #3b82f6;
 }
 
 /* Group Card Widget Labels */
