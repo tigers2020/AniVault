@@ -124,7 +124,8 @@ QMenuBar::item:pressed {
 
 QStatusBar {
     border-top: 1px solid;
-    padding: 4px 12px;
+    padding: 2px 8px;
+    max-height: 24px;
 }
 
 QStatusBar::item {

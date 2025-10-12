@@ -455,6 +455,10 @@ GroupCardWidget {
     border-radius: 8px;
     padding: 12px;
     margin: 8px;
+    min-width: 300px;
+    min-height: 120px;
+    max-width: 450px;
+    max-height: 150px;
 }
 
 GroupCardWidget:hover {
