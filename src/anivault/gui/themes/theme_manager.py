@@ -185,6 +185,7 @@ class ThemeManager:
                     )
 
             # Level 3: Safe mode
+            # noqa: TRY400 - intentionally using error (no traceback for clean message)
             logger.error("All theme loading failed. Entering safe mode.")
             try:
                 app.setStyleSheet("")
