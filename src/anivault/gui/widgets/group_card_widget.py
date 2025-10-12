@@ -83,7 +83,7 @@ class GroupCardWidget(QFrame):
                 full_title = title_text
 
             # Truncate title for display (keep full title in tooltip)
-            display_title = self._truncate_group_name(
+            display_title = self._truncate_text(
                 full_title,
                 max_length=UIConfig.GROUP_CARD_TITLE_MAX_LENGTH,
             )
@@ -124,7 +124,7 @@ class GroupCardWidget(QFrame):
 
         else:
             # No TMDB data - show file-based info
-            display_name = self._truncate_group_name(self.group_name, max_length=40)
+            display_name = self._truncate_text(self.group_name, max_length=40)
             title_label = QLabel(f"📁 {display_name}")
             title_label.setObjectName("groupTitleLabel")
             title_label.setWordWrap(True)
@@ -170,7 +170,9 @@ class GroupCardWidget(QFrame):
         """
         poster_label = QLabel()
         poster_label.setObjectName("posterLabel")
-        poster_label.setFixedSize(QSize(100, 150))  # 2:3 aspect ratio
+        poster_label.setFixedSize(
+            QSize(UIConfig.POSTER_WIDTH, UIConfig.POSTER_HEIGHT)
+        )  # 2:3 aspect ratio
         poster_label.setAlignment(Qt.AlignCenter)
 
         # Explicitly remove any frame styling (QLabel inherits from QFrame)
@@ -202,8 +204,8 @@ class GroupCardWidget(QFrame):
                 if pixmap and not pixmap.isNull():
                     # Successfully loaded cached poster image
                     scaled_pixmap = pixmap.scaled(
-                        100,
-                        150,
+                        UIConfig.POSTER_WIDTH,
+                        UIConfig.POSTER_HEIGHT,
                         Qt.KeepAspectRatio,
                         Qt.SmoothTransformation,
                     )
@@ -447,23 +449,6 @@ class GroupCardWidget(QFrame):
             self._detail_popup = None
             logger.debug("Hiding anime detail popup")
 
-    def _truncate_group_name(self, group_name: str, max_length: int = 25) -> str:
-        """
-        Truncate group name to specified length with ellipsis.
-
-        Args:
-            group_name: Group name to truncate
-            max_length: Maximum length before truncation
-
-        Returns:
-            Truncated group name with ellipsis if needed
-        """
-        if len(group_name) <= max_length:
-            return group_name
-
-        # Truncate and add ellipsis
-        return group_name[: max_length - 3] + "..."
-
     def _show_context_menu(self, position) -> None:
         """
         Show context menu for group card.
@@ -603,8 +588,8 @@ class GroupCardWidget(QFrame):
             if pixmap.loadFromData(image_data):
                 # Update poster label with downloaded image
                 scaled_pixmap = pixmap.scaled(
-                    100,
-                    150,
+                    UIConfig.POSTER_WIDTH,
+                    UIConfig.POSTER_HEIGHT,
                     Qt.KeepAspectRatio,
                     Qt.SmoothTransformation,
                 )

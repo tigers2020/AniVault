@@ -169,6 +169,10 @@ class UIConfig:
         180  # Overview/description truncation (~3-4 lines at 12px font)
     )
 
+    # Group card poster dimensions
+    POSTER_WIDTH = 100  # Poster width (px) - 2:3 aspect ratio
+    POSTER_HEIGHT = 150  # Poster height (px) - 2:3 aspect ratio
+
     # Anime detail popup dimensions
     # Note: Group card height constraints (min/max) are defined in QSS (common.qss)
     POPUP_MIN_WIDTH = 400  # Minimum popup width (px)
@@ -177,6 +181,10 @@ class UIConfig:
     POPUP_MAX_HEIGHT = 800  # Maximum popup height (px)
     POPUP_OVERVIEW_MIN_HEIGHT = 40  # Minimum height for overview label (px)
     POPUP_OVERVIEW_MAX_CHARS = 600  # Maximum characters for overview text
+
+    # Layout spacing constants
+    POPUP_CONTENT_MARGIN = 15  # Popup content margin (px)
+    POPUP_CONTENT_SPACING = 10  # Popup vertical spacing between elements (px)
 
     # Default/fallback values
     UNKNOWN_TITLE = "Unknown"

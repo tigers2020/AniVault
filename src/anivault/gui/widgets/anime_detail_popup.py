@@ -44,8 +44,13 @@ class AnimeDetailPopup(QFrame):
         self.setMaximumHeight(UIConfig.POPUP_MAX_HEIGHT)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+        layout.setContentsMargins(
+            UIConfig.POPUP_CONTENT_MARGIN,
+            UIConfig.POPUP_CONTENT_MARGIN,
+            UIConfig.POPUP_CONTENT_MARGIN,
+            UIConfig.POPUP_CONTENT_MARGIN,
+        )
+        layout.setSpacing(UIConfig.POPUP_CONTENT_SPACING)
 
         # Title
         title = self.anime_info.get("title") or self.anime_info.get("name") or "Unknown"
