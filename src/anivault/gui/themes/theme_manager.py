@@ -244,6 +244,31 @@ class ThemeManager:
 
         return theme_name
 
+    def _mask_home_path(self, path: Path) -> str:
+        """Mask home directory in path for secure logging.
+
+        Replaces home directory with '~' to avoid exposing absolute paths
+        in log files while maintaining useful debugging information.
+
+        Args:
+            path: Path to mask
+
+        Returns:
+            String path with home directory masked
+        """
+        try:
+            # Try to make path relative to home
+            home = Path.home()
+            if path.is_relative_to(home):
+                rel_path = path.relative_to(home)
+                return f"~/{rel_path.as_posix()}"
+        except (ValueError, RuntimeError):
+            # Path is not relative to home or other error
+            pass
+
+        # Fallback: return path as-is (but log only filename for security)
+        return str(path.name) if path.name else str(path)
+
     def get_qss_path(self, theme_name: str) -> Path | None:
         """Get the path to a theme's QSS file with fallback priority.
 
@@ -276,7 +301,7 @@ class ThemeManager:
             "Theme not found in user directory: %s",
             theme_name,
             extra=ErrorContext(
-                file_path=str(user_path),
+                file_path=self._mask_home_path(user_path),
                 additional_data={"stage": "user-theme", "theme_name": theme_name},
             ).model_dump(),
         )
@@ -292,7 +317,7 @@ class ThemeManager:
             "Theme not found in bundle directory: %s",
             theme_name,
             extra=ErrorContext(
-                file_path=str(base_path),
+                file_path=self._mask_home_path(base_path),
                 additional_data={"stage": "bundle-theme", "theme_name": theme_name},
             ).model_dump(),
         )
@@ -303,7 +328,7 @@ class ThemeManager:
                 "Falling back to default theme: %s",
                 self.LIGHT_THEME,
                 extra=ErrorContext(
-                    file_path=str(base_path),
+                    file_path=self._mask_home_path(base_path),
                     additional_data={
                         "stage": "bundle-theme",
                         "theme_name": theme_name,
@@ -319,7 +344,7 @@ class ThemeManager:
             "Critical: Default theme not found: %s",
             theme_name,
             extra=ErrorContext(
-                file_path=str(base_path),
+                file_path=self._mask_home_path(base_path),
                 additional_data={"stage": "default-fallback", "theme_name": theme_name},
             ).model_dump(),
         )
@@ -641,13 +666,13 @@ class ThemeManager:
         if app is None:
             app = QApplication.instance()
 
-        if app is None:
-            logger.error("No QApplication instance found")
-            raise ApplicationError(
-                ErrorCode.APPLICATION_ERROR,
-                "No QApplication instance found",
-                ErrorContext(operation="apply_theme"),
-            )
+            if app is None:
+                logger.error("No QApplication instance found")
+                raise ApplicationError(
+                    ErrorCode.APPLICATION_ERROR,
+                    "No QApplication instance found",
+                    ErrorContext(operation="apply_theme"),
+                )
 
         # Level 1: Try requested theme
         try:
@@ -670,7 +695,7 @@ class ThemeManager:
             logger.info("Successfully applied theme: %s", theme_name)
             return  # Success!
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning(
                 "Failed to apply theme %s: %s",
                 theme_name,
@@ -717,18 +742,18 @@ class ThemeManager:
                     safe_mode_error,
                     exc_info=True,
                 )
-                raise ApplicationError(
-                    ErrorCode.APPLICATION_ERROR,
-                    f"Failed to apply theme and all fallbacks: {e}",
-                    ErrorContext(
-                        operation="apply_theme",
-                        additional_data={
-                            "requested_theme": theme_name,
-                            "fallback_theme": self.DEFAULT_THEME,
-                            "safe_mode": True,
-                        },
-                    ),
-                ) from e
+            raise ApplicationError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Failed to apply theme and all fallbacks: {e}",
+                ErrorContext(
+                    operation="apply_theme",
+                    additional_data={
+                        "requested_theme": theme_name,
+                        "fallback_theme": self.DEFAULT_THEME,
+                        "safe_mode": True,
+                    },
+                ),
+            ) from e
 
     def _repolish_all_top_levels(self, app: QApplication) -> None:
         """Repolish all top-level widgets to ensure theme changes are applied."""
