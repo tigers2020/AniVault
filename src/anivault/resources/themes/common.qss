@@ -271,28 +271,16 @@ QSplitter::handle:vertical {
    FRAMES COMMON STYLES
    ============================================================================= */
 
+/* Default: No borders for QFrame (cleaner modern design) */
 QFrame {
-    border: 1px solid;
+    border: none;
     border-radius: 6px;
 }
 
-/* Exception: GroupCardWidget manages its own borders via QSS themes */
-GroupCardWidget {
-    border: none;
-}
-
-/* Exception: Poster labels (QLabel inherits QFrame) */
-QLabel#posterLabel,
-QLabel#posterInitial,
-QLabel#posterFolder {
-    border: none;
-}
-
-QFrame[frameShape="4"] { /* Box */
-    border-radius: 6px;
-}
-
+/* Specific frames that need borders can override with border-color in theme files */
+QFrame[frameShape="4"], /* Box */
 QFrame[frameShape="5"] { /* Panel */
+    border: 1px solid;
     border-radius: 6px;
 }
 

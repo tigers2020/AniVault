@@ -172,6 +172,10 @@ class GroupCardWidget(QFrame):
         poster_label.setFixedSize(QSize(100, 150))  # 2:3 aspect ratio
         poster_label.setAlignment(Qt.AlignCenter)
 
+        # Explicitly remove any frame styling (QLabel inherits from QFrame)
+        poster_label.setFrameShape(QFrame.NoFrame)
+        poster_label.setLineWidth(0)
+
         # Try to load poster from TMDB data
         anime_info = self._get_anime_info()
         logger.debug(
