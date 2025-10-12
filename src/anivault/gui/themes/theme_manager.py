@@ -52,6 +52,8 @@ class ThemeManager:
             self.themes_dir = Path(themes_dir)
 
         self.current_theme: str | None = None
+        # QSS content cache: {Path: (mtime_ns, content)}
+        self._qss_cache: dict[Path, tuple[int, str]] = {}
         self._ensure_themes_directory()
 
     def _ensure_themes_directory(self) -> None:
@@ -339,8 +341,8 @@ class ThemeManager:
         try:
             qss_path = self.get_qss_path(theme_name)
 
-            # Use @import-aware reader
-            content = self._read_file_with_imports(qss_path)
+            # Use cached @import-aware reader (mtime-based)
+            content = self._get_cached_theme(qss_path)
 
             logger.debug("Loaded theme content for: %s (with imports)", theme_name)
             return content
@@ -354,6 +356,46 @@ class ThemeManager:
                     file_path=str(qss_path) if qss_path else f"{theme_name}.qss",
                 ),
             ) from e
+
+    def _get_cached_theme(self, path: Path) -> str:
+        """Get theme content from cache or load and cache it.
+
+        Implements mtime-based cache validation:
+        - Cache hit: If mtime matches, return cached content
+        - Cache miss: Load content, cache with new mtime
+
+        Args:
+            path: Path to the QSS file
+
+        Returns:
+            QSS content as string
+
+        Raises:
+            ApplicationError: If file cannot be read
+        """
+        # Get current mtime
+        try:
+            mtime_ns = path.stat().st_mtime_ns
+        except OSError as e:
+            logger.exception("Failed to stat theme file: %s", path)
+            raise ApplicationError(
+                ErrorCode.FILE_NOT_FOUND,
+                f"Theme file not accessible: {path}",
+                ErrorContext(file_path=str(path)),
+            ) from e
+
+        # Check cache
+        cached = self._qss_cache.get(path)
+        if cached and cached[0] == mtime_ns:
+            logger.debug("Cache hit for theme: %s", path.name)
+            return cached[1]
+
+        # Cache miss - load and cache
+        logger.debug("Cache miss for theme: %s (loading)", path.name)
+        content = self._read_file_with_imports(path)
+        self._qss_cache[path] = (mtime_ns, content)
+
+        return content
 
     def apply_theme(
         self,

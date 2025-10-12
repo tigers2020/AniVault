@@ -464,3 +464,98 @@ class TestThemeManagerFallback:
 
         assert exc_info.value.code == ErrorCode.APPLICATION_ERROR
         assert "QApplication" in str(exc_info.value)
+
+
+class TestThemeManagerCache:
+    """Test cases for theme caching (Task 3.1)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.test_themes_dir = Path("test_themes_cache")
+        self.theme_manager = ThemeManager(self.test_themes_dir)
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        if self.test_themes_dir.exists():
+            import shutil
+
+            shutil.rmtree(self.test_themes_dir)
+
+    def test_cache_hit_on_repeated_load(self):
+        """Test that cache is used on repeated theme loads."""
+        # Create test theme
+        theme_content = "QWidget { color: white; }"
+        theme_path = self.test_themes_dir / "light.qss"
+        theme_path.write_text(theme_content)
+
+        # Load theme first time
+        content1 = self.theme_manager.load_theme_content("light")
+        assert content1 == theme_content
+
+        # Modify file content (but keep same path)
+        # Cache should still return old content if mtime unchanged
+        import time
+
+        time.sleep(0.01)  # Ensure different mtime
+        theme_path.write_text("QWidget { color: black; }")
+
+        # Load again - should get NEW content (mtime changed)
+        content2 = self.theme_manager.load_theme_content("light")
+        assert content2 == "QWidget { color: black; }"
+
+    def test_cache_stores_mtime(self):
+        """Test that cache stores mtime correctly."""
+        # Create test theme
+        theme_path = self.test_themes_dir / "light.qss"
+        theme_path.write_text("QWidget { color: white; }")
+
+        # Load theme
+        self.theme_manager.load_theme_content("light")
+
+        # Check cache structure
+        assert theme_path in self.theme_manager._qss_cache
+        mtime, content = self.theme_manager._qss_cache[theme_path]
+        assert isinstance(mtime, int)
+        assert mtime > 0
+        assert content == "QWidget { color: white; }"
+
+    def test_cache_with_imports(self):
+        """Test that cache works with @import directives."""
+        # Create common.qss
+        (self.test_themes_dir / "common.qss").write_text("QLabel { color: gray; }")
+
+        # Create light.qss with import
+        (self.test_themes_dir / "light.qss").write_text(
+            '@import url("common.qss");\nQWidget { background: white; }'
+        )
+
+        # Load theme first time
+        content1 = self.theme_manager.load_theme_content("light")
+        assert "QLabel { color: gray; }" in content1
+        assert "QWidget { background: white; }" in content1
+
+        # Verify cache hit on second load
+        content2 = self.theme_manager.load_theme_content("light")
+        assert content2 == content1
+
+    def test_cache_invalidation_on_file_change(self):
+        """Test that cache is invalidated when file is modified."""
+        # Create test theme
+        theme_path = self.test_themes_dir / "light.qss"
+        theme_path.write_text("QWidget { color: white; }")
+
+        # Load theme
+        content1 = self.theme_manager.load_theme_content("light")
+
+        # Wait to ensure different mtime
+        import time
+
+        time.sleep(0.01)
+
+        # Modify file
+        theme_path.write_text("QWidget { color: black; }")
+
+        # Load again - should get new content
+        content2 = self.theme_manager.load_theme_content("light")
+        assert content2 == "QWidget { color: black; }"
+        assert content2 != content1
