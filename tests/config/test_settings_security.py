@@ -9,7 +9,7 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from anivault.config.settings import _load_env_file, load_settings
+from anivault.config.loader import _load_env_file, load_settings
 from anivault.shared.errors import ErrorCode, InfrastructureError, SecurityError
 
 
