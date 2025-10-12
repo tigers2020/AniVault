@@ -531,6 +531,55 @@ class ThemeManager:
         """
         return self.current_theme
 
+    def refresh_theme_cache(self, theme_name: str | None = None) -> None:
+        """Invalidate and refresh theme cache.
+
+        This is a manual cache invalidation method for development/debugging.
+        Normal theme operations automatically handle cache invalidation via
+        mtime-based validation.
+
+        Args:
+            theme_name: Specific theme to refresh, or None for all themes
+
+        Usage:
+            # Development: Clear all cache after editing QSS files
+            theme_manager.refresh_theme_cache()
+
+            # Clear specific theme cache
+            theme_manager.refresh_theme_cache("dark")
+
+        Notes:
+            - This is a PUBLIC method for power users and development tools
+            - NOT exposed in GUI menu (internal/dev feature)
+            - Can be called from CLI debug mode or test fixtures
+            - Automatic mtime validation usually makes this unnecessary
+        """
+        if theme_name is None:
+            # Clear entire cache
+            count = len(self._qss_cache)
+            self._qss_cache.clear()
+            logger.debug("Cleared entire theme cache (%d entries)", count)
+        else:
+            # Validate theme name
+            theme_name = self._validate_theme_name(theme_name)
+
+            # Clear specific theme entries
+            # Match by Path.stem (filename without extension)
+            to_remove = [
+                path
+                for path in self._qss_cache
+                if path.stem == theme_name or path.name == f"{theme_name}.qss"
+            ]
+
+            for path in to_remove:
+                del self._qss_cache[path]
+
+            logger.debug(
+                "Cleared cache for theme '%s' (%d entries)",
+                theme_name,
+                len(to_remove),
+            )
+
     def load_and_apply_theme(self, app: QApplication, theme_name: str) -> None:
         """Load and apply a theme to the application.
 

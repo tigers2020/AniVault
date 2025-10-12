@@ -559,3 +559,84 @@ class TestThemeManagerCache:
         content2 = self.theme_manager.load_theme_content("light")
         assert content2 == "QWidget { color: black; }"
         assert content2 != content1
+
+    def test_refresh_cache_all(self):
+        """Test clearing entire cache."""
+        # Create and load multiple themes
+        (self.test_themes_dir / "light.qss").write_text("QWidget { color: white; }")
+        (self.test_themes_dir / "dark.qss").write_text("QWidget { color: black; }")
+
+        self.theme_manager.load_theme_content("light")
+        self.theme_manager.load_theme_content("dark")
+
+        # Verify cache has entries
+        assert len(self.theme_manager._qss_cache) > 0
+
+        # Clear all cache
+        self.theme_manager.refresh_theme_cache()
+
+        # Verify cache is empty
+        assert len(self.theme_manager._qss_cache) == 0
+
+    def test_refresh_cache_specific_theme(self):
+        """Test clearing cache for specific theme."""
+        # Create and load multiple themes
+        light_path = self.test_themes_dir / "light.qss"
+        dark_path = self.test_themes_dir / "dark.qss"
+        light_path.write_text("QWidget { color: white; }")
+        dark_path.write_text("QWidget { color: black; }")
+
+        self.theme_manager.load_theme_content("light")
+        self.theme_manager.load_theme_content("dark")
+
+        # Verify both cached
+        assert len(self.theme_manager._qss_cache) == 2
+
+        # Clear only light theme
+        self.theme_manager.refresh_theme_cache("light")
+
+        # Verify only dark remains
+        assert len(self.theme_manager._qss_cache) == 1
+        assert dark_path in self.theme_manager._qss_cache
+        assert light_path not in self.theme_manager._qss_cache
+
+    def test_refresh_cache_with_imports(self):
+        """Test clearing cache for theme with imports."""
+        # Create theme with import
+        (self.test_themes_dir / "common.qss").write_text("QLabel { color: gray; }")
+        (self.test_themes_dir / "light.qss").write_text(
+            '@import url("common.qss");\nQWidget { background: white; }'
+        )
+
+        # Load theme (caches both light.qss and common.qss)
+        self.theme_manager.load_theme_content("light")
+
+        initial_count = len(self.theme_manager._qss_cache)
+        assert initial_count >= 1  # At least light.qss
+
+        # Clear light theme
+        self.theme_manager.refresh_theme_cache("light")
+
+        # Light should be removed
+        light_path = self.test_themes_dir / "light.qss"
+        assert light_path not in self.theme_manager._qss_cache
+
+    def test_refresh_cache_invalid_name(self):
+        """Test that invalid theme name raises validation error."""
+        with pytest.raises(ApplicationError) as exc_info:
+            self.theme_manager.refresh_theme_cache("../../../etc/passwd")
+
+        assert exc_info.value.code == ErrorCode.VALIDATION_ERROR
+
+    def test_refresh_cache_empty_theme(self):
+        """Test refresh_cache with non-existent theme name."""
+        # Create and load theme
+        (self.test_themes_dir / "light.qss").write_text("QWidget { color: white; }")
+        self.theme_manager.load_theme_content("light")
+
+        # Try to clear non-existent theme (should not raise error)
+        self.theme_manager.refresh_theme_cache("dark")
+
+        # light should still be cached
+        light_path = self.test_themes_dir / "light.qss"
+        assert light_path in self.theme_manager._qss_cache
