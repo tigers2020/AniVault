@@ -8,6 +8,7 @@ rating, status, genres, and overview in a tooltip-style popup.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 class AnimeDetailPopup(QFrame):
     """Popup widget showing detailed anime information on hover."""
 
-    def __init__(self, anime_info: dict, parent: QWidget | None = None):
+    def __init__(self, anime_info: dict[str, Any], parent: QWidget | None = None):
         """
         Initialize the anime detail popup.
 

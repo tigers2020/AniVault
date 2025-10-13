@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
-from PySide6.QtCore import QSize, Qt, QUrl, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QEvent, QPoint, QSize, Qt, QUrl, Signal
+from PySide6.QtGui import QEnterEvent, QMouseEvent, QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
 
@@ -24,9 +25,9 @@ class GroupCardWidget(QFrame):
     """Card widget for displaying a file group."""
 
     # Signal emitted when card is clicked with group_name and files
-    cardClicked = Signal(str, list)
+    cardClicked: Signal = Signal(str, list)  # Emits (group_name: str, files: list)
 
-    def __init__(self, group_name: str, files: list, parent: QWidget | None = None):
+    def __init__(self, group_name: str, files: list[Any], parent: QWidget | None = None):
         """
         Initialize the group card widget.
 
@@ -255,7 +256,7 @@ class GroupCardWidget(QFrame):
 
         return poster_label
 
-    def _get_anime_info(self) -> dict | None:
+    def _get_anime_info(self) -> dict[str, Any] | None:
         """
         Get anime information from the first file's metadata.
 
@@ -415,7 +416,7 @@ class GroupCardWidget(QFrame):
             return text
         return text[: max_length - 3] + "..."
 
-    def enterEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
+    def enterEvent(self, event: QEnterEvent) -> None:  # noqa: N802 (Qt event method naming)
         """Show detail popup when mouse enters the card."""
         logger.debug("Mouse entered group card: %s", self.group_name)
         anime_info = self._get_anime_info()
@@ -426,13 +427,13 @@ class GroupCardWidget(QFrame):
             logger.debug("No anime info available for popup")
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
+    def leaveEvent(self, event: QEvent) -> None:  # noqa: N802 (Qt event method naming)
         """Hide detail popup when mouse leaves the card."""
         logger.debug("Mouse left group card: %s", self.group_name)
         self._hide_detail_popup()
         super().leaveEvent(event)
 
-    def _show_detail_popup(self, anime_info: dict) -> None:
+    def _show_detail_popup(self, anime_info: dict[str, Any]) -> None:
         """
         Show a popup with detailed anime information.
 
@@ -471,7 +472,7 @@ class GroupCardWidget(QFrame):
             self._detail_popup = None
             logger.debug("Hiding anime detail popup")
 
-    def _show_context_menu(self, position) -> None:
+    def _show_context_menu(self, position: QPoint) -> None:
         """
         Show context menu for group card.
 
@@ -625,7 +626,7 @@ class GroupCardWidget(QFrame):
         finally:
             reply.deleteLater()
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt event method naming)
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802 (Qt event method naming)
         """
         Handle mouse press event - emit cardClicked signal.
 

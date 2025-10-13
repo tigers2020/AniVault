@@ -8,7 +8,7 @@ group management operations like adding, updating, and renaming groups.
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from typing import Any, Callable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -30,10 +30,10 @@ class GroupGridViewWidget(QScrollArea):
     """Grid view widget for displaying file groups as cards."""
 
     # Signal emitted when a group card is clicked
-    groupSelected = Signal(
+    groupSelected: Signal = Signal(
         str,
         list,
-    )  # group_name, files
+    )  # Emits (group_name: str, files: list)
 
     def __init__(self, parent: QWidget | None = None):
         """
@@ -82,8 +82,8 @@ class GroupGridViewWidget(QScrollArea):
     def add_group(
         self,
         group_name: str,
-        files: list,
-        on_card_click: Callable | None = None,
+        files: list[Any],
+        on_card_click: Callable[[str, list[Any]], None] | None = None,
     ) -> None:
         """
         Add a group card to the grid.
@@ -113,7 +113,7 @@ class GroupGridViewWidget(QScrollArea):
 
         logger.debug("Added group card: %s at (%d, %d)", group_name, row, col)
 
-    def _on_card_clicked(self, group_name: str, files: list) -> None:
+    def _on_card_clicked(self, group_name: str, files: list[Any]) -> None:
         """
         Handle card click event - propagate signal upward.
 
@@ -126,8 +126,8 @@ class GroupGridViewWidget(QScrollArea):
 
     def update_groups(
         self,
-        grouped_files: dict,
-        on_card_click: Callable | None = None,
+        grouped_files: dict[str, list[Any]],
+        on_card_click: Callable[[str, list[Any]], None] | None = None,
     ) -> None:
         """
         Update the grid with grouped files.
@@ -156,7 +156,7 @@ class GroupGridViewWidget(QScrollArea):
             total_files,
         )
 
-    def update_group_name_with_parser(self, old_group_name: str, files: list) -> None:
+    def update_group_name_with_parser(self, old_group_name: str, files: list[Any]) -> None:
         """
         Update group name using parser.
 
@@ -216,7 +216,7 @@ class GroupGridViewWidget(QScrollArea):
             logger.exception("Error updating group name with parser")
             QMessageBox.critical(self, "Error", f"Error updating group name: {e!s}")
 
-    def edit_group_name(self, old_group_name: str, files: list) -> None:
+    def edit_group_name(self, old_group_name: str, files: list[Any]) -> None:
         """
         Edit group name manually.
 
@@ -256,7 +256,7 @@ class GroupGridViewWidget(QScrollArea):
         self,
         old_group_name: str,
         new_group_name: str,
-        files: list,
+        files: list[Any],
     ) -> None:
         """
         Update the group card with new name.
