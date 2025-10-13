@@ -29,14 +29,14 @@ class FileScannerWorker(QObject):
     """
 
     # Signals for communication with main thread
-    scan_started = Signal()
-    file_found = Signal(dict)  # Emits file information
-    scan_progress = Signal(int)  # Emits progress percentage (0-100)
-    scan_finished = Signal(list)  # Emits list of FileItem objects
-    scan_error = Signal(str)  # Emits error message
-    scan_cancelled = Signal()
+    scan_started: Signal = Signal()  # Emitted when scan starts
+    file_found: Signal = Signal(dict)  # Emits file info dict[str, str]
+    scan_progress: Signal = Signal(int)  # Emits progress percentage (0-100)
+    scan_finished: Signal = Signal(list)  # Emits list[FileItem]
+    scan_error: Signal = Signal(str)  # Emits error message
+    scan_cancelled: Signal = Signal()  # Emitted when scan is cancelled
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._cancelled = False
         self._current_directory = None

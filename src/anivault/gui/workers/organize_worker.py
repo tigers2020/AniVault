@@ -10,12 +10,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QObject, Signal
 
 from anivault.core.log_manager import OperationLogManager
+from anivault.core.models import FileOperation
 from anivault.core.organizer import FileOrganizer
+from anivault.core.organizer.executor import OperationResult
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,14 @@ class OrganizeWorker(QObject):
     """
 
     # Signals for communication with main thread
-    organization_started = Signal()
-    file_organized = Signal(dict)  # Emits file operation result
-    organization_progress = Signal(int, str)  # Emits (progress %, current filename)
-    organization_finished = Signal(list)  # Emits list of moved files
-    organization_error = Signal(str)  # Emits error message
-    organization_cancelled = Signal()
+    organization_started: Signal = Signal()  # Emitted when organization starts
+    file_organized: Signal = Signal(dict)  # Emits OperationResult as dict (NO Any!)
+    organization_progress: Signal = Signal(int, str)  # Emits (progress %, current filename)
+    organization_finished: Signal = Signal(list)  # Emits list[OperationResult]
+    organization_error: Signal = Signal(str)  # Emits error message
+    organization_cancelled: Signal = Signal()  # Emitted when cancelled
 
-    def __init__(self, parent: QObject | None = None):
+    def __init__(self, parent: QObject | None = None) -> None:
         """Initialize the organize worker.
 
         Args:
@@ -45,7 +46,7 @@ class OrganizeWorker(QObject):
         super().__init__(parent)
 
         self._cancelled = False
-        self._plan: list[Any] = []
+        self._plan: list[FileOperation] = []
         self._log_manager: OperationLogManager | None = None
         self._file_organizer: FileOrganizer | None = None
 

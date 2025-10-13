@@ -8,7 +8,6 @@ operations using PySide6's QThread and signal/slot mechanism.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -17,6 +16,7 @@ from anivault.core.matching.engine import MatchingEngine
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.gui.models import FileItem
 from anivault.services.rate_limiter import TokenBucketRateLimiter
+from anivault.shared.metadata_models import FileMetadata
 from anivault.services.semaphore_manager import SemaphoreManager
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.state_machine import RateLimitStateMachine
@@ -233,15 +233,15 @@ class TMDBMatchingWorker(QObject):
 
         return groups
 
-    async def _match_single_file(self, file_item: FileItem) -> dict[str, Any]:
+    async def _match_single_file(self, file_item: FileItem) -> FileMetadata:
         """
-        Match a single file against TMDB.
+        Match a single file against TMDB (NO Any!).
 
         Args:
             file_item: FileItem to match
 
         Returns:
-            Dictionary containing matching result
+            FileMetadata with TMDB information
         """
         try:
             # Parse the filename (not the full path)
