@@ -16,12 +16,12 @@ from anivault.core.matching.engine import MatchingEngine
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.gui.models import FileItem
 from anivault.services.rate_limiter import TokenBucketRateLimiter
-from anivault.shared.metadata_models import FileMetadata
 from anivault.services.semaphore_manager import SemaphoreManager
 from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.state_machine import RateLimitStateMachine
 from anivault.services.tmdb_client import TMDBClient
 from anivault.shared.constants import FileSystem
+from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +35,16 @@ class TMDBMatchingWorker(QObject):
     """
 
     # Signals for communication with main thread
-    matching_started = Signal()
-    file_matched = Signal(dict)  # Emits file matching result
-    matching_progress = Signal(int)  # Emits progress percentage (0-100)
-    matching_finished = Signal(list)  # Emits list of matching results
-    matching_error = Signal(str)  # Emits error message
-    matching_cancelled = Signal()
+    matching_started: Signal = Signal()  # Emitted when matching starts
+    file_matched: Signal = Signal(dict)  # Emits FileMetadata as dict (for UI)
+    matching_progress: Signal = Signal(int)  # Emits progress percentage (0-100)
+    matching_finished: Signal = Signal(list)  # Emits list[FileMetadata]
+    matching_error: Signal = Signal(str)  # Emits error message
+    matching_cancelled: Signal = Signal()  # Emitted when cancelled
 
-    def __init__(self, api_key: str, parent=None):
+    def __init__(
+        self, api_key: str, parent: "QObject | None" = None
+    ) -> None:
         """
         Initialize the TMDB matching worker.
 
@@ -233,7 +235,9 @@ class TMDBMatchingWorker(QObject):
 
         return groups
 
-    async def _match_single_file(self, file_item: FileItem) -> FileMetadata:
+    async def _match_single_file(
+        self, file_item: FileItem
+    ) -> dict[str, object]:
         """
         Match a single file against TMDB (NO Any!).
 
