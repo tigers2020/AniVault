@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from anivault.core.models import ScannedFile
 from anivault.gui.workers import TMDBMatchingWorker
+from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +28,13 @@ class TMDBController(QObject):
     """
 
     # Signals for UI communication
-    matching_started = Signal()
-    file_matched = Signal(dict)  # match result
-    matching_progress = Signal(int)  # progress percentage
-    matching_finished = Signal(list)  # results
-    matching_error = Signal(str)  # error message
-    matching_cancelled = Signal()
-    cache_stats_updated = Signal(dict)  # cache statistics
+    matching_started: Signal = Signal()  # Emitted when matching starts
+    file_matched: Signal = Signal(dict)  # Emits FileMetadata as dict (for UI)
+    matching_progress: Signal = Signal(int)  # Emits progress percentage
+    matching_finished: Signal = Signal(list)  # Emits list[FileMetadata]
+    matching_error: Signal = Signal(str)  # Emits error message
+    matching_cancelled: Signal = Signal()  # Emitted when matching is cancelled
+    cache_stats_updated: Signal = Signal(dict)  # Emits cache statistics dict
 
     def __init__(self, api_key: str | None = None, parent: QObject | None = None):
         """Initialize the TMDB controller.
@@ -54,7 +54,7 @@ class TMDBController(QObject):
 
         # State
         self.is_matching = False
-        self.match_results: list[dict[str, Any]] = []
+        self.match_results: list[FileMetadata] = []
 
         # Cache statistics timer
         self.cache_stats_timer = QTimer()
@@ -129,8 +129,8 @@ class TMDBController(QObject):
             self.tmdb_worker.cancel_matching()
         logger.debug("Matching cancelled")
 
-    def get_match_result(self, file_path: str) -> dict[str, Any] | None:
-        """Get match result for a specific file.
+    def get_match_result(self, file_path: str) -> FileMetadata | None:
+        """Get match result for a specific file (NO Any!).
 
         Args:
             file_path: Path to the file
@@ -215,7 +215,7 @@ class TMDBController(QObject):
         # Update cache stats immediately when matching starts
         self._fetch_and_emit_stats()
 
-    def _on_file_matched(self, result: dict[str, Any]) -> None:
+    def _on_file_matched(self, result: FileMetadata) -> None:
         """Handle file matched signal.
 
         Args:
@@ -232,7 +232,7 @@ class TMDBController(QObject):
         """
         self.matching_progress.emit(progress)
 
-    def _on_matching_finished(self, results: list[dict[str, Any]]) -> None:
+    def _on_matching_finished(self, results: list[FileMetadata]) -> None:
         """Handle matching finished signal.
 
         Args:

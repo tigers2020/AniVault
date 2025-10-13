@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QObject, QThread, Signal
 
 from anivault.core.log_manager import OperationLogManager
-from anivault.core.models import ScannedFile
+from anivault.core.models import FileOperation, ScannedFile
 from anivault.core.organizer import FileOrganizer
+from anivault.core.organizer.executor import OperationResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingResult
 from anivault.gui.models import FileItem
@@ -33,13 +33,13 @@ class OrganizeController(QObject):
     """
 
     # Signals for UI communication
-    plan_generated = Signal(list)  # FileOperation list
-    organization_started = Signal()
-    file_organized = Signal(dict)  # operation result
-    organization_progress = Signal(int, str)  # (progress %, current filename)
-    organization_finished = Signal(list)  # results
-    organization_error = Signal(str)  # error message
-    organization_cancelled = Signal()
+    plan_generated: Signal = Signal(list)  # Emits list[FileOperation]
+    organization_started: Signal = Signal()  # Emitted when organization starts
+    file_organized: Signal = Signal(dict)  # Emits OperationResult as dict (for UI)
+    organization_progress: Signal = Signal(int, str)  # Emits (progress %, current filename)
+    organization_finished: Signal = Signal(list)  # Emits list[OperationResult]
+    organization_error: Signal = Signal(str)  # Emits error message
+    organization_cancelled: Signal = Signal()  # Emitted when organization is cancelled
 
     def __init__(self, parent: QObject | None = None):
         """Initialize the organize controller.
@@ -270,11 +270,11 @@ class OrganizeController(QObject):
         self.is_organizing = True
         self.organization_started.emit()
 
-    def _on_worker_finished(self, results: list[Any]) -> None:
+    def _on_worker_finished(self, results: list[OperationResult]) -> None:
         """Handle worker finished signal.
 
         Args:
-            results: List of moved files
+            results: List of operation results (NO Any!)
         """
         self.is_organizing = False
         self.organization_finished.emit(results)
