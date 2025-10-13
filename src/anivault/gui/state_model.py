@@ -29,11 +29,11 @@ class StateModel(QObject):
     """
 
     # Signals for state changes
-    directory_changed = Signal(str)
-    files_updated = Signal(list)
-    file_status_changed = Signal(Path, str)
+    directory_changed: Signal = Signal(str)  # Emits directory path as string
+    files_updated: Signal = Signal(list)  # Emits list[FileItem]
+    file_status_changed: Signal = Signal(Path, str)  # Emits (file_path, status)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
 
         # Application state
@@ -119,7 +119,7 @@ class StateModel(QObject):
         # Update the file item if it exists
         for file_item in self._scanned_files:
             if file_item.file_path == file_path:
-                file_item.metadata = metadata.copy()
+                file_item.metadata = metadata.copy()  # type: ignore[assignment]
                 break
 
         logger.debug("Set metadata for file: %s", file_path.name)
