@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Callable
 
 from PySide6.QtWidgets import QMessageBox
 
+from anivault.core.models import FileOperation
 from anivault.core.organizer.executor import OperationResult
 from anivault.shared.constants.gui_messages import DialogTitles
 
@@ -61,8 +62,8 @@ class OrganizeEventHandler(BaseEventHandler):
         scan_controller: ScanController,
         organize_controller: OrganizeController,
         organize_progress_dialog: OrganizeProgressDialog | None = None,
-        show_preview_callback: Callable[[list[Any]], None] | None = None,
-        execute_plan_callback: Callable[[list[Any]], None] | None = None,
+        show_preview_callback: Callable[[list[FileOperation]], None] | None = None,
+        execute_plan_callback: Callable[[list[FileOperation]], None] | None = None,
     ) -> None:
         """Initialize the organize event handler.
 
@@ -82,7 +83,7 @@ class OrganizeEventHandler(BaseEventHandler):
         self._organize_progress_dialog = organize_progress_dialog
         self._show_preview_callback = show_preview_callback
         self._execute_plan_callback = execute_plan_callback
-        self._current_plan: list[Any] | None = None
+        self._current_plan: list[FileOperation] | None = None
 
     def set_progress_dialog(self, dialog: OrganizeProgressDialog | None) -> None:
         """Set the progress dialog instance.
@@ -95,7 +96,7 @@ class OrganizeEventHandler(BaseEventHandler):
         """
         self._organize_progress_dialog = dialog
 
-    def on_plan_generated(self, plan: list[Any]) -> None:
+    def on_plan_generated(self, plan: list[FileOperation]) -> None:
         """Handle organization plan generated signal.
 
         Processes the generated organization plan by showing a preview dialog
@@ -141,18 +142,25 @@ class OrganizeEventHandler(BaseEventHandler):
                 - success: Whether operation succeeded
                 - error: Error message if failed
         """
-        success = result.get("success", False)
-        source = result.get("source", "Unknown")
+        success = result.success
+        source = result.source_path
 
         if success:
             self._logger.debug("File organized: %s", source)
         else:
-            error = result.get("error", "Unknown error")
+            error = result.message or "Unknown error"
             self._logger.error("File organization failed: %s - %s", source, error)
 
         # Update progress dialog if available
         if self._organize_progress_dialog:
-            self._organize_progress_dialog.add_file_result(result)
+            # Convert OperationResult to dict for dialog (legacy interface)
+            result_dict = {
+                "success": str(result.success),
+                "source": result.source_path,
+                "destination": result.destination_path,
+                "error": result.message or "",
+            }
+            self._organize_progress_dialog.add_file_result(result_dict)
 
     def on_organization_progress(self, progress: int, filename: str) -> None:
         """Handle organization progress signal.
@@ -168,7 +176,7 @@ class OrganizeEventHandler(BaseEventHandler):
 
         self._show_status(f"파일 정리 중... {progress}% ({filename})")
 
-    def on_organization_finished(self, results: list[Any]) -> None:
+    def on_organization_finished(self, results: list[OperationResult]) -> None:
         """Handle organization finished signal.
 
         Processes organization completion by:
@@ -185,7 +193,7 @@ class OrganizeEventHandler(BaseEventHandler):
 
         # Show completion in progress dialog
         if self._organize_progress_dialog:
-            success_count = len([r for r in results if r.get("success", False)])
+            success_count = len([r for r in results if r.success])
             total_count = len(self._current_plan)
             self._organize_progress_dialog.show_completion(
                 success_count,
@@ -229,7 +237,7 @@ class OrganizeEventHandler(BaseEventHandler):
         self._show_status("파일 정리가 취소되었습니다.")
         self._logger.info("Organization cancelled by user")
 
-    def _rescan_after_organization(self, plan: list[Any]) -> None:
+    def _rescan_after_organization(self, plan: list[FileOperation]) -> None:
         """Rescan source directory after file organization.
 
         This method triggers a fresh scan of the source directory to update
