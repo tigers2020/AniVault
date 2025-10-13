@@ -38,11 +38,11 @@ class ScanController(QObject):
     """
 
     # Signals for UI communication
-    scan_started = Signal()
-    scan_progress = Signal(int)  # progress percentage
-    scan_finished = Signal(list)  # file_items
-    scan_error = Signal(str)  # error message
-    files_grouped = Signal(dict)  # grouped_files
+    scan_started: Signal = Signal()  # Emitted when scan starts
+    scan_progress: Signal = Signal(int)  # Emits progress percentage
+    scan_finished: Signal = Signal(list)  # Emits list[FileItem]
+    scan_error: Signal = Signal(str)  # Emits error message
+    files_grouped: Signal = Signal(dict)  # Emits dict[str, list[ScannedFile]]
 
     def __init__(self, parent: QObject | None = None):
         """Initialize the scan controller.
@@ -140,15 +140,15 @@ class ScanController(QObject):
 
         # Convert back to FileItem-keyed dict
         result = {}
-        for group_name, scanned_list in grouped_files.items():
+        for group in grouped_files:
             file_item_list = []
-            for scanned in scanned_list:
+            for scanned in group.files:
                 # Find corresponding FileItem
                 for fi in file_items:
                     if fi.file_path == scanned.file_path:
                         file_item_list.append(fi)
                         break
-            result[group_name] = file_item_list
+            result[group.title] = file_item_list
 
         return result
 
@@ -397,7 +397,7 @@ class ScanController(QObject):
             grouped_files = self.file_grouper.group_files(scanned_files)
 
             group_count = len(grouped_files)
-            total_files = sum(len(files) for files in grouped_files.values())
+            total_files = sum(len(group.files) for group in grouped_files)
 
             logger.info(
                 "File grouping completed: %d groups, %d total files",
@@ -405,8 +405,9 @@ class ScanController(QObject):
                 total_files,
             )
 
-            # Emit signal for UI update
-            self.files_grouped.emit(grouped_files)
+            # Convert to dict for signal emission (for backward compatibility)
+            grouped_dict = {group.title: group.files for group in grouped_files}
+            self.files_grouped.emit(grouped_dict)
 
             return grouped_files
 
@@ -467,9 +468,13 @@ class ScanController(QObject):
         logger.info("File scan started")
         self.scan_started.emit()
 
-    def _on_file_found(self, file_data: dict) -> None:
-        """Handle file found signal."""
-        logger.debug("File found: %s", file_data["file_path"])
+    def _on_file_found(self, file_data: dict[str, str]) -> None:
+        """Handle file found signal.
+        
+        Args:
+            file_data: Dictionary with file information (e.g., {"file_path": "..."})
+        """
+        logger.debug("File found: %s", file_data.get("file_path", "unknown"))
 
     def _on_scan_progress(self, progress: int) -> None:
         """Handle scan progress signal."""
