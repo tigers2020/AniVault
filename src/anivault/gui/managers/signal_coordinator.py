@@ -119,10 +119,11 @@ class SignalCoordinator:
         )
 
     def _connect_scan_controller(self) -> None:
-        """Connect ScanController signals to MainWindow handlers.
+        """Connect ScanController signals to ScanEventHandler.
 
-        ScanController signals notify MainWindow of file scanning progress
-        and results.
+        ScanController signals are now handled by a dedicated ScanEventHandler
+        instance instead of MainWindow methods, providing better separation of
+        concerns and testability.
 
         Signals:
             - scan_started: Scanning begins
@@ -131,27 +132,34 @@ class SignalCoordinator:
             - scan_error: Scanning encounters an error
             - files_grouped: Files have been grouped
         """
+        handler = self._main_window.scan_event_handler
+
         self._main_window.scan_controller.scan_started.connect(
-            self._main_window.on_scan_started,
+            handler.on_scan_started,
         )
         self._main_window.scan_controller.scan_progress.connect(
-            self._main_window.on_scan_progress,
+            handler.on_scan_progress,
         )
         self._main_window.scan_controller.scan_finished.connect(
-            self._main_window.on_scan_finished,
+            handler.on_scan_finished,
         )
         self._main_window.scan_controller.scan_error.connect(
-            self._main_window.on_scan_error,
+            handler.on_scan_error,
         )
+        self._main_window.scan_controller.files_grouped.connect(
+            handler.on_files_grouped,
+        )
+        # Also connect to MainWindow for TMDB auto-start orchestration
         self._main_window.scan_controller.files_grouped.connect(
             self._main_window.on_files_grouped,
         )
 
     def _connect_tmdb_controller(self) -> None:
-        """Connect TMDBController signals to MainWindow handlers.
+        """Connect TMDBController signals to TMDBEventHandler.
 
-        TMDBController signals notify MainWindow of TMDB matching progress,
-        results, and cache statistics.
+        TMDBController signals are now handled by a dedicated TMDBEventHandler
+        instance instead of MainWindow methods, providing better separation of
+        concerns and testability.
 
         Signals:
             - matching_started: TMDB matching begins
@@ -160,39 +168,69 @@ class SignalCoordinator:
             - matching_finished: Matching completes successfully
             - matching_error: Matching encounters an error
             - matching_cancelled: Matching is cancelled by user
-            - cache_stats_updated: Cache statistics have changed
+            - cache_stats_updated: Cache statistics have changed (still handled by MainWindow)
         """
+        handler = self._main_window.tmdb_event_handler
+
         self._main_window.tmdb_controller.matching_started.connect(
-            self._main_window.on_tmdb_matching_started,
+            handler.on_tmdb_matching_started,
         )
         self._main_window.tmdb_controller.file_matched.connect(
-            self._main_window.on_tmdb_file_matched,
+            handler.on_tmdb_file_matched,
         )
         self._main_window.tmdb_controller.matching_progress.connect(
-            self._main_window.on_tmdb_matching_progress,
+            handler.on_tmdb_matching_progress,
         )
         self._main_window.tmdb_controller.matching_finished.connect(
-            self._main_window.on_tmdb_matching_finished,
+            handler.on_tmdb_matching_finished,
         )
         self._main_window.tmdb_controller.matching_error.connect(
-            self._main_window.on_tmdb_matching_error,
+            handler.on_tmdb_matching_error,
         )
         self._main_window.tmdb_controller.matching_cancelled.connect(
-            self._main_window.on_tmdb_matching_cancelled,
+            handler.on_tmdb_matching_cancelled,
         )
+        # Cache stats still handled by MainWindow (not event-driven UI update)
         self._main_window.tmdb_controller.cache_stats_updated.connect(
             self._main_window.update_cache_status,
         )
 
     def _connect_organize_controller(self) -> None:
-        """Connect OrganizeController signals to MainWindow handlers.
+        """Connect OrganizeController signals to OrganizeEventHandler.
 
-        OrganizeController signals notify MainWindow of file organization
-        planning and execution events.
+        OrganizeController signals are now handled by a dedicated OrganizeEventHandler
+        instance instead of MainWindow methods, providing better separation of
+        concerns and testability.
 
         Signals:
             - plan_generated: Organization plan has been generated
+            - organization_started: Organization execution begins
+            - file_organized: A file has been organized
+            - organization_progress: Organization progress update
+            - organization_finished: Organization completes successfully
+            - organization_error: Organization encounters an error
+            - organization_cancelled: Organization is cancelled by user
         """
+        handler = self._main_window.organize_event_handler
+
         self._main_window.organize_controller.plan_generated.connect(
-            self._main_window._on_organize_plan_generated,
+            handler.on_plan_generated,
+        )
+        self._main_window.organize_controller.organization_started.connect(
+            handler.on_organization_started,
+        )
+        self._main_window.organize_controller.file_organized.connect(
+            handler.on_file_organized,
+        )
+        self._main_window.organize_controller.organization_progress.connect(
+            handler.on_organization_progress,
+        )
+        self._main_window.organize_controller.organization_finished.connect(
+            handler.on_organization_finished,
+        )
+        self._main_window.organize_controller.organization_error.connect(
+            handler.on_organization_error,
+        )
+        self._main_window.organize_controller.organization_cancelled.connect(
+            handler.on_organization_cancelled,
         )

@@ -22,9 +22,24 @@ Example:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
 
 from PySide6.QtWidgets import QLabel, QStatusBar
+
+
+class CacheStats(TypedDict, total=False):
+    """Cache statistics dictionary type (NO Any!).
+    
+    Attributes:
+        hit_ratio: Cache hit ratio percentage (0.0-100.0)
+        total_requests: Total cache requests (hits + misses)
+        cache_items: Total items in cache
+        cache_type: Primary cache type (SQLite/JSON/Hybrid)
+    """
+    hit_ratio: float
+    total_requests: int
+    cache_items: int
+    cache_type: str
 
 
 class StatusManager:
@@ -80,11 +95,11 @@ class StatusManager:
         """
         self._status_bar.showMessage(message, timeout)
 
-    def update_cache_status(self, stats: dict[str, Any]) -> None:
-        """Update cache status display in status bar.
+    def update_cache_status(self, stats: CacheStats) -> None:
+        """Update cache status display in status bar (NO Any!).
 
         Args:
-            stats: Dictionary containing cache statistics:
+            stats: Cache statistics with typed fields:
                 - hit_ratio: Cache hit ratio percentage (0.0-100.0)
                 - total_requests: Total cache requests (hits + misses)
                 - cache_items: Total items in cache
@@ -106,11 +121,11 @@ class StatusManager:
         status_text = self._format_cache_status(stats)
         self._cache_status_label.setText(status_text)
 
-    def _format_cache_status(self, stats: dict[str, Any]) -> str:
-        """Format cache statistics into display text.
+    def _format_cache_status(self, stats: CacheStats) -> str:
+        """Format cache statistics into display text (NO Any!).
 
         Args:
-            stats: Dictionary containing cache statistics
+            stats: Cache statistics with typed fields
 
         Returns:
             Formatted status text string
