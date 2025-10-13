@@ -171,7 +171,6 @@ strict_equality = true
 exclude = [
     "scripts/",
     "tests/",
-    "src/anivault/gui/",  # GUI requires dataclass-only refactor (no Any, no dict)
 ]
 
 # 외부 라이브러리 타입 스텁 부재
