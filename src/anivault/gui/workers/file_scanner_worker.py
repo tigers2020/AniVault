@@ -36,7 +36,7 @@ class FileScannerWorker(QObject):
     scan_error: Signal = Signal(str)  # Emits error message
     scan_cancelled: Signal = Signal()  # Emitted when scan is cancelled
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self, parent: "QObject | None" = None) -> None:
         super().__init__(parent)
         self._cancelled = False
         self._current_directory = None
