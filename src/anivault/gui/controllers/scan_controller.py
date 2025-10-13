@@ -96,7 +96,7 @@ class ScanController(QObject):
             logger.info("Cancelling file scan")
             self.scanner_worker.cancel_scan()
 
-    def _group_files_by_filename(self, file_items: list[FileItem]) -> dict:
+    def _group_files_by_filename(self, file_items: list[FileItem]) -> dict[str, list[FileItem]]:
         """Helper method to group files by filename (for unmatched files).
 
         Args:
@@ -152,14 +152,14 @@ class ScanController(QObject):
 
         return result
 
-    def group_files_by_tmdb_title(self, file_items: list[FileItem]) -> dict:
+    def group_files_by_tmdb_title(self, file_items: list[FileItem]) -> dict[str, list[ScannedFile]]:
         """Group files by TMDB title after matching.
 
         Args:
             file_items: List of FileItem objects with TMDB metadata
 
         Returns:
-            Dictionary mapping TMDB titles to lists of files
+            Dictionary mapping TMDB titles to lists of ScannedFile objects
 
         Raises:
             ValueError: If file_items is empty or invalid
@@ -289,14 +289,14 @@ class ScanController(QObject):
             logger.exception("TMDB-based grouping failed")
             raise
 
-    def group_files(self, file_items: list[FileItem]) -> dict:
+    def group_files(self, file_items: list[FileItem]) -> list:
         """Group scanned files by similarity.
 
         Args:
             file_items: List of FileItem objects to group
 
         Returns:
-            Dictionary mapping group names to lists of files
+            List of Group objects (each with title and files)
 
         Raises:
             ValueError: If file_items is empty or invalid
@@ -470,7 +470,7 @@ class ScanController(QObject):
 
     def _on_file_found(self, file_data: dict[str, str]) -> None:
         """Handle file found signal.
-        
+
         Args:
             file_data: Dictionary with file information (e.g., {"file_path": "..."})
         """
