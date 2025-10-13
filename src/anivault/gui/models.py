@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QModelIndex, Qt, Signal
+from PySide6.QtCore import QModelIndex, QObject, Qt, Signal
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 
 from anivault.shared.metadata_models import FileMetadata
@@ -69,9 +69,9 @@ class FileTreeModel(QStandardItemModel):
     """
 
     # Signals
-    file_selected = Signal(FileItem)
+    file_selected: Signal = Signal(FileItem)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
 
         # Set up column headers
@@ -184,7 +184,7 @@ class FileTreeModel(QStandardItemModel):
     def update_file_match_result(
         self,
         file_path: Path,
-        match_result: dict | FileMetadata | None,
+        match_result: dict[str, Any] | FileMetadata | None,
         status: str,
     ) -> None:
         """
@@ -210,9 +210,9 @@ class FileTreeModel(QStandardItemModel):
                     series_title = "Unknown"
                     if isinstance(match_result, FileMetadata):
                         series_title = match_result.title
-                    elif hasattr(match_result, "title"):
+                    elif match_result and hasattr(match_result, "title"):
                         # MatchResult dataclass
-                        series_title = match_result.title
+                        series_title = match_result.title  # type: ignore[attr-defined]
                     elif isinstance(match_result, dict):
                         # Legacy dict format
                         series_title = match_result.get("title", "Unknown")
