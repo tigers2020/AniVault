@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont
@@ -52,8 +53,8 @@ class SettingsDialog(QDialog):
     """
 
     # Signals
-    api_key_saved = Signal(str)  # Emitted when API key is successfully saved
-    folder_settings_changed = Signal()  # Emitted when folder settings are changed
+    api_key_saved: Signal = Signal(str)  # Emitted when API key is successfully saved
+    folder_settings_changed: Signal = Signal()  # Emitted when folder settings are changed
 
     def __init__(
         self,
@@ -469,7 +470,7 @@ class SettingsDialog(QDialog):
         """
         return self.api_key_input.text().strip()
 
-    def get_folder_settings(self):
+    def get_folder_settings(self) -> dict[str, Any]:
         """
         Get current folder settings.
 

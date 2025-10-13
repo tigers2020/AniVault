@@ -27,7 +27,7 @@ class TMDBProgressDialog(QProgressDialog):
     """
 
     # Signals
-    cancelled = Signal()  # Emitted when user cancels the operation
+    cancelled: Signal = Signal()  # Emitted when user cancels the operation
 
     def __init__(self, parent: QWidget | None = None):
         """
