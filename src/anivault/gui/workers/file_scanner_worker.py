@@ -39,7 +39,7 @@ class FileScannerWorker(QObject):
     def __init__(self, parent: "QObject | None" = None) -> None:
         super().__init__(parent)
         self._cancelled = False
-        self._current_directory: Path | None = None  # Will be set in scan_directory
+        self._current_directory: "Path | None" = None  # Will be set in scan_directory (Python 3.9 compat)
 
         logger.debug("FileScannerWorker initialized")
 
