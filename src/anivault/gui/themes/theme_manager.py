@@ -163,11 +163,12 @@ class ThemeManager:
         try:
             logger.info("Applying theme: %s", theme_name)
             qss_content = self.load_theme_content(theme_name)
-            app.setStyleSheet("")
-            app.setStyleSheet(qss_content)
-            self.current_theme = theme_name
-            self._repolish_all_top_levels(app)
-            logger.info("Successfully applied theme: %s", theme_name)
+            if app:
+                app.setStyleSheet("")
+                app.setStyleSheet(qss_content)
+                self.current_theme = theme_name
+                self._repolish_all_top_levels(app)
+                logger.info("Successfully applied theme: %s", theme_name)
             return
 
         except Exception as e:
@@ -187,9 +188,10 @@ class ThemeManager:
             # Level 3: Safe mode
             logger.error("All theme loading failed. Entering safe mode.")
             try:
-                app.setStyleSheet("")
-                app.setPalette(app.style().standardPalette())
-                self._repolish_all_top_levels(app)
+                if app:
+                    app.setStyleSheet("")
+                    app.setPalette(app.style().standardPalette())
+                    self._repolish_all_top_levels(app)
                 self.current_theme = None
                 logger.warning("Safe mode activated: using default system styles")
                 return
