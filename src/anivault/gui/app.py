@@ -135,7 +135,9 @@ class AniVaultGUI:
                     logger.info("Auto scan triggered for folder: %s", folder_path)
                     # Set directory in state model and start scanning
                     if self.main_window:
-                        self.main_window.state_model.selected_directory = Path(folder_path)
+                        self.main_window.state_model.selected_directory = Path(
+                            folder_path
+                        )
                         self.main_window.start_file_scan()
                 except Exception:
                     logger.exception("Auto scan callback failed: %s")

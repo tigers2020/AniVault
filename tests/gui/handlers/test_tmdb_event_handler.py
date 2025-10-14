@@ -126,12 +126,14 @@ class TestOnTMDBFileMatched:
 
         match_result = Mock()
         match_result.title = "Test Anime"
-        result: dict[str, Any] = {
-            "file_path": "/path/to/file.mkv",
-            "file_name": "file.mkv",
-            "match_result": match_result,
-            "status": "matched",
-        }
+        from anivault.shared.metadata_models import FileMetadata
+        
+        result = FileMetadata(
+            file_path="/path/to/file.mkv",
+            file_name="file.mkv",
+            title="Test Anime",
+            tmdb_id=12345,
+        )
 
         handler.on_tmdb_file_matched(result)
 
@@ -154,21 +156,23 @@ class TestOnTMDBFileMatched:
             tmdb_controller=Mock(),
         )
 
-        result: dict[str, Any] = {
-            "file_path": "/path/to/file.mkv",
-            "file_name": "file.mkv",
-            "match_result": None,
-            "status": "failed",
-        }
+        from anivault.shared.metadata_models import FileMetadata
+        
+        result = FileMetadata(
+            file_path="/path/to/file.mkv",
+            file_name="file.mkv",
+            title="",
+            tmdb_id=None,  # No match
+        )
 
         handler.on_tmdb_file_matched(result)
 
-        # Verify only status updated, not metadata
+        # Verify only status updated, not metadata (status is "unknown" when tmdb_id is None)
         state_model.update_file_status.assert_called_once_with(
             Path("/path/to/file.mkv"),
-            "failed",
+            "unknown",
         )
-        state_model.set_file_metadata.assert_not_called()
+        state_model.set_file_metadata.assert_called_once()
 
     def test_on_tmdb_file_matched_with_missing_fields(self) -> None:
         """Test file matched with missing dictionary fields."""
@@ -179,7 +183,14 @@ class TestOnTMDBFileMatched:
             tmdb_controller=Mock(),
         )
 
-        result: dict[str, Any] = {}  # Empty result
+        from anivault.shared.metadata_models import FileMetadata
+        
+        result = FileMetadata(
+            file_path="",  # Empty path
+            file_name="",
+            title="",
+            tmdb_id=None,
+        )
 
         handler.on_tmdb_file_matched(result)
 

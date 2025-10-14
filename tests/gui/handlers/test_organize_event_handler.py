@@ -187,15 +187,23 @@ class TestOnFileOrganized:
             organize_progress_dialog=dialog,
         )
 
-        result: dict[str, Any] = {
-            "source": "/path/to/source.mkv",
-            "destination": "/path/to/dest.mkv",
-            "success": True,
-        }
+        from anivault.core.organizer.executor import OperationResult
+        
+        result = OperationResult(
+            operation="move",
+            source_path="/path/to/source.mkv",
+            destination_path="/path/to/dest.mkv",
+            success=True,
+        )
 
         handler.on_file_organized(result)
 
-        dialog.add_file_result.assert_called_once_with(result)
+        # Verify dialog called with dict conversion
+        dialog.add_file_result.assert_called_once()
+        call_dict = dialog.add_file_result.call_args[0][0]
+        assert call_dict["source"] == "/path/to/source.mkv"
+        assert call_dict["destination"] == "/path/to/dest.mkv"
+        assert call_dict["success"] == "True"
 
     def test_on_file_organized_failure(self) -> None:
         """Test file organized with failed result."""
@@ -208,16 +216,24 @@ class TestOnFileOrganized:
             organize_progress_dialog=dialog,
         )
 
-        result: dict[str, Any] = {
-            "source": "/path/to/source.mkv",
-            "destination": "/path/to/dest.mkv",
-            "success": False,
-            "error": "Permission denied",
-        }
+        from anivault.core.organizer.executor import OperationResult
+        
+        result = OperationResult(
+            operation="move",
+            source_path="/path/to/source.mkv",
+            destination_path="/path/to/dest.mkv",
+            success=False,
+            message="Permission denied",
+        )
 
         handler.on_file_organized(result)
 
-        dialog.add_file_result.assert_called_once_with(result)
+        # Verify dialog called with dict conversion
+        dialog.add_file_result.assert_called_once()
+        call_dict = dialog.add_file_result.call_args[0][0]
+        assert call_dict["source"] == "/path/to/source.mkv"
+        assert call_dict["success"] == "False"
+        assert call_dict["error"] == "Permission denied"
 
     def test_on_file_organized_without_dialog(self) -> None:
         """Test file organized when dialog is not set."""
@@ -228,10 +244,14 @@ class TestOnFileOrganized:
             organize_controller=Mock(),
         )
 
-        result: dict[str, Any] = {
-            "source": "/path/to/source.mkv",
-            "success": True,
-        }
+        from anivault.core.organizer.executor import OperationResult
+        
+        result = OperationResult(
+            operation="move",
+            source_path="/path/to/source.mkv",
+            destination_path="",
+            success=True,
+        )
 
         # Should not raise error
         handler.on_file_organized(result)
@@ -300,13 +320,15 @@ class TestOnOrganizationFinished:
         )
 
         # Set current plan
+        from anivault.core.organizer.executor import OperationResult
+        
         plan = [Mock(), Mock(), Mock()]
         handler._current_plan = plan
 
         results = [
-            {"success": True},
-            {"success": True},
-            {"success": False},
+            OperationResult(operation="move", source_path="/path/1.mkv", destination_path="/dest/1.mkv", success=True),
+            OperationResult(operation="move", source_path="/path/2.mkv", destination_path="/dest/2.mkv", success=True),
+            OperationResult(operation="move", source_path="/path/3.mkv", destination_path="/dest/3.mkv", success=False, message="Error"),
         ]
 
         handler.on_organization_finished(results)
