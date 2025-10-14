@@ -16,7 +16,6 @@ from PySide6.QtCore import QObject, Signal
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation
 from anivault.core.organizer import FileOrganizer
-from anivault.core.organizer.executor import OperationResult
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,9 @@ class OrganizeWorker(QObject):
     # Signals for communication with main thread
     organization_started: Signal = Signal()  # Emitted when organization starts
     file_organized: Signal = Signal(dict)  # Emits OperationResult as dict (NO Any!)
-    organization_progress: Signal = Signal(int, str)  # Emits (progress %, current filename)
+    organization_progress: Signal = Signal(
+        int, str
+    )  # Emits (progress %, current filename)
     organization_finished: Signal = Signal(list)  # Emits list[OperationResult]
     organization_error: Signal = Signal(str)  # Emits error message
     organization_cancelled: Signal = Signal()  # Emitted when cancelled
@@ -52,7 +53,7 @@ class OrganizeWorker(QObject):
 
         logger.debug("OrganizeWorker initialized")
 
-    def set_plan(self, plan: list[Any]) -> None:
+    def set_plan(self, plan: list[FileOperation]) -> None:
         """Set the organization plan to execute.
 
         Args:

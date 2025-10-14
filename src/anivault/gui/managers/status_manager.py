@@ -29,13 +29,14 @@ from PySide6.QtWidgets import QLabel, QStatusBar
 
 class CacheStats(TypedDict, total=False):
     """Cache statistics dictionary type (NO Any!).
-    
+
     Attributes:
         hit_ratio: Cache hit ratio percentage (0.0-100.0)
         total_requests: Total cache requests (hits + misses)
         cache_items: Total items in cache
         cache_type: Primary cache type (SQLite/JSON/Hybrid)
     """
+
     hit_ratio: float
     total_requests: int
     cache_items: int
@@ -109,9 +110,8 @@ class StatusManager:
             >>> stats = {"hit_ratio": 87.3, "cache_items": 1247, "cache_type": "SQLite"}
             >>> status_manager.update_cache_status(stats)
         """
-        if not isinstance(stats, dict):
-            # Silently ignore invalid input (defensive programming)
-            return
+        # CacheStats TypedDict validation - NO LONGER NEEDED
+        # TypedDict provides compile-time type safety
 
         if self._cache_status_label is None:
             # Status bar not initialized yet
