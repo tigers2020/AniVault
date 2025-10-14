@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QEvent, QPoint, QSize, Qt, QUrl, Signal
+
+if TYPE_CHECKING:
+    from .anime_detail_popup import AnimeDetailPopup
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
@@ -27,7 +30,9 @@ class GroupCardWidget(QFrame):
     # Signal emitted when card is clicked with group_name and files
     cardClicked: Signal = Signal(str, list)  # Emits (group_name: str, files: list)
 
-    def __init__(self, group_name: str, files: list[Any], parent: QWidget | None = None):
+    def __init__(
+        self, group_name: str, files: list[Any], parent: QWidget | None = None
+    ):
         """
         Initialize the group card widget.
 
@@ -40,7 +45,7 @@ class GroupCardWidget(QFrame):
         self.group_name = group_name  # Store full group name
         self.files = files
         self.parent_widget = parent
-        self._detail_popup = None
+        self._detail_popup: AnimeDetailPopup | None = None
 
         # Network manager for async poster downloads
         self._network_manager = QNetworkAccessManager(self)
@@ -52,7 +57,7 @@ class GroupCardWidget(QFrame):
         """Set up the card layout and styling (TMDB-style horizontal layout)."""
         # Explicitly set NoFrame to remove QFrame's default border
         # QSS themes will control borders (none by default, visible on hover/selected)
-        self.setFrameShape(QFrame.NoFrame)
+        self.setFrameShape(QFrame.NoFrame)  # type: ignore[attr-defined]
         # Note: Size is now handled by the central QSS theme system
 
         # Main horizontal layout (TMDB style: poster on left, info on right)
@@ -163,11 +168,11 @@ class GroupCardWidget(QFrame):
         main_layout.addLayout(info_layout)
 
         # Enable context menu
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)  # type: ignore[attr-defined]
         self.customContextMenuRequested.connect(self._show_context_menu)
 
         # Set cursor to indicate clickability
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.PointingHandCursor)  # type: ignore[attr-defined]
 
     def _create_poster_widget(self) -> QLabel:
         """
@@ -181,10 +186,10 @@ class GroupCardWidget(QFrame):
         poster_label.setFixedSize(
             QSize(UIConfig.POSTER_WIDTH, UIConfig.POSTER_HEIGHT)
         )  # 2:3 aspect ratio
-        poster_label.setAlignment(Qt.AlignCenter)
+        poster_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
 
         # Explicitly remove any frame styling (QLabel inherits from QFrame)
-        poster_label.setFrameShape(QFrame.NoFrame)
+        poster_label.setFrameShape(QFrame.NoFrame)  # type: ignore[attr-defined]
         poster_label.setLineWidth(0)
 
         # Try to load poster from TMDB data
@@ -222,8 +227,8 @@ class GroupCardWidget(QFrame):
                     scaled_pixmap = pixmap.scaled(
                         UIConfig.POSTER_WIDTH,
                         UIConfig.POSTER_HEIGHT,
-                        Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation,
+                        Qt.KeepAspectRatio,  # type: ignore[attr-defined]
+                        Qt.SmoothTransformation,  # type: ignore[attr-defined]
                     )
                     poster_label.setPixmap(scaled_pixmap)
                     logger.debug(
@@ -297,13 +302,13 @@ class GroupCardWidget(QFrame):
                         "Found match result: %s",
                         match_result_dict.get("title", UIConfig.UNKNOWN_TITLE),
                     )
-                    return match_result_dict
+                    return match_result_dict  # type: ignore[no-any-return]
                 # Already a dict
                 logger.debug(
                     "Found match result: %s",
                     match_result.get("title", UIConfig.UNKNOWN_TITLE),
                 )
-                return match_result
+                return match_result  # type: ignore[no-any-return]
             logger.debug("No match_result in metadata dict")
 
         # Case 2: metadata is ParsingResult or similar object
@@ -322,7 +327,7 @@ class GroupCardWidget(QFrame):
                             "✓ Found match_result in ParsingResult.other_info: %s",
                             title,
                         )
-                        return match_result_dict
+                        return match_result_dict  # type: ignore[no-any-return]
                     # Already a dict
                     title = (
                         match_result.get("title")
@@ -338,7 +343,7 @@ class GroupCardWidget(QFrame):
                             "⚠️ match_result has no title/name! Keys: %s",
                             list(match_result.keys()),
                         )
-                    return match_result
+                    return match_result  # type: ignore[no-any-return]
                 logger.debug("other_info is dict but no match_result")
             else:
                 logger.debug("other_info is not dict: %s", type(meta.other_info))
@@ -494,7 +499,7 @@ class GroupCardWidget(QFrame):
 
     def _update_group_name_with_parser(self) -> None:
         """Update group name using parser."""
-        if hasattr(self.parent_widget, "update_group_name_with_parser"):
+        if self.parent_widget and hasattr(self.parent_widget, "update_group_name_with_parser"):
             self.parent_widget.update_group_name_with_parser(
                 self.group_name,
                 self.files,
@@ -502,7 +507,7 @@ class GroupCardWidget(QFrame):
 
     def _edit_group_name(self) -> None:
         """Edit group name manually."""
-        if hasattr(self.parent_widget, "edit_group_name"):
+        if self.parent_widget and hasattr(self.parent_widget, "edit_group_name"):
             self.parent_widget.edit_group_name(self.group_name, self.files)
 
     def _load_tmdb_poster(
@@ -613,8 +618,8 @@ class GroupCardWidget(QFrame):
                 scaled_pixmap = pixmap.scaled(
                     UIConfig.POSTER_WIDTH,
                     UIConfig.POSTER_HEIGHT,
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation,
+                    Qt.KeepAspectRatio,  # type: ignore[attr-defined]
+                    Qt.SmoothTransformation,  # type: ignore[attr-defined]
                 )
                 poster_label.setPixmap(scaled_pixmap)
                 logger.debug("✅ Downloaded and displayed poster: %s", cache_file.name)
@@ -633,7 +638,7 @@ class GroupCardWidget(QFrame):
         Args:
             event: Mouse event
         """
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.LeftButton:  # type: ignore[attr-defined]
             logger.debug("Group card clicked: %s", self.group_name)
             self.cardClicked.emit(self.group_name, self.files)
         super().mousePressEvent(event)
