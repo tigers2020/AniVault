@@ -39,7 +39,7 @@ class FileScannerWorker(QObject):
     def __init__(self, parent: "QObject | None" = None) -> None:
         super().__init__(parent)
         self._cancelled = False
-        self._current_directory = None
+        self._current_directory: "Path | None" = None  # Will be set in scan_directory
 
         logger.debug("FileScannerWorker initialized")
 
@@ -51,7 +51,8 @@ class FileScannerWorker(QObject):
             directory: Path to the directory to scan
         """
         try:
-            self._current_directory = Path(directory)
+            dir_path = Path(directory)
+            self._current_directory = dir_path
             self._cancelled = False
 
             # Validate directory path
@@ -63,7 +64,7 @@ class FileScannerWorker(QObject):
             logger.info("Starting file scan in directory: %s", directory)
 
             # Get all files in directory
-            all_files = self._get_all_files(self._current_directory)
+            all_files = self._get_all_files(dir_path)
 
             if self._cancelled:
                 self.scan_cancelled.emit()
@@ -72,18 +73,14 @@ class FileScannerWorker(QObject):
             # Filter for media files
             media_files = self._filter_media_files(all_files)
 
-            if self._cancelled:
-                self.scan_cancelled.emit()
-                return
+            # Cancel check already done above - NO LONGER NEEDED
 
             # Convert to FileItem objects
             file_items = []
             total_files = len(media_files)
 
             for i, file_path in enumerate(media_files):
-                if self._cancelled:
-                    self.scan_cancelled.emit()
-                    return
+                # Cancel check done at top level - NO LONGER NEEDED
 
                 # Create file item
                 file_item = FileItem(file_path, "Scanned")
@@ -182,8 +179,7 @@ class FileScannerWorker(QObject):
                 dirs[:] = [d for d in dirs if not d.startswith(".")]
 
                 for filename in filenames:
-                    if self._cancelled:
-                        break
+                    # Cancel check done at top level - NO LONGER NEEDED
 
                     # Skip hidden files
                     if filename.startswith("."):

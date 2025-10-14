@@ -60,11 +60,11 @@ class GroupGridViewWidget(QScrollArea):
         )
 
         # Configure scroll area
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # type: ignore[attr-defined]
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # type: ignore[attr-defined]
 
         # Store cards for reference
-        self.group_cards = {}
+        self.group_cards: dict[str, GroupCardWidget] = {}
 
         logger.debug("GroupGridViewWidget initialized")
 
@@ -156,7 +156,9 @@ class GroupGridViewWidget(QScrollArea):
             total_files,
         )
 
-    def update_group_name_with_parser(self, old_group_name: str, files: list[Any]) -> None:
+    def update_group_name_with_parser(
+        self, old_group_name: str, files: list[Any]
+    ) -> None:
         """
         Update group name using parser.
 
@@ -287,9 +289,10 @@ class GroupGridViewWidget(QScrollArea):
             new_card.cardClicked.connect(self._on_card_clicked)
 
             # Also maintain backward compatibility with legacy callback
-            if hasattr(self.parent(), "on_group_selected"):
+            parent = self.parent()
+            if parent and hasattr(parent, "on_group_selected"):
                 new_card.cardClicked.connect(
-                    lambda gn, f: self.parent().on_group_selected(gn, f),
+                    lambda gn, f: parent.on_group_selected(gn, f),
                 )
 
             self.group_cards[new_group_name] = new_card
@@ -300,10 +303,11 @@ class GroupGridViewWidget(QScrollArea):
             self.grid_layout.addWidget(new_card, row, col)
 
             # Update parent window's group details if this group is currently selected
-            if hasattr(self.parent(), "group_details_label"):
-                current_text = self.parent().group_details_label.text()
+            parent = self.parent()
+            if parent and hasattr(parent, "group_details_label"):
+                current_text = parent.group_details_label.text()
                 if f"📁 {old_group_name}" in current_text:
-                    self.parent().group_details_label.setText(
+                    parent.group_details_label.setText(
                         f"📁 {new_group_name} ({len(files)} files)",
                     )
 
