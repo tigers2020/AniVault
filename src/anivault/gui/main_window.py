@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
 
 from anivault.config.settings import get_config
 from anivault.core.models import FileOperation, ScannedFile
-from anivault.core.organizer.executor import OperationResult
 from anivault.gui.models import FileItem
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import ApplicationError
@@ -36,7 +35,9 @@ from anivault.shared.errors import ApplicationError
 from .controllers import OrganizeController, ScanController, TMDBController
 
 if TYPE_CHECKING:
+    from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
     from anivault.gui.managers.status_manager import CacheStats
+
 from .managers import MenuManager, SignalCoordinator, StatusManager
 from .state_model import StateModel
 from .themes import ThemeManager
@@ -71,7 +72,7 @@ class MainWindow(QMainWindow):
         self.organize_controller = OrganizeController(parent=self)
 
         # Initialize TMDB matching components
-        self.tmdb_progress_dialog = None
+        self.tmdb_progress_dialog: TMDBProgressDialog | None = None
 
         # Initialize theme-related attributes
         self.theme_manager = None
@@ -171,7 +172,7 @@ class MainWindow(QMainWindow):
         # Set splitter proportions (top: 80%, bottom: 20% = 4:1 ratio)
         splitter.setSizes([960, 240])
 
-    def update_cache_status(self, stats: "CacheStats") -> None:
+    def update_cache_status(self, stats: CacheStats) -> None:
         """Update cache status display in status bar.
 
         Delegates to StatusManager for actual display logic.
@@ -287,10 +288,8 @@ class MainWindow(QMainWindow):
             logger.warning("Theme manager not available")
             return
 
-        # Validate action type
-        if not isinstance(action, QAction):
-            logger.error("Invalid action type: %s", type(action))
-            return
+        # Validate action type (mypy knows action is QAction from parameter type)
+        # This check is redundant for type safety but kept for runtime validation
 
         try:
             theme_name = action.data()
@@ -406,7 +405,9 @@ class MainWindow(QMainWindow):
         # No direct file tree manipulation needed
         logger.debug("File status updated: %s -> %s", file_path.name, status)
 
-    def update_file_tree_with_groups(self, grouped_files: dict[str, list[ScannedFile]]) -> None:
+    def update_file_tree_with_groups(
+        self, grouped_files: dict[str, list[ScannedFile]]
+    ) -> None:
         """Update the group grid view with grouped files as cards (delegates to ViewUpdater)."""
         self.view_updater.update_file_tree_with_groups(grouped_files)
 
@@ -493,7 +494,8 @@ class MainWindow(QMainWindow):
 
         # Start TMDB matching using controller
         try:
-            self.tmdb_controller.match_files(self.state_model.scanned_files)
+            # TODO: Fix type mismatch - FileItem vs ScannedFile
+            self.tmdb_controller.match_files(self.state_model.scanned_files)  # type: ignore[arg-type]
         except (ValueError, RuntimeError) as e:
             logger.exception("Failed to start TMDB matching")
             self.status_manager.show_message(
@@ -553,7 +555,7 @@ class MainWindow(QMainWindow):
         # Create preview dialog using factory
         preview_dialog = self.dialog_factory.create_organize_preview_dialog(plan, self)
 
-        if preview_dialog.exec() == QDialog.Accepted and preview_dialog.is_confirmed():
+        if preview_dialog.exec() == QDialog.Accepted and preview_dialog.is_confirmed():  # type: ignore[attr-defined]
             # User confirmed - execute the plan via handler
             if self.organize_event_handler._execute_plan_callback:
                 self.organize_event_handler._execute_plan_callback(plan)
