@@ -12,7 +12,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, Signal
 
-from anivault.core.file_grouper import FileGrouper
+from anivault.core.file_grouper import FileGrouper, Group
 from anivault.core.models import ScannedFile
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingResult
@@ -96,7 +96,9 @@ class ScanController(QObject):
             logger.info("Cancelling file scan")
             self.scanner_worker.cancel_scan()
 
-    def _group_files_by_filename(self, file_items: list[FileItem]) -> dict[str, list[FileItem]]:
+    def _group_files_by_filename(
+        self, file_items: list[FileItem]
+    ) -> dict[str, list[FileItem]]:
         """Helper method to group files by filename (for unmatched files).
 
         Args:
@@ -152,7 +154,9 @@ class ScanController(QObject):
 
         return result
 
-    def group_files_by_tmdb_title(self, file_items: list[FileItem]) -> dict[str, list[ScannedFile]]:
+    def group_files_by_tmdb_title(
+        self, file_items: list[FileItem]
+    ) -> dict[str, list[ScannedFile]]:
         """Group files by TMDB title after matching.
 
         Args:
@@ -182,12 +186,8 @@ class ScanController(QObject):
                     if file_item.metadata.tmdb_id is not None:
                         has_match = True
                         matched_files.append(file_item)
-                elif isinstance(file_item.metadata, dict):
-                    # Legacy dict format (backward compatibility)
-                    match_result = file_item.metadata.get("match_result")
-                    if match_result:
-                        has_match = True
-                        matched_files.append(file_item)
+                # Legacy dict format (backward compatibility) - NO LONGER USED
+                # FileMetadata is now the standard format
 
                 if not has_match:
                     unmatched_files.append(file_item)
@@ -199,19 +199,14 @@ class ScanController(QObject):
             )
 
             # Group matched files by TMDB title
-            grouped_by_tmdb = {}
+            grouped_by_tmdb: dict[str, list[FileItem]] = {}
             for file_item in matched_files:
                 tmdb_title = None
 
-                # Extract title from FileMetadata or dict with MatchResult
+                # Extract title from FileMetadata
                 if isinstance(file_item.metadata, FileMetadata):
                     tmdb_title = file_item.metadata.title
-                elif isinstance(file_item.metadata, dict):
-                    # Dict format with match_result (MatchResult dataclass)
-                    match_result = file_item.metadata.get("match_result")
-                    if match_result:
-                        # match_result is MatchResult dataclass
-                        tmdb_title = match_result.title
+                # Legacy dict format - NO LONGER USED
 
                 if tmdb_title:
                     if tmdb_title not in grouped_by_tmdb:
@@ -257,13 +252,7 @@ class ScanController(QObject):
                             if not parsed_result.other_info:
                                 parsed_result.other_info = {}
                             parsed_result.other_info["match_result"] = match_result_dict
-                    elif isinstance(file_item.metadata, dict):
-                        # Legacy dict format (backward compatibility)
-                        match_result = file_item.metadata.get("match_result")
-                        if match_result:
-                            if not parsed_result.other_info:
-                                parsed_result.other_info = {}
-                            parsed_result.other_info["match_result"] = match_result
+                    # Legacy dict format - NO LONGER USED
 
                     scanned_file = ScannedFile(
                         file_path=file_item.file_path,
@@ -289,7 +278,7 @@ class ScanController(QObject):
             logger.exception("TMDB-based grouping failed")
             raise
 
-    def group_files(self, file_items: list[FileItem]) -> list:
+    def group_files(self, file_items: list[FileItem]) -> list[Group]:
         """Group scanned files by similarity.
 
         Args:
@@ -363,26 +352,8 @@ class ScanController(QObject):
                             file_item.file_path.name,
                             file_item.metadata.title,
                         )
-                elif isinstance(file_item.metadata, dict):
-                    # Legacy dict format (backward compatibility)
-                    match_result = file_item.metadata.get("match_result")
-                    if match_result:
-                        # Inject match_result into parsed_result.other_info
-                        if not parsed_result.other_info:
-                            parsed_result.other_info = {}
-                        parsed_result.other_info["match_result"] = match_result
-
-                        # Get title from MatchResult dataclass
-                        title = (
-                            match_result.title
-                            if hasattr(match_result, "title")
-                            else "Unknown"
-                        )
-                        logger.debug(
-                            "Preserved TMDB metadata for: %s - %s",
-                            file_item.file_path.name,
-                            title,
-                        )
+                # Legacy dict format - NO LONGER USED
+                # FileMetadata is now the standard format
 
                 # Create ScannedFile object for grouping
                 scanned_file = ScannedFile(
@@ -425,7 +396,8 @@ class ScanController(QObject):
         if self.scanner_thread is not None:
             try:
                 if self.scanner_thread.isRunning():
-                    self.scanner_worker.cancel_scan()
+                    if self.scanner_worker:
+                        self.scanner_worker.cancel_scan()
                     self.scanner_thread.wait()
             except RuntimeError:
                 # Thread object was already deleted, ignore
