@@ -13,7 +13,7 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from anivault.core.pipeline.cache import CacheV1
+from anivault.core.pipeline.components import CacheV1
 
 
 class TestCacheV1:

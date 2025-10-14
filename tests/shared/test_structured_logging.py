@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any
 
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 from anivault.shared.logging import (
@@ -18,7 +19,7 @@ from anivault.shared.logging import (
 class TestStructuredFormatter:
     """Test StructuredFormatter JSON output."""
 
-    def test_format_basic_log(self):
+    def test_format_basic_log(self) -> None:
         """Test basic log record formatting to JSON."""
         formatter = StructuredFormatter()
         record = logging.LogRecord(
@@ -41,7 +42,7 @@ class TestStructuredFormatter:
         assert log_data["message"] == "Test message"
         assert "timestamp" in log_data
 
-    def test_format_log_with_context(self):
+    def test_format_log_with_context(self) -> None:
         """Test log record with extra context fields."""
         formatter = StructuredFormatter()
         record = logging.LogRecord(
@@ -70,15 +71,25 @@ class TestStructuredFormatter:
 class TestSetupStructuredLogger:
     """Test structured logger setup."""
 
-    def test_setup_creates_logger_with_handler(self):
-        """Test that setup creates logger with handler."""
-        logger = setup_structured_logger(name="test_structured")
+    def test_setup_creates_logger_with_handler(self) -> None:
+        """Test that setup creates logger with handler (JSON format)."""
+        logger = setup_structured_logger(name="test_structured", use_rich_console=False)
 
         assert isinstance(logger, logging.Logger)
         assert len(logger.handlers) > 0
         assert isinstance(logger.handlers[0].formatter, StructuredFormatter)
 
-    def test_logger_does_not_propagate(self):
+    def test_setup_creates_logger_with_rich_handler(self) -> None:
+        """Test that setup creates logger with Rich handler."""
+        from rich.logging import RichHandler
+
+        logger = setup_structured_logger(name="test_rich", use_rich_console=True)
+
+        assert isinstance(logger, logging.Logger)
+        assert len(logger.handlers) > 0
+        assert isinstance(logger.handlers[0], RichHandler)
+
+    def test_logger_does_not_propagate(self) -> None:
         """Test that structured logger doesn't propagate to parent."""
         logger = setup_structured_logger(name="test_no_propagate")
 
@@ -88,7 +99,7 @@ class TestSetupStructuredLogger:
 class TestLoggingHelpers:
     """Test logging helper functions."""
 
-    def test_log_operation_error(self, caplog):
+    def test_log_operation_error(self, caplog: Any) -> None:
         """Test logging operation errors."""
         logger = logging.getLogger("test_error_log")
         error = ApplicationError(
@@ -104,7 +115,7 @@ class TestLoggingHelpers:
         assert caplog.records[0].levelname == "ERROR"
         assert "Test file error" in caplog.records[0].message
 
-    def test_log_operation_success(self, caplog):
+    def test_log_operation_success(self, caplog: Any) -> None:
         """Test logging successful operations."""
         logger = logging.getLogger("test_success_log")
 
@@ -120,7 +131,7 @@ class TestLoggingHelpers:
         assert caplog.records[0].levelname == "INFO"
         assert "test_op" in caplog.records[0].message
 
-    def test_log_operation_start(self, caplog):
+    def test_log_operation_start(self, caplog: Any) -> None:
         """Test logging operation start."""
         logger = logging.getLogger("test_start_log")
 
@@ -139,7 +150,7 @@ class TestLoggingHelpers:
 class TestJSONLoggingIntegration:
     """Test JSON logging integration."""
 
-    def test_structured_logger_outputs_json(self):
+    def test_structured_logger_outputs_json(self) -> None:
         """Test that structured logger actually outputs JSON."""
         import io
 

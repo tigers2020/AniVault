@@ -13,6 +13,10 @@ import logging.config
 from datetime import datetime, timezone
 from typing import Any
 
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.theme import Theme
+
 from anivault.shared.errors import AniVaultError, ErrorContext
 
 
@@ -65,10 +69,34 @@ class StructuredFormatter(logging.Formatter):
         return json.dumps(log_entry, ensure_ascii=False)
 
 
+def _create_rich_console() -> Console:
+    """
+    Rich Console을 생성합니다 (커스텀 테마 포함).
+
+    Returns:
+        설정된 Rich Console 인스턴스
+    """
+    custom_theme = Theme(
+        {
+            "logging.level.debug": "cyan",
+            "logging.level.info": "green",
+            "logging.level.warning": "yellow",
+            "logging.level.error": "red bold",
+            "logging.level.critical": "red bold reverse",
+            "log.time": "dim cyan",
+            "log.message": "white",
+            "log.path": "dim blue",
+        }
+    )
+    return Console(theme=custom_theme, stderr=False, force_terminal=True)
+
+
 def setup_structured_logger(
     name: str = "anivault",
     level: str = "INFO",
     log_file: str | None = None,
+    *,
+    use_rich_console: bool = True,
 ) -> logging.Logger:
     """
     구조화된 로깅을 위한 로거를 설정합니다.
@@ -77,6 +105,7 @@ def setup_structured_logger(
         name: 로거 이름 (기본값: "anivault")
         level: 로그 레벨 (기본값: "INFO")
         log_file: 로그 파일 경로 (선택사항)
+        use_rich_console: Rich 기반 콘솔 출력 사용 여부 (기본값: True)
 
     Returns:
         설정된 로거 인스턴스
@@ -89,18 +118,35 @@ def setup_structured_logger(
         logger.handlers.clear()
 
     # 로그 레벨 설정
-    logger.setLevel(getattr(logging, level.upper()))
-
-    # 포맷터 생성
-    formatter = StructuredFormatter()
+    log_level = getattr(logging, level.upper())
+    logger.setLevel(log_level)
 
     # 콘솔 핸들러 설정
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    if use_rich_console:
+        # Rich 핸들러 사용 (예쁜 콘솔 출력)
+        console = _create_rich_console()
+        handler: logging.Handler = RichHandler(
+            console=console,
+            show_time=True,
+            show_level=True,
+            show_path=True,
+            markup=True,
+            rich_tracebacks=True,
+            tracebacks_show_locals=False,
+            log_time_format="[%H:%M:%S]",
+        )
+        handler.setLevel(log_level)
+        logger.addHandler(handler)
+    else:
+        # 기본 JSON 포맷 핸들러 사용
+        formatter = StructuredFormatter()
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-    # 파일 핸들러 설정 (선택사항)
+    # 파일 핸들러 설정 (선택사항, 항상 JSON 형식)
     if log_file:
+        formatter = StructuredFormatter()
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)

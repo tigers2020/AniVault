@@ -126,12 +126,12 @@ def generate_enhanced_organization_plan(
     file_groups = grouper.group_files(scanned_files)
     operations = []
 
-    for group_key, group_files in file_groups.items():
-        best_file = resolution_detector.find_highest_resolution(group_files)
+    for group in file_groups:
+        best_file = resolution_detector.find_highest_resolution(group.files)
         if not best_file:
             continue
 
-        korean_title = group_key
+        korean_title = group.title
         subtitles = subtitle_matcher.find_matching_subtitles(
             best_file,
             best_file.file_path.parent,
@@ -169,7 +169,7 @@ def generate_enhanced_organization_plan(
                 }
             )
 
-        for file in group_files:
+        for file in group.files:
             if file != best_file:
                 operations.append(
                     {

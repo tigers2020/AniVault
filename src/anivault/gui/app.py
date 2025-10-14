@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class AniVaultGUI:
     """Main GUI application class."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.app: QApplication | None = None
         self.main_window: MainWindow | None = None
         self.theme_manager: ThemeManager | None = None
@@ -116,7 +116,8 @@ class AniVaultGUI:
             saved_theme = config.app.theme
 
             # Apply the theme (app parameter is optional, auto-detected)
-            self.theme_manager.apply_theme(saved_theme, app=self.app)
+            if self.theme_manager:
+                self.theme_manager.apply_theme(saved_theme, app=self.app)
 
             logger.info("Initial theme loaded: %s", saved_theme)
 
@@ -133,8 +134,9 @@ class AniVaultGUI:
                 try:
                     logger.info("Auto scan triggered for folder: %s", folder_path)
                     # Set directory in state model and start scanning
-                    self.main_window.state_model.selected_directory = Path(folder_path)
-                    self.main_window.start_file_scan()
+                    if self.main_window:
+                        self.main_window.state_model.selected_directory = Path(folder_path)
+                        self.main_window.start_file_scan()
                 except Exception:
                     logger.exception("Auto scan callback failed: %s")
 

@@ -33,6 +33,9 @@ class DialogTitles:
     TMDB_MATCHING = "TMDB Matching"
     TMDB_ERROR = "TMDB Error"
 
+    # Organization operations
+    ORGANIZE_ERROR = "Organization Error"
+
     # Group operations
     EDIT_GROUP_NAME = "Edit Group Name"
     DELETE_GROUP = "Delete Group"

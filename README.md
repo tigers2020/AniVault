@@ -96,11 +96,16 @@ anivault verify <directory>          # 정리 결과 검증
 
 ## 📚 상세 문서
 
-- [설치 가이드](docs/installation.md)
-- [사용법 가이드](docs/usage.md)
-- [TMDB API 설정](docs/tmdb-setup.md)
-- [문제 해결](docs/troubleshooting.md)
-- [개발자 가이드](docs/development.md)
+### 시작하기
+- **[개발 가이드](docs/guides/getting-started.md)** - 환경 설정부터 첫 번째 커밋까지
+- **[TMDB API 설정](docs/api/tmdb-setup.md)** - TMDB API 키 발급 및 설정
+- **[전체 문서 목록](docs/README.md)** - 모든 문서 보기
+
+### 주요 문서
+- [아키텍처](docs/architecture/ARCHITECTURE_ANIVAULT.md) - 전체 시스템 구조
+- [개발 프로토콜](docs/protocols/DEVELOPMENT_PROTOCOL.md) - 개발 프로세스
+- [API 가이드](docs/api/README.md) - TMDB API 통합 가이드
+- [테스트 가이드](docs/testing/README.md) - 테스트 전략
 
 ## 🛠️ 개발
 

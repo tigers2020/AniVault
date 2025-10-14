@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from anivault.core.pipeline.main import format_statistics, run_pipeline
+from anivault.core.pipeline import run_pipeline
+from anivault.core.pipeline.domain import format_statistics
 from anivault.core.pipeline.utils import (
     ParserStatistics,
     QueueStatistics,
@@ -49,10 +50,18 @@ class TestPipelineIntegration:
 
         # Mock all components to avoid actual threading
         with (
-            patch("anivault.core.pipeline.main.DirectoryScanner") as MockScanner,
-            patch("anivault.core.pipeline.main.ParserWorkerPool") as MockParserPool,
-            patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
-            patch("anivault.core.pipeline.main.BoundedQueue") as MockQueue,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.DirectoryScanner"
+            ) as MockScanner,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ParserWorkerPool"
+            ) as MockParserPool,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ResultCollector"
+            ) as MockCollector,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.BoundedQueue"
+            ) as MockQueue,
         ):
             # Setup mock scanner
             mock_scanner = Mock()
@@ -124,9 +133,15 @@ class TestPipelineIntegration:
         extensions = [".mp4"]
 
         with (
-            patch("anivault.core.pipeline.main.DirectoryScanner") as MockScanner,
-            patch("anivault.core.pipeline.main.ParserWorkerPool") as MockParserPool,
-            patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.DirectoryScanner"
+            ) as MockScanner,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ParserWorkerPool"
+            ) as MockParserPool,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ResultCollector"
+            ) as MockCollector,
         ):
             # Setup mock scanner to raise an error
             mock_scanner = Mock()
@@ -158,9 +173,15 @@ class TestPipelineIntegration:
         empty_dir.mkdir()
 
         with (
-            patch("anivault.core.pipeline.main.DirectoryScanner") as MockScanner,
-            patch("anivault.core.pipeline.main.ParserWorkerPool") as MockParserPool,
-            patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.DirectoryScanner"
+            ) as MockScanner,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ParserWorkerPool"
+            ) as MockParserPool,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ResultCollector"
+            ) as MockCollector,
         ):
             mock_scanner = Mock()
             mock_scanner.is_alive.return_value = False
@@ -197,9 +218,15 @@ class TestPipelineIntegration:
         (test_dir / "doc.txt").write_bytes(b"txt")
 
         with (
-            patch("anivault.core.pipeline.main.DirectoryScanner") as MockScanner,
-            patch("anivault.core.pipeline.main.ParserWorkerPool") as MockParserPool,
-            patch("anivault.core.pipeline.main.ResultCollector") as MockCollector,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.DirectoryScanner"
+            ) as MockScanner,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ParserWorkerPool"
+            ) as MockParserPool,
+            patch(
+                "anivault.core.pipeline.domain.orchestrator.ResultCollector"
+            ) as MockCollector,
         ):
             # Setup mocks
             mock_scanner = Mock()

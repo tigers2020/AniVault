@@ -14,6 +14,7 @@ from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from anivault.core.models import ScannedFile
 from anivault.gui.workers import TMDBMatchingWorker
+from anivault.gui.models import FileItem
 from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
@@ -139,7 +140,7 @@ class TMDBController(QObject):
             Match result dictionary or None if not found
         """
         for result in self.match_results:
-            if result.get("file_path") == file_path:
+            if str(result.file_path) == str(file_path):
                 return result
         return None
 
@@ -150,7 +151,7 @@ class TMDBController(QObject):
             Number of matched files
         """
         return sum(
-            1 for result in self.match_results if result.get("status") == "matched"
+            1 for result in self.match_results if result.tmdb_id is not None
         )
 
     def get_total_files_count(self) -> int:
@@ -170,6 +171,12 @@ class TMDBController(QObject):
         # Clean up previous thread if exists
         self._cleanup_matching_thread()
 
+        # Validate API key
+        if not self.api_key:
+            logger.error("TMDB API key is None, cannot create worker")
+            self.matching_error.emit("TMDB API key not configured")
+            return
+        
         # Create and setup thread
         self.tmdb_thread = QThread()
         self.tmdb_worker = TMDBMatchingWorker(self.api_key)
@@ -177,9 +184,14 @@ class TMDBController(QObject):
         # Move worker to thread
         self.tmdb_worker.moveToThread(self.tmdb_thread)
 
+        # Convert ScannedFile to FileItem for worker
+        file_items = [
+            FileItem(file.file_path, "Scanned") for file in files
+        ]
+        
         # Connect signals
         self.tmdb_thread.started.connect(
-            lambda: self.tmdb_worker.match_files(files),
+            lambda: self.tmdb_worker.match_files(file_items),
         )
         self.tmdb_worker.matching_started.connect(self._on_matching_started)
         self.tmdb_worker.file_matched.connect(self._on_file_matched)

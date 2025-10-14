@@ -54,7 +54,9 @@ class SettingsDialog(QDialog):
 
     # Signals
     api_key_saved: Signal = Signal(str)  # Emitted when API key is successfully saved
-    folder_settings_changed: Signal = Signal()  # Emitted when folder settings are changed
+    folder_settings_changed: Signal = (
+        Signal()
+    )  # Emitted when folder settings are changed
 
     def __init__(
         self,

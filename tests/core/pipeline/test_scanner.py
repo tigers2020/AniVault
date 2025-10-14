@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from anivault.core.pipeline.scanner import DirectoryScanner
+from anivault.core.pipeline.components import DirectoryScanner
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.shared.constants import FileSystem
 

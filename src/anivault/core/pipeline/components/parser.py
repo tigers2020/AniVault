@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from anivault.core.pipeline.cache import CacheV1
+from anivault.core.pipeline.components.cache import CacheV1
 from anivault.core.pipeline.utils import BoundedQueue, ParserStatistics
 from anivault.shared.constants import CoreCacheConfig, NetworkConfig
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError

@@ -108,12 +108,11 @@ class TMDBEventHandler(BaseEventHandler):
                 - match_result: MatchResult | None - TMDB match data
                 - status: str - Match status ("matched" or "failed")
         """
-        file_path_str = result.get("file_path", "")
-        file_path = Path(file_path_str) if isinstance(file_path_str, str) else Path()
-        file_name = result.get("file_name", "Unknown")
-        match_result = result.get("match_result")
-        status_value = result.get("status", "unknown")
-        status = str(status_value) if status_value else "unknown"
+        # FileMetadata is a dataclass, access attributes directly
+        file_path = Path(result.file_path) if result.file_path else Path()
+        file_name = result.file_name or "Unknown"
+        match_result = result  # FileMetadata itself is the match result
+        status = "matched" if result.tmdb_id is not None else "unknown"
 
         # Update state model
         if hasattr(self, "_state_model") and self._state_model:

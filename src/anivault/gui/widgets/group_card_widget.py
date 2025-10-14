@@ -499,7 +499,9 @@ class GroupCardWidget(QFrame):
 
     def _update_group_name_with_parser(self) -> None:
         """Update group name using parser."""
-        if self.parent_widget and hasattr(self.parent_widget, "update_group_name_with_parser"):
+        if self.parent_widget and hasattr(
+            self.parent_widget, "update_group_name_with_parser"
+        ):
             self.parent_widget.update_group_name_with_parser(
                 self.group_name,
                 self.files,

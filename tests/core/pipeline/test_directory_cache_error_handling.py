@@ -13,7 +13,7 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from anivault.core.pipeline.directory_cache import DirectoryCacheManager
+from anivault.core.pipeline.components import DirectoryCacheManager
 from anivault.shared.errors import ErrorCode, InfrastructureError
 
 
