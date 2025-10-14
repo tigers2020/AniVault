@@ -32,8 +32,8 @@ class AnimeDetailPopup(QFrame):
         super().__init__(parent)
         self.anime_info = anime_info
         # Use ToolTip style for natural hover behavior
-        self.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_ShowWithoutActivating, True)  # noqa: FBT003 - Qt API
+        self.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint)  # type: ignore[attr-defined]
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)  # type: ignore[attr-defined]  # noqa: FBT003 - Qt API
         self._setup_ui()
 
     def _setup_ui(self) -> None:

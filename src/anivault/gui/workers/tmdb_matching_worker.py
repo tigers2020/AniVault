@@ -21,7 +21,6 @@ from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.state_machine import RateLimitStateMachine
 from anivault.services.tmdb_client import TMDBClient
 from anivault.shared.constants import FileSystem
-from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +41,7 @@ class TMDBMatchingWorker(QObject):
     matching_error: Signal = Signal(str)  # Emits error message
     matching_cancelled: Signal = Signal()  # Emitted when cancelled
 
-    def __init__(
-        self, api_key: str, parent: "QObject | None" = None
-    ) -> None:
+    def __init__(self, api_key: str, parent: "QObject | None" = None) -> None:
         """
         Initialize the TMDB matching worker.
 
@@ -235,9 +232,7 @@ class TMDBMatchingWorker(QObject):
 
         return groups
 
-    async def _match_single_file(
-        self, file_item: FileItem
-    ) -> dict[str, object]:
+    async def _match_single_file(self, file_item: FileItem) -> dict[str, object]:
         """
         Match a single file against TMDB (NO Any!).
 
@@ -309,7 +304,7 @@ class TMDBMatchingWorker(QObject):
             SecurityError: If API key is missing or invalid
         """
         from anivault.config.settings import get_config
-        from anivault.shared.errors import ErrorCode, SecurityError
+        from anivault.shared.errors import ErrorCode, ErrorContext, SecurityError
 
         try:
             config = get_config()
@@ -319,20 +314,14 @@ class TMDBMatchingWorker(QObject):
                 raise SecurityError(
                     code=ErrorCode.MISSING_CONFIG,
                     message="TMDB API key not configured in settings",
-                    context={
-                        "operation": "validate_api_key",
-                        "worker": "tmdb_matching",
-                    },
+                    context=ErrorContext(operation="validate_api_key"),
                 )
 
             if len(api_key) < 10:  # Basic validation
                 raise SecurityError(
                     code=ErrorCode.INVALID_CONFIG,
                     message=f"TMDB API key appears invalid (too short: {len(api_key)} characters)",
-                    context={
-                        "operation": "validate_api_key",
-                        "key_length": len(api_key),
-                    },
+                    context=ErrorContext(operation="validate_api_key"),
                 )
 
         except SecurityError:
@@ -343,9 +332,6 @@ class TMDBMatchingWorker(QObject):
             raise SecurityError(
                 code=ErrorCode.CONFIG_ERROR,
                 message=f"Failed to validate API key: {e}",
-                context={
-                    "operation": "validate_api_key",
-                    "error_type": type(e).__name__,
-                },
+                context=ErrorContext(operation="validate_api_key"),
                 original_error=e,
             ) from e

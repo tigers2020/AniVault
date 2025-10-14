@@ -36,7 +36,9 @@ class OrganizeController(QObject):
     plan_generated: Signal = Signal(list)  # Emits list[FileOperation]
     organization_started: Signal = Signal()  # Emitted when organization starts
     file_organized: Signal = Signal(dict)  # Emits OperationResult as dict (for UI)
-    organization_progress: Signal = Signal(int, str)  # Emits (progress %, current filename)
+    organization_progress: Signal = Signal(
+        int, str
+    )  # Emits (progress %, current filename)
     organization_finished: Signal = Signal(list)  # Emits list[OperationResult]
     organization_error: Signal = Signal(str)  # Emits error message
     organization_cancelled: Signal = Signal()  # Emitted when organization is cancelled
@@ -51,7 +53,7 @@ class OrganizeController(QObject):
 
         # State
         self.is_organizing = False
-        self.current_plan: list[Any] = []
+        self.current_plan: list[FileOperation] = []
 
         # Initialize services
         # Use user's home directory for logs
@@ -222,7 +224,7 @@ class OrganizeController(QObject):
             logger.exception("Failed to organize files")
             self.organization_error.emit(f"파일 정리 실패: {e}")
 
-    def _execute_organization_plan(self, plan: list[Any]) -> None:
+    def _execute_organization_plan(self, plan: list[FileOperation]) -> None:
         """Execute the organization plan in a background thread.
 
         Args:
@@ -303,7 +305,7 @@ class OrganizeController(QObject):
             self._organize_worker.cancel()
             # Note: is_organizing will be set to False in _on_worker_finished
 
-    def get_current_plan(self) -> list[Any]:
+    def get_current_plan(self) -> list[FileOperation]:
         """Get the current organization plan.
 
         Returns:
