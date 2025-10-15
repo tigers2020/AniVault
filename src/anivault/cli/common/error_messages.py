@@ -104,6 +104,7 @@ def build_console_message(context: ErrorMessageContext) -> str:
 
 def build_json_payload(
     context: ErrorMessageContext,
+    *,
     success: bool = False,
 ) -> bytes:
     """Build JSON error payload for machine-readable output.

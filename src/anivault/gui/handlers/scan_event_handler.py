@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
+from anivault.core.file_grouper import Group
 from anivault.gui.models import FileItem
 from anivault.shared.constants.gui_messages import DialogTitles
 
@@ -123,7 +124,7 @@ class ScanEventHandler(BaseEventHandler):
             DialogTitles.SCAN_ERROR,
         )
 
-    def on_files_grouped(self, grouped_files: dict[str, list[FileItem]]) -> None:
+    def on_files_grouped(self, grouped_files: list[Group]) -> None:
         """Handle files grouped signal.
 
         Updates the file tree view with the grouped files. Note that TMDB
@@ -132,6 +133,13 @@ class ScanEventHandler(BaseEventHandler):
         MainWindow.
 
         Args:
-            grouped_files: Dictionary mapping group names to file lists
+            grouped_files: List of Group objects (NO dict!)
         """
-        self._update_file_tree_callback(grouped_files)
+        # Convert list[Group] to dict for view updater callback (temporary compatibility)
+        # ScannedFile and FileItem have compatible interfaces for display purposes
+        from typing import cast
+
+        grouped_dict = {
+            group.title: cast("list[FileItem]", group.files) for group in grouped_files
+        }
+        self._update_file_tree_callback(grouped_dict)

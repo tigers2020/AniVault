@@ -30,12 +30,12 @@ class TMDBController(QObject):
 
     # Signals for UI communication
     matching_started: Signal = Signal()  # Emitted when matching starts
-    file_matched: Signal = Signal(dict)  # Emits FileMetadata as dict (for UI)
+    file_matched: Signal = Signal(object)  # Emits FileMetadata object
     matching_progress: Signal = Signal(int)  # Emits progress percentage
     matching_finished: Signal = Signal(list)  # Emits list[FileMetadata]
     matching_error: Signal = Signal(str)  # Emits error message
     matching_cancelled: Signal = Signal()  # Emitted when matching is cancelled
-    cache_stats_updated: Signal = Signal(dict)  # Emits cache statistics dict
+    cache_stats_updated: Signal = Signal(object)  # Emits cache statistics object
 
     def __init__(self, api_key: str | None = None, parent: QObject | None = None):
         """Initialize the TMDB controller.

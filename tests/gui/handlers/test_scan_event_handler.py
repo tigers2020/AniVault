@@ -219,31 +219,39 @@ class TestScanEventHandler:
     def test_on_files_grouped_calls_callback(self, handler, mock_callback):
         """Test on_files_grouped calls the update file tree callback."""
         # Arrange
-        grouped_files = {
-            "Anime Season 1": [
-                FileItem(file_path=Path("/test/anime_s01e01.mkv"), status="grouped")
-            ],
-            "Anime Season 2": [
-                FileItem(file_path=Path("/test/anime_s02e01.mkv"), status="grouped")
-            ],
+        from anivault.core.file_grouper import Group
+
+        # Create FileItem instances
+        file1 = FileItem(file_path=Path("/test/anime_s01e01.mkv"), status="grouped")
+        file2 = FileItem(file_path=Path("/test/anime_s02e01.mkv"), status="grouped")
+
+        grouped_files = [
+            Group(title="Anime Season 1", files=[file1]),
+            Group(title="Anime Season 2", files=[file2]),
+        ]
+
+        # Expected dict conversion (using same FileItem instances)
+        expected_dict = {
+            "Anime Season 1": [file1],
+            "Anime Season 2": [file2],
         }
 
         # Act
         handler.on_files_grouped(grouped_files)
 
         # Assert
-        mock_callback.assert_called_once_with(grouped_files)
+        mock_callback.assert_called_once_with(expected_dict)
 
     def test_on_files_grouped_empty_dict(self, handler, mock_callback):
         """Test on_files_grouped handles empty grouped files."""
         # Arrange
-        empty_groups = {}
+        empty_groups = []
 
         # Act
         handler.on_files_grouped(empty_groups)
 
         # Assert
-        mock_callback.assert_called_once_with(empty_groups)
+        mock_callback.assert_called_once_with({})
 
     def test_on_scan_finished_single_file(
         self, handler, mock_status_manager, mock_scan_controller

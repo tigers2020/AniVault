@@ -63,58 +63,26 @@ def calculate_confidence_score(
         0.95
     """
     try:
-        # Extract titles using dataclass attributes
-        query_title = normalized_query.title
-        # Get raw title/name, not display_title (which returns "Unknown" for empty)
-        localized_title = tmdb_result.title or tmdb_result.name or ""
-        original_title = tmdb_result.original_title or tmdb_result.original_name or ""
-
-        if not query_title or (not localized_title and not original_title):
+        # Validate input
+        if not _is_valid_input(normalized_query, tmdb_result):
             return 0.0
 
-        # Calculate title score against BOTH localized and original titles
-        # Use the higher score (handles both Korean filenames and Japanese romanization)
-        title_scores = []
-        if localized_title:
-            localized_score = _calculate_title_score(query_title, localized_title)
-            title_scores.append(localized_score)
-            logger.debug(
-                "📊 Localized title score: %.3f ('%s' vs '%s')",
-                localized_score,
-                query_title[:30],
-                localized_title[:30],
-            )
-        if original_title:
-            original_score = _calculate_title_score(query_title, original_title)
-            title_scores.append(original_score)
-            logger.debug(
-                "📊 Original title score: %.3f ('%s' vs '%s')",
-                original_score,
-                query_title[:30],
-                original_title[:30],
-            )
-
-        title_score = max(title_scores) if title_scores else 0.0
-        logger.debug("🎯 Final title score (max): %.3f", title_score)
+        # Calculate individual scores
+        title_score = _calculate_title_scores(normalized_query.title, tmdb_result)
         year_score = _calculate_year_score(
             normalized_query.year,
-            tmdb_result.display_date,  # Uses release_date or first_air_date property
+            tmdb_result.display_date,
         )
         media_type_score = _calculate_media_type_score(tmdb_result.media_type)
         popularity_bonus = _calculate_popularity_bonus(tmdb_result.popularity)
 
-        # Weighted aggregation using centralized constants (weights sum to 1.0)
-        # Note: These weights are defined in shared.constants.matching.ScoringWeights
-        # and are tuned based on empirical testing with anime filenames
-        confidence_score = (
-            title_score * ScoringWeights.TITLE_MATCH
-            + year_score * ScoringWeights.YEAR_MATCH
-            + media_type_score * ScoringWeights.MEDIA_TYPE_MATCH
-            + popularity_bonus * ScoringWeights.POPULARITY_MATCH
+        # Aggregate scores
+        confidence_score = _aggregate_scores(
+            title_score,
+            year_score,
+            media_type_score,
+            popularity_bonus,
         )
-
-        # Ensure score is within bounds
-        confidence_score = max(0.0, min(1.0, confidence_score))
 
         logger.debug(
             "Confidence score calculation: title=%.3f, year=%.3f, media_type=%.3f, "
@@ -144,6 +112,101 @@ def calculate_confidence_score(
             tmdb_result.title or tmdb_result.name or "Unknown",
         )
         return 0.0
+
+
+def _is_valid_input(
+    normalized_query: NormalizedQuery,
+    tmdb_result: TMDBSearchResult,
+) -> bool:
+    """Validate input for confidence score calculation.
+
+    Args:
+        normalized_query: NormalizedQuery domain object
+        tmdb_result: TMDBSearchResult Pydantic model
+
+    Returns:
+        True if input is valid, False otherwise
+    """
+    query_title = normalized_query.title
+    localized_title = tmdb_result.title or tmdb_result.name or ""
+    original_title = tmdb_result.original_title or tmdb_result.original_name or ""
+
+    return bool(query_title and (localized_title or original_title))
+
+
+def _calculate_title_scores(
+    query_title: str,
+    tmdb_result: TMDBSearchResult,
+) -> float:
+    """Calculate title similarity scores for both localized and original titles.
+
+    Args:
+        query_title: Clean title from normalized query
+        tmdb_result: TMDB search result
+
+    Returns:
+        Maximum title score between 0.0 and 1.0
+    """
+    localized_title = tmdb_result.title or tmdb_result.name or ""
+    original_title = tmdb_result.original_title or tmdb_result.original_name or ""
+
+    title_scores = []
+
+    if localized_title:
+        localized_score = _calculate_title_score(query_title, localized_title)
+        title_scores.append(localized_score)
+        logger.debug(
+            "📊 Localized title score: %.3f ('%s' vs '%s')",
+            localized_score,
+            query_title[:30],
+            localized_title[:30],
+        )
+
+    if original_title:
+        original_score = _calculate_title_score(query_title, original_title)
+        title_scores.append(original_score)
+        logger.debug(
+            "📊 Original title score: %.3f ('%s' vs '%s')",
+            original_score,
+            query_title[:30],
+            original_title[:30],
+        )
+
+    title_score = max(title_scores) if title_scores else 0.0
+    logger.debug("🎯 Final title score (max): %.3f", title_score)
+
+    return title_score
+
+
+def _aggregate_scores(
+    title_score: float,
+    year_score: float,
+    media_type_score: float,
+    popularity_bonus: float,
+) -> float:
+    """Aggregate individual scores into final confidence score.
+
+    Args:
+        title_score: Title similarity score (0.0-1.0)
+        year_score: Year match score (0.0-1.0)
+        media_type_score: Media type preference score (0.0-1.0)
+        popularity_bonus: Popularity bonus score (0.0-0.2)
+
+    Returns:
+        Final confidence score between 0.0 and 1.0
+    """
+    # Weighted aggregation using centralized constants (weights sum to 1.0)
+    # Note: These weights are defined in shared.constants.matching.ScoringWeights
+    # and are tuned based on empirical testing with anime filenames
+    confidence_score = (
+        title_score * ScoringWeights.TITLE_MATCH
+        + year_score * ScoringWeights.YEAR_MATCH
+        + media_type_score * ScoringWeights.MEDIA_TYPE_MATCH
+        + popularity_bonus * ScoringWeights.POPULARITY_MATCH
+    )
+
+    # Ensure score is within bounds
+    return max(0.0, min(1.0, confidence_score))
 
 
 def _calculate_title_score(normalized_title: str, tmdb_title: str) -> float:
@@ -185,9 +248,11 @@ def _calculate_year_score(query_year: int | None, release_date: str | None) -> f
 
         # Year score mapping
         year_scores = {0: 1.0, 1: 0.8, 2: 0.6}
+        reasonable_year_diff_threshold = 5
+
         if year_diff in year_scores:
             return year_scores[year_diff]
-        if year_diff <= 5:
+        if year_diff <= reasonable_year_diff_threshold:
             return 0.4  # Reasonable year match
         return 0.1  # Poor year match
 

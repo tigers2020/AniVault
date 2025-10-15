@@ -1,75 +1,95 @@
-#!/usr/bin/env python3
-"""코드 품질 위반 사항 분석 스크립트"""
+"""Analyze function violations to identify real issues."""
 
 import json
-import sys
-from collections import Counter
 from pathlib import Path
 
 
-def analyze_violations(json_file: str):
-    """위반 사항 분석 및 요약"""
-    try:
-        with open(json_file, encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception as e:
-        print(f"Error loading {json_file}: {e}")
-        return
+def analyze_violations():
+    """Analyze function violations and categorize them."""
 
-    print(f"\n{'='*60}")
-    print(f"코드 품질 분석 결과: {json_file}")
-    print(f"{'='*60}\n")
+    # Load violations
+    violations_file = Path("function_violations_current.json")
+    with violations_file.open(encoding="utf-8") as f:
+        data = json.load(f)
 
-    print(f"📊 분석 파일 수: {data.get('files_analyzed', 0)}")
-    print(f"⚠️  총 위반 사항: {data.get('violations_count', 0)}\n")
+    violations = data["violations"]
 
-    violations = data.get("violations", [])
+    # Categorize by type
+    by_type = {}
+    for v in violations:
+        vtype = v["type"]
+        if vtype not in by_type:
+            by_type[vtype] = []
+        by_type[vtype].append(v)
 
-    if not violations:
-        print("✅ 위반 사항이 없습니다!")
-        return
+    # Print summary
+    print("=" * 80)
+    print("FUNCTION VIOLATIONS ANALYSIS")
+    print("=" * 80)
+    print(f"\nTotal violations: {len(violations)}")
+    print(f"Files analyzed: {data['files_analyzed']}")
 
-    # 위반 타입별 집계
-    type_counter = Counter(v.get("type", "unknown") for v in violations)
-    print("📋 위반 유형별 집계:")
-    for vtype, count in type_counter.most_common():
-        print(f"   {vtype:30s}: {count:4d}개")
+    print("\n" + "=" * 80)
+    print("BY TYPE")
+    print("=" * 80)
+    for vtype, items in sorted(by_type.items()):
+        print(f"\n{vtype}: {len(items)} violations")
 
-    # 심각도별 집계 (에러 처리 위반인 경우)
-    if "severity" in violations[0]:
-        severity_counter = Counter(v.get("severity", "unknown") for v in violations)
-        print("\n🚨 심각도별 집계:")
-        for severity, count in sorted(
-            severity_counter.items(),
-            key=lambda x: {"high": 3, "medium": 2, "low": 1}.get(x[0], 0),
-            reverse=True,
-        ):
-            print(f"   {severity.upper():10s}: {count:4d}개")
+        if vtype == "complexity":
+            # Sort by complexity value
+            sorted_items = sorted(items, key=lambda x: x["value"], reverse=True)
+            print("\nTop 10 complexity violations:")
+            for i, v in enumerate(sorted_items[:10], 1):
+                print(f"  {i:2}. {v['file']}:{v['line']}")
+                print(f"      {v['function']}() - CC={v['value']}")
 
-    # 파일별 위반 수 TOP 10
-    file_counter = Counter(v.get("file", "unknown") for v in violations)
-    print("\n📁 위반 사항 많은 파일 TOP 10:")
-    for i, (file, count) in enumerate(file_counter.most_common(10), 1):
-        file_name = Path(file).name
-        print(f"   {i:2d}. {file_name:40s}: {count:3d}개")
+        elif vtype == "length":
+            # Sort by length
+            sorted_items = sorted(items, key=lambda x: x["value"], reverse=True)
+            print("\nTop 10 length violations:")
+            for i, v in enumerate(sorted_items[:10], 1):
+                print(f"  {i:2}. {v['file']}:{v['line']}")
+                print(f"      {v['function']}() - {v['value']} lines")
 
-    # 함수별 위반 수 TOP 10 (함수 정보가 있는 경우)
-    if "function" in violations[0]:
-        func_violations = [
-            (v.get("function", "unknown"), v.get("file", ""))
-            for v in violations
-            if v.get("function")
-        ]
-        func_counter = Counter(func_violations)
-        print("\n🔧 위반 사항 많은 함수 TOP 10:")
-        for i, ((func, file), count) in enumerate(func_counter.most_common(10), 1):
-            file_name = Path(file).name
-            print(f"   {i:2d}. {func:30s} ({file_name}): {count:2d}개")
+        elif vtype == "mixed_responsibilities":
+            # Group by file
+            by_file = {}
+            for v in items:
+                file = v["file"]
+                if file not in by_file:
+                    by_file[file] = []
+                by_file[file].append(v)
+
+            print(f"\nFiles with mixed responsibilities ({len(by_file)} files):")
+            for file, items in sorted(
+                by_file.items(), key=lambda x: len(x[1]), reverse=True
+            )[:10]:
+                print(f"  - {file}: {len(items)} violations")
+
+    # Real issues (complexity > 10 or length > 150)
+    print("\n" + "=" * 80)
+    print("REAL ISSUES (CC > 10 or Length > 150)")
+    print("=" * 80)
+
+    real_issues = [
+        v
+        for v in violations
+        if (v["type"] == "complexity" and v["value"] > 10)
+        or (v["type"] == "length" and v["value"] > 150)
+    ]
+
+    print(f"\nTotal real issues: {len(real_issues)}")
+
+    if real_issues:
+        print("\nDetailed list:")
+        for i, v in enumerate(real_issues, 1):
+            print(f"\n{i}. {v['file']}:{v['line']}")
+            print(f"   Function: {v['function']}()")
+            print(f"   Type: {v['type']}")
+            print(f"   Value: {v['value']}")
+            if "context" in v:
+                print(f"   Context: {v['context']}")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python analyze_violations.py <json_file>")
-        sys.exit(1)
-
-    analyze_violations(sys.argv[1])
+    analyze_violations()

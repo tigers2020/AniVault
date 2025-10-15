@@ -13,12 +13,13 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QThread, Signal
 
 from anivault.core.log_manager import OperationLogManager
+from anivault.core.matching.models import MatchResult
 from anivault.core.models import FileOperation, ScannedFile
 from anivault.core.organizer import FileOrganizer
 from anivault.core.organizer.executor import OperationResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingResult
-from anivault.gui.models import FileItem
+from anivault.gui.models import FileItem, FileMetadata
 from anivault.gui.workers.organize_worker import OrganizeWorker
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class OrganizeController(QObject):
     # Signals for UI communication
     plan_generated: Signal = Signal(list)  # Emits list[FileOperation]
     organization_started: Signal = Signal()  # Emitted when organization starts
-    file_organized: Signal = Signal(dict)  # Emits OperationResult as dict (for UI)
+    file_organized: Signal = Signal(object)  # Emits OperationResult object (NO dict!)
     organization_progress: Signal = Signal(
         int, str
     )  # Emits (progress %, current filename)
@@ -86,69 +87,29 @@ class OrganizeController(QObject):
             ScannedFile for core processing, or None if conversion fails
         """
         try:
-            # FileItem.metadata is stored as dict by StateModel.set_file_metadata()
-            if not file_item.metadata or not isinstance(file_item.metadata, dict):
-                # No metadata - skip this file
+            # Check if metadata exists
+            if not file_item.metadata:
                 logger.debug(
                     "Skipping file without metadata: %s",
                     file_item.file_path.name,
                 )
                 return None
 
-            # Extract match_result (the TMDB matching result)
-            match_result = file_item.metadata.get("match_result")
+            # Handle FileMetadata object (new format)
+            if isinstance(file_item.metadata, FileMetadata):
+                return self._convert_from_file_metadata(file_item)
 
-            if not match_result:
-                # No TMDB match - skip this file
-                logger.debug(
-                    "Skipping file without TMDB match: %s",
-                    file_item.file_path.name,
-                )
-                return None
+            # Handle dict format (legacy - for backward compatibility)
+            if isinstance(file_item.metadata, dict):
+                return self._convert_from_dict(file_item)
 
-            # Parse filename to get season/episode info
-            # (This info is not stored in FileItem.metadata)
-            try:
-                parsed = self.parser.parse(file_item.file_path.name)
-                season = parsed.season
-                episode = parsed.episode
-            except Exception as e:  # noqa: BLE001 - GUI parsing error fallback
-                logger.warning(
-                    "Failed to parse filename %s: %s",
-                    file_item.file_path.name,
-                    e,
-                )
-                season = None
-                episode = None
-
-            # Get title from match_result (MatchResult dataclass)
-            title = match_result.title
-
-            # Create ParsingResult with match_result in other_info
-            parsing_result = ParsingResult(
-                title=title,
-                season=season,
-                episode=episode,
-                other_info={"match_result": match_result},
+            # Unknown metadata type
+            logger.warning(
+                "Unknown metadata type for %s: %s",
+                file_item.file_path.name,
+                type(file_item.metadata),
             )
-
-            # Create ScannedFile
-            scanned_file = ScannedFile(
-                file_path=file_item.file_path,
-                metadata=parsing_result,
-                file_size=(
-                    file_item.file_path.stat().st_size
-                    if file_item.file_path.exists()
-                    else 0
-                ),
-                last_modified=(
-                    file_item.file_path.stat().st_mtime
-                    if file_item.file_path.exists()
-                    else 0.0
-                ),
-            )
-
-            return scanned_file
+            return None
 
         except Exception as e:  # noqa: BLE001 - GUI file conversion error fallback
             logger.warning(
@@ -157,6 +118,149 @@ class OrganizeController(QObject):
                 e,
             )
             return None
+
+    def _convert_from_file_metadata(
+        self,
+        file_item: FileItem,
+    ) -> ScannedFile | None:
+        """Convert FileItem with FileMetadata to ScannedFile.
+
+        Args:
+            file_item: FileItem with FileMetadata
+
+        Returns:
+            ScannedFile or None if conversion fails
+        """
+        # Get TMDB match info from FileMetadata
+        if not file_item.metadata.tmdb_id:
+            logger.debug(
+                "Skipping file without TMDB match: %s",
+                file_item.file_path.name,
+            )
+            return None
+
+        # Parse filename and create match result
+        season, episode = self._parse_filename(file_item.file_path.name)
+        match_result = self._create_match_result_from_metadata(file_item.metadata)
+
+        # Create ParsingResult and ScannedFile
+        parsing_result = ParsingResult(
+            title=match_result.title,
+            season=season,
+            episode=episode,
+            other_info={"match_result": match_result},
+        )
+
+        return self._create_scanned_file(file_item.file_path, parsing_result)
+
+    def _convert_from_dict(
+        self,
+        file_item: FileItem,
+    ) -> ScannedFile | None:
+        """Convert FileItem with dict metadata to ScannedFile.
+
+        Args:
+            file_item: FileItem with dict metadata
+
+        Returns:
+            ScannedFile or None if conversion fails
+        """
+        # Extract match_result (the TMDB matching result)
+        match_result = file_item.metadata.get("match_result")
+
+        if not match_result:
+            logger.debug(
+                "Skipping file without TMDB match: %s",
+                file_item.file_path.name,
+            )
+            return None
+
+        # Parse filename and get title
+        season, episode = self._parse_filename(file_item.file_path.name)
+        title = match_result.title if hasattr(match_result, "title") else ""
+
+        # Create ParsingResult and ScannedFile
+        parsing_result = ParsingResult(
+            title=title,
+            season=season,
+            episode=episode,
+            other_info={"match_result": match_result},
+        )
+
+        return self._create_scanned_file(file_item.file_path, parsing_result)
+
+    def _parse_filename(
+        self,
+        filename: str,
+    ) -> tuple[int | None, int | None]:
+        """Parse filename to extract season and episode.
+
+        Args:
+            filename: File name to parse
+
+        Returns:
+            Tuple of (season, episode) or (None, None) if parsing fails
+        """
+        try:
+            parsed = self.parser.parse(filename)
+            return parsed.season, parsed.episode
+        except Exception as e:  # noqa: BLE001 - GUI parsing error fallback
+            logger.warning(
+                "Failed to parse filename %s: %s",
+                filename,
+                e,
+            )
+            return None, None
+
+    def _create_match_result_from_metadata(
+        self,
+        metadata: FileMetadata,
+    ) -> MatchResult:
+        """Create MatchResult from FileMetadata.
+
+        Args:
+            metadata: FileMetadata object
+
+        Returns:
+            MatchResult object
+        """
+        return MatchResult(
+            tmdb_id=metadata.tmdb_id,
+            title=metadata.title or "",
+            year=metadata.year,
+            confidence_score=1.0,  # Already matched
+            media_type=metadata.media_type,
+            poster_path=metadata.poster_path,
+            backdrop_path=None,
+            overview=metadata.overview,
+            popularity=None,
+            vote_average=metadata.vote_average,
+            original_language=None,
+        )
+
+    def _create_scanned_file(
+        self,
+        file_path: Path,
+        parsing_result: ParsingResult,
+    ) -> ScannedFile:
+        """Create ScannedFile from file path and parsing result.
+
+        Args:
+            file_path: Path to the file
+            parsing_result: ParsingResult object
+
+        Returns:
+            ScannedFile object
+        """
+        file_size = file_path.stat().st_size if file_path.exists() else 0
+        last_modified = file_path.stat().st_mtime if file_path.exists() else 0.0
+
+        return ScannedFile(
+            file_path=file_path,
+            metadata=parsing_result,
+            file_size=file_size,
+            last_modified=last_modified,
+        )
 
     def organize_files(
         self,

@@ -15,6 +15,7 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
+from anivault.cli.common.path_utils import extract_directory_path
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.match_handler import handle_match_command
@@ -58,11 +59,7 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
     )
 
     # Extract directory path
-    directory = (
-        options.directory.path
-        if hasattr(options.directory, "path")
-        else Path(str(options.directory))
-    )
+    directory = extract_directory_path(options.directory)
 
     # Check if JSON output is enabled
     context = get_cli_context()

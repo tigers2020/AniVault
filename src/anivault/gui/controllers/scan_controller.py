@@ -42,7 +42,7 @@ class ScanController(QObject):
     scan_progress: Signal = Signal(int)  # Emits progress percentage
     scan_finished: Signal = Signal(list)  # Emits list[FileItem]
     scan_error: Signal = Signal(str)  # Emits error message
-    files_grouped: Signal = Signal(dict)  # Emits dict[str, list[ScannedFile]]
+    files_grouped: Signal = Signal(list)  # Emits list[Group] (NO dict!)
 
     def __init__(self, parent: QObject | None = None):
         """Initialize the scan controller.
@@ -175,22 +175,9 @@ class ScanController(QObject):
             logger.info("Regrouping %d files by TMDB title", len(file_items))
 
             # Separate matched and unmatched files
-            matched_files = []
-            unmatched_files = []
-
-            for file_item in file_items:
-                # Check if file has TMDB match using FileMetadata
-                has_match = False
-                if isinstance(file_item.metadata, FileMetadata):
-                    # FileMetadata with tmdb_id indicates successful TMDB match
-                    if file_item.metadata.tmdb_id is not None:
-                        has_match = True
-                        matched_files.append(file_item)
-                # Legacy dict format (backward compatibility) - NO LONGER USED
-                # FileMetadata is now the standard format
-
-                if not has_match:
-                    unmatched_files.append(file_item)
+            matched_files, unmatched_files = self._separate_matched_unmatched(
+                file_items
+            )
 
             logger.info(
                 "TMDB grouping: %d matched, %d unmatched files",
@@ -199,84 +186,168 @@ class ScanController(QObject):
             )
 
             # Group matched files by TMDB title
-            grouped_by_tmdb: dict[str, list[FileItem]] = {}
-            for file_item in matched_files:
-                tmdb_title = None
+            grouped_by_tmdb = self._group_matched_files(matched_files)
 
-                # Extract title from FileMetadata
-                if isinstance(file_item.metadata, FileMetadata):
-                    tmdb_title = file_item.metadata.title
-                # Legacy dict format - NO LONGER USED
-
-                if tmdb_title:
-                    if tmdb_title not in grouped_by_tmdb:
-                        grouped_by_tmdb[tmdb_title] = []
-                    grouped_by_tmdb[tmdb_title].append(file_item)
-
-            # For unmatched files, use original filename-based grouping
+            # Merge unmatched files
             if unmatched_files:
-                logger.info(
-                    "Using filename-based grouping for %d unmatched files",
-                    len(unmatched_files),
+                grouped_by_tmdb = self._merge_unmatched_files(
+                    grouped_by_tmdb, unmatched_files
                 )
-                # Use the standard group_files method for unmatched files
-                unmatched_groups = self._group_files_by_filename(unmatched_files)
-                # Merge unmatched groups with TMDB groups
-                for group_name, files in unmatched_groups.items():
-                    if group_name not in grouped_by_tmdb:
-                        grouped_by_tmdb[group_name] = files
-                    else:
-                        grouped_by_tmdb[group_name].extend(files)
 
             # Convert FileItem back to ScannedFile for compatibility
-            final_groups = {}
-            for tmdb_title, items in grouped_by_tmdb.items():
-                scanned_files = []
-                for file_item in items:
-                    # Parse filename
-                    parsed_result = self.parser.parse(file_item.file_path.name)
-
-                    # Preserve TMDB metadata from FileMetadata
-                    if isinstance(file_item.metadata, FileMetadata):
-                        # Convert FileMetadata back to match_result dict for compatibility
-                        if file_item.metadata.tmdb_id is not None:
-                            match_result_dict = {
-                                "id": file_item.metadata.tmdb_id,
-                                "title": file_item.metadata.title,
-                                "media_type": file_item.metadata.media_type,
-                                "genres": file_item.metadata.genres,
-                                "overview": file_item.metadata.overview,
-                                "vote_average": file_item.metadata.vote_average,
-                                "poster_path": file_item.metadata.poster_path,
-                            }
-                            if not parsed_result.other_info:
-                                parsed_result.other_info = {}
-                            parsed_result.other_info["match_result"] = match_result_dict
-                    # Legacy dict format - NO LONGER USED
-
-                    scanned_file = ScannedFile(
-                        file_path=file_item.file_path,
-                        metadata=parsed_result,
-                        file_size=0,
-                        last_modified=0.0,
-                    )
-                    scanned_files.append(scanned_file)
-
-                final_groups[tmdb_title] = scanned_files
+            final_groups = self._convert_to_scanned_files(grouped_by_tmdb)
 
             logger.info(
                 "TMDB regrouping completed: %d groups (from TMDB titles)",
                 len(final_groups),
             )
 
-            # Emit signal for UI update
-            self.files_grouped.emit(final_groups)
+            # Convert dict to list[Group] for signal emission (NO dict!)
+            group_list = [
+                Group(title=title, files=files) for title, files in final_groups.items()
+            ]
+            self.files_grouped.emit(group_list)
 
             return final_groups
 
         except Exception:
             logger.exception("TMDB-based grouping failed")
             raise
+
+    def _separate_matched_unmatched(
+        self, file_items: list[FileItem]
+    ) -> tuple[list[FileItem], list[FileItem]]:
+        """Separate files into matched and unmatched based on TMDB metadata.
+
+        Args:
+            file_items: List of FileItem objects
+
+        Returns:
+            Tuple of (matched_files, unmatched_files)
+        """
+        matched_files = []
+        unmatched_files = []
+
+        for file_item in file_items:
+            # Check if file has TMDB match using FileMetadata
+            has_match = False
+            if isinstance(file_item.metadata, FileMetadata):
+                # FileMetadata with tmdb_id indicates successful TMDB match
+                if file_item.metadata.tmdb_id is not None:
+                    has_match = True
+                    matched_files.append(file_item)
+
+            if not has_match:
+                unmatched_files.append(file_item)
+
+        return matched_files, unmatched_files
+
+    def _group_matched_files(
+        self, matched_files: list[FileItem]
+    ) -> dict[str, list[FileItem]]:
+        """Group matched files by TMDB title.
+
+        Args:
+            matched_files: List of matched FileItem objects
+
+        Returns:
+            Dictionary mapping TMDB titles to lists of FileItem objects
+        """
+        grouped_by_tmdb: dict[str, list[FileItem]] = {}
+
+        for file_item in matched_files:
+            tmdb_title = None
+
+            # Extract title from FileMetadata
+            if isinstance(file_item.metadata, FileMetadata):
+                tmdb_title = file_item.metadata.title
+
+            if tmdb_title:
+                if tmdb_title not in grouped_by_tmdb:
+                    grouped_by_tmdb[tmdb_title] = []
+                grouped_by_tmdb[tmdb_title].append(file_item)
+
+        return grouped_by_tmdb
+
+    def _merge_unmatched_files(
+        self,
+        grouped_by_tmdb: dict[str, list[FileItem]],
+        unmatched_files: list[FileItem],
+    ) -> dict[str, list[FileItem]]:
+        """Merge unmatched files into existing groups using filename-based grouping.
+
+        Args:
+            grouped_by_tmdb: Existing TMDB-based groups
+            unmatched_files: List of unmatched FileItem objects
+
+        Returns:
+            Updated dictionary with merged groups
+        """
+        logger.info(
+            "Using filename-based grouping for %d unmatched files",
+            len(unmatched_files),
+        )
+
+        # Use the standard group_files method for unmatched files
+        unmatched_groups = self._group_files_by_filename(unmatched_files)
+
+        # Merge unmatched groups with TMDB groups
+        for group_name, files in unmatched_groups.items():
+            if group_name not in grouped_by_tmdb:
+                grouped_by_tmdb[group_name] = files
+            else:
+                grouped_by_tmdb[group_name].extend(files)
+
+        return grouped_by_tmdb
+
+    def _convert_to_scanned_files(
+        self, grouped_by_tmdb: dict[str, list[FileItem]]
+    ) -> dict[str, list[ScannedFile]]:
+        """Convert FileItem groups to ScannedFile groups.
+
+        Args:
+            grouped_by_tmdb: Dictionary mapping titles to FileItem lists
+
+        Returns:
+            Dictionary mapping titles to ScannedFile lists
+        """
+        final_groups = {}
+
+        for tmdb_title, items in grouped_by_tmdb.items():
+            scanned_files = []
+
+            for file_item in items:
+                # Parse filename
+                parsed_result = self.parser.parse(file_item.file_path.name)
+
+                # Preserve TMDB metadata from FileMetadata
+                if isinstance(file_item.metadata, FileMetadata):
+                    # Convert FileMetadata back to match_result dict for compatibility
+                    if file_item.metadata.tmdb_id is not None:
+                        match_result_dict = {
+                            "id": file_item.metadata.tmdb_id,
+                            "title": file_item.metadata.title,
+                            "media_type": file_item.metadata.media_type,
+                            "genres": file_item.metadata.genres,
+                            "overview": file_item.metadata.overview,
+                            "vote_average": file_item.metadata.vote_average,
+                            "poster_path": file_item.metadata.poster_path,
+                        }
+                        if not parsed_result.other_info:
+                            parsed_result.other_info = {}
+                        parsed_result.other_info["match_result"] = match_result_dict
+
+                scanned_file = ScannedFile(
+                    file_path=file_item.file_path,
+                    metadata=parsed_result,
+                    file_size=0,
+                    last_modified=0.0,
+                )
+                scanned_files.append(scanned_file)
+
+            final_groups[tmdb_title] = scanned_files
+
+        return final_groups
 
     def group_files(self, file_items: list[FileItem]) -> list[Group]:
         """Group scanned files by similarity.
@@ -376,9 +447,8 @@ class ScanController(QObject):
                 total_files,
             )
 
-            # Convert to dict for signal emission (for backward compatibility)
-            grouped_dict = {group.title: group.files for group in grouped_files}
-            self.files_grouped.emit(grouped_dict)
+            # Emit list[Group] directly (NO dict!)
+            self.files_grouped.emit(grouped_files)
 
             return grouped_files
 
@@ -440,13 +510,13 @@ class ScanController(QObject):
         logger.info("File scan started")
         self.scan_started.emit()
 
-    def _on_file_found(self, file_data: dict[str, str]) -> None:
+    def _on_file_found(self, file_item: FileItem) -> None:
         """Handle file found signal.
 
         Args:
-            file_data: Dictionary with file information (e.g., {"file_path": "..."})
+            file_item: FileItem object with file information (NO dict!)
         """
-        logger.debug("File found: %s", file_data.get("file_path", "unknown"))
+        logger.debug("File found: %s", file_item.file_path)
 
     def _on_scan_progress(self, progress: int) -> None:
         """Handle scan progress signal."""

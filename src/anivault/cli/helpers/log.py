@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from anivault.shared.constants import FileSystem
+from anivault.shared.constants import DateFormats, FileSystem, LogJsonKeys
+from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.errors import (
     ApplicationError,
     ErrorCode,
@@ -43,7 +44,7 @@ def collect_log_list_data(log_dir: Path) -> dict[str, Any]:
         if not log_dir.exists():
             return {
                 "error": f"Log directory does not exist: {log_dir}",
-                "log_files": [],
+                LogJsonKeys.LOG_FILES: [],
                 "total_files": 0,
             }
 
@@ -51,8 +52,8 @@ def collect_log_list_data(log_dir: Path) -> dict[str, Any]:
         log_files = list(log_dir.glob(FileSystem.LOG_FILE_PATTERN))
         if not log_files:
             return {
-                "message": "No log files found",
-                "log_files": [],
+                "message": CLIMessages.Error.NO_LOG_FILES_FOUND,
+                LogJsonKeys.LOG_FILES: [],
                 "total_files": 0,
             }
 
@@ -71,21 +72,21 @@ def collect_log_list_data(log_dir: Path) -> dict[str, Any]:
 
             # Format modification time
             modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
+                DateFormats.STANDARD_DATETIME
             )
 
             log_data.append(
                 {
-                    "file": log_file.name,
-                    "size": size_str,
-                    "size_bytes": size,
-                    "modified": modified_str,
+                    LogJsonKeys.FILE: log_file.name,
+                    LogJsonKeys.SIZE: size_str,
+                    LogJsonKeys.SIZE_BYTES: size,
+                    LogJsonKeys.MODIFIED: modified_str,
                     "modified_timestamp": modified,
                 }
             )
 
         return {
-            "log_files": log_data,
+            LogJsonKeys.LOG_FILES: log_data,
             "total_files": len(log_data),
         }
 
@@ -138,7 +139,7 @@ def print_log_list(log_dir: Path, console: Console) -> int:
         # Find log files
         log_files = list(log_dir.glob(FileSystem.LOG_FILE_PATTERN))
         if not log_files:
-            console.print("[yellow]No log files found[/yellow]")
+            console.print(f"[yellow]{CLIMessages.Error.NO_LOG_FILES_FOUND}[/yellow]")
             return 0
 
         # Create table
@@ -161,7 +162,7 @@ def print_log_list(log_dir: Path, console: Console) -> int:
 
             # Format modification time
             modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
+                DateFormats.STANDARD_DATETIME
             )
 
             table.add_row(log_file.name, size_str, modified_str)
@@ -184,8 +185,11 @@ def _format_file_size(size: int) -> str:
     Returns:
         Formatted file size string
     """
-    if size < 1024:
+    BYTES_PER_KB = 1024
+    BYTES_PER_MB = 1024 * 1024
+
+    if size < BYTES_PER_KB:
         return f"{size} B"
-    if size < 1024 * 1024:
-        return f"{size / 1024:.1f} KB"
-    return f"{size / (1024 * 1024):.1f} MB"
+    if size < BYTES_PER_MB:
+        return f"{size / BYTES_PER_KB:.1f} KB"
+    return f"{size / BYTES_PER_MB:.1f} MB"

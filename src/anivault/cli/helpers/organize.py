@@ -102,6 +102,47 @@ def generate_organization_plan(scanned_files: list[Any]) -> list[Any]:
     return organizer.generate_plan(scanned_files)
 
 
+def _generate_destination_paths(
+    destination_base: str, korean_title: str, season: int
+) -> tuple[Path, Path]:
+    """Generate high and low resolution destination paths.
+
+    Args:
+        destination_base: Base destination directory
+        korean_title: Korean title
+        season: Season number
+
+    Returns:
+        Tuple of (high_res_path, low_res_path)
+    """
+    season_str = f"Season {season:02d}"
+    high_res_path = Path(destination_base) / korean_title / season_str
+    low_res_path = Path(destination_base) / "low_res" / korean_title / season_str
+    return high_res_path, low_res_path
+
+
+def _create_move_operation(
+    source: Path, destination: Path, **kwargs: Any
+) -> dict[str, Any]:
+    """Create a move operation dictionary.
+
+    Args:
+        source: Source file path
+        destination: Destination file path
+        **kwargs: Additional operation metadata
+
+    Returns:
+        Move operation dictionary
+    """
+    operation = {
+        "source": source,
+        "destination": destination,
+        "type": "move",
+    }
+    operation.update(kwargs)
+    return operation
+
+
 @handle_cli_errors(
     operation="generate_enhanced_organization_plan", command_name="organize"
 )
@@ -138,46 +179,39 @@ def generate_enhanced_organization_plan(
         )
 
         destination_base = options.destination if options.destination else "Anime"
-        high_res_path = (
-            Path(destination_base)
-            / korean_title
-            / f"Season {best_file.metadata.season or 1:02d}"
-        )
-        low_res_path = (
-            Path(destination_base)
-            / "low_res"
-            / korean_title
-            / f"Season {best_file.metadata.season or 1:02d}"
+        season = best_file.metadata.season or 1
+        high_res_path, low_res_path = _generate_destination_paths(
+            destination_base, korean_title, season
         )
 
+        # Add best file operation
         operations.append(
-            {
-                "source": best_file.file_path,
-                "destination": high_res_path / best_file.file_path.name,
-                "type": "move",
-                "is_highest_resolution": True,
-            }
+            _create_move_operation(
+                best_file.file_path,
+                high_res_path / best_file.file_path.name,
+                is_highest_resolution=True,
+            )
         )
 
+        # Add subtitle operations
         for subtitle in subtitles:
             operations.append(
-                {
-                    "source": subtitle,
-                    "destination": high_res_path / subtitle.name,
-                    "type": "move",
-                    "is_subtitle": True,
-                }
+                _create_move_operation(
+                    subtitle,
+                    high_res_path / subtitle.name,
+                    is_subtitle=True,
+                )
             )
 
+        # Add low resolution file operations
         for file in group.files:
             if file != best_file:
                 operations.append(
-                    {
-                        "source": file.file_path,
-                        "destination": low_res_path / file.file_path.name,
-                        "type": "move",
-                        "is_highest_resolution": False,
-                    }
+                    _create_move_operation(
+                        file.file_path,
+                        low_res_path / file.file_path.name,
+                        is_highest_resolution=False,
+                    )
                 )
 
     return operations
@@ -268,6 +302,18 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
     with progress_manager.spinner("Organizing files..."):
         moved_files = organizer.execute_plan(plan, operation_id)
 
+    # Print individual file results if not JSON output
+    if not options.json_output and moved_files:
+        console.print("\n[bold blue]File Organization Results:[/bold blue]")
+        for result in moved_files:
+            if result.success:
+                console.print(f"[green]✅[/green] {Path(result.source_path).name}")
+            else:
+                console.print(
+                    f"[red]❌[/red] {Path(result.source_path).name}: {result.message or 'Failed'}"
+                )
+        console.print()
+
     if options.json_output:
         organize_data = collect_organize_data(
             plan,
@@ -298,12 +344,70 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
     return 0
 
 
+def _get_file_size_safe(file_path: str) -> int:
+    """Get file size safely, returning 0 on error.
+
+    Args:
+        file_path: Path to file
+
+    Returns:
+        File size in bytes, or 0 if error
+    """
+    try:
+        return Path(file_path).stat().st_size
+    except (OSError, TypeError):
+        return 0
+
+
+def _extract_parsing_result_data(parsing_result: Any) -> dict[str, Any]:
+    """Extract parsing result data for JSON output.
+
+    Args:
+        parsing_result: Parsing result object
+
+    Returns:
+        Dictionary with parsing result data
+    """
+    return {
+        "title": parsing_result.title,
+        "episode": parsing_result.episode,
+        "season": parsing_result.season,
+        "quality": parsing_result.quality,
+        "source": parsing_result.source,
+        "codec": parsing_result.codec,
+        "audio": parsing_result.audio,
+        "release_group": parsing_result.release_group,
+        "confidence": parsing_result.confidence,
+        "parser_used": parsing_result.parser_used,
+        "other_info": parsing_result.other_info,
+    }
+
+
+def _format_file_size_human_readable(size_bytes: float) -> str:
+    """Format file size in human-readable format.
+
+    Args:
+        size_bytes: Size in bytes
+
+    Returns:
+        Formatted size string (e.g., "1.5 GB")
+    """
+    bytes_per_unit = 1024.0
+
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if size_bytes < bytes_per_unit:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= bytes_per_unit
+    return f"{size_bytes:.1f} PB"
+
+
 def collect_organize_data(
     plan: list[Any],
     options: OrganizeOptions,
-    is_dry_run: bool = False,
     moved_files: list[Any] | None = None,
     operation_id: str | None = None,
+    *,
+    is_dry_run: bool = False,
 ) -> dict[str, Any]:
     """Collect organize data for JSON output.
 
@@ -327,11 +431,8 @@ def collect_organize_data(
         source_path = str(operation.source_file.file_path)
         destination_path = str(operation.destination_path)
 
-        try:
-            file_size = Path(source_path).stat().st_size
-            total_size += file_size
-        except (OSError, TypeError):
-            file_size = 0
+        file_size = _get_file_size_safe(source_path)
+        total_size += file_size
 
         operation_info = {
             "source_path": source_path,
@@ -345,29 +446,11 @@ def collect_organize_data(
             hasattr(operation.source_file, "parsing_result")
             and operation.source_file.parsing_result
         ):
-            parsing_result = operation.source_file.parsing_result
-            operation_info["parsing_result"] = {
-                "title": parsing_result.title,
-                "episode": parsing_result.episode,
-                "season": parsing_result.season,
-                "quality": parsing_result.quality,
-                "source": parsing_result.source,
-                "codec": parsing_result.codec,
-                "audio": parsing_result.audio,
-                "release_group": parsing_result.release_group,
-                "confidence": parsing_result.confidence,
-                "parser_used": parsing_result.parser_used,
-                "other_info": parsing_result.other_info,
-            }
+            operation_info["parsing_result"] = _extract_parsing_result_data(
+                operation.source_file.parsing_result
+            )
 
         operations_data.append(operation_info)
-
-    def format_size(size_bytes: float) -> str:
-        for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} PB"
 
     return {
         "organize_summary": {
@@ -376,7 +459,7 @@ def collect_organize_data(
             "is_dry_run": is_dry_run,
             "operation_id": operation_id,
             "total_size_bytes": total_size,
-            "total_size_formatted": format_size(total_size),
+            "total_size_formatted": _format_file_size_human_readable(total_size),
             "success_rate": (
                 (successful_moves / total_operations * 100)
                 if total_operations > 0

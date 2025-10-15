@@ -141,17 +141,34 @@ def _load_env_file() -> None:
         SecurityError: If .env file is missing or TMDB_API_KEY is not configured
         InfrastructureError: If .env file cannot be read due to permission issues
     """
+
+    # Check if .env file exists
+    env_file = Path(".env")
+    _check_env_file_exists(env_file)
+
+    # Load environment variables
+    try:
+        _load_with_dotenv(env_file)
+    except ImportError:
+        _load_manually(env_file)
+
+    # Validate API key
+    _validate_api_key(env_file)
+
+
+def _check_env_file_exists(env_file: Path) -> None:
+    """Check if .env file exists.
+
+    Args:
+        env_file: Path to .env file
+
+    Raises:
+        SecurityError: If .env file is missing and TMDB_API_KEY is not set
+    """
     import os
 
-    from anivault.shared.errors import (
-        ErrorCode,
-        ErrorContext,
-        InfrastructureError,
-        SecurityError,
-    )
+    from anivault.shared.errors import ErrorCode, ErrorContext, SecurityError
 
-    # Check if .env file exists - but allow missing .env if TMDB_API_KEY already set (CI/tests)
-    env_file = Path(".env")
     if not env_file.exists():
         # If TMDB_API_KEY is already in environment (CI/tests), allow missing .env
         if "TMDB_API_KEY" in os.environ:
@@ -169,24 +186,49 @@ def _load_env_file() -> None:
             ),
         )
 
-    try:
-        # Try to use python-dotenv if available
-        try:
-            import importlib
 
-            dotenv = importlib.import_module("dotenv")
-            dotenv.load_dotenv(env_file, override=True)
-        except ImportError:
-            # Fallback: Load .env file manually
-            with open(env_file, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, value = line.split("=", 1)
-                        key = key.strip()
-                        value = value.strip().strip("\"'")
-                        if key and value and not os.getenv(key):
-                            os.environ[key] = value
+def _load_with_dotenv(env_file: Path) -> None:
+    """Load .env file using python-dotenv.
+
+    Args:
+        env_file: Path to .env file
+
+    Raises:
+        ImportError: If python-dotenv is not available
+    """
+    import importlib
+
+    dotenv = importlib.import_module("dotenv")
+    dotenv.load_dotenv(env_file, override=True)
+
+
+def _load_manually(env_file: Path) -> None:
+    """Load .env file manually (fallback).
+
+    Args:
+        env_file: Path to .env file
+
+    Raises:
+        InfrastructureError: If file cannot be read
+    """
+    import os
+
+    from anivault.shared.errors import (
+        ErrorCode,
+        ErrorContext,
+        InfrastructureError,
+    )
+
+    try:
+        with open(env_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip("\"'")
+                    if key and value and not os.getenv(key):
+                        os.environ[key] = value
 
     except PermissionError as e:
         raise InfrastructureError(
@@ -209,7 +251,21 @@ def _load_env_file() -> None:
             original_error=e,
         ) from e
 
-    # Validate that TMDB_API_KEY is set
+
+def _validate_api_key(env_file: Path) -> None:
+    """Validate TMDB_API_KEY is set and valid.
+
+    Args:
+        env_file: Path to .env file
+
+    Raises:
+        SecurityError: If TMDB_API_KEY is missing or invalid
+    """
+    import os
+
+    from anivault.shared.errors import ErrorCode, ErrorContext, SecurityError
+
+    # Check if API key is set
     api_key = os.getenv("TMDB_API_KEY")
     if not api_key:
         raise SecurityError(
@@ -266,7 +322,7 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     from anivault.config.settings import Settings
     from anivault.shared.constants import FileSystem
 
-    # Load .env file if it exists
+    # Load .env file if it exists (only once)
     _load_env_file()
 
     if config_path:
@@ -283,9 +339,7 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         if config_path.exists():
             return Settings.from_toml_file(config_path)
 
-    # Fall back to environment variables (after .env file has been loaded)
-    # Ensure .env file is loaded again before reading environment variables
-    _load_env_file()
+    # Fall back to environment variables (no need to reload .env file)
     return Settings()
 
 

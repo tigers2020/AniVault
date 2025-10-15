@@ -118,13 +118,17 @@ class TitleQualityEvaluator:
         length = len(title)
 
         # Length factor
+        MAX_LENGTH_THRESHOLD = 100
+
         if (
             TitleQualityScores.GOOD_LENGTH_MIN
             <= length
             <= TitleQualityScores.GOOD_LENGTH_MAX
         ):
             score += TitleQualityScores.GOOD_LENGTH_BONUS
-        elif length < TitleQualityScores.GOOD_LENGTH_MIN or length > 100:
+        elif (
+            length < TitleQualityScores.GOOD_LENGTH_MIN or length > MAX_LENGTH_THRESHOLD
+        ):
             score += TitleQualityScores.BAD_LENGTH_PENALTY
 
         # Technical pattern penalties
@@ -304,58 +308,73 @@ class FileGrouper:
         self.similarity_threshold = similarity_threshold
 
         # Create default instances if not provided
-        if engine is None:
-            # Import here to avoid circular dependency
-            from anivault.core.file_grouper.duplicate_resolver import (
-                DuplicateResolver,
-            )
-            from anivault.core.file_grouper.grouping_engine import GroupingEngine
-            from anivault.core.file_grouper.matchers.hash_matcher import (
-                HashSimilarityMatcher,
-            )
-            from anivault.core.file_grouper.matchers.season_matcher import (
-                SeasonEpisodeMatcher,
-            )
-            from anivault.core.file_grouper.matchers.title_matcher import (
-                TitleSimilarityMatcher,
-            )
-
-            # Create helper instances for matchers
-            title_extractor = TitleExtractor()
-            quality_evaluator = TitleQualityEvaluator()
-
-            # Create default matchers with proper dependencies
-            title_matcher = TitleSimilarityMatcher(
-                title_extractor=title_extractor,
-                quality_evaluator=quality_evaluator,
-                threshold=similarity_threshold,
-            )
-            hash_matcher = HashSimilarityMatcher(title_extractor=title_extractor)
-            season_matcher = SeasonEpisodeMatcher()
-
-            # Create engine with default weights
-            engine = GroupingEngine(
-                matchers=[title_matcher, hash_matcher, season_matcher],
-            )
-
-        if resolver is None:
-            from anivault.core.file_grouper.duplicate_resolver import (
-                DuplicateResolver,
-            )
-
-            resolver = DuplicateResolver()
-
-        if name_manager is None:
-            name_manager = GroupNameManager()
-
-        self.engine = engine
-        self.resolver = resolver
-        self.name_manager = name_manager
+        self.engine = (
+            engine
+            if engine is not None
+            else self._create_default_engine(similarity_threshold)
+        )
+        self.resolver = (
+            resolver if resolver is not None else self._create_default_resolver()
+        )
+        self.name_manager = (
+            name_manager if name_manager is not None else GroupNameManager()
+        )
 
         logger.info(
             "FileGrouper initialized (Facade pattern) with similarity_threshold=%.2f",
             similarity_threshold,
         )
+
+    def _create_default_engine(self, similarity_threshold: float) -> GroupingEngineType:
+        """Create default GroupingEngine with matchers.
+
+        Args:
+            similarity_threshold: Minimum similarity score for matching
+
+        Returns:
+            Configured GroupingEngine instance
+        """
+        # Import here to avoid circular dependency
+        from anivault.core.file_grouper.grouping_engine import GroupingEngine
+        from anivault.core.file_grouper.matchers.hash_matcher import (
+            HashSimilarityMatcher,
+        )
+        from anivault.core.file_grouper.matchers.season_matcher import (
+            SeasonEpisodeMatcher,
+        )
+        from anivault.core.file_grouper.matchers.title_matcher import (
+            TitleSimilarityMatcher,
+        )
+
+        # Create helper instances for matchers
+        title_extractor = TitleExtractor()
+        quality_evaluator = TitleQualityEvaluator()
+
+        # Create default matchers with proper dependencies
+        title_matcher = TitleSimilarityMatcher(
+            title_extractor=title_extractor,
+            quality_evaluator=quality_evaluator,
+            threshold=similarity_threshold,
+        )
+        hash_matcher = HashSimilarityMatcher(title_extractor=title_extractor)
+        season_matcher = SeasonEpisodeMatcher()
+
+        # Create engine with default weights
+        return GroupingEngine(
+            matchers=[title_matcher, hash_matcher, season_matcher],
+        )
+
+    def _create_default_resolver(self) -> DuplicateResolverType:
+        """Create default DuplicateResolver.
+
+        Returns:
+            DuplicateResolver instance
+        """
+        from anivault.core.file_grouper.duplicate_resolver import (
+            DuplicateResolver,
+        )
+
+        return DuplicateResolver()
 
     def group_files(
         self,

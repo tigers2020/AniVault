@@ -166,151 +166,192 @@ class TMDBFetcher:
             True
         """
         try:
-            # Call TMDB API
             details = await self.tmdb_client.get_media_details(tmdb_id, media_type)
-
-            # Handle None response
-            if details is None:
-                if fallback_data is not None:
-                    logger.warning(
-                        "TMDB returned None for media details, using fallback (ID: %d, Type: %s)",
-                        tmdb_id,
-                        media_type,
-                    )
-                    return fallback_data
-                # Raise error if no fallback
-                raise DomainError(
-                    code=ErrorCode.DATA_PROCESSING_ERROR,
-                    message=f"TMDB returned None for media ID {tmdb_id}",
-                    context=ErrorContext(
-                        operation=LogOperationNames.GET_MEDIA_DETAILS,
-                        additional_data={
-                            LogContextKeys.MEDIA_ID: tmdb_id,
-                            LogContextKeys.MEDIA_TYPE: media_type,
-                        },
-                    ),
-                )
-
-            return details
+            return self._handle_none_response(
+                details, tmdb_id, media_type, fallback_data
+            )
 
         except AniVaultError as e:
-            # Log and fallback if provided
-            log_operation_error(
-                logger=logger,
-                operation=LogOperationNames.GET_MEDIA_DETAILS,
-                error=e,
-                additional_context={
-                    LogContextKeys.MEDIA_ID: tmdb_id,
-                    LogContextKeys.MEDIA_TYPE: media_type,
-                },
-            )
-
-            if fallback_data is not None:
-                logger.warning(
-                    "Using fallback data for media details (ID: %d, Type: %s)",
-                    tmdb_id,
-                    media_type,
-                )
-                return fallback_data
-
-            # Re-raise if no fallback
-            raise
+            return self._handle_anivault_error(e, tmdb_id, media_type, fallback_data)
 
         except (ConnectionError, TimeoutError) as e:
-            # Network errors → InfrastructureError
-            error = InfrastructureError(
-                code=ErrorCode.TMDB_API_CONNECTION_ERROR,
-                message=f"Network error during media details retrieval: {e}",
-                context=ErrorContext(
-                    operation=LogOperationNames.GET_MEDIA_DETAILS,
-                    additional_data={
-                        LogContextKeys.MEDIA_ID: tmdb_id,
-                        LogContextKeys.MEDIA_TYPE: media_type,
-                        "error_type": "network",
-                        LogContextKeys.ORIGINAL_ERROR: str(e),
-                    },
-                ),
-                original_error=e,
-            )
-
-            log_operation_error(
-                logger=logger,
-                operation=LogOperationNames.GET_MEDIA_DETAILS,
-                error=error,
-                additional_context={
-                    LogContextKeys.MEDIA_ID: tmdb_id,
-                    LogContextKeys.MEDIA_TYPE: media_type,
-                },
-            )
-
-            if fallback_data is not None:
-                logger.warning(
-                    "Using fallback data after network error (ID: %d, Type: %s)",
-                    tmdb_id,
-                    media_type,
-                )
-                return fallback_data
-
-            raise error from e
+            return self._handle_network_error(e, tmdb_id, media_type, fallback_data)
 
         except (ValueError, KeyError, TypeError) as e:
-            # Data processing errors → DomainError
-            data_error = DomainError(
-                code=ErrorCode.VALIDATION_ERROR,
-                message=f"Data processing error during media details retrieval: {e}",
-                context=ErrorContext(
-                    operation=LogOperationNames.GET_MEDIA_DETAILS,
-                    additional_data={
-                        LogContextKeys.MEDIA_ID: tmdb_id,
-                        LogContextKeys.MEDIA_TYPE: media_type,
-                        "error_type": "data_processing",
-                        "original_error": str(e),
-                    },
-                ),
-                original_error=e,
-            )
+            return self._handle_data_error(e, tmdb_id, media_type)
 
-            logger.exception("Data processing error during media details retrieval")
+        except Exception as e:  # noqa: BLE001
+            return self._handle_unexpected_error(e, tmdb_id, media_type, fallback_data)
 
-            # Always raise for data processing errors (no fallback)
-            raise data_error from e
-
-        except Exception as e:
-            # Unexpected errors → InfrastructureError
-            error = InfrastructureError(
-                code=ErrorCode.TMDB_API_REQUEST_FAILED,
-                message=f"Unexpected error during media details retrieval: {e}",
-                context=ErrorContext(
-                    operation=LogOperationNames.GET_MEDIA_DETAILS,
-                    additional_data={
-                        LogContextKeys.MEDIA_ID: tmdb_id,
-                        LogContextKeys.MEDIA_TYPE: media_type,
-                        "error_type": "unexpected",
-                        "original_error": str(e),
-                    },
-                ),
-                original_error=e,
-            )
-
-            log_operation_error(
-                logger=logger,
-                operation=LogOperationNames.GET_MEDIA_DETAILS,
-                error=error,
-                additional_context={
-                    LogContextKeys.MEDIA_ID: tmdb_id,
-                    LogContextKeys.MEDIA_TYPE: media_type,
-                },
-            )
-
+    def _handle_none_response(
+        self,
+        details: TMDBMediaDetails | None,
+        tmdb_id: int,
+        media_type: str,
+        fallback_data: dict[str, Any] | None,
+    ) -> TMDBMediaDetails | dict[str, Any]:
+        """Handle None response from TMDB API."""
+        if details is None:
             if fallback_data is not None:
                 logger.warning(
-                    "Using fallback data after unexpected error (ID: %d, Type: %s)",
+                    "TMDB returned None for media details, using fallback (ID: %d, Type: %s)",
                     tmdb_id,
                     media_type,
                 )
                 return fallback_data
 
-            raise error from e
+            raise DomainError(
+                code=ErrorCode.DATA_PROCESSING_ERROR,
+                message=f"TMDB returned None for media ID {tmdb_id}",
+                context=ErrorContext(
+                    operation=LogOperationNames.GET_MEDIA_DETAILS,
+                    additional_data={
+                        LogContextKeys.MEDIA_ID: tmdb_id,
+                        LogContextKeys.MEDIA_TYPE: media_type,
+                    },
+                ),
+            )
+
+        return details
+
+    def _handle_anivault_error(
+        self,
+        e: AniVaultError,
+        tmdb_id: int,
+        media_type: str,
+        fallback_data: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Handle AniVaultError with optional fallback."""
+        log_operation_error(
+            logger=logger,
+            operation=LogOperationNames.GET_MEDIA_DETAILS,
+            error=e,
+            additional_context={
+                LogContextKeys.MEDIA_ID: tmdb_id,
+                LogContextKeys.MEDIA_TYPE: media_type,
+            },
+        )
+
+        if fallback_data is not None:
+            logger.warning(
+                "Using fallback data for media details (ID: %d, Type: %s)",
+                tmdb_id,
+                media_type,
+            )
+            return fallback_data
+
+        raise  # noqa: PLE0704
+
+    def _handle_network_error(
+        self,
+        e: Exception,
+        tmdb_id: int,
+        media_type: str,
+        fallback_data: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Handle network errors (ConnectionError, TimeoutError)."""
+        error = InfrastructureError(
+            code=ErrorCode.TMDB_API_CONNECTION_ERROR,
+            message=f"Network error during media details retrieval: {e}",
+            context=ErrorContext(
+                operation=LogOperationNames.GET_MEDIA_DETAILS,
+                additional_data={
+                    LogContextKeys.MEDIA_ID: tmdb_id,
+                    LogContextKeys.MEDIA_TYPE: media_type,
+                    "error_type": "network",
+                    LogContextKeys.ORIGINAL_ERROR: str(e),
+                },
+            ),
+            original_error=e,
+        )
+
+        log_operation_error(
+            logger=logger,
+            operation=LogOperationNames.GET_MEDIA_DETAILS,
+            error=error,
+            additional_context={
+                LogContextKeys.MEDIA_ID: tmdb_id,
+                LogContextKeys.MEDIA_TYPE: media_type,
+            },
+        )
+
+        if fallback_data is not None:
+            logger.warning(
+                "Using fallback data after network error (ID: %d, Type: %s)",
+                tmdb_id,
+                media_type,
+            )
+            return fallback_data
+
+        raise error from e
+
+    def _handle_data_error(
+        self,
+        e: Exception,
+        tmdb_id: int,
+        media_type: str,
+    ) -> None:
+        """Handle data processing errors (ValueError, KeyError, TypeError)."""
+        data_error = DomainError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message=f"Data processing error during media details retrieval: {e}",
+            context=ErrorContext(
+                operation=LogOperationNames.GET_MEDIA_DETAILS,
+                additional_data={
+                    LogContextKeys.MEDIA_ID: tmdb_id,
+                    LogContextKeys.MEDIA_TYPE: media_type,
+                    "error_type": "data_processing",
+                    "original_error": str(e),
+                },
+            ),
+            original_error=e,
+        )
+
+        logger.exception("Data processing error during media details retrieval")
+        raise data_error from e
+
+    def _handle_unexpected_error(
+        self,
+        e: Exception,
+        tmdb_id: int,
+        media_type: str,
+        fallback_data: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Handle unexpected errors."""
+        error = InfrastructureError(
+            code=ErrorCode.TMDB_API_REQUEST_FAILED,
+            message=f"Unexpected error during media details retrieval: {e}",
+            context=ErrorContext(
+                operation=LogOperationNames.GET_MEDIA_DETAILS,
+                additional_data={
+                    LogContextKeys.MEDIA_ID: tmdb_id,
+                    LogContextKeys.MEDIA_TYPE: media_type,
+                    "error_type": "unexpected",
+                    "original_error": str(e),
+                },
+            ),
+            original_error=e,
+        )
+
+        log_operation_error(
+            logger=logger,
+            operation=LogOperationNames.GET_MEDIA_DETAILS,
+            error=error,
+            additional_context={
+                LogContextKeys.MEDIA_ID: tmdb_id,
+                LogContextKeys.MEDIA_TYPE: media_type,
+            },
+        )
+
+        if fallback_data is not None:
+            logger.warning(
+                "Using fallback data after unexpected error (ID: %d, Type: %s)",
+                tmdb_id,
+                media_type,
+            )
+            return fallback_data
+
+        raise error from e
 
 
 __all__ = ["TMDBFetcher"]

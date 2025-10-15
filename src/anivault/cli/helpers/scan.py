@@ -77,6 +77,7 @@ def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
 def run_scan_pipeline(
     directory: Path,
     console: Console,
+    *,
     is_json_output: bool = False,
 ) -> list[dict[str, Any]]:
     """Run the file scanning pipeline.
@@ -121,6 +122,7 @@ def run_scan_pipeline(
 async def enrich_metadata(
     file_results: list[dict[str, Any]],
     console: Console,
+    *,
     is_json_output: bool = False,
 ) -> list[dict[str, Any]]:
     """Enrich file results with TMDB metadata.
@@ -185,9 +187,66 @@ async def enrich_metadata(
     return enriched_file_results
 
 
+def _extract_parsing_result_dict(parsing_result: Any) -> dict[str, Any]:
+    """Extract parsing result as dictionary.
+
+    Args:
+        parsing_result: Parsing result object
+
+    Returns:
+        Dictionary with parsing result data
+    """
+    return {
+        "title": parsing_result.title,
+        "episode": parsing_result.episode,
+        "season": parsing_result.season,
+        "quality": parsing_result.quality,
+        "source": parsing_result.source,
+        "codec": parsing_result.codec,
+        "audio": parsing_result.audio,
+        "release_group": parsing_result.release_group,
+        "confidence": parsing_result.confidence,
+        "parser_used": parsing_result.parser_used,
+        "other_info": parsing_result.other_info,
+    }
+
+
+def _extract_enriched_metadata_dict(enriched_metadata: Any) -> dict[str, Any]:
+    """Extract enriched metadata as dictionary.
+
+    Args:
+        enriched_metadata: Enriched metadata object
+
+    Returns:
+        Dictionary with enriched metadata
+    """
+    return {
+        "enrichment_status": enriched_metadata.enrichment_status,
+        "match_confidence": enriched_metadata.match_confidence,
+        "tmdb_data": enriched_metadata.tmdb_data,
+    }
+
+
+def _format_size_human_readable(size_bytes: float) -> str:
+    """Format file size in human-readable format.
+
+    Args:
+        size_bytes: Size in bytes
+
+    Returns:
+        Formatted size string (e.g., "1.5 GB")
+    """
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if size_bytes < CLIDefaults.BYTES_PER_KB:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= CLIDefaults.BYTES_PER_KB
+    return f"{size_bytes:.1f} PB"
+
+
 def collect_scan_data(
     results: list[dict[str, Any]],
     directory: Path,
+    *,
     show_tmdb: bool = True,
 ) -> dict[str, Any]:
     """Collect scan data for JSON output.
@@ -244,44 +303,21 @@ def collect_scan_data(
 
         # Add parsing result if available
         if parsing_result:
-            file_info["parsing_result"] = {
-                "title": parsing_result.title,
-                "episode": parsing_result.episode,
-                "season": parsing_result.season,
-                "quality": parsing_result.quality,
-                "source": parsing_result.source,
-                "codec": parsing_result.codec,
-                "audio": parsing_result.audio,
-                "release_group": parsing_result.release_group,
-                "confidence": parsing_result.confidence,
-                "parser_used": parsing_result.parser_used,
-                "other_info": parsing_result.other_info,
-            }
+            file_info["parsing_result"] = _extract_parsing_result_dict(parsing_result)
 
         # Add enriched metadata if available
         if show_tmdb and enriched_metadata:
-            file_info["enriched_metadata"] = {
-                "enrichment_status": enriched_metadata.enrichment_status,
-                "match_confidence": enriched_metadata.match_confidence,
-                "tmdb_data": enriched_metadata.tmdb_data,
-            }
+            file_info["enriched_metadata"] = _extract_enriched_metadata_dict(
+                enriched_metadata
+            )
 
         file_data.append(file_info)
-
-    # Format total size in human-readable format
-    def format_size(size_bytes: float) -> str:
-        """Convert bytes to human-readable format."""
-        for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if size_bytes < CLIDefaults.BYTES_PER_KB:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= CLIDefaults.BYTES_PER_KB
-        return f"{size_bytes:.1f} PB"
 
     return {
         "scan_summary": {
             "total_files": total_files,
             "total_size_bytes": total_size,
-            "total_size_formatted": format_size(total_size),
+            "total_size_formatted": _format_size_human_readable(total_size),
             "scanned_directory": str(directory),
             "metadata_enriched": show_tmdb,
         },
@@ -296,6 +332,7 @@ def collect_scan_data(
 def display_scan_results(
     results: list[dict[str, Any]],
     console: Console,
+    *,
     show_tmdb: bool = True,
 ) -> None:
     """Display scan results in a formatted table.

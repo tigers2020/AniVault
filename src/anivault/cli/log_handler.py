@@ -15,10 +15,12 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
+from anivault.cli.common.path_utils import extract_directory_path
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.log import collect_log_list_data, print_log_list
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants import CLI, CLIDefaults, FileSystem
+from anivault.shared.constants import CLI, CLIDefaults, FileSystem, LogCommands
+from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.types.cli import CLIDirectoryPath, LogOptions
 
 if TYPE_CHECKING:
@@ -44,26 +46,24 @@ def handle_log_command(options: LogOptions, **kwargs: Any) -> int:
     console: Console = kwargs.get("console") or RichConsole()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
-    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command="log"))
+    logger_adapter.info(
+        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.LOG)
+    )
 
     # Extract log directory path
-    log_dir = (
-        options.log_dir.path
-        if hasattr(options.log_dir, "path")
-        else Path(str(options.log_dir))
-    )
+    log_dir = extract_directory_path(options.log_dir)
 
     # Check if JSON output is enabled
     context = get_cli_context()
     is_json_output = bool(context and context.is_json_output_enabled())
 
     # Handle list command
-    if options.log_command == "list":
+    if options.log_command == LogCommands.LIST:
         if is_json_output:
             log_data = collect_log_list_data(log_dir)
             output = format_json_output(
                 success=True,
-                command="log",
+                command=CLIMessages.CommandNames.LOG,
                 data=log_data,
             )
             sys.stdout.buffer.write(output)
@@ -73,15 +73,17 @@ def handle_log_command(options: LogOptions, **kwargs: Any) -> int:
 
         exit_code = print_log_list(log_dir, console)
         if exit_code == CLIDefaults.EXIT_SUCCESS:
-            logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command="log"))
+            logger_adapter.info(
+                CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.LOG)
+            )
         return exit_code
 
     # Unknown command
     if is_json_output:
         error_output = format_json_output(
             success=False,
-            command="log",
-            errors=["No log command specified"],
+            command=CLIMessages.CommandNames.LOG,
+            errors=[CLIMessages.Error.NO_LOG_COMMAND],
         )
         sys.stdout.buffer.write(error_output)
         sys.stdout.buffer.write(b"\n")

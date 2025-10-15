@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from PySide6.QtWidgets import QApplication
 
 from anivault.shared.constants import FileSystem
 
@@ -26,6 +27,23 @@ if "TMDB_LANGUAGE" not in os.environ:
     os.environ["TMDB_LANGUAGE"] = "ko"
 if "TMDB_REGION" not in os.environ:
     os.environ["TMDB_REGION"] = "KR"
+
+
+@pytest.fixture(scope="session")
+def qapp() -> Generator[QApplication, None, None]:
+    """Create QApplication instance for GUI tests.
+
+    This fixture is session-scoped to avoid creating multiple QApplication
+    instances, which would cause Qt errors.
+
+    Yields:
+        QApplication instance.
+    """
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    return app
+    # Don't quit the app here, as it's session-scoped
 
 
 @pytest.fixture
@@ -60,7 +78,7 @@ def sample_anime_files(temp_dir: Path) -> list[Path]:
 
     for i, title in enumerate(anime_titles):
         for ext in FileSystem.SUPPORTED_VIDEO_EXTENSIONS[:3]:  # Use first 3 extensions
-            filename = f"{title}_S01E{i+1:02d}_1080p{ext}"
+            filename = f"{title}_S01E{i + 1:02d}_1080p{ext}"
             file_path = temp_dir / filename
             file_path.touch()
             files.append(file_path)

@@ -292,65 +292,112 @@ class GroupCardWidget(QFrame):
 
         # Case 1: metadata is dict with match_result (TMDB matched)
         if isinstance(meta, dict):
-            logger.debug("File has metadata dict with keys: %s", meta.keys())
-            match_result = meta.get("match_result")
-            if match_result:
-                # Convert MatchResult dataclass to dict if needed
-                if hasattr(match_result, "to_dict"):
-                    match_result_dict = match_result.to_dict()
-                    logger.debug(
-                        "Found match result: %s",
-                        match_result_dict.get("title", UIConfig.UNKNOWN_TITLE),
-                    )
-                    return match_result_dict  # type: ignore[no-any-return]
-                # Already a dict
-                logger.debug(
-                    "Found match result: %s",
-                    match_result.get("title", UIConfig.UNKNOWN_TITLE),
-                )
-                return match_result  # type: ignore[no-any-return]
-            logger.debug("No match_result in metadata dict")
+            return self._extract_from_dict_metadata(meta)
 
         # Case 2: metadata is ParsingResult or similar object
-        # First check if ParsingResult has TMDB data in other_info
-        logger.debug("Case 2: metadata type is %s", type(meta).__name__)
         if hasattr(meta, "other_info"):
-            logger.debug("metadata has other_info: %s", meta.other_info)
-            if isinstance(meta.other_info, dict):
-                match_result = meta.other_info.get("match_result")
-                if match_result:
-                    # Convert MatchResult dataclass to dict for widget compatibility
-                    if hasattr(match_result, "to_dict"):
-                        match_result_dict = match_result.to_dict()
-                        title = match_result_dict.get("title", UIConfig.UNKNOWN_TITLE)
-                        logger.debug(
-                            "✓ Found match_result in ParsingResult.other_info: %s",
-                            title,
-                        )
-                        return match_result_dict  # type: ignore[no-any-return]
-                    # Already a dict
-                    title = (
-                        match_result.get("title")
-                        or match_result.get("name")
-                        or UIConfig.UNKNOWN_TITLE
-                    )
-                    logger.debug(
-                        "✓ Found match_result in ParsingResult.other_info: %s",
-                        title,
-                    )
-                    if title == UIConfig.UNKNOWN_TITLE:
-                        logger.warning(
-                            "⚠️ match_result has no title/name! Keys: %s",
-                            list(match_result.keys()),
-                        )
-                    return match_result  # type: ignore[no-any-return]
-                logger.debug("other_info is dict but no match_result")
-            else:
-                logger.debug("other_info is not dict: %s", type(meta.other_info))
-        else:
-            logger.debug("metadata has no other_info attribute")
+            return self._extract_from_parsing_result(meta)
 
         # Fallback: Extract basic info from parsed result
+        return self._extract_fallback_info(meta, first_file)
+
+    def _extract_from_dict_metadata(
+        self, meta: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Extract anime info from dict metadata.
+
+        Args:
+            meta: Dictionary metadata
+
+        Returns:
+            Dictionary with anime information or None
+        """
+        logger.debug("File has metadata dict with keys: %s", meta.keys())
+        match_result = meta.get("match_result")
+
+        if not match_result:
+            logger.debug("No match_result in metadata dict")
+            return None
+
+        # Convert MatchResult dataclass to dict if needed
+        if hasattr(match_result, "to_dict"):
+            match_result_dict = match_result.to_dict()
+            logger.debug(
+                "Found match result: %s",
+                match_result_dict.get("title", UIConfig.UNKNOWN_TITLE),
+            )
+            return match_result_dict  # type: ignore[no-any-return]
+
+        # Already a dict
+        logger.debug(
+            "Found match result: %s",
+            match_result.get("title", UIConfig.UNKNOWN_TITLE),
+        )
+        return match_result  # type: ignore[no-any-return]
+
+    def _extract_from_parsing_result(self, meta: Any) -> dict[str, Any] | None:
+        """Extract anime info from ParsingResult metadata.
+
+        Args:
+            meta: ParsingResult or similar object
+
+        Returns:
+            Dictionary with anime information or None
+        """
+        logger.debug("Case 2: metadata type is %s", type(meta).__name__)
+        logger.debug("metadata has other_info: %s", meta.other_info)
+
+        if not isinstance(meta.other_info, dict):
+            logger.debug("other_info is not dict: %s", type(meta.other_info))
+            return None
+
+        match_result = meta.other_info.get("match_result")
+
+        if not match_result:
+            logger.debug("other_info is dict but no match_result")
+            return None
+
+        # Convert MatchResult dataclass to dict for widget compatibility
+        if hasattr(match_result, "to_dict"):
+            match_result_dict = match_result.to_dict()
+            title = match_result_dict.get("title", UIConfig.UNKNOWN_TITLE)
+            logger.debug(
+                "✓ Found match_result in ParsingResult.other_info: %s",
+                title,
+            )
+            return match_result_dict  # type: ignore[no-any-return]
+
+        # Already a dict
+        title = (
+            match_result.get("title")
+            or match_result.get("name")
+            or UIConfig.UNKNOWN_TITLE
+        )
+        logger.debug(
+            "✓ Found match_result in ParsingResult.other_info: %s",
+            title,
+        )
+
+        if title == UIConfig.UNKNOWN_TITLE:
+            logger.warning(
+                "⚠️ match_result has no title/name! Keys: %s",
+                list(match_result.keys()),
+            )
+
+        return match_result  # type: ignore[no-any-return]
+
+    def _extract_fallback_info(
+        self, meta: Any, first_file: Any
+    ) -> dict[str, Any] | None:
+        """Extract fallback anime info from metadata.
+
+        Args:
+            meta: Metadata object
+            first_file: First file in the group
+
+        Returns:
+            Dictionary with anime information or None
+        """
         try:
             anime_dict = {
                 "title": getattr(meta, "title", None) or first_file.file_path.stem,
@@ -360,6 +407,7 @@ class GroupCardWidget(QFrame):
                 "overview": getattr(meta, "overview", None),
                 "popularity": getattr(meta, "popularity", None),
             }
+
             # Only return if we have at least a title
             if anime_dict.get("title"):
                 logger.debug(
@@ -421,7 +469,7 @@ class GroupCardWidget(QFrame):
             return text
         return text[: max_length - 3] + "..."
 
-    def enterEvent(self, event: QEnterEvent) -> None:  # noqa: N802 (Qt event method naming)
+    def enterEvent(self, event: QEnterEvent) -> None:
         """Show detail popup when mouse enters the card."""
         logger.debug("Mouse entered group card: %s", self.group_name)
         anime_info = self._get_anime_info()
@@ -633,7 +681,7 @@ class GroupCardWidget(QFrame):
         finally:
             reply.deleteLater()
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802 (Qt event method naming)
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """
         Handle mouse press event - emit cardClicked signal.
 

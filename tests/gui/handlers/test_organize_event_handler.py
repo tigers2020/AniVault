@@ -188,7 +188,7 @@ class TestOnFileOrganized:
         )
 
         from anivault.core.organizer.executor import OperationResult
-        
+
         result = OperationResult(
             operation="move",
             source_path="/path/to/source.mkv",
@@ -217,7 +217,7 @@ class TestOnFileOrganized:
         )
 
         from anivault.core.organizer.executor import OperationResult
-        
+
         result = OperationResult(
             operation="move",
             source_path="/path/to/source.mkv",
@@ -245,7 +245,7 @@ class TestOnFileOrganized:
         )
 
         from anivault.core.organizer.executor import OperationResult
-        
+
         result = OperationResult(
             operation="move",
             source_path="/path/to/source.mkv",
@@ -321,14 +321,30 @@ class TestOnOrganizationFinished:
 
         # Set current plan
         from anivault.core.organizer.executor import OperationResult
-        
+
         plan = [Mock(), Mock(), Mock()]
         handler._current_plan = plan
 
         results = [
-            OperationResult(operation="move", source_path="/path/1.mkv", destination_path="/dest/1.mkv", success=True),
-            OperationResult(operation="move", source_path="/path/2.mkv", destination_path="/dest/2.mkv", success=True),
-            OperationResult(operation="move", source_path="/path/3.mkv", destination_path="/dest/3.mkv", success=False, message="Error"),
+            OperationResult(
+                operation="move",
+                source_path="/path/1.mkv",
+                destination_path="/dest/1.mkv",
+                success=True,
+            ),
+            OperationResult(
+                operation="move",
+                source_path="/path/2.mkv",
+                destination_path="/dest/2.mkv",
+                success=True,
+            ),
+            OperationResult(
+                operation="move",
+                source_path="/path/3.mkv",
+                destination_path="/dest/3.mkv",
+                success=False,
+                message="Error",
+            ),
         ]
 
         handler.on_organization_finished(results)

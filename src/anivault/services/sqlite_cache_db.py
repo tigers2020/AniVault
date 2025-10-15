@@ -1,34 +1,24 @@
-"""SQLite-based TMDB cache database implementation.
+"""SQLite cache database facade.
 
-This module provides a SQLite-based cache system for TMDB API responses,
-using a Generic Key-Value Store pattern that's compatible with all TMDB
-API endpoints. Implements Write-Ahead Logging (WAL) for concurrency.
+This module provides a refactored SQLite cache implementation using
+modular operations for better maintainability and testability.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import sqlite3
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-import orjson
-from pydantic import ValidationError
-
 from anivault.core.statistics import StatisticsCollector
-from anivault.security.permissions import (
-    set_secure_file_permissions,
-    validate_api_key_not_in_data,
-)
-from anivault.services.cache_models import CacheEntry, CacheValidationConstants
+from anivault.security.permissions import set_secure_file_permissions
+from anivault.services.sqlite_cache.migration.manager import MigrationManager
+from anivault.services.sqlite_cache.operations.insert import InsertOperations
+from anivault.services.sqlite_cache.operations.query import QueryOperations
+from anivault.services.sqlite_cache.operations.update import UpdateOperations
 from anivault.shared.constants import Cache
-from anivault.shared.constants.core import CacheConfig
 from anivault.shared.errors import (
-    ApplicationError,
-    DomainError,
     ErrorCode,
     ErrorContext,
     InfrastructureError,
@@ -36,48 +26,6 @@ from anivault.shared.errors import (
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 logger = logging.getLogger(__name__)
-
-
-def _convert_to_serializable(obj: Any) -> Any:
-    """
-    Convert objects to JSON-serializable format.
-
-    TODO(Task 5): Replace with ModelConverter.to_dict() and orjson.dumps()
-    after cache models are migrated to Pydantic. This manual conversion
-    will be obsolete once type migration is complete.
-
-    Handles custom objects (like tmdbv3api's AsObj) by converting them to dicts.
-    Recursively processes nested structures.
-
-    Args:
-        obj: Object to convert
-
-    Returns:
-        JSON-serializable version of the object
-    """
-    if isinstance(obj, (str, int, float, bool, type(None))):
-        return obj
-
-    if isinstance(obj, dict):
-        return {k: _convert_to_serializable(v) for k, v in obj.items()}
-
-    if isinstance(obj, (list, tuple)):
-        return [_convert_to_serializable(item) for item in obj]
-
-    # Handle custom objects with __dict__ (like AsObj)
-    if hasattr(obj, "__dict__"):
-        return {
-            k: _convert_to_serializable(v)
-            for k, v in obj.__dict__.items()
-            if not k.startswith("_")
-        }
-
-    # Handle datetime objects
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-
-    # Fallback: convert to string
-    return str(obj)
 
 
 class SQLiteCacheDB:
@@ -152,7 +100,7 @@ class SQLiteCacheDB:
                         self.db_path,
                     )
                 except Exception as e:  # noqa: BLE001
-                    # Log warning but continue - permissions are not critical for functionality
+                    # Log warning but continue - permissions are not critical
                     logger.warning(
                         "Failed to set secure permissions for DB file %s: %s",
                         self.db_path,
@@ -161,10 +109,16 @@ class SQLiteCacheDB:
 
             # Enable WAL mode (Write-Ahead Logging)
             self.conn.execute("PRAGMA journal_mode=WAL")
-            self.conn.execute("PRAGMA synchronous=NORMAL")  # Performance boost
+            self.conn.execute("PRAGMA synchronous=NORMAL")
 
-            # Create schema
-            self._create_tables()
+            # Initialize migration manager and create schema
+            migration_manager = MigrationManager(self.conn)
+            migration_manager.create_tables()
+
+            # Initialize operations
+            self._query_ops = QueryOperations(self.conn, self.statistics)
+            self._insert_ops = InsertOperations(self.conn, self.statistics)
+            self._update_ops = UpdateOperations(self.conn, self.statistics)
 
             # Cleanup expired on startup
             try:
@@ -199,242 +153,6 @@ class SQLiteCacheDB:
             )
             raise error from e
 
-    def _create_tables(self) -> None:
-        """Create cache table schema with Generic Key-Value Store pattern."""
-        if self.conn is None:
-            msg = "Database connection not initialized"
-            raise InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=msg,
-                context=ErrorContext(operation="create_tables"),
-            )
-
-        schema_sql = """
-        CREATE TABLE IF NOT EXISTS tmdb_cache (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-            -- Cache key information
-            cache_key TEXT NOT NULL UNIQUE,
-            key_hash TEXT NOT NULL UNIQUE,
-
-            -- Cache type (extensible)
-            cache_type TEXT NOT NULL,
-            endpoint_category TEXT,
-
-            -- Response data (JSON BLOB)
-            response_data TEXT NOT NULL,
-
-            -- TTL and metadata
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            expires_at TIMESTAMP,
-
-            -- Statistics (optional)
-            hit_count INTEGER DEFAULT 0,
-            last_accessed_at TIMESTAMP,
-            response_size INTEGER,
-
-            -- Constraints
-            CHECK (length(cache_key) > 0),
-            CHECK (length(key_hash) = 64)
-        );
-
-        -- Indexes for performance
-        CREATE INDEX IF NOT EXISTS idx_key_hash ON tmdb_cache(key_hash);
-        CREATE INDEX IF NOT EXISTS idx_cache_type ON tmdb_cache(cache_type);
-        CREATE INDEX IF NOT EXISTS idx_expires_at ON tmdb_cache(expires_at);
-        CREATE INDEX IF NOT EXISTS idx_last_accessed ON tmdb_cache(last_accessed_at);
-        """
-
-        self.conn.executescript(schema_sql)
-
-    def _generate_cache_key_hash(self, key: str) -> tuple[str, str]:
-        """Generate cache key and SHA-256 hash with security masking.
-
-        Args:
-            key: Original cache key
-
-        Returns:
-            Tuple of (normalized_key, key_hash)
-
-        Security:
-            - Normalizes key (lowercase, strip)
-            - Generates SHA-256 hash for secure lookup
-            - Never logs original key in production
-        """
-        # Normalize key
-        normalized_key = key.lower().strip()
-
-        # Generate SHA-256 hash (64 characters)
-        key_hash = hashlib.sha256(normalized_key.encode("utf-8")).hexdigest()
-
-        # Log only hash prefix, never full key
-        logger.debug(
-            "Generated cache key hash: %s...",
-            key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
-        )
-
-        return normalized_key, key_hash
-
-    def set_cache(
-        self,
-        key: str,
-        data: dict[str, Any],
-        cache_type: str = Cache.TYPE_SEARCH,
-        ttl_seconds: int | None = None,
-    ) -> None:
-        """Store data in cache (JSONCacheV2 compatible signature).
-
-        Args:
-            key: Cache key identifier
-            data: Dictionary containing the data to cache
-            cache_type: Type of cache ('search' or 'details')
-            ttl_seconds: Time-to-live in seconds (None for default TTL)
-
-        Raises:
-            InfrastructureError: If database operation fails
-            DomainError: If data validation fails
-        """
-        additional_data: dict[str, str | int | float | bool] = {
-            "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
-            "cache_type": cache_type,
-        }
-        if ttl_seconds is not None:
-            additional_data["ttl_seconds"] = ttl_seconds
-
-        context = ErrorContext(
-            operation="cache_set",
-            additional_data=additional_data,
-        )
-
-        if self.conn is None:
-            msg = "Database connection not initialized"
-            raise InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=msg,
-                context=context,
-            )
-
-        # Validate that data doesn't contain sensitive information
-        try:
-            validate_api_key_not_in_data(data)
-        except ApplicationError as e:
-            logger.exception("Security validation failed: %s", e.message)
-            raise
-
-        try:
-            # Generate cache key and hash
-            cache_key, key_hash = self._generate_cache_key_hash(key)
-
-            # Calculate expiration timestamp
-            now = datetime.now(timezone.utc)
-            if ttl_seconds is not None and ttl_seconds >= 0:
-                expires_at = now + timedelta(seconds=ttl_seconds)
-            else:
-                # Use default TTL
-                expires_at = now + timedelta(seconds=CacheConfig.DEFAULT_TTL)
-
-            # Serialize data to JSON using orjson for better type support
-            # First convert to fully serializable format (handles AsObj and nested objects)
-            try:
-                serializable_data = _convert_to_serializable(data)
-                response_data_json = orjson.dumps(
-                    serializable_data,
-                    option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY,
-                ).decode("utf-8")
-            except (TypeError, ValueError) as e:
-                error = DomainError(
-                    code=ErrorCode.CACHE_SERIALIZATION_ERROR,
-                    message=f"Failed to serialize cache data: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-                log_operation_error(
-                    logger=logger,
-                    error=error,
-                    operation="cache_set",
-                    additional_context=context.additional_data,
-                )
-                raise error from e
-
-            response_size = len(response_data_json)
-
-            # Create CacheEntry domain object for validation
-            try:
-                cache_entry = CacheEntry(
-                    cache_key=cache_key,
-                    key_hash=key_hash,
-                    cache_type=cache_type,  # type: ignore[arg-type]
-                    response_data=data,
-                    created_at=now,
-                    expires_at=expires_at,
-                    response_size=response_size,
-                )
-            except ValidationError as e:
-                error = DomainError(
-                    code=ErrorCode.VALIDATION_ERROR,
-                    message=f"Cache entry validation failed: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-                log_operation_error(
-                    logger=logger,
-                    error=error,
-                    operation="cache_set",
-                    additional_context=context.additional_data,
-                )
-                raise error from e
-
-            # Insert or replace cache entry using validated CacheEntry
-            sql = """
-            INSERT OR REPLACE INTO tmdb_cache (
-                cache_key, key_hash, cache_type, response_data,
-                created_at, expires_at, response_size, hit_count, last_accessed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
-            """
-
-            self.conn.execute(
-                sql,
-                (
-                    cache_entry.cache_key,
-                    cache_entry.key_hash,
-                    cache_entry.cache_type,
-                    response_data_json,  # Use serialized JSON string
-                    cache_entry.created_at.isoformat(),
-                    (
-                        cache_entry.expires_at.isoformat()
-                        if cache_entry.expires_at
-                        else None
-                    ),
-                    cache_entry.response_size,
-                    cache_entry.created_at.isoformat(),
-                ),
-            )
-
-            # Record cache operation
-            self.statistics.record_cache_operation("set", hit=False, key=key_hash)
-
-            log_operation_success(
-                logger=logger,
-                operation="cache_set",
-                duration_ms=0,
-                context=context.additional_data,
-            )
-
-        except sqlite3.Error as e:
-            db_error = InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=f"Failed to set cache: {e!s}",
-                context=context,
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                error=db_error,
-                operation="cache_set",
-                additional_context=context.additional_data,
-            )
-            raise db_error from e
-
     def get(
         self,
         key: str,
@@ -452,444 +170,121 @@ class SQLiteCacheDB:
         Raises:
             InfrastructureError: If database operation fails
         """
-        context = ErrorContext(
-            operation="cache_get",
-            additional_data={
-                "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
-                "cache_type": cache_type,
-            },
-        )
+        return self._query_ops.get(key, cache_type)
 
-        if self.conn is None:
-            msg = "Database connection not initialized"
-            raise InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=msg,
-                context=context,
-            )
-
-        try:
-            # Generate key hash
-            _, key_hash = self._generate_cache_key_hash(key)
-
-            # Query cache - fetch all fields to reconstruct CacheEntry
-            sql = """
-            SELECT cache_key, key_hash, cache_type, response_data,
-                   created_at, expires_at, hit_count, last_accessed_at, response_size
-            FROM tmdb_cache
-            WHERE key_hash = ? AND cache_type = ?
-            """
-
-            cursor = self.conn.execute(sql, (key_hash, cache_type))
-            row = cursor.fetchone()
-
-            if row is None:
-                # Cache miss
-                self.statistics.record_cache_miss(cache_type)
-                return None
-
-            (
-                cache_key_db,
-                key_hash_db,
-                cache_type_db,
-                response_data_str,
-                created_at_str,
-                expires_at_str,
-                hit_count_db,
-                last_accessed_at_str,
-                response_size_db,
-            ) = row
-
-            # Deserialize response_data first (needed for CacheEntry)
-            try:
-                response_data = json.loads(response_data_str)
-            except json.JSONDecodeError as e:
-                logger.warning(
-                    "Failed to deserialize cache data for key hash %s...: %s",
-                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
-                    str(e),
-                )
-                self.statistics.record_cache_miss(cache_type)
-                return None
-
-            # Parse timestamps
-            created_at = datetime.fromisoformat(created_at_str)
-            expires_at = (
-                datetime.fromisoformat(expires_at_str) if expires_at_str else None
-            )
-            last_accessed_at = (
-                datetime.fromisoformat(last_accessed_at_str)
-                if last_accessed_at_str
-                else None
-            )
-
-            # Reconstruct CacheEntry for validation and expiration check
-            try:
-                cache_entry = CacheEntry(
-                    cache_key=cache_key_db,
-                    key_hash=key_hash_db,
-                    cache_type=cache_type_db,  # Literal["search", "details"] from DB, type checked at runtime
-                    response_data=response_data,
-                    created_at=created_at,
-                    expires_at=expires_at,
-                    hit_count=hit_count_db or 0,
-                    last_accessed_at=last_accessed_at,
-                    response_size=response_size_db or 0,
-                )
-            except ValidationError as e:
-                logger.warning(
-                    "Failed to validate cached entry for key hash %s...: %s",
-                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
-                    str(e),
-                )
-                self.statistics.record_cache_miss(cache_type)
-                return None
-
-            # Check expiration using CacheEntry method
-            if cache_entry.is_expired():
-                logger.debug(
-                    "Cache entry expired for key hash: %s...",
-                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
-                )
-                self.statistics.record_cache_miss(cache_type)
-                return None
-
-            # Normalize cached data: use TV show 'name' as 'title' (name is localized)
-            # This handles both legacy cache and ensures localized titles are used
-            data = cache_entry.response_data
-            if isinstance(data, dict):
-                if "results" in data and isinstance(data["results"], list):
-                    for result in data["results"]:
-                        if (
-                            isinstance(result, dict)
-                            and result.get("media_type") == "tv"
-                        ):
-                            if "name" in result:
-                                result["title"] = result[
-                                    "name"
-                                ]  # Always use localized name
-                elif data.get("media_type") == "tv":
-                    if "name" in data:
-                        data["title"] = data["name"]  # Always use localized name
-
-            # Update hit count and last accessed
-            update_sql = """
-            UPDATE tmdb_cache
-            SET hit_count = hit_count + 1,
-                last_accessed_at = ?
-            WHERE key_hash = ?
-            """
-            self.conn.execute(
-                update_sql,
-                (datetime.now(timezone.utc).isoformat(), key_hash),
-            )
-
-            # Cache hit
-            self.statistics.record_cache_hit(cache_type)
-            logger.debug(
-                "Cache hit for key hash: %s...",
-                key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
-            )
-
-            return data
-
-        except sqlite3.Error as e:
-            error = InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=f"Failed to get cache: {e!s}",
-                context=context,
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="cache_get",
-                additional_context=context.additional_data,
-            )
-            return None  # Don't raise on read errors, just return None
-
-    def delete(self, key: str, cache_type: str = Cache.TYPE_SEARCH) -> bool:
-        """Delete specific cache entry.
+    def set_cache(
+        self,
+        key: str,
+        data: dict[str, Any],
+        cache_type: str = Cache.TYPE_SEARCH,
+        ttl_seconds: int | None = None,
+    ) -> None:
+        """Store data in cache.
 
         Args:
             key: Cache key identifier
+            data: Data to cache (must be JSON-serializable)
             cache_type: Type of cache ('search' or 'details')
-
-        Returns:
-            True if entry was deleted, False if it didn't exist
+            ttl_seconds: Time-to-live in seconds (None for default TTL)
 
         Raises:
             InfrastructureError: If database operation fails
         """
-        context = ErrorContext(
-            operation="cache_delete",
-            additional_data={
-                "key": key[: CacheValidationConstants.CACHE_KEY_LOG_MAX_LENGTH],
-                "cache_type": cache_type,
-            },
-        )
+        self._insert_ops.insert(key, data, cache_type, ttl_seconds)
 
-        if self.conn is None:
-            msg = "Database connection not initialized"
-            raise InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=msg,
-                context=context,
-            )
-
-        try:
-            # Generate key hash
-            _, key_hash = self._generate_cache_key_hash(key)
-
-            # Delete entry
-            sql = "DELETE FROM tmdb_cache WHERE key_hash = ? AND cache_type = ?"
-            cursor = self.conn.execute(sql, (key_hash, cache_type))
-
-            deleted = cursor.rowcount > 0
-
-            if deleted:
-                logger.debug(
-                    "Deleted cache entry for key hash: %s...",
-                    key_hash[: CacheValidationConstants.HASH_PREFIX_LOG_LENGTH],
-                )
-
-            return deleted
-
-        except (sqlite3.Error, sqlite3.ProgrammingError) as e:
-            error = InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=f"Failed to delete cache: {e!s}",
-                context=context,
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="cache_delete",
-                additional_context=context.additional_data,
-            )
-            raise error from e
-
-    def purge_expired(self, cache_type: str | None = None) -> int:
-        """Remove expired cache entries.
+    def delete(
+        self,
+        key: str,
+        cache_type: str = Cache.TYPE_SEARCH,
+    ) -> bool:
+        """Delete cache entry by key.
 
         Args:
-            cache_type: Optional cache type filter
+            key: Cache key identifier
+            cache_type: Type of cache
 
         Returns:
-            Number of entries removed
+            True if deleted, False if not found
 
         Raises:
             InfrastructureError: If database operation fails
         """
-        additional_data: dict[str, str | int | float | bool] = {}
-        if cache_type is not None:
-            additional_data["cache_type"] = cache_type
+        return self._update_ops.delete(key, cache_type)
 
-        context = ErrorContext(
-            operation="purge_expired",
-            additional_data=additional_data if additional_data else None,
-        )
+    def purge_expired(self) -> int:
+        """Purge expired cache entries.
 
-        if self.conn is None:
-            msg = "Database connection not initialized"
-            raise InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=msg,
-                context=context,
-            )
+        Returns:
+            Number of purged entries
 
-        try:
-            now = datetime.now(timezone.utc).isoformat()
-
-            if cache_type:
-                sql = """
-                DELETE FROM tmdb_cache
-                WHERE expires_at IS NOT NULL
-                  AND expires_at < ?
-                  AND cache_type = ?
-                """
-                cursor = self.conn.execute(sql, (now, cache_type))
-            else:
-                sql = """
-                DELETE FROM tmdb_cache
-                WHERE expires_at IS NOT NULL
-                  AND expires_at < ?
-                """
-                cursor = self.conn.execute(sql, (now,))
-
-            purged_count = cursor.rowcount
-
-            if purged_count > 0:
-                logger.info(
-                    "Purged %d expired cache entries (%s)",
-                    purged_count,
-                    cache_type or "all",
-                )
-
-            return purged_count
-
-        except sqlite3.Error as e:
-            error = InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=f"Failed to purge expired cache: {e!s}",
-                context=context,
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="purge_expired",
-                additional_context=context.additional_data,
-            )
-            raise error from e
+        Raises:
+            InfrastructureError: If database operation fails
+        """
+        return self._update_ops.purge_expired()
 
     def clear(self, cache_type: str | None = None) -> int:
-        """Clear cache entries (JSONCacheV2 compatible).
+        """Clear cache entries.
 
         Args:
-            cache_type: Optional cache type filter
+            cache_type: Type of cache to clear (None for all types)
 
         Returns:
-            Number of entries deleted
+            Number of cleared entries
 
         Raises:
             InfrastructureError: If database operation fails
         """
-        additional_data: dict[str, str | int | float | bool] = {}
-        if cache_type is not None:
-            additional_data["cache_type"] = cache_type
+        return self._update_ops.clear(cache_type)
 
-        context = ErrorContext(
-            operation="cache_clear",
-            additional_data=additional_data if additional_data else None,
-        )
+    def get_cache_info(self) -> dict[str, Any]:
+        """Get cache statistics and metadata.
 
+        Returns:
+            Dictionary with cache information:
+            - cache_directory: Path to cache directory
+            - total_files: Total number of cache entries
+            - valid_entries: Number of non-expired entries
+            - expired_entries: Number of expired entries
+            - total_size_bytes: Total size of cache data
+
+        Raises:
+            InfrastructureError: If database operation fails
+        """
         if self.conn is None:
             msg = "Database connection not initialized"
             raise InfrastructureError(
                 code=ErrorCode.FILE_ACCESS_ERROR,
                 message=msg,
-                context=context,
+                context=ErrorContext(operation="get_cache_info"),
             )
 
-        try:
-            if cache_type:
-                sql = "DELETE FROM tmdb_cache WHERE cache_type = ?"
-                cursor = self.conn.execute(sql, (cache_type,))
-            else:
-                sql = "DELETE FROM tmdb_cache"
-                cursor = self.conn.execute(sql)
+        # Get total entries
+        cursor = self.conn.execute("SELECT COUNT(*) FROM tmdb_cache")
+        total_files = cursor.fetchone()[0]
 
-            deleted_count = cursor.rowcount
+        # Get valid (non-expired) entries
+        now = sqlite3.datetime.datetime.now(sqlite3.datetime.timezone.utc)
+        cursor = self.conn.execute(
+            "SELECT COUNT(*) FROM tmdb_cache WHERE expires_at IS NULL OR expires_at > ?",
+            (now.isoformat(),),
+        )
+        valid_entries = cursor.fetchone()[0]
 
-            logger.info(
-                "Cleared %d cache entries (%s)",
-                deleted_count,
-                cache_type or "all",
-            )
+        # Calculate total size
+        cursor = self.conn.execute("SELECT SUM(response_size) FROM tmdb_cache")
+        total_size_bytes = cursor.fetchone()[0] or 0
 
-            return deleted_count
-
-        except sqlite3.Error as e:
-            error = InfrastructureError(
-                code=ErrorCode.FILE_ACCESS_ERROR,
-                message=f"Failed to clear cache: {e!s}",
-                context=context,
-                original_error=e,
-            )
-            log_operation_error(
-                logger=logger,
-                error=error,
-                operation="cache_clear",
-                additional_context=context.additional_data,
-            )
-            raise error from e
-
-    def get_cache_info(self, cache_type: str | None = None) -> dict[str, Any]:
-        """Get cache statistics (JSONCacheV2 compatible).
-
-        Args:
-            cache_type: Optional cache type filter
-
-        Returns:
-            Dictionary with cache statistics:
-            - total_files: Total number of cache entries
-            - valid_entries: Non-expired entries
-            - expired_entries: Expired but not yet purged
-            - total_size_bytes: Total cache size
-            - cache_directory: Database file path
-            - cache_type: Type filter used
-        """
-        if self.conn is None:
-            return {
-                "total_files": 0,
-                "valid_entries": 0,
-                "expired_entries": 0,
-                "total_size_bytes": 0,
-                "cache_directory": str(self.db_path),
-                "cache_type": cache_type or "all",
-            }
-
-        try:
-            now = datetime.now(timezone.utc).isoformat()
-
-            # Count total entries
-            if cache_type:
-                count_sql = "SELECT COUNT(*), SUM(response_size) FROM tmdb_cache WHERE cache_type = ?"
-                cursor = self.conn.execute(count_sql, (cache_type,))
-            else:
-                count_sql = "SELECT COUNT(*), SUM(response_size) FROM tmdb_cache"
-                cursor = self.conn.execute(count_sql)
-
-            row = cursor.fetchone()
-            total_count = row[0] if row else 0
-            total_size = row[1] if row and row[1] else 0
-
-            # Count expired entries
-            if cache_type:
-                expired_sql = """
-                SELECT COUNT(*) FROM tmdb_cache
-                WHERE expires_at IS NOT NULL AND expires_at < ? AND cache_type = ?
-                """
-                cursor = self.conn.execute(expired_sql, (now, cache_type))
-            else:
-                expired_sql = """
-                SELECT COUNT(*) FROM tmdb_cache
-                WHERE expires_at IS NOT NULL AND expires_at < ?
-                """
-                cursor = self.conn.execute(expired_sql, (now,))
-
-            expired_count = cursor.fetchone()[0]
-            valid_count = total_count - expired_count
-
-            return {
-                "total_files": total_count,
-                "valid_entries": valid_count,
-                "expired_entries": expired_count,
-                "total_size_bytes": total_size,
-                "cache_directory": str(self.db_path),
-                "cache_type": cache_type or "all",
-            }
-
-        except sqlite3.Error as e:
-            logger.warning("Failed to get cache info: %s", str(e))
-            return {
-                "total_files": 0,
-                "valid_entries": 0,
-                "expired_entries": 0,
-                "total_size_bytes": 0,
-                "cache_directory": str(self.db_path),
-                "cache_type": cache_type or "all",
-            }
+        return {
+            "cache_directory": str(self.db_path.parent),
+            "total_files": total_files,
+            "valid_entries": valid_entries,
+            "expired_entries": total_files - valid_entries,
+            "total_size_bytes": total_size_bytes,
+        }
 
     def close(self) -> None:
         """Close database connection."""
         if self.conn:
-            try:
-                self.conn.close()
-                logger.debug("Closed SQLite cache database connection")
-            except sqlite3.Error as e:
-                logger.warning("Failed to close database connection: %s", str(e))
-            finally:
-                self.conn = None
+            self.conn.close()
+            self.conn = None
+            logger.debug("Closed SQLite cache connection: %s", self.db_path)

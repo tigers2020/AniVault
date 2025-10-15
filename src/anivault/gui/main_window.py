@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from anivault.config.settings import get_config
+from anivault.core.file_grouper import Group
 from anivault.core.models import FileOperation, ScannedFile
 from anivault.gui.models import FileItem
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
@@ -66,11 +67,6 @@ class MainWindow(QMainWindow):
         # Initialize state model
         self.state_model = StateModel(self)
 
-        # Initialize controllers
-        self.scan_controller = ScanController(self)
-        self.tmdb_controller = TMDBController(parent=self)
-        self.organize_controller = OrganizeController(parent=self)
-
         # Initialize TMDB matching components
         self.tmdb_progress_dialog: TMDBProgressDialog | None = None
 
@@ -78,22 +74,37 @@ class MainWindow(QMainWindow):
         self.theme_manager = None
         self.config_path = Path("config/config.toml")
 
-        # Initialize UI components
+        # Setup components in logical order
+        self._setup_controllers()
         self._setup_ui()
+        self._setup_managers()
+        self._setup_event_handlers()
+        self._setup_signal_coordinator()
 
-        # Initialize managers
+        logger.info("MainWindow initialized successfully")
+
+    def _setup_controllers(self) -> None:
+        """Initialize controllers."""
+        self.scan_controller = ScanController(self)
+        self.tmdb_controller = TMDBController(parent=self)
+        self.organize_controller = OrganizeController(parent=self)
+
+    def _setup_managers(self) -> None:
+        """Initialize managers and factories."""
+        # Menu manager
         self.menu_manager = MenuManager(self)
         self.menu_manager.setup_all()
 
+        # Status manager
         self.status_manager = StatusManager(self.statusBar())
         self.status_manager.setup_status_bar()
 
-        # Initialize dialog factory
+        # Dialog factory
         from .factories import DialogFactory
 
         self.dialog_factory = DialogFactory()
 
-        # Initialize view updater
+        # View updater
         from .views import ViewUpdater
 
         self.view_updater = ViewUpdater(
@@ -103,7 +114,8 @@ class MainWindow(QMainWindow):
             status_manager=self.status_manager,
         )
 
-        # Initialize event handlers
+    def _setup_event_handlers(self) -> None:
+        """Initialize event handlers."""
         from .handlers import OrganizeEventHandler, ScanEventHandler, TMDBEventHandler
 
         self.scan_event_handler = ScanEventHandler(
@@ -132,10 +144,10 @@ class MainWindow(QMainWindow):
             execute_plan_callback=self._execute_organize_plan_internal,
         )
 
+    def _setup_signal_coordinator(self) -> None:
+        """Initialize and connect signal coordinator."""
         self.signal_coordinator = SignalCoordinator(self)
         self.signal_coordinator.connect_all()
-
-        logger.info("MainWindow initialized successfully")
 
     def _setup_ui(self) -> None:
         """Set up the main UI layout."""
@@ -363,14 +375,14 @@ class MainWindow(QMainWindow):
                 f"Failed to start scan:\n{e}",
             )
 
-    def on_files_grouped(self, grouped_files: dict[str, list[ScannedFile]]) -> None:
+    def on_files_grouped(self, grouped_files: list[Group]) -> None:
         """Orchestrate TMDB auto-start after file grouping.
 
         Note: File tree view update is now handled by ScanEventHandler.
         This method focuses solely on workflow orchestration (TMDB auto-start).
 
         Args:
-            grouped_files: Dictionary of grouped files (not used, required by signal)
+            grouped_files: List of Group objects (not used, required by signal)
         """
         _ = grouped_files  # Signal parameter, not used in this orchestration method
         # Auto-start TMDB matching after grouping (only if not already in progress and not a regroup)
@@ -529,7 +541,7 @@ class MainWindow(QMainWindow):
             # Generate organization plan
             self.organize_controller.organize_files(
                 self.state_model.scanned_files,
-                dry_run=True,  # Generate plan only
+                dry_run=True,  # Generate plan only (preview mode)
             )
 
             # Wait for plan to be generated

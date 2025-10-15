@@ -245,7 +245,7 @@ def log_operation_success(
         else:
             context_dict.update(additional_context)
 
-    logger.info(
+    logger.debug(
         "Operation '%s' completed successfully",
         operation,
         extra={
@@ -270,7 +270,7 @@ def log_operation_start(
         operation: 작업 이름
         context: 컨텍스트 정보 (선택사항)
     """
-    logger.info(
+    logger.debug(
         "Starting operation '%s'",
         operation,
         extra={

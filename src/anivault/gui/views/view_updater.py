@@ -15,7 +15,9 @@ if TYPE_CHECKING:
     from PySide6.QtWidgets import QLabel, QListWidget
 
     from anivault.gui.managers.status_manager import StatusManager
-    from anivault.gui.widgets.group_view import GroupView  # type: ignore[import-untyped]
+    from anivault.gui.widgets.group_view import (
+        GroupView,  # type: ignore[import-untyped]
+    )
 
 logger = logging.getLogger(__name__)
 

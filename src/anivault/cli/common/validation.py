@@ -203,6 +203,7 @@ def validate_directory_with_context(
 def validate_file_path(
     path_str: str | Path,
     operation: str,
+    *,
     must_exist: bool = True,
 ) -> Path:
     """Validate file path with proper error context.

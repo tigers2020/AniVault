@@ -56,7 +56,14 @@ class OrganizePreviewDialog(QDialog):
         """Set up the dialog UI."""
         layout = QVBoxLayout(self)
 
-        # Header with summary
+        layout.addLayout(self._create_header())
+        layout.addWidget(self._create_info_message())
+        layout.addWidget(self._create_table())
+        layout.addLayout(self._create_summary())
+        layout.addWidget(self._create_buttons())
+
+    def _create_header(self) -> QHBoxLayout:
+        """Create header with title and file count."""
         header_layout = QHBoxLayout()
 
         title_label = QLabel("📦 파일 정리 계획")
@@ -69,9 +76,10 @@ class OrganizePreviewDialog(QDialog):
         count_label.setProperty("class", "dialog-subtitle")
         header_layout.addWidget(count_label)
 
-        layout.addLayout(header_layout)
+        return header_layout
 
-        # Info message
+    def _create_info_message(self) -> QLabel:
+        """Create info message explaining the organization process."""
         info_label = QLabel(
             "다음 파일들이 정리됩니다. 확인 후 '실행' 버튼을 눌러주세요.\n"
             "💡 해상도 분류: ✨ 고화질(1080p+)은 메인 폴더로, "
@@ -82,9 +90,10 @@ class OrganizePreviewDialog(QDialog):
         )
         info_label.setWordWrap(True)
         info_label.setProperty("class", "info-message")
-        layout.addWidget(info_label)
+        return info_label
 
-        # Table to display operations
+    def _create_table(self) -> QTableWidget:
+        """Create and populate the operations table."""
         self.table = QTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(
@@ -92,81 +101,86 @@ class OrganizePreviewDialog(QDialog):
         )
         self.table.setRowCount(len(self.plan))
 
-        # Populate table
+        self._populate_table_rows()
+        self._configure_table_columns()
+
+        return self.table
+
+    def _populate_table_rows(self) -> None:
+        """Populate table rows with operation data."""
         for idx, operation in enumerate(self.plan):
-            # File name (from source path)
-            source_path = Path(operation.source_path)
-            name_item = QTableWidgetItem(source_path.name)
-            self.table.setItem(idx, 0, name_item)
+            self._add_table_row(idx, operation)
 
-            # Resolution column
-            resolution = self._get_resolution(operation)
-            resolution_text = resolution if resolution else "감지 실패"
-            resolution_item = QTableWidgetItem(resolution_text)
-            resolution_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
-            self.table.setItem(idx, 1, resolution_item)
+    def _add_table_row(self, idx: int, operation: Any) -> None:
+        """Add a single row to the table."""
+        source_path = Path(operation.source_path)
 
-            # Classification column
-            icon, label = self._classify_resolution(resolution)
-            classify_item = QTableWidgetItem(f"{icon} {label}")
-            classify_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        # File name
+        name_item = QTableWidgetItem(source_path.name)
+        self.table.setItem(idx, 0, name_item)
 
-            # Background color based on classification (theme-aware)
-            bg_color, text_color = self._get_quality_colors(label)
-            classify_item.setBackground(bg_color)
-            classify_item.setForeground(text_color)
+        # Resolution
+        resolution = self._get_resolution(operation)
+        resolution_text = resolution if resolution else "감지 실패"
+        resolution_item = QTableWidgetItem(resolution_text)
+        resolution_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        self.table.setItem(idx, 1, resolution_item)
 
-            self.table.setItem(idx, 2, classify_item)
+        # Classification
+        icon, label = self._classify_resolution(resolution)
+        classify_item = QTableWidgetItem(f"{icon} {label}")
+        classify_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
 
-            # Current location
-            current_dir = str(source_path.parent)
-            current_item = QTableWidgetItem(current_dir)
-            current_item.setToolTip(current_dir)
-            self.table.setItem(idx, 3, current_item)
+        bg_color, text_color = self._get_quality_colors(label)
+        classify_item.setBackground(bg_color)
+        classify_item.setForeground(text_color)
+        self.table.setItem(idx, 2, classify_item)
 
-            # Arrow
-            arrow_item = QTableWidgetItem("→")
-            arrow_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
-            self.table.setItem(idx, 4, arrow_item)
+        # Current location
+        current_dir = str(source_path.parent)
+        current_item = QTableWidgetItem(current_dir)
+        current_item.setToolTip(current_dir)
+        self.table.setItem(idx, 3, current_item)
 
-            # Destination
-            dest_path = Path(operation.destination_path)
-            dest_item = QTableWidgetItem(str(dest_path))
-            dest_item.setToolTip(f"이동 위치: {dest_path!s}")
+        # Arrow
+        arrow_item = QTableWidgetItem("→")
+        arrow_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        self.table.setItem(idx, 4, arrow_item)
 
-            # Color code based on operation type
-            if hasattr(operation, "operation_type"):
-                if str(operation.operation_type) == "OperationType.MOVE":
-                    dest_item.setBackground(Qt.lightGray)  # type: ignore[attr-defined]
-                elif str(operation.operation_type) == "OperationType.COPY":
-                    dest_item.setBackground(Qt.cyan)  # type: ignore[attr-defined]
+        # Destination
+        dest_path = Path(operation.destination_path)
+        dest_item = QTableWidgetItem(str(dest_path))
+        dest_item.setToolTip(f"이동 위치: {dest_path!s}")
 
-            self.table.setItem(idx, 5, dest_item)
+        if hasattr(operation, "operation_type"):
+            if str(operation.operation_type) == "OperationType.MOVE":
+                dest_item.setBackground(Qt.lightGray)  # type: ignore[attr-defined]
+            elif str(operation.operation_type) == "OperationType.COPY":
+                dest_item.setBackground(Qt.cyan)  # type: ignore[attr-defined]
 
-        # Set column widths - optimized for readability
+        self.table.setItem(idx, 5, dest_item)
+
+    def _configure_table_columns(self) -> None:
+        """Configure table column widths and resize modes."""
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Fixed)  # type: ignore[attr-defined]  # 파일명
-        header.setSectionResizeMode(1, QHeaderView.Fixed)  # type: ignore[attr-defined]  # 해상도
-        header.setSectionResizeMode(2, QHeaderView.Fixed)  # type: ignore[attr-defined]  # 분류
-        header.setSectionResizeMode(3, QHeaderView.Stretch)  # type: ignore[attr-defined]  # 현재 위치
-        header.setSectionResizeMode(4, QHeaderView.Fixed)  # type: ignore[attr-defined]  # 화살표
-        header.setSectionResizeMode(5, QHeaderView.Stretch)  # type: ignore[attr-defined]  # 이동 위치
+        header.setSectionResizeMode(0, QHeaderView.Fixed)  # type: ignore[attr-defined]
+        header.setSectionResizeMode(1, QHeaderView.Fixed)  # type: ignore[attr-defined]
+        header.setSectionResizeMode(2, QHeaderView.Fixed)  # type: ignore[attr-defined]
+        header.setSectionResizeMode(3, QHeaderView.Stretch)  # type: ignore[attr-defined]
+        header.setSectionResizeMode(4, QHeaderView.Fixed)  # type: ignore[attr-defined]
+        header.setSectionResizeMode(5, QHeaderView.Stretch)  # type: ignore[attr-defined]
 
-        # Set optimal column widths
-        self.table.setColumnWidth(0, 250)  # 파일명 (넓게)
-        self.table.setColumnWidth(1, 70)  # 해상도 (아이콘 + 텍스트)
-        self.table.setColumnWidth(2, 80)  # 분류 (아이콘 + 텍스트)
-        self.table.setColumnWidth(4, 40)  # 화살표 (더 명확하게)
+        self.table.setColumnWidth(0, 250)
+        self.table.setColumnWidth(1, 70)
+        self.table.setColumnWidth(2, 80)
+        self.table.setColumnWidth(4, 40)
 
-        # Allow horizontal scrolling for very long paths
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # type: ignore[attr-defined]
 
-        layout.addWidget(self.table)
-
-        # Summary info
+    def _create_summary(self) -> QHBoxLayout:
+        """Create summary statistics layout."""
         summary_layout = QHBoxLayout()
 
-        # Count statistics
         video_count = sum(1 for op in self.plan if self._is_video_file(op.source_path))
         subtitle_count = len(self.plan) - video_count
 
@@ -178,12 +192,12 @@ class OrganizePreviewDialog(QDialog):
 
         summary_layout.addStretch()
 
-        layout.addLayout(summary_layout)
+        return summary_layout
 
-        # Dialog buttons
+    def _create_buttons(self) -> QDialogButtonBox:
+        """Create dialog buttons."""
         button_box = QDialogButtonBox()
 
-        # Execute button (custom)
         self.execute_btn = QPushButton("✅ 실행")
         self.execute_btn.setProperty("class", "primary-button")
         self.execute_btn.clicked.connect(self._on_execute)
@@ -192,14 +206,13 @@ class OrganizePreviewDialog(QDialog):
             QDialogButtonBox.ButtonRole.AcceptRole,
         )
 
-        # Cancel button
         cancel_btn = button_box.addButton(
             QDialogButtonBox.StandardButton.Cancel,
         )
         cancel_btn.setText("취소")
         cancel_btn.clicked.connect(self.reject)
 
-        layout.addWidget(button_box)
+        return button_box
 
     def _get_resolution(self, operation: Any) -> str | None:
         """Extract resolution from filename.

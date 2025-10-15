@@ -117,9 +117,14 @@ class OrganizeProgressDialog(QDialog):
         """
         source = Path(result.get("source", "")).name
         destination = result.get("destination", "")
-        status = result.get("status", "unknown")
+        success = result.get("success", "False")
 
-        if status == "success":
+        # Debug logging
+        logger.debug(
+            f"File result: success={success}, source={source}, destination={destination}"
+        )
+
+        if success in ("True", "true", "1", "yes"):  # Handle various success indicators
             self.organized_files += 1
             log_entry = f"✅ {source} → {destination}"
             self.log_text.append(log_entry)

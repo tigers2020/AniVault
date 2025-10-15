@@ -8,11 +8,13 @@ operations using PySide6's QThread and signal/slot mechanism.
 import asyncio
 import logging
 from pathlib import Path
+from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from anivault.core.matching.engine import MatchingEngine
+from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.gui.models import FileItem
 from anivault.services.rate_limiter import TokenBucketRateLimiter
@@ -21,6 +23,7 @@ from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.services.state_machine import RateLimitStateMachine
 from anivault.services.tmdb_client import TMDBClient
 from anivault.shared.constants import FileSystem
+from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +38,13 @@ class TMDBMatchingWorker(QObject):
 
     # Signals for communication with main thread
     matching_started: Signal = Signal()  # Emitted when matching starts
-    file_matched: Signal = Signal(dict)  # Emits FileMetadata as dict (for UI)
+    file_matched: Signal = Signal(object)  # Emits FileMetadata object
     matching_progress: Signal = Signal(int)  # Emits progress percentage (0-100)
     matching_finished: Signal = Signal(list)  # Emits list[FileMetadata]
     matching_error: Signal = Signal(str)  # Emits error message
     matching_cancelled: Signal = Signal()  # Emitted when cancelled
 
-    def __init__(self, api_key: str, parent: "QObject | None" = None) -> None:
+    def __init__(self, api_key: str, parent: Optional["QObject"] = None) -> None:
         """
         Initialize the TMDB matching worker.
 
@@ -151,16 +154,36 @@ class TMDBMatchingWorker(QObject):
                 # Match first file in group to get TMDB result
                 first_file = file_items[0]
                 group_match_result = await self._match_single_file(first_file)
-                match_result = group_match_result.get("match_result")
+                match_result: Optional[MatchResult] = group_match_result.get(
+                    "match_result"
+                )  # type: ignore[assignment]
 
                 # Apply same match result to all files in group
                 for file_item in file_items:
-                    result = {
-                        "file_path": str(file_item.file_path),
-                        "file_name": file_item.file_name,
-                        "match_result": match_result,
-                        "status": "matched" if match_result else "failed",
-                    }
+                    # Create FileMetadata object instead of dict (NO dict!)
+                    # MatchResult has: tmdb_id, title, year, confidence_score, media_type,
+                    # poster_path, backdrop_path, overview, popularity, vote_average, original_language
+                    # FileMetadata accepts: title, file_path, file_type, year, season, episode,
+                    # genres, overview, poster_path, vote_average, tmdb_id, media_type
+                    result = FileMetadata(
+                        file_path=file_item.file_path,
+                        file_type=(
+                            file_item.file_path.suffix.lstrip(".")
+                            if file_item.file_path.suffix
+                            else "unknown"
+                        ),
+                        title=(
+                            match_result.title if match_result else file_item.file_name
+                        ),
+                        tmdb_id=match_result.tmdb_id if match_result else None,
+                        year=match_result.year if match_result else None,
+                        overview=match_result.overview if match_result else None,
+                        poster_path=match_result.poster_path if match_result else None,
+                        vote_average=(
+                            match_result.vote_average if match_result else None
+                        ),
+                        media_type=match_result.media_type if match_result else None,
+                    )
                     matching_results.append(result)
 
                     # Update matched count

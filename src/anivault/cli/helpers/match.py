@@ -42,20 +42,40 @@ async def run_match_pipeline(
     Returns:
         Exit code (0 for success, 1 for error)
     """
-    # Import here to avoid circular dependency
     from rich.console import Console
 
     if console is None:
         console = Console()
 
-    # Get directory from options
-    directory = (
-        options.directory.path
-        if hasattr(options.directory, "path")
-        else options.directory
-    )
+    directory = _get_directory_from_options(options)
+    _show_start_message(directory, options, console)
 
-    # Show start message
+    services = _initialize_services()
+    anime_files = _find_anime_files(directory)
+
+    if not anime_files:
+        return _handle_no_files_found(directory, options, console)
+
+    _show_file_count(anime_files, options, console)
+    processed_results = await _process_files(anime_files, services, options, console)
+    _output_results(processed_results, directory, options, console)
+
+    return 0
+
+
+def _get_directory_from_options(options: Any) -> Path:
+    """Extract directory path from options.
+
+    Note: This function is now redundant. Use extract_directory_path from
+    cli.common.path_utils instead for consistency.
+    """
+    from anivault.cli.common.path_utils import extract_directory_path
+
+    return extract_directory_path(options.directory)
+
+
+def _show_start_message(directory: Path, options: Any, console: Console) -> None:
+    """Show start message."""
     if not options.json_output:
         console.print(
             CLIFormatting.format_colored_message(
@@ -64,7 +84,9 @@ async def run_match_pipeline(
             ),
         )
 
-    # Initialize services
+
+def _initialize_services() -> dict[str, Any]:
+    """Initialize matching services."""
     cache_db_path = Path(FileSystem.CACHE_DIRECTORY) / "tmdb_cache.db"
     cache = SQLiteCacheDB(cache_db_path)
     rate_limiter = TokenBucketRateLimiter(capacity=50, refill_rate=50)
@@ -80,33 +102,58 @@ async def run_match_pipeline(
     matching_engine = MatchingEngine(tmdb_client=tmdb_client, cache=cache)
     parser = AnitopyParser()
 
-    # Find anime files
+    return {
+        "cache": cache,
+        "rate_limiter": rate_limiter,
+        "semaphore_manager": semaphore_manager,
+        "state_machine": state_machine,
+        "tmdb_client": tmdb_client,
+        "matching_engine": matching_engine,
+        "parser": parser,
+    }
+
+
+def _find_anime_files(directory: Path) -> list[Path]:
+    """Find anime files in directory."""
     anime_files: list[Path] = []
     for ext in FileSystem.CLI_VIDEO_EXTENSIONS:
         anime_files.extend(directory.rglob(f"*{ext}"))
+    return anime_files
 
-    if not anime_files:
-        if options.json_output:
-            match_data = collect_match_data([], str(directory))
-            json_output = format_json_output(
-                success=True,
-                command=CLIMessages.CommandNames.MATCH,
-                data=match_data,
-                warnings=[CLIMessages.Info.NO_ANIME_FILES_FOUND],
-            )
-            sys.stdout.buffer.write(json_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
-        else:
-            console.print(
-                CLIFormatting.format_colored_message(
-                    CLIMessages.Info.NO_ANIME_FILES_FOUND,
-                    "warning",
-                ),
-            )
-        return 0
 
-    # Show file count
+def _handle_no_files_found(
+    directory: Path,
+    options: Any,
+    console: Console,
+) -> int:
+    """Handle case when no anime files are found."""
+    if options.json_output:
+        match_data = collect_match_data([], str(directory))
+        json_output = format_json_output(
+            success=True,
+            command=CLIMessages.CommandNames.MATCH,
+            data=match_data,
+            warnings=[CLIMessages.Info.NO_ANIME_FILES_FOUND],
+        )
+        sys.stdout.buffer.write(json_output)
+        sys.stdout.buffer.write(b"\n")
+        sys.stdout.buffer.flush()
+    else:
+        console.print(
+            CLIFormatting.format_colored_message(
+                CLIMessages.Info.NO_ANIME_FILES_FOUND,
+                "warning",
+            ),
+        )
+    return 0
+
+
+def _show_file_count(
+    anime_files: list[Path],
+    options: Any,
+    console: Console,
+) -> None:
+    """Show file count message."""
     if not options.json_output:
         console.print(
             CLIFormatting.format_colored_message(
@@ -115,10 +162,18 @@ async def run_match_pipeline(
             ),
         )
 
-    # Create progress manager
+
+async def _process_files(
+    anime_files: list[Path],
+    services: dict[str, Any],
+    options: Any,
+    console: Console,
+) -> list[dict[str, Any]]:
+    """Process anime files concurrently."""
+    parser = services["parser"]
+    matching_engine = services["matching_engine"]
     progress_manager = create_progress_manager(disabled=options.json_output)
 
-    # Process files concurrently
     results = []
     with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
         semaphore = asyncio.Semaphore(4)
@@ -134,34 +189,52 @@ async def run_match_pipeline(
             return_exceptions=True,
         )
 
-        # Process exceptions
-        processed_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                if not options.json_output:
-                    console.print(
-                        CLIFormatting.format_colored_message(
-                            f"Error processing {anime_files[i]}: {result}",
-                            "error",
-                        ),
-                    )
-                processed_results.append(
-                    {
-                        "file_path": str(anime_files[i]),
-                        "error": str(result),
-                    }
-                )
-            elif isinstance(result, dict):
-                processed_results.append(result)
-            else:
-                processed_results.append(
-                    {
-                        "file_path": str(anime_files[i]),
-                        "error": "Unexpected result type",
-                    }
-                )
+    return _process_exceptions(results, anime_files, options, console)
 
-    # Output results
+
+def _process_exceptions(
+    results: list[Any],
+    anime_files: list[Path],
+    options: Any,
+    console: Console,
+) -> list[dict[str, Any]]:
+    """Process exceptions in results."""
+    processed_results = []
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            if not options.json_output:
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Error processing {anime_files[i]}: {result}",
+                        "error",
+                    ),
+                )
+            processed_results.append(
+                {
+                    "file_path": str(anime_files[i]),
+                    "error": str(result),
+                }
+            )
+        elif isinstance(result, dict):
+            processed_results.append(result)
+        else:
+            processed_results.append(
+                {
+                    "file_path": str(anime_files[i]),
+                    "error": "Unexpected result type",
+                }
+            )
+
+    return processed_results
+
+
+def _output_results(
+    processed_results: list[dict[str, Any]],
+    directory: Path,
+    options: Any,
+    console: Console,
+) -> None:
+    """Output match results."""
     if options.json_output:
         match_data = collect_match_data(processed_results, str(directory))
         json_output = format_json_output(
@@ -174,8 +247,6 @@ async def run_match_pipeline(
         sys.stdout.buffer.flush()
     else:
         display_match_results(processed_results, console)
-
-    return 0
 
 
 async def process_file_for_matching(
@@ -287,6 +358,21 @@ def display_match_results(results: list[dict[str, Any]], console: Console) -> No
     console.print(table)
 
 
+def _calculate_success_rate(successful_matches: int, total_files: int) -> float:
+    """Calculate success rate percentage.
+
+    Args:
+        successful_matches: Number of successful matches
+        total_files: Total number of files
+
+    Returns:
+        Success rate as percentage (0-100)
+    """
+    if total_files == 0:
+        return 0.0
+    return (successful_matches / total_files) * 100
+
+
 def collect_match_data(results: list[dict[str, Any]], directory: str) -> dict[str, Any]:
     """Collect match data for JSON output.
 
@@ -298,11 +384,34 @@ def collect_match_data(results: list[dict[str, Any]], directory: str) -> dict[st
         Match statistics and file data
     """
     total_files = len(results)
-    successful_matches = 0
-    high_confidence = 0
-    medium_confidence = 0
-    low_confidence = 0
-    errors = 0
+    stats = _calculate_file_statistics(results)
+    match_stats = _collect_matching_statistics(results)
+
+    return {
+        "match_summary": {
+            "total_files": total_files,
+            "successful_matches": match_stats["successful_matches"],
+            "high_confidence_matches": match_stats["high_confidence"],
+            "medium_confidence_matches": match_stats["medium_confidence"],
+            "low_confidence_matches": match_stats["low_confidence"],
+            "errors": match_stats["errors"],
+            "total_size_bytes": stats["total_size"],
+            "total_size_formatted": _format_size(stats["total_size"]),
+            "scanned_directory": str(directory),
+            "success_rate": _calculate_success_rate(
+                match_stats["successful_matches"], total_files
+            ),
+        },
+        "file_statistics": {
+            "counts_by_extension": stats["file_counts"],
+            "scanned_paths": stats["scanned_paths"],
+        },
+        "files": stats["file_data"],
+    }
+
+
+def _calculate_file_statistics(results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Calculate file statistics from results."""
     total_size = 0
     file_counts: dict[str, int] = {}
     scanned_paths = []
@@ -310,106 +419,141 @@ def collect_match_data(results: list[dict[str, Any]], directory: str) -> dict[st
 
     for result in results:
         file_path = result.get("file_path", "Unknown")
-        parsing_result = result.get("parsing_result")
-        match_result = result.get("match_result")
-
         scanned_paths.append(file_path)
 
-        # File size
-        try:
-            file_size = Path(file_path).stat().st_size
-            total_size += file_size
-        except (OSError, TypeError):
-            file_size = 0
+        file_size = _get_file_size(file_path)
+        total_size += file_size
 
-        # Extension count
         file_ext = Path(file_path).suffix.lower()
         file_counts[file_ext] = file_counts.get(file_ext, 0) + 1
 
-        # Build file info
-        file_info = {
-            "file_path": file_path,
-            "file_name": Path(file_path).name,
-            "file_size": file_size,
-            "file_extension": file_ext,
+        file_info = _build_file_info(result, file_path, file_size, file_ext)
+        file_data.append(file_info)
+
+    return {
+        "total_size": total_size,
+        "file_counts": file_counts,
+        "scanned_paths": scanned_paths,
+        "file_data": file_data,
+    }
+
+
+def _get_file_size(file_path: str) -> int:
+    """Get file size in bytes."""
+    try:
+        return Path(file_path).stat().st_size
+    except (OSError, TypeError):
+        return 0
+
+
+def _build_file_info(
+    result: dict[str, Any],
+    file_path: str,
+    file_size: int,
+    file_ext: str,
+) -> dict[str, Any]:
+    """Build file information dictionary."""
+    parsing_result = result.get("parsing_result")
+    match_result = result.get("match_result")
+
+    file_info = {
+        "file_path": file_path,
+        "file_name": Path(file_path).name,
+        "file_size": file_size,
+        "file_extension": file_ext,
+    }
+
+    if parsing_result:
+        file_info["parsing_result"] = _extract_parsing_result(parsing_result)
+
+    file_info["match_result"] = _extract_match_result(result, match_result)
+
+    return file_info
+
+
+def _extract_parsing_result(parsing_result: Any) -> dict[str, Any]:
+    """Extract parsing result data."""
+    return {
+        "title": parsing_result.title,
+        "episode": parsing_result.episode,
+        "season": parsing_result.season,
+        "quality": parsing_result.quality,
+        "source": parsing_result.source,
+        "codec": parsing_result.codec,
+        "audio": parsing_result.audio,
+        "release_group": parsing_result.release_group,
+        "confidence": parsing_result.confidence,
+        "parser_used": parsing_result.parser_used,
+        "other_info": parsing_result.other_info,
+    }
+
+
+def _extract_match_result(
+    result: dict[str, Any],
+    match_result: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Extract match result data."""
+    if match_result:
+        return {
+            "match_confidence": match_result.get("match_confidence", 0.0),
+            "tmdb_data": match_result.get("tmdb_data"),
+            "enrichment_status": match_result.get("enrichment_status", "UNKNOWN"),
         }
+    if "error" in result:
+        return {
+            "match_confidence": 0.0,
+            "tmdb_data": None,
+            "enrichment_status": "ERROR",
+        }
+    return {
+        "match_confidence": 0.0,
+        "tmdb_data": None,
+        "enrichment_status": "NO_MATCH",
+    }
 
-        # Add parsing result
-        if parsing_result:
-            file_info["parsing_result"] = {
-                "title": parsing_result.title,
-                "episode": parsing_result.episode,
-                "season": parsing_result.season,
-                "quality": parsing_result.quality,
-                "source": parsing_result.source,
-                "codec": parsing_result.codec,
-                "audio": parsing_result.audio,
-                "release_group": parsing_result.release_group,
-                "confidence": parsing_result.confidence,
-                "parser_used": parsing_result.parser_used,
-                "other_info": parsing_result.other_info,
-            }
 
-        # Add match result
+def _collect_matching_statistics(results: list[dict[str, Any]]) -> dict[str, int]:
+    """Collect matching statistics."""
+    high_confidence_threshold = 0.8
+    medium_confidence_threshold = 0.6
+
+    successful_matches = 0
+    high_confidence = 0
+    medium_confidence = 0
+    low_confidence = 0
+    errors = 0
+
+    for result in results:
+        match_result = result.get("match_result")
+
         if match_result:
             successful_matches += 1
             conf = match_result.get("match_confidence", 0.0)
 
-            if conf >= 0.8:
+            if conf >= high_confidence_threshold:
                 high_confidence += 1
-            elif conf >= 0.6:
+            elif conf >= medium_confidence_threshold:
                 medium_confidence += 1
             else:
                 low_confidence += 1
-
-            file_info["match_result"] = {
-                "match_confidence": conf,
-                "tmdb_data": match_result.get("tmdb_data"),
-                "enrichment_status": match_result.get("enrichment_status", "UNKNOWN"),
-            }
         elif "error" in result:
             errors += 1
-            file_info["error"] = result["error"]
-            file_info["match_result"] = {
-                "match_confidence": 0.0,
-                "tmdb_data": None,
-                "enrichment_status": "ERROR",
-            }
-        else:
-            file_info["match_result"] = {
-                "match_confidence": 0.0,
-                "tmdb_data": None,
-                "enrichment_status": "NO_MATCH",
-            }
-
-        file_data.append(file_info)
-
-    # Format size
-    def format_size(size_bytes: float) -> str:
-        for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} PB"
 
     return {
-        "match_summary": {
-            "total_files": total_files,
-            "successful_matches": successful_matches,
-            "high_confidence_matches": high_confidence,
-            "medium_confidence_matches": medium_confidence,
-            "low_confidence_matches": low_confidence,
-            "errors": errors,
-            "total_size_bytes": total_size,
-            "total_size_formatted": format_size(total_size),
-            "scanned_directory": str(directory),
-            "success_rate": (
-                (successful_matches / total_files * 100) if total_files > 0 else 0
-            ),
-        },
-        "file_statistics": {
-            "counts_by_extension": file_counts,
-            "scanned_paths": scanned_paths,
-        },
-        "files": file_data,
+        "successful_matches": successful_matches,
+        "high_confidence": high_confidence,
+        "medium_confidence": medium_confidence,
+        "low_confidence": low_confidence,
+        "errors": errors,
     }
+
+
+def _format_size(size_bytes: float) -> str:
+    """Format size in human-readable format."""
+    bytes_per_unit = 1024.0
+
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if size_bytes < bytes_per_unit:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= bytes_per_unit
+    return f"{size_bytes:.1f} PB"

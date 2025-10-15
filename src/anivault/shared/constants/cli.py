@@ -78,6 +78,8 @@ class CLIMessages:
         UNEXPECTED_ERROR_DURING_VALIDATION = (
             "Unexpected error during directory validation"
         )
+        NO_LOG_COMMAND = "No log command specified"
+        NO_LOG_FILES_FOUND = "No log files found"
 
     class StatusKeys:
         """Common status keys used throughout CLI."""
@@ -509,3 +511,37 @@ class LogConfig:
 
     DEFAULT_LEVEL = "INFO"
     DEFAULT_FILENAME = "anivault.log"
+
+
+class LogCommands:
+    """Log command subcommands."""
+
+    LIST = "list"
+    CLEAR = "clear"
+    EXPORT = "export"
+    SHOW = "show"
+
+
+class DateFormats:
+    """Date and time format constants."""
+
+    STANDARD_DATETIME = "%Y-%m-%d %H:%M:%S"
+    ISO_DATETIME = "%Y-%m-%dT%H:%M:%S"
+    DATE_ONLY = "%Y-%m-%d"
+    TIME_ONLY = "%H:%M:%S"
+    FILENAME_SAFE = "%Y%m%d_%H%M%S"
+
+
+class LogJsonKeys:
+    """Log-specific JSON keys."""
+
+    LOG_FILES = "log_files"
+    FILE = "file"
+    SIZE = "size"
+    SIZE_BYTES = "size_bytes"
+    MODIFIED = "modified"
+    CREATED = "created"
+    LOG_ENTRIES = "log_entries"
+    LOG_LEVEL = "log_level"
+    LOG_MESSAGE = "log_message"
+    TIMESTAMP = "timestamp"

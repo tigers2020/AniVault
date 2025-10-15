@@ -8,6 +8,7 @@ operations using PySide6's QThread and signal/slot mechanism.
 import logging
 import os
 from pathlib import Path
+from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
@@ -30,16 +31,18 @@ class FileScannerWorker(QObject):
 
     # Signals for communication with main thread
     scan_started: Signal = Signal()  # Emitted when scan starts
-    file_found: Signal = Signal(dict)  # Emits file info dict[str, str]
+    file_found: Signal = Signal(object)  # Emits FileItem object
     scan_progress: Signal = Signal(int)  # Emits progress percentage (0-100)
     scan_finished: Signal = Signal(list)  # Emits list[FileItem]
     scan_error: Signal = Signal(str)  # Emits error message
     scan_cancelled: Signal = Signal()  # Emitted when scan is cancelled
 
-    def __init__(self, parent: "QObject | None" = None) -> None:
+    def __init__(self, parent: Optional["QObject"] = None) -> None:
         super().__init__(parent)
         self._cancelled = False
-        self._current_directory: "Path | None" = None  # Will be set in scan_directory (Python 3.9 compat)
+        self._current_directory: Optional[Path] = (
+            None  # Will be set in scan_directory (Python 3.9 compat)
+        )
 
         logger.debug("FileScannerWorker initialized")
 
@@ -86,13 +89,8 @@ class FileScannerWorker(QObject):
                 file_item = FileItem(file_path, "Scanned")
                 file_items.append(file_item)
 
-                # Emit file found signal
-                file_data = {
-                    "file_name": file_item.file_name,
-                    "file_path": str(file_item.file_path),
-                    "status": file_item.status,
-                }
-                self.file_found.emit(file_data)
+                # Emit file found signal (FileItem object, NO dict!)
+                self.file_found.emit(file_item)
 
                 # Update progress
                 progress = int((i + 1) * 100 / total_files)

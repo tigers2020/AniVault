@@ -343,19 +343,24 @@ class SettingsDialog(QDialog):
                 ErrorContext(operation="save_api_key"),
             ) from e
 
-    def _save_api_key_to_env_file(self, api_key: str) -> None:
+    def _save_api_key_to_env_file(
+        self,
+        api_key: str,
+        env_file_path: Path | None = None,
+    ) -> None:
         """
         Save API key to .env file.
 
         Args:
             api_key: The API key to save
+            env_file_path: Optional custom .env file path (for testing)
 
         Raises:
             OSError: If file write fails
         """
         import os
 
-        env_file = Path(".env")
+        env_file = env_file_path if env_file_path is not None else Path(".env")
         env_lines = []
 
         # Read existing .env file if it exists

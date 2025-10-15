@@ -219,107 +219,157 @@ def run_pipeline(
         num_workers,
     )
 
-    # Record pipeline start time
     start_time = time.time()
-
     scanner = None
     parser_pool = None
     collector = None
 
     try:
-        # Create pipeline components
-        (
-            scan_stats,
-            queue_stats,
-            parser_stats,
-            _cache,
-            file_queue,
-            result_queue,
-            scanner,
-            parser_pool,
-            collector,
-        ) = PipelineFactory.create_components(
-            root_path=root_path,
-            extensions=extensions,
-            num_workers=num_workers,
-            max_queue_size=max_queue_size,
-            _cache_path=cache_path,
+        components = _create_pipeline_components(
+            root_path, extensions, num_workers, max_queue_size, cache_path
+        )
+        scanner, parser_pool, collector = (
+            components["scanner"],
+            components["parser_pool"],
+            components["collector"],
         )
 
-        # Start all pipeline components
-        start_pipeline_components(scanner, parser_pool, collector, num_workers)
-
-        # Wait for scanner to finish discovering files
-        wait_for_scanner_completion(scanner, scan_stats)
-
-        # Signal parser workers to shut down by sending sentinel values
-        signal_parser_shutdown(file_queue, num_workers)
-
-        # Wait for parser pool to finish processing
-        wait_for_parser_completion(parser_pool, parser_stats)
-
-        # Signal collector to shut down
-        signal_collector_shutdown(result_queue)
-
-        # Wait for collector to finish gathering results
-        result_count = wait_for_collector_completion(collector)
-
-        # Retrieve and return final results
-        results = collector.get_results()
-
-        # Calculate total pipeline duration
-        total_duration = time.time() - start_time
-
-        # Format and display final statistics
-        stats_report = format_statistics(
-            scan_stats=scan_stats,
-            queue_stats=queue_stats,
-            parser_stats=parser_stats,
-            total_duration=total_duration,
-        )
-        logger.info("Pipeline completed successfully!")
-        logger.info(stats_report)
-        print(stats_report)
-
-        log_operation_success(
-            logger=logger,
-            operation="run_pipeline",
-            duration_ms=total_duration * 1000,
-            context={
-                **context.safe_dict(),
-                "total_duration": total_duration,
-                "result_count": result_count,
-            },
-        )
+        _execute_pipeline(components, num_workers)
+        results = _collect_results(components, start_time, context)
 
         return results
 
-    except Exception as e:
-        infrastructure_error = InfrastructureError(
-            ErrorCode.PIPELINE_EXECUTION_ERROR,
-            f"Pipeline execution failed: {e}",
-            context,
-            original_error=e,
-        )
-        log_operation_error(
-            logger=logger,
-            error=infrastructure_error,
-            operation="run_pipeline",
-            context=context.safe_dict(),
-        )
-
-        # Attempt graceful shutdown
-        if scanner and parser_pool and collector:
-            graceful_shutdown(scanner, parser_pool, collector)
-
-        raise InfrastructureError(
-            ErrorCode.PIPELINE_EXECUTION_ERROR,
-            f"Pipeline execution failed: {e}",
-            context,
-            original_error=e,
-        ) from e
+    except Exception as e:  # noqa: BLE001
+        _handle_pipeline_error(e, context, scanner, parser_pool, collector)
 
     finally:
-        # Ensure all threads are stopped
         if scanner and parser_pool and collector:
             force_shutdown_if_needed(scanner, parser_pool, collector)
+
+
+def _create_pipeline_components(
+    root_path: str,
+    extensions: list[str],
+    num_workers: int,
+    max_queue_size: int,
+    cache_path: str | None,
+) -> dict[str, Any]:
+    """Create pipeline components."""
+    (
+        scan_stats,
+        queue_stats,
+        parser_stats,
+        _cache,
+        file_queue,
+        result_queue,
+        scanner,
+        parser_pool,
+        collector,
+    ) = PipelineFactory.create_components(
+        root_path=root_path,
+        extensions=extensions,
+        num_workers=num_workers,
+        max_queue_size=max_queue_size,
+        _cache_path=cache_path,
+    )
+
+    return {
+        "scan_stats": scan_stats,
+        "queue_stats": queue_stats,
+        "parser_stats": parser_stats,
+        "file_queue": file_queue,
+        "result_queue": result_queue,
+        "scanner": scanner,
+        "parser_pool": parser_pool,
+        "collector": collector,
+    }
+
+
+def _execute_pipeline(components: dict[str, Any], num_workers: int) -> None:
+    """Execute pipeline stages."""
+    scanner = components["scanner"]
+    parser_pool = components["parser_pool"]
+    collector = components["collector"]
+    file_queue = components["file_queue"]
+    result_queue = components["result_queue"]
+    scan_stats = components["scan_stats"]
+    parser_stats = components["parser_stats"]
+
+    start_pipeline_components(scanner, parser_pool, collector, num_workers)
+    wait_for_scanner_completion(scanner, scan_stats)
+    signal_parser_shutdown(file_queue, num_workers)
+    wait_for_parser_completion(parser_pool, parser_stats)
+    signal_collector_shutdown(result_queue)
+    wait_for_collector_completion(collector)
+
+
+def _collect_results(
+    components: dict[str, Any],
+    start_time: float,
+    context: ErrorContext,
+) -> list[dict[str, Any]]:
+    """Collect results and log statistics."""
+    collector = components["collector"]
+    scan_stats = components["scan_stats"]
+    queue_stats = components["queue_stats"]
+    parser_stats = components["parser_stats"]
+
+    result_count = wait_for_collector_completion(collector)
+    results = collector.get_results()
+    total_duration = time.time() - start_time
+
+    stats_report = format_statistics(
+        scan_stats=scan_stats,
+        queue_stats=queue_stats,
+        parser_stats=parser_stats,
+        total_duration=total_duration,
+    )
+
+    logger.info("Pipeline completed successfully!")
+    logger.info(stats_report)
+    print(stats_report)
+
+    log_operation_success(
+        logger=logger,
+        operation="run_pipeline",
+        duration_ms=total_duration * 1000,
+        context={
+            **context.safe_dict(),
+            "total_duration": total_duration,
+            "result_count": result_count,
+        },
+    )
+
+    return results
+
+
+def _handle_pipeline_error(
+    e: Exception,
+    context: ErrorContext,
+    scanner: Any,
+    parser_pool: Any,
+    collector: Any,
+) -> None:
+    """Handle pipeline execution errors."""
+    infrastructure_error = InfrastructureError(
+        ErrorCode.PIPELINE_EXECUTION_ERROR,
+        f"Pipeline execution failed: {e}",
+        context,
+        original_error=e,
+    )
+    log_operation_error(
+        logger=logger,
+        error=infrastructure_error,
+        operation="run_pipeline",
+        context=context.safe_dict(),
+    )
+
+    if scanner and parser_pool and collector:
+        graceful_shutdown(scanner, parser_pool, collector)
+
+    raise InfrastructureError(
+        ErrorCode.PIPELINE_EXECUTION_ERROR,
+        f"Pipeline execution failed: {e}",
+        context,
+        original_error=e,
+    ) from e

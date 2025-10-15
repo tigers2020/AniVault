@@ -41,7 +41,7 @@ class ProgressManager:
     the ability to disable progress display for non-interactive modes.
     """
 
-    def __init__(self, disabled: bool = False) -> None:
+    def __init__(self, *, disabled: bool = False) -> None:
         """
         Initialize the ProgressManager.
 
@@ -196,7 +196,7 @@ class ProgressManager:
         self.stop()
 
 
-def create_progress_manager(disabled: bool = False) -> ProgressManager:
+def create_progress_manager(*, disabled: bool = False) -> ProgressManager:
     """
     Factory function to create a ProgressManager instance.
 

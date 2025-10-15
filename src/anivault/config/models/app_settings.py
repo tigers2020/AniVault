@@ -7,16 +7,24 @@ settings and logging configuration.
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 
 from anivault.shared.constants import Application, Logging
 
 
-class AppSettings(BaseModel):
+class AppSettings(BaseSettings):
     """Application configuration.
 
     This class manages application-level settings including
     name, version, debug mode, and theme.
     """
+
+    model_config = {
+        "env_prefix": "ANIVAULT_APP__",
+        "env_nested_delimiter": "__",
+        "env_ignore_empty": True,
+        "extra": "ignore",
+    }
 
     name: str = Field(default=Application.NAME, description="Application name")
     version: str = Field(default=Application.VERSION, description="Application version")

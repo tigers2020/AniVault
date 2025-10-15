@@ -14,7 +14,7 @@ from typing import Any
 
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
-from anivault.core.organizer.executor import FileOperationExecutor
+from anivault.core.organizer.executor import FileOperationExecutor, OperationResult
 from anivault.core.organizer.path_builder import PathBuilder, PathContext
 from anivault.core.organizer.resolution import ResolutionAnalyzer
 
@@ -137,7 +137,7 @@ class FileOrganizer:
         plan: list[FileOperation],
         operation_id: str,
         no_log: bool = False,
-    ) -> list[tuple[str, str]]:
+    ) -> list[OperationResult]:
         """
         Execute a plan of file operations.
 
@@ -150,7 +150,7 @@ class FileOrganizer:
             no_log: If True, skip logging the operation.
 
         Returns:
-            List of tuples containing (source_path, destination_path) for moved files.
+            List of OperationResult objects for all operations.
         """
         # Delegate to FileOperationExecutor
         results = self._executor.execute_batch(
@@ -160,21 +160,14 @@ class FileOrganizer:
             no_log=no_log,
         )
 
-        # Convert results to legacy format for backward compatibility
-        moved_files: list[tuple[str, str]] = [
-            (result.source_path, result.destination_path)
-            for result in results
-            if result.success and not result.skipped
-        ]
-
-        return moved_files
+        return results
 
     def organize(
         self,
         scanned_files: list[ScannedFile],
         dry_run: bool = False,
         no_log: bool = False,
-    ) -> list[FileOperation] | list[tuple[str, str]]:
+    ) -> list[FileOperation] | list[OperationResult]:
         """
         Organize scanned files according to their metadata.
 
@@ -188,7 +181,7 @@ class FileOrganizer:
 
         Returns:
             If dry_run is True, returns the list of FileOperation objects.
-            If dry_run is False, returns the list of moved file tuples.
+            If dry_run is False, returns the list of OperationResult objects.
         """
         # Generate the organization plan
         plan = self.generate_plan(scanned_files)
@@ -198,6 +191,6 @@ class FileOrganizer:
 
         # Execute the plan
         operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        moved_files = self.execute_plan(plan, operation_id, no_log)
+        results = self.execute_plan(plan, operation_id, no_log)
 
-        return moved_files
+        return results

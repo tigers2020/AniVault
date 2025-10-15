@@ -145,7 +145,8 @@ class TestHandleCliError:
         captured = capsys.readouterr()
         assert "Command interrupted by user" in captured.err
 
-    def test_handle_cli_error_with_json_output(self):
+    @patch("anivault.cli.common.error_handler.logger")
+    def test_handle_cli_error_with_json_output(self, mock_logger):
         """Test handling errors with JSON output."""
         cli_error = create_cli_error("Test CLI error", "test-command")
 
@@ -174,8 +175,11 @@ class TestHandleCliError:
         """Test handling JSON output failure."""
         cli_error = create_cli_error("Test CLI error", "test-command")
 
-        # Mock json.dumps to raise an exception
-        with patch("json.dumps", side_effect=Exception("JSON serialization failed")):
+        # Mock json.dumps to raise a serialization error
+        with patch(
+            "json.dumps",
+            side_effect=TypeError("Object of type CliError is not JSON serializable"),
+        ):
             exit_code = handle_cli_error(cli_error, "test-command", json_output=True)
 
         assert exit_code == 1

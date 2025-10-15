@@ -102,37 +102,35 @@ class TMDBEventHandler(BaseEventHandler):
         with the match status and metadata.
 
         Args:
-            result: Dictionary containing:
-                - file_path: str - Path to the matched file
+            result: FileMetadata object containing:
+                - file_path: Path - Path to the matched file
                 - file_name: str - Name of the file
-                - match_result: MatchResult | None - TMDB match data
-                - status: str - Match status ("matched" or "failed")
+                - tmdb_id: int | None - TMDB ID if matched
+                - title: str | None - TMDB title if matched
+                - Other TMDB metadata fields
         """
         # FileMetadata is a dataclass, access attributes directly
         file_path = Path(result.file_path) if result.file_path else Path()
         file_name = result.file_name or "Unknown"
-        match_result = result  # FileMetadata itself is the match result
         status = "matched" if result.tmdb_id is not None else "unknown"
 
         # Update state model
         if hasattr(self, "_state_model") and self._state_model:
             self._state_model.update_file_status(file_path, status)
 
-            # Save TMDB metadata to state model
-            if match_result:
-                self._state_model.set_file_metadata(
-                    file_path,
-                    {"match_result": match_result},
-                )
-                # Get title from MatchResult dataclass
-                title = (
-                    match_result.title if hasattr(match_result, "title") else "Unknown"
-                )
-                self._logger.debug(
-                    "Saved TMDB metadata for: %s - %s",
-                    file_name,
-                    title,
-                )
+            # Save TMDB metadata to FileItem directly (NO dict!)
+            # Access _scanned_files directly (not the copy from .scanned_files property)
+            if hasattr(self._state_model, "_scanned_files"):
+                for file_item in self._state_model._scanned_files:
+                    if file_item.file_path == file_path:
+                        file_item.metadata = result  # FileMetadata object directly!
+                        self._logger.debug(
+                            "Updated FileItem metadata for: %s (tmdb_id=%s, title=%s)",
+                            file_name,
+                            result.tmdb_id,
+                            result.title if result.tmdb_id else "No match",
+                        )
+                        break
 
         self._logger.debug("File matched: %s - %s", file_name, status)
 
@@ -155,7 +153,7 @@ class TMDBEventHandler(BaseEventHandler):
         1. Displaying completion status with match counts
         2. Updating the progress dialog
         3. Enabling the organize button if files were matched
-        4. Triggering file regrouping by TMDB title
+        4. Triggering final file regrouping by TMDB title (ensures last batch is updated)
 
         Args:
             _results: Match results (unused, required by signal signature)

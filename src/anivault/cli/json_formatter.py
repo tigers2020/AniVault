@@ -14,8 +14,9 @@ import orjson
 
 
 def format_json_output(
-    success: bool,
     command: str,
+    *,
+    success: bool,
     data: Any | None = None,
     errors: list[str] | None = None,
     warnings: list[str] | None = None,
@@ -115,10 +116,11 @@ def safe_json_serialize(obj: Any) -> Any:
         >>> safe_json_serialize(pydantic_model)
         {...}
     """
-    if obj is None:
-        return None
-    if isinstance(obj, (str, int, float, bool)):
+    # Handle None and primitive types
+    if obj is None or isinstance(obj, (str, int, float, bool)):
         return obj
+
+    # Handle collections
     if isinstance(obj, (list, tuple)):
         return [safe_json_serialize(item) for item in obj]
     if isinstance(obj, dict):
@@ -134,6 +136,7 @@ def safe_json_serialize(obj: Any) -> Any:
             # Fallback to model_dump() if orjson not available or fails
             return obj.model_dump()
 
+    # Handle objects with __dict__ or __str__
     if hasattr(obj, "__dict__"):
         return safe_json_serialize(obj.__dict__)
     if hasattr(obj, "__str__"):
@@ -152,7 +155,7 @@ def format_success_output(command: str, data: Any) -> bytes:
     Returns:
         JSON-encoded bytes for successful output
     """
-    return format_json_output(success=True, command=command, data=data)
+    return format_json_output(command, success=True, data=data)
 
 
 def format_error_output(command: str, errors: list[str]) -> bytes:
@@ -166,4 +169,4 @@ def format_error_output(command: str, errors: list[str]) -> bytes:
     Returns:
         JSON-encoded bytes for error output
     """
-    return format_json_output(success=False, command=command, errors=errors)
+    return format_json_output(command, success=False, errors=errors)

@@ -16,6 +16,7 @@ from PySide6.QtCore import QObject, Signal
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation
 from anivault.core.organizer import FileOrganizer
+from anivault.core.organizer.executor import OperationResult
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class OrganizeWorker(QObject):
 
     # Signals for communication with main thread
     organization_started: Signal = Signal()  # Emitted when organization starts
-    file_organized: Signal = Signal(dict)  # Emits OperationResult as dict (NO Any!)
+    file_organized: Signal = Signal(object)  # Emits OperationResult object (NO dict!)
     organization_progress: Signal = Signal(
         int, str
     )  # Emits (progress %, current filename)
@@ -98,7 +99,7 @@ class OrganizeWorker(QObject):
 
         try:
             total_operations = len(self._plan)
-            moved_files = []
+            operation_results = []  # list[OperationResult]
             operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             logger.info(
@@ -115,39 +116,46 @@ class OrganizeWorker(QObject):
                     return
 
                 try:
-                    # Execute single operation
-                    result = self._file_organizer.execute_plan(
+                    # Execute single operation - returns list[OperationResult]
+                    results = self._file_organizer.execute_plan(
                         [operation],
                         operation_id,
                         no_log=False,
                     )
 
-                    if result:
-                        moved_files.extend(result)
-                        # Emit success
-                        self.file_organized.emit(
-                            {
-                                "source": str(operation.source_path),
-                                "destination": str(operation.destination_path),
-                                "status": "success",
-                            },
-                        )
-                        logger.debug(
-                            "Organized: %s -> %s",
-                            operation.source_path.name,
-                            operation.destination_path,
-                        )
+                    if results:
+                        # Get the first (and only) result
+                        result = results[0]
+                        operation_results.append(result)
+                        self.file_organized.emit(result)
+
+                        if result.success:
+                            logger.debug(
+                                "Organized: %s -> %s",
+                                operation.source_path.name,
+                                operation.destination_path,
+                            )
+                        else:
+                            logger.warning(
+                                "Failed to organize: %s -> %s (error: %s)",
+                                operation.source_path.name,
+                                operation.destination_path,
+                                result.message,
+                            )
 
                 except Exception as e:
                     logger.exception("Failed to execute operation: %s", operation)
-                    self.file_organized.emit(
-                        {
-                            "source": str(operation.source_path),
-                            "destination": str(operation.destination_path),
-                            "status": "failed",
-                            "error": str(e),
-                        },
+                    # Create failure result
+                    failure_result = OperationResult(
+                        operation=operation,
+                        success=False,
+                        source_path=str(operation.source_path),
+                        destination_path=str(operation.destination_path),
+                        message=str(e),
+                        skipped=False,
                     )
+                    operation_results.append(failure_result)
+                    self.file_organized.emit(failure_result)
 
                 # Update progress with current filename
                 progress = int((idx + 1) * 100 / total_operations)
@@ -155,14 +163,19 @@ class OrganizeWorker(QObject):
                 self.organization_progress.emit(progress, current_filename)
 
             # Cleanup empty directories after organization
+            moved_files = [
+                (r.source_path, r.destination_path)
+                for r in operation_results
+                if r.success and not r.skipped
+            ]
             if moved_files:
                 self._cleanup_empty_directories(moved_files)
 
-            # Emit completion
-            self.organization_finished.emit(moved_files)
+            # Emit completion with OperationResult objects
+            self.organization_finished.emit(operation_results)
             logger.info(
                 "File organization completed: %d/%d files moved",
-                len(moved_files),
+                len([r for r in operation_results if r.success]),
                 total_operations,
             )
 

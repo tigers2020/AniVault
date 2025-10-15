@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 
 
 def format_json_output(
-    success: bool,
     command: str,
+    *,
+    success: bool,
     errors: list[str] | None = None,
     data: dict[str, Any] | None = None,
 ) -> bytes:
@@ -61,6 +62,7 @@ def format_json_output(
 def handle_cli_error(
     error: Exception,
     command: str,
+    *,
     json_output: bool = False,
 ) -> int:
     """Handle CLI errors with consistent formatting and logging.
@@ -73,65 +75,101 @@ def handle_cli_error(
     Returns:
         Exit code for the CLI command
     """
-    # Create structured error context for logging
-    error_context = {
+    error_context = _create_error_context(error, command, json_output=json_output)
+    cli_error = _map_error_to_cli_error(error, command, error_context)
+    _log_error(error, command, cli_error, error_context)
+    _output_error(cli_error, error, command, error_context, json_output=json_output)
+
+    return cli_error.exit_code
+
+
+def _create_error_context(
+    error: Exception,
+    command: str,
+    *,
+    json_output: bool,
+) -> dict[str, Any]:
+    """Create structured error context for logging."""
+    return {
         "command": command,
         "error_type": type(error).__name__,
         "json_output": json_output,
     }
 
-    # Map specific exception types to CLI errors
+
+def _map_error_to_cli_error(
+    error: Exception,
+    command: str,
+    error_context: dict[str, Any],
+) -> CliError:
+    """Map specific exception types to CLI errors."""
+    # Handle CliError directly
     if isinstance(error, CliError):
-        cli_error = error
-        error_context["error_code"] = cli_error.code.value
-    elif isinstance(error, ApplicationError):
-        cli_error = create_cli_error(
+        error_context["error_code"] = error.code.value
+        return error
+
+    # Handle AniVault errors
+    if isinstance(error, ApplicationError):
+        error_context["error_code"] = error.code.value
+        return create_cli_error(
             message=f"Application error: {error.message}",
             command=command,
             original_error=error,
         )
+
+    if isinstance(error, InfrastructureError):
         error_context["error_code"] = error.code.value
-    elif isinstance(error, InfrastructureError):
-        cli_error = create_cli_error(
+        return create_cli_error(
             message=f"Infrastructure error: {error.message}",
             command=command,
             original_error=error,
         )
-        error_context["error_code"] = error.code.value
-    elif isinstance(error, (FileNotFoundError, PermissionError, OSError)):
-        cli_error = create_cli_error(
+
+    # Handle file system errors
+    if isinstance(error, (FileNotFoundError, PermissionError, OSError)):
+        error_context["error_category"] = "file_system"
+        return create_cli_error(
             message=f"File system error: {error}",
             command=command,
             original_error=error,
         )
-        error_context["error_category"] = "file_system"
-    elif isinstance(error, (ValueError, KeyError, TypeError, AttributeError)):
-        cli_error = create_cli_error(
+
+    # Handle data processing errors
+    if isinstance(error, (ValueError, KeyError, TypeError, AttributeError)):
+        error_context["error_category"] = "data_processing"
+        return create_cli_error(
             message=f"Data processing error: {error}",
             command=command,
             original_error=error,
         )
-        error_context["error_category"] = "data_processing"
-    elif isinstance(error, KeyboardInterrupt):
-        cli_error = create_cli_error(
+
+    # Handle user interrupts
+    if isinstance(error, KeyboardInterrupt):
+        error_context["interrupt_type"] = "user_interrupt"
+        return create_cli_error(
             message="Command interrupted by user",
             command=command,
             original_error=error,
-            exit_code=130,  # Standard exit code for SIGINT
+            exit_code=130,
         )
-        error_context["interrupt_type"] = "user_interrupt"
-    else:
-        # Handle unexpected errors with enhanced context
-        cli_error = create_cli_error(
-            message=f"Unexpected error: {error}",
-            command=command,
-            original_error=error,
-        )
-        error_context["error_category"] = "unexpected"
 
-    # Log the error with structured context
+    # Handle unexpected errors
+    error_context["error_category"] = "unexpected"
+    return create_cli_error(
+        message=f"Unexpected error: {error}",
+        command=command,
+        original_error=error,
+    )
+
+
+def _log_error(
+    error: Exception,
+    command: str,
+    cli_error: CliError,
+    error_context: dict[str, Any],
+) -> None:
+    """Log the error with structured context."""
     if isinstance(error, (KeyboardInterrupt, SystemExit)):
-        # Don't log interrupts as exceptions
         logger.warning(
             "Command interrupted: %s",
             cli_error.message,
@@ -145,48 +183,102 @@ def handle_cli_error(
             extra={"context": error_context},
         )
 
-    # Output error message
+
+def _output_error(
+    cli_error: CliError,
+    error: Exception,
+    command: str,
+    error_context: dict[str, Any],
+    *,
+    json_output: bool,
+) -> None:
+    """Output error message in appropriate format."""
     if json_output:
-        try:
-            error_output = format_json_output(
-                success=False,
-                command=command,
-                errors=[cli_error.message],
-                data={
-                    "error_code": cli_error.code.value,
-                    "error_type": type(error).__name__,
-                    "exit_code": cli_error.exit_code,
-                    "context": error_context,
-                },
-            )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
-        except Exception as output_error:
-            # Fallback to stderr if JSON output fails
-            cli_output_error = create_cli_output_error(
-                message=f"Failed to format JSON output: {output_error}",
-                command=command,
-                output_type="json",
-                original_error=output_error,
-            )
-            logger.exception(
-                "JSON output error: %s",
-                cli_output_error.message,
-                extra={"context": error_context},
-            )
-            sys.stderr.write(f"Error: {cli_error.message}\n")
-            sys.stderr.write(f"JSON output failed: {cli_output_error.message}\n")
+        _output_json_error(cli_error, error, command, error_context)
     else:
-        # Text output
         sys.stderr.write(f"Error: {cli_error.message}\n")
 
-    return cli_error.exit_code
+
+def _output_json_error(
+    cli_error: CliError,
+    error: Exception,
+    command: str,
+    error_context: dict[str, Any],
+) -> None:
+    """Output error in JSON format."""
+    try:
+        error_output = format_json_output(
+            success=False,
+            command=command,
+            errors=[cli_error.message],
+            data={
+                "error_code": cli_error.code.value,
+                "error_type": type(error).__name__,
+                "exit_code": cli_error.exit_code,
+                "context": error_context,
+            },
+        )
+        sys.stdout.buffer.write(error_output)
+        sys.stdout.buffer.write(b"\n")
+        sys.stdout.buffer.flush()
+    except (OSError, UnicodeEncodeError, BrokenPipeError, TypeError) as output_error:
+        _handle_json_output_error(output_error, command, cli_error, error_context)
+
+
+def _write_json_error(
+    error_msg: str,
+    command: str,
+    error_code: str,
+    error_type: str | None = None,
+) -> None:
+    """Write JSON-formatted error to stdout.
+
+    Args:
+        error_msg: Error message to display
+        command: CLI command that failed
+        error_code: Error code string
+        error_type: Optional error type name
+    """
+    error_output = format_json_output(
+        success=False,
+        command=command,
+        errors=[error_msg],
+        data={
+            "error_code": error_code,
+            "error_type": error_type or "Exception",
+        },
+    )
+    sys.stdout.buffer.write(error_output)
+    sys.stdout.buffer.write(b"\n")
+    sys.stdout.buffer.flush()
+
+
+def _handle_json_output_error(
+    output_error: Exception,
+    command: str,
+    cli_error: CliError,
+    error_context: dict[str, Any],
+) -> None:
+    """Handle JSON output error with fallback to stderr."""
+    cli_output_error = create_cli_output_error(
+        message=f"Failed to format JSON output: {output_error}",
+        command=command,
+        output_type="json",
+        original_error=output_error,
+    )
+    logger.exception(
+        "JSON output error: %s",
+        cli_output_error.message,
+        extra={"context": error_context},
+    )
+    sys.stderr.write(f"Error: {cli_error.message}\n")
+    sys.stderr.write(f"JSON output failed: {cli_output_error.message}\n")
 
 
 def handle_specific_exceptions(
     error: Exception,
     command: str,
+    *,
     json_output: bool = False,
 ) -> int:
     """Handle specific exception types with appropriate CLI error responses.
@@ -207,18 +299,12 @@ def handle_specific_exceptions(
             logger.error("Infrastructure error in %s: %s", command, error.message)
 
         if json_output:
-            error_output = format_json_output(
-                success=False,
+            _write_json_error(
+                error_msg=error.message,
                 command=command,
-                errors=[error.message],
-                data={
-                    "error_code": error.code.value,
-                    "error_type": type(error).__name__,
-                },
+                error_code=error.code.value,
+                error_type=type(error).__name__,
             )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
         else:
             sys.stderr.write(f"Error: {error.message}\n")
 
@@ -228,15 +314,11 @@ def handle_specific_exceptions(
     if isinstance(error, FileNotFoundError):
         error_msg = f"File not found: {error}"
         if json_output:
-            error_output = format_json_output(
-                success=False,
+            _write_json_error(
+                error_msg=error_msg,
                 command=command,
-                errors=[error_msg],
-                data={"error_code": ErrorCode.FILE_NOT_FOUND.value},
+                error_code=ErrorCode.FILE_NOT_FOUND.value,
             )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
         else:
             sys.stderr.write(f"Error: {error_msg}\n")
         return CLIDefaults.EXIT_ERROR
@@ -244,15 +326,11 @@ def handle_specific_exceptions(
     if isinstance(error, PermissionError):
         error_msg = f"Permission denied: {error}"
         if json_output:
-            error_output = format_json_output(
-                success=False,
+            _write_json_error(
+                error_msg=error_msg,
                 command=command,
-                errors=[error_msg],
-                data={"error_code": ErrorCode.PERMISSION_DENIED.value},
+                error_code=ErrorCode.PERMISSION_DENIED.value,
             )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
         else:
             sys.stderr.write(f"Error: {error_msg}\n")
         return CLIDefaults.EXIT_ERROR
@@ -260,21 +338,17 @@ def handle_specific_exceptions(
     if isinstance(error, (ValueError, KeyError, TypeError, AttributeError)):
         error_msg = f"Data processing error: {error}"
         if json_output:
-            error_output = format_json_output(
-                success=False,
+            _write_json_error(
+                error_msg=error_msg,
                 command=command,
-                errors=[error_msg],
-                data={"error_code": ErrorCode.DATA_PROCESSING_ERROR.value},
+                error_code=ErrorCode.DATA_PROCESSING_ERROR.value,
             )
-            sys.stdout.buffer.write(error_output)
-            sys.stdout.buffer.write(b"\n")
-            sys.stdout.buffer.flush()
         else:
             sys.stderr.write(f"Error: {error_msg}\n")
         return CLIDefaults.EXIT_ERROR
 
     # Fallback for unexpected errors
-    return handle_cli_error(error, command, json_output)
+    return handle_cli_error(error, command, json_output=json_output)
 
 
 def log_cli_operation_success(

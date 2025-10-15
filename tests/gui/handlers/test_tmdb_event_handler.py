@@ -117,20 +117,28 @@ class TestOnTMDBFileMatched:
 
     def test_on_tmdb_file_matched_updates_state_model(self) -> None:
         """Test that file matched updates state model with status and metadata."""
+        from pathlib import Path
+
+        from anivault.gui.models import FileItem
+        from anivault.shared.metadata_models import FileMetadata
+
+        # Create FileItem with matching path
+        file_item = FileItem(file_path=Path("/path/to/file.mkv"), status="scanned")
+
         state_model = Mock()
+        state_model._scanned_files = [
+            file_item
+        ]  # Real list for iteration (direct access)
+
         handler = TMDBEventHandler(
             status_manager=Mock(),
             state_model=state_model,
             tmdb_controller=Mock(),
         )
 
-        match_result = Mock()
-        match_result.title = "Test Anime"
-        from anivault.shared.metadata_models import FileMetadata
-        
         result = FileMetadata(
-            file_path="/path/to/file.mkv",
-            file_name="file.mkv",
+            file_path=Path("/path/to/file.mkv"),
+            file_type="mkv",
             title="Test Anime",
             tmdb_id=12345,
         )
@@ -142,53 +150,68 @@ class TestOnTMDBFileMatched:
             Path("/path/to/file.mkv"),
             "matched",
         )
-        state_model.set_file_metadata.assert_called_once_with(
-            Path("/path/to/file.mkv"),
-            {"match_result": match_result},
-        )
+
+        # Verify FileItem metadata was updated directly (NO dict!)
+        assert file_item.metadata == result
 
     def test_on_tmdb_file_matched_without_match_result(self) -> None:
         """Test file matched when no match result is available."""
+        from pathlib import Path
+
+        from anivault.gui.models import FileItem
+        from anivault.shared.metadata_models import FileMetadata
+
+        file_item = FileItem(file_path=Path("/path/to/file.mkv"), status="scanned")
+
         state_model = Mock()
+        state_model._scanned_files = [file_item]  # Direct access
+
         handler = TMDBEventHandler(
             status_manager=Mock(),
             state_model=state_model,
             tmdb_controller=Mock(),
         )
 
-        from anivault.shared.metadata_models import FileMetadata
-        
         result = FileMetadata(
-            file_path="/path/to/file.mkv",
-            file_name="file.mkv",
-            title="",
-            tmdb_id=None,  # No match
+            file_path=Path("/path/to/file.mkv"),
+            file_type="mkv",
+            title="Test File",  # title cannot be empty
+            tmdb_id=None,  # No match - this is what matters
         )
 
         handler.on_tmdb_file_matched(result)
 
-        # Verify only status updated, not metadata (status is "unknown" when tmdb_id is None)
+        # Verify only status updated to "unknown" (when tmdb_id is None)
         state_model.update_file_status.assert_called_once_with(
             Path("/path/to/file.mkv"),
             "unknown",
         )
-        state_model.set_file_metadata.assert_called_once()
+
+        # FileItem metadata should still be updated with the result (even without match)
+        assert file_item.metadata == result
 
     def test_on_tmdb_file_matched_with_missing_fields(self) -> None:
         """Test file matched with missing dictionary fields."""
+        from pathlib import Path
+
+        from anivault.gui.models import FileItem
+        from anivault.shared.metadata_models import FileMetadata
+
+        file_item = FileItem(file_path=Path("unknown.mkv"), status="scanned")
+
         state_model = Mock()
+        state_model._scanned_files = [file_item]  # Direct access
+
         handler = TMDBEventHandler(
             status_manager=Mock(),
             state_model=state_model,
             tmdb_controller=Mock(),
         )
 
-        from anivault.shared.metadata_models import FileMetadata
-        
         result = FileMetadata(
-            file_path="",  # Empty path
-            file_name="",
-            title="",
+            file_path=Path("unknown.mkv"),
+            file_type="mkv",
+            title="Unknown",  # Empty title would fail validation
             tmdb_id=None,
         )
 
