@@ -15,7 +15,20 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 # Import and run the GUI application
-from anivault.gui.app import main  # noqa: E402
+try:
+    from anivault.gui.app import main
 
-if __name__ == "__main__":
-    sys.exit(main())
+    if __name__ == "__main__":
+        sys.exit(main())
+except ImportError as e:
+    print(f"GUI import failed: {e}")
+    print("Falling back to CLI mode...")
+    try:
+        from anivault.cli.typer_app import app
+
+        if __name__ == "__main__":
+            app()
+    except ImportError as cli_error:
+        print(f"CLI import also failed: {cli_error}")
+        print("No valid entry point found!")
+        sys.exit(1)

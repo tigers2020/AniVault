@@ -50,6 +50,8 @@ class AniVaultGUI:
             # No need to set deprecated attributes
 
             # Load configuration (validates and caches globally)
+            # Create default config if it doesn't exist
+            self._ensure_config_exists()
             load_settings(self.config_path)
             logger.info("Successfully loaded and validated configuration")
 
@@ -78,6 +80,52 @@ class AniVaultGUI:
         except Exception:
             logger.exception("Failed to initialize GUI application: %s")
             return False
+
+    def _ensure_config_exists(self) -> None:
+        """Ensure config file exists, create default if missing."""
+        try:
+            # Check if config file exists
+            if not self.config_path.exists():
+                logger.info("Config file not found, creating default configuration")
+
+                # Ensure config directory exists
+                self.config_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Create default config file
+                self._create_default_config()
+                logger.info("Default configuration created successfully")
+            else:
+                logger.info("Config file found, using existing configuration")
+
+        except Exception as e:
+            logger.exception("Failed to ensure config exists: %s", e)
+            raise
+
+    def _create_default_config(self) -> None:
+        """Create default configuration file."""
+        import toml
+
+        default_config = {
+            "app": {
+                "name": "AniVault",
+                "version": "0.1.0",
+                "debug": False,
+                "theme": "dark",
+            },
+            "logging": {"level": "INFO", "format": "text"},
+            "tmdb": {"language": "ko-KR", "region": "KR"},
+            "file_processing": {"max_workers": 4, "batch_size": 50},
+            "cache": {
+                "enabled": True,
+                "ttl_seconds": 604800,  # 7 days
+            },
+        }
+
+        # Write config file
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            toml.dump(default_config, f)
+
+        logger.info("Default config file created at: %s", self.config_path)
 
     def run(self) -> int:
         """
