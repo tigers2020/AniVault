@@ -53,6 +53,7 @@ target_folder = ""  # Set your target folder for organized files
 media_type = "anime"
 structure = "season_##/korean_title/original_filename"
 organize_by_resolution = false  # Organize files by resolution (1080p -> normal, 720p -> low_res)
+organize_by_year = false  # Organize files by release year (2013, 2020, etc.)
 auto_scan_on_startup = false
 auto_scan_interval_minutes = 0
 include_subdirectories = true

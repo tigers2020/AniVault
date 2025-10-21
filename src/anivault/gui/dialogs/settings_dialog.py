@@ -198,6 +198,13 @@ class SettingsDialog(QDialog):
         self.organize_by_resolution_checkbox.setChecked(False)
         target_layout.addRow(self.organize_by_resolution_checkbox)
 
+        # Year-based organization
+        self.organize_by_year_checkbox = QCheckBox(
+            "Organize by release year (2013, 2020, etc.)",
+        )
+        self.organize_by_year_checkbox.setChecked(False)
+        target_layout.addRow(self.organize_by_year_checkbox)
+
         # Auto Scan Group
         auto_scan_group = QGroupBox("Auto Scan Settings")
         auto_scan_layout = QFormLayout(auto_scan_group)
@@ -246,6 +253,9 @@ class SettingsDialog(QDialog):
                 self.target_folder_input.setText(folders.target_folder)
                 self.organize_by_resolution_checkbox.setChecked(
                     folders.organize_by_resolution,
+                )
+                self.organize_by_year_checkbox.setChecked(
+                    folders.organize_by_year,
                 )
                 self.auto_scan_startup_checkbox.setChecked(folders.auto_scan_on_startup)
                 self.auto_scan_interval_spinbox.setValue(
@@ -440,6 +450,7 @@ class SettingsDialog(QDialog):
             source_folder = self.source_folder_input.text().strip()
             target_folder = self.target_folder_input.text().strip()
             organize_by_resolution = self.organize_by_resolution_checkbox.isChecked()
+            organize_by_year = self.organize_by_year_checkbox.isChecked()
             auto_scan_startup = self.auto_scan_startup_checkbox.isChecked()
             auto_scan_interval = self.auto_scan_interval_spinbox.value()
             include_subdirs = self.include_subdirs_checkbox.isChecked()
@@ -449,6 +460,7 @@ class SettingsDialog(QDialog):
                 source_folder=source_folder,
                 target_folder=target_folder,
                 organize_by_resolution=organize_by_resolution,
+                organize_by_year=organize_by_year,
                 auto_scan_on_startup=auto_scan_startup,
                 auto_scan_interval_minutes=auto_scan_interval,
                 include_subdirectories=include_subdirs,
@@ -482,13 +494,11 @@ class SettingsDialog(QDialog):
         Get current folder settings.
 
         Returns:
-            Dictionary with folder settings
+            dict: Folder settings dictionary
         """
         return {
             "source_folder": self.source_folder_input.text().strip(),
-            "target_folder": self.target_folder_input.text().strip(),
+            "destination_folder": self.target_folder_input.text().strip(),
             "organize_by_resolution": self.organize_by_resolution_checkbox.isChecked(),
-            "auto_scan_on_startup": self.auto_scan_startup_checkbox.isChecked(),
-            "auto_scan_interval_minutes": self.auto_scan_interval_spinbox.value(),
-            "include_subdirectories": self.include_subdirs_checkbox.isChecked(),
+            "organize_by_year": self.organize_by_year_checkbox.isChecked(),
         }

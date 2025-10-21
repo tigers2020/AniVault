@@ -18,8 +18,12 @@ try:
     from .metadata_enricher.models import EnrichedMetadata
 
     _HAS_ENRICHER = True
-except ImportError:
+except ImportError as e:
     _HAS_ENRICHER = False
+    # Log the import error for debugging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Could not import MetadataEnricher: {e}")
 
 __all__ = [
     "RateLimitState",

@@ -7,8 +7,6 @@ import pytest
 
 from anivault.cli.common.models import RollbackOptions
 from anivault.cli.rollback_handler import (
-    _collect_rollback_data,
-    _validate_rollback_plan_for_json,
     handle_rollback_command,
 )
 

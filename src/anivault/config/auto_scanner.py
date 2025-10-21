@@ -200,6 +200,7 @@ class AutoScanner:
         source_folder: str = "",
         target_folder: str = "",
         organize_by_resolution: bool = False,
+        organize_by_year: bool = False,
         auto_scan_on_startup: bool = False,
         auto_scan_interval_minutes: int = 0,
         include_subdirectories: bool = True,
@@ -210,6 +211,7 @@ class AutoScanner:
             source_folder: Source folder path
             target_folder: Target folder path
             organize_by_resolution: Organize files by resolution
+            organize_by_year: Organize files by release year
             auto_scan_on_startup: Enable auto scan on startup
             auto_scan_interval_minutes: Auto scan interval in minutes
             include_subdirectories: Include subdirectories when scanning
@@ -228,6 +230,7 @@ class AutoScanner:
                 cfg.folders.source_folder = source_folder
                 cfg.folders.target_folder = target_folder
                 cfg.folders.organize_by_resolution = organize_by_resolution
+                cfg.folders.organize_by_year = organize_by_year
                 cfg.folders.auto_scan_on_startup = auto_scan_on_startup
                 cfg.folders.auto_scan_interval_minutes = auto_scan_interval_minutes
                 cfg.folders.include_subdirectories = include_subdirectories

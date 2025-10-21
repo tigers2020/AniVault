@@ -101,6 +101,11 @@ class FileOrganizer:
                 if self.settings.folders
                 else False
             )
+            organize_by_year = (
+                self.settings.folders.organize_by_year
+                if self.settings.folders
+                else False
+            )
 
             path_context = PathContext(
                 scanned_file=scanned_file,
@@ -108,6 +113,7 @@ class FileOrganizer:
                 target_folder=target_folder,
                 media_type=media_type,
                 organize_by_resolution=organize_by_resolution,
+                organize_by_year=organize_by_year,
             )
             destination_path = self._path_builder.build_path(path_context)
 

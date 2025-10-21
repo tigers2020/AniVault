@@ -16,12 +16,17 @@ if TYPE_CHECKING:
 from anivault.cli.progress import create_progress_manager
 from anivault.core.pipeline.main import run_pipeline
 from anivault.services import (
-    MetadataEnricher,
     RateLimitStateMachine,
     SemaphoreManager,
     TMDBClient,
     TokenBucketRateLimiter,
 )
+
+# Import MetadataEnricher conditionally to avoid import errors
+try:
+    from anivault.services import MetadataEnricher
+except ImportError:
+    MetadataEnricher = None
 from anivault.shared.constants import CLIDefaults, QueueConfig
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.metadata_models import FileMetadata
