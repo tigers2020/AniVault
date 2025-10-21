@@ -16,18 +16,14 @@ if TYPE_CHECKING:
 from anivault.cli.progress import create_progress_manager
 from anivault.core.pipeline.main import run_pipeline
 from anivault.services import (
+    MetadataEnricher,
     RateLimitStateMachine,
     SemaphoreManager,
     TMDBClient,
     TokenBucketRateLimiter,
 )
-
-# Import MetadataEnricher conditionally to avoid import errors
-try:
-    from anivault.services import MetadataEnricher
-except ImportError:
-    MetadataEnricher = None
 from anivault.shared.constants import CLIDefaults, QueueConfig
+from anivault.shared.constants.scan_fields import ScanFields, ScanMessages, ScanColors
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.metadata_models import FileMetadata
 
@@ -63,19 +59,19 @@ def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
         True
     """
     return {
-        "title": metadata.title,
-        "file_path": str(metadata.file_path),
-        "file_name": metadata.file_name,
-        "file_type": metadata.file_type,
-        "year": metadata.year,
-        "season": metadata.season,
-        "episode": metadata.episode,
-        "genres": metadata.genres,
-        "overview": metadata.overview,
-        "poster_path": metadata.poster_path,
-        "vote_average": metadata.vote_average,
-        "tmdb_id": metadata.tmdb_id,
-        "media_type": metadata.media_type,
+        ScanFields.TITLE: metadata.title,
+        ScanFields.FILE_PATH: str(metadata.file_path),
+        ScanFields.FILE_NAME: metadata.file_name,
+        ScanFields.FILE_TYPE: metadata.file_type,
+        ScanFields.YEAR: metadata.year,
+        ScanFields.SEASON: metadata.season,
+        ScanFields.EPISODE: metadata.episode,
+        ScanFields.GENRES: metadata.genres,
+        ScanFields.OVERVIEW: metadata.overview,
+        ScanFields.POSTER_PATH: metadata.poster_path,
+        ScanFields.VOTE_AVERAGE: metadata.vote_average,
+        ScanFields.TMDB_ID: metadata.tmdb_id,
+        ScanFields.MEDIA_TYPE: metadata.media_type,
     }
 
 
@@ -116,7 +112,7 @@ def run_scan_pipeline(
 
         console.print(
             CLIFormatting.format_colored_message(
-                "✅ File scanning completed!",
+                ScanMessages.SCAN_COMPLETED,
                 "success",
             )
         )
@@ -352,18 +348,18 @@ def display_scan_results(
     from anivault.shared.constants.cli import CLIMessages
 
     if not results:
-        console.print("[yellow]No files found.[/yellow]")
+        console.print(f"[{ScanColors.YELLOW}]No files found.[/{ScanColors.YELLOW}]")
         return
 
     # Create results table
     table = Table(title="Anime File Scan Results")
     table.add_column("File", style="cyan", no_wrap=True)
     table.add_column("Title", style="green")
-    table.add_column("Episode", style="blue")
+    table.add_column("Episode", style=ScanColors.BLUE)
     table.add_column("Quality", style="magenta")
 
     if show_tmdb:
-        table.add_column("TMDB Match", style="yellow")
+        table.add_column("TMDB Match", style=ScanColors.YELLOW)
         table.add_column("TMDB Rating", style="red")
         table.add_column("Status", style="green")
 
@@ -387,8 +383,8 @@ def display_scan_results(
             # TMDB info
             tmdb_data = enriched_metadata.tmdb_data
             if tmdb_data:
-                tmdb_title = tmdb_data.get("title") or tmdb_data.get("name", "Unknown")
-                rating = tmdb_data.get("vote_average", "N/A")
+                tmdb_title = tmdb_data.get("title") or tmdb_data.get(ScanMessages.NAME_FIELD, "Unknown")
+                rating = tmdb_data.get(ScanMessages.VOTE_AVERAGE_FIELD, "N/A")
                 if isinstance(rating, (int, float)):
                     rating = f"{rating:.1f}"
             else:

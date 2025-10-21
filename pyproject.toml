@@ -1,6 +1,6 @@
 [project]
 name = "anivault"
-version = "0.2.0"
+version = "0.1.0"
 description = "AniVault CLI - Anime file organization tool with TMDB integration"
 requires-python = ">=3.9"
 authors = [
@@ -85,8 +85,6 @@ ignore = [
     "EM101",  # Exception must not use a string literal
     "TCH001",  # Move application import into type-checking block (deprecated)
     "TCH003",  # Move standard library import into type-checking block (deprecated)
-    "TC001",  # Move application import into type-checking block
-    "TC003",  # Move standard library import into type-checking block
     "RET504",  # Unnecessary assignment before return
     "INP001",  # Implicit namespace package (for scripts/)
     "PLR2004",  # Magic value used in comparison

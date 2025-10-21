@@ -11,6 +11,7 @@ from .state_machine import RateLimitState, RateLimitStateMachine
 
 # Direct imports (no circular dependency)
 from .tmdb_client import TMDBClient
+from anivault.shared.constants.service_exports import ServiceExports
 
 # Import these conditionally to avoid circular dependencies
 try:
@@ -18,24 +19,20 @@ try:
     from .metadata_enricher.models import EnrichedMetadata
 
     _HAS_ENRICHER = True
-except ImportError as e:
+except ImportError:
     _HAS_ENRICHER = False
-    # Log the import error for debugging
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.debug(f"Could not import MetadataEnricher: {e}")
 
 __all__ = [
-    "RateLimitState",
-    "RateLimitStateMachine",
-    "SQLiteCacheDB",
-    "SemaphoreManager",
-    "TMDBClient",
-    "TokenBucketRateLimiter",
+    ServiceExports.RATE_LIMIT_STATE,
+    ServiceExports.RATE_LIMIT_STATE_MACHINE,
+    ServiceExports.SQLITE_CACHE_DB,
+    ServiceExports.SEMAPHORE_MANAGER,
+    ServiceExports.TMDB_CLIENT,
+    ServiceExports.TOKEN_BUCKET_RATE_LIMITER,
 ]
 
 if _HAS_ENRICHER:
     __all__ += [
-        "EnrichedMetadata",
-        "MetadataEnricher",
+        ServiceExports.ENRICHED_METADATA,
+        ServiceExports.METADATA_ENRICHER,
     ]
