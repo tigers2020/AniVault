@@ -383,7 +383,9 @@ def display_scan_results(
             # TMDB info
             tmdb_data = enriched_metadata.tmdb_data
             if tmdb_data:
-                tmdb_title = tmdb_data.get("title") or tmdb_data.get(ScanMessages.NAME_FIELD, "Unknown")
+                tmdb_title = tmdb_data.get("title") or tmdb_data.get(
+                    ScanMessages.NAME_FIELD, "Unknown"
+                )
                 rating = tmdb_data.get(ScanMessages.VOTE_AVERAGE_FIELD, "N/A")
                 if isinstance(rating, (int, float)):
                     rating = f"{rating:.1f}"

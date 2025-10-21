@@ -1,5 +1,6 @@
 """Service module export constants."""
 
+
 class ServiceExports:
     """Constants for service module exports."""
 
@@ -9,7 +10,7 @@ class ServiceExports:
     SQLITE_CACHE_DB = "SQLiteCacheDB"
     SEMAPHORE_MANAGER = "SemaphoreManager"
     TMDB_CLIENT = "TMDBClient"
-    TOKEN_BUCKET_RATE_LIMITER = "TokenBucketRateLimiter"
+    TOKEN_BUCKET_RATE_LIMITER = "TokenBucketRateLimiter"  # noqa: S105
 
     # Enricher services (conditional)
     ENRICHED_METADATA = "EnrichedMetadata"

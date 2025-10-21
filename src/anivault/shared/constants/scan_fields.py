@@ -1,5 +1,6 @@
 """Scan field constants for type safety and consistency."""
 
+
 # Metadata field names
 class ScanFields:
     """Constants for scan metadata field names."""

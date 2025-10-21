@@ -23,16 +23,16 @@ except ImportError:
     _HAS_ENRICHER = False
 
 __all__ = [
-    ServiceExports.RATE_LIMIT_STATE,
-    ServiceExports.RATE_LIMIT_STATE_MACHINE,
-    ServiceExports.SQLITE_CACHE_DB,
-    ServiceExports.SEMAPHORE_MANAGER,
-    ServiceExports.TMDB_CLIENT,
-    ServiceExports.TOKEN_BUCKET_RATE_LIMITER,
+    "RateLimitState",
+    "RateLimitStateMachine", 
+    "SQLiteCacheDB",
+    "SemaphoreManager",
+    "TMDBClient",
+    "TokenBucketRateLimiter",
 ]
 
 if _HAS_ENRICHER:
     __all__ += [
-        ServiceExports.ENRICHED_METADATA,
-        ServiceExports.METADATA_ENRICHER,
+        "EnrichedMetadata",
+        "MetadataEnricher",
     ]
