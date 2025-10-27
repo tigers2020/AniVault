@@ -161,7 +161,8 @@ dmypy.json
 # AniVault Project Specific
 # ===========================================
 
-# Test files and directories
+# Test files and directories - ALL TESTS IGNORED
+tests/
 test_anime_files/
 test_cache/
 test_data/
@@ -180,9 +181,6 @@ test_*.wmv
 test_*.flv
 test_*.webm
 test_*.m4v
-
-# Test fixtures and data
-tests/fixtures/
 
 # AniVault specific cache and data directories
 .anivault/

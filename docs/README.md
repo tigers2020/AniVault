@@ -136,43 +136,16 @@ from anivault.core.organizer.optimized_file_organizer import OptimizedFileOrgani
 organizer = OptimizedFileOrganizer(log_manager, settings)
 ```
 
-## 테스트
-
-### 단위 테스트 실행
-```bash
-# LinkedHashTable 테스트
-python -m pytest tests/test_linked_hash_table.py -v
-
-# OptimizedFileOrganizer 테스트
-python -m pytest tests/test_optimized_file_organizer.py -v
-
-# 통합 테스트
-python -m pytest tests/test_integration_scenarios.py -v
-
-# 에러 핸들링 테스트
-python -m pytest tests/test_error_handling_robustness.py -v
-```
-
-### 테스트 커버리지
-```bash
-# 전체 커버리지 확인
-python -m pytest --cov=src/anivault/core/data_structures/linked_hash_table --cov=src/anivault/core/organizer/optimized_file_organizer --cov-report=html
-```
-
 ## 기여하기
 
 ### 코드 품질
 - **Ruff**: 코드 스타일 및 import 정리
 - **Mypy**: 타입 체크
-- **Pytest**: 단위 테스트 및 커버리지
 
 ### 개발 워크플로우
 1. 기능 개발
-2. 단위 테스트 작성
-3. 통합 테스트 실행
-4. 코드 품질 검사 (Ruff, Mypy)
-5. 커버리지 확인
-6. 문서 업데이트
+2. 코드 품질 검사 (Ruff, Mypy)
+3. 문서 업데이트
 
 ## 라이선스
 
