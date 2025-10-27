@@ -1,0 +1,82 @@
+# AniVault Configuration Template
+# Copy this file to config.toml and customize your settings
+
+[app]
+name = "AniVault"
+version = "0.1.0"
+description = "Anime Collection Management System"
+debug = false
+theme = "dark"
+
+[logging]
+level = "INFO"
+format_string = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+file = "logs/anivault.log"
+max_bytes = 10485760
+backup_count = 5
+console_output = true
+
+[tmdb]
+# Note: base_url is managed by tmdbv3api library internally
+# ⚠️ SECURITY: NEVER set api_key here! Use environment variable TMDB_API_KEY instead
+# Get your API key from: https://www.themoviedb.org/settings/api
+api_key = ""
+timeout = 30
+retry_attempts = 3
+retry_delay = 1.0
+rate_limit_delay = 0.25
+rate_limit_rps = 35.0
+concurrent_requests = 4
+
+[file_processing]
+batch_size = 100
+max_workers = 4
+timeout = 300
+enable_parallel_scanning = true
+parallel_threshold = 1000
+
+[cache]
+enabled = true
+ttl = 3600
+max_size = 1000
+backend = "memory"
+
+[performance]
+memory_limit = "2GB"
+cpu_limit = 4
+enable_profiling = false
+profile_output = "logs/profiling.json"
+
+[folders]
+source_folder = ""  # Set your anime source folder path
+target_folder = ""  # Set your target folder for organized files
+media_type = "anime"
+structure = "season_##/korean_title/original_filename"
+organize_by_resolution = false  # Organize files by resolution (1080p -> normal, 720p -> low_res)
+organize_by_year = false  # Organize files by release year (2013, 2020, etc.)
+auto_scan_on_startup = false
+auto_scan_interval_minutes = 0
+include_subdirectories = true
+
+[file_processing.filter_config]
+allowed_extensions = [
+    # Video formats
+    ".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v",
+    ".m2ts", ".ts", ".mts", ".m2v", ".m1v", ".mpg", ".mpeg", ".mpe",
+    # Subtitle formats
+    ".srt", ".ass", ".ssa", ".sub", ".idx", ".vtt", ".smi", ".sami",
+    ".mks", ".sup", ".pgs", ".dvb"
+]
+min_file_size_mb = 50
+excluded_filename_patterns = [
+    "*sample*", "*trailer*", "*preview*", "*teaser*",
+    "*demo*", "*test*", "*temp*", "*tmp*"
+]
+excluded_dir_patterns = [
+    ".git", ".svn", ".hg", "$RECYCLE.BIN",
+    "System Volume Information", "Thumbs.db",
+    "__pycache__", ".pytest_cache", "node_modules",
+    ".vscode", ".idea", ".DS_Store", "lost+found"
+]
+skip_hidden_files = true
+skip_system_files = true

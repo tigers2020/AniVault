@@ -1,0 +1,243 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  code-quality:
+    name: Code Quality Validation
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, '3.10', '3.11']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better analysis
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Install pre-commit
+      run: |
+        pip install pre-commit
+        pre-commit install
+
+    - name: Run pre-commit hooks
+      run: |
+        pre-commit run --all-files --show-diff-on-failure
+
+    - name: Lint with ruff
+      run: |
+        python -m ruff check src/ tests/
+        python -m ruff format --check src/ tests/
+
+    - name: Run magic values validation
+      run: |
+        python scripts/validate_magic_values.py src/
+      continue-on-error: true
+
+    - name: Run function length validation
+      run: |
+        python scripts/validate_function_length.py src/
+      continue-on-error: true
+
+    - name: Run error handling validation
+      run: |
+        python scripts/validate_error_handling.py src/
+      continue-on-error: true
+
+    - name: Run comprehensive code quality validation
+      run: |
+        python scripts/validate_code_quality.py --format json --output code-quality-report.json src/
+      continue-on-error: false
+
+    - name: Upload code quality report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: code-quality-report-${{ matrix.python-version }}
+        path: code-quality-report.json
+        retention-days: 30
+
+    - name: Comment PR with code quality results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+
+          try {
+            const reportPath = 'code-quality-report.json';
+            if (fs.existsSync(reportPath)) {
+              const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+
+              let comment = '## 🔍 Code Quality Report\n\n';
+              comment += `**Overall Status:** ${report.summary.overall_status.toUpperCase()}\n`;
+              comment += `**Files Analyzed:** ${report.summary.total_files_analyzed}\n`;
+              comment += `**Total Violations:** ${report.summary.total_violations}\n\n`;
+
+              // Add validation results
+              comment += '### Validation Results\n\n';
+              for (const [validation, result] of Object.entries(report.validations)) {
+                const status = result.status === 'passed' ? '✅' : '❌';
+                comment += `- ${status} **${validation.replace('_', ' ').toUpperCase()}**: ${result.status}\n`;
+              }
+
+              // Add recommendations
+              if (report.summary.overall_status !== 'passed') {
+                comment += '\n### 💡 Recommendations\n\n';
+                comment += '- Replace hardcoded strings/numbers with constants\n';
+                comment += '- Break down long functions into smaller units\n';
+                comment += '- Reduce function complexity\n';
+                comment += '- Improve error handling patterns\n';
+                comment += '- Use structured logging instead of print\n';
+                comment += '- Add proper error context and user-friendly messages\n';
+              }
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+          } catch (error) {
+            console.log('Could not create PR comment:', error);
+          }
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r src/ -f json -o bandit-report.json
+      continue-on-error: true
+
+    - name: Run Safety check
+      run: |
+        safety check --json --output safety-report.json
+      continue-on-error: true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+        retention-days: 30
+
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install pytest-cov
+
+    - name: Run tests with coverage
+      run: |
+        pytest -q --cov=src --cov-report=xml --cov-report=html --cov-report=term
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-reports
+        path: |
+          coverage.xml
+          htmlcov/
+        retention-days: 30
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-audit
+
+    - name: Run pip-audit
+      run: |
+        pip-audit --format=json --output=pip-audit-report.json
+      continue-on-error: true
+
+    - name: Upload dependency report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: dependency-report
+        path: pip-audit-report.json
+        retention-days: 30

@@ -1,0 +1,746 @@
+/* AniVault Light Theme QSS */
+
+/* Import common styles */
+@import url("common.qss");
+
+/* =============================================================================
+   LIGHT THEME STYLES
+   ============================================================================= */
+
+/* =============================================================================
+   MAIN WINDOW
+   ============================================================================= */
+
+QMainWindow {
+    background-color: #ffffff;
+    color: #0f172a;
+}
+
+/* =============================================================================
+   DOCK WIDGETS
+   ============================================================================= */
+
+/* Light theme — dock widget colors */
+QDockWidget {
+    background-color: #ffffff;
+    border-color: #e2e8f0;
+}
+
+QDockWidget::title {
+    background-color: #ffffff;
+    color: #0f172a;
+    border-bottom-color: #e2e8f0;
+}
+
+QDockWidget::close-button:hover,
+QDockWidget::float-button:hover {
+    background-color: #f1f5f9;
+}
+
+/* =============================================================================
+   MENU BAR
+   ============================================================================= */
+
+/* Light theme — menu bar colors */
+QMenuBar {
+    background: #F6F6F6;
+    color: #1A1A1A;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+QMenuBar::item {
+    color: #1A1A1A;
+}
+
+QMenuBar::item:selected {
+    background-color: #f1f5f9;
+}
+
+QMenuBar::item:pressed {
+    background-color: #e2e8f0;
+}
+
+/* =============================================================================
+   MENUS
+   ============================================================================= */
+
+QMenu {
+    background-color: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+QMenu::item {
+    background-color: transparent;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 1px;
+}
+
+QMenu::item:selected {
+    background-color: #f1f5f9;
+}
+
+QMenu::item:checked {
+    background-color: #2563eb;
+    color: #0f172a;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #e2e8f0;
+    margin: 8px 12px;
+}
+
+/* =============================================================================
+   TOOLBAR
+   ============================================================================= */
+
+/* Light theme — toolbar colors */
+QToolBar {
+    background: #F6F6F6;
+    color: #1A1A1A;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+QToolBar::handle {
+    background-color: #e2e8f0;
+}
+
+QToolBar QToolButton {
+    color: #1A1A1A;
+    border-color: #e2e8f0;
+}
+
+QToolBar QToolButton:hover {
+    background: #EDEDED;
+    border-color: #cbd5e1;
+    color: #1A1A1A;
+}
+
+QToolBar QToolButton:pressed {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #1A1A1A;
+}
+
+QToolBar QAction {
+    color: #1A1A1A;
+    border-color: #e2e8f0;
+}
+
+QToolBar QAction:hover {
+    background-color: #EDEDED;
+    border-color: #cbd5e1;
+    color: #1A1A1A;
+}
+
+QToolBar QAction:pressed {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+    color: #1A1A1A;
+}
+
+/* Specific styling for Open Folder action - force visibility */
+QAction#openFolderAction {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border: 2px solid #1e40af !important;
+    border-radius: 6px !important;
+    padding: 10px 20px !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    min-width: 120px !important;
+    min-height: 30px !important;
+}
+
+QAction#openFolderAction:hover {
+    background-color: #1d4ed8 !important;
+    border-color: #1e40af !important;
+    color: #ffffff !important;
+}
+
+QAction#openFolderAction:pressed {
+    background-color: #1e40af !important;
+    border-color: #1d4ed8 !important;
+    color: #ffffff !important;
+}
+
+/* Force toolbar button visibility */
+QToolBar QAction#openFolderAction {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border: 2px solid #1e40af !important;
+    border-radius: 6px !important;
+    padding: 10px 20px !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    min-width: 120px !important;
+    min-height: 30px !important;
+}
+
+QToolBar::handle {
+    background-color: #e2e8f0;
+    width: 1px;
+    margin: 8px 0;
+}
+
+/* =============================================================================
+   BUTTONS
+   ============================================================================= */
+
+/* Light theme — button colors */
+QPushButton {
+    background-color: #ffffff;
+    color: #0f172a;
+    border-color: #e2e8f0;
+}
+
+QPushButton:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+QPushButton:pressed {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+QPushButton:disabled {
+    background-color: #ffffff;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+
+/* Primary Button */
+QPushButton#primaryButton {
+    background-color: #2563eb;
+    color: #0f172a;
+    border-color: #2563eb;
+}
+
+QPushButton#primaryButton:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+QPushButton#primaryButton:pressed {
+    background-color: #1e40af;
+    border-color: #1e40af;
+}
+
+/* =============================================================================
+   LISTS
+   ============================================================================= */
+
+/* Light theme — list widget colors */
+QListWidget {
+    background-color: #ffffff;
+    color: #0f172a;
+    border-color: #e2e8f0;
+}
+
+QListWidget::item {
+    background-color: transparent;
+    color: #0f172a;
+    padding: 8px;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 4px;
+    margin: 1px;
+}
+
+QListWidget::item:selected {
+    background-color: #2563eb;
+    color: #0f172a;
+}
+
+QListWidget::item:hover {
+    background-color: #f1f5f9;
+}
+
+QListWidget::item:selected:hover {
+    background-color: #1d4ed8;
+}
+
+/* =============================================================================
+   TREE VIEWS
+   ============================================================================= */
+
+QTreeView {
+    background-color: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    outline: none;
+    selection-background-color: #2563eb;
+}
+
+QTreeView::item {
+    background-color: transparent;
+    color: #0f172a;
+    padding: 4px;
+    border: none;
+}
+
+QTreeView::item:selected {
+    background-color: #2563eb;
+    color: #0f172a;
+}
+
+QTreeView::item:hover {
+    background-color: #f1f5f9;
+}
+
+QTreeView::item:selected:hover {
+    background-color: #1d4ed8;
+}
+
+QTreeView::branch {
+    background-color: transparent;
+}
+
+QTreeView::branch:has-children:!has-siblings:closed,
+QTreeView::branch:closed:has-children:has-siblings {
+    border-image: none;
+    image: none;
+}
+
+QTreeView::branch:has-children:!has-siblings:open,
+QTreeView::branch:open:has-children:has-siblings {
+    border-image: none;
+    image: none;
+}
+
+/* =============================================================================
+   TEXT EDITORS
+   ============================================================================= */
+
+QTextEdit {
+    background-color: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+}
+
+QTextEdit:focus {
+    border-color: #2563eb;
+}
+
+/* Log Output Specific */
+QTextEdit#logOutput {
+    background-color: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* =============================================================================
+   SCROLL AREAS
+   ============================================================================= */
+
+QScrollArea {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}
+
+/* =============================================================================
+   SCROLLBARS
+   ============================================================================= */
+
+QScrollBar:vertical {
+    background-color: #ffffff;
+    width: 12px;
+    border-radius: 6px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #e2e8f0;
+    border-radius: 6px;
+    min-height: 20px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #cbd5e1;
+}
+
+QScrollBar::handle:vertical:pressed {
+    background-color: #94a3b8;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background-color: #ffffff;
+    height: 12px;
+    border-radius: 6px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #e2e8f0;
+    border-radius: 6px;
+    min-width: 20px;
+    margin: 2px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #cbd5e1;
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background-color: #94a3b8;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* =============================================================================
+   SPLITTERS
+   ============================================================================= */
+
+QSplitter {
+    background-color: #ffffff;
+}
+
+QSplitter::handle {
+    background-color: #e2e8f0;
+    width: 1px;
+    height: 1px;
+}
+
+QSplitter::handle:horizontal {
+    width: 1px;
+}
+
+QSplitter::handle:vertical {
+    height: 1px;
+}
+
+QSplitter::handle:hover {
+    background-color: #cbd5e1;
+}
+
+/* =============================================================================
+   STATUS BAR
+   ============================================================================= */
+
+/* Light theme — status bar colors */
+QStatusBar {
+    background: #F6F6F6;
+    color: #1A1A1A;
+    border-top: 1px solid #e2e8f0;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+/* =============================================================================
+   CUSTOM WIDGETS
+   ============================================================================= */
+
+/* Group Details Label */
+QLabel#groupDetailsLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #0f172a;
+    margin: 10px;
+    background-color: transparent;
+}
+
+/* Group Card Widget - Light Theme Colors */
+GroupCardWidget {
+    background-color: #ffffff;
+    border: none;
+}
+
+GroupCardWidget:hover {
+    background-color: #f8fafc;
+    border: 1px solid #3b82f6;
+}
+
+GroupCardWidget:selected {
+    background-color: #dbeafe;
+    border: 2px solid #3b82f6;
+}
+
+/* Group Card Widget Labels */
+GroupCardWidget QLabel {
+    background-color: transparent;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Group Title Label */
+GroupCardWidget QLabel#groupTitleLabel {
+    font-weight: bold;
+    font-size: 12px;
+    color: #0f172a;
+}
+
+/* Group Count Label */
+GroupCardWidget QLabel#groupCountLabel {
+    font-size: 10px;
+    color: #64748b;
+}
+
+/* Anime Info Label */
+GroupCardWidget QLabel#animeInfoLabel {
+    font-size: 11px;
+    color: #1e293b;
+    font-weight: 600;
+}
+
+/* Anime Rating Label */
+GroupCardWidget QLabel#animeRatingLabel {
+    font-size: 10px;
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+/* Anime Genre Label */
+GroupCardWidget QLabel#animeGenreLabel {
+    font-size: 9px;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Group File Label (deprecated but kept for compatibility) */
+GroupCardWidget QLabel#groupFileLabel {
+    font-size: 9px;
+    color: #64748b;
+}
+
+/* Group More Label (deprecated but kept for compatibility) */
+GroupCardWidget QLabel#groupMoreLabel {
+    font-size: 9px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+GroupCardWidget:selected QLabel {
+    color: #0f172a;
+}
+
+GroupCardWidget:selected QLabel#groupTitleLabel,
+GroupCardWidget:selected QLabel#groupCountLabel,
+GroupCardWidget:selected QLabel#groupFileLabel,
+GroupCardWidget:selected QLabel#groupMoreLabel {
+    color: #0f172a;
+}
+
+/* Group Card Widget Buttons */
+GroupCardWidget QPushButton {
+    background-color: transparent;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+GroupCardWidget QPushButton:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+GroupCardWidget:selected QPushButton {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #0f172a;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+GroupCardWidget:selected QPushButton:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* =============================================================================
+   QLISTWIDGET STYLES
+   ============================================================================= */
+
+QListWidget {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background-color: #ffffff;
+    padding: 8px;
+}
+
+QListWidget::item {
+    padding: 8px;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: transparent;
+}
+
+QListWidget::item:hover {
+    background-color: #f1f5f9;
+}
+
+QListWidget::item:selected {
+    background-color: #2563eb;
+    color: #0f172a;
+}
+
+QListWidget::item:selected:hover {
+    background-color: #1d4ed8;
+}
+
+/* =============================================================================
+   FOCUS AND SELECTION
+   ============================================================================= */
+
+*:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
+}
+
+/* Remove focus outline for specific widgets */
+QScrollBar:focus,
+QSplitter:focus {
+    outline: none;
+}
+
+/* =============================================================================
+   PLACEHOLDER STYLES
+   ============================================================================= */
+
+QLabel#animeInfoPlaceholder {
+    color: #64748b;
+    font-style: italic;
+}
+
+QLabel#animeInfoHint {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* =============================================================================
+   PROGRESS DIALOG COLORS
+   ============================================================================= */
+
+QLabel#statusLabel {
+    color: #555555;
+}
+
+QTextEdit#logOutput {
+    background-color: #f5f5f5;
+    border-color: #dddddd;
+}
+
+QPushButton#cancelButton {
+    background-color: #dc3545;
+    color: white;
+}
+
+QPushButton#cancelButton:hover {
+    background-color: #c82333;
+}
+
+QPushButton#cancelButton:disabled {
+    background-color: #cccccc;
+}
+
+QPushButton#closeButton {
+    background-color: #007acc;
+    color: white;
+}
+
+QPushButton#closeButton:hover {
+    background-color: #005a9e;
+}
+
+/* =============================================================================
+   POSTER COLORS
+   ============================================================================= */
+
+QLabel#posterLabel {
+    background-color: #f0f0f0;
+    /* border-color removed - no border in modern design */
+}
+
+QLabel#posterInitial {
+    background-color: #007acc;
+    color: white;
+    /* border-color removed - no border in modern design */
+}
+
+QLabel#posterFolder {
+    background-color: #e0e0e0;
+    /* border-color removed - no border in modern design */
+}
+
+/* =============================================================================
+   INFO LABEL COLORS
+   ============================================================================= */
+
+QLabel#infoLabel {
+    color: #666666;
+}
+
+QLabel#groupDateLabel {
+    color: #888888;
+}
+
+QLabel#groupOverviewLabel {
+    color: #555555;
+}
+
+/* =============================================================================
+   ANIME DETAIL POPUP (HOVER TOOLTIP) - Light Theme Colors
+   ============================================================================= */
+
+QWidget#animeDetailPopup {
+    background-color: #ffffff;
+    border: 2px solid #3b82f6;
+}
+
+QLabel#popupTitleLabel {
+    color: #0f172a;
+}
+
+QLabel#popupRatingLabel {
+    color: #d97706;
+}
+
+QLabel#popupStatusLabel {
+    color: #475569;
+}
+
+QLabel#popupDateLabel {
+    color: #475569;
+}
+
+QLabel#popupGenreLabel {
+    color: #64748b;
+}
+
+QLabel#popupCompanyLabel {
+    color: #64748b;
+}
+
+QLabel#popupOverviewLabel {
+    color: #1e293b;
+}
+
+QLabel#popupPopularityLabel {
+    color: #64748b;
+}

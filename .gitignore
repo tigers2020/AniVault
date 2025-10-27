@@ -1,0 +1,385 @@
+# ===========================================
+# Python Standard Ignores
+# ===========================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Benchmark results (keep baseline only)
+.benchmarks/
+!.benchmarks/.gitkeep
+!.benchmarks/baseline.json
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# Scrapy stuff
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ===========================================
+# Development Tools & IDEs
+# ===========================================
+
+# IDEs and Editors
+.vscode/
+.idea/
+.cursor/
+.serena/
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# GitHub specific (keep workflows, ignore instructions)
+.github/instructions/
+
+# Pre-commit cache
+.pre-commit-cache/
+
+# Linting and formatting caches
+.ruff_cache/
+.bandit_cache/
+
+# ===========================================
+# AniVault Project Specific
+# ===========================================
+
+# Test files and directories
+test_anime_files/
+test_cache/
+test_data/
+test_data_*/
+test_output/
+test_files/
+test_plan.json
+# Ignore test files in root and subdirectories EXCEPT tests/ directory
+/test_*.py
+/test_*.json
+test_*.mkv
+test_*.avi
+test_*.mp4
+test_*.mov
+test_*.wmv
+test_*.flv
+test_*.webm
+test_*.m4v
+
+# Test fixtures and data
+tests/fixtures/
+
+# AniVault specific cache and data directories
+.anivault/
+.benchmarks/
+cache/
+data/
+logs/
+large_test_data/
+
+# Task Master files (keep config but ignore state)
+.taskmaster/
+
+# MCP server configurations (keep template, ignore actual)
+.cursor/mcp.json
+
+# Temporary and debug files (but keep security docs)
+!docs/security/*.md
+!docs/compliance/*.md
+# Note: Don't ignore tests/ - we need to track test files
+debug_*.py
+*_debug.py
+*_test.py
+*_demo.py
+anivault_demo.py
+test_pipeline_debug.py
+test_simple_scan.py
+
+# Benchmark and performance test results
+*_parallel.json
+*_sequential.json
+*_results.json
+*_improved.json
+benchmark_*.json
+enhanced_benchmark.json
+parallel_*.json
+sequential_*.json
+integrated_*.json
+adaptive_*.json
+filenames.txt
+
+# ===========================================
+# Project Reports & Progress Tracking
+# ===========================================
+
+# Progress and completion reports (keep only in PR descriptions)
+*_COMPLETE*.md
+*_PROGRESS*.md
+*_SUMMARY.md
+*_REPORT*.md
+STAGE*.md
+PHASE*.md
+TASK*.md
+PR_*.md
+NEXT_ACTIONS.md
+PROJECT_COMPLETE.md
+REFACTORING*.md
+RISK_*.md
+SPRINT*.md
+ROLLBACK*.md
+
+# Validation and violation reports
+*_violations*.json
+*_validation.json
+function_*.json
+magic_*.json
+error_*.json
+bandit-report.json
+stage*_*.json
+
+# Test directories (use pytest fixtures instead)
+test_dir/
+test_dir_*/
+
+# ===========================================
+# Security & Environment
+# ===========================================
+
+# Environment variables and secrets (consolidated patterns)
+.env
+.env.*
+*.env
+secrets.json
+api_keys.txt
+credentials.json
+
+# Security and audit files
+security-report.json
+audit-results.json
+vulnerability-report.json
+
+# API Keys and Credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Configuration files with secrets
+config/config.toml
+config/*.local.toml
+config/*.secret.toml
+config/config.local.*
+
+# ===========================================
+# Database & Logs
+# ===========================================
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+tmdb_cache.sqlite
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+
+# ===========================================
+# Temporary & Large Files
+# ===========================================
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.rollback_backup
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ===========================================
+# OS Specific
+# ===========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Logs
+logs
+# Dependency directories
+node_modules/
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+# OS specific
+
+# Task files
+# tasks.json
+# tasks/
+
+# Cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+
+# Performance and test results
+*.json
+.coverage
+
+# Data directories
+cache/
+.anivault/
+.benchmarks/

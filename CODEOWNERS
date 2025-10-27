@@ -1,0 +1,26 @@
+# Global owners
+* @tigers2020
+
+# Core functionality
+/src/anivault/core/ @tigers2020
+/src/anivault/cli/ @tigers2020
+/src/anivault/shared/ @tigers2020
+
+# Security and configuration
+/src/anivault/config/ @tigers2020
+/src/anivault/security/ @tigers2020
+/.github/ @tigers2020
+/pyproject.toml @tigers2020
+/requirements*.txt @tigers2020
+
+# GUI components
+/src/anivault/gui/ @tigers2020
+/src/anivault/resources/ @tigers2020
+
+# Documentation
+/README.md @tigers2020
+/docs/ @tigers2020
+/LICENSE @tigers2020
+
+# Tests
+/tests/ @tigers2020

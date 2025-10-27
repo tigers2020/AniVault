@@ -1,0 +1,313 @@
+name: Security CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: '3.9'
+  NODE_VERSION: '18'
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for secrets detection
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install bandit safety detect-secrets pre-commit
+
+    # Static Analysis Security Testing (SAST)
+    - name: Run Bandit Security Scan
+      run: |
+        bandit -r src/ -ll -f json -o bandit-report.json
+        bandit -r src/ -ll -f txt
+
+    - name: Run Safety Check
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+
+    # Secrets Detection
+    - name: Detect Secrets
+      run: |
+        detect-secrets scan --baseline .secrets.baseline || true
+        detect-secrets scan --all-files --force-use-all-plugins
+
+    # Custom Security Checks
+    - name: Run Custom Security Checks
+      run: |
+        python scripts/security_check.py src/
+        python scripts/detect_magic_values.py src/
+        python scripts/check_duplicates.py src/
+        python scripts/check_secrets.py src/
+
+    # Upload Security Reports
+    - name: Upload Bandit Report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-security-report
+        path: bandit-report.json
+
+    - name: Upload Safety Report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: safety-report
+        path: safety-report.json
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install ruff mypy black pytest pytest-cov
+
+    # Code Formatting
+    - name: Check Black Formatting
+      run: python -m black --check --diff src/ tests/
+
+    - name: Check Ruff Linting
+      run: python -m ruff check src/ tests/ --output-format=github
+
+    - name: Check MyPy Type Checking
+      run: python -m mypy src/ --ignore-missing-imports
+
+    # Test Coverage
+    - name: Run Tests with Coverage
+      run: |
+        pytest tests/ --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing
+
+    - name: Upload Coverage Reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coverage-reports
+        path: |
+          coverage.xml
+          htmlcov/
+
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install safety pip-audit
+
+    # Check for known vulnerabilities
+    - name: Run Safety Check
+      run: |
+        safety check --json --output safety-vulnerabilities.json || true
+        safety check
+
+    - name: Run pip-audit
+      run: |
+        pip-audit --format=json --output=pip-audit-report.json || true
+        pip-audit
+
+    # Check for outdated packages
+    - name: Check for Outdated Packages
+      run: |
+        pip list --outdated --format=json > outdated-packages.json || true
+        pip list --outdated
+
+    # Upload Reports
+    - name: Upload Safety Report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: safety-vulnerabilities
+        path: safety-vulnerabilities.json
+
+    - name: Upload pip-audit Report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: pip-audit-report
+        path: pip-audit-report.json
+
+    - name: Upload Outdated Packages
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: outdated-packages
+        path: outdated-packages.json
+
+  pre-commit:
+    name: Pre-commit Hooks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install pre-commit
+      run: |
+        python -m pip install --upgrade pip
+        pip install pre-commit
+
+    - name: Run pre-commit
+      run: |
+        pre-commit run --all-files --show-diff-on-failure
+
+  build-security:
+    name: Build Security Check
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality, dependency-check, pre-commit]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install build twine
+
+    # Build package
+    - name: Build package
+      run: python -m build
+
+    # Check package for security issues
+    - name: Check package with twine
+      run: |
+        twine check dist/*
+
+    # Upload build artifacts
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: build-artifacts
+        path: dist/
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality, dependency-check, pre-commit, build-security]
+    if: always()
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Generate Security Summary
+      run: |
+        echo "# Security Scan Summary" > security-summary.md
+        echo "" >> security-summary.md
+        echo "## Scan Results" >> security-summary.md
+        echo "" >> security-summary.md
+
+        # Check if reports exist and add to summary
+        if [ -f "bandit-security-report/bandit-report.json" ]; then
+          echo "✅ Bandit Security Scan: Completed" >> security-summary.md
+        else
+          echo "❌ Bandit Security Scan: Failed" >> security-summary.md
+        fi
+
+        if [ -f "safety-report/safety-report.json" ]; then
+          echo "✅ Safety Check: Completed" >> security-summary.md
+        else
+          echo "❌ Safety Check: Failed" >> security-summary.md
+        fi
+
+        if [ -f "coverage-reports/coverage.xml" ]; then
+          echo "✅ Test Coverage: Completed" >> security-summary.md
+        else
+          echo "❌ Test Coverage: Failed" >> security-summary.md
+        fi
+
+        echo "" >> security-summary.md
+        echo "## Recommendations" >> security-summary.md
+        echo "" >> security-summary.md
+        echo "1. Review all security reports" >> security-summary.md
+        echo "2. Fix high and critical severity issues" >> security-summary.md
+        echo "3. Update outdated dependencies" >> security-summary.md
+        echo "4. Ensure test coverage meets requirements" >> security-summary.md
+
+    - name: Upload Security Summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-summary
+        path: security-summary.md
+
+    - name: Comment PR with Security Summary
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('security-summary.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary
+          });

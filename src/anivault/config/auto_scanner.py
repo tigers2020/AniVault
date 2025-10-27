@@ -1,0 +1,297 @@
+"""
+Auto Scanner Module
+
+This module provides automatic scanning functionality for the AniVault application.
+It handles startup scanning and periodic scanning based on configuration settings.
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
+
+from anivault.config.folder_validator import FolderValidator
+from anivault.config.settings import (
+    FolderSettings,
+    get_config,
+    update_and_save_config,
+)
+
+if TYPE_CHECKING:
+    from anivault.config.settings import Settings
+from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+
+logger = logging.getLogger(__name__)
+
+
+class AutoScanner:
+    """Handles automatic scanning of configured folders."""
+
+    def __init__(self, config_path: str | Path = "config/config.toml") -> None:
+        """Initialize the auto scanner.
+
+        Args:
+            config_path: Path to configuration file
+        """
+        self.config_path = Path(config_path)
+        self.scan_callback: Callable[[str], None] | None = None
+        self._scan_in_progress = False
+
+    def set_scan_callback(self, callback: Callable[[str], None]) -> None:
+        """Set the callback function to execute when scanning.
+
+        Args:
+            callback: Function to call with folder path when scanning
+        """
+        self.scan_callback = callback
+
+    def should_auto_scan_on_startup(self) -> tuple[bool, str]:
+        """Check if auto scan should run on startup.
+
+        Returns:
+            Tuple of (should_scan, source_folder_path)
+        """
+        try:
+            config = get_config()
+            folder_settings = config.folders
+
+            # Check if folders settings exist (optional field)
+            if not folder_settings:
+                return False, ""
+
+            # Check if auto scan is enabled
+            if not folder_settings.auto_scan_on_startup:
+                return False, ""
+
+            # Check if source folder is configured
+            source_folder = folder_settings.source_folder
+            if not source_folder or not source_folder.strip():
+                logger.warning("Auto scan enabled but no source folder configured")
+                return False, ""
+
+            # Validate source folder
+            is_valid, error = FolderValidator.validate_folder_path(source_folder)
+            if not is_valid:
+                logger.warning("Auto scan enabled but source folder invalid: %s", error)
+                return False, ""
+
+            logger.info("Auto scan on startup enabled for folder: %s", source_folder)
+            return True, source_folder
+
+        except (OSError, ValueError, KeyError) as e:
+            logger.exception("Error checking auto scan startup condition")
+            context = ErrorContext(operation="should_auto_scan_on_startup")
+            raise ApplicationError(
+                ErrorCode.CONFIGURATION_ERROR,
+                "Failed to check auto scan configuration",
+                context,
+                e,
+            ) from e
+
+    def get_auto_scan_interval(self) -> int:
+        """Get the auto scan interval in minutes.
+
+        Returns:
+            Scan interval in minutes (0 if disabled)
+        """
+        try:
+            config = get_config()
+            if config.folders:
+                return config.folders.auto_scan_interval_minutes
+            return 0
+        except (ApplicationError, OSError, ValueError):
+            logger.exception("Error getting auto scan interval")
+            return 0
+
+    def can_auto_scan(self) -> tuple[bool, str]:
+        """Check if auto scan can be performed.
+
+        Returns:
+            Tuple of (can_scan, reason_if_not)
+        """
+        if self._scan_in_progress:
+            return False, "Scan already in progress"
+
+        if not self.scan_callback:
+            return False, "No scan callback configured"
+
+        try:
+            config = get_config()
+            folder_settings = config.folders
+            if folder_settings is None:
+                return False, "No folder settings configured"
+
+            # Check if source folder is configured
+            source_folder = folder_settings.source_folder
+            if not source_folder or not source_folder.strip():
+                return False, "No source folder configured"
+
+            # Validate source folder
+            is_valid, error = FolderValidator.validate_folder_path(source_folder)
+            if not is_valid:
+                return False, f"Source folder invalid: {error}"
+
+            return True, ""
+
+        except (ApplicationError, OSError, ValueError) as e:
+            return False, f"Configuration error: {e}"
+
+    def perform_auto_scan(self) -> tuple[bool, str]:
+        """Perform automatic scan if conditions are met.
+
+        Returns:
+            Tuple of (success, message)
+        """
+        can_scan, reason = self.can_auto_scan()
+        if not can_scan:
+            logger.info("Auto scan skipped: %s", reason)
+            return False, reason
+
+        try:
+            config = get_config()
+            if config.folders is None:
+                return False, "No folder settings configured"
+            source_folder = config.folders.source_folder
+
+            logger.info("Starting auto scan for folder: %s", source_folder)
+            self._scan_in_progress = True
+
+            # Execute the scan callback
+            if self.scan_callback:
+                self.scan_callback(source_folder)
+
+            logger.info("Auto scan completed successfully")
+            return True, "Auto scan completed"
+
+        except (ApplicationError, OSError, RuntimeError) as e:
+            logger.exception("Auto scan failed")
+            return False, f"Auto scan failed: {e}"
+        finally:
+            self._scan_in_progress = False
+
+    def get_folder_settings(self) -> FolderSettings:
+        """Get current folder settings.
+
+        Returns:
+            FolderSettings object (creates default if None)
+
+        Raises:
+            ApplicationError: If failed to retrieve folder settings
+        """
+        try:
+            config = get_config()
+            # Return default FolderSettings if None
+            if config.folders is None:
+                return FolderSettings()
+            return config.folders
+        except (OSError, ValueError, KeyError) as e:
+            logger.exception("Error getting folder settings")
+            context = ErrorContext(operation="get_folder_settings")
+            raise ApplicationError(
+                ErrorCode.CONFIGURATION_ERROR,
+                "Failed to retrieve folder settings",
+                context,
+                e,
+            ) from e
+
+    def update_folder_settings(
+        self,
+        source_folder: str = "",
+        target_folder: str = "",
+        organize_by_resolution: bool = False,
+        organize_by_year: bool = False,
+        auto_scan_on_startup: bool = False,
+        auto_scan_interval_minutes: int = 0,
+        include_subdirectories: bool = True,
+    ) -> tuple[bool, str]:
+        """Update folder settings in configuration.
+
+        Args:
+            source_folder: Source folder path
+            target_folder: Target folder path
+            organize_by_resolution: Organize files by resolution
+            organize_by_year: Organize files by release year
+            auto_scan_on_startup: Enable auto scan on startup
+            auto_scan_interval_minutes: Auto scan interval in minutes
+            include_subdirectories: Include subdirectories when scanning
+
+        Returns:
+            Tuple of (success, error_message)
+        """
+        try:
+            # Define updater function
+            def update_folders(cfg: Settings) -> None:
+                # Create folders settings if it doesn't exist
+                if cfg.folders is None:
+                    cfg.folders = FolderSettings()
+
+                # Update folder settings
+                cfg.folders.source_folder = source_folder
+                cfg.folders.target_folder = target_folder
+                cfg.folders.organize_by_resolution = organize_by_resolution
+                cfg.folders.organize_by_year = organize_by_year
+                cfg.folders.auto_scan_on_startup = auto_scan_on_startup
+                cfg.folders.auto_scan_interval_minutes = auto_scan_interval_minutes
+                cfg.folders.include_subdirectories = include_subdirectories
+
+            # Use new thread-safe update helper
+            update_and_save_config(update_folders, self.config_path)
+
+            logger.info("Folder settings updated successfully")
+            return True, ""
+
+        except ApplicationError as e:
+            logger.exception("Error updating folder settings")
+            return False, f"Failed to update folder settings: {e}"
+
+    def get_scan_status(self) -> dict[str, Any]:
+        """Get current scan status information.
+
+        Returns:
+            Dictionary with scan status information
+        """
+        try:
+            folder_settings = self.get_folder_settings()
+            can_scan, reason = self.can_auto_scan()
+
+            return {
+                "enabled": bool(folder_settings.source_folder),
+                "source_folder": folder_settings.source_folder,
+                "target_folder": folder_settings.target_folder,
+                "auto_scan_on_startup": folder_settings.auto_scan_on_startup,
+                "auto_scan_interval_minutes": folder_settings.auto_scan_interval_minutes,
+                "include_subdirectories": folder_settings.include_subdirectories,
+                "can_scan": can_scan,
+                "scan_in_progress": self._scan_in_progress,
+                "error": "" if can_scan else reason,
+            }
+
+        except ApplicationError as e:
+            # ApplicationError from get_folder_settings - contains detailed context
+            logger.exception("Error getting scan status")
+            return {
+                "enabled": False,
+                "source_folder": "",
+                "target_folder": "",
+                "auto_scan_on_startup": False,
+                "auto_scan_interval_minutes": 0,
+                "include_subdirectories": True,
+                "can_scan": False,
+                "scan_in_progress": self._scan_in_progress,
+                "error": f"Failed to get scan status: {e.message}",
+            }
+        except (OSError, ValueError, RuntimeError) as e:
+            # Unexpected errors
+            logger.exception("Unexpected error getting scan status")
+            return {
+                "enabled": False,
+                "source_folder": "",
+                "target_folder": "",
+                "auto_scan_on_startup": False,
+                "auto_scan_interval_minutes": 0,
+                "include_subdirectories": True,
+                "can_scan": False,
+                "scan_in_progress": self._scan_in_progress,
+                "error": f"Unexpected error getting scan status: {e}",
+            }

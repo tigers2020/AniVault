@@ -1,0 +1,277 @@
+[project]
+name = "anivault"
+version = "0.1.0"
+description = "AniVault CLI - Anime file organization tool with TMDB integration"
+requires-python = ">=3.9"
+authors = [
+    {name = "AniVault Team", email = "team@anivault.dev"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+
+dependencies = [
+    "click>=8.1.7",
+    "typer[all]>=0.9.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "tmdbv3api==1.9.0",
+    "anitopy>=2.1.1",
+    "rich>=14.1.0",
+    "cryptography>=41.0.0",
+    "parse>=1.20.0",
+    "requests>=2.32.0",
+    "requests-cache>=1.1.0",
+    "toml>=0.10.2",
+    "tomli>=2.0.0; python_version < '3.11'",
+    "tomli-w>=1.0.0",
+    "orjson>=3.9.0",
+    "chardet>=5.2.0",
+    "rapidfuzz>=3.0.0",
+    "PySide6>=6.5.0",  # GUI framework (LGPL-3.0)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "pytest-httpx>=0.30.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-xdist>=3.5.0",
+    "hypothesis>=6.88.0",
+    "memory-profiler>=0.61.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+    "pre-commit>=3.7.0",
+    "pyinstaller==6.16.0",
+    "PySide6-stubs>=6.5.0",  # Type hints for PySide6
+]
+
+[project.scripts]
+anivault = "anivault.cli.typer_app:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
+[tool.ruff.lint]
+# Black과 충돌 방지: E501 (line too long) 끄기
+# isort와 충돌 방지: I (isort rules) 제거 - isort를 별도로 사용
+# Security-focused rules added
+select = ["E", "F", "W", "C90", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "AIR", "PERF", "RUF"]
+ignore = [
+    "S101", "T201", "PLR0913", "PLR0912", "PLR0915", "PLR0911",
+    "C901",  # Function too complex
+    "TRY300",  # Consider moving statement to else block
+    "TRY301",  # Abstract raise to inner function
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "SLF001",  # Private member accessed
+    "PLW0603",  # Using global statement
+    "PERF203",  # try-except within loop
+    "S110",  # try-except-pass detected
+    "ARG001",  # Unused function argument
+    "E501",  # Line too long (Black이 처리)
+    "DTZ007",  # Naive datetime
+    "DTZ005",  # datetime.now() without tz (scripts에서 사용)
+    "S602",  # subprocess call with shell=True (needed for dev scripts)
+    "SIM105",  # Use contextlib.suppress
+    "SIM102",  # Nested if statements (가독성 우선)
+    "SIM115",  # Context manager for open (encoding.py 유틸리티)
+    "EM101",  # Exception must not use a string literal
+    "TCH001",  # Move application import into type-checking block (deprecated)
+    "TCH003",  # Move standard library import into type-checking block (deprecated)
+    "RET504",  # Unnecessary assignment before return
+    "INP001",  # Implicit namespace package (for scripts/)
+    "PLR2004",  # Magic value used in comparison
+    "PLR1704",  # Redefining argument with local name
+    "PLW2901",  # Loop variable overwritten (일반적 패턴)
+    "PERF401",  # List comprehension (가독성 우선)
+    "PTH123",  # open() vs Path.open() (일관성 유지)
+    "PLC0415",  # Import not at top (동적 import 필요)
+    "S311",  # Standard pseudo-random generators (fine for tests)
+    "FBT001",  # Boolean positional argument (fine for test helpers)
+    "FBT002",  # Boolean default positional argument (fine for test helpers)
+    "COM812",  # Trailing comma (formatter conflict)
+    "ISC001",  # Implicit string concatenation (formatter conflict)
+]
+exclude = [
+    "tests/",
+    "test_*.py",
+    "**/test_*.py",
+    "**/tests/",
+    "tools/",
+    "bench/",
+    "build/",
+    "dist/",
+    "cache/",
+    "htmlcov/",
+    "logs/",
+    "test_data_*/",
+    "test_output/",
+    "test_files/",
+    "test_new_features.py"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+# 레거시 스크립트는 일단 좁혀서 통과
+"scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
+"tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
+"src/anivault/cli/**" = ["FBT003", "B008"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거)
+"src/anivault/gui/**" = ["N815", "N802"]  # PySide6 Signal naming convention (camelCase) and event handler methods
+"src/anivault/gui/themes/theme_manager.py" = ["TRY400", "BLE001"]  # Safe mode error handling
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.9"
+# TODO: Re-enable pydantic.mypy plugin after completing type migration (Task 1)
+# plugins = ["pydantic.mypy"]  # Temporarily disabled due to dependency issues
+# Required for full Pydantic v2 type checking integration with BaseTypeModel
+namespace_packages = true
+explicit_package_bases = true  # Enable to fix module path conflicts
+mypy_path = "src"
+
+# 단계적 엄격화 - Strict mode enabled for Task 11
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+exclude = [
+    "scripts/",
+    "tests/",
+]
+
+# 외부 라이브러리 타입 스텁 부재
+[[tool.mypy.overrides]]
+module = [
+    "ntsecuritycon.*",
+    "win32security.*",
+    "psutil.*",
+]
+ignore_missing_imports = true
+
+# Python 3.9 CI compatibility: orjson/pydantic type stubs incomplete
+[[tool.mypy.overrides]]
+module = ["anivault.cli.json_formatter"]
+disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = ["anivault.config.settings"]
+disable_error_code = ["misc", "no-any-return"]
+
+# 런타임 코어는 조금 더 엄격
+[[tool.mypy.overrides]]
+module = "anivault.*"
+
+# 서드파티 라이브러리 예외 처리 (타입 스텁 부재)
+[[tool.mypy.overrides]]
+module = [
+    "pydantic.*",
+    "pydantic_settings.*",
+    "orjson.*",
+    "rapidfuzz.*",
+    "cryptography.*",
+    "PySide6.*",
+    "tmdbv3api.*",
+    "anitopy.*",
+    "requests_cache.*",
+    "parse.*",
+    "toml.*",
+    "tomli.*",
+    "tomli_w.*",
+    "yaml.*",
+]
+ignore_missing_imports = true
+
+# CLI 관련 모듈 (동적 패턴 허용)
+[[tool.mypy.overrides]]
+module = [
+    "click.*",
+    "rich.*",
+    "prompt_toolkit.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--tb=short",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "memory_intensive: marks tests that require significant memory resources",
+    "benchmark: marks tests as benchmark/performance tests",
+]
+pythonpath = ["src"]
+
+[tool.anivault.config]
+log_file = "logs/anivault.log"
+log_level = "INFO"
+log_max_bytes = 10485760  # 10MB
+log_backup_count = 5
+media_extensions = [".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".m4v", ".webm"]
+
+# Security configuration
+[tool.anivault.security]
+# AI Security settings
+ai_security_mode = "strict"
+prompt_injection_protection = true
+magic_value_detection = true
+secret_exposure_check = true  # pragma: allowlist secret
+duplicate_definition_check = true
+
+# Dependency security
+allowed_packages = [
+    "click", "rich", "anitopy", "tmdbv3api", "cryptography",
+    "orjson", "fuzzywuzzy", "python-Levenshtein", "prompt-toolkit", "pydantic",
+    "pytest", "pytest-cov", "pytest-mock", "pytest-httpx", "pytest-benchmark",
+    "hypothesis", "memory-profiler", "ruff", "mypy", "pre-commit", "pyinstaller"
+]
+
+# Security thresholds
+max_function_complexity = 10
+max_function_length = 50
+min_test_coverage = 80
+max_security_issues = 0
