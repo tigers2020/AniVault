@@ -3,6 +3,10 @@
 REM AniVault GUI 실행 스크립트
 REM 이 배치 파일은 AniVault GUI 애플리케이션을 실행합니다.
 
+REM UTF-8 환경 설정
+set PYTHONIOENCODING=utf-8
+set PYTHONUTF8=1
+
 echo.
 echo ========================================
 echo    AniVault GUI Launcher
