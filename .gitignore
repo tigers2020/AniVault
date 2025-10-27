@@ -163,6 +163,10 @@ dmypy.json
 
 # Test files and directories - ALL TESTS IGNORED
 tests/
+
+# Internal development documentation - REMOVED FROM REPO
+docs/
+
 test_anime_files/
 test_cache/
 test_data/
