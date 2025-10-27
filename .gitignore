@@ -136,8 +136,6 @@ dmypy.json
 # IDEs and Editors
 .vscode/
 .idea/
-.cursor/
-.serena/
 *.swp
 *.swo
 *~
@@ -169,6 +167,14 @@ docs/
 
 # Internal development scripts - REMOVED FROM REPO
 scripts/
+
+# Internal development tools and configs - REMOVED FROM REPO
+.cursor/
+.taskmaster/
+.serena/
+benchmarks/
+examples/
+.cursorrules
 
 test_anime_files/
 test_cache/
