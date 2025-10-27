@@ -1,7 +1,7 @@
 @chcp 65001 >nul 2>&1
 @echo off
-REM AniVault GUI Launcher
-REM This batch file runs the AniVault GUI application.
+REM AniVault GUI 실행 스크립트
+REM 이 배치 파일은 AniVault GUI 애플리케이션을 실행합니다.
 
 echo.
 echo ========================================
@@ -9,25 +9,25 @@ echo    AniVault GUI Launcher
 echo ========================================
 echo.
 
-REM Set current directory to project root
+REM 현재 디렉터리를 프로젝트 루트로 설정
 cd /d "%~dp0"
 
-REM Check if Python is installed
+REM Python이 설치되어 있는지 확인
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Python is not installed.
-    echo Please install Python 3.11 or higher.
-    echo https://www.python.org/downloads/
+    echo [ERROR] Python이 설치되어 있지 않습니다.
+    echo [INFO] Python 3.11 이상을 설치해주세요.
+    echo    https://www.python.org/downloads/
     pause
     exit /b 1
 )
 
-REM Check if required Python packages are installed
-echo Checking dependencies...
+REM 필요한 Python 패키지가 설치되어 있는지 확인
+echo [CHECK] 의존성 확인 중...
 python -c "import PySide6" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo PySide6 is not installed.
-    echo Please install it with:
+    echo [ERROR] PySide6가 설치되어 있지 않습니다.
+    echo [INFO] 다음 명령어로 설치해주세요:
     echo    pip install PySide6
     pause
     exit /b 1
@@ -35,37 +35,37 @@ if %errorlevel% neq 0 (
 
 python -c "import pydantic" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Pydantic is not installed.
-    echo Please install it with:
+    echo [ERROR] Pydantic이 설치되어 있지 않습니다.
+    echo [INFO] 다음 명령어로 설치해주세요:
     echo    pip install pydantic
     pause
     exit /b 1
 )
 
-echo All dependencies are installed.
+echo [OK] 모든 의존성이 확인되었습니다.
 echo.
 
-REM Run GUI application
-echo Starting AniVault GUI...
+REM GUI 애플리케이션 실행
+echo [RUN] AniVault GUI를 시작합니다...
 echo.
 
 python -m src.anivault.gui.app
 
-REM Check execution result
+REM 실행 결과 확인
 if %errorlevel% neq 0 (
     echo.
-    echo Error occurred while running GUI application.
-    echo Error code: %errorlevel%
+    echo [ERROR] GUI 애플리케이션 실행 중 오류가 발생했습니다.
+    echo [INFO] 오류 코드: %errorlevel%
     echo.
-    echo Troubleshooting:
-    echo    1. Check Python version (3.11+ required)
-    echo    2. Verify required packages are installed
-    echo    3. Make sure you're running from project directory
+    echo [HELP] 문제 해결 방법:
+    echo    1. Python 버전 확인 (3.11 이상 필요)
+    echo    2. 필요한 패키지 설치 확인
+    echo    3. 프로젝트 디렉터리에서 실행했는지 확인
     echo.
     pause
     exit /b %errorlevel%
 )
 
 echo.
-echo AniVault GUI exited successfully.
+echo [OK] AniVault GUI가 정상적으로 종료되었습니다.
 pause
