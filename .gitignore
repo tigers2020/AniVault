@@ -200,10 +200,7 @@ large_test_data/
 # MCP server configurations (keep template, ignore actual)
 .cursor/mcp.json
 
-# Temporary and debug files (but keep security docs)
-!docs/security/*.md
-!docs/compliance/*.md
-# Note: Don't ignore tests/ - we need to track test files
+# Temporary and debug files
 debug_*.py
 *_debug.py
 *_test.py
