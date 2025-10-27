@@ -167,6 +167,9 @@ tests/
 # Internal development documentation - REMOVED FROM REPO
 docs/
 
+# Internal development scripts - REMOVED FROM REPO
+scripts/
+
 test_anime_files/
 test_cache/
 test_data/
