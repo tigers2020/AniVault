@@ -55,7 +55,13 @@ def to_dict(obj: Any) -> dict[str, Any]:
         error_msg = f"{type(obj).__name__} is not a dataclass"
         raise TypeError(error_msg)
 
-    data = asdict(obj)
+    # Type guard: obj is a dataclass instance
+    # Use cast to inform mypy that obj is a dataclass instance
+    from typing import cast
+
+    # DataclassInstance is only available in Python 3.11+, use Any for compatibility
+    dataclass_obj = cast("Any", obj)
+    data = asdict(dataclass_obj)
 
     # Handle datetime, UUID, and AsObj serialization
     for field in fields(obj):
@@ -192,7 +198,8 @@ def from_dict(cls: type, data: dict[str, Any], extra: str = "ignore") -> Any:
                 continue
 
         if field_key is None:
-            raise KeyError(f"Missing required field: {field.name}")
+            error_msg = f"Missing required field: {field.name}"
+            raise KeyError(error_msg)
 
         value = data[field_key]
 
@@ -225,8 +232,13 @@ def from_dict(cls: type, data: dict[str, Any], extra: str = "ignore") -> Any:
                 result[field.name] = None
             # Handle nested dataclasses (Subtask 2.1)
             elif is_dataclass(field_type) and isinstance(value, dict):
-                # Type guard: field_type is a dataclass
-                nested_result = from_dict(field_type, value)
+                # Type guard: field_type is a dataclass class (not instance)
+                # field_type is guaranteed to be a type due to is_dataclass check
+                from typing import cast
+
+                # Cast to type for type safety (DataclassInstance is Python 3.11+ only)
+                dataclass_cls = cast("type[Any]", field_type)
+                nested_result = from_dict(dataclass_cls, value)
                 result[field.name] = nested_result
             # Handle List types (Subtask 2.2)
             elif origin is list and isinstance(value, list):

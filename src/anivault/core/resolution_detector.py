@@ -12,6 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
+from anivault.core.constants import ParsingConfidence
 from anivault.core.models import ScannedFile
 from anivault.shared.errors import (
     AniVaultError,
@@ -93,7 +94,9 @@ class ResolutionDetector:
                                 resolution_info.width,
                                 resolution_info.height,
                             )
-                            resolution_info.confidence = 0.8
+                            resolution_info.confidence = (
+                                ParsingConfidence.RESOLUTION_DETECTED
+                            )
                             break
                         except (ValueError, IndexError):
                             continue

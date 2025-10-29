@@ -7,6 +7,7 @@ filtering logic based on year, genre, and other criteria.
 from __future__ import annotations
 
 import logging
+from dataclasses import asdict
 
 from anivault.core.matching.filters import apply_genre_filter, filter_and_sort_by_year
 from anivault.core.matching.models import NormalizedQuery
@@ -140,8 +141,9 @@ class CandidateFilterService:
         Returns:
             TMDBSearchResult (without confidence_score field)
         """
-        # Use model_dump to get dict, then create TMDBSearchResult
-        data = scored.model_dump(exclude={"confidence_score"})
+        # Use asdict to get dict, then exclude confidence_score and create TMDBSearchResult
+        data = asdict(scored)
+        data.pop("confidence_score", None)
         return TMDBSearchResult(**data)
 
     def _find_scored_by_id(

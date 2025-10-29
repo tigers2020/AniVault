@@ -105,7 +105,7 @@ def main(
         # Import here to avoid circular imports
         from anivault.cli.common.error_handler import handle_cli_error
 
-        exit_code = handle_cli_error(e, "main-callback", json_output)
+        exit_code = handle_cli_error(e, "main-callback", json_output=json_output)
         raise typer.Exit(exit_code) from e
 
 

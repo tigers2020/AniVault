@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QEvent, QPoint, QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QPixmap
@@ -17,15 +17,14 @@ from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequ
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
 
 from anivault.shared.constants.gui_messages import UIConfig
+from anivault.shared.metadata_models import FileMetadata
 
 if TYPE_CHECKING:
     from .anime_detail_popup import AnimeDetailPopup
 
 logger = logging.getLogger(__name__)
 
-# Type aliases for better type safety
-AnimeInfo = dict[str, Union[str, int, float, bool, None]]
-MetadataDict = dict[str, Any]
+# Removed AnimeInfo type alias - using FileMetadata directly
 
 
 class GroupCardWidget(QFrame):
@@ -65,6 +64,23 @@ class GroupCardWidget(QFrame):
         # Note: Size is now handled by the central QSS theme system
 
         # Main horizontal layout (TMDB style: poster on left, info on right)
+        main_layout = self._create_main_layout()
+        poster_label = self._create_poster_widget()
+        main_layout.addWidget(poster_label)
+
+        # Right: Information layout
+        info_layout = self._create_info_layout()
+        main_layout.addLayout(info_layout)
+
+        # Enable context menu and cursor
+        self._setup_interactions()
+
+    def _create_main_layout(self) -> QHBoxLayout:
+        """Create and configure the main horizontal layout.
+
+        Returns:
+            Configured QHBoxLayout
+        """
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(
             UIConfig.GROUP_CARD_CONTENT_MARGIN,
@@ -73,120 +89,156 @@ class GroupCardWidget(QFrame):
             UIConfig.GROUP_CARD_CONTENT_MARGIN,
         )
         main_layout.setSpacing(UIConfig.GROUP_CARD_MAIN_SPACING)
+        return main_layout
 
-        # Left: Poster image
-        poster_label = self._create_poster_widget()
-        main_layout.addWidget(poster_label)
+    def _create_info_layout(self) -> QVBoxLayout:
+        """Create and populate the information layout.
 
-        # Right: Information layout
+        Returns:
+            Configured QVBoxLayout with anime info or file-based info
+        """
         info_layout = QVBoxLayout()
         info_layout.setSpacing(UIConfig.GROUP_CARD_INFO_SPACING)
 
-        # Get anime info first to determine what to display
-        anime_info = self._get_anime_info()
-
-        if anime_info:
-            # Title section: Korean title + Original title
-            title_text = anime_info.get("title", UIConfig.UNKNOWN_TITLE)
-            if not isinstance(title_text, str):
-                title_text = (
-                    str(title_text)
-                    if title_text is not None
-                    else UIConfig.UNKNOWN_TITLE
-                )
-
-            original_title = anime_info.get("original_title") or anime_info.get(
-                "original_name",
-            )
-            if not isinstance(original_title, str):
-                original_title = (
-                    str(original_title) if original_title is not None else None
-                )
-
-            if original_title and original_title != title_text:
-                full_title = f"{title_text} ({original_title})"
-            else:
-                full_title = title_text
-
-            # Truncate title for display (keep full title in tooltip)
-            display_title = self._truncate_text(
-                full_title,
-                max_length=UIConfig.GROUP_CARD_TITLE_MAX_LENGTH,
-            )
-
-            title_label = QLabel(display_title)
-            title_label.setObjectName("groupTitleLabel")
-            title_label.setWordWrap(True)
-            title_label.setToolTip(full_title)  # Full title on hover
-            info_layout.addWidget(title_label)
-
-            # Date section
-            release_date = anime_info.get("first_air_date") or anime_info.get(
-                "release_date",
-            )
-            if release_date and isinstance(release_date, str):
-                date_label = QLabel(release_date)
-                date_label.setObjectName("groupDateLabel")
-                info_layout.addWidget(date_label)
-
-            # Overview/Description section (3-4 lines with ellipsis)
-            overview = anime_info.get("overview", UIConfig.NO_OVERVIEW)
-            if overview and isinstance(overview, str):
-                truncated_overview = self._truncate_text(
-                    overview,
-                    max_length=UIConfig.GROUP_CARD_OVERVIEW_MAX_LENGTH,
-                )
-                overview_label = QLabel(truncated_overview)
-                overview_label.setObjectName("groupOverviewLabel")
-                overview_label.setWordWrap(True)
-                # Height constraints defined in QSS (common.qss: max-height: 72px)
-                overview_label.setToolTip(overview)  # Full text on hover
-                info_layout.addWidget(overview_label)
-
-            # File count at bottom
-            count_label = QLabel(f"{UIConfig.FOLDER_ICON} {len(self.files)} files")
-            count_label.setObjectName("groupCountLabel")
-            info_layout.addWidget(count_label)
-
+        anime_metadata = self._get_anime_metadata()
+        if anime_metadata:
+            self._populate_info_with_anime_data(info_layout, anime_metadata)
         else:
-            # No TMDB data - show file-based info
-            display_name = self._truncate_text(
-                self.group_name, max_length=UIConfig.GROUP_CARD_NAME_MAX_LENGTH
-            )
-            title_label = QLabel(f"📁 {display_name}")
-            title_label.setObjectName("groupTitleLabel")
-            title_label.setWordWrap(True)
-            title_label.setToolTip(f"📁 {self.group_name}")
-            info_layout.addWidget(title_label)
-
-            # File hint
-            hint_label = QLabel(f"📝 {self._get_file_hint()}")
-            hint_label.setObjectName("animeInfoHint")
-            hint_label.setToolTip(
-                "Parsed from filename - TMDB details will load automatically",
-            )
-            info_layout.addWidget(hint_label)
-
-            # File count
-            count_label = QLabel(f"📂 {len(self.files)} files")
-            count_label.setObjectName("groupCountLabel")
-            info_layout.addWidget(count_label)
-
-            # Placeholder message
-            placeholder_label = QLabel("🔍 Loading TMDB details...")
-            placeholder_label.setObjectName("animeInfoPlaceholder")
-            info_layout.addWidget(placeholder_label)
+            self._populate_info_with_file_data(info_layout)
 
         # Add stretch to push content to top
         info_layout.addStretch()
+        return info_layout
 
-        main_layout.addLayout(info_layout)
+    def _populate_info_with_anime_data(
+        self, info_layout: QVBoxLayout, anime_metadata: FileMetadata
+    ) -> None:
+        """Populate info layout with anime data from TMDB.
 
-        # Enable context menu
+        Args:
+            info_layout: Layout to populate
+            anime_metadata: FileMetadata instance containing anime information
+        """
+        # Title section
+        title_label = self._create_title_label(anime_metadata)
+        info_layout.addWidget(title_label)
+
+        # Date section
+        date_label = self._create_date_label(anime_metadata)
+        if date_label:
+            info_layout.addWidget(date_label)
+
+        # Overview section
+        overview_label = self._create_overview_label(anime_metadata)
+        if overview_label:
+            info_layout.addWidget(overview_label)
+
+        # File count
+        count_label = QLabel(f"{UIConfig.FOLDER_ICON} {len(self.files)} files")
+        count_label.setObjectName("groupCountLabel")
+        info_layout.addWidget(count_label)
+
+    def _populate_info_with_file_data(self, info_layout: QVBoxLayout) -> None:
+        """Populate info layout with file-based data when no TMDB info available.
+
+        Args:
+            info_layout: Layout to populate
+        """
+        # Group name as title
+        display_name = self._truncate_text(
+            self.group_name, max_length=UIConfig.GROUP_CARD_NAME_MAX_LENGTH
+        )
+        title_label = QLabel(f"📁 {display_name}")
+        title_label.setObjectName("groupTitleLabel")
+        title_label.setWordWrap(True)
+        title_label.setToolTip(f"📁 {self.group_name}")
+        info_layout.addWidget(title_label)
+
+        # File hint
+        hint_label = QLabel(f"📝 {self._get_file_hint()}")
+        hint_label.setObjectName("animeInfoHint")
+        hint_label.setToolTip(
+            "Parsed from filename - TMDB details will load automatically",
+        )
+        info_layout.addWidget(hint_label)
+
+        # File count
+        count_label = QLabel(f"📂 {len(self.files)} files")
+        count_label.setObjectName("groupCountLabel")
+        info_layout.addWidget(count_label)
+
+        # Placeholder message
+        placeholder_label = QLabel("🔍 Loading TMDB details...")
+        placeholder_label.setObjectName("animeInfoPlaceholder")
+        info_layout.addWidget(placeholder_label)
+
+    def _create_title_label(self, anime_metadata: FileMetadata) -> QLabel:
+        """Create title label from anime metadata.
+
+        Args:
+            anime_metadata: FileMetadata instance containing anime information
+
+        Returns:
+            Configured QLabel with title
+        """
+        title_text = anime_metadata.title or UIConfig.UNKNOWN_TITLE
+
+        # FileMetadata doesn't have original_title, use title only
+        full_title = title_text
+
+        display_title = self._truncate_text(
+            full_title,
+            max_length=UIConfig.GROUP_CARD_TITLE_MAX_LENGTH,
+        )
+
+        title_label = QLabel(display_title)
+        title_label.setObjectName("groupTitleLabel")
+        title_label.setWordWrap(True)
+        title_label.setToolTip(full_title)
+        return title_label
+
+    def _create_date_label(self, anime_metadata: FileMetadata) -> QLabel | None:
+        """Create date label from anime metadata.
+
+        Args:
+            anime_metadata: FileMetadata instance containing anime information
+
+        Returns:
+            Configured QLabel with date or None if no date available
+        """
+        if anime_metadata.year is not None:
+            # Format year as YYYY for display
+            date_label = QLabel(str(anime_metadata.year))
+            date_label.setObjectName("groupDateLabel")
+            return date_label
+        return None
+
+    def _create_overview_label(self, anime_metadata: FileMetadata) -> QLabel | None:
+        """Create overview label from anime metadata.
+
+        Args:
+            anime_metadata: FileMetadata instance containing anime information
+
+        Returns:
+            Configured QLabel with overview or None if no overview available
+        """
+        overview = anime_metadata.overview
+        if overview:
+            truncated_overview = self._truncate_text(
+                overview,
+                max_length=UIConfig.GROUP_CARD_OVERVIEW_MAX_LENGTH,
+            )
+            overview_label = QLabel(truncated_overview)
+            overview_label.setObjectName("groupOverviewLabel")
+            overview_label.setWordWrap(True)
+            overview_label.setToolTip(overview)
+            return overview_label
+        return None
+
+    def _setup_interactions(self) -> None:
+        """Set up context menu and cursor interactions."""
         self.setContextMenuPolicy(Qt.CustomContextMenu)  # type: ignore[attr-defined]
         self.customContextMenuRequested.connect(self._show_context_menu)
-
-        # Set cursor to indicate clickability
         self.setCursor(Qt.PointingHandCursor)  # type: ignore[attr-defined]
 
     def _create_poster_widget(self) -> QLabel:
@@ -208,22 +260,16 @@ class GroupCardWidget(QFrame):
         poster_label.setLineWidth(0)
 
         # Try to load poster from TMDB data
-        anime_info = self._get_anime_info()
+        anime_metadata = self._get_anime_metadata()
         logger.debug(
-            "🎨 Creating poster for group '%s': anime_info=%s",
+            "🎨 Creating poster for group '%s': anime_metadata=%s",
             self.group_name[: UIConfig.LOG_TRUNCATE_LENGTH],
-            "YES" if anime_info else "NO",
+            "YES" if anime_metadata else "NO",
         )
 
-        if anime_info:
-            poster_path = anime_info.get("poster_path")
-            if not isinstance(poster_path, str):
-                poster_path = str(poster_path) if poster_path is not None else None
-
-            # Try both 'title' and 'name' fields (TMDB uses different fields for movies vs TV)
-            title = anime_info.get("title") or anime_info.get("name") or "?"
-            if not isinstance(title, str):
-                title = str(title) if title is not None else "?"
+        if anime_metadata:
+            poster_path = anime_metadata.poster_path
+            title = anime_metadata.title or "?"
 
             logger.debug(
                 "🎨 Poster widget - title: '%s', poster_path: %s",
@@ -240,7 +286,7 @@ class GroupCardWidget(QFrame):
             )
 
             # Try to load actual poster image from TMDB
-            if poster_path and isinstance(poster_path, str):
+            if poster_path:
                 # Pass poster_label for async update
                 pixmap = self._load_tmdb_poster(poster_path, poster_label)
                 if pixmap and not pixmap.isNull():
@@ -276,20 +322,20 @@ class GroupCardWidget(QFrame):
                 poster_label.setText(f"🎬\n{initial}")
                 poster_label.setObjectName("posterInitial")
         else:
-            # No anime info - show folder icon
+            # No anime metadata - show folder icon
             poster_label.setText("📁")
             poster_label.setObjectName("posterFolder")
 
         return poster_label
 
-    def _get_anime_info(self) -> AnimeInfo | None:
+    def _get_anime_metadata(self) -> FileMetadata | None:
         """
-        Get anime information from the first file's metadata.
+        Get anime metadata from the first file.
 
-        Supports both ScannedFile and FileItem with metadata.
+        Only supports FileItem with FileMetadata (type-safe).
 
         Returns:
-            Dictionary with anime information or None if not available
+            FileMetadata instance or None if not available
         """
         if not self.files:
             logger.debug("No files in group card")
@@ -302,157 +348,26 @@ class GroupCardWidget(QFrame):
             getattr(first_file, "file_name", None)
             or getattr(first_file, "file_path", Path("unknown")).name
         )
-        logger.debug("Checking anime info for file: %s", file_name)
+        logger.debug("Checking anime metadata for file: %s", file_name)
 
-        # Get metadata attribute (ScannedFile has it, FileItem might have it)
+        # Get metadata attribute (FileItem has it)
         meta = getattr(first_file, "metadata", None)
 
         if not meta:
             logger.debug("File has no metadata attribute or metadata is empty")
             return None
 
-        # Case 1: metadata is dict with match_result (TMDB matched)
-        if isinstance(meta, dict):
-            return self._extract_from_dict_metadata(meta)
+        # Only support FileMetadata (type-safe)
+        if isinstance(meta, FileMetadata):
+            logger.debug("Found FileMetadata: %s", meta.title)
+            return meta
 
-        # Case 2: metadata is ParsingResult or similar object
-        if hasattr(meta, "additional_info"):
-            return self._extract_from_parsing_result(meta)
-
-        # Fallback: Extract basic info from parsed result
-        return self._extract_fallback_info(meta, first_file)
-
-    def _extract_from_dict_metadata(self, meta: MetadataDict) -> AnimeInfo | None:
-        """Extract anime info from dict metadata.
-
-        Args:
-            meta: Dictionary metadata
-
-        Returns:
-            Dictionary with anime information or None
-        """
-        logger.debug("File has metadata dict with keys: %s", meta.keys())
-        match_result = meta.get("match_result")
-
-        if not match_result:
-            logger.debug("No match_result in metadata dict")
-            return None
-
-        # Convert MatchResult dataclass to dict if needed
-        if hasattr(match_result, "id"):
-            # TMDBMatchResult dataclass - convert to dict for widget compatibility
-            match_result_dict = {
-                "id": match_result.id,
-                "title": match_result.title,
-                "media_type": match_result.media_type,
-                "genres": match_result.genres,
-                "overview": match_result.overview,
-                "vote_average": match_result.vote_average,
-                "poster_path": match_result.poster_path,
-            }
-            logger.debug(
-                "Found match result: %s",
-                match_result_dict.get("title", UIConfig.UNKNOWN_TITLE),
-            )
-            return match_result_dict
-
-        # Already a dict
-        logger.debug(
-            "Found match result: %s",
-            match_result.get("title", UIConfig.UNKNOWN_TITLE),
+        # Log warning for unsupported metadata types
+        logger.warning(
+            "Unsupported metadata type for file '%s': %s. Expected FileMetadata.",
+            file_name,
+            type(meta).__name__,
         )
-        return match_result  # type: ignore[no-any-return]
-
-    def _extract_from_parsing_result(self, meta: Any) -> AnimeInfo | None:
-        """Extract anime info from ParsingResult metadata.
-
-        Args:
-            meta: ParsingResult or similar object
-
-        Returns:
-            Dictionary with anime information or None
-        """
-        logger.debug("Case 2: metadata type is %s", type(meta).__name__)
-        logger.debug("metadata has additional_info: %s", meta.additional_info)
-
-        if not hasattr(meta, "additional_info"):
-            logger.debug("metadata has no additional_info attribute")
-            return None
-
-        match_result = meta.additional_info.match_result
-
-        if not match_result:
-            logger.debug("additional_info has no match_result")
-            return None
-
-        # Convert TMDBMatchResult dataclass to dict for widget compatibility
-        if hasattr(match_result, "id"):
-            # TMDBMatchResult dataclass - convert to dict for widget compatibility
-            match_result_dict = {
-                "id": match_result.id,
-                "title": match_result.title,
-                "media_type": match_result.media_type,
-                "genres": match_result.genres,
-                "overview": match_result.overview,
-                "vote_average": match_result.vote_average,
-                "poster_path": match_result.poster_path,
-            }
-            title = match_result_dict.get("title", UIConfig.UNKNOWN_TITLE)
-            logger.debug(
-                "✓ Found match_result in ParsingResult.additional_info: %s",
-                title,
-            )
-            return match_result_dict
-
-        # Already a dict (legacy support)
-        title = (
-            match_result.get("title")
-            or match_result.get("name")
-            or UIConfig.UNKNOWN_TITLE
-        )
-        logger.debug(
-            "✓ Found match_result in ParsingResult.additional_info: %s",
-            title,
-        )
-
-        if title == UIConfig.UNKNOWN_TITLE:
-            logger.warning(
-                "⚠️ match_result has no title/name! Keys: %s",
-                list(match_result.keys()),
-            )
-
-        return match_result
-
-    def _extract_fallback_info(self, meta: Any, first_file: Any) -> AnimeInfo | None:
-        """Extract fallback anime info from metadata.
-
-        Args:
-            meta: Metadata object
-            first_file: First file in the group
-
-        Returns:
-            Dictionary with anime information or None
-        """
-        try:
-            anime_dict = {
-                "title": getattr(meta, "title", None) or first_file.file_path.stem,
-                "genres": getattr(meta, "genres", []),
-                "vote_average": getattr(meta, "vote_average", None),
-                "first_air_date": getattr(meta, "first_air_date", None),
-                "overview": getattr(meta, "overview", None),
-                "popularity": getattr(meta, "popularity", None),
-            }
-
-            # Only return if we have at least a title
-            if anime_dict.get("title"):
-                logger.debug(
-                    "Using parsed metadata as fallback: %s",
-                    anime_dict.get("title"),
-                )
-                return anime_dict
-        except Exception as e:  # noqa: BLE001 (defensive catch for metadata parsing)
-            logger.debug("Failed to extract anime info from metadata: %s", e)
-
         return None
 
     def _get_file_hint(self) -> str:
@@ -507,12 +422,12 @@ class GroupCardWidget(QFrame):
     def enterEvent(self, event: QEnterEvent) -> None:
         """Show detail popup when mouse enters the card."""
         logger.debug("Mouse entered group card: %s", self.group_name)
-        anime_info = self._get_anime_info()
-        if anime_info:
-            logger.debug("Anime info found, showing popup")
-            self._show_detail_popup(anime_info)
+        anime_metadata = self._get_anime_metadata()
+        if anime_metadata:
+            logger.debug("Anime metadata found, showing popup")
+            self._show_detail_popup(anime_metadata)
         else:
-            logger.debug("No anime info available for popup")
+            logger.debug("No anime metadata available for popup")
         super().enterEvent(event)
 
     def leaveEvent(self, event: QEvent) -> None:
@@ -521,12 +436,12 @@ class GroupCardWidget(QFrame):
         self._hide_detail_popup()
         super().leaveEvent(event)
 
-    def _show_detail_popup(self, anime_info: AnimeInfo) -> None:
+    def _show_detail_popup(self, anime_metadata: FileMetadata) -> None:
         """
         Show a popup with detailed anime information.
 
         Args:
-            anime_info: Dictionary containing anime information
+            anime_metadata: FileMetadata instance containing anime information
         """
         # Import here to avoid circular dependency
         from .anime_detail_popup import AnimeDetailPopup
@@ -534,7 +449,7 @@ class GroupCardWidget(QFrame):
         if self._detail_popup:
             self._detail_popup.deleteLater()
 
-        self._detail_popup = AnimeDetailPopup(anime_info, self)
+        self._detail_popup = AnimeDetailPopup(anime_metadata, self)
 
         # Position popup to the right of the card
         card_pos = self.mapToGlobal(self.rect().topRight())

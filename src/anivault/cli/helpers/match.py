@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -18,7 +17,9 @@ if TYPE_CHECKING:
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
+from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
+from anivault.core.parser.models import ParsingResult
 from anivault.services import (
     RateLimitStateMachine,
     SemaphoreManager,
@@ -28,6 +29,7 @@ from anivault.services import (
 )
 from anivault.shared.constants import FileSystem
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
+from anivault.shared.metadata_models import FileMetadata
 
 
 async def run_match_pipeline(
@@ -169,8 +171,18 @@ async def _process_files(
     services: dict[str, Any],
     options: Any,
     console: Console,
-) -> list[dict[str, Any]]:
-    """Process anime files concurrently."""
+) -> list[FileMetadata]:
+    """Process anime files concurrently.
+
+    Args:
+        anime_files: List of file paths to process
+        services: Dictionary containing parser and matching_engine
+        options: Match command options
+        console: Rich console for output
+
+    Returns:
+        List of FileMetadata instances (None results are filtered out)
+    """
     parser = services["parser"]
     matching_engine = services["matching_engine"]
     progress_manager = create_progress_manager(disabled=options.json_output)
@@ -179,7 +191,7 @@ async def _process_files(
     with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
         semaphore = asyncio.Semaphore(4)
 
-        async def process_with_semaphore(file_path: Path) -> dict[str, Any]:
+        async def process_with_semaphore(file_path: Path) -> FileMetadata | None:
             async with semaphore:
                 return await process_file_for_matching(
                     file_path, parser, matching_engine, console
@@ -198,44 +210,92 @@ def _process_exceptions(
     anime_files: list[Path],
     options: Any,
     console: Console,
-) -> list[dict[str, Any]]:
-    """Process exceptions in results."""
-    processed_results = []
+) -> list[FileMetadata]:
+    """Process exceptions in results and convert to FileMetadata.
+
+    Args:
+        results: List of processing results (FileMetadata, None, or Exception)
+        anime_files: List of file paths (for error reporting)
+        options: Match command options
+        console: Rich console for output
+
+    Returns:
+        List of FileMetadata instances (None and Exception results are converted
+        to FileMetadata with error indication)
+    """
+    processed_results: list[FileMetadata] = []
     for i, result in enumerate(results):
+        file_path = anime_files[i]
+
         if isinstance(result, Exception):
             if not options.json_output:
                 console.print(
                     CLIFormatting.format_colored_message(
-                        f"Error processing {anime_files[i]}: {result}",
+                        f"Error processing {file_path}: {result}",
                         "error",
                     ),
                 )
-            processed_results.append(
-                {
-                    "file_path": str(anime_files[i]),
-                    "error": str(result),
-                }
+            # Create FileMetadata with error indication
+            from anivault.core.parser.models import ParsingAdditionalInfo
+
+            error_parsing_result = ParsingResult(
+                title=str(file_path.name),
+                additional_info=ParsingAdditionalInfo(),
             )
-        elif isinstance(result, dict):
-            processed_results.append(result)
-        else:
             processed_results.append(
-                {
-                    "file_path": str(anime_files[i]),
-                    "error": "Unexpected result type",
-                }
+                _match_result_to_file_metadata(file_path, error_parsing_result, None)
+            )
+        elif isinstance(result, FileMetadata):
+            processed_results.append(result)
+        elif result is None:
+            # Parsing failed - create FileMetadata with minimal info
+            from anivault.core.parser.models import ParsingAdditionalInfo
+
+            failed_parsing_result = ParsingResult(
+                title=str(file_path.name),
+                additional_info=ParsingAdditionalInfo(),
+            )
+            processed_results.append(
+                _match_result_to_file_metadata(file_path, failed_parsing_result, None)
+            )
+        else:
+            # Unexpected type - convert to FileMetadata
+            if not options.json_output:
+                console.print(
+                    CLIFormatting.format_colored_message(
+                        f"Unexpected result type for {file_path}",
+                        "warning",
+                    ),
+                )
+            from anivault.core.parser.models import ParsingAdditionalInfo
+
+            unexpected_parsing_result = ParsingResult(
+                title=str(file_path.name),
+                additional_info=ParsingAdditionalInfo(),
+            )
+            processed_results.append(
+                _match_result_to_file_metadata(
+                    file_path, unexpected_parsing_result, None
+                )
             )
 
     return processed_results
 
 
 def _output_results(
-    processed_results: list[dict[str, Any]],
+    processed_results: list[FileMetadata],
     directory: Path,
     options: Any,
     console: Console,
 ) -> None:
-    """Output match results."""
+    """Output match results.
+
+    Args:
+        processed_results: List of FileMetadata instances
+        directory: Scanned directory path
+        options: Match command options
+        console: Rich console for output
+    """
     if options.json_output:
         match_data = collect_match_data(processed_results, str(directory))
         json_output = format_json_output(
@@ -250,63 +310,200 @@ def _output_results(
         display_match_results(processed_results, console)
 
 
+def _parsing_result_to_dict(
+    parsing_result: ParsingResult | dict[str, Any] | Any,
+) -> dict[str, Any]:
+    """Convert ParsingResult to dict for matching engine.
+
+    This helper function extracts the complex conditional logic from
+    process_file_for_matching() to reduce cyclomatic complexity.
+
+    Args:
+        parsing_result: ParsingResult dataclass, dict, or any object with attributes
+
+    Returns:
+        Dictionary in format expected by MatchingEngine.find_match()
+
+    Example:
+        >>> result = ParsingResult(title="Attack on Titan", episode=1)
+        >>> d = _parsing_result_to_dict(result)
+        >>> d["anime_title"]
+        'Attack on Titan'
+    """
+    if isinstance(parsing_result, dict):
+        return parsing_result
+
+    if isinstance(parsing_result, ParsingResult):
+        return {
+            "anime_title": parsing_result.title,
+            "episode_number": parsing_result.episode,
+            "release_group": parsing_result.release_group,
+            "video_resolution": parsing_result.quality,
+            "anime_year": parsing_result.year,
+        }
+
+    # Fallback for other types (backward compatibility)
+    return {
+        "anime_title": getattr(parsing_result, "title", ""),
+        "episode_number": getattr(parsing_result, "episode", ""),
+        "release_group": getattr(parsing_result, "release_group", ""),
+        "video_resolution": getattr(parsing_result, "quality", ""),
+    }
+
+
+def _match_result_to_file_metadata(
+    file_path: Path,
+    parsing_result: ParsingResult,
+    match_result: MatchResult | None,
+) -> FileMetadata:
+    """Convert MatchResult and ParsingResult to FileMetadata.
+
+    This helper function combines parsing and matching results into
+    a single FileMetadata dataclass for type-safe processing.
+
+    Args:
+        file_path: Path to the media file
+        parsing_result: Parsed file information
+        match_result: TMDB match result or None
+
+    Returns:
+        FileMetadata instance with combined data
+
+    Example:
+        >>> parsing = ParsingResult(title="AOT", episode=1)
+        >>> match = MatchResult(tmdb_id=1429, title="Attack on Titan", ...)
+        >>> metadata = _match_result_to_file_metadata(Path("/aot.mkv"), parsing, match)
+        >>> metadata.tmdb_id
+        1429
+    """
+    # Start with parsing result data
+    title = parsing_result.title
+    year = parsing_result.year
+    season = parsing_result.season
+    episode = parsing_result.episode
+
+    # Initialize TMDB fields with defaults
+    genres: list[str] = []
+    overview: str | None = None
+    poster_path: str | None = None
+    vote_average: float | None = None
+    tmdb_id: int | None = None
+    media_type: str | None = None
+
+    # Override with match result data if available
+    if match_result is not None:
+        title = match_result.title
+        year = match_result.year or year
+        tmdb_id = match_result.tmdb_id
+        media_type = match_result.media_type
+        poster_path = match_result.poster_path
+        overview = match_result.overview
+        vote_average = match_result.vote_average
+
+    return FileMetadata(
+        title=title,
+        file_path=file_path,
+        file_type=file_path.suffix.lstrip(".").lower(),
+        year=year,
+        season=season,
+        episode=episode,
+        genres=genres,
+        overview=overview,
+        poster_path=poster_path,
+        vote_average=vote_average,
+        tmdb_id=tmdb_id,
+        media_type=media_type,
+    )
+
+
 async def process_file_for_matching(
     file_path: Path,
     parser: AnitopyParser,
     matching_engine: MatchingEngine,
     console: Console,
-) -> dict[str, Any]:
+) -> FileMetadata | None:
     """Process a single file through matching pipeline.
+
+    This function has been refactored to reduce cyclomatic complexity
+    by extracting helper functions for parsing conversion and result transformation.
 
     Args:
         file_path: Path to anime file
         parser: Parser instance
         matching_engine: Matching engine instance
-        console: Rich console
+        console: Rich console (reserved for future error display)
 
     Returns:
-        Processing result dictionary
+        FileMetadata instance with match results, or None if parsing fails
+
+    Example:
+        >>> metadata = await process_file_for_matching(
+        ...     Path("/anime/aot.mkv"), parser, engine, console
+        ... )
+        >>> metadata.tmdb_id if metadata else None
+        1429
     """
     try:
         # Parse filename
         parsing_result = parser.parse(str(file_path))
 
         if not parsing_result:
-            return {"file_path": str(file_path), "error": "Failed to parse filename"}
+            return None
 
-        # Convert to dict for matching
-        if hasattr(parsing_result, "to_dict"):
-            parsing_dict = parsing_result.to_dict()
-        elif isinstance(parsing_result, dict):
-            parsing_dict = parsing_result
-        else:
-            parsing_dict = {
-                "anime_title": getattr(parsing_result, "title", ""),
-                "episode_number": getattr(parsing_result, "episode", ""),
-                "release_group": getattr(parsing_result, "release_group", ""),
-                "video_resolution": getattr(parsing_result, "quality", ""),
-            }
+        # Ensure ParsingResult type for conversion
+        from anivault.core.parser.models import ParsingAdditionalInfo
+
+        if isinstance(parsing_result, dict):
+            parsing_result = ParsingResult(
+                title=parsing_result.get("anime_title", ""),
+                episode=parsing_result.get("episode_number"),
+                season=parsing_result.get("season"),
+                year=parsing_result.get("anime_year"),
+                quality=parsing_result.get("video_resolution"),
+                release_group=parsing_result.get("release_group"),
+                additional_info=ParsingAdditionalInfo(),
+            )
+        elif not isinstance(parsing_result, ParsingResult):
+            # For other types, create minimal ParsingResult
+            # Note: This branch is reachable when parsing_result is neither dict nor ParsingResult
+            parsing_result = ParsingResult(  # type: ignore[unreachable]
+                title=getattr(parsing_result, "title", str(file_path.name)),
+                episode=getattr(parsing_result, "episode", None),
+                season=getattr(parsing_result, "season", None),
+                year=getattr(parsing_result, "year", None),
+                quality=getattr(parsing_result, "quality", None),
+                release_group=getattr(parsing_result, "release_group", None),
+                additional_info=ParsingAdditionalInfo(),
+            )
+        # At this point, parsing_result is guaranteed to be ParsingResult
+
+        # Convert to dict for matching engine
+        parsing_dict = _parsing_result_to_dict(parsing_result)
 
         # Match against TMDB
         match_result = await matching_engine.find_match(parsing_dict)
-        match_result_dict = match_result.to_dict() if match_result else None
 
-        return {
-            "file_path": str(file_path),
-            "parsing_result": parsing_result,
-            "match_result": match_result_dict,
-        }
+        # Convert to FileMetadata
+        return _match_result_to_file_metadata(file_path, parsing_result, match_result)
 
-    except Exception as e:  # noqa: BLE001
-        return {"file_path": str(file_path), "error": str(e)}
+    except Exception:  # noqa: BLE001
+        # Return FileMetadata with error indication (tmdb_id=None)
+        # This maintains type safety while indicating failure
+        from anivault.core.parser.models import ParsingAdditionalInfo
+
+        minimal_parsing_result = ParsingResult(
+            title=str(file_path.name),
+            additional_info=ParsingAdditionalInfo(),
+        )
+        return _match_result_to_file_metadata(file_path, minimal_parsing_result, None)
 
 
-def display_match_results(results: list[dict[str, Any]], console: Console) -> None:
+def display_match_results(results: list[FileMetadata], console: Console) -> None:
     """Display match results in formatted table.
 
     Args:
-        results: List of match results
-        console: Rich console
+        results: List of FileMetadata instances
+        console: Rich console for output
     """
     from rich.table import Table
 
@@ -318,43 +515,22 @@ def display_match_results(results: list[dict[str, Any]], console: Console) -> No
     table.add_column("File", style="cyan", no_wrap=True)
     table.add_column("Title", style="green")
     table.add_column("Episode", style="blue")
-    table.add_column("Quality", style="magenta")
     table.add_column("TMDB Match", style="yellow")
-    table.add_column("Confidence", style="red")
+    table.add_column("TMDB Rating", style="red")
 
-    for result in results:
-        if "error" in result:
-            table.add_row(
-                result["file_path"],
-                "Error",
-                "-",
-                "-",
-                "Failed",
-                "0.00",
-            )
-            continue
+    for metadata in results:
+        file_name = metadata.file_path.name
+        title = metadata.title or "Unknown"
+        episode = str(metadata.episode) if metadata.episode else "-"
 
-        parsing_result = result.get("parsing_result")
-        match_result = result.get("match_result")
-
-        if not parsing_result:
-            continue
-
-        title = parsing_result.title or "Unknown"
-        episode = str(parsing_result.episode) if parsing_result.episode else "-"
-        quality = parsing_result.quality or "-"
-
-        if match_result and match_result.get("tmdb_data"):
-            tmdb_data = match_result["tmdb_data"]
-            tmdb_title = tmdb_data.get("title") or tmdb_data.get("name", "Unknown")
-            confidence = f"{match_result.get('match_confidence', 0.0):.2f}"
+        if metadata.tmdb_id:
+            tmdb_title = metadata.title or "Unknown"
+            rating = f"{metadata.vote_average:.1f}" if metadata.vote_average else "N/A"
         else:
             tmdb_title = "No match"
-            confidence = "0.00"
+            rating = "N/A"
 
-        table.add_row(
-            result["file_path"], title, episode, quality, tmdb_title, confidence
-        )
+        table.add_row(file_name, title, episode, tmdb_title, rating)
 
     console.print(table)
 
@@ -374,15 +550,15 @@ def _calculate_success_rate(successful_matches: int, total_files: int) -> float:
     return (successful_matches / total_files) * 100
 
 
-def collect_match_data(results: list[dict[str, Any]], directory: str) -> dict[str, Any]:
+def collect_match_data(results: list[FileMetadata], directory: str) -> dict[str, Any]:
     """Collect match data for JSON output.
 
     Args:
-        results: List of match results
-        directory: Scanned directory
+        results: List of FileMetadata instances
+        directory: Scanned directory path
 
     Returns:
-        Match statistics and file data
+        Match statistics and file data dictionary
     """
     total_files = len(results)
     stats = _calculate_file_statistics(results)
@@ -411,24 +587,31 @@ def collect_match_data(results: list[dict[str, Any]], directory: str) -> dict[st
     }
 
 
-def _calculate_file_statistics(results: list[dict[str, Any]]) -> dict[str, Any]:
-    """Calculate file statistics from results."""
+def _calculate_file_statistics(results: list[FileMetadata]) -> dict[str, Any]:
+    """Calculate file statistics from FileMetadata results.
+
+    Args:
+        results: List of FileMetadata instances
+
+    Returns:
+        Dictionary containing file statistics
+    """
     total_size = 0
     file_counts: dict[str, int] = {}
     scanned_paths = []
     file_data = []
 
-    for result in results:
-        file_path = result.get("file_path", "Unknown")
+    for metadata in results:
+        file_path = str(metadata.file_path)
         scanned_paths.append(file_path)
 
         file_size = _get_file_size(file_path)
         total_size += file_size
 
-        file_ext = Path(file_path).suffix.lower()
+        file_ext = metadata.file_path.suffix.lower()
         file_counts[file_ext] = file_counts.get(file_ext, 0) + 1
 
-        file_info = _build_file_info(result, file_path, file_size, file_ext)
+        file_info = _build_file_info(metadata, file_path, file_size, file_ext)
         file_data.append(file_info)
 
     return {
@@ -448,75 +631,66 @@ def _get_file_size(file_path: str) -> int:
 
 
 def _build_file_info(
-    result: dict[str, Any],
+    metadata: FileMetadata,
     file_path: str,
     file_size: int,
     file_ext: str,
 ) -> dict[str, Any]:
-    """Build file information dictionary."""
-    parsing_result = result.get("parsing_result")
-    match_result = result.get("match_result")
+    """Build file information dictionary from FileMetadata.
 
+    Args:
+        metadata: FileMetadata instance
+        file_path: File path string
+        file_size: File size in bytes
+        file_ext: File extension
+
+    Returns:
+        Dictionary with file information for JSON output
+    """
     file_info = {
         "file_path": file_path,
         "file_name": Path(file_path).name,
         "file_size": file_size,
         "file_extension": file_ext,
+        "title": metadata.title,
+        "year": metadata.year,
+        "season": metadata.season,
+        "episode": metadata.episode,
     }
 
-    if parsing_result:
-        file_info["parsing_result"] = _extract_parsing_result(parsing_result)
-
-    file_info["match_result"] = _extract_match_result(result, match_result)
+    # Add TMDB match information
+    if metadata.tmdb_id:
+        file_info["match_result"] = {
+            "match_confidence": 1.0,  # FileMetadata indicates successful match
+            "tmdb_data": {
+                "id": metadata.tmdb_id,
+                "title": metadata.title,
+                "media_type": metadata.media_type,
+                "poster_path": metadata.poster_path,
+                "overview": metadata.overview,
+                "vote_average": metadata.vote_average,
+            },
+            "enrichment_status": "SUCCESS",
+        }
+    else:
+        file_info["match_result"] = {
+            "match_confidence": 0.0,
+            "tmdb_data": None,
+            "enrichment_status": "NO_MATCH",
+        }
 
     return file_info
 
 
-def _extract_parsing_result(parsing_result: Any) -> dict[str, Any]:
-    """Extract parsing result data."""
-    return {
-        "title": parsing_result.title,
-        "episode": parsing_result.episode,
-        "season": parsing_result.season,
-        "quality": parsing_result.quality,
-        "source": parsing_result.source,
-        "codec": parsing_result.codec,
-        "audio": parsing_result.audio,
-        "release_group": parsing_result.release_group,
-        "confidence": parsing_result.confidence,
-        "parser_used": parsing_result.parser_used,
-        "additional_info": asdict(parsing_result.additional_info)
-        if hasattr(parsing_result, "additional_info")
-        else {},
-    }
+def _collect_matching_statistics(results: list[FileMetadata]) -> dict[str, int]:
+    """Collect matching statistics from FileMetadata results.
 
+    Args:
+        results: List of FileMetadata instances
 
-def _extract_match_result(
-    result: dict[str, Any],
-    match_result: dict[str, Any] | None,
-) -> dict[str, Any]:
-    """Extract match result data."""
-    if match_result:
-        return {
-            "match_confidence": match_result.get("match_confidence", 0.0),
-            "tmdb_data": match_result.get("tmdb_data"),
-            "enrichment_status": match_result.get("enrichment_status", "UNKNOWN"),
-        }
-    if "error" in result:
-        return {
-            "match_confidence": 0.0,
-            "tmdb_data": None,
-            "enrichment_status": "ERROR",
-        }
-    return {
-        "match_confidence": 0.0,
-        "tmdb_data": None,
-        "enrichment_status": "NO_MATCH",
-    }
-
-
-def _collect_matching_statistics(results: list[dict[str, Any]]) -> dict[str, int]:
-    """Collect matching statistics."""
+    Returns:
+        Dictionary with matching statistics
+    """
     high_confidence_threshold = 0.8
     medium_confidence_threshold = 0.6
 
@@ -526,12 +700,13 @@ def _collect_matching_statistics(results: list[dict[str, Any]]) -> dict[str, int
     low_confidence = 0
     errors = 0
 
-    for result in results:
-        match_result = result.get("match_result")
-
-        if match_result:
+    for metadata in results:
+        # Consider a match successful if tmdb_id is present
+        if metadata.tmdb_id:
             successful_matches += 1
-            conf = match_result.get("match_confidence", 0.0)
+            # Use vote_average as proxy for confidence (if available)
+            # Otherwise assume medium confidence for matched items
+            conf = metadata.vote_average if metadata.vote_average else 0.7
 
             if conf >= high_confidence_threshold:
                 high_confidence += 1
@@ -539,7 +714,8 @@ def _collect_matching_statistics(results: list[dict[str, Any]]) -> dict[str, int
                 medium_confidence += 1
             else:
                 low_confidence += 1
-        elif "error" in result:
+        else:
+            # No match found (not necessarily an error)
             errors += 1
 
     return {

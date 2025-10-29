@@ -376,6 +376,63 @@ class FileGrouper:
 
         return DuplicateResolver()
 
+    def _reconstruct_groups_with_evidence(
+        self,
+        normalized_dict: dict[str, list[ScannedFile]],
+        original_groups: list[Group],
+    ) -> list[Group]:
+        """Reconstruct Group objects from normalized dict, preserving evidence.
+
+        Args:
+            normalized_dict: Dictionary mapping group titles to file lists
+            original_groups: Original groups before normalization
+
+        Returns:
+            List of Group objects with evidence preserved where possible
+        """
+        final_groups = []
+        for title, files in normalized_dict.items():
+            original_group = self._find_matching_original_group(
+                title, files, original_groups
+            )
+            if original_group and original_group.evidence:
+                final_groups.append(
+                    Group(title=title, files=files, evidence=original_group.evidence)
+                )
+            else:
+                final_groups.append(Group(title=title, files=files))
+        return final_groups
+
+    def _find_matching_original_group(
+        self,
+        title: str,
+        files: list[ScannedFile],
+        original_groups: list[Group],
+    ) -> Group | None:
+        """Find the original group that matches the normalized title and files.
+
+        Args:
+            title: Normalized group title
+            files: List of files in the normalized group
+            original_groups: List of original groups to search
+
+        Returns:
+            Matching original group or None if not found
+        """
+        # Note: Cannot use set() as ScannedFile is not hashable
+        for group in original_groups:
+            if group.title == title:
+                return group
+
+            # Check if files match (same count and same file paths)
+            if len(group.files) == len(files):
+                file_paths = {f.file_path for f in files}
+                group_file_paths = {f.file_path for f in group.files}
+                if file_paths == group_file_paths:
+                    return group
+
+        return None
+
     def group_files(
         self,
         scanned_files: list[ScannedFile],
@@ -431,34 +488,10 @@ class FileGrouper:
             groups_dict = {group.title: group.files for group in groups}
             normalized_dict = self.name_manager.merge_similar_group_names(groups_dict)
 
-            # Convert back to list[Group] (preserve evidence if exists)
-            final_groups = []
-            for title, files in normalized_dict.items():
-                # Find original group to preserve evidence
-                # Note: Cannot use set() as ScannedFile is not hashable
-                original_group = next(
-                    (
-                        g
-                        for g in groups
-                        if g.title == title
-                        or (
-                            len(g.files) == len(files)
-                            and all(
-                                f.file_path in [f2.file_path for f2 in files]
-                                for f in g.files
-                            )
-                        )
-                    ),
-                    None,
-                )
-                if original_group and original_group.evidence:
-                    final_groups.append(
-                        Group(
-                            title=title, files=files, evidence=original_group.evidence
-                        )
-                    )
-                else:
-                    final_groups.append(Group(title=title, files=files))
+            # Step 4: Convert back to list[Group] (preserve evidence if exists)
+            final_groups = self._reconstruct_groups_with_evidence(
+                normalized_dict, groups
+            )
 
             logger.info(
                 "Grouped %d files into %d groups (via Facade)",

@@ -6,12 +6,11 @@ between anime titles, using rapidfuzz for robust fuzzy string matching.
 
 from __future__ import annotations
 
-from typing import Any
-
 from rapidfuzz import fuzz
 
 from anivault.core.parser.models import ParsingResult
 from anivault.services.enricher.metadata_enricher.models import ScoreResult
+from anivault.services.tmdb import TMDBSearchResult
 from anivault.shared.errors import DomainError, ErrorCode, ErrorContext
 
 
@@ -22,16 +21,19 @@ class TitleScorer:
     for calculating title similarity with tolerance for typos and variations.
 
     Attributes:
+        component_name: Identifier for this scorer ("title")
         weight: Weight applied to this score (default: 0.6)
 
     Example:
         >>> scorer = TitleScorer(weight=0.6)
         >>> result = scorer.score(
         ...     file_info=ParsingResult(title="Attack on Titan", ...),
-        ...     tmdb_candidate={"title": "Attack on Titan", "id": 1429}
+        ...     tmdb_candidate=TMDBSearchResult(id=1429, media_type="tv", name="Attack on Titan")
         ... )
         >>> print(result.score)  # 1.0 (exact match)
     """
+
+    component_name: str = "title"
 
     def __init__(self, weight: float = 0.6) -> None:
         """Initialize TitleScorer with specified weight.
@@ -50,7 +52,7 @@ class TitleScorer:
     def score(
         self,
         file_info: ParsingResult,
-        tmdb_candidate: dict[str, Any],
+        tmdb_candidate: TMDBSearchResult,
     ) -> ScoreResult:
         """Calculate title similarity score.
 
@@ -135,11 +137,11 @@ class TitleScorer:
 
         return title
 
-    def _extract_tmdb_title(self, tmdb_candidate: dict[str, Any]) -> str:
+    def _extract_tmdb_title(self, tmdb_candidate: TMDBSearchResult) -> str:
         """Extract and validate title from TMDB candidate.
 
         Args:
-            tmdb_candidate: TMDB search result dict
+            tmdb_candidate: TMDB search result dataclass instance
 
         Returns:
             Validated title string
@@ -147,10 +149,10 @@ class TitleScorer:
         Raises:
             DomainError: If title extraction fails
         """
-        if not isinstance(tmdb_candidate, dict):
+        if not isinstance(tmdb_candidate, TMDBSearchResult):
             raise DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message="tmdb_candidate must be a dict",
+                message="tmdb_candidate must be a TMDBSearchResult instance",
                 context=ErrorContext(
                     operation="extract_tmdb_title",
                     additional_data={
@@ -159,19 +161,19 @@ class TitleScorer:
                 ),
             )
 
-        # Try both 'title' (movies) and 'name' (TV shows)
-        title = tmdb_candidate.get("title") or tmdb_candidate.get("name")
+        # Use display_title property (handles both title and name)
+        title = tmdb_candidate.display_title
 
-        if not title or not isinstance(title, str):
+        if not title or title == "Unknown":
             raise DomainError(
                 code=ErrorCode.DATA_PROCESSING_ERROR,
                 message="TMDB result missing title/name field",
                 context=ErrorContext(
                     operation="extract_tmdb_title",
                     additional_data={
-                        "has_title": "title" in tmdb_candidate,
-                        "has_name": "name" in tmdb_candidate,
-                        "tmdb_keys_count": len(tmdb_candidate.keys()),
+                        "has_title": tmdb_candidate.title is not None,
+                        "has_name": tmdb_candidate.name is not None,
+                        "media_type": tmdb_candidate.media_type,
                     },
                 ),
             )

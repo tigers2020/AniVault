@@ -8,6 +8,7 @@ which are essential for dry-run previews and rollback capabilities.
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -126,8 +127,8 @@ class OperationLogManager:
         Raises:
             json.JSONEncodeError: If serialization fails
         """
-        # Convert FileOperation objects to dictionaries using model_dump_json for better performance
-        plan_data = [operation.model_dump() for operation in plan]
+        # Convert FileOperation objects to dictionaries using asdict for dataclass
+        plan_data = [asdict(operation) for operation in plan]
 
         # Ensure paths are serialized as strings
         for operation_data in plan_data:

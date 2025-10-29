@@ -34,6 +34,7 @@ from anivault.core.models import FileOperation, ScannedFile
 from anivault.gui.models import FileItem
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import ApplicationError
+from anivault.shared.metadata_models import FileMetadata
 
 from .controllers import OrganizeController, ScanController, TMDBController
 
@@ -73,7 +74,7 @@ class MainWindow(QMainWindow):
         self.tmdb_progress_dialog: TMDBProgressDialog | None = None
 
         # Initialize theme-related attributes
-        self.theme_manager = None
+        self.theme_manager: ThemeManager | None = None
         self.config_path = Path("config/config.toml")
 
         # Setup components in logical order
@@ -339,7 +340,7 @@ class MainWindow(QMainWindow):
         self.theme_manager = theme_manager
 
         # Set initial theme selection based on current theme
-        if self.theme_manager and self.menu_manager:
+        if self.theme_manager is not None and self.menu_manager:
             current_theme = self.theme_manager.get_current_theme()
             if current_theme:
                 # Get theme action group from MenuManager
@@ -581,11 +582,29 @@ class MainWindow(QMainWindow):
             if metadata is None:
                 from anivault.core.parser.models import ParsingResult
 
-                metadata = ParsingResult(title="Unknown")
+                parsing_metadata: ParsingResult = ParsingResult(title="Unknown")
+            else:
+                # metadata is FileMetadata (guaranteed by type annotation)
+                # Convert FileMetadata to ParsingResult for ScannedFile
+                from anivault.core.parser.models import (
+                    ParsingResult,
+                    ParsingAdditionalInfo,
+                )
+
+                assert isinstance(metadata, FileMetadata)
+                parsing_metadata = ParsingResult(
+                    title=metadata.title or "Unknown",
+                    season=metadata.season,
+                    episode=metadata.episode,
+                    year=metadata.year,
+                    quality=None,
+                    release_group=None,
+                    additional_info=ParsingAdditionalInfo(),
+                )
 
             scanned_file = ScannedFile(
                 file_path=file_item.file_path,
-                metadata=metadata,
+                metadata=parsing_metadata,
                 file_size=file_item.file_path.stat().st_size
                 if file_item.file_path.exists()
                 else 0,

@@ -115,32 +115,6 @@ class StateModel(QObject):
         """Get all files with a specific status."""
         return [f for f in self._scanned_files if f.status == status]
 
-    def set_file_metadata_from_dict(
-        self, file_path: Path, metadata_dict: dict[str, Any]
-    ) -> None:
-        """Set metadata for a specific file from dictionary.
-
-        This method provides backward compatibility for code that still uses
-        dict-based metadata. It converts the dict to FileMetadata internally.
-
-        Args:
-            file_path: Path to the file
-            metadata_dict: Dictionary containing metadata fields
-        """
-        file_path = Path(file_path)
-
-        # Convert dict to FileMetadata
-        metadata = self._dict_to_file_metadata(file_path, metadata_dict)
-        self._metadata_cache.put(file_path, metadata)
-
-        # Update the file item if it exists
-        for file_item in self._scanned_files:
-            if file_item.file_path == file_path:
-                file_item.metadata = metadata
-                break
-
-        logger.debug("Set metadata for file: %s", file_path.name)
-
     def _dict_to_file_metadata(
         self, file_path: Path, metadata_dict: dict[str, Any]
     ) -> FileMetadata:

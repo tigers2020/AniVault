@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from anivault.core.parser.models import ParsingResult
 from anivault.services.tmdb import TMDBMediaDetails
@@ -180,7 +179,7 @@ class EnrichedMetadata:
     """
 
     file_info: ParsingResult
-    tmdb_data: TMDBMediaDetails | dict[str, Any] | None = None
+    tmdb_data: TMDBMediaDetails | None = None
     match_confidence: float = 0.0
     enrichment_status: str = APIFields.ENRICHMENT_STATUS_PENDING
 

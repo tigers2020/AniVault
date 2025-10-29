@@ -185,7 +185,7 @@ class FileTreeModel(QStandardItemModel):
     def update_file_match_result(
         self,
         file_path: Path,
-        match_result: dict[str, Any] | FileMetadata | None,
+        match_result: FileMetadata | None,
         status: str,
     ) -> None:
         """
@@ -193,7 +193,7 @@ class FileTreeModel(QStandardItemModel):
 
         Args:
             file_path: Path of the file to update
-            match_result: TMDB match result (dict for legacy, FileMetadata for new)
+            match_result: FileMetadata instance or None if no match
             status: New status for the file ('Matched', 'Failed', etc.)
         """
         for row in range(self.rowCount()):
@@ -209,14 +209,8 @@ class FileTreeModel(QStandardItemModel):
 
                     # Extract title for display
                     series_title = "Unknown"
-                    if isinstance(match_result, FileMetadata):
-                        series_title = match_result.title
-                    elif match_result and hasattr(match_result, "title"):
-                        # MatchResult dataclass
-                        series_title = match_result.title
-                    elif isinstance(match_result, dict):
-                        # Legacy dict format
-                        series_title = match_result.get("title", "Unknown")
+                    if match_result:
+                        series_title = match_result.title or "Unknown"
 
                     # Update the matched series item
                     matched_item = self.item(row, 3)
@@ -230,17 +224,7 @@ class FileTreeModel(QStandardItemModel):
 
                     # Update the file item status and metadata
                     file_item.status = status
-
-                    # Handle different metadata types
-                    if isinstance(match_result, FileMetadata):
-                        # Direct assignment of FileMetadata
-                        file_item.metadata = match_result
-                    elif isinstance(match_result, dict):
-                        # Legacy dict format (backward compatibility) - NO LONGER USED
-                        pass  # FileMetadata is now the standard format
-                    else:
-                        # No match result
-                        file_item.metadata = None
+                    file_item.metadata = match_result
 
                     logger.debug(
                         "Updated match result for %s: %s -> %s",

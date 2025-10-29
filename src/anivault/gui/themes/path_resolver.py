@@ -178,7 +178,7 @@ class ThemePathResolver:
                             "source_path": str(source),
                             "bundle_dir": str(self.base_theme_dir),
                         },
-                    ).model_dump(),
+                    ).safe_dict(),
                 )
             except FileNotFoundError:
                 logger.error(  # noqa: TRY400
@@ -190,7 +190,7 @@ class ThemePathResolver:
                             "bundle_dir": str(self.base_theme_dir),
                             "theme_file": theme_file_name,
                         },
-                    ).model_dump(),
+                    ).safe_dict(),
                 )
             except Exception as e:  # noqa: BLE001
                 logger.error(  # noqa: TRY400
@@ -204,7 +204,7 @@ class ThemePathResolver:
                             "bundle_dir": str(self.base_theme_dir),
                             "error_type": type(e).__name__,
                         },
-                    ).model_dump(),
+                    ).safe_dict(),
                 )
 
     def mask_home_path(self, path: Path) -> str:
@@ -266,7 +266,7 @@ class ThemePathResolver:
             extra=ErrorContext(
                 file_path=self.mask_home_path(user_path),
                 additional_data={"stage": "user-theme", "theme_name": theme_name},
-            ).model_dump(),
+            ).safe_dict(),
         )
 
         # 2. Try bundle base directory (read-only resources)
@@ -282,7 +282,7 @@ class ThemePathResolver:
             extra=ErrorContext(
                 file_path=self.mask_home_path(base_path),
                 additional_data={"stage": "bundle-theme", "theme_name": theme_name},
-            ).model_dump(),
+            ).safe_dict(),
         )
 
         # 3. Fallback to default theme (light.qss) if not already trying it
@@ -297,7 +297,7 @@ class ThemePathResolver:
                         "theme_name": theme_name,
                         "fallback": self.LIGHT_THEME,
                     },
-                ).model_dump(),
+                ).safe_dict(),
             )
             # Recursive call with default theme
             return self.get_qss_path(self.LIGHT_THEME)
@@ -309,7 +309,7 @@ class ThemePathResolver:
             extra=ErrorContext(
                 file_path=self.mask_home_path(base_path),
                 additional_data={"stage": "default-fallback", "theme_name": theme_name},
-            ).model_dump(),
+            ).safe_dict(),
         )
 
         return None

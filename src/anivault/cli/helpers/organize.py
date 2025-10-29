@@ -301,7 +301,7 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
     progress_manager = create_progress_manager(disabled=options.json_output)
 
     with progress_manager.spinner("Organizing files..."):
-        moved_files = organizer.execute_plan(plan, operation_id)
+        moved_files = organizer.execute_plan(plan)
 
     # Print individual file results if not JSON output
     if not options.json_output and moved_files:

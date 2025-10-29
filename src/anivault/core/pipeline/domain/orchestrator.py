@@ -28,6 +28,7 @@ from anivault.core.pipeline.domain.lifecycle import (
     wait_for_parser_completion,
     wait_for_scanner_completion,
 )
+from anivault.core.constants import ProcessStatus
 from anivault.core.pipeline.domain.statistics import format_statistics
 from anivault.core.pipeline.utils import (
     BoundedQueue,
@@ -38,8 +39,40 @@ from anivault.core.pipeline.utils import (
 from anivault.shared.constants import ProcessingConfig
 from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
+from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
+
+
+def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
+    """Convert FileMetadata to dictionary for backward compatibility.
+
+    This function converts FileMetadata instances back to dictionary format
+    to maintain compatibility with existing code that expects dict structures.
+
+    Args:
+        metadata: FileMetadata instance to convert
+
+    Returns:
+        Dictionary representation of FileMetadata
+    """
+    return {
+        "file_path": str(metadata.file_path),
+        "file_name": metadata.file_name,
+        "title": metadata.title,
+        "file_type": metadata.file_type,
+        "file_extension": f".{metadata.file_type}",
+        "year": metadata.year,
+        "season": metadata.season,
+        "episode": metadata.episode,
+        "genres": metadata.genres,
+        "overview": metadata.overview,
+        "poster_path": metadata.poster_path,
+        "vote_average": metadata.vote_average,
+        "tmdb_id": metadata.tmdb_id,
+        "media_type": metadata.media_type,
+        "status": ProcessStatus.SUCCESS.value,  # All FileMetadata are considered successful
+    }
 
 
 class PipelineFactory:
@@ -241,6 +274,9 @@ def run_pipeline(
 
     except Exception as e:  # noqa: BLE001
         _handle_pipeline_error(e, context, scanner, parser_pool, collector)
+        # _handle_pipeline_error raises InfrastructureError, so this is unreachable
+        # but mypy needs an explicit return
+        return []
 
     finally:
         if scanner and parser_pool and collector:
@@ -315,8 +351,11 @@ def _collect_results(
     parser_stats = components["parser_stats"]
 
     result_count = wait_for_collector_completion(collector)
-    results = collector.get_results()
+    file_metadata_results = collector.get_results()
     total_duration = time.time() - start_time
+
+    # Convert FileMetadata to dict for backward compatibility
+    results = [_file_metadata_to_dict(metadata) for metadata in file_metadata_results]
 
     stats_report = format_statistics(
         scan_stats=scan_stats,

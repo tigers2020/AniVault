@@ -103,6 +103,10 @@ class OptimizedFileOrganizer:
                 "ScannedFile must have file_path and metadata attributes"
             )
 
+        # Validate file_path is not None
+        if scanned_file.file_path is None:
+            raise ValueError("ScannedFile.file_path cannot be None")
+
         try:
             # Use (title, episode) as key for duplicate detection
             title = scanned_file.metadata.title if scanned_file.metadata else "Unknown"
@@ -129,9 +133,10 @@ class OptimizedFileOrganizer:
                     episode,
                 )
         except Exception:
-            logger.exception(
-                "Failed to add file to cache: %s", scanned_file.file_path.name
+            file_path_str = (
+                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
             )
+            logger.exception("Failed to add file to cache: %s", file_path_str)
             raise
 
     def get_file(self, title: str, episode: int) -> ScannedFile | None:

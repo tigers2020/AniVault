@@ -10,7 +10,6 @@ import asyncio
 import json
 import logging
 import sys
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +28,7 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI, CLIDefaults
 from anivault.shared.constants.cli import CLIHelp, CLIMessages, CLIOptions
 from anivault.shared.constants.logging import LogConfig
+from anivault.shared.metadata_models import FileMetadata
 from anivault.shared.types.cli import CLIDirectoryPath, ScanOptions
 
 logger = logging.getLogger(__name__)
@@ -101,6 +101,7 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
     # Output results
     if is_json_output:
         # Collect scan statistics for JSON output
+        # enriched_results is list[FileMetadata] from enrich_metadata
         scan_data = collect_scan_data(
             enriched_results, directory, show_tmdb=enrich_metadata_flag
         )
@@ -116,6 +117,7 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
         sys.stdout.buffer.flush()
     else:
         # Display results in human-readable format
+        # enriched_results is list[FileMetadata] from enrich_metadata
         display_scan_results(enriched_results, console, show_tmdb=enrich_metadata_flag)
 
         # Save results to file if requested
@@ -136,38 +138,21 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
     return CLIDefaults.EXIT_SUCCESS
 
 
-def _save_results_to_file(results: list[dict[str, Any]], output_path: Path) -> None:
+def _save_results_to_file(results: list[FileMetadata], output_path: Path) -> None:
     """Save scan results to a JSON file.
 
     Args:
-        results: List of scan results
+        results: List of FileMetadata instances
         output_path: Path to save the results
     """
+    from anivault.cli.helpers.scan import _file_metadata_to_dict
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Convert results to JSON-serializable format
+    # Convert FileMetadata to JSON-serializable format
     json_results = []
-    for result in results:
-        json_result = result.copy()
-        if "parsing_result" in json_result:
-            # Convert ParsingResult to dict
-            parsing_result = json_result["parsing_result"]
-            json_result["parsing_result"] = {
-                "title": parsing_result.title,
-                "episode": parsing_result.episode,
-                "season": parsing_result.season,
-                "quality": parsing_result.quality,
-                "source": parsing_result.source,
-                "codec": parsing_result.codec,
-                "audio": parsing_result.audio,
-                "release_group": parsing_result.release_group,
-                "confidence": parsing_result.confidence,
-                "parser_used": parsing_result.parser_used,
-                "additional_info": asdict(parsing_result.additional_info)
-                if hasattr(parsing_result, "additional_info")
-                else {},
-            }
-
+    for metadata in results:
+        json_result = _file_metadata_to_dict(metadata)
         json_results.append(json_result)
 
     with open(output_path, "w", encoding=LogConfig.DEFAULT_ENCODING) as f:
