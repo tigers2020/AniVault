@@ -1,0 +1,175 @@
+================================================================================
+                    THIRD-PARTY SOFTWARE LICENSES
+================================================================================
+
+This document contains the licenses for third-party software used in AniVault.
+
+================================================================================
+
+1. PySide6 (Qt for Python)
+   License: LGPL-3.0
+   Copyright: The Qt Company Ltd.
+   Website: https://www.qt.io/qt-for-python
+
+   PySide6 is licensed under the GNU Lesser General Public License v3.0.
+
+   In compliance with LGPL-3.0, AniVault distributes PySide6 libraries as
+   separate DLL files (dynamic linking) to allow users to replace them with
+   modified versions.
+
+   Users have the right to:
+   - Use this software with PySide6
+   - Replace PySide6 with a compatible version
+   - Modify PySide6 and use the modified version
+   - Access PySide6 source code at: https://code.qt.io/cgit/pyside/pyside-setup.git
+
+   Full LGPL-3.0 license text:
+   https://www.gnu.org/licenses/lgpl-3.0.html
+
+--------------------------------------------------------------------------------
+
+2. Click
+   License: BSD-3-Clause
+   Copyright: Pallets
+   Website: https://palletsprojects.com/p/click/
+
+3. Typer
+   License: MIT
+   Copyright: Sebastián Ramírez
+   Website: https://typer.tiangolo.com/
+
+4. Pydantic
+   License: MIT
+   Copyright: Samuel Colvin and other contributors
+   Website: https://docs.pydantic.dev/
+
+5. tmdbv3api
+   License: MIT
+   Copyright: Anthony Bloomer
+   Website: https://github.com/AnthonyBloomer/tmdbv3api
+
+6. anitopy
+   License: Apache-2.0
+   Copyright: igorcmoura
+   Website: https://github.com/igorcmoura/anitopy
+
+   NOTICE: This product includes software developed by igorcmoura.
+
+7. Rich
+   License: MIT
+   Copyright: Will McGugan
+   Website: https://github.com/Textualize/rich
+
+8. Cryptography
+   License: Apache-2.0 / BSD-3-Clause (dual licensed)
+   Copyright: Individual contributors
+   Website: https://cryptography.io/
+
+   NOTICE: This product includes cryptographic software written by
+   Eric Young (eay@cryptsoft.com) and software written by Tim Hudson (tjh@cryptsoft.com).
+
+9. Requests
+   License: Apache-2.0
+   Copyright: Kenneth Reitz and other contributors
+   Website: https://requests.readthedocs.io/
+
+10. Rapidfuzz
+    License: MIT
+    Copyright: Max Bachmann
+    Website: https://github.com/maxbachmann/RapidFuzz
+
+11. Parse
+    License: MIT
+    Copyright: Richard Jones
+    Website: https://github.com/r1chardj0n3s/parse
+
+12. pytest (Development)
+    License: MIT
+    Copyright: Holger Krekel and others
+    Website: https://pytest.org/
+
+13. Ruff (Development)
+    License: MIT
+    Copyright: Charlie Marsh
+    Website: https://github.com/astral-sh/ruff
+
+14. MyPy (Development)
+    License: MIT
+    Copyright: Jukka Lehtosalo and contributors
+    Website: http://www.mypy-lang.org/
+
+15. PyInstaller (Build)
+    License: GPL-2.0 with special exception for generated executables
+    Copyright: PyInstaller Development Team
+    Website: https://www.pyinstaller.org/
+
+    NOTE: PyInstaller's license allows generated executables to be distributed
+    under any license. This exception means AniVault executables built with
+    PyInstaller can be distributed under the MIT license.
+
+================================================================================
+                              LGPL-3.0 COMPLIANCE
+================================================================================
+
+AniVault uses PySide6, which is licensed under LGPL-3.0. To comply with this
+license, we:
+
+1. **Dynamic Linking**: PySide6 libraries are distributed as separate DLL files,
+   not statically linked into the main executable.
+
+2. **Source Availability**: PySide6 source code is available at:
+   https://code.qt.io/cgit/pyside/pyside-setup.git/
+
+3. **User Replacement**: Users can replace PySide6 DLLs with modified versions.
+   See docs/compliance/PYSIDE6_REPLACEMENT.md for instructions.
+
+4. **License Notice**: This file serves as the required license notice for
+   LGPL-3.0 components.
+
+5. **Modification Rights**: Users are explicitly informed of their right to
+   modify PySide6 under LGPL-3.0 terms.
+
+For detailed LGPL compliance information, see:
+docs/compliance/PYSIDE6_LGPL_COMPLIANCE.md
+
+================================================================================
+                              APACHE-2.0 NOTICES
+================================================================================
+
+This product includes software licensed under the Apache License 2.0:
+
+- anitopy: Anime filename parser
+- Cryptography: Cryptographic recipes and primitives
+- Requests: HTTP library for humans
+
+In compliance with Apache-2.0, we provide the following notice:
+
+   Copyright notices and license texts for Apache-2.0 licensed components
+   are preserved in their original form within the distributed packages.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use these files except in compliance with the License.
+   You may obtain a copy of the License at:
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+================================================================================
+                         FULL LICENSE TEXTS
+================================================================================
+
+For complete license texts, please refer to:
+- LGPL-3.0: https://www.gnu.org/licenses/lgpl-3.0.txt
+- Apache-2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
+- MIT: https://opensource.org/licenses/MIT
+- BSD-3-Clause: https://opensource.org/licenses/BSD-3-Clause
+
+================================================================================
+
+Last Updated: 2025-10-08
+Version: 1.0.0
