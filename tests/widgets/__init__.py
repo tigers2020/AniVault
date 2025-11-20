@@ -1,1 +1,0 @@
-"""Widget unit tests package."""

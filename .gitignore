@@ -159,7 +159,16 @@ dmypy.json
 # AniVault Project Specific
 # ===========================================
 
-# Test data directories (keep test code, ignore test data)
+# Test files and directories - DO NOT COMMIT
+tests/
+
+# Internal development documentation - DO NOT COMMIT
+docs/
+
+# Internal development scripts - DO NOT COMMIT
+scripts/
+
+# Test data directories
 test_anime_files/
 test_cache/
 test_data/
