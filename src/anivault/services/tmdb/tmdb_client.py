@@ -276,7 +276,10 @@ class TMDBClient:
 
         try:
             # Delegate to strategy
-            details = await strategy.get_details(media_id)
+            # Note: get_details is implemented in concrete strategy classes
+            # but not in the abstract base class, so we use type: ignore
+            details_raw = await strategy.get_details(media_id)  # type: ignore[union-attr]
+            details: TMDBMediaDetails | None = details_raw
 
             if details:
                 log_operation_success(

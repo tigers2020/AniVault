@@ -183,14 +183,14 @@ def _coerce_primitives(value: Any | None) -> dict[str, PrimitiveContextValue] | 
         Dictionary with primitive values only, or None
 
     Raises:
-        ValueError: If value is not a dict or contains unconvertible types
+        TypeError: If value is not a dict or contains unconvertible types
     """
     if value is None:
         return None
 
     if not isinstance(value, dict):
         error_msg = f"additional_data must be dict, got {type(value).__name__}"
-        raise ValueError(error_msg)
+        raise TypeError(error_msg)
 
     coerced: dict[str, PrimitiveContextValue] = {}
     for key, val in value.items():
@@ -207,7 +207,7 @@ def _coerce_primitives(value: Any | None) -> dict[str, PrimitiveContextValue] | 
                 f"Cannot coerce {type(val).__name__} to primitive type. "
                 f"Only str, int, float, bool, Path, Enum, Decimal are allowed."
             )
-            raise ValueError(error_msg)
+            raise TypeError(error_msg)
 
     return coerced
 

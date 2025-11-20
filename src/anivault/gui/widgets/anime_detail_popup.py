@@ -8,12 +8,12 @@ rating, status, genres, and overview in a tooltip-style popup.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 from anivault.shared.constants.gui_messages import UIConfig
+from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +21,16 @@ logger = logging.getLogger(__name__)
 class AnimeDetailPopup(QFrame):
     """Popup widget showing detailed anime information on hover."""
 
-    def __init__(self, anime_info: dict[str, Any], parent: QWidget | None = None):
+    def __init__(self, metadata: FileMetadata, parent: QWidget | None = None):
         """
         Initialize the anime detail popup.
 
         Args:
-            anime_info: Dictionary containing anime information
+            metadata: FileMetadata dataclass instance containing anime information
             parent: Parent widget (optional)
         """
         super().__init__(parent)
-        self.anime_info = anime_info
+        self.metadata = metadata
         # Use ToolTip style for natural hover behavior
         self.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint)  # type: ignore[attr-defined]
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)  # type: ignore[attr-defined]  # noqa: FBT003 - Qt API
@@ -54,63 +54,51 @@ class AnimeDetailPopup(QFrame):
         layout.setSpacing(UIConfig.POPUP_CONTENT_SPACING)
 
         # Title
-        title = self.anime_info.get("title") or self.anime_info.get("name") or "Unknown"
+        title = self.metadata.title or "Unknown"
         title_label = QLabel(f"<b>{title}</b>")
         title_label.setWordWrap(True)
         title_label.setObjectName("popupTitleLabel")
         layout.addWidget(title_label)
 
-        # Rating with vote count for credibility
-        rating = self.anime_info.get("vote_average")
-        vote_count = self.anime_info.get("vote_count")
-        if rating:
+        # Rating (vote_count not available in FileMetadata)
+        rating = self.metadata.vote_average
+        if rating is not None:
             rating_text = f"⭐ {rating:.1f}/10"
-            if vote_count:
-                rating_text += f" ({vote_count:,} votes)"
             rating_label = QLabel(rating_text)
             rating_label.setObjectName("popupRatingLabel")
             layout.addWidget(rating_label)
 
         # Status line: "Ended | 4 seasons 87 episodes | 24min"
+        # Note: status, number_of_seasons, number_of_episodes, episode_run_time
+        # are not available in FileMetadata, so status_line will be None
         status_line = self._format_status_line()
         if status_line:
             status_label = QLabel(f"📺 {status_line}")
             status_label.setObjectName("popupStatusLabel")
             layout.addWidget(status_label)
 
-        # Date range: first ~ last air date
-        first_date = self.anime_info.get("first_air_date")
-        last_date = self.anime_info.get("last_air_date")
-        if first_date:
-            date_text = f"📅 {first_date}"
-            if last_date and last_date != first_date:
-                date_text += f" ~ {last_date}"
+        # Date range: year from FileMetadata
+        if self.metadata.year is not None:
+            date_text = f"📅 {self.metadata.year}"
             date_label = QLabel(date_text)
             date_label.setObjectName("popupDateLabel")
             layout.addWidget(date_label)
 
         # Genres (up to 3, concise)
-        genres = self.anime_info.get("genres", [])
+        genres = self.metadata.genres
         if genres:
-            genre_names = [
-                g.get("name", "") if isinstance(g, dict) else str(g) for g in genres[:3]
-            ]
+            genre_names = [str(g) for g in genres[:3]]
             genre_text = "🎭 " + " · ".join(genre_names)
             genre_label = QLabel(genre_text)
             genre_label.setObjectName("popupGenreLabel")
             genre_label.setWordWrap(True)
             layout.addWidget(genre_label)
 
-        # Production companies (up to 2)
-        company_names = self._format_company_names()
-        if company_names:
-            company_label = QLabel(f"🏢 {company_names}")
-            company_label.setObjectName("popupCompanyLabel")
-            company_label.setWordWrap(True)
-            layout.addWidget(company_label)
+        # Production companies (not available in FileMetadata)
+        # Skipped - FileMetadata doesn't have production_companies
 
         # Overview (show full text with word wrap)
-        overview = self.anime_info.get("overview")
+        overview = self.metadata.overview
         if overview:
             # Allow longer overview text to show more context
             if len(overview) > UIConfig.POPUP_OVERVIEW_MAX_CHARS:
@@ -122,73 +110,25 @@ class AnimeDetailPopup(QFrame):
             overview_label.setMinimumHeight(UIConfig.POPUP_OVERVIEW_MIN_HEIGHT)
             layout.addWidget(overview_label)
 
-        # Popularity score (if available)
-        popularity = self.anime_info.get("popularity")
-        if popularity:
-            popularity_label = QLabel(f"📊 Popularity: {popularity:.1f}")
-            popularity_label.setObjectName("popupPopularityLabel")
-            layout.addWidget(popularity_label)
+        # Popularity score (not available in FileMetadata)
+        # Skipped - FileMetadata doesn't have popularity
 
     def _format_status_line(self) -> str | None:
         """
-        Format status line with show status, season/episode counts, and runtime.
+        Format status line with season/episode counts from FileMetadata.
+
+        Note: status, number_of_seasons, number_of_episodes, episode_run_time
+        are not available in FileMetadata, so we only show season/episode if available.
 
         Returns:
             Formatted status line or None if no information available
         """
         parts = []
 
-        # Show status
-        status = self.anime_info.get("status")
-        if status:
-            # Map technical status to user-friendly text
-            status_map = {
-                "Ended": "Ended",
-                "Returning Series": "Ongoing",
-                "Canceled": "Canceled",
-                "In Production": "In Production",
-            }
-            parts.append(status_map.get(status, status))
-
-        # Seasons & Episodes
-        num_seasons = self.anime_info.get("number_of_seasons")
-        num_episodes = self.anime_info.get("number_of_episodes")
-        if num_seasons or num_episodes:
-            season_parts = []
-            if num_seasons:
-                season_parts.append(f"{num_seasons}시즌")
-            if num_episodes:
-                season_parts.append(f"{num_episodes}화")
-            parts.append(" ".join(season_parts))
-
-        # Runtime per episode
-        runtime = self.anime_info.get("episode_run_time", [])
-        if runtime and len(runtime) > 0:
-            parts.append(f"{runtime[0]}분")
+        # Seasons & Episodes from FileMetadata
+        if self.metadata.season is not None:
+            parts.append(f"S{self.metadata.season}")
+        if self.metadata.episode is not None:
+            parts.append(f"E{self.metadata.episode}")
 
         return " | ".join(parts) if parts else None
-
-    def _format_company_names(self) -> str | None:
-        """
-        Format production company names.
-
-        Returns:
-            Formatted company names (max 2) or None if no companies
-        """
-        companies = self.anime_info.get("production_companies", [])
-        if not companies:
-            return None
-
-        # Extract company names and remove duplicates while preserving order
-        company_names = []
-        seen = set()
-        for company in companies:
-            if isinstance(company, dict):
-                name = company.get("name", "")
-                if name and name not in seen:
-                    company_names.append(name)
-                    seen.add(name)
-                    if len(company_names) >= 2:  # Limit to 2 companies
-                        break
-
-        return " · ".join(company_names) if company_names else None

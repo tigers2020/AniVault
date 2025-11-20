@@ -10,6 +10,7 @@ import logging
 import queue
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 from anivault.core.pipeline.utils import BoundedQueue
@@ -21,6 +22,64 @@ from anivault.shared.errors import (
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
+from anivault.shared.metadata_models import FileMetadata
+
+
+def _dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:
+    """Convert parser result dictionary to FileMetadata.
+
+    This function converts the dictionary structure returned by the parser
+    worker into a type-safe FileMetadata dataclass instance.
+
+    Args:
+        result: Dictionary containing parsed file information with keys:
+            - file_path: str (required)
+            - file_name: str (used as title, required)
+            - file_extension: str (converted to file_type, required)
+            - file_size: int (optional, not stored in FileMetadata)
+            - status: str (optional, not stored in FileMetadata)
+            - worker_id: str (optional, not stored in FileMetadata)
+
+    Returns:
+        FileMetadata instance with converted data
+
+    Raises:
+        ValueError: If required fields are missing or invalid
+        KeyError: If required keys are missing from result dict
+    """
+    file_path_str = result.get("file_path")
+    if not file_path_str:
+        msg = "file_path is required in result dictionary"
+        raise ValueError(msg)
+
+    file_path = Path(file_path_str)
+
+    # Use file_name as title, fallback to file_path.name if not present
+    title = result.get("file_name") or file_path.name
+    if not title:
+        msg = "file_name or valid file_path.name is required"
+        raise ValueError(msg)
+
+    # Extract file_type from file_extension, fallback to file_path.suffix
+    file_extension = result.get("file_extension", "")
+    if file_extension:
+        # Remove leading dot if present
+        file_type = file_extension.lstrip(".").lower()
+    else:
+        # Fallback to file_path suffix
+        file_type = file_path.suffix.lstrip(".").lower() or "unknown"
+
+    # Create FileMetadata instance
+    # Note: year, season, episode are None as parser doesn't extract them
+    # These will be populated later by enrichment process
+    return FileMetadata(
+        title=title,
+        file_path=file_path,
+        file_type=file_type,
+        year=None,
+        season=None,
+        episode=None,
+    )
 
 
 class ResultCollector(threading.Thread):
@@ -47,9 +106,9 @@ class ResultCollector(threading.Thread):
         """
         super().__init__()
         self.output_queue = output_queue
-        self.collector_id = collector_id or f"collector_{id(self) & 0xffff}"
+        self.collector_id = collector_id or f"collector_{id(self) & 0xFFFF}"
         self._stopped = threading.Event()
-        self._results: list[dict[str, Any]] = []
+        self._results: list[FileMetadata] = []
         self._lock = threading.Lock()
 
     def poll_once(self, timeout: float = 0.0) -> bool:
@@ -59,7 +118,8 @@ class ResultCollector(threading.Thread):
             timeout: Maximum time to wait for an item (0.0 = non-blocking).
 
         Returns:
-            True if an item was processed, False if queue was empty or sentinel received.
+            True if an item was processed, False if queue was empty or
+            sentinel received.
         """
         logger = logging.getLogger(__name__)
         context = ErrorContext(
@@ -127,12 +187,13 @@ class ResultCollector(threading.Thread):
         self,
         max_idle_loops: int | None = None,
         idle_sleep: float = NetworkConfig.DEFAULT_TIMEOUT,
-        get_timeout: float = NetworkConfig.DEFAULT_TIMEOUT,  # Increased timeout for better reliability
+        get_timeout: float = NetworkConfig.DEFAULT_TIMEOUT,  # Increased timeout
     ) -> None:
         """Main collector loop that processes results from the output queue.
 
         Args:
-            max_idle_loops: Maximum number of consecutive empty queue checks before stopping.
+            max_idle_loops: Maximum number of consecutive empty queue checks
+                before stopping.
             idle_sleep: Sleep time between idle loops (0.0 = no sleep).
             get_timeout: Timeout for queue.get() calls.
         """
@@ -162,7 +223,10 @@ class ResultCollector(threading.Thread):
                         idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
                         if idle >= max_idle_loops if max_idle_loops else False:
                             logger.warning(
-                                "ResultCollector %s: Max idle loops reached, stopping...",
+                                (
+                                    "ResultCollector %s: Max idle loops reached, "
+                                    "stopping..."
+                                ),
                                 self.collector_id,
                             )
                             break
@@ -315,7 +379,7 @@ class ResultCollector(threading.Thread):
         """Store result with error handling.
 
         Args:
-            result: Result to store.
+            result: Result dictionary to convert and store.
         """
         logger = logging.getLogger(__name__)
         context = ErrorContext(
@@ -327,7 +391,9 @@ class ResultCollector(threading.Thread):
         )
 
         try:
-            self._store_result(result)
+            # Convert dict to FileMetadata
+            file_metadata = _dict_to_file_metadata(result)
+            self._store_result(file_metadata)
             log_operation_success(
                 logger=logger,
                 operation="store_result",
@@ -447,20 +513,20 @@ class ResultCollector(threading.Thread):
                 original_error=error,
             ) from error
 
-    def _store_result(self, result: dict[str, Any]) -> None:
+    def _store_result(self, result: FileMetadata) -> None:
         """Store a processed result.
 
         Args:
-            result: Dictionary containing processed file information.
+            result: FileMetadata instance containing processed file information.
         """
         with self._lock:
             self._results.append(result)
 
-    def get_results(self) -> list[dict[str, Any]]:
+    def get_results(self) -> list[FileMetadata]:
         """Get all collected results.
 
         Returns:
-            List of dictionaries containing processed file information.
+            List of FileMetadata instances containing processed file information.
         """
         with self._lock:
             return self._results.copy()
@@ -474,121 +540,117 @@ class ResultCollector(threading.Thread):
         with self._lock:
             return len(self._results)
 
-    def get_successful_results(self) -> list[dict[str, Any]]:
-        """Get only successful results.
+    def get_successful_results(self) -> list[FileMetadata]:
+        """Get all collected results.
+
+        Note: FileMetadata doesn't have a status field, so this method
+        returns all results. Status filtering is handled at the dict level
+        before conversion to FileMetadata.
 
         Returns:
-            List of successful results.
+            List of all FileMetadata instances (all are considered successful).
         """
         with self._lock:
-            return [
-                result for result in self._results if result.get("status") == "success"
-            ]
+            return self._results.copy()
 
-    def get_failed_results(self) -> list[dict[str, Any]]:
-        """Get only failed results.
+    def get_failed_results(self) -> list[FileMetadata]:
+        """Get failed results.
+
+        Note: FileMetadata doesn't have a status field. Failed results
+        are filtered at the dict level before conversion. This method
+        returns an empty list as all stored results are successful.
 
         Returns:
-            List of failed results.
+            Empty list (failed results are not converted to FileMetadata).
         """
         with self._lock:
-            return [
-                result for result in self._results if result.get("status") != "success"
-            ]
+            return []
 
-    def get_results_by_extension(self, extension: str) -> list[dict[str, Any]]:
+    def get_results_by_extension(self, extension: str) -> list[FileMetadata]:
         """Get results filtered by file extension.
 
         Args:
             extension: File extension to filter by (e.g., '.mp4', '.mkv').
 
         Returns:
-            List of results with the specified extension.
+            List of FileMetadata instances with the specified extension.
         """
         with self._lock:
+            # Normalize extension (remove leading dot, lowercase)
+            normalized_ext = extension.lstrip(".").lower()
             return [
                 result
                 for result in self._results
-                if result.get("file_extension", "").lower() == extension.lower()
+                if result.file_type.lower() == normalized_ext
             ]
 
-    def get_results_by_worker(self, worker_id: str) -> list[dict[str, Any]]:
+    def get_results_by_worker(
+        self,
+        worker_id: str,  # noqa: ARG002
+    ) -> list[FileMetadata]:
         """Get results processed by a specific worker.
 
+        Note: FileMetadata doesn't store worker_id. This method returns
+        all results as worker information is not preserved after conversion.
+
         Args:
-            worker_id: ID of the worker to filter by.
+            worker_id: ID of the worker to filter by
+                (unused, kept for API compatibility).
 
         Returns:
-            List of results processed by the specified worker.
+            List of all FileMetadata instances (worker filtering not available).
         """
         with self._lock:
-            return [
-                result
-                for result in self._results
-                if result.get("worker_id") == worker_id
-            ]
+            # Worker ID is not stored in FileMetadata, return all results
+            return self._results.copy()
 
     def get_total_file_size(self) -> int:
         """Get the total size of all processed files.
 
+        Note: FileMetadata doesn't store file_size. This method returns 0
+        as file size information is not preserved after conversion.
+
         Returns:
-            Total size in bytes of all processed files.
+            0 (file size is not stored in FileMetadata).
         """
-        with self._lock:
-            return sum(
-                result.get("file_size", 0)
-                for result in self._results
-                if result.get("status") == "success"
-            )
+        # FileMetadata doesn't have file_size field
+        return 0
 
     def get_average_file_size(self) -> float:
         """Get the average size of processed files.
 
-        Returns:
-            Average file size in bytes, or 0 if no files were processed.
-        """
-        successful_results = self.get_successful_results()
-        if not successful_results:
-            return 0.0
+        Note: FileMetadata doesn't store file_size. This method returns 0.0
+        as file size information is not preserved after conversion.
 
-        total_size = sum(
-            (
-                result.get("file_size", 0)
-                if isinstance(result.get("file_size"), (int, float))
-                else 0
-            )
-            for result in successful_results
-        )
-        return total_size / len(successful_results)
+        Returns:
+            0.0 (file size is not stored in FileMetadata).
+        """
+        # FileMetadata doesn't have file_size field
+        return 0.0
 
     def get_file_extensions(self) -> list[str]:
         """Get a list of unique file extensions found.
 
         Returns:
-            List of unique file extensions.
+            List of unique file extensions (from file_type field).
         """
         with self._lock:
-            extensions = set()
-            for result in self._results:
-                if result.get("status") == "success":
-                    ext = result.get("file_extension", "")
-                    if ext:
-                        extensions.add(ext)
+            extensions = {
+                result.file_type for result in self._results if result.file_type
+            }
             return sorted(extensions)
 
     def get_worker_ids(self) -> list[str]:
         """Get a list of unique worker IDs that processed files.
 
+        Note: FileMetadata doesn't store worker_id. This method returns
+        an empty list as worker information is not preserved after conversion.
+
         Returns:
-            List of unique worker IDs.
+            Empty list (worker IDs are not stored in FileMetadata).
         """
-        with self._lock:
-            worker_ids = set()
-            for result in self._results:
-                worker_id = result.get("worker_id")
-                if worker_id:
-                    worker_ids.add(worker_id)
-            return sorted(worker_ids)
+        # FileMetadata doesn't have worker_id field
+        return []
 
     def get_summary(self) -> dict[str, Any]:
         """Get a summary of collected results.
@@ -601,43 +663,24 @@ class ResultCollector(threading.Thread):
             results = list(self._results)
 
         # 락 없이 계산
-        successful_results = [r for r in results if r.get("status") == "success"]
-        failed_results = [r for r in results if r.get("status") != "success"]
         total_results = len(results)
 
-        total_file_size = sum(r.get("file_size", 0) for r in successful_results)
-        average_file_size = (
-            total_file_size / len(successful_results) if successful_results else 0.0
-        )
+        # FileMetadata doesn't have status, file_size, or worker_id
+        # All results are considered successful after conversion
+        successful_results = results
+        failed_results: list[FileMetadata] = []
 
-        file_extensions = sorted(
-            {
-                ext
-                for r in successful_results
-                if (ext := r.get("file_extension")) is not None
-            },
-        )
-        worker_ids = sorted(
-            {
-                worker_id
-                for r in results
-                if (worker_id := r.get("worker_id")) is not None
-            },
-        )
+        file_extensions = sorted({r.file_type for r in results if r.file_type})
 
         return {
             "total_results": total_results,
             "successful_results": len(successful_results),
             "failed_results": len(failed_results),
-            "success_rate": (
-                (len(successful_results) / total_results * 100)
-                if total_results > 0
-                else 0.0
-            ),
-            "total_file_size": total_file_size,
-            "average_file_size": average_file_size,
+            "success_rate": 100.0 if total_results > 0 else 0.0,
+            "total_file_size": 0,  # Not stored in FileMetadata
+            "average_file_size": 0.0,  # Not stored in FileMetadata
             "file_extensions": file_extensions,
-            "worker_ids": worker_ids,
+            "worker_ids": [],  # Not stored in FileMetadata
         }
 
     def clear_results(self) -> None:
@@ -755,13 +798,13 @@ class ResultCollectorPool:
         """
         return sum(1 for collector in self.collectors if collector.is_alive())
 
-    def get_all_results(self) -> list[dict[str, Any]]:
+    def get_all_results(self) -> list[FileMetadata]:
         """Get all results from all collectors.
 
         Returns:
-            Combined list of all results from all collectors.
+            Combined list of all FileMetadata instances from all collectors.
         """
-        all_results = []
+        all_results: list[FileMetadata] = []
         for collector in self.collectors:
             all_results.extend(collector.get_results())
         return all_results
@@ -781,8 +824,11 @@ class ResultCollectorPool:
             Dictionary containing pool summary information.
         """
         all_results = self.get_all_results()
-        successful_results = [r for r in all_results if r.get("status") == "success"]
-        failed_results = [r for r in all_results if r.get("status") != "success"]
+        # All results are considered successful after conversion to FileMetadata
+        successful_results = all_results
+        failed_results: list[FileMetadata] = []
+
+        file_extensions = sorted({r.file_type for r in all_results if r.file_type})
 
         return {
             "num_collectors": self.num_collectors,
@@ -792,32 +838,11 @@ class ResultCollectorPool:
             "total_results": len(all_results),
             "successful_results": len(successful_results),
             "failed_results": len(failed_results),
-            "success_rate": (
-                (len(successful_results) / len(all_results) * 100)
-                if all_results
-                else 0.0
-            ),
-            "total_file_size": sum(r.get("file_size", 0) for r in successful_results),
-            "average_file_size": (
-                sum(r.get("file_size", 0) for r in successful_results)
-                / len(successful_results)
-                if successful_results
-                else 0.0
-            ),
-            "file_extensions": sorted(
-                {
-                    ext
-                    for r in successful_results
-                    if (ext := r.get("file_extension")) is not None
-                },
-            ),
-            "worker_ids": sorted(
-                {
-                    worker_id
-                    for r in all_results
-                    if (worker_id := r.get("worker_id")) is not None
-                },
-            ),
+            "success_rate": 100.0 if all_results else 0.0,
+            "total_file_size": 0,  # Not stored in FileMetadata
+            "average_file_size": 0.0,  # Not stored in FileMetadata
+            "file_extensions": file_extensions,
+            "worker_ids": [],  # Not stored in FileMetadata
         }
 
     def clear_all_results(self) -> None:

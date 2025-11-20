@@ -11,11 +11,9 @@ import asyncio
 import logging
 from typing import Any
 
+from anivault.core.constants import ProcessingThresholds
 from anivault.core.parser.models import ParsingResult
-from anivault.shared.constants import (
-    APIFields,
-    TMDBResponseKeys,
-)
+from anivault.shared.constants import APIFields
 from anivault.shared.constants.system import EnrichmentStatus
 from anivault.shared.errors import (
     AniVaultError,
@@ -30,7 +28,7 @@ from .metadata_enricher.batch_processor import BatchProcessor
 from .metadata_enricher.fetcher import TMDBFetcher
 from .metadata_enricher.models import EnrichedMetadata
 from .metadata_enricher.scoring import ScoringEngine, create_default_scoring_engine
-from anivault.services.tmdb import TMDBClient
+from anivault.services.tmdb import ScoredSearchResult, TMDBClient, TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,7 @@ class MetadataEnricher:
     def __init__(
         self,
         tmdb_client: TMDBClient | None = None,
-        min_confidence: float = 0.3,
+        min_confidence: float = ProcessingThresholds.MIN_ENRICHMENT_CONFIDENCE,
         scoring_engine: ScoringEngine | None = None,
         fetcher: TMDBFetcher | None = None,
         batch_processor: BatchProcessor | None = None,
@@ -83,15 +81,14 @@ class MetadataEnricher:
                 return enriched
 
             # Fetch details if confidence is sufficient
-            if best_match["match_confidence"] >= self.min_confidence:
+            if best_match.confidence_score >= self.min_confidence:
                 details = await self.fetcher.fetch_details(
-                    best_match[TMDBResponseKeys.ID],
-                    best_match[TMDBResponseKeys.MEDIA_TYPE],
-                    fallback_data=best_match,
+                    best_match.id,
+                    best_match.media_type,
                 )
                 enriched.tmdb_data = details
 
-            enriched.match_confidence = best_match["match_confidence"]
+            enriched.match_confidence = best_match.confidence_score
             enriched.enrichment_status = EnrichmentStatus.SUCCESS
 
         except AniVaultError as e:
@@ -182,16 +179,24 @@ class MetadataEnricher:
     def _find_best_match(
         self,
         file_info: ParsingResult,
-        search_results: list[dict[str, Any]],
-    ) -> dict[str, Any] | None:
-        """Find best matching media from search results."""
+        search_results: list[TMDBSearchResult],
+    ) -> ScoredSearchResult | None:
+        """Find best matching media from search results.
+
+        Args:
+            file_info: Parsed file information
+            search_results: List of TMDB search results
+
+        Returns:
+            ScoredSearchResult with highest confidence score, or None if no match
+        """
         if not search_results:
             raise ApplicationError(
                 code=ErrorCode.VALIDATION_ERROR,
                 message="No TMDB search results to match against",
             )
 
-        best_match = None
+        best_match: ScoredSearchResult | None = None
         best_score = 0.0
 
         for result in search_results:
@@ -199,8 +204,26 @@ class MetadataEnricher:
                 score = self._calculate_match_score(file_info, result)
                 if score > best_score:
                     best_score = score
-                    best_match = result
-                    best_match["match_confidence"] = score
+                    # Create ScoredSearchResult with confidence score
+                    best_match = ScoredSearchResult(
+                        id=result.id,
+                        media_type=result.media_type,
+                        title=result.title,
+                        name=result.name,
+                        original_title=result.original_title,
+                        original_name=result.original_name,
+                        release_date=result.release_date,
+                        first_air_date=result.first_air_date,
+                        popularity=result.popularity,
+                        vote_average=result.vote_average,
+                        vote_count=result.vote_count,
+                        overview=result.overview,
+                        original_language=result.original_language,
+                        poster_path=result.poster_path,
+                        backdrop_path=result.backdrop_path,
+                        genre_ids=result.genre_ids,
+                        confidence_score=score,
+                    )
             except DomainError:
                 # Skip invalid results (ScoringEngine already logged)
                 continue
@@ -210,7 +233,7 @@ class MetadataEnricher:
     def _calculate_match_score(
         self,
         file_info: ParsingResult,
-        tmdb_result: dict[str, Any],
+        tmdb_result: TMDBSearchResult,
     ) -> float:
         """Calculate match score between file info and TMDB result.
 
@@ -218,7 +241,7 @@ class MetadataEnricher:
 
         Args:
             file_info: Parsed file information
-            tmdb_result: TMDB search result
+            tmdb_result: TMDB search result dataclass instance
 
         Returns:
             Match confidence score (0.0 to 1.0)

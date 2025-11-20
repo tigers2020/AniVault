@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from anivault.core.constants import ProcessingThresholds
 from anivault.core.filter import FilterEngine
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.shared.constants import ProcessingConfig
@@ -304,7 +305,7 @@ class DirectoryScanner(threading.Thread):
             if len(current_batch) >= self.batch_size:
                 # Check if queue has space (non-blocking check)
                 queue_usage = output_queue.qsize() / output_queue.maxsize
-                if queue_usage >= 0.8:  # 80% threshold
+                if queue_usage >= ProcessingThresholds.QUEUE_BACKPRESSURE_THRESHOLD:
                     # Yield batch but indicate backpressure
                     yield current_batch.copy()
                     current_batch.clear()

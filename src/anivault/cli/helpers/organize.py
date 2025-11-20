@@ -301,7 +301,7 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
     progress_manager = create_progress_manager(disabled=options.json_output)
 
     with progress_manager.spinner("Organizing files..."):
-        moved_files = organizer.execute_plan(plan, operation_id)
+        moved_files = organizer.execute_plan(plan)
 
     # Print individual file results if not JSON output
     if not options.json_output and moved_files:
@@ -380,9 +380,11 @@ def _extract_parsing_result_data(parsing_result: Any) -> dict[str, Any]:
         "release_group": parsing_result.release_group,
         "confidence": parsing_result.confidence,
         "parser_used": parsing_result.parser_used,
-        "additional_info": asdict(parsing_result.additional_info)
-        if hasattr(parsing_result, "additional_info")
-        else {},
+        "additional_info": (
+            asdict(parsing_result.additional_info)
+            if hasattr(parsing_result, "additional_info")
+            else {}
+        ),
     }
 
 

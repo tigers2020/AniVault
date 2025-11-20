@@ -6,10 +6,11 @@ implementations must follow, enabling the Strategy pattern for scoring logic.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from anivault.core.parser.models import ParsingResult
 from anivault.services.enricher.metadata_enricher.models import ScoreResult
+from anivault.services.tmdb import TMDBSearchResult
 
 
 class BaseScorer(Protocol):
@@ -34,9 +35,9 @@ class BaseScorer(Protocol):
         ...     def score(
         ...         self,
         ...         file_info: ParsingResult,
-        ...         tmdb_candidate: dict[str, Any]
+        ...         tmdb_candidate: TMDBSearchResult
         ...     ) -> ScoreResult:
-        ...         title_sim = calculate_similarity(file_info.title, tmdb_candidate["title"])
+        ...         title_sim = calculate_similarity(file_info.title, tmdb_candidate.display_title)
         ...         return ScoreResult(
         ...             score=title_sim,
         ...             weight=self.weight,
@@ -51,14 +52,13 @@ class BaseScorer(Protocol):
     def score(
         self,
         file_info: ParsingResult,
-        tmdb_candidate: dict[str, Any],
+        tmdb_candidate: TMDBSearchResult,
     ) -> ScoreResult:
         """Calculate score for a TMDB candidate match.
 
         Args:
             file_info: Parsed file information from filename
-            tmdb_candidate: TMDB API response for a candidate match
-                           (Can be raw dict or TMDBMediaDetails)
+            tmdb_candidate: TMDB search result dataclass instance
 
         Returns:
             ScoreResult with normalized score (0.0-1.0), weight, and reason
@@ -70,7 +70,9 @@ class BaseScorer(Protocol):
             >>> scorer = TitleScorer()
             >>> result = scorer.score(
             ...     file_info=ParsingResult(title="Attack on Titan", ...),
-            ...     tmdb_candidate={"title": "Shingeki no Kyojin", "id": 1429}
+            ...     tmdb_candidate=TMDBSearchResult(
+            ...         id=1429, media_type="tv", name="Shingeki no Kyojin"
+            ...     )
             ... )
             >>> print(result.score)  # 0.85
         """

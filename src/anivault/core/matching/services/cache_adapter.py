@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Protocol
+from typing import Protocol, cast
 
 from anivault.core.matching.cache_models import CachedSearchData
 from anivault.services.cache import SQLiteCacheDB
@@ -153,7 +153,9 @@ class SQLiteCacheAdapter:
                 # Deserialize dict to dataclass (type-safe!)
                 from anivault.shared.utils.dataclass_serialization import from_dict
 
-                return from_dict(CachedSearchData, cached_dict)
+                return cast(
+                    "CachedSearchData", from_dict(CachedSearchData, cached_dict)
+                )
 
             logger.debug(
                 "Cache miss: key=%s (length=%d), type=%s",

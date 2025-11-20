@@ -6,10 +6,9 @@ based on release/air date year matching with tolerance.
 
 from __future__ import annotations
 
-from typing import Any
-
 from anivault.core.parser.models import ParsingResult
 from anivault.services.enricher.metadata_enricher.models import ScoreResult
+from anivault.services.tmdb import TMDBSearchResult
 from anivault.shared.errors import DomainError, ErrorCode, ErrorContext
 
 
@@ -28,10 +27,12 @@ class YearScorer:
         >>> scorer = YearScorer(weight=0.2, tolerance=1)
         >>> result = scorer.score(
         ...     file_info=ParsingResult(title="Attack on Titan", year=2013),
-        ...     tmdb_candidate={"first_air_date": "2013-04-07", "id": 1429}
+        ...     tmdb_candidate=TMDBSearchResult(id=1429, media_type="tv", first_air_date="2013-04-07")
         ... )
         >>> print(result.score)  # 1.0 (exact match)
     """
+
+    component_name: str = "year"
 
     def __init__(self, weight: float = 0.2, tolerance: int = 1) -> None:
         """Initialize YearScorer with specified weight and tolerance.
@@ -56,7 +57,7 @@ class YearScorer:
     def score(
         self,
         file_info: ParsingResult,
-        tmdb_candidate: dict[str, Any],
+        tmdb_candidate: TMDBSearchResult,
     ) -> ScoreResult:
         """Calculate year match score.
 
@@ -160,16 +161,14 @@ class YearScorer:
 
         return year
 
-    def _extract_tmdb_year(self, tmdb_candidate: dict[str, Any]) -> int | None:
+    def _extract_tmdb_year(self, tmdb_candidate: TMDBSearchResult) -> int | None:
         """Extract and validate year from TMDB candidate.
 
-        This method tries multiple fields in order:
-        1. first_air_date (TV shows)
-        2. release_date (movies)
-        3. display_date (TMDBMediaDetails Pydantic model)
+        This method uses display_date property which handles both
+        first_air_date (TV shows) and release_date (movies).
 
         Args:
-            tmdb_candidate: TMDB search result dict
+            tmdb_candidate: TMDB search result dataclass instance
 
         Returns:
             Year as integer, or None if not available/parseable
@@ -177,10 +176,10 @@ class YearScorer:
         Raises:
             DomainError: If tmdb_candidate is invalid type
         """
-        if not isinstance(tmdb_candidate, dict):
+        if not isinstance(tmdb_candidate, TMDBSearchResult):
             raise DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message="tmdb_candidate must be a dict",
+                message="tmdb_candidate must be a TMDBSearchResult instance",
                 context=ErrorContext(
                     operation="extract_tmdb_year",
                     additional_data={
@@ -189,12 +188,8 @@ class YearScorer:
                 ),
             )
 
-        # Try multiple date fields (TV shows, movies, Pydantic model)
-        date_str = (
-            tmdb_candidate.get("first_air_date")
-            or tmdb_candidate.get("release_date")
-            or tmdb_candidate.get("display_date")
-        )
+        # Use display_date property (handles both first_air_date and release_date)
+        date_str = tmdb_candidate.display_date
 
         if not date_str or not isinstance(date_str, str):
             return None

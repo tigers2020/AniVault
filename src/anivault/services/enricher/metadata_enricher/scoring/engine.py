@@ -8,7 +8,6 @@ with transparent evidence collection.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from anivault.core.parser.models import ParsingResult
 from anivault.services.enricher.metadata_enricher.models import (
@@ -16,6 +15,7 @@ from anivault.services.enricher.metadata_enricher.models import (
     ScoreResult,
 )
 from anivault.services.enricher.metadata_enricher.scoring.base_scorer import BaseScorer
+from anivault.services.tmdb import TMDBSearchResult
 from anivault.shared.errors import DomainError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class ScoringEngine:
     def calculate_score(
         self,
         file_info: ParsingResult,
-        tmdb_candidate: dict[str, Any],
+        tmdb_candidate: TMDBSearchResult,
     ) -> tuple[float, MatchEvidence]:
         """Calculate comprehensive match score using all scorers.
 
@@ -84,7 +84,7 @@ class ScoringEngine:
 
         Args:
             file_info: Parsed file information
-            tmdb_candidate: TMDB search result dict
+            tmdb_candidate: TMDB search result dataclass instance
 
         Returns:
             Tuple of (final_score, match_evidence)
@@ -95,7 +95,7 @@ class ScoringEngine:
         Example:
             >>> score, evidence = engine.calculate_score(
             ...     ParsingResult(title="Attack on Titan", year=2013),
-            ...     {"title": "Attack on Titan", "media_type": "tv"}
+            ...     TMDBSearchResult(id=1429, media_type="tv", name="Attack on Titan")
             ... )
             >>> print(f"Final score: {score:.2f}")
         """
@@ -112,10 +112,10 @@ class ScoringEngine:
                 ),
             )
 
-        if not isinstance(tmdb_candidate, dict):
+        if not isinstance(tmdb_candidate, TMDBSearchResult):
             raise DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message="tmdb_candidate must be a dict",
+                message="tmdb_candidate must be a TMDBSearchResult instance",
                 context=ErrorContext(
                     operation="calculate_score",
                     additional_data={
@@ -278,7 +278,7 @@ class ScoringEngine:
         total_score: float,
         component_scores: list[ScoreResult],
         file_info: ParsingResult,
-        tmdb_candidate: dict[str, Any],
+        tmdb_candidate: TMDBSearchResult,
     ) -> MatchEvidence:
         """Build MatchEvidence from scoring results.
 
@@ -286,29 +286,21 @@ class ScoringEngine:
             total_score: Final combined score
             component_scores: List of individual scorer results
             file_info: File information
-            tmdb_candidate: TMDB candidate
+            tmdb_candidate: TMDB search result dataclass instance
 
         Returns:
             MatchEvidence instance
         """
-        # Extract TMDB ID
-        tmdb_id = tmdb_candidate.get(
-            "id", 1
-        )  # Default to 1 (MatchEvidence requires > 0)
-        if not isinstance(tmdb_id, int) or tmdb_id <= 0:
-            tmdb_id = 1
+        # Extract TMDB ID (guaranteed to be int > 0 from TMDBSearchResult)
+        tmdb_id = tmdb_candidate.id
+        if tmdb_id <= 0:
+            tmdb_id = 1  # MatchEvidence requires > 0
 
-        # Extract media type (must be "tv" or "movie" per MatchEvidence pattern)
-        media_type_raw = tmdb_candidate.get("media_type", "movie")
-        if not isinstance(media_type_raw, str):
-            media_type = "movie"  # Default
-        elif media_type_raw.lower() in ("tv", "movie"):
-            media_type = media_type_raw.lower()
-        else:
-            media_type = "movie"  # Default for unknown types
+        # Extract media type (guaranteed to be "tv" or "movie" from TMDBSearchResult)
+        media_type = tmdb_candidate.media_type
 
-        # Extract TMDB title (MatchEvidence calls it matched_title)
-        matched_title = tmdb_candidate.get("title") or tmdb_candidate.get("name", "")
+        # Extract TMDB title (use display_title property)
+        matched_title = tmdb_candidate.display_title
         if not matched_title:
             # MatchEvidence requires min_length=1
             matched_title = "Unknown"

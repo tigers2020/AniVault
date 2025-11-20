@@ -18,18 +18,16 @@ import functools
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import orjson
-from pydantic import TypeAdapter, ValidationError
-
-from anivault.shared.types.base import BaseTypeModel
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-T = TypeVar("T", bound=BaseTypeModel)
+T = TypeVar("T", bound=BaseModel)
 
 
 @functools.lru_cache(maxsize=128)
-def _get_type_adapter(model_cls: type[BaseTypeModel]) -> TypeAdapter[BaseTypeModel]:
+def _get_type_adapter(model_cls: type[BaseModel]) -> TypeAdapter[BaseModel]:
     """Get or create a cached TypeAdapter for the given model class.
 
     TypeAdapter instances are expensive to create, so we cache them using
@@ -132,7 +130,7 @@ class ModelConverter:
 
     @staticmethod
     def to_dict(
-        model: BaseTypeModel,
+        model: BaseModel,
         *,
         mode: str = "json",
         by_alias: bool = True,
@@ -173,7 +171,7 @@ class ModelConverter:
 
     @staticmethod
     def to_json_bytes(
-        model: BaseTypeModel,
+        model: BaseModel,
         *,
         by_alias: bool = True,
         exclude_none: bool = True,
@@ -215,7 +213,7 @@ class ModelConverter:
 
     @staticmethod
     def to_json_str(
-        model: BaseTypeModel,
+        model: BaseModel,
         *,
         by_alias: bool = True,
         exclude_none: bool = True,

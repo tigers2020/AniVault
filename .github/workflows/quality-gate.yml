@@ -59,9 +59,9 @@ jobs:
         run: |
           python -m pytest tests/ --ignore=tests/gui/ --ignore=tests/widgets/ --ignore=tests/controllers/ --ignore=tests/test_integration_main_window.py --cov=src/anivault --cov-report=term --cov-report=html --cov-fail-under=60 -v
 
-      - name: Type checking with mypy
+      - name: Type checking with mypy (strict mode)
         run: |
-          python -m mypy src/anivault --config-file=pyproject.toml
+          python -m mypy src/anivault --strict --config-file=pyproject.toml
         continue-on-error: true
 
       - name: Security scan with bandit

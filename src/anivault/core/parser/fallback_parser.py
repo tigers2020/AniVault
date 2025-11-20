@@ -11,6 +11,7 @@ import re
 from re import Pattern
 from typing import ClassVar
 
+from anivault.core.constants import ParsingConfidence
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 
 logger = logging.getLogger(__name__)
@@ -108,7 +109,7 @@ class FallbackParser:
             logger.warning("No pattern matched for filename: %s", filename)
             return ParsingResult(
                 title=filename,
-                confidence=0.2,
+                confidence=ParsingConfidence.ERROR_CONFIDENCE_FALLBACK,
                 parser_used="fallback",
                 additional_info=ParsingAdditionalInfo(
                     parser_specific={"raw_filename": filename}
@@ -243,24 +244,24 @@ class FallbackParser:
 
         # Title found
         if result.title and result.title.strip():
-            confidence += 0.4
+            confidence += ParsingConfidence.TITLE_FOUND_FALLBACK
 
         # Episode found
         if result.episode is not None:
-            confidence += 0.3
+            confidence += ParsingConfidence.EPISODE_FOUND
 
         # Season found
         if result.season is not None:
-            confidence += 0.1
+            confidence += ParsingConfidence.SEASON_FOUND
 
         # Metadata found
         if result.quality:
-            confidence += 0.05
+            confidence += ParsingConfidence.METADATA_BONUS
         if result.source:
-            confidence += 0.05
+            confidence += ParsingConfidence.METADATA_BONUS
         if result.codec:
-            confidence += 0.05
+            confidence += ParsingConfidence.METADATA_BONUS
         if result.release_group:
-            confidence += 0.05
+            confidence += ParsingConfidence.METADATA_BONUS
 
         return min(1.0, confidence)

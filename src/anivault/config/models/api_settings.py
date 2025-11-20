@@ -98,7 +98,7 @@ class TMDBSettings(BaseModel):
             f"rate_limit_rps={self.rate_limit_rps})"
         )
 
-    def model_dump(self, **kwargs) -> dict[str, Any]:
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         """Custom model_dump that excludes sensitive api_key.
 
         Security: Excludes API key from serialization to prevent

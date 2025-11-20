@@ -159,10 +159,7 @@ def execute_rollback_plan(
         organizer = FileOrganizer(log_manager=log_manager)
 
         console.print("[blue]Executing rollback...[/blue]")
-        moved_files = organizer.execute_plan(
-            rollback_plan,
-            f"rollback-{log_id}",
-        )
+        moved_files = organizer.execute_plan(rollback_plan)
 
         if moved_files:
             console.print(

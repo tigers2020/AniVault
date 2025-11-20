@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 from PySide6.QtCore import QObject, QThread, Signal
 
@@ -18,9 +19,9 @@ from anivault.core.organizer import FileOrganizer
 from anivault.core.organizer.executor import OperationResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
-from anivault.gui.models import FileItem, FileMetadata
+from anivault.gui.models import FileItem
 from anivault.gui.workers.organize_worker import OrganizeWorker
-from anivault.shared.metadata_models import TMDBMatchResult
+from anivault.shared.metadata_models import FileMetadata, TMDBMatchResult
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,28 @@ class OrganizeController(QObject):
 
         logger.debug("OrganizeController initialized")
 
+    def _convert_fileitems_to_scannedfiles(
+        self,
+        file_items: list[FileItem] | list[ScannedFile],
+    ) -> list[ScannedFile]:
+        """Convert FileItem or ScannedFile list to ScannedFile list.
+
+        Args:
+            file_items: List of FileItem or ScannedFile objects
+
+        Returns:
+            List of ScannedFile objects (only successfully converted items)
+        """
+        scanned_files: list[ScannedFile] = []
+        for item in file_items:
+            if isinstance(item, FileItem):
+                converted = self._convert_fileitem_to_scannedfile(item)
+                if converted:
+                    scanned_files.append(converted)
+            else:
+                scanned_files.append(item)
+        return scanned_files
+
     def _convert_fileitem_to_scannedfile(
         self,
         file_item: FileItem,
@@ -100,7 +123,8 @@ class OrganizeController(QObject):
                 return self._convert_from_file_metadata(file_item)
 
             # Handle dict format (legacy - for backward compatibility)
-            if isinstance(file_item.metadata, dict):
+            # Note: FileItem.metadata is typed as FileMetadata | None, but dict is accepted for backward compatibility
+            if isinstance(file_item.metadata, dict):  # type: ignore[unreachable]
                 return self._convert_from_dict(file_item)
 
             # Unknown metadata type
@@ -142,6 +166,8 @@ class OrganizeController(QObject):
 
         # Parse filename and create match result
         season, episode = self._parse_filename(file_item.file_path.name)
+        # file_item.metadata is guaranteed to be FileMetadata at this point due to isinstance check
+        assert isinstance(file_item.metadata, FileMetadata)
         match_result = self._create_match_result_from_metadata(file_item.metadata)
 
         # Create ParsingResult and ScannedFile
@@ -168,7 +194,10 @@ class OrganizeController(QObject):
             ScannedFile or None if conversion fails
         """
         # Extract match_result (the TMDB matching result)
-        match_result = file_item.metadata.get("match_result")
+        # file_item.metadata is guaranteed to be dict at this point due to isinstance check
+        # Use cast to inform mypy that metadata is dict here
+        metadata_dict = cast("dict[str, Any]", file_item.metadata)
+        match_result = metadata_dict.get("match_result")
 
         if not match_result:
             logger.debug(
@@ -283,14 +312,7 @@ class OrganizeController(QObject):
             return
 
         # Convert FileItems to ScannedFiles if needed
-        scanned_files: list[ScannedFile] = []
-        for item in file_items:
-            if isinstance(item, FileItem):
-                converted = self._convert_fileitem_to_scannedfile(item)
-                if converted:
-                    scanned_files.append(converted)
-            else:
-                scanned_files.append(item)
+        scanned_files = self._convert_fileitems_to_scannedfiles(file_items)
 
         if not scanned_files:
             logger.warning("No valid files to organize after conversion")
@@ -327,6 +349,37 @@ class OrganizeController(QObject):
         except Exception as e:
             logger.exception("Failed to organize files")
             self.organization_error.emit(f"파일 정리 실패: {e}")
+
+    def _generate_and_execute_plan(
+        self,
+        scanned_files: list[ScannedFile],
+        dry_run: bool,
+    ) -> None:
+        """Generate organization plan and execute if not dry_run.
+
+        Args:
+            scanned_files: List of ScannedFile objects to organize
+            dry_run: If True, generate plan only without executing
+        """
+        # Generate organization plan
+        plan = self.file_organizer.generate_plan(scanned_files)
+
+        if not plan:
+            logger.info(
+                "No files need organizing (all files already in correct locations)",
+            )
+            self.organization_error.emit("모든 파일이 이미 올바른 위치에 있습니다.")
+            return
+
+        logger.info("Generated organization plan with %d operations", len(plan))
+        self.current_plan = plan
+
+        # Emit plan for preview
+        self.plan_generated.emit(plan)
+
+        # If not dry_run, execute the plan
+        if not dry_run:
+            self._execute_organization_plan(plan)
 
     def _execute_organization_plan(self, plan: list[FileOperation]) -> None:
         """Execute the organization plan in a background thread.

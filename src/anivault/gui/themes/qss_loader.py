@@ -121,7 +121,7 @@ class QSSLoader:
                             "theme_name": theme_name,
                             "fallback_result": "empty-stylesheet",
                         },
-                    ).model_dump(),
+                    ).safe_dict(),
                 )
                 return ""  # Safe fallback: empty stylesheet
 
@@ -167,7 +167,7 @@ class QSSLoader:
                             "theme_name": theme_name,
                             "error_code": e.code.value,
                         },
-                    ).model_dump(),
+                    ).safe_dict(),
                 )
                 return ""  # Safe fallback
 

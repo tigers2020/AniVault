@@ -6,10 +6,9 @@ match scores based on media type (TV show vs movie) compatibility.
 
 from __future__ import annotations
 
-from typing import Any
-
 from anivault.core.parser.models import ParsingResult
 from anivault.services.enricher.metadata_enricher.models import ScoreResult
+from anivault.services.tmdb import TMDBSearchResult
 from anivault.shared.constants.system import MediaType
 from anivault.shared.errors import DomainError, ErrorCode, ErrorContext
 
@@ -28,10 +27,12 @@ class MediaTypeScorer:
         >>> scorer = MediaTypeScorer(weight=0.1)
         >>> result = scorer.score(
         ...     file_info=ParsingResult(title="Attack on Titan", episode=1),
-        ...     tmdb_candidate={"media_type": "tv", "id": 1429}
+        ...     tmdb_candidate=TMDBSearchResult(id=1429, media_type="tv", name="Attack on Titan")
         ... )
         >>> print(result.score)  # 1.0 (match)
     """
+
+    component_name: str = "media_type"
 
     def __init__(self, weight: float = 0.1) -> None:
         """Initialize MediaTypeScorer with specified weight.
@@ -51,7 +52,7 @@ class MediaTypeScorer:
     def score(
         self,
         file_info: ParsingResult,
-        tmdb_candidate: dict[str, Any],
+        tmdb_candidate: TMDBSearchResult,
     ) -> ScoreResult:
         """Calculate media type match score.
 
@@ -145,11 +146,11 @@ class MediaTypeScorer:
 
         return MediaType.MOVIE
 
-    def _extract_tmdb_media_type(self, tmdb_candidate: dict[str, Any]) -> str | None:
+    def _extract_tmdb_media_type(self, tmdb_candidate: TMDBSearchResult) -> str | None:
         """Extract and validate media type from TMDB candidate.
 
         Args:
-            tmdb_candidate: TMDB search result dict
+            tmdb_candidate: TMDB search result dataclass instance
 
         Returns:
             Media type string (MediaType.TV or MediaType.MOVIE), or None if not available
@@ -157,10 +158,10 @@ class MediaTypeScorer:
         Raises:
             DomainError: If tmdb_candidate is invalid type
         """
-        if not isinstance(tmdb_candidate, dict):
+        if not isinstance(tmdb_candidate, TMDBSearchResult):
             raise DomainError(
                 code=ErrorCode.VALIDATION_ERROR,
-                message="tmdb_candidate must be a dict",
+                message="tmdb_candidate must be a TMDBSearchResult instance",
                 context=ErrorContext(
                     operation="extract_tmdb_media_type",
                     additional_data={
@@ -169,22 +170,17 @@ class MediaTypeScorer:
                 ),
             )
 
-        # Extract media_type field
-        media_type_str = tmdb_candidate.get("media_type")
+        # Extract media_type field (guaranteed to be "tv" or "movie" from TMDBSearchResult)
+        media_type_str = tmdb_candidate.media_type
 
-        if not media_type_str or not isinstance(media_type_str, str):
-            return None
-
-        # Normalize and match against MediaType constants
-        media_type_lower = media_type_str.lower()
-
+        # Match against MediaType constants
         # MediaType.TV = "tv", MediaType.MOVIE = "movie"
-        if media_type_lower == MediaType.TV:
+        if media_type_str == MediaType.TV:
             return MediaType.TV
-        if media_type_lower == MediaType.MOVIE:
+        if media_type_str == MediaType.MOVIE:
             return MediaType.MOVIE
 
-        # Unknown media type
+        # Unknown media type (should not happen with TMDBSearchResult)
         return None
 
 

@@ -14,6 +14,7 @@ try:
 except ImportError:
     anitopy = None
 
+from anivault.core.constants import ParsingConfidence
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.shared.constants.validation_constants import (
     PARSER_ANIME_TITLE,
@@ -94,7 +95,7 @@ class AnitopyParser:
 
             return ParsingResult(
                 title=filename,
-                confidence=0.1,
+                confidence=ParsingConfidence.ERROR_CONFIDENCE_ANITOPY,
                 parser_used="anitopy",
                 additional_info=ParsingAdditionalInfo(
                     error=str(e), parser_specific={PARSER_RAW_FILENAME: filename}
@@ -109,7 +110,7 @@ class AnitopyParser:
 
             return ParsingResult(
                 title=filename,
-                confidence=0.1,
+                confidence=ParsingConfidence.ERROR_CONFIDENCE_ANITOPY,
                 parser_used="anitopy",
                 additional_info=ParsingAdditionalInfo(
                     error=str(e), parser_specific={PARSER_RAW_FILENAME: filename}
@@ -237,15 +238,15 @@ class AnitopyParser:
 
         # Title found
         if title and title.strip():
-            confidence += 0.5
+            confidence += ParsingConfidence.TITLE_FOUND
 
         # Episode number found
         if episode is not None:
-            confidence += 0.3
+            confidence += ParsingConfidence.EPISODE_FOUND
 
         # Season number found
         if season is not None:
-            confidence += 0.1
+            confidence += ParsingConfidence.SEASON_FOUND
 
         # Additional metadata found
         metadata_fields = [
@@ -257,8 +258,11 @@ class AnitopyParser:
         ]
         found_metadata = sum(1 for field in metadata_fields if parsed.get(field))
 
-        # Add small bonus for metadata (up to 0.1)
-        confidence += min(0.1, found_metadata * 0.02)
+        # Add small bonus for metadata (up to max)
+        confidence += min(
+            ParsingConfidence.METADATA_BONUS_MAX,
+            found_metadata * ParsingConfidence.METADATA_BONUS_MULTIPLIER,
+        )
 
         # Ensure confidence doesn't exceed 1.0
         return min(1.0, confidence)
