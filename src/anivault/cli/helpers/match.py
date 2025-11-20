@@ -28,6 +28,7 @@ from anivault.services import (
     TokenBucketRateLimiter,
 )
 from anivault.shared.constants import FileSystem
+from anivault.utils.resource_path import get_project_root
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.metadata_models import FileMetadata
 
@@ -90,7 +91,9 @@ def _show_start_message(directory: Path, options: Any, console: Console) -> None
 
 def _initialize_services() -> dict[str, Any]:
     """Initialize matching services."""
-    cache_db_path = Path(FileSystem.CACHE_DIRECTORY) / "tmdb_cache.db"
+    # Use centralized project root utility for consistent path resolution
+    project_root = get_project_root()
+    cache_db_path = project_root / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db"
     cache = SQLiteCacheDB(cache_db_path)
     rate_limiter = TokenBucketRateLimiter(capacity=50, refill_rate=50)
     semaphore_manager = SemaphoreManager(concurrency_limit=4)

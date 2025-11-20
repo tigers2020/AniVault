@@ -1,0 +1,35 @@
+# AniVault GUI Dependencies
+# Generated from pyproject.toml
+
+# Core dependencies
+click>=8.1.7
+typer[all]>=0.9.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# TMDB API integration
+tmdbv3api==1.9.0
+
+# File processing
+anitopy>=2.1.1
+parse>=1.20.0
+chardet>=5.2.0
+rapidfuzz>=3.0.0
+
+# UI and formatting
+rich>=14.1.0
+PySide6>=6.5.0
+
+# HTTP and caching
+requests>=2.32.0
+requests-cache>=1.1.0
+
+# Configuration and serialization
+toml>=0.10.2
+tomli>=2.0.0; python_version < '3.11'
+tomli-w>=1.0.0
+orjson>=3.9.0
+
+# Security
+cryptography>=41.0.0
+

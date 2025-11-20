@@ -25,6 +25,7 @@ from anivault.services.state_machine import RateLimitStateMachine
 from anivault.services.tmdb import TMDBClient
 from anivault.shared.constants import FileSystem
 from anivault.shared.metadata_models import FileMetadata
+from anivault.utils.resource_path import get_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,14 @@ class TMDBMatchingWorker(QObject):
         """Initialize TMDB client and matching engine components."""
         try:
             # Initialize cache (SQLite DB)
-            cache_db_path = Path(FileSystem.CACHE_DIRECTORY) / "tmdb_cache.db"
+            # Use centralized project root utility for consistent path resolution
+            project_root = get_project_root()
+            cache_db_path = project_root / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db"
+            logger.debug(
+                "Initializing SQLite cache at: %s (project root: %s)",
+                cache_db_path,
+                project_root,
+            )
             self.cache = SQLiteCacheDB(cache_db_path)
 
             # Initialize rate limiting components

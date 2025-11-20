@@ -26,34 +26,65 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM 필요한 Python 패키지가 설치되어 있는지 확인
+REM 필요한 Python 패키지가 설치되어 있는지 확인 및 자동 설치
 echo [CHECK] 의존성 확인 중...
-python -c "import PySide6" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] PySide6가 설치되어 있지 않습니다.
-    echo [INFO] 다음 명령어로 설치해주세요:
-    echo    pip install PySide6
+
+REM requirements.txt 파일 존재 확인
+if not exist "requirements.txt" (
+    echo [ERROR] requirements.txt 파일을 찾을 수 없습니다.
+    echo [INFO] 프로젝트 루트 디렉터리에서 실행해주세요.
     pause
     exit /b 1
+)
+
+REM pip 업그레이드 확인 및 설치
+echo [INFO] pip 업그레이드 확인 중...
+python -m pip install --upgrade pip --quiet >nul 2>&1
+
+REM 핵심 패키지 확인 (빠른 체크)
+python -c "import PySide6" >nul 2>&1
+set MISSING_DEPS=0
+if %errorlevel% neq 0 (
+    set MISSING_DEPS=1
 )
 
 python -c "import pydantic" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Pydantic이 설치되어 있지 않습니다.
-    echo [INFO] 다음 명령어로 설치해주세요:
-    echo    pip install pydantic
-    pause
-    exit /b 1
+    set MISSING_DEPS=1
 )
 
-echo [OK] 모든 의존성이 확인되었습니다.
-echo.
+REM 의존성이 없으면 자동 설치
+if %MISSING_DEPS%==1 (
+    echo [INSTALL] 누락된 패키지를 자동으로 설치합니다...
+    echo [INFO] 이 작업은 처음 실행 시에만 필요하며 시간이 걸릴 수 있습니다.
+    echo.
+    
+    python -m pip install -r requirements.txt
+    
+    if %errorlevel% neq 0 (
+        echo.
+        echo [ERROR] 패키지 설치 중 오류가 발생했습니다.
+        echo [INFO] 다음 명령어를 수동으로 실행해보세요:
+        echo    pip install -r requirements.txt
+        echo.
+        pause
+        exit /b 1
+    )
+    
+    echo.
+    echo [OK] 모든 패키지가 성공적으로 설치되었습니다.
+    echo.
+) else (
+    echo [OK] 모든 의존성이 확인되었습니다.
+    echo.
+)
 
 REM GUI 애플리케이션 실행
 echo [RUN] AniVault GUI를 시작합니다...
 echo.
 
-python -m src.anivault.gui.app
+REM Python 경로 설정 후 실행
+python run_gui.py
 
 REM 실행 결과 확인
 if %errorlevel% neq 0 (

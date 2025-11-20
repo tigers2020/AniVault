@@ -332,7 +332,8 @@ class GroupCardWidget(QFrame):
         """
         Get anime metadata from the first file.
 
-        Only supports FileItem with FileMetadata (type-safe).
+        Supports both FileItem (with FileMetadata) and ScannedFile
+        (with ParsingResult containing TMDBMatchResult).
 
         Returns:
             FileMetadata instance or None if not available
@@ -350,24 +351,98 @@ class GroupCardWidget(QFrame):
         )
         logger.debug("Checking anime metadata for file: %s", file_name)
 
-        # Get metadata attribute (FileItem has it)
+        # Import types for checking
+        from anivault.core.models import ScannedFile
+        from anivault.core.parser.models import ParsingResult
+
+        # Case 1: FileItem with FileMetadata (direct)
         meta = getattr(first_file, "metadata", None)
-
-        if not meta:
-            logger.debug("File has no metadata attribute or metadata is empty")
-            return None
-
-        # Only support FileMetadata (type-safe)
         if isinstance(meta, FileMetadata):
             logger.debug("Found FileMetadata: %s", meta.title)
             return meta
 
-        # Log warning for unsupported metadata types
-        logger.warning(
-            "Unsupported metadata type for file '%s': %s. Expected FileMetadata.",
-            file_name,
-            type(meta).__name__,
-        )
+        # Case 2: ScannedFile with ParsingResult containing TMDBMatchResult
+        # Group.files contains ScannedFile objects, not FileItem
+        if isinstance(first_file, ScannedFile):
+            parsed_result = first_file.metadata
+            if isinstance(parsed_result, ParsingResult):
+                # Check if TMDB match result exists in additional_info
+                match_result = parsed_result.additional_info.match_result
+                if match_result:
+                    # Convert TMDBMatchResult to FileMetadata
+                    file_metadata = FileMetadata(
+                        title=match_result.title,
+                        file_path=first_file.file_path,
+                        file_type=first_file.file_path.suffix.lstrip(".").lower()
+                        if first_file.file_path.suffix
+                        else "unknown",
+                        year=match_result.year,
+                        season=parsed_result.season,
+                        episode=parsed_result.episode,
+                        genres=match_result.genres,
+                        overview=match_result.overview,
+                        poster_path=match_result.poster_path,
+                        vote_average=match_result.vote_average,
+                        tmdb_id=match_result.id,
+                        media_type=match_result.media_type,
+                    )
+                    logger.debug(
+                        "Converted TMDBMatchResult to FileMetadata: %s",
+                        file_metadata.title,
+                    )
+                    return file_metadata
+                else:
+                    logger.debug(
+                        "ScannedFile has ParsingResult but no TMDB match result (TMDB matching may not have completed yet)"
+                    )
+                    # Return None silently - this is expected before TMDB matching
+                    return None
+            else:
+                logger.debug(
+                    "ScannedFile.metadata is not ParsingResult: %s",
+                    type(parsed_result).__name__,
+                )
+
+        # Case 3: first_file itself might be ParsingResult (unlikely but handle it)
+        if isinstance(first_file, ParsingResult):
+            match_result = first_file.additional_info.match_result
+            if match_result:
+                # Need file_path from somewhere - try to get it from files list
+                file_path = getattr(self.files[0], "file_path", None) if self.files else None
+                if file_path:
+                    file_metadata = FileMetadata(
+                        title=match_result.title,
+                        file_path=file_path,
+                        file_type=file_path.suffix.lstrip(".").lower()
+                        if file_path.suffix
+                        else "unknown",
+                        year=match_result.year,
+                        season=first_file.season,
+                        episode=first_file.episode,
+                        genres=match_result.genres,
+                        overview=match_result.overview,
+                        poster_path=match_result.poster_path,
+                        vote_average=match_result.vote_average,
+                        tmdb_id=match_result.id,
+                        media_type=match_result.media_type,
+                    )
+                    logger.debug(
+                        "Converted ParsingResult with TMDBMatchResult to FileMetadata: %s",
+                        file_metadata.title,
+                    )
+                    return file_metadata
+
+        # Log warning only if we have metadata but couldn't process it
+        if meta:
+            logger.debug(
+                "File '%s' has metadata type '%s' but no TMDB match result yet. "
+                "This is normal before TMDB matching completes.",
+                file_name,
+                type(meta).__name__,
+            )
+        else:
+            logger.debug("File has no metadata attribute or metadata is empty")
+
         return None
 
     def _get_file_hint(self) -> str:
