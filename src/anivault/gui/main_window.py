@@ -605,12 +605,16 @@ class MainWindow(QMainWindow):
             scanned_file = ScannedFile(
                 file_path=file_item.file_path,
                 metadata=parsing_metadata,
-                file_size=file_item.file_path.stat().st_size
-                if file_item.file_path.exists()
-                else 0,
-                last_modified=file_item.file_path.stat().st_mtime
-                if file_item.file_path.exists()
-                else 0.0,
+                file_size=(
+                    file_item.file_path.stat().st_size
+                    if file_item.file_path.exists()
+                    else 0
+                ),
+                last_modified=(
+                    file_item.file_path.stat().st_mtime
+                    if file_item.file_path.exists()
+                    else 0.0
+                ),
             )
             scanned_files.append(scanned_file)
 

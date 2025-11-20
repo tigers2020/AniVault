@@ -328,9 +328,11 @@ def _extract_parsing_result_dict(parsing_result: Any) -> dict[str, Any]:
         "release_group": parsing_result.release_group,
         "confidence": parsing_result.confidence,
         "parser_used": parsing_result.parser_used,
-        "additional_info": asdict(parsing_result.additional_info)
-        if hasattr(parsing_result, "additional_info")
-        else {},
+        "additional_info": (
+            asdict(parsing_result.additional_info)
+            if hasattr(parsing_result, "additional_info")
+            else {}
+        ),
     }
 
 
