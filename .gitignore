@@ -159,14 +159,13 @@ dmypy.json
 # AniVault Project Specific
 # ===========================================
 
-# Test files and directories - ALL TESTS IGNORED
-tests/
-
-# Internal development documentation - REMOVED FROM REPO
-docs/
-
-# Internal development scripts - REMOVED FROM REPO
-scripts/
+# Test data directories (keep test code, ignore test data)
+test_anime_files/
+test_cache/
+test_data/
+test_data_*/
+test_output/
+test_files/
 
 # Internal development tools and configs - REMOVED FROM REPO
 .cursor/
@@ -383,8 +382,24 @@ __pycache__/
 .ruff_cache/
 .hypothesis/
 
-# Performance and test results
-*.json
+# Performance and test results (specific patterns only)
+# Note: Do NOT ignore all *.json - project config files need to be tracked
+*_parallel.json
+*_sequential.json
+*_results.json
+*_improved.json
+benchmark_*.json
+enhanced_benchmark.json
+parallel_*.json
+sequential_*.json
+integrated_*.json
+adaptive_*.json
+*_violations*.json
+*_validation.json
+function_*.json
+magic_*.json
+error_*.json
+stage*_*.json
 .coverage
 
 # Data directories
