@@ -27,6 +27,9 @@ from .performance_settings import PerformanceConfig, PerformanceSettings
 # Scan and Filter Settings
 from .scan_settings import FilterConfig, FilterSettings, ScanConfig, ScanSettings
 
+# Grouping Settings
+from .grouping_settings import GroupingSettings
+
 __all__ = [
     # All exports in alphabetical order
     "APISettings",
@@ -37,6 +40,7 @@ __all__ = [
     "FilterConfig",  # Backward compatibility alias
     "FilterSettings",
     "FolderSettings",
+    "GroupingSettings",
     "LoggingConfig",  # Backward compatibility alias
     "LoggingSettings",
     "PerformanceConfig",  # Backward compatibility alias

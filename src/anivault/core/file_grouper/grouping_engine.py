@@ -9,42 +9,17 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .strategies import BestMatcherStrategy, GroupingStrategy
 
 if TYPE_CHECKING:
+    from anivault.config.models.grouping_settings import GroupingSettings
     from anivault.core.file_grouper.matchers.base import BaseMatcher
     from anivault.core.file_grouper.models import Group, GroupingEvidence
     from anivault.core.models import ScannedFile
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class GroupingSettings:
-    """Settings for grouping operations.
-
-    This dataclass provides configuration for the grouping pipeline,
-    including whether to use Title matcher and size limits for performance.
-
-    Attributes:
-        use_title_matcher: Whether to run Title matcher after Hash matcher.
-                          Default: True
-        max_title_match_group_size: Maximum number of files in a group for
-                                   Title matcher processing. Groups larger than
-                                   this will skip Title matcher (DoS protection).
-                                   Default: 1000
-
-    Note:
-        This is a temporary dataclass until GroupingSettings is integrated
-        into the main Settings system (Task 3). Once integrated, this
-        dataclass may be removed or moved to the settings module.
-    """
-
-    use_title_matcher: bool = True
-    max_title_match_group_size: int = 1000
 
 
 # Default weights for matchers
@@ -135,37 +110,38 @@ class GroupingEngine:
             self.strategy.__class__.__name__,
         )
 
-    def _get_grouping_settings(self) -> GroupingSettings:
-        """Get grouping settings with fallback to defaults.
+    def _get_grouping_settings(
+        self,
+    ) -> GroupingSettings:  # type: ignore[name-defined]
+        """Get grouping settings from configuration system.
 
-        Attempts to load GroupingSettings from configuration system.
-        If not available, returns default settings.
+        Loads GroupingSettings from the main Settings system.
+        Falls back to default settings if configuration is not available.
 
         Returns:
             GroupingSettings instance with use_title_matcher and max_title_match_group_size.
 
         Note:
-            This method is designed to work with or without GroupingSettings.
-            When Task 3 (settings system) is completed, this method will
-            read from the actual configuration. Until then, it returns defaults.
+            This method attempts to load settings from the configuration system.
+            If loading fails, returns default settings for graceful degradation.
         """
-        # Try to import and use GroupingSettings if available
-        try:
-            # Future: When GroupingSettings is implemented, uncomment this:
-            # from anivault.core.file_grouper.settings import GroupingSettings
-            # from anivault.config.loader import load_settings
-            # settings = load_settings()
-            # return settings.grouping  # or however it's structured
-            pass
-        except (ImportError, AttributeError):
-            # GroupingSettings not available yet, use defaults
-            pass
+        # Import here to avoid circular dependency
+        from anivault.config.models.grouping_settings import GroupingSettings
 
-        # Return default settings (dataclass for type safety)
-        return GroupingSettings(
-            use_title_matcher=True,
-            max_title_match_group_size=1000,  # Default: 1000 files per group
-        )
+        try:
+            from anivault.config.loader import load_settings
+
+            settings = load_settings()
+            if hasattr(settings, "grouping") and settings.grouping is not None:
+                return settings.grouping
+        except (ImportError, AttributeError, Exception) as e:
+            logger.debug(
+                "Could not load GroupingSettings from config, using defaults: %s",
+                e,
+            )
+
+        # Return default settings if config not available
+        return GroupingSettings()
 
     def _validate_weights(self, weights: dict[str, float]) -> None:
         """Validate that weights are correct.
