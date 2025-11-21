@@ -378,10 +378,6 @@ node_modules/
 .vscode
 # OS specific
 
-# Task files
-# tasks.json
-# tasks/
-
 # Cache and temporary files
 __pycache__/
 *.pyc
@@ -415,3 +411,7 @@ stage*_*.json
 cache/
 .anivault/
 .benchmarks/
+
+# Task files
+# tasks.json
+# tasks/ 

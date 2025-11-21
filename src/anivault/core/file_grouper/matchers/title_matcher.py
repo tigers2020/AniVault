@@ -235,5 +235,61 @@ class TitleSimilarityMatcher:
 
         return result
 
+    def refine_group(self, group: Group) -> Group | None:
+        """Refine a group by subdividing it based on title similarity.
+
+        This method takes an existing group (typically from Hash matcher) and
+        subdivides it into smaller groups based on pairwise title similarity.
+        Files with similar titles (above threshold) are grouped together.
+
+        If the group cannot be subdivided (all files are similar or only one file),
+        returns None to indicate no refinement occurred.
+
+        Args:
+            group: Group object containing files to refine.
+
+        Returns:
+            Refined Group object if subdivision occurred (first subgroup),
+            or None if no refinement was needed.
+
+        Note:
+            This method is designed to work with the Hash-first pipeline where
+            Hash matcher creates initial groups, and Title matcher refines them.
+            If multiple subgroups are created, only the first one is returned.
+            The grouping engine handles multiple subgroups via the match() fallback.
+
+        Example:
+            >>> hash_group = Group(title="Anime", files=[file1, file2, file3])
+            >>> refined = matcher.refine_group(hash_group)
+            >>> if refined:
+            ...     len(refined.files)  # May be smaller than original
+        """
+        if not group.files:
+            return None
+
+        # If group has only one file, no refinement needed
+        if len(group.files) == 1:
+            return None
+
+        # Use match() method to subdivide the group
+        # This reuses existing logic for consistency
+        subgroups = self.match(group.files)
+
+        # If no subgroups created or only one subgroup, return None
+        # (no refinement occurred - all files remain together)
+        if not subgroups or len(subgroups) == 1:
+            return None
+
+        # If multiple subgroups created, return the first one
+        # Note: The grouping engine's fallback logic will handle
+        # multiple subgroups if needed via the match() method
+        logger.debug(
+            "Refined group '%s' (%d files) into %d subgroup(s), returning first",
+            group.title,
+            len(group.files),
+            len(subgroups),
+        )
+        return subgroups[0]
+
 
 __all__ = ["TitleSimilarityMatcher"]
