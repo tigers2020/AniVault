@@ -74,7 +74,8 @@ class DirectoryScanner(threading.Thread):
         self.input_queue = input_queue
         self.stats = stats
         self.parallel = parallel
-        self.max_workers = max_workers or (os.cpu_count() or 1) * 2
+        # Use optimized worker count: min(32, (cpu_count or 4) + 4)
+        self.max_workers = max_workers or min(32, (os.cpu_count() or 4) + 4)
         self._stop_event = (
             cancel_event if cancel_event is not None else threading.Event()
         )
@@ -672,28 +673,42 @@ class DirectoryScanner(threading.Thread):
         # Also scan the root directory itself for files
         root_files = self._scan_root_files()
 
-        logger.info(
-            "Parallel scanning %d subdirectories using %d workers",
-            len(subdirectories),
-            self.max_workers,
-        )
+        # Process root files first (thread-safe)
+        queued_root_files = self._thread_safe_put_files(root_files)
+        self._thread_safe_update_stats(
+            queued_root_files,
+            1,
+        )  # Root directory counted
 
-        # Use ThreadPoolExecutor for parallel directory scanning
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit subdirectory scanning tasks
-            future_to_dir = {}
+        # Check if directory count is below threshold for sequential mode
+        if len(subdirectories) < self.parallel_threshold:
+            logger.info(
+                "Sequential scanning %d subdirectories (below threshold: %d)",
+                len(subdirectories),
+                self.parallel_threshold,
+            )
+            # Sequential mode: scan directories one by one
             for subdir in subdirectories:
                 if self._stop_event.is_set():
                     break
-                future = executor.submit(self._parallel_scan_directory, subdir)
-                future_to_dir[future] = subdir
-
-            # Process root files first (thread-safe)
-            queued_root_files = self._thread_safe_put_files(root_files)
-            self._thread_safe_update_stats(
-                queued_root_files,
-                1,
-            )  # Root directory counted
+                found_files, dirs_scanned = self._parallel_scan_directory(subdir)
+                queued_files = self._thread_safe_put_files(found_files)
+                self._thread_safe_update_stats(queued_files, dirs_scanned)
+        else:
+            logger.info(
+                "Parallel scanning %d subdirectories using %d workers",
+                len(subdirectories),
+                self.max_workers,
+            )
+            # Use ThreadPoolExecutor for parallel directory scanning
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                # Submit subdirectory scanning tasks
+                future_to_dir = {}
+                for subdir in subdirectories:
+                    if self._stop_event.is_set():
+                        break
+                    future = executor.submit(self._parallel_scan_directory, subdir)
+                    future_to_dir[future] = subdir
 
             # Process completed subdirectory futures
             for future in as_completed(future_to_dir):

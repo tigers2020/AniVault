@@ -61,10 +61,34 @@ class ParallelDirectoryScanner(threading.Thread):
         self.extensions = {ext.lower() for ext in extensions}
         self.input_queue = input_queue
         self.stats = stats
-        self.max_workers = max_workers or (os.cpu_count() or 1) * 2
+        # Use optimized worker count: min(32, (cpu_count or 4) + 4)
+        self.max_workers = max_workers or min(32, (os.cpu_count() or 4) + 4)
         self.chunk_size = chunk_size
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
+
+    def _get_parallel_threshold(self) -> int:
+        """Get parallel_threshold from configuration.
+
+        Returns:
+            Minimum directory count to use parallel scanning (default: 5)
+        """
+        try:
+            from anivault.config.loader import load_settings
+
+            settings = load_settings()
+            if hasattr(settings, "scan") and settings.scan is not None:
+                threshold = settings.scan.parallel_threshold
+                # Use threshold as-is, but ensure minimum of 5 for directory count
+                return max(5, threshold // 100)  # Scale down from file count threshold
+        except (ImportError, AttributeError, Exception) as e:
+            logger.debug(
+                "Could not load parallel_threshold from config, using default 5: %s",
+                e,
+            )
+
+        # Default to 5 directories for sequential mode
+        return 5
 
     def _recursive_scan_directory(self, directory: Path) -> tuple[list[Path], int]:
         """Recursively scan a directory using os.scandir for better performance.
@@ -430,12 +454,6 @@ class ParallelDirectoryScanner(threading.Thread):
             # Also scan the root directory itself for files
             root_files = self._scan_root_files()
 
-            logger.info(
-                "Parallel scanning %d subdirectories using %d workers",
-                len(subdirectories),
-                self.max_workers,
-            )
-
             # Process root files first (thread-safe)
             queued_root_files = self._thread_safe_put_files(root_files)
             self._thread_safe_update_stats(
@@ -443,8 +461,31 @@ class ParallelDirectoryScanner(threading.Thread):
                 1,
             )  # Root directory counted
 
-            # Scan subdirectories using the new method
-            self._scan_subdirectories(subdirectories)
+            # Get parallel_threshold from configuration
+            parallel_threshold = self._get_parallel_threshold()
+
+            # Check if directory count is below threshold for sequential mode
+            if len(subdirectories) < parallel_threshold:
+                logger.info(
+                    "Sequential scanning %d subdirectories (below threshold: %d)",
+                    len(subdirectories),
+                    parallel_threshold,
+                )
+                # Sequential mode: scan directories one by one
+                for subdir in subdirectories:
+                    if self._stop_event.is_set():
+                        break
+                    found_files, dirs_scanned = self._recursive_scan_directory(subdir)
+                    queued_files = self._thread_safe_put_files(found_files)
+                    self._thread_safe_update_stats(queued_files, dirs_scanned)
+            else:
+                logger.info(
+                    "Parallel scanning %d subdirectories using %d workers",
+                    len(subdirectories),
+                    self.max_workers,
+                )
+                # Scan subdirectories using parallel method
+                self._scan_subdirectories(subdirectories)
 
         except Exception:
             logger.exception("Error in parallel directory scanning")
