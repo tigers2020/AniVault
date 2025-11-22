@@ -91,6 +91,7 @@ class StatisticsCollector:
         self.benchmark_results: list[BenchmarkResult] = []
         self.session_start = datetime.now(timezone.utc)
         self.timing_stack: list[float] = []
+        self.timers: dict[str, float] = {}
 
         # Detailed tracking
         self.file_metrics: dict[str, dict[str, Any]] = defaultdict(dict)
@@ -123,6 +124,9 @@ class StatisticsCollector:
 
         start_time = self.timing_stack.pop()
         duration = time.time() - start_time
+
+        # Store the duration in timers dictionary
+        self.timers[operation] = duration
 
         logger.debug("Ended timing operation: %s, duration: %.3fs", operation, duration)
         return duration
@@ -434,6 +438,7 @@ class StatisticsCollector:
         self.benchmark_results.clear()
         self.session_start = datetime.now(timezone.utc)
         self.timing_stack.clear()
+        self.timers.clear()
         self.file_metrics.clear()
         self.api_call_times.clear()
         self.cache_operations.clear()
@@ -453,6 +458,7 @@ class StatisticsCollector:
         """
         return {
             "summary": self.get_summary(),
+            "timers": self.timers,
             "file_metrics": dict(self.file_metrics),
             "cache_operations": self.cache_operations,
             "api_call_times": self.api_call_times,

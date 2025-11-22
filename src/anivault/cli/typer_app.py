@@ -16,6 +16,7 @@ import typer
 from anivault.cli.common.context import CliContext, LogLevel, set_cli_context
 from anivault.cli.common.models import DirectoryPath
 from anivault.cli.common.options import (
+    benchmark_option,
     json_output_option,
     log_level_option,
     verbose_option,
@@ -52,6 +53,7 @@ def main_callback(
     verbose: Annotated[int, verbose_option],
     log_level: Annotated[LogLevel, log_level_option],
     json_output: Annotated[bool, json_output_option],
+    benchmark: Annotated[bool, benchmark_option],
     version: Annotated[bool, version_option],
 ) -> None:
     """
@@ -64,6 +66,7 @@ def main_callback(
         verbose: Verbosity level (count-based)
         log_level: Logging level (enum-based)
         json_output: Whether to output in JSON format
+        benchmark: Whether benchmark mode is enabled
         version: Whether to show version information
     """
     # Handle version option first
@@ -75,6 +78,7 @@ def main_callback(
         verbose=verbose,
         log_level=log_level,
         json_output=json_output,
+        benchmark=benchmark,
     )
     set_cli_context(context)
 
@@ -95,12 +99,13 @@ def main(
     verbose: Annotated[int, verbose_option] = 0,
     log_level: Annotated[LogLevel, log_level_option] = LogLevel.INFO,
     json_output: Annotated[bool, json_output_option] = False,
+    benchmark: Annotated[bool, benchmark_option] = False,
     version: Annotated[bool, version_option] = False,
 ) -> None:
     """Main CLI callback with error handling."""
     try:
         # Process the common options
-        main_callback(verbose, log_level, json_output, version)
+        main_callback(verbose, log_level, json_output, benchmark, version)
     except Exception as e:
         # Import here to avoid circular imports
         from anivault.cli.common.error_handler import handle_cli_error

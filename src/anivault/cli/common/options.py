@@ -53,6 +53,16 @@ json_output_option: Annotated[
 ] = False
 
 
+# Benchmark option - flag-based
+benchmark_option: Annotated[
+    bool,
+    typer.Option(
+        "--benchmark",
+        help="Enable benchmark mode to measure performance metrics for each processing step.",
+    ),
+] = False
+
+
 # Version option - for main app only
 version_option: Annotated[
     bool,

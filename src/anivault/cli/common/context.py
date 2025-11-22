@@ -42,6 +42,7 @@ class CliContext(BaseModel):
         verbose: Verbosity level (0 = normal, 1+ = verbose)
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         json_output: Whether to output in JSON format
+        benchmark: Whether benchmark mode is enabled
     """
 
     verbose: int = Field(
@@ -58,6 +59,11 @@ class CliContext(BaseModel):
     json_output: bool = Field(
         default=False,
         description="Whether to output in JSON format",
+    )
+
+    benchmark: bool = Field(
+        default=False,
+        description="Whether benchmark mode is enabled",
     )
 
     def is_verbose(self) -> bool:
@@ -84,6 +90,10 @@ class CliContext(BaseModel):
     def is_verbose_output_enabled(self) -> bool:
         """Check if verbose output is enabled."""
         return self.is_verbose()
+
+    def is_benchmark_enabled(self) -> bool:
+        """Check if benchmark mode is enabled."""
+        return self.benchmark
 
 
 def validate_directory(directory_path: str) -> Path:

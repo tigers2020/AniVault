@@ -21,6 +21,7 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.cli.match_handler import handle_match_command
 from anivault.cli.organize_handler import handle_organize_command
 from anivault.cli.scan_handler import handle_scan_command
+from anivault.core.statistics import get_statistics_collector
 from anivault.shared.constants import CLI, CLIDefaults
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.types.cli import (
@@ -61,9 +62,13 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
     # Extract directory path
     directory = extract_directory_path(options.directory)
 
-    # Check if JSON output is enabled
+    # Check if JSON output and benchmark mode are enabled
     context = get_cli_context()
     is_json_output = bool(context and context.is_json_output_enabled())
+    is_benchmark = bool(context and context.is_benchmark_enabled())
+
+    # Initialize statistics collector for benchmark mode
+    stats_collector = get_statistics_collector() if is_benchmark else None
 
     # Initialize run data for tracking
     run_data: dict[str, Any] = {
@@ -107,8 +112,17 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
                 )
             )
 
+        # Start timing for benchmark mode
+        if is_benchmark and stats_collector:
+            stats_collector.start_timing(step_name)
+
         # Execute step
         step_result = step_func(options, directory, console)
+
+        # End timing for benchmark mode
+        if is_benchmark and stats_collector:
+            stats_collector.end_timing(step_name)
+
         run_data["steps"].append(step_result)
 
         # Check for errors
@@ -119,6 +133,10 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
             else:
                 logger_adapter.error(error_message)
             return CLIDefaults.EXIT_ERROR
+
+    # Calculate and display benchmark results if enabled
+    if is_benchmark and stats_collector:
+        _display_benchmark_results(stats_collector, console, is_json_output, run_data)
 
     # Success - output results
     if is_json_output:
@@ -312,6 +330,50 @@ def _output_json_error(error_message: str, run_data: dict[str, Any]) -> None:
     sys.stdout.buffer.write(json_output)
     sys.stdout.buffer.write(b"\n")
     sys.stdout.buffer.flush()
+
+
+def _display_benchmark_results(
+    stats_collector: Any,
+    console: Console,
+    is_json_output: bool,
+    run_data: dict[str, Any],
+) -> None:
+    """Display benchmark results with timing and throughput.
+
+    Args:
+        stats_collector: Statistics collector instance
+        console: Rich console instance
+        is_json_output: Whether JSON output is enabled
+        run_data: Run data dictionary to update with benchmark info
+    """
+    timers = stats_collector.timers
+    total_time = sum(timers.values())
+
+    # Calculate total files processed (from metrics)
+    total_files = stats_collector.metrics.total_files
+    files_per_second = total_files / total_time if total_time > 0 else 0.0
+
+    # Add benchmark data to run_data
+    run_data["benchmark"] = {
+        "timers": timers,
+        "total_time": total_time,
+        "total_files": total_files,
+        "files_per_second": files_per_second,
+    }
+
+    if is_json_output:
+        # JSON output is handled by the main output function
+        return
+
+    # Display benchmark results in console
+    console.print("\n[bold cyan]Benchmark Results:[/bold cyan]")
+    console.print("\n[bold]Step Timings:[/bold]")
+    for step_name, duration in timers.items():
+        console.print(f"  {step_name.title()}: {duration:.3f}s")
+
+    console.print(f"\n[bold]Total Time:[/bold] {total_time:.3f}s")
+    console.print(f"[bold]Total Files:[/bold] {total_files}")
+    console.print(f"[bold]Throughput:[/bold] {files_per_second:.2f} files/second")
 
 
 def _print_run_summary(run_data: dict[str, Any], console: Console) -> None:
