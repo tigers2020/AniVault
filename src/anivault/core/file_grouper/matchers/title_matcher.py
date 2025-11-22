@@ -7,6 +7,7 @@ Files with similar titles are grouped together based on configurable threshold.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 from rapidfuzz import fuzz
@@ -109,6 +110,36 @@ class TitleSimilarityMatcher:
 
         return base_title
 
+    def _generate_blocking_key(self, title: str, k: int = 4) -> str:
+        """Generate a blocking key from a title for bucket-based grouping.
+
+        Extracts alphanumeric and Korean characters, converts to lowercase,
+        and returns the first k characters. This creates buckets for similar titles
+        to reduce comparison complexity from O(n²) to O(bucket_size²).
+
+        Args:
+            title: Title string to generate key from.
+            k: Number of characters to use for blocking key. Default is 4.
+
+        Returns:
+            Blocking key string (first k characters of cleaned title).
+
+        Example:
+            >>> matcher._generate_blocking_key("Attack on Titan", k=4)
+            'atta'
+            >>> matcher._generate_blocking_key("attack-on-titan", k=4)
+            'atta'
+            >>> matcher._generate_blocking_key("진격의 거인 1기", k=4)
+            '진격의거'
+        """
+        # Extract only alphanumeric and Korean characters
+        # Pattern matches: a-z, A-Z, 0-9, and Korean characters (가-힣)
+        cleaned = re.sub(r"[^a-zA-Z0-9가-힣]", "", title)
+        # Convert to lowercase
+        cleaned = cleaned.lower()
+        # Return first k characters, or entire string if shorter
+        return cleaned[:k] if cleaned else ""
+
     def _calculate_similarity(self, title1: str, title2: str) -> float:
         """Calculate similarity score between two titles.
 
@@ -174,57 +205,95 @@ class TitleSimilarityMatcher:
         if not file_titles:
             return []
 
-        # Step 2: Group files by similar titles using LinkedHashTable for O(1) operations
-        groups_table = LinkedHashTable[str, list[ScannedFile]](
-            initial_capacity=max(len(file_titles) * 2, 64),
-            load_factor=0.75,
-        )
-        title_to_group = LinkedHashTable[str, str](
-            initial_capacity=max(len(file_titles) * 2, 64),
-            load_factor=0.75,
-        )
-
+        # Step 2: Group files into buckets using blocking keys
+        buckets: dict[str, list[tuple[ScannedFile, str]]] = {}
         for file, title in file_titles:
-            # Check if title is similar to any existing group
-            matched_group = None
-            for group_name, group_title in title_to_group:
-                similarity = self._calculate_similarity(title, group_title)
-                if similarity >= self.threshold:
-                    matched_group = group_name
-                    break
+            blocking_key = self._generate_blocking_key(title, k=4)
+            if blocking_key not in buckets:
+                buckets[blocking_key] = []
+            buckets[blocking_key].append((file, title))
 
-            if matched_group:
-                # Add to existing group
-                existing_files = groups_table.get(matched_group)
-                if existing_files:
-                    existing_files.append(file)
-                else:
-                    groups_table.put(matched_group, [file])
-
-                # Update group name if this title is better quality
-                better_title = self.quality_evaluator.select_better_title(
-                    matched_group,
-                    title,
+        # Monitor bucket sizes for imbalance detection
+        bucket_size_threshold = 100  # Warn if bucket exceeds this size
+        for key, bucket_files in buckets.items():
+            if len(bucket_files) > bucket_size_threshold:
+                logger.warning(
+                    "Large bucket detected for key '%s': %d files. "
+                    "Blocking efficiency may be reduced.",
+                    key,
+                    len(bucket_files),
                 )
-                if better_title != matched_group:
-                    # Replace group name with better title
-                    old_files = groups_table.remove(matched_group)
-                    if old_files:
-                        groups_table.put(better_title, old_files)
-                    # Update mapping
-                    for t, g in title_to_group:
-                        if g == matched_group:
-                            title_to_group.put(t, better_title)
-                    matched_group = better_title
-            else:
-                # Create new group
-                groups_table.put(title, [file])
-                title_to_group.put(title, title)
 
-        # Step 3: Convert to Group objects
+        # Step 3: Process each bucket independently using LinkedHashTable
+        all_groups_table = LinkedHashTable[str, list[ScannedFile]](
+            initial_capacity=max(len(file_titles) * 2, 64),
+            load_factor=0.75,
+        )
+
+        for blocking_key, bucket_files in buckets.items():
+            # Create LinkedHashTable for this bucket
+            bucket_groups_table = LinkedHashTable[str, list[ScannedFile]](
+                initial_capacity=max(len(bucket_files) * 2, 64),
+                load_factor=0.75,
+            )
+            bucket_title_to_group = LinkedHashTable[str, str](
+                initial_capacity=max(len(bucket_files) * 2, 64),
+                load_factor=0.75,
+            )
+
+            # Process files within this bucket
+            for file, title in bucket_files:
+                # Check if title is similar to any existing group in this bucket
+                matched_group = None
+                for group_name, group_title in bucket_title_to_group:
+                    similarity = self._calculate_similarity(title, group_title)
+                    if similarity >= self.threshold:
+                        matched_group = group_name
+                        break
+
+                if matched_group:
+                    # Add to existing group
+                    existing_files = bucket_groups_table.get(matched_group)
+                    if existing_files:
+                        existing_files.append(file)
+                    else:
+                        bucket_groups_table.put(matched_group, [file])
+
+                    # Update group name if this title is better quality
+                    better_title = self.quality_evaluator.select_better_title(
+                        matched_group,
+                        title,
+                    )
+                    if better_title != matched_group:
+                        # Replace group name with better title
+                        old_files = bucket_groups_table.remove(matched_group)
+                        if old_files:
+                            bucket_groups_table.put(better_title, old_files)
+                        # Update mapping
+                        for t, g in bucket_title_to_group:
+                            if g == matched_group:
+                                bucket_title_to_group.put(t, better_title)
+                        matched_group = better_title
+                else:
+                    # Create new group
+                    bucket_groups_table.put(title, [file])
+                    bucket_title_to_group.put(title, title)
+
+            # Merge bucket groups into all_groups_table
+            for group_name, group_files in bucket_groups_table:
+                # Check if group name already exists in all_groups_table
+                existing_all_files = all_groups_table.get(group_name)
+                if existing_all_files:
+                    # Merge files
+                    existing_all_files.extend(group_files)
+                else:
+                    # Add new group
+                    all_groups_table.put(group_name, group_files.copy())
+
+        # Step 4: Convert to Group objects
         result = [
             Group(title=group_name, files=group_files)
-            for group_name, group_files in groups_table
+            for group_name, group_files in all_groups_table
         ]
 
         logger.info(
