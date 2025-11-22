@@ -95,6 +95,27 @@ class SubtitleMatcher:
             sum(len(files) for files in self.index.values()),
         )
 
+    def _get_subtitle_matching_strategy(self) -> str:
+        """Get subtitle matching strategy from configuration.
+
+        Returns:
+            Strategy name: "indexed", "fallback", or "legacy"
+        """
+        try:
+            from anivault.config.loader import load_settings
+
+            settings = load_settings()
+            if hasattr(settings, "grouping") and settings.grouping is not None:
+                return settings.grouping.subtitle_matching_strategy
+        except (ImportError, AttributeError, Exception) as e:
+            logger.debug(
+                "Could not load subtitle_matching_strategy from config, using default 'indexed': %s",
+                e,
+            )
+
+        # Default to "indexed" for optimal performance
+        return "indexed"
+
     def find_matching_subtitles(
         self,
         video_file: ScannedFile,
@@ -102,7 +123,10 @@ class SubtitleMatcher:
     ) -> list[Path]:
         """Find subtitle files that match a video file.
 
-        Uses the pre-built index if available, otherwise falls back to directory scanning.
+        Uses strategy-based matching:
+        - "indexed": Uses pre-built index for O(f+s) performance (default)
+        - "fallback": Uses index but falls back to full scan if lookup fails
+        - "legacy": Uses full directory scan for backward compatibility
 
         Args:
             video_file: The video file to find subtitles for
@@ -126,45 +150,83 @@ class SubtitleMatcher:
             if not directory.exists():
                 return []
 
+            strategy = self._get_subtitle_matching_strategy()
             video_name = video_file.file_path.stem
             matching_subtitles = []
 
-            # Try to use index first if available
-            if self.index:
-                # Try hash-based lookup first
-                video_hash = self._extract_hash_from_name(video_name)
-                if video_hash and video_hash in self.index:
-                    # Check all subtitles with matching hash
-                    for subtitle_path in self.index[video_hash]:
-                        if self._matches_video(subtitle_path.stem, video_name):
-                            matching_subtitles.append(subtitle_path)
-
-                # Also check series prefix matches
-                video_clean = self._clean_video_name(video_name)
-                for key, subtitle_paths in self.index.items():
-                    # Skip hash keys (already checked)
-                    if len(key) >= 8 and all(c in "0123456789ABCDEFabcdef" for c in key):
-                        continue
-
-                    # Check if key matches video prefix
-                    if video_clean.startswith(key) or key.startswith(video_clean):
-                        for subtitle_path in subtitle_paths:
-                            if self._matches_video(subtitle_path.stem, video_name):
-                                if subtitle_path not in matching_subtitles:
-                                    matching_subtitles.append(subtitle_path)
-
-            # Fallback: scan directory if index is empty or no matches found
-            if not self.index or not matching_subtitles:
+            if strategy == "legacy":
+                # Legacy mode: full directory scan (backward compatibility)
                 for subtitle_file in directory.iterdir():
                     if self._is_subtitle_file(subtitle_file):
                         if self._matches_video(subtitle_file.stem, video_name):
-                            if subtitle_file not in matching_subtitles:
+                            matching_subtitles.append(subtitle_file)
+
+            elif strategy in ("indexed", "fallback"):
+                # Indexed mode: use index for fast lookup
+                if not self.index:
+                    # Index not built yet, fall back to full scan
+                    logger.debug(
+                        "Index not available, falling back to full scan for %s",
+                        video_file.file_path.name,
+                    )
+                    for subtitle_file in directory.iterdir():
+                        if self._is_subtitle_file(subtitle_file):
+                            if self._matches_video(subtitle_file.stem, video_name):
                                 matching_subtitles.append(subtitle_file)
+                else:
+                    # Generate index key for video file
+                    video_key = self._get_video_index_key(video_file)
+
+                    # Get candidate subtitles from index
+                    candidate_subtitles: list[Path] = []
+                    if video_key in self.index:
+                        candidate_subtitles = self.index[video_key]
+
+                    # Also check for hash-based matches
+                    video_hash = self._extract_hash_from_name(video_name)
+                    if video_hash and video_hash in self.index:
+                        for subtitle_path in self.index[video_hash]:
+                            if subtitle_path not in candidate_subtitles:
+                                candidate_subtitles.append(subtitle_path)
+
+                    # Check series prefix matches (for non-hash keys)
+                    if not candidate_subtitles:
+                        video_clean = self._clean_video_name(video_name)
+                        for key, subtitle_paths in self.index.items():
+                            # Skip hash keys (already checked)
+                            if len(key) >= 8 and all(
+                                c in "0123456789ABCDEFabcdef" for c in key
+                            ):
+                                continue
+
+                            # Check if key matches video prefix
+                            if video_clean.startswith(key) or key.startswith(video_clean):
+                                for subtitle_path in subtitle_paths:
+                                    if subtitle_path not in candidate_subtitles:
+                                        candidate_subtitles.append(subtitle_path)
+
+                    # Match within candidates only
+                    for subtitle_path in candidate_subtitles:
+                        if self._matches_video(subtitle_path.stem, video_name):
+                            matching_subtitles.append(subtitle_path)
+
+                    # Fallback mode: if no matches found and strategy is "fallback", try full scan
+                    if strategy == "fallback" and not matching_subtitles:
+                        logger.debug(
+                            "No matches found in index, falling back to full scan for %s",
+                            video_file.file_path.name,
+                        )
+                        for subtitle_file in directory.iterdir():
+                            if self._is_subtitle_file(subtitle_file):
+                                if self._matches_video(subtitle_file.stem, video_name):
+                                    if subtitle_file not in matching_subtitles:
+                                        matching_subtitles.append(subtitle_file)
 
             logger.debug(
-                "Found %d matching subtitles for %s",
+                "Found %d matching subtitles for %s (strategy: %s)",
                 len(matching_subtitles),
                 video_file.file_path.name,
+                strategy,
             )
 
             return matching_subtitles
@@ -360,6 +422,34 @@ class SubtitleMatcher:
         # Fallback: use cleaned subtitle name as series prefix
         # This creates a consistent key for files with similar names
         series_prefix = self._clean_subtitle_name(subtitle_name)
+        return series_prefix
+
+    def _get_video_index_key(self, video_file: ScannedFile) -> str:
+        """Generate an index key for a video file.
+
+        Uses hash if available, otherwise falls back to series-like prefix.
+
+        Args:
+            video_file: The video file to generate key for
+
+        Returns:
+            Index key (hash or series prefix)
+
+        Example:
+            >>> matcher = SubtitleMatcher()
+            >>> key = matcher._get_video_index_key(ScannedFile(...))
+            >>> key
+            'abc12345'
+        """
+        video_name = video_file.file_path.stem
+
+        # Try to extract hash first
+        hash_value = self._extract_hash_from_name(video_name)
+        if hash_value:
+            return hash_value
+
+        # Fallback: use cleaned video name as series prefix
+        series_prefix = self._clean_video_name(video_name)
         return series_prefix
 
     def group_files_with_subtitles(

@@ -6,6 +6,8 @@ including matcher settings and performance limits.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -68,6 +70,16 @@ class GroupingSettings(BaseModel):
         ge=0.0,
         le=1.0,
         description="Minimum similarity score (0.0-1.0) for Title matcher grouping",
+    )
+
+    subtitle_matching_strategy: Literal["indexed", "fallback", "legacy"] = Field(
+        default="indexed",
+        description=(
+            "Subtitle matching strategy: "
+            "'indexed' uses index for O(f+s) performance (default), "
+            "'fallback' uses index but falls back to full scan if lookup fails, "
+            "'legacy' uses full directory scan for backward compatibility"
+        ),
     )
 
     @field_validator("max_title_match_group_size")
