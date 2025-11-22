@@ -5,6 +5,7 @@ This module contains all constants related to core business logic,
 processing rules, and application behavior.
 """
 
+import re
 from typing import ClassVar
 
 
@@ -132,3 +133,63 @@ class NormalizationConfig:
         r"\[[^\]]*\]",
         r"\([^)]*\)",
     ]
+
+    # Compiled patterns cache (lazy initialization)
+    _compiled_patterns: ClassVar[list[re.Pattern[str]]] | None = None
+
+    @classmethod
+    def get_compiled_patterns(cls) -> list[re.Pattern[str]]:
+        """Get compiled regex patterns for metadata removal.
+
+        Compiles all pattern strings into regex Pattern objects for efficient reuse.
+        Uses lazy initialization to compile patterns only once.
+
+        Security Note:
+            All patterns have been reviewed for ReDoS (Regular Expression Denial of Service)
+            vulnerabilities. Patterns use:
+            - Fixed strings or limited character classes (e.g., [^\]]*, [^)]*)
+            - No nested quantifiers (e.g., (a+)+)
+            - No overlapping quantifiers that could cause catastrophic backtracking
+            - Bounded quantifiers where applicable (e.g., {8,} for hash patterns)
+
+        Returns:
+            List of compiled regex Pattern objects.
+
+        Example:
+            >>> patterns = NormalizationConfig.get_compiled_patterns()
+            >>> len(patterns) > 0
+            True
+        """
+        if cls._compiled_patterns is None:
+            # Compile all patterns once
+            # Note: All patterns have been reviewed for ReDoS safety
+            patterns_to_compile = [
+                # Resolution patterns - Fixed strings, safe
+                *cls.RESOLUTION_PATTERNS,
+                # Codec patterns - Fixed strings, safe
+                *cls.CODEC_PATTERNS,
+                # Release group patterns - Fixed strings, safe
+                *cls.RELEASE_GROUP_PATTERNS,
+                # Episode patterns - Bounded quantifiers (\d+), safe
+                *cls.EPISODE_PATTERNS,
+                # Season patterns - Bounded quantifiers (\d+), safe
+                *cls.SEASON_PATTERNS,
+                # Source patterns - Fixed strings, safe
+                *cls.SOURCE_PATTERNS,
+                # Audio patterns - Fixed strings, safe
+                *cls.AUDIO_PATTERNS,
+                # Hash patterns - Bounded quantifier ({8,}), safe
+                *cls.HASH_PATTERNS,
+                # File extensions - Fixed strings, safe
+                *cls.FILE_EXTENSION_PATTERNS,
+                # Generic bracketed content - Character class [^\]]*, safe
+                # Note: [^\]]* uses negated character class, which is efficient
+                # and safe from ReDoS as it doesn't cause catastrophic backtracking
+                *cls.BRACKET_PATTERNS,
+            ]
+
+            cls._compiled_patterns = [
+                re.compile(pattern, flags=re.IGNORECASE) for pattern in patterns_to_compile
+            ]
+
+        return cls._compiled_patterns

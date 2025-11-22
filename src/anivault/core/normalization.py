@@ -14,6 +14,7 @@ The normalization process includes:
 
 from __future__ import annotations
 
+import functools
 import logging
 import re
 import unicodedata
@@ -26,6 +27,10 @@ from anivault.shared.constants import NormalizationConfig
 from anivault.shared.constants.core import LanguageDetectionConfig
 
 logger = logging.getLogger(__name__)
+
+# Compile whitespace patterns once at module level
+_WHITESPACE_PATTERN = re.compile(r"[-\s]+")
+_WHITESPACE_NORMALIZE_PATTERN = re.compile(r"\s+")
 
 
 def normalize_query_from_anitopy(
@@ -193,6 +198,7 @@ def _extract_title_from_anitopy(parsed_data: dict[str, Any]) -> str:
     return ""
 
 
+@functools.lru_cache(maxsize=4096)
 def _remove_metadata(title: str) -> str:
     """Remove superfluous metadata from a title string.
 
@@ -209,41 +215,21 @@ def _remove_metadata(title: str) -> str:
     if not title:
         return title
 
-    # Remove common patterns in brackets and parentheses
-    patterns_to_remove = [
-        # Resolution patterns
-        *NormalizationConfig.RESOLUTION_PATTERNS,
-        # Codec patterns
-        *NormalizationConfig.CODEC_PATTERNS,
-        # Release group patterns (common groups)
-        *NormalizationConfig.RELEASE_GROUP_PATTERNS,
-        # Episode patterns
-        *NormalizationConfig.EPISODE_PATTERNS,
-        # Season patterns
-        *NormalizationConfig.SEASON_PATTERNS,
-        # Source patterns
-        *NormalizationConfig.SOURCE_PATTERNS,
-        # Audio patterns
-        *NormalizationConfig.AUDIO_PATTERNS,
-        # Hash patterns
-        *NormalizationConfig.HASH_PATTERNS,
-        # File extensions
-        *NormalizationConfig.FILE_EXTENSION_PATTERNS,
-        # Generic bracketed content (be more careful with this)
-        *NormalizationConfig.BRACKET_PATTERNS,
-    ]
+    # Get compiled patterns from NormalizationConfig
+    patterns_to_remove = NormalizationConfig.get_compiled_patterns()
 
     cleaned = title
     for pattern in patterns_to_remove:
-        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+        cleaned = pattern.sub("", cleaned)
 
     # Clean up extra whitespace and separators
-    cleaned = re.sub(r"[-\s]+", " ", cleaned)
+    cleaned = _WHITESPACE_PATTERN.sub(" ", cleaned)
     cleaned = cleaned.strip()
 
     return cleaned
 
 
+@functools.lru_cache(maxsize=4096)
 def _normalize_characters(title: str) -> str:
     """Normalize Unicode characters and standardize formatting.
 
@@ -303,7 +289,7 @@ def _normalize_characters(title: str) -> str:
         normalized = normalized.replace(old_bracket, new_bracket)
 
     # Clean up extra whitespace
-    normalized = re.sub(r"\s+", " ", normalized)
+    normalized = _WHITESPACE_NORMALIZE_PATTERN.sub(" ", normalized)
     normalized = normalized.strip()
 
     return normalized
