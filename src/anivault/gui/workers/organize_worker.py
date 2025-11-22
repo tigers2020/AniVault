@@ -108,40 +108,51 @@ class OrganizeWorker(QObject):
                 operation_id,
             )
 
-            for idx, operation in enumerate(self._plan):
-                # Check cancellation
-                if self._cancelled:
-                    logger.info("Organization cancelled by user")
-                    self.organization_cancelled.emit()
-                    return
+            # Execute all operations in batch for better performance
+            try:
+                # Execute all operations at once
+                batch_results = self._file_organizer.execute_plan(self._plan)
+                operation_results.extend(batch_results)
 
-                try:
-                    # Execute single operation - returns list[OperationResult]
-                    results = self._file_organizer.execute_plan([operation])
+                # Emit progress for each completed operation
+                for idx, result in enumerate(batch_results):
+                    # Check cancellation
+                    if self._cancelled:
+                        logger.info("Organization cancelled by user")
+                        self.organization_cancelled.emit()
+                        return
 
-                    if results:
-                        # Get the first (and only) result
-                        result = results[0]
-                        operation_results.append(result)
-                        self.file_organized.emit(result)
+                    # Emit signal for each file
+                    self.file_organized.emit(result)
 
-                        if result.success:
-                            logger.debug(
-                                "Organized: %s -> %s",
-                                operation.source_path.name,
-                                operation.destination_path,
-                            )
-                        else:
-                            logger.warning(
-                                "Failed to organize: %s -> %s (error: %s)",
-                                operation.source_path.name,
-                                operation.destination_path,
-                                result.message,
-                            )
+                    if result.success:
+                        logger.debug(
+                            "Organized: %s -> %s",
+                            result.source_path,
+                            result.destination_path,
+                        )
+                    else:
+                        logger.warning(
+                            "Failed to organize: %s -> %s (error: %s)",
+                            result.source_path,
+                            result.destination_path,
+                            result.message,
+                        )
 
-                except Exception as e:
-                    logger.exception("Failed to execute operation: %s", operation)
-                    # Create failure result
+                    # Update progress
+                    progress = int((idx + 1) * 100 / total_operations)
+                    current_filename = Path(result.source_path).name
+                    self.organization_progress.emit(progress, current_filename)
+
+            except Exception as e:
+                logger.exception("Failed to execute batch operations")
+                # Create failure results for all remaining operations
+                for idx, operation in enumerate(self._plan):
+                    if self._cancelled:
+                        logger.info("Organization cancelled by user")
+                        self.organization_cancelled.emit()
+                        return
+
                     failure_result = OperationResult(
                         operation=operation,
                         success=False,
@@ -153,10 +164,10 @@ class OrganizeWorker(QObject):
                     operation_results.append(failure_result)
                     self.file_organized.emit(failure_result)
 
-                # Update progress with current filename
-                progress = int((idx + 1) * 100 / total_operations)
-                current_filename = operation.source_path.name
-                self.organization_progress.emit(progress, current_filename)
+                    # Update progress
+                    progress = int((idx + 1) * 100 / total_operations)
+                    current_filename = operation.source_path.name
+                    self.organization_progress.emit(progress, current_filename)
 
             # Cleanup empty directories after organization
             moved_files = [

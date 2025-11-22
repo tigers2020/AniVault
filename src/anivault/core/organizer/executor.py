@@ -78,6 +78,7 @@ class FileOperationExecutor:
         operation: FileOperation,
         *,
         dry_run: bool = False,
+        created_dirs: set[Path] | None = None,
     ) -> OperationResult:
         """Execute a single file operation.
 
@@ -121,8 +122,17 @@ class FileOperationExecutor:
                 skipped=True,
             )
 
-        # 3. Ensure destination directory exists
-        self._ensure_destination_directory(operation.destination_path)
+        # 3. Ensure destination directory exists (optimized with caching)
+        if not dry_run:
+            destination_dir = operation.destination_path.parent
+            if created_dirs is not None:
+                # Use cache to avoid redundant directory creation
+                if destination_dir not in created_dirs:
+                    self._ensure_destination_directory(operation.destination_path)
+                    created_dirs.add(destination_dir)
+            else:
+                # No cache provided, create directory normally
+                self._ensure_destination_directory(operation.destination_path)
 
         # 4. Perform the actual file operation
         source_str, dest_str = self._perform_operation(operation)
@@ -163,11 +173,14 @@ class FileOperationExecutor:
             >>> print(f"{len(successful)}/{len(results)} operations succeeded")
         """
         results: list[OperationResult] = []
+        
+        # Cache for created directories to avoid redundant checks
+        created_dirs: set[Path] = set()
 
         for operation in operations:
             try:
-                # Execute single operation
-                result = self.execute(operation, dry_run=dry_run)
+                # Execute single operation with directory cache
+                result = self.execute(operation, dry_run=dry_run, created_dirs=created_dirs)
                 results.append(result)
 
             except FileNotFoundError as e:

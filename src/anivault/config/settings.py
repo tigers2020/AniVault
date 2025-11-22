@@ -39,6 +39,7 @@ from anivault.config.models.folder_security_settings import (
     FolderSettings,
     SecuritySettings,
 )
+from anivault.config.models.grouping_settings import GroupingSettings
 from anivault.config.models.performance_settings import (
     PerformanceConfig,
     PerformanceSettings,
@@ -81,6 +82,7 @@ class Settings(BaseSettings):
     scan: ScanSettings = Field(default_factory=ScanSettings)
     cache: CacheSettings = Field(default_factory=CacheSettings)
     performance: PerformanceSettings = Field(default_factory=PerformanceSettings)
+    grouping: GroupingSettings = Field(default_factory=GroupingSettings)
     folders: FolderSettings | None = Field(default=None)
     security: SecuritySettings | None = Field(default=None)
 

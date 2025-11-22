@@ -47,6 +47,13 @@ cpu_limit = 4
 enable_profiling = false
 profile_output = "logs/profiling.json"
 
+[grouping]
+# File grouping configuration
+use_title_matcher = true  # Whether to run Title matcher after Hash matcher
+max_title_match_group_size = 1000  # Maximum files per group for Title matcher (DoS protection)
+max_input_files = 10000  # Maximum input files per grouping operation (DoS protection)
+title_similarity_threshold = 0.85  # Minimum similarity score (0.0-1.0) for Title matcher
+
 [folders]
 source_folder = ""  # Set your anime source folder path
 target_folder = ""  # Set your target folder for organized files
