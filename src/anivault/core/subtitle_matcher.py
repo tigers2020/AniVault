@@ -29,6 +29,71 @@ class SubtitleMatcher:
         """Initialize the subtitle matcher."""
         # Supported subtitle extensions
         self.subtitle_extensions = {".srt", ".smi", ".ass", ".ssa", ".vtt", ".sub"}
+        # Index for fast subtitle lookup: key -> list of subtitle file paths
+        self.index: dict[str, list[Path]] = {}
+
+    def _build_subtitle_index(self, directory: Path) -> None:
+        """Build an index of subtitle files for fast lookup.
+
+        Scans the directory for subtitle files and indexes them by hash or series prefix.
+
+        Args:
+            directory: Directory to scan for subtitle files
+        """
+        if not directory.exists():
+            return
+
+        # Clear existing index
+        self.index.clear()
+
+        # Scan directory for subtitle files
+        for subtitle_file in directory.iterdir():
+            if not self._is_subtitle_file(subtitle_file):
+                continue
+
+            # Generate index key
+            key = self._get_subtitle_index_key(subtitle_file)
+
+            # Add to index
+            if key not in self.index:
+                self.index[key] = []
+
+            # Check for potential collisions (different series with same prefix)
+            existing_files = self.index[key]
+            if existing_files:
+                # Simple collision detection: check if file names are similar
+                # This is a heuristic - more sophisticated collision detection
+                # could be added later if needed
+                first_file_name = self._clean_subtitle_name(existing_files[0].stem)
+                current_file_name = self._clean_subtitle_name(subtitle_file.stem)
+
+                # If cleaned names are very different, log a warning
+                if first_file_name != current_file_name:
+                    # Check if they share a common prefix (at least 5 characters)
+                    common_prefix_length = 0
+                    min_length = min(len(first_file_name), len(current_file_name))
+                    for i in range(min_length):
+                        if first_file_name[i].lower() == current_file_name[i].lower():
+                            common_prefix_length += 1
+                        else:
+                            break
+
+                    if common_prefix_length < 5:
+                        logger.warning(
+                            "Potential index key collision for key '%s': "
+                            "files '%s' and '%s' may belong to different series",
+                            key,
+                            existing_files[0].name,
+                            subtitle_file.name,
+                        )
+
+            self.index[key].append(subtitle_file)
+
+        logger.debug(
+            "Built subtitle index with %d keys and %d total files",
+            len(self.index),
+            sum(len(files) for files in self.index.values()),
+        )
 
     def find_matching_subtitles(
         self,
@@ -36,6 +101,8 @@ class SubtitleMatcher:
         directory: Path,
     ) -> list[Path]:
         """Find subtitle files that match a video file.
+
+        Uses the pre-built index if available, otherwise falls back to directory scanning.
 
         Args:
             video_file: The video file to find subtitles for
@@ -62,11 +129,37 @@ class SubtitleMatcher:
             video_name = video_file.file_path.stem
             matching_subtitles = []
 
-            # Search for subtitle files in the same directory
-            for subtitle_file in directory.iterdir():
-                if self._is_subtitle_file(subtitle_file):
-                    if self._matches_video(subtitle_file.stem, video_name):
-                        matching_subtitles.append(subtitle_file)
+            # Try to use index first if available
+            if self.index:
+                # Try hash-based lookup first
+                video_hash = self._extract_hash_from_name(video_name)
+                if video_hash and video_hash in self.index:
+                    # Check all subtitles with matching hash
+                    for subtitle_path in self.index[video_hash]:
+                        if self._matches_video(subtitle_path.stem, video_name):
+                            matching_subtitles.append(subtitle_path)
+
+                # Also check series prefix matches
+                video_clean = self._clean_video_name(video_name)
+                for key, subtitle_paths in self.index.items():
+                    # Skip hash keys (already checked)
+                    if len(key) >= 8 and all(c in "0123456789ABCDEFabcdef" for c in key):
+                        continue
+
+                    # Check if key matches video prefix
+                    if video_clean.startswith(key) or key.startswith(video_clean):
+                        for subtitle_path in subtitle_paths:
+                            if self._matches_video(subtitle_path.stem, video_name):
+                                if subtitle_path not in matching_subtitles:
+                                    matching_subtitles.append(subtitle_path)
+
+            # Fallback: scan directory if index is empty or no matches found
+            if not self.index or not matching_subtitles:
+                for subtitle_file in directory.iterdir():
+                    if self._is_subtitle_file(subtitle_file):
+                        if self._matches_video(subtitle_file.stem, video_name):
+                            if subtitle_file not in matching_subtitles:
+                                matching_subtitles.append(subtitle_file)
 
             logger.debug(
                 "Found %d matching subtitles for %s",
@@ -225,12 +318,59 @@ class SubtitleMatcher:
         # Check if any hashes match
         return bool(set(subtitle_hashes).intersection(set(video_hashes)))
 
+    def _extract_hash_from_name(self, name: str) -> str | None:
+        """Extract hash pattern from a filename.
+
+        Args:
+            name: Filename to extract hash from
+
+        Returns:
+            First hash found, or None if no hash exists
+        """
+        import re
+
+        # Extract hash patterns (8+ character hex strings)
+        hashes = re.findall(r"[A-Fa-f0-9]{8,}", name)
+        return hashes[0] if hashes else None
+
+    def _get_subtitle_index_key(self, subtitle_path: Path) -> str:
+        """Generate an index key for a subtitle file.
+
+        Uses hash if available, otherwise falls back to series-like prefix.
+
+        Args:
+            subtitle_path: Path to the subtitle file
+
+        Returns:
+            Index key (hash or series prefix)
+
+        Example:
+            >>> matcher = SubtitleMatcher()
+            >>> key = matcher._get_subtitle_index_key(Path("Series.S01E01.abc12345.srt"))
+            >>> key
+            'abc12345'
+        """
+        subtitle_name = subtitle_path.stem
+
+        # Try to extract hash first
+        hash_value = self._extract_hash_from_name(subtitle_name)
+        if hash_value:
+            return hash_value
+
+        # Fallback: use cleaned subtitle name as series prefix
+        # This creates a consistent key for files with similar names
+        series_prefix = self._clean_subtitle_name(subtitle_name)
+        return series_prefix
+
     def group_files_with_subtitles(
         self,
         files: list[ScannedFile],
         directory: Path,
     ) -> dict[str, dict[str, Any]]:
         """Group video files with their matching subtitles.
+
+        This method builds an index of subtitle files for fast lookup,
+        then uses the index to match subtitles with video files.
 
         Args:
             files: List of video files to group
@@ -248,6 +388,9 @@ class SubtitleMatcher:
         )
 
         try:
+            # Build subtitle index once
+            self._build_subtitle_index(directory)
+
             grouped_files = {}
 
             for video_file in files:
@@ -259,9 +402,10 @@ class SubtitleMatcher:
                 }
 
             logger.info(
-                "Grouped %d files with subtitles in %s",
+                "Grouped %d files with subtitles in %s (index size: %d)",
                 len(files),
                 directory,
+                len(self.index),
             )
 
             return grouped_files
