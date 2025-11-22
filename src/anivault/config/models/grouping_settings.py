@@ -46,7 +46,7 @@ class GroupingSettings(BaseModel):
     )
 
     max_title_match_group_size: int = Field(
-        default=1000,
+        default=150,
         ge=1,
         le=100000,
         description=(

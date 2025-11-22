@@ -50,7 +50,7 @@ profile_output = "logs/profiling.json"
 [grouping]
 # File grouping configuration
 use_title_matcher = true  # Whether to run Title matcher after Hash matcher
-max_title_match_group_size = 1000  # Maximum files per group for Title matcher (DoS protection)
+max_title_match_group_size = 150  # Maximum files per group for Title matcher (DoS protection, reduced from 1000 for performance)
 max_input_files = 10000  # Maximum input files per grouping operation (DoS protection)
 title_similarity_threshold = 0.85  # Minimum similarity score (0.0-1.0) for Title matcher
 subtitle_matching_strategy = "indexed"  # Subtitle matching strategy: "indexed" (default, fast), "fallback" (index with fallback), "legacy" (full scan)

@@ -163,6 +163,27 @@ class TitleSimilarityMatcher:
         # Normalize to 0.0-1.0 range
         return score / 100.0
 
+    def _get_max_title_match_group_size(self) -> int:
+        """Get max_title_match_group_size from configuration.
+
+        Returns:
+            Maximum group size for Title matcher processing (default: 150)
+        """
+        try:
+            from anivault.config.loader import load_settings
+
+            settings = load_settings()
+            if hasattr(settings, "grouping") and settings.grouping is not None:
+                return settings.grouping.max_title_match_group_size
+        except (ImportError, AttributeError, Exception) as e:
+            logger.debug(
+                "Could not load max_title_match_group_size from config, using default 150: %s",
+                e,
+            )
+
+        # Default to 150 (reduced from 1000 for performance)
+        return 150
+
     def match(self, files: list[ScannedFile]) -> list[Group]:
         """Group files by title similarity.
 
@@ -213,16 +234,44 @@ class TitleSimilarityMatcher:
                 buckets[blocking_key] = []
             buckets[blocking_key].append((file, title))
 
-        # Monitor bucket sizes for imbalance detection
+        # Get max_title_match_group_size from configuration
+        max_group_size = self._get_max_title_match_group_size()
+
+        # Monitor bucket sizes and filter out large buckets
         bucket_size_threshold = 100  # Warn if bucket exceeds this size
+        skipped_buckets = 0
+        filtered_buckets: dict[str, list[tuple[ScannedFile, str]]] = {}
+
         for key, bucket_files in buckets.items():
-            if len(bucket_files) > bucket_size_threshold:
+            bucket_size = len(bucket_files)
+            if bucket_size > bucket_size_threshold:
                 logger.warning(
                     "Large bucket detected for key '%s': %d files. "
                     "Blocking efficiency may be reduced.",
                     key,
-                    len(bucket_files),
+                    bucket_size,
                 )
+
+            # Skip buckets that exceed max_title_match_group_size (DoS protection)
+            if bucket_size > max_group_size:
+                logger.debug(
+                    "Skipping bucket '%s' (size: %d > limit: %d)",
+                    key,
+                    bucket_size,
+                    max_group_size,
+                )
+                skipped_buckets += 1
+                continue
+
+            # Add to filtered buckets for processing
+            filtered_buckets[key] = bucket_files
+
+        if skipped_buckets > 0:
+            logger.info(
+                "Skipped %d bucket(s) exceeding max_title_match_group_size (%d)",
+                skipped_buckets,
+                max_group_size,
+            )
 
         # Step 3: Process each bucket independently using LinkedHashTable
         all_groups_table = LinkedHashTable[str, list[ScannedFile]](
@@ -230,7 +279,7 @@ class TitleSimilarityMatcher:
             load_factor=0.75,
         )
 
-        for blocking_key, bucket_files in buckets.items():
+        for blocking_key, bucket_files in filtered_buckets.items():
             # Create LinkedHashTable for this bucket
             bucket_groups_table = LinkedHashTable[str, list[ScannedFile]](
                 initial_capacity=max(len(bucket_files) * 2, 64),
@@ -246,6 +295,22 @@ class TitleSimilarityMatcher:
                 # Check if title is similar to any existing group in this bucket
                 matched_group = None
                 for group_name, group_title in bucket_title_to_group:
+                    # Guard conditions: skip similarity calculation if titles are too different
+                    # 1. Check length difference (skip if >50% difference)
+                    len1, len2 = len(title), len(group_title)
+                    if len1 > 0 and len2 > 0:
+                        length_ratio = min(len1, len2) / max(len1, len2)
+                        if length_ratio < 0.5:  # More than 50% difference
+                            continue
+
+                    # 2. Check token count difference (skip if >3 tokens difference)
+                    title_tokens = title.split()
+                    group_title_tokens = group_title.split()
+                    token_diff = abs(len(title_tokens) - len(group_title_tokens))
+                    if token_diff > 3:
+                        continue
+
+                    # Only calculate similarity if guard conditions pass
                     similarity = self._calculate_similarity(title, group_title)
                     if similarity >= self.threshold:
                         matched_group = group_name
