@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.config.loader import reload_config
 from anivault.config.settings import get_config
 from anivault.core.file_grouper import Group
 from anivault.core.models import FileOperation, ScannedFile
@@ -440,8 +441,9 @@ class MainWindow(QMainWindow):
             # Create dialog using factory
             dialog = self.dialog_factory.create_settings_dialog(self, self.config_path)
 
-            # Connect signal
+            # Connect signals
             dialog.api_key_saved.connect(self._on_api_key_saved)
+            dialog.folder_settings_changed.connect(self._on_folder_settings_changed)
 
             # Show dialog
             dialog.exec()
@@ -458,11 +460,40 @@ class MainWindow(QMainWindow):
         """
         Handle API key saved signal.
 
+        Reloads configuration to ensure the new API key is available
+        immediately without requiring a restart.
+
         Args:
             _api_key: The saved API key (unused, required by signal signature)
         """
-        logger.info("API key saved successfully")
-        self.status_manager.show_message("API key saved successfully")
+        try:
+            # Reload configuration to get the updated API key
+            reload_config()
+            logger.info("API key saved and configuration reloaded successfully")
+            self.status_manager.show_message("API key saved successfully")
+        except Exception as e:
+            logger.exception("Failed to reload configuration after API key save")
+            self.status_manager.show_message(
+                f"API key saved but failed to reload: {e!s}"
+            )
+
+    def _on_folder_settings_changed(self) -> None:
+        """
+        Handle folder settings changed signal.
+
+        Reloads configuration to ensure the new folder settings are available
+        immediately without requiring a restart.
+        """
+        try:
+            # Reload configuration to get the updated folder settings
+            reload_config()
+            logger.info("Folder settings changed and configuration reloaded successfully")
+            self.status_manager.show_message("Folder settings updated successfully")
+        except Exception as e:
+            logger.exception("Failed to reload configuration after folder settings change")
+            self.status_manager.show_message(
+                f"Folder settings saved but failed to reload: {e!s}"
+            )
 
     def start_tmdb_matching(self) -> None:
         """Start TMDB matching process for scanned files."""
