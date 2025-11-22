@@ -107,5 +107,6 @@ class InsertOperations(BaseOperation):
         ttl_map = {
             Cache.TYPE_SEARCH: MatchingCacheConfig.SEARCH_CACHE_TTL_SECONDS,
             Cache.TYPE_DETAILS: MatchingCacheConfig.DETAILS_CACHE_TTL_SECONDS,
+            Cache.TYPE_PARSER: MatchingCacheConfig.PARSER_CACHE_TTL_SECONDS,
         }
         return ttl_map.get(cache_type, MatchingCacheConfig.SEARCH_CACHE_TTL_SECONDS)

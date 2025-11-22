@@ -221,7 +221,7 @@ def generate_all_scenarios(base_dir: Path | None = None) -> dict[str, Path]:
             seed=42,  # Fixed seed for reproducibility
         )
         generated_scenarios[scenario.scenario_name] = scenario_dir
-        print(f"  ✓ Created {scenario.num_files} files and {scenario.num_subtitles} subtitles")
+        print(f"  [OK] Created {scenario.num_files} files and {scenario.num_subtitles} subtitles")
 
     return generated_scenarios
 
@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     scenarios = generate_all_scenarios()
 
-    print(f"\n✓ Generated {len(scenarios)} scenarios:")
+    print(f"\n[OK] Generated {len(scenarios)} scenarios:")
     for name, path in scenarios.items():
         file_count = len(list(path.glob("*.mkv"))) + len(list(path.glob("*.mp4"))) + len(list(path.glob("*.avi")))
         sub_count = len(list(path.glob("*.smi"))) + len(list(path.glob("*.srt"))) + len(list(path.glob("*.ass")))

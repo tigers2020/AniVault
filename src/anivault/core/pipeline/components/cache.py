@@ -1,37 +1,54 @@
 """Cache implementation for AniVault pipeline.
 
-This module provides a simple, file-based JSON caching mechanism
-to avoid reprocessing files that haven't changed.
+This module provides SQLite-based caching mechanism to avoid reprocessing
+files that haven't changed. Uses the same SQLite database as TMDB cache
+for unified cache management.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
-from datetime import datetime, timezone
+import logging
 from pathlib import Path
 from typing import Any
 
+from anivault.services.sqlite_cache_db import SQLiteCacheDB
+from anivault.shared.constants import Cache
+from anivault.utils.resource_path import get_project_root
+
+logger = logging.getLogger(__name__)
+
 
 class CacheV1:
-    """Simple file-based JSON cache with TTL support.
+    """SQLite-based cache with TTL support for pipeline parsing results.
 
-    This class provides a caching mechanism that stores data as JSON files
-    with metadata including creation time and TTL (Time-To-Live).
+    This class provides a caching mechanism that stores data in SQLite database
+    with metadata including creation time and TTL (Time-To-Live). Uses the same
+    database as TMDB cache for unified cache management.
 
     Args:
-        cache_dir: Directory path where cache files will be stored.
+        cache_dir: Directory path where cache database will be stored.
+                  If None, uses project root / cache directory.
     """
 
-    def __init__(self, cache_dir: Path) -> None:
+    def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize the cache with a directory path.
 
         Args:
-            cache_dir: Directory path where cache files will be stored.
+            cache_dir: Directory path where cache database will be stored.
+                      If None, uses project root / cache directory.
                       The directory will be created if it doesn't exist.
         """
+        if cache_dir is None:
+            project_root = get_project_root()
+            cache_dir = project_root / "cache"
+
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use unified cache database (same as TMDB cache)
+        db_path = self.cache_dir / "anivault_cache.db"
+        self._sqlite_cache = SQLiteCacheDB(db_path)
 
     def _generate_key(self, file_path: str, mtime: float) -> str:
         """Generate a unique cache key from file path and modification time.
@@ -58,17 +75,20 @@ class CacheV1:
             data: Dictionary containing the data to cache.
             ttl_seconds: Time-to-live in seconds for the cache entry.
         """
-        # Create payload with metadata
-        payload = {
-            "data": data,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "ttl_seconds": ttl_seconds,
-        }
-
-        # Write to cache file
-        cache_file = self.cache_dir / f"{key}.json"
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False)
+        try:
+            self._sqlite_cache.set_cache(
+                key=key,
+                data=data,
+                cache_type=Cache.TYPE_PARSER,
+                ttl_seconds=ttl_seconds,
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to store cache entry for key %s: %s",
+                key[:50] if len(key) > 50 else key,
+                str(e),
+            )
+            # Don't raise - cache failures should not break the pipeline
 
     def get(self, key: str) -> dict[str, Any] | None:
         """Retrieve data from the cache.
@@ -79,52 +99,27 @@ class CacheV1:
         Returns:
             The cached data if found and not expired, None otherwise.
         """
-        cache_file = self.cache_dir / f"{key}.json"
-
         try:
-            # Read and parse the cache file
-            with open(cache_file, encoding="utf-8") as f:
-                payload = json.load(f)
-
-            # Check TTL expiration
-            created_at_str = payload.get("created_at")
-            ttl_seconds = payload.get("ttl_seconds", 0)
-
-            if created_at_str and ttl_seconds > 0:
-                # Parse the creation time
-                created_at = datetime.fromisoformat(
-                    created_at_str.replace("Z", "+00:00"),
-                )
-
-                # Calculate expiration time
-                expiration_time = created_at.timestamp() + ttl_seconds
-                current_time = datetime.now(timezone.utc).timestamp()
-
-                # Check if expired
-                if current_time > expiration_time:
-                    return None  # Cache entry has expired
-
-            # Return the cached data
-            data = payload.get("data")
-            return data if isinstance(data, dict) else None
-
-        except FileNotFoundError:
-            # Cache miss - file doesn't exist
-            return None
-        except (json.JSONDecodeError, KeyError, ValueError):
-            # Handle corrupted cache files or invalid data
-            # Log the error if logging is available, but don't raise
-            # This allows the cache to gracefully handle corrupted entries
+            return self._sqlite_cache.get(key, cache_type=Cache.TYPE_PARSER)
+        except Exception as e:
+            logger.warning(
+                "Failed to retrieve cache entry for key %s: %s",
+                key[:50] if len(key) > 50 else key,
+                str(e),
+            )
+            # Return None on error - treat as cache miss
             return None
 
     def clear(self) -> None:
-        """Clear all cache entries.
+        """Clear all parser cache entries.
 
-        Removes all JSON files from the cache directory.
+        Removes all parser cache entries from the SQLite database.
         """
-        if self.cache_dir.exists():
-            for cache_file in self.cache_dir.glob("*.json"):
-                cache_file.unlink()
+        try:
+            cleared_count = self._sqlite_cache.clear(cache_type=Cache.TYPE_PARSER)
+            logger.info("Cleared %d parser cache entries", cleared_count)
+        except Exception as e:
+            logger.warning("Failed to clear parser cache: %s", str(e))
 
     def get_cache_info(self) -> dict[str, Any]:
         """Get information about the cache.
@@ -132,48 +127,34 @@ class CacheV1:
         Returns:
             Dictionary containing cache statistics and information.
         """
-        cache_files = (
-            list(self.cache_dir.glob("*.json")) if self.cache_dir.exists() else []
-        )
+        try:
+            cache_info = self._sqlite_cache.get_cache_info()
+            # Add parser-specific information
+            parser_info = {
+                "cache_directory": str(self.cache_dir),
+                "database_path": str(self._sqlite_cache.db_path),
+                "cache_type": Cache.TYPE_PARSER,
+                "total_files": cache_info.get("total_files", 0),
+                "valid_entries": cache_info.get("valid_entries", 0),
+                "expired_entries": cache_info.get("expired_entries", 0),
+                "total_size_bytes": cache_info.get("total_size_bytes", 0),
+            }
+            return parser_info
+        except Exception as e:
+            logger.warning("Failed to get cache info: %s", str(e))
+            return {
+                "cache_directory": str(self.cache_dir),
+                "database_path": str(self._sqlite_cache.db_path),
+                "cache_type": Cache.TYPE_PARSER,
+                "error": str(e),
+            }
 
-        total_size = 0
-        valid_entries = 0
-        expired_entries = 0
+    def close(self) -> None:
+        """Close the SQLite cache connection.
 
-        for cache_file in cache_files:
-            try:
-                # Get file size
-                total_size += cache_file.stat().st_size
-
-                # Check if entry is valid and not expired
-                with open(cache_file, encoding="utf-8") as f:
-                    payload = json.load(f)
-
-                created_at_str = payload.get("created_at")
-                ttl_seconds = payload.get("ttl_seconds", 0)
-
-                if created_at_str and ttl_seconds > 0:
-                    created_at = datetime.fromisoformat(
-                        created_at_str.replace("Z", "+00:00"),
-                    )
-                    expiration_time = created_at.timestamp() + ttl_seconds
-                    current_time = datetime.now(timezone.utc).timestamp()
-
-                    if current_time > expiration_time:
-                        expired_entries += 1
-                    else:
-                        valid_entries += 1
-                else:
-                    valid_entries += 1
-
-            except (json.JSONDecodeError, KeyError, ValueError, OSError):
-                # Handle corrupted or inaccessible files
-                expired_entries += 1
-
-        return {
-            "total_files": len(cache_files),
-            "valid_entries": valid_entries,
-            "expired_entries": expired_entries,
-            "total_size_bytes": total_size,
-            "cache_directory": str(self.cache_dir),
-        }
+        Should be called when the cache is no longer needed.
+        """
+        try:
+            self._sqlite_cache.close()
+        except Exception as e:
+            logger.warning("Failed to close cache connection: %s", str(e))

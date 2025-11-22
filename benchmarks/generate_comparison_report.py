@@ -243,7 +243,7 @@ def generate_comparison_report(
             "- Throughput is calculated as files processed per second\n"
         )
 
-    print(f"\n✓ Comparison report saved to: {output_path}")
+    print(f"\n[OK] Comparison report saved to: {output_path}")
 
 
 if __name__ == "__main__":

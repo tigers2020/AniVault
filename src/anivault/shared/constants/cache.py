@@ -28,6 +28,7 @@ class BaseCacheConfig:
     # Common cache types
     TYPE_SEARCH = "search"
     TYPE_DETAILS = "details"
+    TYPE_PARSER = "parser"
 
 
 class APICacheConfig(BaseCacheConfig):
@@ -83,6 +84,12 @@ class MatchingCacheConfig(BaseCacheConfig):
     # Matching-specific TTL values
     SEARCH_CACHE_TTL = 7 * BASE_DAY  # 7 days
     DETAILS_CACHE_TTL = 30 * BASE_DAY  # 30 days
+    PARSER_CACHE_TTL = BASE_DAY  # 24 hours (same as CoreCacheConfig.PARSER_CACHE_TTL)
+
+    # TTL in seconds (for SQLite cache operations)
+    SEARCH_CACHE_TTL_SECONDS = int(SEARCH_CACHE_TTL)
+    DETAILS_CACHE_TTL_SECONDS = int(DETAILS_CACHE_TTL)
+    PARSER_CACHE_TTL_SECONDS = int(PARSER_CACHE_TTL)
 
     # Matching-specific size limits
     MATCHING_CACHE_SIZE = 3000

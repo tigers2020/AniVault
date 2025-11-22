@@ -120,7 +120,7 @@ def generate_all_subtitle_scenarios(base_dir: Path | None = None) -> dict[str, P
             seed=42,  # Fixed seed for reproducibility
         )
         generated_scenarios[scenario.scenario_name] = scenario_dir
-        print(f"  ✓ Created {scenario.num_subtitles} subtitle files")
+        print(f"  [OK] Created {scenario.num_subtitles} subtitle files")
 
     return generated_scenarios
 
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     scenarios = generate_all_subtitle_scenarios()
 
-    print(f"\n✓ Generated {len(scenarios)} subtitle-only scenarios:")
+    print(f"\n[OK] Generated {len(scenarios)} subtitle-only scenarios:")
     for name, path in scenarios.items():
         sub_count = len(list(path.glob("*.smi"))) + len(list(path.glob("*.srt"))) + len(list(path.glob("*.ass")))
         print(f"  - {name}: {sub_count} subtitles")

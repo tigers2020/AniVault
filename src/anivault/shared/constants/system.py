@@ -263,6 +263,7 @@ class Cache:
     MAX_SIZE = 1000
     TYPE_SEARCH = "search"
     TYPE_DETAILS = "details"
+    TYPE_PARSER = "parser"
 
     # Cache TTL values (in seconds)
     DEFAULT_TTL = 3600  # 1 hour

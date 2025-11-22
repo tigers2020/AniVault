@@ -140,8 +140,8 @@ class PipelineFactory:
             queue_stats = QueueStatistics()
             parser_stats = ParserStatistics()
 
-            # Create cache instance
-            cache = CacheV1(cache_dir=Path("cache"))
+            # Create cache instance (uses SQLite, cache_dir is optional)
+            cache = CacheV1(cache_dir=None)  # Uses project root / cache by default
 
             # Create bounded queues for inter-component communication
             file_queue = BoundedQueue(maxsize=max_queue_size)

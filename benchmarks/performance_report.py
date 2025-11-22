@@ -62,9 +62,9 @@ def run_benchmark_scenario(
 
         cmd = [
             *cmd_base,
+            "--benchmark",  # Global option, must come before command
             "run",
             str(scenario_dir),
-            "--benchmark",
             "--json",
             "--yes",  # Skip confirmation prompts
         ]
@@ -270,7 +270,7 @@ def save_benchmark_results(
                 for r in failed:
                     f.write(f"- **{r.scenario_name}**: {r.error_message}\n")
 
-    print(f"\n✓ Results saved to: {output_path} ({format.upper()} format)")
+    print(f"\n[OK] Results saved to: {output_path} ({format.upper()} format)")
 
 
 def run_all_benchmarks(
@@ -324,9 +324,9 @@ def run_all_benchmarks(
         result = run_benchmark_scenario(scenario_dir, scenario_name, anivault_command)
 
         if result.success:
-            print(f"  ✓ Success: {result.total_files} files in {result.total_time:.3f}s ({result.files_per_second:.2f} files/s)")
+            print(f"  [OK] Success: {result.total_files} files in {result.total_time:.3f}s ({result.files_per_second:.2f} files/s)")
         else:
-            print(f"  ✗ Failed: {result.error_message}")
+            print(f"  [FAIL] Failed: {result.error_message}")
 
         results.append(result)
         print()
