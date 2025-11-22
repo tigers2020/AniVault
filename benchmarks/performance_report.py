@@ -54,8 +54,14 @@ def run_benchmark_scenario(
     """
     try:
         # Run anivault with --benchmark and --json flags
+        # Split command into list if it contains spaces (e.g., "python -m anivault")
+        if " " in anivault_command:
+            cmd_base = anivault_command.split()
+        else:
+            cmd_base = [anivault_command]
+
         cmd = [
-            anivault_command,
+            *cmd_base,
             "run",
             str(scenario_dir),
             "--benchmark",
