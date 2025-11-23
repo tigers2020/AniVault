@@ -115,7 +115,7 @@ class FileScannerWorker(QObject):
                 )
 
         except Exception as e:
-            logger.exception("Error during file scan: %s")
+            logger.exception("Error during file scan")
             self.scan_error.emit(f"Scan error: {e!s}")
 
     def cancel_scan(self) -> None:
@@ -165,14 +165,14 @@ class FileScannerWorker(QObject):
                 operation="validate_directory",
             )
             if isinstance(e, FileNotFoundError):
-                error = AniVaultFileError(
+                _error = AniVaultFileError(
                     ErrorCode.DIRECTORY_NOT_FOUND,
                     f"Directory not found: {directory}",
                     context,
                     original_error=e,
                 )
             else:
-                error = AniVaultPermissionError(
+                _error = AniVaultPermissionError(
                     ErrorCode.PERMISSION_DENIED,
                     f"Permission denied accessing directory: {directory}",
                     context,
@@ -185,7 +185,7 @@ class FileScannerWorker(QObject):
                 file_path=str(directory),
                 operation="validate_directory",
             )
-            error = AniVaultFileError(
+            _error = AniVaultFileError(
                 ErrorCode.FILE_ACCESS_ERROR,
                 f"File system error validating directory: {directory}",
                 context,
@@ -198,7 +198,7 @@ class FileScannerWorker(QObject):
                 file_path=str(directory),
                 operation="validate_directory",
             )
-            error = AniVaultError(
+            _error = AniVaultError(
                 ErrorCode.INVALID_PATH,
                 f"Unexpected error validating directory: {directory}",
                 context,

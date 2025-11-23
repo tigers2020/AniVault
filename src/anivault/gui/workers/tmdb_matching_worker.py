@@ -136,7 +136,7 @@ class TMDBMatchingWorker(QObject):
                     context,
                     original_error=e,
                 )
-            logger.exception("Failed to initialize TMDB components: %s")
+            logger.exception("Failed to initialize TMDB components")
             raise error from e
         except Exception as e:
             context = ErrorContext(
@@ -174,7 +174,7 @@ class TMDBMatchingWorker(QObject):
             asyncio.run(self._match_files_async())
 
         except Exception as e:
-            logger.exception("Error during TMDB matching: %s")
+            logger.exception("Error during TMDB matching")
             self.matching_error.emit(f"TMDB matching error: {e!s}")
 
     async def _match_files_async(self) -> None:
@@ -264,7 +264,7 @@ class TMDBMatchingWorker(QObject):
             )
 
         except Exception as e:
-            logger.exception("Error in async matching process: %s")
+            logger.exception("Error in async matching process")
             self.matching_error.emit(f"Async matching error: {e!s}")
 
     def _group_files_by_title(self, files: list[FileItem]) -> dict[str, list[FileItem]]:

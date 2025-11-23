@@ -32,9 +32,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.config import Settings, get_config, update_and_save_config
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
-from anivault.config import Settings, get_config, update_and_save_config
 from anivault.shared.constants.gui_constants import (
     DialogConstants,
 )
@@ -316,7 +316,7 @@ class SettingsDialog(QDialog):
             self.accept()
 
         except Exception as e:
-            logger.exception("Failed to save API key: %s")
+            logger.exception("Failed to save API key")
             self._show_error(
                 DialogTitles.SAVE_FAILED,
                 DialogMessages.SETTINGS_SAVE_FAILED.format(error=e),
@@ -476,7 +476,7 @@ class SettingsDialog(QDialog):
             logger.info("Folder settings saved successfully")
 
         except Exception as e:
-            logger.exception("Failed to save folder settings: %s")
+            logger.exception("Failed to save folder settings")
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save folder settings: {e!s}",

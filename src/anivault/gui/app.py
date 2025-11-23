@@ -412,8 +412,8 @@ def main() -> int:
         logger.info("Application interrupted by user")
         return 0
 
-    except Exception:
-        logger.exception("Unexpected error: %s")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("Unexpected error")
         return 1
 
     finally:
