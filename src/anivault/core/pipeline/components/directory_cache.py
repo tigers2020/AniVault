@@ -13,7 +13,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.errors import (
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +116,15 @@ class DirectoryCacheManager:
                 )
                 # For OSError, start with empty cache rather than failing completely
                 self._cache = LinkedHashTable()
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
                 # Handle corrupted JSON gracefully
+
+                error = AniVaultParsingError(
+                    code=ErrorCode.PARSING_ERROR,
+                    message=f"Corrupted JSON cache file detected: {self.cache_file}",
+                    context=context,
+                    original_error=e,
+                )
                 logger.warning(
                     "Corrupted cache file detected, starting with empty cache: %s",
                     self.cache_file,

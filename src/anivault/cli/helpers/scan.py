@@ -9,10 +9,8 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from rich.console import Console
+from typing import Any
+from rich.console import Console
 
 from anivault.cli.progress import create_progress_manager
 from anivault.core.parser.models import ParsingResult

@@ -28,7 +28,7 @@ __all__ = [
 ]
 
 if _HAS_ENRICHER:
-    from .enricher import MetadataEnricher
+    from .enricher.enricher import MetadataEnricher
 
     __all__ += [
         "MetadataEnricher",

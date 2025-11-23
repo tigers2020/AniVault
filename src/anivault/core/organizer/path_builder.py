@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from anivault.core.models import ScannedFile
+from anivault.shared.constants import VideoQuality
 from anivault.shared.constants.path_constants import PathConstants
 from anivault.shared.metadata_models import TMDBMatchResult
 
@@ -379,7 +380,6 @@ class PathBuilder:
         Returns:
             Path with resolution-based organization applied
         """
-        from anivault.shared.constants import VideoQuality
 
         # Determine if high or low resolution
         if resolution and VideoQuality.is_high_resolution(resolution):

@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import json
 import logging
+import platform
+
+import psutil
 import time
 import tracemalloc
 from collections.abc import Generator
@@ -195,9 +198,6 @@ class Profiler:
         Returns:
             Dictionary containing system information
         """
-        import platform
-
-        import psutil
 
         try:
             return {

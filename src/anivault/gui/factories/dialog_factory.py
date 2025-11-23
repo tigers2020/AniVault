@@ -7,15 +7,14 @@ logic, making it easier to manage dialog instantiation and configuration.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget
 
-    from anivault.gui.dialogs.organize_preview_dialog import OrganizePreviewDialog
-    from anivault.gui.dialogs.organize_progress_dialog import OrganizeProgressDialog
-    from anivault.gui.dialogs.settings_dialog import SettingsDialog
-    from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
+from anivault.gui.dialogs.organize_preview_dialog import OrganizePreviewDialog
+from anivault.gui.dialogs.organize_progress_dialog import OrganizeProgressDialog
+from anivault.gui.dialogs.settings_dialog import SettingsDialog
+from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
 
 
 class DialogFactory:

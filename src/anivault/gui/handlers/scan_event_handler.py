@@ -10,18 +10,16 @@ and error handling across the application.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 from anivault.core.file_grouper import Group
+from anivault.gui.controllers.scan_controller import ScanController
+from anivault.gui.managers.status_manager import StatusManager
 from anivault.gui.models import FileItem
+from anivault.gui.state_model import StateModel
 from anivault.shared.constants.gui_messages import DialogTitles
 
 from .base_event_handler import BaseEventHandler
-
-if TYPE_CHECKING:
-    from anivault.gui.controllers.scan_controller import ScanController
-    from anivault.gui.managers.status_manager import StatusManager
-    from anivault.gui.state_model import StateModel
 
 
 class ScanEventHandler(BaseEventHandler):

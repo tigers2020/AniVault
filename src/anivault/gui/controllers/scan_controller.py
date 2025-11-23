@@ -19,6 +19,13 @@ from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.gui.models import FileItem
 from anivault.gui.workers import FileScannerWorker
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+)
 from anivault.shared.metadata_models import FileMetadata, TMDBMatchResult
 
 logger = logging.getLogger(__name__)
@@ -211,9 +218,48 @@ class ScanController(QObject):
 
             return final_groups
 
-        except Exception:
-            logger.exception("TMDB-based grouping failed")
-            raise
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
+            # Data parsing errors during TMDB grouping
+            context = ErrorContext(
+                operation="tmdb_grouping",
+                additional_data={"error_type": "data_parsing"},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"TMDB-based grouping failed due to data parsing error: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("TMDB-based grouping failed: %s", error.message)
+            raise error from e
+        except (OSError, PermissionError) as e:
+            # File I/O errors during grouping
+            context = ErrorContext(
+                operation="tmdb_grouping",
+                additional_data={"error_type": "file_io"},
+            )
+            error = AniVaultFileError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"TMDB-based grouping failed due to file I/O error: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("TMDB-based grouping failed: %s", error.message)
+            raise error from e
+        except Exception as e:
+            # Unexpected errors during TMDB grouping
+            context = ErrorContext(
+                operation="tmdb_grouping",
+                additional_data={"error_type": "unexpected"},
+            )
+            error = AniVaultError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"TMDB-based grouping failed: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("TMDB-based grouping failed: %s", error.message)
+            raise error from e
 
     def _separate_matched_unmatched(
         self, file_items: list[FileItem]
@@ -454,9 +500,48 @@ class ScanController(QObject):
 
             return grouped_files
 
-        except Exception:
-            logger.exception("File grouping failed")
-            raise
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
+            # Data parsing errors during file grouping
+            context = ErrorContext(
+                operation="file_grouping",
+                additional_data={"error_type": "data_parsing"},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"File grouping failed due to data parsing error: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("File grouping failed: %s", error.message)
+            raise error from e
+        except (OSError, PermissionError) as e:
+            # File I/O errors during grouping
+            context = ErrorContext(
+                operation="file_grouping",
+                additional_data={"error_type": "file_io"},
+            )
+            error = AniVaultFileError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"File grouping failed due to file I/O error: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("File grouping failed: %s", error.message)
+            raise error from e
+        except Exception as e:
+            # Unexpected errors during file grouping
+            context = ErrorContext(
+                operation="file_grouping",
+                additional_data={"error_type": "unexpected"},
+            )
+            error = AniVaultError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"File grouping failed: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("File grouping failed: %s", error.message)
+            raise error from e
 
     def _start_scanning_thread(self, directory_path: Path) -> None:
         """Start the file scanning worker thread.

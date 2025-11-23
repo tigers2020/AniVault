@@ -9,17 +9,21 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from anivault.config import Settings, load_settings
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
 from anivault.core.organizer.executor import FileOperationExecutor, OperationResult
 from anivault.core.organizer.path_builder import PathBuilder
 from anivault.core.organizer.resolution import ResolutionAnalyzer
-
-if TYPE_CHECKING:
-    from anivault.config.settings import Settings
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultPermissionError,
+    ErrorCode,
+    ErrorContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +68,6 @@ class OptimizedFileOrganizer:
             settings: Settings instance containing configuration. If None, loads default settings.
         """
         self.log_manager = log_manager
-        from anivault.config.settings import load_settings
 
         self.settings = settings or load_settings()
         self.app_config = self.settings.app
@@ -132,12 +135,70 @@ class OptimizedFileOrganizer:
                     title,
                     episode,
                 )
-        except Exception:
+        except FileNotFoundError as e:
             file_path_str = (
                 str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
             )
+            context = ErrorContext(
+                file_path=file_path_str,
+                operation="add_file_to_cache",
+            )
+            error = AniVaultFileError(
+                ErrorCode.FILE_NOT_FOUND,
+                f"File not found while adding to cache: {file_path_str}",
+                context,
+                original_error=e,
+            )
             logger.exception("Failed to add file to cache: %s", file_path_str)
-            raise
+            raise error from e
+        except PermissionError as e:
+            file_path_str = (
+                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
+            )
+            context = ErrorContext(
+                file_path=file_path_str,
+                operation="add_file_to_cache",
+            )
+            permission_error = AniVaultPermissionError(
+                ErrorCode.PERMISSION_DENIED,
+                f"Permission denied accessing file: {file_path_str}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to add file to cache: %s", file_path_str)
+            raise permission_error from e
+        except OSError as e:
+            file_path_str = (
+                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
+            )
+            context = ErrorContext(
+                file_path=file_path_str,
+                operation="add_file_to_cache",
+            )
+            os_error = AniVaultFileError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"File system error while adding to cache: {file_path_str}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to add file to cache: %s", file_path_str)
+            raise os_error from e
+        except Exception as e:
+            file_path_str = (
+                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
+            )
+            context = ErrorContext(
+                file_path=file_path_str,
+                operation="add_file_to_cache",
+            )
+            unexpected_error = AniVaultError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"Unexpected error while adding file to cache: {file_path_str}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to add file to cache: %s", file_path_str)
+            raise unexpected_error from e
 
     def get_file(self, title: str, episode: int) -> ScannedFile | None:
         """
@@ -257,7 +318,8 @@ class OptimizedFileOrganizer:
                     If False, executes operations and returns OperationResult objects.
 
         Returns:
-            List of FileOperation objects (if dry_run=True) or OperationResult objects (if dry_run=False).
+            List of FileOperation objects
+            (if dry_run=True) or OperationResult objects (if dry_run=False).
         """
         plan = self.generate_plan(scanned_files)
 

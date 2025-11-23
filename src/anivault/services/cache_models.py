@@ -7,7 +7,7 @@ providing type safety and validation for cached TMDB API responses.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from anivault.shared.constants import CacheValidationConstants
@@ -122,7 +122,6 @@ class CacheEntry(BaseDataclass):
         Returns:
             True if entry is expired, False otherwise
         """
-        from datetime import timezone
 
         if self.expires_at is None:
             return False

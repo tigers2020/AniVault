@@ -8,10 +8,21 @@ fuzzy matching, year-based filtering, and confidence scoring.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from anivault.core.matching.models import MatchResult, NormalizedQuery
-from anivault.core.matching.services import SQLiteCacheAdapter
+from anivault.core.matching.services import (
+    CandidateFilterService,
+    CandidateScoringService,
+    FallbackStrategyService,
+    SQLiteCacheAdapter,
+    TMDBSearchService,
+)
+from anivault.core.matching.strategies import (
+    FallbackStrategy,
+    GenreBoostStrategy,
+    PartialMatchStrategy,
+)
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.services.cache import SQLiteCacheDB
@@ -20,6 +31,11 @@ from anivault.shared.constants import (
     ConfidenceThresholds,
     DefaultLanguage,
     TMDBSearchKeys,
+)
+from anivault.shared.errors import (
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,16 +78,6 @@ class MatchingEngine:
         self.tmdb_client = tmdb_client
 
         # Initialize services
-        from anivault.core.matching.services import (
-            CandidateFilterService,
-            CandidateScoringService,
-            FallbackStrategyService,
-            TMDBSearchService,
-        )
-        from anivault.core.matching.strategies import (
-            GenreBoostStrategy,
-            PartialMatchStrategy,
-        )
 
         self._search_service = TMDBSearchService(
             cache=self.cache,
@@ -82,9 +88,6 @@ class MatchingEngine:
         self._filter_service = CandidateFilterService(statistics=self.statistics)
 
         # Initialize fallback strategies
-        from typing import cast
-
-        from anivault.core.matching.strategies import FallbackStrategy
 
         fallback_strategies: list[FallbackStrategy] = cast(
             "list[FallbackStrategy]",
@@ -205,7 +208,36 @@ class MatchingEngine:
 
             return match_result
 
-        except Exception:
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+            # Data parsing errors during matching
+            context = ErrorContext(
+                operation="find_match",
+                additional_data={"error_type": "data_parsing"},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.DATA_PROCESSING_ERROR,
+                f"Failed to find match due to data parsing error: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error in find_match")
+            self.statistics.record_match_failure()
+            self.statistics.end_timing("matching_operation")
+            return None
+        except Exception as e:
+            from anivault.shared.errors import AniVaultError, ErrorContext
+
+            # Unexpected errors
+            context = ErrorContext(
+                operation="find_match",
+                additional_data={"error_type": "unexpected"},
+            )
+            error = AniVaultError(
+                ErrorCode.DATA_PROCESSING_ERROR,
+                f"Unexpected error in find_match: {e}",
+                context,
+                original_error=e,
+            )
             logger.exception("Error in find_match")
             self.statistics.record_match_failure()
             self.statistics.end_timing("matching_operation")

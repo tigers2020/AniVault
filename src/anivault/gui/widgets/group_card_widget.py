@@ -5,22 +5,50 @@ This widget represents a single file group in the grid view, showing
 group name, file count, and anime information if available.
 """
 
+# pylint: disable=no-name-in-module,invalid-name
+# PySide6는 C++ 확장 모듈로 타입 스텁이 완전하지 않아 Pylint가 인식하지 못함
+# 런타임에는 정상 작동하며, PySide6-stubs가 설치되어 있어도 Pylint는 인식하지 못함
+# invalid-name: PySide6 이벤트 핸들러 메서드 이름은 프레임워크 표준을 따라야 함
+
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from PySide6.QtCore import QEvent, QPoint, QSize, Qt, QUrl, Signal
+# Third-party imports
+from PySide6.QtCore import QEvent, QPoint, Qt, QUrl, Signal
 from PySide6.QtGui import QEnterEvent, QMouseEvent, QPixmap
-from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
+from PySide6.QtNetwork import (
+    QNetworkAccessManager,
+    QNetworkReply,
+    QNetworkRequest,
+)
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QVBoxLayout,
+    QWidget,
+)
 
+# First-party imports
 from anivault.shared.constants.gui_messages import UIConfig
+from anivault.core.models import ScannedFile
+from anivault.core.parser.models import ParsingResult
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultNetworkError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+)
 from anivault.shared.metadata_models import FileMetadata
 
-if TYPE_CHECKING:
-    from .anime_detail_popup import AnimeDetailPopup
+from .anime_detail_popup import AnimeDetailPopup
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +279,7 @@ class GroupCardWidget(QFrame):
         poster_label = QLabel()
         poster_label.setObjectName("posterLabel")
         poster_label.setFixedSize(
-            QSize(UIConfig.POSTER_WIDTH, UIConfig.POSTER_HEIGHT)
+            UIConfig.POSTER_WIDTH, UIConfig.POSTER_HEIGHT
         )  # 2:3 aspect ratio
         poster_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
 
@@ -351,10 +379,6 @@ class GroupCardWidget(QFrame):
         )
         logger.debug("Checking anime metadata for file: %s", file_name)
 
-        # Import types for checking
-        from anivault.core.models import ScannedFile
-        from anivault.core.parser.models import ParsingResult
-
         # Case 1: FileItem with FileMetadata (direct)
         meta = getattr(first_file, "metadata", None)
         if isinstance(meta, FileMetadata):
@@ -391,24 +415,24 @@ class GroupCardWidget(QFrame):
                         file_metadata.title,
                     )
                     return file_metadata
-                else:
-                    logger.debug(
-                        "ScannedFile has ParsingResult but no TMDB match result (TMDB matching may not have completed yet)"
-                    )
-                    # Return None silently - this is expected before TMDB matching
-                    return None
-            else:
                 logger.debug(
-                    "ScannedFile.metadata is not ParsingResult: %s",
-                    type(parsed_result).__name__,
+                    "ScannedFile has ParsingResult but no TMDB match result "
+                    "(TMDB matching may not have completed yet)"
                 )
+                # Return None silently - this is expected before TMDB matching
+                return None
+            # Note: ScannedFile.metadata is typed as ParsingResult, so this branch is
+            # theoretically unreachable. However, we keep the isinstance check for
+            # runtime safety and to handle potential edge cases.
 
         # Case 3: first_file itself might be ParsingResult (unlikely but handle it)
         if isinstance(first_file, ParsingResult):
             match_result = first_file.additional_info.match_result
             if match_result:
                 # Need file_path from somewhere - try to get it from files list
-                file_path = getattr(self.files[0], "file_path", None) if self.files else None
+                file_path = (
+                    getattr(self.files[0], "file_path", None) if self.files else None
+                )
                 if file_path:
                     file_metadata = FileMetadata(
                         title=match_result.title,
@@ -518,9 +542,6 @@ class GroupCardWidget(QFrame):
         Args:
             anime_metadata: FileMetadata instance containing anime information
         """
-        # Import here to avoid circular dependency
-        from .anime_detail_popup import AnimeDetailPopup
-
         if self._detail_popup:
             self._detail_popup.deleteLater()
 
@@ -642,8 +663,50 @@ class GroupCardWidget(QFrame):
             # Return None - poster will be loaded asynchronously
             return None
 
-        except Exception:
-            logger.exception("❌ Unexpected error initiating poster download")
+        except (ConnectionError, TimeoutError) as e:
+            context = ErrorContext(
+                operation="initiate_poster_download",
+                additional_data={"poster_path": poster_path, "image_url": image_url},
+            )
+            if isinstance(e, TimeoutError):
+                network_error = AniVaultNetworkError(
+                    ErrorCode.API_TIMEOUT,
+                    f"Poster download timeout: {image_url}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                network_error = AniVaultNetworkError(
+                    ErrorCode.NETWORK_ERROR,
+                    f"Poster download connection error: {image_url}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception(
+                "❌ Error initiating poster download: %s", network_error.message
+            )
+            return None
+        except (ValueError, AttributeError, RuntimeError) as e:
+            # Handle unexpected errors during network request setup
+            # (e.g., invalid URL format, missing attributes, Qt runtime errors)
+            context = ErrorContext(
+                operation="initiate_poster_download",
+                additional_data={
+                    "poster_path": poster_path,
+                    "image_url": image_url,
+                    "error_type": type(e).__name__,
+                },
+            )
+            unexpected_error = AniVaultError(
+                ErrorCode.API_REQUEST_FAILED,
+                f"Unexpected error initiating poster download: {image_url}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "❌ Unexpected error initiating poster download: %s",
+                unexpected_error.message,
+            )
             return None
 
     def _on_poster_downloaded(
@@ -683,8 +746,33 @@ class GroupCardWidget(QFrame):
             try:
                 cache_file.write_bytes(image_data.data())
                 logger.debug("💾 Cached poster: %s", cache_file.name)
-            except Exception as e:  # noqa: BLE001 - GUI poster cache error fallback
-                logger.warning("❌ Failed to cache poster: %s", e)
+            except (PermissionError, OSError) as e:
+                context = ErrorContext(
+                    file_path=str(cache_file),
+                    operation="cache_poster",
+                )
+                cache_error = AniVaultFileError(
+                    ErrorCode.FILE_WRITE_ERROR,
+                    f"Failed to cache poster: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.warning("❌ Failed to cache poster: %s", cache_error.message)
+            except (RuntimeError, MemoryError) as e:
+                # Handle unexpected errors during cache write (e.g., memory issues)
+                context = ErrorContext(
+                    file_path=str(cache_file),
+                    operation="cache_poster",
+                )
+                unexpected_error = AniVaultError(
+                    ErrorCode.FILE_WRITE_ERROR,
+                    f"Unexpected error caching poster: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.warning(
+                    "❌ Failed to cache poster: %s", unexpected_error.message
+                )
 
             # Load into QPixmap
             pixmap = QPixmap()
@@ -701,8 +789,52 @@ class GroupCardWidget(QFrame):
             else:
                 logger.warning("❌ Failed to load QPixmap from downloaded data")
 
-        except Exception:
-            logger.exception("❌ Error processing downloaded poster")
+        except (OSError, PermissionError) as e:
+            # File I/O errors during poster processing
+            context = ErrorContext(
+                file_path=str(cache_file),
+                operation="process_poster_download",
+            )
+            io_error = AniVaultFileError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"File I/O error processing poster: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "❌ Error processing downloaded poster: %s", io_error.message
+            )
+        except (ValueError, TypeError) as e:
+            # Image parsing/data processing errors
+            context = ErrorContext(
+                file_path=str(cache_file),
+                operation="parse_poster_image",
+            )
+            parse_error = AniVaultParsingError(
+                ErrorCode.PARSING_ERROR,
+                f"Failed to parse poster image: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "❌ Error processing downloaded poster: %s", parse_error.message
+            )
+        except (RuntimeError, AttributeError, MemoryError) as e:
+            # Unexpected errors - log and continue (GUI should not crash)
+            # Handle Qt runtime errors, missing attributes, or memory issues
+            context = ErrorContext(
+                file_path=str(cache_file),
+                operation="process_poster_download",
+            )
+            unexpected_error = AniVaultError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Unexpected error processing poster: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "❌ Error processing downloaded poster: %s", unexpected_error.message
+            )
         finally:
             reply.deleteLater()
 

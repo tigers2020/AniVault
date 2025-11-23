@@ -7,19 +7,18 @@ Contains core matching pipeline logic.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from rich.console import Console
+from typing import Any
+from rich.console import Console
 
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.core.parser.models import ParsingResult
+from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.services import (
     RateLimitStateMachine,
     SemaphoreManager,
@@ -28,9 +27,19 @@ from anivault.services import (
     TokenBucketRateLimiter,
 )
 from anivault.shared.constants import FileSystem
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+)
 from anivault.utils.resource_path import get_project_root
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
+from anivault.cli.common.path_utils import extract_directory_path
 from anivault.shared.metadata_models import FileMetadata
+from rich.table import Table
+
+logger = logging.getLogger(__name__)
 
 
 async def run_match_pipeline(
@@ -46,8 +55,6 @@ async def run_match_pipeline(
     Returns:
         Exit code (0 for success, 1 for error)
     """
-    from rich.console import Console
-
     if console is None:
         console = Console()
 
@@ -73,8 +80,6 @@ def _get_directory_from_options(options: Any) -> Path:
     Note: This function is now redundant. Use extract_directory_path from
     cli.common.path_utils instead for consistency.
     """
-    from anivault.cli.common.path_utils import extract_directory_path
-
     return extract_directory_path(options.directory)
 
 
@@ -239,7 +244,6 @@ def _process_exceptions(
                     ),
                 )
             # Create FileMetadata with error indication
-            from anivault.core.parser.models import ParsingAdditionalInfo
 
             error_parsing_result = ParsingResult(
                 title=str(file_path.name),
@@ -252,7 +256,6 @@ def _process_exceptions(
             processed_results.append(result)
         elif result is None:
             # Parsing failed - create FileMetadata with minimal info
-            from anivault.core.parser.models import ParsingAdditionalInfo
 
             failed_parsing_result = ParsingResult(
                 title=str(file_path.name),
@@ -270,7 +273,6 @@ def _process_exceptions(
                         "warning",
                     ),
                 )
-            from anivault.core.parser.models import ParsingAdditionalInfo
 
             unexpected_parsing_result = ParsingResult(
                 title=str(file_path.name),
@@ -454,7 +456,6 @@ async def process_file_for_matching(
             return None
 
         # Ensure ParsingResult type for conversion
-        from anivault.core.parser.models import ParsingAdditionalInfo
 
         if isinstance(parsing_result, dict):
             parsing_result = ParsingResult(
@@ -489,10 +490,42 @@ async def process_file_for_matching(
         # Convert to FileMetadata
         return _match_result_to_file_metadata(file_path, parsing_result, match_result)
 
-    except Exception:  # noqa: BLE001
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
+        # Data structure access errors during file processing
+        context = ErrorContext(
+            file_path=str(file_path),
+            operation="process_file_for_matching",
+        )
+        error = AniVaultParsingError(
+            ErrorCode.DATA_PROCESSING_ERROR,
+            f"Data parsing error processing file for matching: {e}",
+            context,
+            original_error=e,
+        )
+        logger.exception("Error processing file for matching: %s", error.message)
         # Return FileMetadata with error indication (tmdb_id=None)
         # This maintains type safety while indicating failure
-        from anivault.core.parser.models import ParsingAdditionalInfo
+
+        minimal_parsing_result = ParsingResult(
+            title=str(file_path.name),
+            additional_info=ParsingAdditionalInfo(),
+        )
+        return _match_result_to_file_metadata(file_path, minimal_parsing_result, None)
+    except Exception as e:  # - Unexpected errors
+        # Unexpected errors during file processing
+        context = ErrorContext(
+            file_path=str(file_path),
+            operation="process_file_for_matching",
+        )
+        error = AniVaultError(
+            ErrorCode.DATA_PROCESSING_ERROR,
+            f"Unexpected error processing file for matching: {e}",
+            context,
+            original_error=e,
+        )
+        logger.exception("Error processing file for matching: %s", error.message)
+        # Return FileMetadata with error indication (tmdb_id=None)
+        # This maintains type safety while indicating failure
 
         minimal_parsing_result = ParsingResult(
             title=str(file_path.name),
@@ -508,8 +541,6 @@ def display_match_results(results: list[FileMetadata], console: Console) -> None
         results: List of FileMetadata instances
         console: Rich console for output
     """
-    from rich.table import Table
-
     if not results:
         console.print("[yellow]No results to display.[/yellow]")
         return

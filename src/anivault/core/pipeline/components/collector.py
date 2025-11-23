@@ -365,11 +365,20 @@ class ResultCollector(threading.Thread):
                     self.collector_id,
                     e,
                 )
-            except Exception:
+            except Exception as e:  # - Unexpected queue errors
                 # Handle unexpected queue errors
+                context = ErrorContext(
+                    operation="mark_task_done",
+                    additional_data={"collector_id": self.collector_id},
+                )
+                error = AniVaultError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Unexpected error marking task as done in collector {self.collector_id}: {e}",
+                    context,
+                    original_error=e,
+                )
                 logger.exception(
-                    "Unexpected error marking task as done in collector %s",
-                    self.collector_id,
+                    "Unexpected error marking task as done: %s", error.message
                 )
             self.stop()
             return True
@@ -452,11 +461,20 @@ class ResultCollector(threading.Thread):
                     self.collector_id,
                     e,
                 )
-            except Exception:
+            except Exception as e:  # - Unexpected queue errors
                 # Handle unexpected queue errors
+                context = ErrorContext(
+                    operation="mark_task_done_finally",
+                    additional_data={"collector_id": self.collector_id},
+                )
+                error = AniVaultError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Unexpected error marking task as done in collector {self.collector_id}: {e}",
+                    context,
+                    original_error=e,
+                )
                 logger.exception(
-                    "Unexpected error marking task as done in collector %s",
-                    self.collector_id,
+                    "Unexpected error marking task as done: %s", error.message
                 )
 
     def _handle_queue_error(self, error: Exception, context: ErrorContext) -> None:

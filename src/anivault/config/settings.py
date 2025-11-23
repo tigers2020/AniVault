@@ -7,20 +7,13 @@ Refactored from monolithic settings.py for better modularity.
 from __future__ import annotations
 
 import logging
+import toml
 import typing
 import warnings
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-# Import loader functions for backward compatibility
-from anivault.config.loader import (
-    get_config,
-    load_settings,
-    reload_config,
-    update_and_save_config,
-)
 
 # Import domain models from refactored modules
 from anivault.config.models.api_settings import (
@@ -132,7 +125,6 @@ class Settings(BaseSettings):
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:
         """Load settings from TOML file with environment variable overrides."""
-        import toml
 
         file_path = Path(file_path)
         if not file_path.exists():
@@ -152,7 +144,6 @@ class Settings(BaseSettings):
 
         Note: Config files are not logs. They require API keys to function.
         """
-        import toml
 
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -184,8 +175,4 @@ __all__ = [
     "Settings",
     "TMDBConfig",  # Backward-compatible alias
     "TMDBSettings",
-    "get_config",
-    "load_settings",
-    "reload_config",
-    "update_and_save_config",
 ]

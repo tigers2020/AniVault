@@ -12,7 +12,12 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+from anivault.shared.errors import (
+    AniVaultError,
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+)
 
 from .path_resolver import ThemePathResolver
 from .qss_loader import QSSLoader
@@ -180,9 +185,28 @@ class ThemeManager:
                 try:
                     self.apply_theme(self.DEFAULT_THEME, app, _fallback_attempted=True)
                     return
-                except Exception:
+                except ApplicationError:
+                    # ApplicationError from apply_theme already handled
                     logger.exception(
                         "Failed to apply fallback theme %s", self.DEFAULT_THEME
+                    )
+                except Exception as e:  # - Unexpected theme errors
+                    # Unexpected errors during fallback theme application
+
+                    context = ErrorContext(
+                        operation="apply_fallback_theme",
+                        additional_data={"theme": self.DEFAULT_THEME},
+                    )
+                    error = AniVaultError(
+                        ErrorCode.APPLICATION_ERROR,
+                        f"Unexpected error applying fallback theme: {e}",
+                        context,
+                        original_error=e,
+                    )
+                    logger.exception(
+                        "Failed to apply fallback theme %s: %s",
+                        self.DEFAULT_THEME,
+                        error.message,
                     )
 
             # Level 3: Safe mode

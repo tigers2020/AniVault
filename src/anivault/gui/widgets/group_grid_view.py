@@ -20,6 +20,13 @@ from PySide6.QtWidgets import (
 )
 
 from anivault.shared.constants.gui_messages import UIConfig
+from anivault.core.parser.anitopy_parser import AnitopyParser
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+)
 
 from .group_card_widget import GroupCardWidget
 
@@ -178,7 +185,6 @@ class GroupGridViewWidget(QScrollArea):
                 return
 
             # Use the file grouper's parser to get a better title
-            from anivault.core.parser.anitopy_parser import AnitopyParser
 
             try:
                 parser = AnitopyParser()
@@ -317,6 +323,37 @@ class GroupGridViewWidget(QScrollArea):
                 new_group_name,
             )
 
-        except Exception:
-            logger.exception("Error updating group card name")
-            raise
+        except (KeyError, ValueError, AttributeError) as e:
+            # Data structure access errors
+            context = ErrorContext(
+                operation="update_group_card_name",
+                additional_data={
+                    "old_group_name": old_group_name,
+                    "new_group_name": new_group_name,
+                },
+            )
+            error = AniVaultParsingError(
+                ErrorCode.DATA_PROCESSING_ERROR,
+                f"Error updating group card name: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error updating group card name: %s", error.message)
+            raise error from e
+        except Exception as e:  # - Unexpected errors
+            # Unexpected errors during group card update
+            context = ErrorContext(
+                operation="update_group_card_name",
+                additional_data={
+                    "old_group_name": old_group_name,
+                    "new_group_name": new_group_name,
+                },
+            )
+            error = AniVaultError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Unexpected error updating group card name: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error updating group card name: %s", error.message)
+            raise error from e

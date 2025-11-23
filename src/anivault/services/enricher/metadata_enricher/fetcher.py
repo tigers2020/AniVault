@@ -13,10 +13,10 @@ from anivault.services.tmdb import TMDBClient, TMDBSearchResult, TMDBMediaDetail
 from anivault.shared.constants import LogContextKeys, LogOperationNames
 from anivault.shared.errors import (
     AniVaultError,
+    AniVaultNetworkError,
     DomainError,
     ErrorCode,
     ErrorContext,
-    InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error
 
@@ -90,10 +90,17 @@ class TMDBFetcher:
             # Re-raise AniVault errors as-is
             raise
         except (ConnectionError, TimeoutError) as e:
-            # Network errors → InfrastructureError
-            raise InfrastructureError(
-                code=ErrorCode.TMDB_API_CONNECTION_ERROR,
-                message=f"Network error during TMDB search: {e}",
+            # Network errors → AniVaultNetworkError
+
+            if isinstance(e, TimeoutError):
+                error_code = ErrorCode.TMDB_API_TIMEOUT
+                error_message = f"TMDB search timeout for '{title}': {e}"
+            else:
+                error_code = ErrorCode.TMDB_API_CONNECTION_ERROR
+                error_message = f"Network error during TMDB search: {e}"
+            raise AniVaultNetworkError(
+                code=error_code,
+                message=error_message,
                 context=ErrorContext(
                     operation=LogOperationNames.TMDB_SEARCH,
                     additional_data={
@@ -120,8 +127,9 @@ class TMDBFetcher:
                 original_error=e,
             ) from e
         except Exception as e:
-            # Unexpected errors → InfrastructureError
-            raise InfrastructureError(
+            # Unexpected errors → AniVaultNetworkError
+
+            raise AniVaultNetworkError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
                 message=f"Unexpected error during TMDB search: {e}",
                 context=ErrorContext(
@@ -179,9 +187,15 @@ class TMDBFetcher:
             return None
 
         except (ConnectionError, TimeoutError) as e:
-            error = InfrastructureError(
-                code=ErrorCode.TMDB_API_CONNECTION_ERROR,
-                message=f"Network error during media details retrieval: {e}",
+            if isinstance(e, TimeoutError):
+                error_code = ErrorCode.TMDB_API_TIMEOUT
+                error_message = f"TMDB media details timeout: {e}"
+            else:
+                error_code = ErrorCode.TMDB_API_CONNECTION_ERROR
+                error_message = f"Network error during media details retrieval: {e}"
+            error = AniVaultNetworkError(
+                code=error_code,
+                message=error_message,
                 context=ErrorContext(
                     operation=LogOperationNames.GET_MEDIA_DETAILS,
                     additional_data={
@@ -217,7 +231,7 @@ class TMDBFetcher:
             return None
 
         except Exception as e:  # noqa: BLE001
-            error = InfrastructureError(
+            error = AniVaultNetworkError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
                 message=f"Unexpected error during media details retrieval: {e}",
                 context=ErrorContext(

@@ -9,17 +9,15 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable
 
 from anivault.config.folder_validator import FolderValidator
 from anivault.config.settings import (
     FolderSettings,
+    Settings,
     get_config,
     update_and_save_config,
 )
-
-if TYPE_CHECKING:
-    from anivault.config.settings import Settings
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
 logger = logging.getLogger(__name__)

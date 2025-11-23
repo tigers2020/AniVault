@@ -19,6 +19,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+
 
 class LogLevel(str, Enum):
     """Log level enumeration for type safety."""
@@ -109,9 +111,6 @@ def validate_directory(directory_path: str) -> Path:
     Raises:
         ApplicationError: If directory is invalid
     """
-    from pathlib import Path
-
-    from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
     # Handle DirectoryPath objects
     if hasattr(directory_path, "path"):

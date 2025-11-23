@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from anivault.shared.constants import DateFormats, FileSystem, LogJsonKeys
 from anivault.shared.constants.cli import CLIMessages
@@ -19,9 +19,8 @@ from anivault.shared.errors import (
     ErrorContext,
     InfrastructureError,
 )
-
-if TYPE_CHECKING:
-    from rich.console import Console
+from rich.console import Console
+from rich.table import Table
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +128,6 @@ def print_log_list(log_dir: Path, console: Console) -> int:
         Exit code (0 for success, non-zero for error)
     """
     try:
-        from rich.table import Table
-
         # Check if log directory exists
         if not log_dir.exists():
             console.print(f"[red]Log directory does not exist: {log_dir}[/red]")

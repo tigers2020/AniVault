@@ -16,7 +16,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+from anivault.shared.errors import (
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+    SecurityError,
+)
 
 
 class DecryptionError(ApplicationError):
@@ -253,7 +258,6 @@ class EncryptionService:
         Raises:
             SecurityError: If token is invalid, malformed, or expired
         """
-        from anivault.shared.errors import ErrorCode, SecurityError
 
         # Validate token is not empty
         if not token or len(token.strip()) == 0:
@@ -296,7 +300,6 @@ class EncryptionService:
         Returns:
             True if token is valid, False otherwise
         """
-        from anivault.shared.errors import SecurityError
 
         try:
             self.validate_token(token)

@@ -35,7 +35,6 @@ def get_project_root() -> Path:
         # In bundle, project root is typically the directory containing the executable
         # For GUI apps, use user home directory for cache/config
         # Return a writable location for cache files
-        import os
 
         # Try to get executable directory
         if hasattr(sys, "executable") and sys.executable:
@@ -56,7 +55,13 @@ def get_project_root() -> Path:
 
     for _ in range(max_depth):
         # Check for common project root markers
-        markers = [".git", "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt"]
+        markers = [
+            ".git",
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "requirements.txt",
+        ]
         if any((current / marker).exists() for marker in markers):
             logger.debug("Found project root: %s", current)
             return current

@@ -22,6 +22,7 @@ from anivault.cli.common.options import (
     verbose_option,
     version_option,
 )
+from anivault.cli.common.error_handler import handle_cli_error
 from anivault.cli.common.validation import create_validator
 from anivault.cli.log_handler import log_command
 from anivault.cli.match_handler import match_command
@@ -107,9 +108,6 @@ def main(
         # Process the common options
         main_callback(verbose, log_level, json_output, benchmark, version)
     except Exception as e:
-        # Import here to avoid circular imports
-        from anivault.cli.common.error_handler import handle_cli_error
-
         exit_code = handle_cli_error(e, "main-callback", json_output=json_output)
         raise typer.Exit(exit_code) from e
 

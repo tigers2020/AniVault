@@ -9,10 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -28,20 +25,24 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from anivault.config.loader import reload_config
-from anivault.config.settings import get_config
+from anivault.config import get_config, reload_config
 from anivault.core.file_grouper import Group
 from anivault.core.models import FileOperation, ScannedFile
 from anivault.gui.models import FileItem
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
-from anivault.shared.errors import ApplicationError
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultParsingError,
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+)
 from anivault.shared.metadata_models import FileMetadata
 
 from .controllers import OrganizeController, ScanController, TMDBController
 
-if TYPE_CHECKING:
-    from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
-    from anivault.gui.managers.status_manager import CacheStats
+from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
+from anivault.gui.managers.status_manager import CacheStats
 
 from .managers import MenuManager, SignalCoordinator, StatusManager
 from .state_model import StateModel
@@ -258,8 +259,37 @@ class MainWindow(QMainWindow):
                     "Re-grouped %d files by TMDB title (merging groups with same match)",
                     len(file_items),
                 )
-        except Exception:
-            logger.exception("Failed to re-group files after TMDB matching")
+        except (KeyError, ValueError, AttributeError) as e:
+            # Data structure access errors during regrouping
+            context = ErrorContext(
+                operation="regroup_files_after_tmdb_matching",
+                additional_data={"file_count": len(file_items) if file_items else 0},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"Failed to re-group files after TMDB matching: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "Failed to re-group files after TMDB matching: %s", error.message
+            )
+            # Non-critical error, don't show to user
+        except Exception as e:  # - Unexpected regrouping errors
+            # Unexpected errors during regrouping - log but don't crash GUI
+            context = ErrorContext(
+                operation="regroup_files_after_tmdb_matching",
+                additional_data={"file_count": len(file_items) if file_items else 0},
+            )
+            error = AniVaultError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"Unexpected error re-grouping files after TMDB matching: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "Failed to re-group files after TMDB matching: %s", error.message
+            )
             # Non-critical error, don't show to user
         finally:
             # Reset flag after regroup is complete
@@ -487,10 +517,14 @@ class MainWindow(QMainWindow):
         try:
             # Reload configuration to get the updated folder settings
             reload_config()
-            logger.info("Folder settings changed and configuration reloaded successfully")
+            logger.info(
+                "Folder settings changed and configuration reloaded successfully"
+            )
             self.status_manager.show_message("Folder settings updated successfully")
         except Exception as e:
-            logger.exception("Failed to reload configuration after folder settings change")
+            logger.exception(
+                "Failed to reload configuration after folder settings change"
+            )
             self.status_manager.show_message(
                 f"Folder settings saved but failed to reload: {e!s}"
             )

@@ -10,22 +10,20 @@ and error handling across the application.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 from PySide6.QtWidgets import QMessageBox
 
 from anivault.core.models import FileOperation
 from anivault.core.organizer.executor import OperationResult
+from anivault.gui.controllers.organize_controller import OrganizeController
+from anivault.gui.controllers.scan_controller import ScanController
+from anivault.gui.dialogs.organize_progress_dialog import OrganizeProgressDialog
+from anivault.gui.managers.status_manager import StatusManager
+from anivault.gui.state_model import StateModel
 from anivault.shared.constants.gui_messages import DialogTitles
 
 from .base_event_handler import BaseEventHandler
-
-if TYPE_CHECKING:
-    from anivault.gui.controllers.organize_controller import OrganizeController
-    from anivault.gui.controllers.scan_controller import ScanController
-    from anivault.gui.dialogs.organize_progress_dialog import OrganizeProgressDialog
-    from anivault.gui.managers.status_manager import StatusManager
-    from anivault.gui.state_model import StateModel
 
 
 class OrganizeEventHandler(BaseEventHandler):

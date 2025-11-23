@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import MISSING, asdict, fields, is_dataclass
 from datetime import datetime
-from typing import Any, get_args, get_origin, get_type_hints
+from typing import Any, cast, get_args, get_origin, get_type_hints
 from uuid import UUID
 
 
@@ -57,7 +57,6 @@ def to_dict(obj: Any) -> dict[str, Any]:
 
     # Type guard: obj is a dataclass instance
     # Use cast to inform mypy that obj is a dataclass instance
-    from typing import cast
 
     # DataclassInstance is only available in Python 3.11+, use Any for compatibility
     dataclass_obj = cast("Any", obj)
@@ -234,7 +233,6 @@ def from_dict(cls: type, data: dict[str, Any], extra: str = "ignore") -> Any:
             elif is_dataclass(field_type) and isinstance(value, dict):
                 # Type guard: field_type is a dataclass class (not instance)
                 # field_type is guaranteed to be a type due to is_dataclass check
-                from typing import cast
 
                 # Cast to type for type safety (DataclassInstance is Python 3.11+ only)
                 dataclass_cls = cast("type[Any]", field_type)

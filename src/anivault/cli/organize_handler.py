@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console as RichConsole
+
 import typer
 
 from anivault.cli.common.context import get_cli_context
@@ -43,7 +45,6 @@ def handle_organize_command(options: OrganizeOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    from rich.console import Console as RichConsole
 
     console = kwargs.get("console") or RichConsole()
     logger_adapter = kwargs.get("logger_adapter", logger)

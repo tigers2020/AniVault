@@ -8,18 +8,14 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from rapidfuzz import fuzz
 
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 
-if TYPE_CHECKING:
-    from anivault.core.file_grouper.models import Group
-    from anivault.core.models import ScannedFile
-else:
-    from anivault.core.file_grouper.models import Group
-    from anivault.core.models import ScannedFile
+from anivault.core.file_grouper.models import Group
+from anivault.core.models import ScannedFile
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +166,7 @@ class TitleSimilarityMatcher:
             Maximum group size for Title matcher processing (default: 150)
         """
         try:
-            from anivault.config.loader import load_settings
+            from anivault.config import load_settings
 
             settings = load_settings()
             if hasattr(settings, "grouping") and settings.grouping is not None:
@@ -207,9 +203,6 @@ class TitleSimilarityMatcher:
         """
         if not files:
             return []
-
-        # Import here to avoid circular dependency at runtime
-        from anivault.core.file_grouper.models import Group
 
         # Step 1: Extract titles from all files
         file_titles: list[tuple[ScannedFile, str]] = []

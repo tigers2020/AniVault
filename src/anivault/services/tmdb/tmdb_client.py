@@ -14,7 +14,7 @@ from typing import Any, Callable
 from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
-from anivault.config.settings import get_config
+from anivault.config import get_config
 from anivault.services.rate_limiter import TokenBucketRateLimiter
 from anivault.services.semaphore_manager import SemaphoreManager
 from anivault.services.state_machine import RateLimitState, RateLimitStateMachine

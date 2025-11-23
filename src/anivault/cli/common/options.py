@@ -13,10 +13,9 @@ The options include:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
-if TYPE_CHECKING:
-    import typer
+import typer
 
 from anivault.cli.common.context import LogLevel
 

@@ -9,17 +9,13 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
-
 from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.models import NormalizedQuery
+from anivault.core.matching.services.cache_adapter import CacheAdapterProtocol
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.tmdb import TMDBSearchResult
+from anivault.services.tmdb import TMDBClient, TMDBSearchResult
 from anivault.shared.constants import MatchingCacheConfig, NormalizationConfig
-
-if TYPE_CHECKING:
-    from anivault.core.matching.services.cache_adapter import CacheAdapterProtocol
-    from anivault.services.tmdb import TMDBClient
+from anivault.shared.errors import ErrorCode
 
 logger = logging.getLogger(__name__)
 
@@ -192,8 +188,41 @@ class TMDBSearchService:
             )
             return results
 
-        except Exception:
-            # Graceful degradation: log error and return empty list
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+            from anivault.shared.errors import AniVaultParsingError, ErrorContext
+
+            # Data parsing errors during search result processing
+            context = ErrorContext(
+                operation="tmdb_search",
+                additional_data={"title": title, "error_type": "data_parsing"},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.DATA_PROCESSING_ERROR,
+                f"Failed to parse TMDB search results for query '{title}': {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("TMDB search failed for query '%s'", title)
+            self.statistics.record_api_call(
+                "tmdb_search",
+                success=False,
+                error="ParsingError",
+            )
+            return []
+        except Exception as e:
+            from anivault.shared.errors import AniVaultError, ErrorContext
+
+            # Unexpected errors
+            context = ErrorContext(
+                operation="tmdb_search",
+                additional_data={"title": title, "error_type": "unexpected"},
+            )
+            error = AniVaultError(
+                ErrorCode.TMDB_API_REQUEST_FAILED,
+                f"Unexpected error during TMDB search for query '{title}': {e}",
+                context,
+                original_error=e,
+            )
             logger.exception("TMDB search failed for query '%s'", title)
             self.statistics.record_api_call(
                 "tmdb_search",

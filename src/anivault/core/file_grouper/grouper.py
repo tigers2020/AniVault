@@ -9,9 +9,15 @@ from __future__ import annotations
 
 import logging
 import re
+from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+
+from anivault.core.file_grouper.duplicate_resolver import DuplicateResolver
+from anivault.core.file_grouper.grouping_engine import GroupingEngine
+from anivault.core.file_grouper.matchers.hash_matcher import HashSimilarityMatcher
+from anivault.core.file_grouper.matchers.season_matcher import SeasonEpisodeMatcher
+from anivault.core.file_grouper.matchers.title_matcher import TitleSimilarityMatcher
 from anivault.core.file_grouper.models import Group
 from anivault.core.models import ScannedFile
 from anivault.core.parser.anitopy_parser import AnitopyParser
@@ -35,14 +41,9 @@ from anivault.shared.errors import (
 )
 from anivault.shared.logging import log_operation_error
 
-# Import with TYPE_CHECKING to avoid circular dependency
-if TYPE_CHECKING:
-    from anivault.core.file_grouper.duplicate_resolver import (
-        DuplicateResolver as DuplicateResolverType,
-    )
-    from anivault.core.file_grouper.grouping_engine import (
-        GroupingEngine as GroupingEngineType,
-    )
+# Type aliases
+DuplicateResolverType = DuplicateResolver
+GroupingEngineType = GroupingEngine
 
 logger = logging.getLogger(__name__)
 
@@ -222,45 +223,41 @@ class GroupNameManager:
         self,
         grouped_files: dict[str, list[ScannedFile]],
     ) -> dict[str, list[ScannedFile]]:
-        """Merge groups with similar names."""
+        """Merge groups with similar names using O(n) algorithm.
+
+        Uses defaultdict to group by normalized base name in a single pass,
+        achieving O(n) time complexity instead of O(n²).
+        """
         if len(grouped_files) <= 1:
             return grouped_files
 
-        merged: dict[str, list[ScannedFile]] = {}
-        processed = set()
+        # Group by normalized base name using defaultdict for O(n) complexity
+        numbered_pattern = re.compile(GroupNaming.NUMBERED_SUFFIX_PATTERN)
+        grouped_by_base: defaultdict[str, list[tuple[str, list[ScannedFile]]]] = (
+            defaultdict(list)
+        )
 
+        # Single pass: normalize each group name and group by base name
         for group_name, files in grouped_files.items():
-            if group_name in processed:
-                continue
-
-            # Find similar group names
-            similar_groups = [group_name]
-            numbered_pattern = re.compile(GroupNaming.NUMBERED_SUFFIX_PATTERN)
             match = numbered_pattern.match(group_name)
             base_name = match.group(1) if match else group_name
+            grouped_by_base[base_name].append((group_name, files))
 
-            for other_name in grouped_files:
-                if other_name == group_name or other_name in processed:
-                    continue
-
-                other_match = numbered_pattern.match(other_name)
-                other_base = other_match.group(1) if other_match else other_name
-
-                if base_name == other_base:
-                    similar_groups.append(other_name)
-
-            # Merge similar groups
-            if len(similar_groups) > 1:
-                merged_files = []
-                for similar_name in similar_groups:
-                    merged_files.extend(grouped_files[similar_name])
-                    processed.add(similar_name)
+        # Merge groups with the same base name
+        merged: dict[str, list[ScannedFile]] = {}
+        for base_name, group_list in grouped_by_base.items():
+            if len(group_list) > 1:
+                # Multiple groups with same base name: merge them
+                merged_files: list[ScannedFile] = []
+                for _, files in group_list:
+                    merged_files.extend(files)
 
                 final_name = self.ensure_unique_group_name(base_name, merged)
                 merged[final_name] = merged_files
             else:
-                merged[group_name] = files
-                processed.add(group_name)
+                # Single group: keep original name
+                original_name, files = group_list[0]
+                merged[original_name] = files
 
         return merged
 
@@ -334,18 +331,6 @@ class FileGrouper:
         Returns:
             Configured GroupingEngine instance
         """
-        # Import here to avoid circular dependency
-        from anivault.core.file_grouper.grouping_engine import GroupingEngine
-        from anivault.core.file_grouper.matchers.hash_matcher import (
-            HashSimilarityMatcher,
-        )
-        from anivault.core.file_grouper.matchers.season_matcher import (
-            SeasonEpisodeMatcher,
-        )
-        from anivault.core.file_grouper.matchers.title_matcher import (
-            TitleSimilarityMatcher,
-        )
-
         # Create helper instances for matchers
         title_extractor = TitleExtractor()
         quality_evaluator = TitleQualityEvaluator()
@@ -370,10 +355,6 @@ class FileGrouper:
         Returns:
             DuplicateResolver instance
         """
-        from anivault.core.file_grouper.duplicate_resolver import (
-            DuplicateResolver,
-        )
-
         return DuplicateResolver()
 
     def _reconstruct_groups_with_evidence(

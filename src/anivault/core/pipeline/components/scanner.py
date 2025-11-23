@@ -7,9 +7,11 @@ specific extensions and feeding them into a bounded queue.
 
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import threading
+import time
 from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -20,6 +22,12 @@ from anivault.core.filter import FilterEngine
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.shared.constants import ProcessingConfig
 from anivault.shared.constants.network import NetworkConfig
+from anivault.shared.errors import (
+    AniVaultError,
+    InfrastructureError,
+    ErrorCode,
+    ErrorContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +112,18 @@ class DirectoryScanner(threading.Thread):
                     e,
                     exc_info=True,
                 )
-            except Exception:
+            except Exception as e:  # - Unexpected callback errors
                 # Handle unexpected callback errors - log but don't interrupt scan
+                context = ErrorContext(operation="scan_progress_callback")
+                error = AniVaultError(
+                    ErrorCode.APPLICATION_ERROR,
+                    f"Unexpected callback error during scan progress reporting: {e}",
+                    context,
+                    original_error=e,
+                )
                 logger.exception(
-                    "Unexpected callback error during scan progress reporting",
+                    "Unexpected callback error during scan progress reporting: %s",
+                    error.message,
                 )
 
     def scan_files(self) -> Generator[Path, None, None]:
@@ -262,8 +278,6 @@ class DirectoryScanner(threading.Thread):
 
                 # Periodic garbage collection hint every 10 batches
                 if batch_count % 10 == 0:
-                    import gc
-
                     gc.collect()  # Suggest garbage collection
 
         # Yield remaining files in the final batch
@@ -312,8 +326,6 @@ class DirectoryScanner(threading.Thread):
                     current_batch.clear()
                     batch_count += 1
                     # Small pause to allow queue processing
-                    import time
-
                     time.sleep(0.01)
                 else:
                     yield current_batch.copy()
@@ -322,8 +334,6 @@ class DirectoryScanner(threading.Thread):
 
                 # Periodic garbage collection hint every 10 batches
                 if batch_count % 10 == 0:
-                    import gc
-
                     gc.collect()  # Suggest garbage collection
 
         # Yield remaining files in the final batch
@@ -592,8 +602,43 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
-            except Exception:  # noqa: BLE001
-                logger.warning("Failed to queue file: %s", file_path, exc_info=True)
+            except (TimeoutError, OSError) as e:
+                # Queue timeout or OS errors
+                context = ErrorContext(
+                    file_path=str(file_path),
+                    operation="queue_file",
+                )
+                error = InfrastructureError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Failed to queue file: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.warning(
+                    "Failed to queue file: %s: %s",
+                    file_path,
+                    error.message,
+                    exc_info=True,
+                )
+                continue
+            except Exception as e:  # noqa: BLE001 - Unexpected queue errors
+                # Unexpected queue errors - log but continue
+                context = ErrorContext(
+                    file_path=str(file_path),
+                    operation="queue_file",
+                )
+                error = AniVaultError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Unexpected error queuing file: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.warning(
+                    "Failed to queue file: %s: %s",
+                    file_path,
+                    error.message,
+                    exc_info=True,
+                )
                 continue
 
         return queued_count
@@ -641,14 +686,60 @@ class DirectoryScanner(threading.Thread):
             else:
                 self._run_sequential_scan()
 
-        except Exception:
-            logger.exception("Error during directory scanning")
+        except (OSError, PermissionError) as e:
+            # File system errors during scanning
+            context = ErrorContext(
+                file_path=str(self.root_path),
+                operation="directory_scanning",
+            )
+            error = InfrastructureError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"File system error during directory scanning: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error during directory scanning: %s", error.message)
+        except Exception as e:  # - Unexpected scanning errors
+            # Unexpected errors during scanning
+            context = ErrorContext(
+                file_path=str(self.root_path),
+                operation="directory_scanning",
+            )
+            error = AniVaultError(
+                ErrorCode.SCANNER_ERROR,
+                f"Unexpected error during directory scanning: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error during directory scanning: %s", error.message)
         finally:
             # Signal completion with sentinel
             try:
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
-            except Exception:  # noqa: BLE001
-                logger.warning("Failed to put sentinel value", exc_info=True)
+            except (TimeoutError, OSError) as e:
+                # Queue timeout or OS errors
+                context = ErrorContext(operation="put_sentinel_value")
+                error = InfrastructureError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Failed to put sentinel value: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.warning(
+                    "Failed to put sentinel value: %s", error.message, exc_info=True
+                )
+            except Exception as e:  # noqa: BLE001 - Unexpected queue errors
+                # Unexpected queue errors - log but continue
+                context = ErrorContext(operation="put_sentinel_value")
+                error = AniVaultError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Unexpected error putting sentinel value: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.warning(
+                    "Failed to put sentinel value: %s", error.message, exc_info=True
+                )
 
     def _run_sequential_scan(self) -> None:
         """Run sequential directory scanning using the original method."""
@@ -661,8 +752,37 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path)
                 self.stats.increment_files_scanned()
-            except Exception:
-                logger.exception("Error putting file into queue: %s", file_path)
+            except (OSError, TimeoutError) as e:
+                # Queue operation errors
+                context = ErrorContext(
+                    file_path=str(file_path),
+                    operation="put_file_sequential",
+                )
+                error = InfrastructureError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Error putting file into queue: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.exception(
+                    "Error putting file into queue: %s: %s", file_path, error.message
+                )
+                continue
+            except Exception as e:  # - Unexpected queue errors
+                # Unexpected queue errors - log but continue
+                context = ErrorContext(
+                    file_path=str(file_path),
+                    operation="put_file_sequential",
+                )
+                error = AniVaultError(
+                    ErrorCode.QUEUE_OPERATION_ERROR,
+                    f"Unexpected error putting file into queue: {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.exception(
+                    "Error putting file into queue: %s: %s", file_path, error.message
+                )
                 continue
 
     def _run_parallel_scan(self) -> None:
@@ -728,9 +848,39 @@ class DirectoryScanner(threading.Thread):
                     # Update statistics (thread-safe)
                     self._thread_safe_update_stats(queued_files, dirs_scanned)
 
-                except Exception:
+                except (OSError, PermissionError) as e:
+                    # File system errors during subdirectory processing
                     subdir = future_to_dir[future]
-                    logger.exception("Error processing subdirectory: %s", subdir)
+                    context = ErrorContext(
+                        file_path=str(subdir),
+                        operation="process_subdirectory",
+                    )
+                    error = InfrastructureError(
+                        ErrorCode.FILE_ACCESS_ERROR,
+                        f"Error processing subdirectory: {e}",
+                        context,
+                        original_error=e,
+                    )
+                    logger.exception(
+                        "Error processing subdirectory: %s: %s", subdir, error.message
+                    )
+                    continue
+                except Exception as e:  # - Unexpected subdirectory errors
+                    # Unexpected errors during subdirectory processing
+                    subdir = future_to_dir[future]
+                    context = ErrorContext(
+                        file_path=str(subdir),
+                        operation="process_subdirectory",
+                    )
+                    error = AniVaultError(
+                        ErrorCode.SCANNER_ERROR,
+                        f"Unexpected error processing subdirectory: {e}",
+                        context,
+                        original_error=e,
+                    )
+                    logger.exception(
+                        "Error processing subdirectory: %s: %s", subdir, error.message
+                    )
                     continue
 
     def get_scan_summary(self) -> dict[str, Any]:

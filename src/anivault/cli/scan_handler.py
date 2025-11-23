@@ -13,10 +13,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console as RichConsole
+
 import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
+from anivault.cli.helpers.scan import _file_metadata_to_dict
+from anivault.shared.constants import CLIFormatting
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.scan import (
     collect_scan_data,
@@ -46,7 +50,6 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    from rich.console import Console as RichConsole
 
     console = kwargs.get("console") or RichConsole()
     logger_adapter = kwargs.get("logger_adapter", logger)
@@ -123,7 +126,6 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
         # Save results to file if requested
         if options.output:
             _save_results_to_file(enriched_results, options.output)
-            from anivault.shared.constants import CLIFormatting
 
             console.print(
                 CLIFormatting.format_colored_message(
@@ -145,7 +147,6 @@ def _save_results_to_file(results: list[FileMetadata], output_path: Path) -> Non
         results: List of FileMetadata instances
         output_path: Path to save the results
     """
-    from anivault.cli.helpers.scan import _file_metadata_to_dict
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

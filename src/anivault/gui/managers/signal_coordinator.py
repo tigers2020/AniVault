@@ -26,10 +26,7 @@ Example:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from anivault.gui.main_window import MainWindow
+from anivault.gui.main_window import MainWindow
 
 
 class SignalCoordinator:

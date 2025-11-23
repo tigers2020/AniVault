@@ -13,6 +13,7 @@ The module follows these principles:
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -229,7 +230,6 @@ def mask_sensitive_paths(path_str: str) -> str:
             pass
 
         # Fallback: Pattern-based masking for common user directories
-        import re
 
         # Unix-style: /home/username/...
         unix_pattern = r"/home/[^/]+/"
