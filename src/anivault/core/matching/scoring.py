@@ -11,7 +11,6 @@ import logging
 from rapidfuzz import fuzz
 
 from anivault.core.matching.models import NormalizedQuery
-from anivault.services.tmdb import TMDBSearchResult
 from anivault.shared.constants.matching import ScoringWeights
 from anivault.shared.constants.validation_constants import (
     DEFAULT_CONFIDENCE_THRESHOLD,
@@ -25,6 +24,7 @@ from anivault.shared.errors import (
     ErrorCode,
     ErrorContext,
 )
+from anivault.shared.models.tmdb_models import TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,6 @@ import re
 import unicodedata
 from typing import Any
 
-from anivault.core.matching.models import NormalizedQuery
 from anivault.shared.constants import NormalizationConfig
 from anivault.shared.constants.core import LanguageDetectionConfig
 

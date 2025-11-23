@@ -10,10 +10,12 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from dependency_injector.wiring import Provide, inject
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from anivault.config import get_config
+from anivault.containers import Container
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
@@ -53,13 +55,20 @@ class TMDBMatchingWorker(QObject):
     matching_error: Signal = Signal(str)  # Emits error message
     matching_cancelled: Signal = Signal()  # Emitted when cancelled
 
-    def __init__(self, api_key: str, parent: QObject | None = None) -> None:
+    @inject
+    def __init__(
+        self,
+        api_key: str,
+        parent: QObject | None = None,
+        matching_engine: MatchingEngine = Provide[Container.matching_engine],
+    ) -> None:
         """
         Initialize the TMDB matching worker.
 
         Args:
             api_key: TMDB API key for authentication
             parent: Parent widget
+            matching_engine: MatchingEngine instance injected from DI container
         """
         super().__init__(parent)
 
@@ -67,15 +76,18 @@ class TMDBMatchingWorker(QObject):
         self._api_key = api_key
         self._files_to_match: list[FileItem] = []
 
-        # Initialize core components
+        # Store injected matching engine
+        self.matching_engine = matching_engine
+
+        # Initialize remaining components
         self._initialize_components()
 
         logger.debug("TMDBMatchingWorker initialized")
 
     def _initialize_components(self) -> None:
-        """Initialize TMDB client and matching engine components."""
+        """Initialize remaining TMDB client components."""
         try:
-            # Initialize cache (SQLite DB)
+            # Initialize cache (SQLite DB) - kept for backward compatibility
             # Use centralized project root utility for consistent path resolution
             project_root = get_project_root()
             cache_db_path = project_root / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db"
@@ -86,7 +98,7 @@ class TMDBMatchingWorker(QObject):
             )
             self.cache = SQLiteCacheDB(cache_db_path)
 
-            # Initialize rate limiting components
+            # Initialize rate limiting components - kept for backward compatibility
             self.rate_limiter = TokenBucketRateLimiter(
                 capacity=50,  # Default rate limit
                 refill_rate=50,
@@ -94,17 +106,11 @@ class TMDBMatchingWorker(QObject):
             self.semaphore_manager = SemaphoreManager(concurrency_limit=4)
             self.state_machine = RateLimitStateMachine()
 
-            # Initialize TMDB client
+            # Initialize TMDB client - kept for backward compatibility
             self.tmdb_client = TMDBClient(
                 rate_limiter=self.rate_limiter,
                 semaphore_manager=self.semaphore_manager,
                 state_machine=self.state_machine,
-            )
-
-            # Initialize matching engine
-            self.matching_engine = MatchingEngine(
-                cache=self.cache,
-                tmdb_client=self.tmdb_client,
             )
 
             # Initialize parser

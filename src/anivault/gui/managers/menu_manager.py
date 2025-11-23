@@ -19,7 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-from anivault.gui.main_window import MainWindow
 from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QWidget
 

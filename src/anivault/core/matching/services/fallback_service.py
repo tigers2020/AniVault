@@ -7,11 +7,12 @@ multiple fallback strategies in priority order.
 from __future__ import annotations
 
 import logging
+
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.strategies import FallbackStrategy
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.tmdb import ScoredSearchResult
 from anivault.shared.errors import ErrorCode
+from anivault.shared.models.tmdb_models import ScoredSearchResult
 
 logger = logging.getLogger(__name__)
 

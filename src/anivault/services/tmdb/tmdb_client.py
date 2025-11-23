@@ -27,8 +27,12 @@ from anivault.shared.errors import (
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
+from anivault.shared.models.tmdb_models import (
+    TMDBMediaDetails,
+    TMDBSearchResponse,
+    TMDBSearchResult,
+)
 
-from .tmdb_models import TMDBMediaDetails, TMDBSearchResponse, TMDBSearchResult
 from .tmdb_strategies import MovieSearchStrategy, SearchStrategy, TvSearchStrategy
 from .tmdb_utils import generate_shortened_titles
 

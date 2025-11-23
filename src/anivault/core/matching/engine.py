@@ -12,10 +12,10 @@ from typing import Any, cast
 
 from anivault.core.matching.models import MatchResult, NormalizedQuery
 from anivault.core.matching.services import (
+    CacheAdapterProtocol,
     CandidateFilterService,
     CandidateScoringService,
     FallbackStrategyService,
-    SQLiteCacheAdapter,
     TMDBSearchService,
 )
 from anivault.core.matching.strategies import (
@@ -25,18 +25,14 @@ from anivault.core.matching.strategies import (
 )
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.cache import SQLiteCacheDB
-from anivault.services.tmdb import ScoredSearchResult, TMDBClient, TMDBSearchResult
-from anivault.shared.constants import (
-    ConfidenceThresholds,
-    DefaultLanguage,
-    TMDBSearchKeys,
-)
+from anivault.shared.constants import ConfidenceThresholds
 from anivault.shared.errors import (
     AniVaultParsingError,
     ErrorCode,
     ErrorContext,
 )
+from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
+from anivault.shared.protocols.services import TMDBClientProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -58,22 +54,21 @@ class MatchingEngine:
 
     def __init__(
         self,
-        cache: SQLiteCacheDB,
-        tmdb_client: TMDBClient,
+        cache_adapter: CacheAdapterProtocol,
+        tmdb_client: TMDBClientProtocol,
         statistics: StatisticsCollector | None = None,
     ):
         """Initialize the matching engine.
 
         Args:
-            cache: SQLite cache database for storing TMDB search results
+            cache_adapter: Cache adapter for storing TMDB search results
             tmdb_client: TMDB client for API calls
             statistics: Optional statistics collector for performance tracking
         """
         self.statistics = statistics or StatisticsCollector()
 
-        # Create cache adapter with language from TMDB client
-        language = getattr(tmdb_client, TMDBSearchKeys.LANGUAGE, DefaultLanguage.KOREAN)
-        self.cache = SQLiteCacheAdapter(backend=cache, language=language)
+        # Use provided cache adapter
+        self.cache = cache_adapter
 
         self.tmdb_client = tmdb_client
 
@@ -225,7 +220,7 @@ class MatchingEngine:
             self.statistics.end_timing("matching_operation")
             return None
         except Exception as e:
-            from anivault.shared.errors import AniVaultError, ErrorContext
+            from anivault.shared.errors import AniVaultError
 
             # Unexpected errors
             context = ErrorContext(

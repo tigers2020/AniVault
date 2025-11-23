@@ -12,8 +12,11 @@ All configuration components are available through this package:
 
 from __future__ import annotations
 
-# Import Settings and domain models from settings facade
-from .settings import (
+# Import Settings from models package
+from .models.settings import Settings
+
+# Import domain models from models package for backward compatibility
+from .models import (
     APISettings,
     AppConfig,
     AppSettings,
@@ -29,7 +32,6 @@ from .settings import (
     ScanConfig,
     ScanSettings,
     SecuritySettings,
-    Settings,
     TMDBConfig,
     TMDBSettings,
 )

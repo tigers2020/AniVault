@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from anivault.core.matching.models import NormalizedQuery
-from anivault.services.tmdb import ScoredSearchResult
+from anivault.shared.models.tmdb_models import ScoredSearchResult
 
 
 @runtime_checkable

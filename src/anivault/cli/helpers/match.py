@@ -11,10 +11,15 @@ import logging
 import sys
 from pathlib import Path
 from typing import Any
-from rich.console import Console
 
+from dependency_injector.wiring import Provide, inject
+from rich.console import Console
+from rich.table import Table
+
+from anivault.cli.common.path_utils import extract_directory_path
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
+from anivault.containers import Container
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
@@ -27,17 +32,15 @@ from anivault.services import (
     TokenBucketRateLimiter,
 )
 from anivault.shared.constants import FileSystem
+from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.errors import (
     AniVaultError,
     AniVaultParsingError,
     ErrorCode,
     ErrorContext,
 )
-from anivault.utils.resource_path import get_project_root
-from anivault.shared.constants.cli import CLIFormatting, CLIMessages
-from anivault.cli.common.path_utils import extract_directory_path
 from anivault.shared.metadata_models import FileMetadata
-from rich.table import Table
+from anivault.utils.resource_path import get_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +97,18 @@ def _show_start_message(directory: Path, options: Any, console: Console) -> None
         )
 
 
-def _initialize_services() -> dict[str, Any]:
-    """Initialize matching services."""
+@inject
+def _initialize_services(
+    matching_engine: MatchingEngine = Provide[Container.matching_engine],
+) -> dict[str, Any]:
+    """Initialize matching services.
+
+    Args:
+        matching_engine: MatchingEngine instance injected from DI container
+
+    Returns:
+        Dictionary containing initialized services
+    """
     # Use centralized project root utility for consistent path resolution
     project_root = get_project_root()
     cache_db_path = project_root / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db"
@@ -110,7 +123,6 @@ def _initialize_services() -> dict[str, Any]:
         state_machine=state_machine,
     )
 
-    matching_engine = MatchingEngine(tmdb_client=tmdb_client, cache=cache)
     parser = AnitopyParser()
 
     return {

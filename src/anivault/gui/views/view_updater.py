@@ -14,7 +14,7 @@ from typing import Any
 from PySide6.QtWidgets import QLabel, QListWidget
 
 from anivault.gui.managers.status_manager import StatusManager
-from anivault.gui.widgets.group_view import GroupView  # type: ignore[import-untyped]
+from anivault.gui.widgets.group_grid_view import GroupGridViewWidget
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class ViewUpdater:
     testability and maintainability of the UI layer.
 
     Attributes:
-        _group_view: GroupView widget for displaying file groups
+        _group_view: GroupGridViewWidget for displaying file groups
         _file_list: QListWidget for displaying files in selected group
         _group_details_label: QLabel for showing group information
         _status_manager: StatusManager for status bar updates
@@ -48,7 +48,7 @@ class ViewUpdater:
 
     def __init__(
         self,
-        group_view: GroupView,
+        group_view: GroupGridViewWidget,
         file_list: QListWidget,
         group_details_label: QLabel,
         status_manager: StatusManager,
@@ -56,7 +56,7 @@ class ViewUpdater:
         """Initialize the view updater.
 
         Args:
-            group_view: GroupView widget for displaying file groups
+            group_view: GroupGridViewWidget for displaying file groups
             file_list: QListWidget for displaying files
             group_details_label: QLabel for group information
             status_manager: StatusManager for status updates

@@ -12,8 +12,8 @@ from dataclasses import dataclass, replace
 from rapidfuzz import fuzz
 
 from anivault.core.matching.models import NormalizedQuery
-from anivault.services.tmdb import ScoredSearchResult
 from anivault.shared.constants import GenreConfig
+from anivault.shared.models.tmdb_models import ScoredSearchResult
 
 logger = logging.getLogger(__name__)
 

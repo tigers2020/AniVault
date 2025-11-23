@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import (
+from anivault.config import (
     FolderSettings,
     Settings,
     get_config,

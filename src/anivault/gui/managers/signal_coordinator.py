@@ -26,8 +26,6 @@ Example:
 
 from __future__ import annotations
 
-from anivault.gui.main_window import MainWindow
-
 
 class SignalCoordinator:
     """Centrally manages signal connections for MainWindow.

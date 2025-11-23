@@ -9,10 +9,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from anivault.core.matching.cache_models import CachedSearchData
-from anivault.services.cache import SQLiteCacheDB
 from anivault.shared.constants import Cache
 from anivault.shared.errors import (
     AniVaultError,
@@ -104,7 +103,7 @@ class SQLiteCacheAdapter:
         - Maintains key uniqueness through SHA-256 hashing
 
     Example:
-        >>> from anivault.services.cache import SQLiteCacheDB
+        >>> # SQLiteCacheDB is imported at runtime
         >>> db = SQLiteCacheDB(Path("cache.db"))
         >>> adapter = SQLiteCacheAdapter(db, language="ko-KR")
         >>> adapter.set("search:anime:test", {"results": []})
@@ -113,13 +112,19 @@ class SQLiteCacheAdapter:
 
     MAX_KEY_LENGTH = 256  # Maximum cache key length before hashing
 
-    def __init__(self, backend: SQLiteCacheDB, language: str = "ko-KR") -> None:
+    def __init__(self, backend: Any, language: str = "ko-KR") -> None:
         """Initialize cache adapter with SQLite backend.
 
         Args:
-            backend: SQLiteCacheDB instance for storage operations
+            backend: Cache backend instance (SQLiteCacheDB or compatible)
             language: Language code for cache key generation (default: 'ko-KR')
         """
+        # Import at runtime to avoid dependency layer violation
+        from anivault.services.cache import SQLiteCacheDB
+
+        if not isinstance(backend, SQLiteCacheDB):
+            raise TypeError(f"Expected SQLiteCacheDB, got {type(backend)}")
+
         self.backend = backend
         self.language = language
 

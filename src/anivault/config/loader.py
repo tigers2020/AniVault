@@ -14,10 +14,9 @@ from __future__ import annotations
 import sys
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
-if TYPE_CHECKING:
-    from anivault.config.settings import Settings
+from anivault.config.models.settings import Settings
 
 
 class SettingsLoader:
@@ -327,8 +326,6 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     Returns:
         Settings instance loaded from the specified source
     """
-    # Import Settings at runtime to avoid circular dependency
-    from anivault.config.settings import Settings
     from anivault.shared.constants import FileSystem
 
     # Load .env file if it exists (only once)

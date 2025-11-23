@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from anivault.services.tmdb import TMDBSearchResult
+from anivault.shared.models.tmdb_models import TMDBSearchResult
 
 
 @dataclass
@@ -25,7 +25,7 @@ class CachedSearchData:
         cached_at: Timestamp when data was cached
 
     Example:
-        >>> from anivault.services.tmdb import TMDBSearchResult
+        >>> from anivault.shared.models.tmdb_models import TMDBSearchResult
         >>> result = TMDBSearchResult(id=1, name="Test", media_type="tv", ...)
         >>> cached = CachedSearchData(results=[result], language="ko-KR")
         >>> cached.results[0].name

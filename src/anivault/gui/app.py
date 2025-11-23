@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import logging
 import sys
-import toml
 from pathlib import Path
 
+import toml
 from PySide6.QtWidgets import QApplication
 
-from anivault.config.auto_scanner import AutoScanner
 from anivault.config import get_config, load_settings
+from anivault.config.auto_scanner import AutoScanner
+from anivault.containers import Container
 from anivault.shared.errors import (
     AniVaultError,
     AniVaultFileError,
@@ -29,6 +30,28 @@ from .main_window import MainWindow
 from .themes import ThemeManager
 
 logger = logging.getLogger(__name__)
+
+# Global DI container instance
+_container: Container | None = None
+
+
+def get_container() -> Container:
+    """Get or create the DI container instance.
+
+    Returns:
+        Container instance for dependency injection
+    """
+    global _container
+    if _container is None:
+        _container = Container()
+        # Wire modules that use DI
+        _container.wire(
+            modules=[
+                "anivault.gui.workers.tmdb_matching_worker",
+            ]
+        )
+        logger.debug("DI container initialized and wired for GUI")
+    return _container
 
 
 class AniVaultGUI:
@@ -49,6 +72,9 @@ class AniVaultGUI:
             True if initialization successful, False otherwise
         """
         try:
+            # Initialize DI container first
+            get_container()
+
             # Create QApplication
             self.app = QApplication(sys.argv)
             self.app.setApplicationName("AniVault")
@@ -372,6 +398,7 @@ class AniVaultGUI:
 def main() -> int:
     """Main entry point for GUI application."""
     gui_app = AniVaultGUI()
+    container = get_container()
 
     try:
         # Initialize application
@@ -391,6 +418,9 @@ def main() -> int:
 
     finally:
         gui_app.cleanup()
+        # Unwire container on cleanup
+        if container:
+            container.unwire()
 
 
 if __name__ == "__main__":

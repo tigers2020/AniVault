@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import logging
 import re
+
 from anivault.core.matching.cache_models import CachedSearchData
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.services.cache_adapter import CacheAdapterProtocol
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.tmdb import TMDBClient, TMDBSearchResult
 from anivault.shared.constants import MatchingCacheConfig, NormalizationConfig
 from anivault.shared.errors import ErrorCode
+from anivault.shared.models.tmdb_models import TMDBSearchResult
+from anivault.shared.protocols.services import TMDBClientProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +96,7 @@ class TMDBSearchService:
 
     def __init__(
         self,
-        tmdb_client: TMDBClient,
+        tmdb_client: TMDBClientProtocol,
         cache: CacheAdapterProtocol,
         statistics: StatisticsCollector,
     ) -> None:

@@ -11,22 +11,22 @@ import logging
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.tmdb import (
-    ScoredSearchResult,
-    TMDBCandidate,
-    TMDBSearchResult,
-)
+from anivault.shared.constants import ConfidenceThresholds
 from anivault.shared.constants.validation_constants import (
     SCORE_HIGH,
     SCORE_MEDIUM,
     SCORE_VERY_LOW,
 )
-from anivault.shared.constants import ConfidenceThresholds
 from anivault.shared.errors import (
     AniVaultError,
     AniVaultParsingError,
     ErrorCode,
     ErrorContext,
+)
+from anivault.shared.models.tmdb_models import (
+    ScoredSearchResult,
+    TMDBCandidate,
+    TMDBSearchResult,
 )
 from anivault.shared.utils.dataclass_serialization import to_dict
 
@@ -46,7 +46,7 @@ class CandidateScoringService:
         statistics: Statistics collector for performance tracking
 
     Example:
-        >>> from anivault.services.tmdb import TMDBSearchResult
+        >>> from anivault.shared.models.tmdb_models import TMDBSearchResult
         >>> from anivault.core.matching.models import NormalizedQuery
         >>>
         >>> stats = StatisticsCollector()

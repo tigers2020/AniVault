@@ -44,3 +44,14 @@ repos:
       - id: check-merge-conflict
       - id: debug-statements
       - id: check-docstring-first
+
+  # Local hooks for circular import and dependency layer validation
+  - repo: local
+    hooks:
+      - id: detect-circular-imports
+        name: Detect circular imports and validate dependency layers
+        entry: python scripts/detect_circular_imports.py
+        language: system
+        types: [python]
+        files: ^src/
+        pass_filenames: false
