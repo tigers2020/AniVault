@@ -63,7 +63,8 @@ class FilterEngine:
             if fnmatch.fnmatch(dir_name_lower, pattern):
                 return True
 
-        # Check if directory matches filename exclusion patterns (for patterns like *sample*, *trailer*, etc.)
+        # Check if directory matches filename exclusion patterns
+        # (for patterns like *sample*, *trailer*, etc.)
         for pattern in self._compiled_filename_patterns:
             if fnmatch.fnmatch(dir_name_lower, pattern):
                 return True

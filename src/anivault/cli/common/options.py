@@ -26,7 +26,10 @@ verbose_option: Annotated[
         "--verbose",
         "-v",
         count=True,
-        help="Enable verbose output (equivalent to --log-level DEBUG). Use multiple times for increased verbosity.",
+        help=(
+            "Enable verbose output (equivalent to --log-level DEBUG). "
+            "Use multiple times for increased verbosity."
+        ),
     ),
 ] = 0
 

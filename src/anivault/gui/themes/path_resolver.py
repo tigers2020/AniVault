@@ -77,7 +77,10 @@ class ThemePathResolver:
                 # PyInstaller bundle: read-only embedded resources
                 # Match the bundled path structure from AniVault.spec
                 self.base_theme_dir = (
-                    Path(sys._MEIPASS) / "anivault" / "resources" / "themes"  # type: ignore[attr-defined]
+                    Path(sys._MEIPASS)  # type: ignore[attr-defined]
+                    / "anivault"
+                    / "resources"
+                    / "themes"
                 )
                 # User-writable directory for theme files
                 self.user_theme_dir = Path.home() / ".anivault" / "themes"

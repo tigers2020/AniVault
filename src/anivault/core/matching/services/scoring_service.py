@@ -142,7 +142,10 @@ class CandidateScoringService:
                 )
                 error = AniVaultParsingError(
                     ErrorCode.DATA_PROCESSING_ERROR,
-                    f"Failed to calculate confidence score for candidate '{candidate.display_title}': {e}",
+                    (
+                        f"Failed to calculate confidence score for candidate "
+                        f"'{candidate.display_title}': {e}"
+                    ),
                     context,
                     original_error=e,
                 )
@@ -169,7 +172,10 @@ class CandidateScoringService:
                 )
                 error = AniVaultError(
                     ErrorCode.DATA_PROCESSING_ERROR,
-                    f"Unexpected error calculating confidence score for candidate '{candidate.display_title}': {e}",
+                    (
+                        f"Unexpected error calculating confidence score "
+                        f"for candidate '{candidate.display_title}': {e}"
+                    ),
                     context,
                     original_error=e,
                 )

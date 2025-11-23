@@ -335,7 +335,8 @@ class StateModel(QObject):
             logger.exception("Failed to import state: %s", file_path)
             return False
         except json.JSONDecodeError as e:
-            # JSON parsing errors (must come before ValueError since JSONDecodeError extends ValueError)
+            # JSON parsing errors
+            # (must come before ValueError since JSONDecodeError extends ValueError)
             context = ErrorContext(
                 file_path=str(file_path),
                 operation="import_state",
@@ -346,7 +347,10 @@ class StateModel(QObject):
             )
             error = AniVaultParsingError(
                 ErrorCode.PARSING_ERROR,
-                f"Invalid JSON format in state file: {file_path} (line {getattr(e, 'lineno', 'unknown')})",
+                (
+                    f"Invalid JSON format in state file: {file_path} "
+                    f"(line {getattr(e, 'lineno', 'unknown')})"
+                ),
                 context,
                 original_error=e,
             )

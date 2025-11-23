@@ -170,7 +170,9 @@ class FileTreeModel(QStandardItemModel):
                     status_item = self.item(row, 2)
                     if status_item:
                         status_item.setText(new_status)
-                        status_item.setData(new_status, Qt.DisplayRole)  # type: ignore[attr-defined]
+                        status_item.setData(
+                            new_status, Qt.DisplayRole
+                        )  # type: ignore[attr-defined]
 
                     # Update the file item
                     file_item.status = new_status
@@ -217,10 +219,14 @@ class FileTreeModel(QStandardItemModel):
                     if matched_item:
                         if match_result:
                             matched_item.setText(series_title)
-                            matched_item.setData(series_title, Qt.DisplayRole)  # type: ignore[attr-defined]
+                            matched_item.setData(
+                                series_title, Qt.DisplayRole
+                            )  # type: ignore[attr-defined]
                         else:
                             matched_item.setText("No match found")
-                            matched_item.setData("No match found", Qt.DisplayRole)  # type: ignore[attr-defined]
+                            matched_item.setData(
+                                "No match found", Qt.DisplayRole
+                            )  # type: ignore[attr-defined]
 
                     # Update the file item status and metadata
                     file_item.status = status

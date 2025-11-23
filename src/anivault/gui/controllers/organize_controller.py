@@ -123,7 +123,8 @@ class OrganizeController(QObject):
                 return self._convert_from_file_metadata(file_item)
 
             # Handle dict format (legacy - for backward compatibility)
-            # Note: FileItem.metadata is typed as FileMetadata | None, but dict is accepted for backward compatibility
+            # Note: FileItem.metadata is typed as FileMetadata | None,
+            # but dict is accepted for backward compatibility
             if isinstance(file_item.metadata, dict):  # type: ignore[unreachable]
                 return self._convert_from_dict(file_item)
 

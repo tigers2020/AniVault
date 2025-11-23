@@ -417,8 +417,10 @@ class MainWindow(QMainWindow):
             grouped_files: List of Group objects (not used, required by signal)
         """
         _ = grouped_files  # Signal parameter, not used in this orchestration method
-        # Auto-start TMDB matching after grouping (only if not already in progress and not a regroup)
-        # Skip auto-start if this is a regroup after TMDB matching to prevent infinite loop
+        # Auto-start TMDB matching after grouping
+        # (only if not already in progress and not a regroup)
+        # Skip auto-start if this is a regroup after TMDB matching
+        # to prevent infinite loop
         if not self.tmdb_controller.is_matching and not getattr(
             self,
             "_is_regrouping",
@@ -693,7 +695,10 @@ class MainWindow(QMainWindow):
         # Create preview dialog using factory
         preview_dialog = self.dialog_factory.create_organize_preview_dialog(plan, self)
 
-        if preview_dialog.exec() == QDialog.Accepted and preview_dialog.is_confirmed():  # type: ignore[attr-defined]
+        if (
+            preview_dialog.exec() == QDialog.Accepted  # type: ignore[attr-defined]
+            and preview_dialog.is_confirmed()
+        ):
             # User confirmed - execute the plan via handler
             if self.organize_event_handler._execute_plan_callback:
                 self.organize_event_handler._execute_plan_callback(plan)

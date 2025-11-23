@@ -64,7 +64,8 @@ class FileResolutionInfo:
         series_title: Series title extracted from metadata or filename
         is_high_res: Whether the file is high resolution (True) or low (False)
         quality_string: Original quality string (e.g., "1080p", "720p")
-        detection_method: How the resolution was detected ("tmdb_metadata", "tmdb_filename", "filename_only")
+        detection_method: How the resolution was detected
+            ("tmdb_metadata", "tmdb_filename", "filename_only")
     """
 
     series_title: str

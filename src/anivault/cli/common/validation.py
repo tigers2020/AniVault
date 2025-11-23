@@ -104,7 +104,10 @@ class NamingFormat(BaseModel):
         open_braces = format_str.count("{")
         close_braces = format_str.count("}")
         if open_braces != close_braces:
-            msg = f"Format string has mismatched braces: {open_braces} opening, {close_braces} closing"
+            msg = (
+                f"Format string has mismatched braces: "
+                f"{open_braces} opening, {close_braces} closing"
+            )
             raise ValueError(
                 msg,
             )

@@ -109,7 +109,10 @@ class SubtitleMatcher:
                 return settings.grouping.subtitle_matching_strategy
         except (ImportError, AttributeError, Exception) as e:
             logger.debug(
-                "Could not load subtitle_matching_strategy from config, using default 'indexed': %s",
+                (
+                    "Could not load subtitle_matching_strategy from config, "
+                    "using default 'indexed': %s"
+                ),
                 e,
             )
 

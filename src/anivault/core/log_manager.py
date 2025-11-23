@@ -221,7 +221,8 @@ class OperationLogManager:
         identifiers = []
 
         for log_file in log_files:
-            # Extract timestamp from filename (e.g., "organize-20231027-153000.json" -> "20231027-153000")
+            # Extract timestamp from filename
+            # (e.g., "organize-20231027-153000.json" -> "20231027-153000")
             filename = log_file.name
             if filename.startswith(Logging.ORGANIZE_LOG_PREFIX) and filename.endswith(
                 Logging.FILE_EXTENSION,
