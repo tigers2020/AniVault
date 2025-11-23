@@ -407,7 +407,7 @@ def _format_file_size_human_readable(size_bytes: float) -> str:
 
 def collect_organize_data(
     plan: list[Any],
-    options: OrganizeOptions,
+    _options: OrganizeOptions,  # Unused, kept for API compatibility
     moved_files: list[Any] | None = None,
     operation_id: str | None = None,
     *,
@@ -417,7 +417,7 @@ def collect_organize_data(
 
     Args:
         plan: Organization plan
-        options: Organize options
+        _options: Organize options (unused, kept for API compatibility)
         is_dry_run: Whether dry run
         moved_files: List of moved files
         operation_id: Operation ID

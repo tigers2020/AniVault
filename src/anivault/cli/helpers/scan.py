@@ -245,7 +245,7 @@ def _file_metadata_to_parsing_result(metadata: FileMetadata) -> ParsingResult:
 
 async def enrich_metadata(
     file_results: list[FileMetadata],
-    console: Console,
+    _console: Console,  # Reserved for future use
     *,
     is_json_output: bool = False,
 ) -> list[FileMetadata]:
@@ -253,7 +253,7 @@ async def enrich_metadata(
 
     Args:
         file_results: List of FileMetadata instances to enrich
-        console: Rich console for output
+        _console: Rich console for output (reserved for future use)
         is_json_output: Whether JSON output is enabled
 
     Returns:

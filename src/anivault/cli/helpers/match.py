@@ -437,7 +437,7 @@ async def process_file_for_matching(
     file_path: Path,
     parser: AnitopyParser,
     matching_engine: MatchingEngine,
-    console: Console,
+    _console: Console,  # Reserved for future error display
 ) -> FileMetadata | None:
     """Process a single file through matching pipeline.
 
@@ -448,7 +448,7 @@ async def process_file_for_matching(
         file_path: Path to anime file
         parser: Parser instance
         matching_engine: Matching engine instance
-        console: Rich console (reserved for future error display)
+        _console: Rich console (reserved for future error display)
 
     Returns:
         FileMetadata instance with match results, or None if parsing fails

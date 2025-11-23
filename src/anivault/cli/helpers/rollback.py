@@ -135,14 +135,14 @@ def validate_rollback_plan(
 
 def execute_rollback_plan(
     rollback_plan: list[FileOperation],
-    log_id: str,
+    _log_id: str,  # Unused, kept for API compatibility
     console: Console,
 ) -> int:
     """Execute rollback plan.
 
     Args:
         rollback_plan: List of FileOperation objects to execute
-        log_id: Operation log ID for tracking
+        _log_id: Operation log ID for tracking (unused, kept for API compatibility)
         console: Rich console for output
 
     Returns:

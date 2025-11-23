@@ -425,7 +425,7 @@ def run_command(
         "--include-metadata/--no-include-metadata",
         help="Include metadata files in processing",
     ),
-    output_file: Path | None = typer.Option(
+    output_file: Path | None = typer.Option(  # noqa: ARG001
         None,
         "--output",
         "-o",
