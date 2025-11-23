@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+
+from prompt_toolkit.shortcuts import confirm
+from rich.console import Console
+
 from anivault.core.log_manager import LogFileNotFoundError, OperationLogManager
 from anivault.core.models import FileOperation
 from anivault.core.organizer import FileOrganizer
@@ -18,8 +22,6 @@ from anivault.shared.errors import (
     ErrorContext,
     InfrastructureError,
 )
-from prompt_toolkit.shortcuts import confirm
-from rich.console import Console
 
 logger = logging.getLogger(__name__)
 

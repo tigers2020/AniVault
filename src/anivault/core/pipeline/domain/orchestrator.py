@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from anivault.core.constants import ProcessStatus
 from anivault.core.pipeline.components import (
     CacheV1,
     DirectoryScanner,
@@ -28,7 +29,6 @@ from anivault.core.pipeline.domain.lifecycle import (
     wait_for_parser_completion,
     wait_for_scanner_completion,
 )
-from anivault.core.constants import ProcessStatus
 from anivault.core.pipeline.domain.statistics import format_statistics
 from anivault.core.pipeline.utils import (
     BoundedQueue,

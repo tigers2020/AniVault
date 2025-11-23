@@ -14,12 +14,9 @@ The container manages:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from dependency_injector import containers, providers
 
 from anivault.config.loader import load_settings
-from anivault.config.models.settings import Settings
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.services.cache_adapter import SQLiteCacheAdapter
 from anivault.services import (
@@ -103,4 +100,3 @@ class Container(containers.DeclarativeContainer):
         cache_adapter=cache_adapter,
         tmdb_client=tmdb_client,
     )
-

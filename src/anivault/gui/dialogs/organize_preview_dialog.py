@@ -8,13 +8,11 @@ before actual execution, allowing users to review and confirm changes.
 from __future__ import annotations
 
 import logging
-
 import re
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt
-from anivault.shared.constants import VideoQuality
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QApplication,
@@ -29,6 +27,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from anivault.shared.constants import VideoQuality
 
 logger = logging.getLogger(__name__)
 

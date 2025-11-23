@@ -245,7 +245,18 @@ class ResultCollector(threading.Thread):
 
                     self._store_result_with_error_handling(item)
 
-                except Exception as e:  # noqa: BLE001
+                except (
+                    ValueError,
+                    RuntimeError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                ) as e:
+                    # Handle specific errors from queue operations or data processing
+                    self._handle_queue_error(e, context)
+                    continue
+                except InfrastructureError as e:
+                    # Handle infrastructure errors from _store_result_with_error_handling
                     self._handle_queue_error(e, context)
                     continue
 
@@ -323,14 +334,14 @@ class ResultCollector(threading.Thread):
     def _handle_idle_state(
         self,
         idle_count: int,
-        max_idle_loops: int | None,  # noqa: ARG002
+        _max_idle_loops: int | None,  # Used by caller, not in this method
         idle_sleep: float,
     ) -> int:
         """Handle idle state when no items are available.
 
         Args:
             idle_count: Current idle count.
-            max_idle_loops: Maximum number of idle loops.
+            _max_idle_loops: Maximum number of idle loops (used by caller).
             idle_sleep: Sleep time between idle loops.
 
         Returns:
@@ -364,21 +375,6 @@ class ResultCollector(threading.Thread):
                     "Error marking task as done in collector %s: %s",
                     self.collector_id,
                     e,
-                )
-            except Exception as e:  # - Unexpected queue errors
-                # Handle unexpected queue errors
-                context = ErrorContext(
-                    operation="mark_task_done",
-                    additional_data={"collector_id": self.collector_id},
-                )
-                error = AniVaultError(
-                    ErrorCode.QUEUE_OPERATION_ERROR,
-                    f"Unexpected error marking task as done in collector {self.collector_id}: {e}",
-                    context,
-                    original_error=e,
-                )
-                logger.exception(
-                    "Unexpected error marking task as done: %s", error.message
                 )
             self.stop()
             return True
@@ -460,21 +456,6 @@ class ResultCollector(threading.Thread):
                     "Error marking task as done in collector %s: %s",
                     self.collector_id,
                     e,
-                )
-            except Exception as e:  # - Unexpected queue errors
-                # Handle unexpected queue errors
-                context = ErrorContext(
-                    operation="mark_task_done_finally",
-                    additional_data={"collector_id": self.collector_id},
-                )
-                error = AniVaultError(
-                    ErrorCode.QUEUE_OPERATION_ERROR,
-                    f"Unexpected error marking task as done in collector {self.collector_id}: {e}",
-                    context,
-                    original_error=e,
-                )
-                logger.exception(
-                    "Unexpected error marking task as done: %s", error.message
                 )
 
     def _handle_queue_error(self, error: Exception, context: ErrorContext) -> None:
@@ -604,7 +585,7 @@ class ResultCollector(threading.Thread):
 
     def get_results_by_worker(
         self,
-        worker_id: str,  # noqa: ARG002
+        _worker_id: str,  # Unused, kept for API compatibility
     ) -> list[FileMetadata]:
         """Get results processed by a specific worker.
 

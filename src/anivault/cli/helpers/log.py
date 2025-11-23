@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console
+from rich.table import Table
+
 from anivault.shared.constants import DateFormats, FileSystem, LogJsonKeys
 from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.errors import (
@@ -19,8 +22,6 @@ from anivault.shared.errors import (
     ErrorContext,
     InfrastructureError,
 )
-from rich.console import Console
-from rich.table import Table
 
 logger = logging.getLogger(__name__)
 

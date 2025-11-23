@@ -11,8 +11,6 @@ from __future__ import annotations
 import json
 import logging
 import platform
-
-import psutil
 import time
 import tracemalloc
 from collections.abc import Generator
@@ -21,6 +19,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import psutil
 
 from anivault.core.statistics import PerformanceMetrics, StatisticsCollector
 

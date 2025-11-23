@@ -12,13 +12,10 @@ import logging
 from typing import Any, Protocol, cast
 
 from anivault.core.matching.cache_models import CachedSearchData
-from anivault.shared.constants import Cache
-from anivault.shared.errors import (
-    AniVaultError,
-    AniVaultParsingError,
-    ErrorCode,
-    ErrorContext,
+from anivault.services.cache import (
+    SQLiteCacheDB,
 )
+from anivault.shared.constants import Cache
 from anivault.shared.utils.dataclass_serialization import from_dict, to_dict
 
 logger = logging.getLogger(__name__)
@@ -56,7 +53,6 @@ class CacheAdapterProtocol(Protocol):
         Returns:
             Strongly-typed cached data model, or None if not found or expired
         """
-        ...
 
     def delete(self, key: str, cache_type: str = Cache.TYPE_SEARCH) -> None:
         """Delete cached data by key.
@@ -65,7 +61,6 @@ class CacheAdapterProtocol(Protocol):
             key: Cache key identifier
             cache_type: Type of cache (e.g., 'search', 'details')
         """
-        ...
 
     def set(
         self,
@@ -82,7 +77,6 @@ class CacheAdapterProtocol(Protocol):
             cache_type: Type of cache (e.g., 'search', 'details')
             ttl_seconds: Time-to-live in seconds (None for default TTL)
         """
-        ...
 
 
 class SQLiteCacheAdapter:
@@ -120,10 +114,10 @@ class SQLiteCacheAdapter:
             language: Language code for cache key generation (default: 'ko-KR')
         """
         # Import at runtime to avoid dependency layer violation
-        from anivault.services.cache import SQLiteCacheDB
 
         if not isinstance(backend, SQLiteCacheDB):
-            raise TypeError(f"Expected SQLiteCacheDB, got {type(backend)}")
+            msg = f"Expected SQLiteCacheDB, got {type(backend)}"
+            raise TypeError(msg)
 
         self.backend = backend
         self.language = language
@@ -176,46 +170,18 @@ class SQLiteCacheAdapter:
             )
             return None
 
-        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError):
             # Data parsing errors during cache deserialization
-            context = ErrorContext(
-                operation="cache_get",
-                additional_data={
-                    "cache_key": key[:50],
-                    "cache_type": cache_type,
-                    "error_type": "data_parsing",
-                },
-            )
-            error = AniVaultParsingError(
-                ErrorCode.CACHE_READ_FAILED,
-                f"Failed to parse cached data for key={key[:50]}, type={cache_type}: {e}",
-                context,
-                original_error=e,
-            )
             logger.exception(
-                "Cache get operation failed for key=%s, type=%s",
+                "Cache get operation failed (parsing error) for key=%s, type=%s",
                 key[:50],
                 cache_type,
             )
             return None
-        except Exception as e:
+        except Exception:  # pylint: disable=broad-exception-caught
             # Unexpected errors (includes Pydantic validation errors)
-            context = ErrorContext(
-                operation="cache_get",
-                additional_data={
-                    "cache_key": key[:50],
-                    "cache_type": cache_type,
-                    "error_type": "unexpected",
-                },
-            )
-            error = AniVaultError(
-                ErrorCode.CACHE_READ_FAILED,
-                f"Unexpected error during cache get for key={key[:50]}, type={cache_type}: {e}",
-                context,
-                original_error=e,
-            )
             logger.exception(
-                "Cache get operation failed for key=%s, type=%s",
+                "Cache get operation failed (unexpected error) for key=%s, type=%s",
                 key[:50],
                 cache_type,
             )
@@ -245,45 +211,17 @@ class SQLiteCacheAdapter:
                 cache_type,
             )
 
-        except (KeyError, ValueError, TypeError) as e:
+        except (KeyError, ValueError, TypeError):
             # Data parsing errors during cache delete
-            context = ErrorContext(
-                operation="cache_delete",
-                additional_data={
-                    "cache_key": key[:50],
-                    "cache_type": cache_type,
-                    "error_type": "data_parsing",
-                },
-            )
-            error = AniVaultParsingError(
-                ErrorCode.CACHE_ERROR,
-                f"Failed to delete cache entry for key={key[:50]}, type={cache_type}: {e}",
-                context,
-                original_error=e,
-            )
             logger.exception(
-                "Cache delete operation failed for key=%s, type=%s",
+                "Cache delete operation failed (parsing error) for key=%s, type=%s",
                 key[:50],
                 cache_type,
             )
-        except Exception as e:
+        except Exception:  # pylint: disable=broad-exception-caught
             # Unexpected errors
-            context = ErrorContext(
-                operation="cache_delete",
-                additional_data={
-                    "cache_key": key[:50],
-                    "cache_type": cache_type,
-                    "error_type": "unexpected",
-                },
-            )
-            error = AniVaultError(
-                ErrorCode.CACHE_ERROR,
-                f"Unexpected error during cache delete for key={key[:50]}, type={cache_type}: {e}",
-                context,
-                original_error=e,
-            )
             logger.exception(
-                "Cache delete operation failed for key=%s, type=%s",
+                "Cache delete operation failed (unexpected error) for key=%s, type=%s",
                 key[:50],
                 cache_type,
             )
@@ -332,45 +270,17 @@ class SQLiteCacheAdapter:
                 ttl_seconds,
             )
 
-        except (KeyError, ValueError, TypeError, AttributeError) as e:
+        except (KeyError, ValueError, TypeError, AttributeError):
             # Data parsing errors during cache serialization
-            context = ErrorContext(
-                operation="cache_set",
-                additional_data={
-                    "cache_key": key[:50],
-                    "cache_type": cache_type,
-                    "error_type": "data_parsing",
-                },
-            )
-            error = AniVaultParsingError(
-                ErrorCode.CACHE_WRITE_FAILED,
-                f"Failed to serialize data for cache set key={key[:50]}, type={cache_type}: {e}",
-                context,
-                original_error=e,
-            )
             logger.exception(
-                "Cache set operation failed for key=%s, type=%s",
+                "Cache set operation failed (parsing error) for key=%s, type=%s",
                 key[:50],
                 cache_type,
             )
-        except Exception as e:
+        except Exception:  # pylint: disable=broad-exception-caught
             # Unexpected errors
-            context = ErrorContext(
-                operation="cache_set",
-                additional_data={
-                    "cache_key": key[:50],
-                    "cache_type": cache_type,
-                    "error_type": "unexpected",
-                },
-            )
-            error = AniVaultError(
-                ErrorCode.CACHE_WRITE_FAILED,
-                f"Unexpected error during cache set for key={key[:50]}, type={cache_type}: {e}",
-                context,
-                original_error=e,
-            )
             logger.exception(
-                "Cache set operation failed for key=%s, type=%s",
+                "Cache set operation failed (unexpected error) for key=%s, type=%s",
                 key[:50],
                 cache_type,
             )

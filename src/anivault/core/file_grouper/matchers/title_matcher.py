@@ -12,8 +12,8 @@ from typing import Any
 
 from rapidfuzz import fuzz
 
+from anivault.config import load_settings
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
-
 from anivault.core.file_grouper.models import Group
 from anivault.core.models import ScannedFile
 
@@ -166,12 +166,10 @@ class TitleSimilarityMatcher:
             Maximum group size for Title matcher processing (default: 150)
         """
         try:
-            from anivault.config import load_settings
-
             settings = load_settings()
             if hasattr(settings, "grouping") and settings.grouping is not None:
                 return settings.grouping.max_title_match_group_size
-        except (ImportError, AttributeError, Exception) as e:
+        except (ImportError, AttributeError) as e:
             logger.debug(
                 "Could not load max_title_match_group_size from config, using default 150: %s",
                 e,
@@ -272,7 +270,7 @@ class TitleSimilarityMatcher:
             load_factor=0.75,
         )
 
-        for blocking_key, bucket_files in filtered_buckets.items():
+        for bucket_files in filtered_buckets.values():
             # Create LinkedHashTable for this bucket
             bucket_groups_table = LinkedHashTable[str, list[ScannedFile]](
                 initial_capacity=max(len(bucket_files) * 2, 64),

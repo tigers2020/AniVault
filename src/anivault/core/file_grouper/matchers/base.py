@@ -85,7 +85,6 @@ class BaseMatcher(Protocol):
             - Log warnings for files that couldn't be grouped
             - Optionally attach GroupingEvidence to each Group
         """
-        ...
 
 
 __all__ = ["BaseMatcher"]

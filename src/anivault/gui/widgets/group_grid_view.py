@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from anivault.shared.constants.gui_messages import UIConfig
 from anivault.core.parser.anitopy_parser import AnitopyParser
+from anivault.shared.constants.gui_messages import UIConfig
 from anivault.shared.errors import (
     AniVaultError,
     AniVaultParsingError,

@@ -13,23 +13,21 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console as RichConsole
-
 import typer
+from rich.console import Console as RichConsole
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.helpers.scan import _file_metadata_to_dict
-from anivault.shared.constants import CLIFormatting
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.scan import (
+    _file_metadata_to_dict,
     collect_scan_data,
     display_scan_results,
     enrich_metadata,
     run_scan_pipeline,
 )
 from anivault.cli.json_formatter import format_json_output
-from anivault.shared.constants import CLI, CLIDefaults
+from anivault.shared.constants import CLI, CLIDefaults, CLIFormatting
 from anivault.shared.constants.cli import CLIHelp, CLIMessages, CLIOptions
 from anivault.shared.constants.logging import LogConfig
 from anivault.shared.metadata_models import FileMetadata

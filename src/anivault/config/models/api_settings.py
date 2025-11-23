@@ -13,9 +13,11 @@ from pydantic import BaseModel, Field
 from anivault.shared.constants import (
     APIConfig,
     Timeout,
-    TMDBErrorHandling,
 )
 from anivault.shared.constants import TMDBConfig as TMDBConstants
+from anivault.shared.constants import (
+    TMDBErrorHandling,
+)
 
 
 class TMDBSettings(BaseModel):

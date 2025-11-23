@@ -38,7 +38,43 @@ class GroupingStrategy(ABC):
         Returns:
             List of final Group objects with evidence
         """
-        ...
+
+    @staticmethod
+    def _format_confidence_percentage(confidence: float) -> int:
+        """Format confidence value as percentage integer.
+
+        Args:
+            confidence: Confidence value between 0.0 and 1.0
+
+        Returns:
+            Percentage as integer (0-100)
+        """
+        return int(confidence * 100)
+
+    @staticmethod
+    def _create_evidence(
+        match_scores: dict[str, float],
+        contributing_matchers: list[str],
+        explanation: str,
+        confidence: float,
+    ) -> GroupingEvidence:
+        """Create GroupingEvidence with consistent formatting.
+
+        Args:
+            match_scores: Dictionary mapping matcher names to their scores
+            contributing_matchers: List of matcher names that contributed
+            explanation: Human-readable explanation of the grouping
+            confidence: Overall confidence score (0.0-1.0)
+
+        Returns:
+            GroupingEvidence instance
+        """
+        return GroupingEvidence(
+            match_scores=match_scores,
+            selected_matcher=",".join(contributing_matchers),
+            explanation=explanation,
+            confidence=confidence,
+        )
 
 
 class WeightedMergeStrategy(GroupingStrategy):
@@ -216,15 +252,21 @@ class WeightedMergeStrategy(GroupingStrategy):
         )
 
         # Generate explanation
+        confidence_pct = self._format_confidence_percentage(confidence)
         if len(contributing_matchers) == 1:
-            explanation = f"Grouped by {contributing_matchers[0]} similarity ({int(confidence * 100)}%)"
+            explanation = (
+                f"Grouped by {contributing_matchers[0]} similarity ({confidence_pct}%)"
+            )
         else:
             matcher_list = ", ".join(contributing_matchers)
-            explanation = f"Grouped by multiple matchers ({matcher_list}) - {int(confidence * 100)}% confidence"
+            explanation = (
+                f"Grouped by multiple matchers ({matcher_list}) - "
+                f"{confidence_pct}% confidence"
+            )
 
-        return GroupingEvidence(
+        return self._create_evidence(
             match_scores=match_scores,
-            selected_matcher=",".join(contributing_matchers),
+            contributing_matchers=contributing_matchers,
             explanation=explanation,
             confidence=confidence,
         )
@@ -257,11 +299,13 @@ class BestMatcherStrategy(GroupingStrategy):
 
         # Generate evidence for each group
         result_groups = []
+        confidence_pct = self._format_confidence_percentage(best_weight)
         for group in best_groups:
-            evidence = GroupingEvidence(
+            explanation = f"Grouped by {best_matcher} similarity ({confidence_pct}%)"
+            evidence = self._create_evidence(
                 match_scores={best_matcher: best_weight},
-                selected_matcher=best_matcher,
-                explanation=f"Grouped by {best_matcher} similarity ({int(best_weight * 100)}%)",
+                contributing_matchers=[best_matcher],
+                explanation=explanation,
                 confidence=best_weight,
             )
 
@@ -408,11 +452,15 @@ class ConsensusStrategy(GroupingStrategy):
         consensus_ratio = len(contributing_matchers) / len(matcher_results)
         confidence = sum(match_scores.values()) * consensus_ratio
 
-        explanation = f"Consensus from {len(contributing_matchers)} matcher(s) - {int(confidence * 100)}% confidence"
+        confidence_pct = self._format_confidence_percentage(confidence)
+        explanation = (
+            f"Consensus from {len(contributing_matchers)} matcher(s) - "
+            f"{confidence_pct}% confidence"
+        )
 
-        return GroupingEvidence(
+        return self._create_evidence(
             match_scores=match_scores,
-            selected_matcher=",".join(contributing_matchers),
+            contributing_matchers=contributing_matchers,
             explanation=explanation,
             confidence=confidence,
         )

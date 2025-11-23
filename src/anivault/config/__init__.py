@@ -12,8 +12,13 @@ All configuration components are available through this package:
 
 from __future__ import annotations
 
-# Import Settings from models package
-from .models.settings import Settings
+# Import loader functions directly from loader module to avoid circular dependency
+from .loader import (
+    get_config,
+    load_settings,
+    reload_config,
+    update_and_save_config,
+)
 
 # Import domain models from models package for backward compatibility
 from .models import (
@@ -36,13 +41,8 @@ from .models import (
     TMDBSettings,
 )
 
-# Import loader functions directly from loader module to avoid circular dependency
-from .loader import (
-    get_config,
-    load_settings,
-    reload_config,
-    update_and_save_config,
-)
+# Import Settings from models package
+from .models.settings import Settings
 
 __all__ = [
     "APISettings",

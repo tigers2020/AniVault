@@ -17,13 +17,6 @@ from anivault.core.organizer.executor import FileOperationExecutor, OperationRes
 from anivault.core.organizer.path_builder import PathBuilder, PathContext
 from anivault.core.organizer.resolution import ResolutionAnalyzer
 from anivault.shared.constants import FileSystem, FolderDefaults
-from anivault.shared.errors import (
-    AniVaultError,
-    AniVaultFileError,
-    AniVaultPermissionError,
-    ErrorCode,
-    ErrorContext,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -92,62 +85,21 @@ class FileOrganizer:
                 )
                 operations.extend(subtitle_operations)
 
-            except (FileNotFoundError, PermissionError) as e:
-                file_path_str = str(scanned_file.file_path)
-                context = ErrorContext(
-                    file_path=file_path_str,
-                    operation="create_file_operation",
-                )
-                if isinstance(e, FileNotFoundError):
-                    error = AniVaultFileError(
-                        ErrorCode.FILE_NOT_FOUND,
-                        f"File not found while creating operation: {file_path_str}",
-                        context,
-                        original_error=e,
-                    )
-                else:
-                    error = AniVaultPermissionError(
-                        ErrorCode.PERMISSION_DENIED,
-                        f"Permission denied accessing file: {file_path_str}",
-                        context,
-                        original_error=e,
-                    )
+            except (FileNotFoundError, PermissionError):
                 logger.exception(
                     "Failed to create operation for %s",
                     scanned_file.file_path,
                 )
                 # Continue processing other files
                 continue
-            except OSError as e:
-                file_path_str = str(scanned_file.file_path)
-                context = ErrorContext(
-                    file_path=file_path_str,
-                    operation="create_file_operation",
-                )
-                error = AniVaultFileError(
-                    ErrorCode.FILE_ACCESS_ERROR,
-                    f"File system error while creating operation: {file_path_str}",
-                    context,
-                    original_error=e,
-                )
+            except OSError:
                 logger.exception(
                     "Failed to create operation for %s",
                     scanned_file.file_path,
                 )
                 # Continue processing other files
                 continue
-            except Exception as e:
-                file_path_str = str(scanned_file.file_path)
-                context = ErrorContext(
-                    file_path=file_path_str,
-                    operation="create_file_operation",
-                )
-                error = AniVaultError(
-                    ErrorCode.ORGANIZATION_PLAN_FAILED,
-                    f"Unexpected error while creating operation: {file_path_str}",
-                    context,
-                    original_error=e,
-                )
+            except Exception:  # pylint: disable=broad-exception-caught
                 logger.exception(
                     "Failed to create operation for %s",
                     scanned_file.file_path,
@@ -165,7 +117,8 @@ class FileOrganizer:
             operations: List of FileOperation objects to execute.
 
         Returns:
-            List[OperationResult]: List of OperationResult objects representing the execution results.
+            List[OperationResult]: List of OperationResult objects representing
+                the execution results.
         """
         return self._executor.execute_batch(operations)
 
@@ -181,7 +134,8 @@ class FileOrganizer:
                     If False, executes operations and returns OperationResult objects.
 
         Returns:
-            List of FileOperation objects (if dry_run=True) or OperationResult objects (if dry_run=False).
+            List of FileOperation objects (if dry_run=True) or OperationResult
+                objects (if dry_run=False).
         """
         plan = self.generate_plan(scanned_files)
 

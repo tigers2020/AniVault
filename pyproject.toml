@@ -252,10 +252,19 @@ pythonpath = ["src"]
 # PySide6는 C++ 확장 모듈로 타입 스텁이 완전하지 않아 Pylint가 인식하지 못함
 # 런타임에는 정상 작동하며, PySide6-stubs가 설치되어 있어도 Pylint는 인식하지 못함
 disable = ["no-name-in-module"]
+max-line-length = 88  # Black과 일치 (기본값 100 → 88로 변경)
 
 [tool.pylint."messages control"]
 # PySide6 모듈에 대한 no-name-in-module 에러 억제
-disable = ["no-name-in-module"]
+# 상수 클래스는 public method가 적은 것이 정상 (R0903)
+# 중복 코드는 리팩토링으로 해결해야 하지만, 일부는 허용 가능 (R0801)
+# C 확장 모듈(win32security 등)은 타입 스텁이 없음 (I1101)
+disable = [
+    "no-name-in-module",
+    "too-few-public-methods",  # R0903: 상수 클래스는 정상
+    "duplicate-code",  # R0801: 중복 코드 (임시 허용)
+    "c-extension-no-member",  # I1101: C 확장 모듈 타입 스텁 없음
+]
 
 [tool.anivault.config]
 log_file = "logs/anivault.log"

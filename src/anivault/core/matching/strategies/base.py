@@ -55,4 +55,3 @@ class FallbackStrategy(Protocol):
             - Should handle empty candidate lists gracefully
             - May return empty list if no improvements possible
         """
-        ...

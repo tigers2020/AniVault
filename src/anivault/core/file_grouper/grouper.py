@@ -12,7 +12,6 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-
 from anivault.core.file_grouper.duplicate_resolver import DuplicateResolver
 from anivault.core.file_grouper.grouping_engine import GroupingEngine
 from anivault.core.file_grouper.matchers.hash_matcher import HashSimilarityMatcher

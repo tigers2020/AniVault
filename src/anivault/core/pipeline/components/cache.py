@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from anivault.services.cache import SQLiteCacheDB
 from anivault.shared.constants import Cache
 from anivault.utils.resource_path import get_project_root
 
@@ -46,9 +47,6 @@ class CacheV1:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Use unified cache database (same as TMDB cache)
-        # Import at runtime to avoid dependency layer violation
-        from anivault.services.cache import SQLiteCacheDB
-
         db_path = self.cache_dir / "anivault_cache.db"
         self._sqlite_cache = SQLiteCacheDB(db_path)
 
@@ -84,7 +82,7 @@ class CacheV1:
                 cache_type=Cache.TYPE_PARSER,
                 ttl_seconds=ttl_seconds,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning(
                 "Failed to store cache entry for key %s: %s",
                 key[:50] if len(key) > 50 else key,
@@ -103,7 +101,7 @@ class CacheV1:
         """
         try:
             return self._sqlite_cache.get(key, cache_type=Cache.TYPE_PARSER)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning(
                 "Failed to retrieve cache entry for key %s: %s",
                 key[:50] if len(key) > 50 else key,
@@ -120,7 +118,7 @@ class CacheV1:
         try:
             cleared_count = self._sqlite_cache.clear(cache_type=Cache.TYPE_PARSER)
             logger.info("Cleared %d parser cache entries", cleared_count)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning("Failed to clear parser cache: %s", str(e))
 
     def get_cache_info(self) -> dict[str, Any]:
@@ -142,7 +140,7 @@ class CacheV1:
                 "total_size_bytes": cache_info.get("total_size_bytes", 0),
             }
             return parser_info
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning("Failed to get cache info: %s", str(e))
             return {
                 "cache_directory": str(self.cache_dir),
@@ -158,5 +156,5 @@ class CacheV1:
         """
         try:
             self._sqlite_cache.close()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning("Failed to close cache connection: %s", str(e))

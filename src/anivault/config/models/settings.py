@@ -7,40 +7,35 @@ Moved to models package to avoid circular dependencies and improve structure.
 from __future__ import annotations
 
 import logging
-import toml
 import typing
 import warnings
 from pathlib import Path
+from typing import cast
 
+import toml
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Import domain models from refactored modules
 from anivault.config.models.api_settings import (
     APISettings,
-    TMDBConfig,
     TMDBSettings,
 )
 from anivault.config.models.app_settings import (
-    AppConfig,
     AppSettings,
-    LoggingConfig,
     LoggingSettings,
 )
-from anivault.config.models.cache_settings import CacheConfig, CacheSettings
+from anivault.config.models.cache_settings import CacheSettings
 from anivault.config.models.folder_security_settings import (
     FolderSettings,
     SecuritySettings,
 )
 from anivault.config.models.grouping_settings import GroupingSettings
 from anivault.config.models.performance_settings import (
-    PerformanceConfig,
     PerformanceSettings,
 )
 from anivault.config.models.scan_settings import (
-    FilterConfig,
     FilterSettings,
-    ScanConfig,
     ScanSettings,
 )
 
@@ -92,7 +87,10 @@ class Settings(BaseSettings):
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.api.tmdb
+        # Type checker workaround: Pydantic Field inference issue
+        # Runtime: self.api is APISettings instance, not FieldInfo
+        api = cast("APISettings", object.__getattribute__(self, "api"))
+        return api.tmdb
 
     @property
     def file_processing(self) -> ScanSettings:
@@ -120,7 +118,10 @@ class Settings(BaseSettings):
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.scan.filter_config
+        # Type checker workaround: Pydantic Field inference issue
+        # Runtime: self.scan is ScanSettings instance, not FieldInfo
+        scan = cast("ScanSettings", object.__getattribute__(self, "scan"))
+        return scan.filter_config
 
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:
@@ -153,4 +154,3 @@ class Settings(BaseSettings):
 
         with open(file_path, "w", encoding="utf-8") as f:
             toml.dump(config_dict, f)
-

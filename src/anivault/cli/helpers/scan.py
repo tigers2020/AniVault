@@ -10,6 +10,7 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
+
 from rich.console import Console
 
 from anivault.cli.progress import create_progress_manager

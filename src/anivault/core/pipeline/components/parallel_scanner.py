@@ -10,7 +10,15 @@ from __future__ import annotations
 import logging
 import os
 import threading
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    CancelledError,
+    Future,
+    ThreadPoolExecutor,
+)
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from concurrent.futures import (
+    as_completed,
+)
 from pathlib import Path
 
 from anivault.config import load_settings
@@ -18,7 +26,6 @@ from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.shared.constants import ProcessingConfig
 from anivault.shared.constants.network import NetworkConfig
 from anivault.shared.errors import (
-    AniVaultError,
     ErrorCode,
     ErrorContext,
     InfrastructureError,
@@ -85,7 +92,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 threshold = settings.scan.parallel_threshold
                 # Use threshold as-is, but ensure minimum of 5 for directory count
                 return max(5, threshold // 100)  # Scale down from file count threshold
-        except (ImportError, AttributeError, Exception) as e:
+        except (ImportError, AttributeError) as e:
             logger.debug(
                 "Could not load parallel_threshold from config, using default 5: %s",
                 e,
@@ -208,25 +215,6 @@ class ParallelDirectoryScanner(threading.Thread):
                     exc_info=True,
                 )
                 continue
-            except Exception as e:  # noqa: BLE001 - Unexpected queue errors
-                # Unexpected queue errors - log but continue
-                context = ErrorContext(
-                    file_path=str(file_path),
-                    operation="queue_file_parallel",
-                )
-                error = AniVaultError(
-                    ErrorCode.QUEUE_OPERATION_ERROR,
-                    f"Unexpected error queuing file: {e}",
-                    context,
-                    original_error=e,
-                )
-                logger.warning(
-                    "Failed to queue file: %s: %s",
-                    file_path,
-                    error.message,
-                    exc_info=True,
-                )
-                continue
 
         return queued_count
 
@@ -283,7 +271,7 @@ class ParallelDirectoryScanner(threading.Thread):
                     future = executor.submit(self._recursive_scan_directory, subdir)
                     future_to_dir[future] = subdir
 
-                except RuntimeError as e:
+                except (RuntimeError, ValueError, TypeError) as e:
                     error = InfrastructureError(
                         code=ErrorCode.WORKER_POOL_ERROR,
                         message=f"Failed to submit scan jobs: {e!s}",
@@ -312,7 +300,7 @@ class ParallelDirectoryScanner(threading.Thread):
 
             return future_to_dir
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError) as e:
             error = InfrastructureError(
                 ErrorCode.WORKER_POOL_ERROR,
                 f"Failed to submit scan jobs: {e}",
@@ -385,7 +373,12 @@ class ParallelDirectoryScanner(threading.Thread):
                     # Update statistics (thread-safe)
                     self._thread_safe_update_stats(queued_files, dirs_scanned)
 
-                except Exception as e:  # noqa: BLE001
+                except (
+                    CancelledError,
+                    FutureTimeoutError,
+                    RuntimeError,
+                    ValueError,
+                ) as e:
                     subdir = future_to_dir[future]
                     error_context = ErrorContext(
                         operation="process_scan_result",
@@ -413,7 +406,14 @@ class ParallelDirectoryScanner(threading.Thread):
                 context=context.additional_data,
             )
 
-        except Exception as e:  # noqa: BLE001
+        except (
+            CancelledError,
+            FutureTimeoutError,
+            RuntimeError,
+            ValueError,
+            TimeoutError,
+            OSError,
+        ) as e:
             error = InfrastructureError(
                 ErrorCode.SCANNER_ERROR,
                 f"Failed to await scan completion: {e}",
@@ -461,7 +461,15 @@ class ParallelDirectoryScanner(threading.Thread):
                 context=context.additional_data,
             )
 
-        except Exception as e:  # noqa: BLE001
+        except (
+            CancelledError,
+            FutureTimeoutError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+            TimeoutError,
+            OSError,
+        ) as e:
             error = InfrastructureError(
                 ErrorCode.SCANNER_ERROR,
                 f"Failed to scan subdirectories: {e}",
@@ -526,7 +534,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 # Scan subdirectories using parallel method
                 self._scan_subdirectories(subdirectories)
 
-        except (OSError, PermissionError) as e:
+        except (PermissionError, OSError) as e:
             # File system errors during parallel scanning
             context = ErrorContext(
                 file_path=str(self.root_path),
@@ -539,13 +547,19 @@ class ParallelDirectoryScanner(threading.Thread):
                 original_error=e,
             )
             logger.exception("Error in parallel directory scanning: %s", error.message)
-        except Exception as e:  # - Unexpected parallel scanning errors
+        except (
+            CancelledError,
+            FutureTimeoutError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+        ) as e:
             # Unexpected errors during parallel scanning
             context = ErrorContext(
                 file_path=str(self.root_path),
                 operation="parallel_directory_scanning",
             )
-            error = AniVaultError(
+            error = InfrastructureError(
                 ErrorCode.SCANNER_ERROR,
                 f"Unexpected error in parallel directory scanning: {e}",
                 context,
@@ -562,18 +576,6 @@ class ParallelDirectoryScanner(threading.Thread):
                 error = InfrastructureError(
                     ErrorCode.QUEUE_OPERATION_ERROR,
                     f"Failed to put sentinel value: {e}",
-                    context,
-                    original_error=e,
-                )
-                logger.warning(
-                    "Failed to put sentinel value: %s", error.message, exc_info=True
-                )
-            except Exception as e:  # noqa: BLE001 - Unexpected queue errors
-                # Unexpected queue errors - log but continue
-                context = ErrorContext(operation="put_sentinel_parallel")
-                error = AniVaultError(
-                    ErrorCode.QUEUE_OPERATION_ERROR,
-                    f"Unexpected error putting sentinel value: {e}",
                     context,
                     original_error=e,
                 )

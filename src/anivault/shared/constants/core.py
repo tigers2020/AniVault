@@ -5,6 +5,8 @@ This module contains all constants related to core business logic,
 processing rules, and application behavior.
 """
 
+from __future__ import annotations
+
 import re
 from typing import ClassVar
 
@@ -147,7 +149,7 @@ class NormalizationConfig:
         Security Note:
             All patterns have been reviewed for ReDoS (Regular Expression Denial of Service)
             vulnerabilities. Patterns use:
-            - Fixed strings or limited character classes (e.g., [^\]]*, [^)]*)
+            - Fixed strings or limited character classes (e.g., [^\\]]*, [^)]*)
             - No nested quantifiers (e.g., (a+)+)
             - No overlapping quantifiers that could cause catastrophic backtracking
             - Bounded quantifiers where applicable (e.g., {8,} for hash patterns)
@@ -189,7 +191,8 @@ class NormalizationConfig:
             ]
 
             cls._compiled_patterns = [
-                re.compile(pattern, flags=re.IGNORECASE) for pattern in patterns_to_compile
+                re.compile(pattern, flags=re.IGNORECASE)
+                for pattern in patterns_to_compile
             ]
 
         return cls._compiled_patterns

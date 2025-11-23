@@ -24,9 +24,9 @@ from anivault.shared.constants import ProcessingConfig
 from anivault.shared.constants.network import NetworkConfig
 from anivault.shared.errors import (
     AniVaultError,
-    InfrastructureError,
     ErrorCode,
     ErrorContext,
+    InfrastructureError,
 )
 
 logger = logging.getLogger(__name__)

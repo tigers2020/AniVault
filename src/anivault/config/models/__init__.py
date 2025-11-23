@@ -21,14 +21,14 @@ from .cache_settings import CacheConfig, CacheSettings
 # Folder and Security Settings
 from .folder_security_settings import FolderSettings, SecuritySettings
 
+# Grouping Settings
+from .grouping_settings import GroupingSettings
+
 # Performance Settings
 from .performance_settings import PerformanceConfig, PerformanceSettings
 
 # Scan and Filter Settings
 from .scan_settings import FilterConfig, FilterSettings, ScanConfig, ScanSettings
-
-# Grouping Settings
-from .grouping_settings import GroupingSettings
 
 # Main Settings class
 from .settings import Settings

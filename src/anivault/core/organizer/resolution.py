@@ -16,12 +16,12 @@ from anivault.core.models import ScannedFile
 from anivault.shared.constants import VideoQuality
 from anivault.shared.constants.validation_constants import (
     EMPTY_SERIES_TITLE_ERROR,
-    FHD_WIDTH,
     FHD_HEIGHT,
-    HD_WIDTH,
+    FHD_WIDTH,
     HD_HEIGHT,
-    MIN_RESOLUTION_WIDTH,
+    HD_WIDTH,
     MIN_RESOLUTION_HEIGHT,
+    MIN_RESOLUTION_WIDTH,
 )
 
 logger = logging.getLogger(__name__)

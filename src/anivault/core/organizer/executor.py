@@ -151,7 +151,6 @@ class FileOperationExecutor:
         operations: list[FileOperation],
         *,
         dry_run: bool = False,
-        operation_id: str | None = None,  # noqa: ARG002 - Reserved for future logging
         no_log: bool = False,
     ) -> list[OperationResult]:
         """Execute a batch of file operations.

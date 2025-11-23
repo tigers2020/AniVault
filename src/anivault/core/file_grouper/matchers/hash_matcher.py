@@ -12,7 +12,6 @@ import re
 from typing import Any
 
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
-
 from anivault.core.file_grouper.models import Group
 from anivault.core.models import ScannedFile
 
@@ -83,9 +82,9 @@ class HashSimilarityMatcher:
             return []
 
         # Step 1: Extract and normalize titles
-        file_titles: list[
-            tuple[ScannedFile, str, str]
-        ] = []  # (file, original, normalized)
+        file_titles: list[tuple[ScannedFile, str, str]] = (
+            []
+        )  # (file, original, normalized)
         for file in files:
             title = self._extract_title_from_file(file)
             if title:

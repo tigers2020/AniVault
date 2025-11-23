@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from PySide6.QtGui import QAction
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -28,6 +28,8 @@ from PySide6.QtWidgets import (
 from anivault.config import get_config, reload_config
 from anivault.core.file_grouper import Group
 from anivault.core.models import FileOperation, ScannedFile
+from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
+from anivault.gui.managers.status_manager import CacheStats
 from anivault.gui.models import FileItem
 from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import (
@@ -40,10 +42,6 @@ from anivault.shared.errors import (
 from anivault.shared.metadata_models import FileMetadata
 
 from .controllers import OrganizeController, ScanController, TMDBController
-
-from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
-from anivault.gui.managers.status_manager import CacheStats
-
 from .managers import MenuManager, SignalCoordinator, StatusManager
 from .state_model import StateModel
 from .themes import ThemeManager
@@ -652,8 +650,8 @@ class MainWindow(QMainWindow):
                 # metadata is FileMetadata (guaranteed by type annotation)
                 # Convert FileMetadata to ParsingResult for ScannedFile
                 from anivault.core.parser.models import (
-                    ParsingResult,
                     ParsingAdditionalInfo,
+                    ParsingResult,
                 )
 
                 assert isinstance(metadata, FileMetadata)

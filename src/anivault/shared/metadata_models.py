@@ -12,16 +12,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .constants.validation_constants import (
-    EMPTY_TITLE_ERROR,
     EMPTY_FILE_TYPE_ERROR,
-    MIN_YEAR,
-    MAX_YEAR,
-    YEAR_RANGE_ERROR_TEMPLATE,
-    SEASON_NEGATIVE_ERROR_TEMPLATE,
+    EMPTY_TITLE_ERROR,
     EPISODE_NEGATIVE_ERROR_TEMPLATE,
-    MIN_VOTE_AVERAGE,
     MAX_VOTE_AVERAGE,
+    MAX_YEAR,
+    MIN_VOTE_AVERAGE,
+    MIN_YEAR,
+    SEASON_NEGATIVE_ERROR_TEMPLATE,
     VOTE_AVERAGE_RANGE_ERROR_TEMPLATE,
+    YEAR_RANGE_ERROR_TEMPLATE,
 )
 
 

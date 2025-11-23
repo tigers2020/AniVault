@@ -10,18 +10,16 @@ from __future__ import annotations
 import logging
 import math
 
-
+from anivault.config import load_settings
+from anivault.config.models.grouping_settings import GroupingSettings
+from anivault.core.file_grouper.matchers.base import BaseMatcher
+from anivault.core.file_grouper.models import Group, GroupingEvidence
+from anivault.core.models import ScannedFile
 from anivault.shared.errors import (
-    AniVaultError,
     AniVaultParsingError,
     ErrorCode,
     ErrorContext,
 )
-from anivault.config.models.grouping_settings import GroupingSettings
-from anivault.config import load_settings
-from anivault.core.file_grouper.matchers.base import BaseMatcher
-from anivault.core.file_grouper.models import Group, GroupingEvidence
-from anivault.core.models import ScannedFile
 
 from .strategies import BestMatcherStrategy, GroupingStrategy
 
@@ -116,9 +114,7 @@ class GroupingEngine:
             self.strategy.__class__.__name__,
         )
 
-    def _get_grouping_settings(
-        self,
-    ) -> GroupingSettings:  # type: ignore[name-defined]
+    def _get_grouping_settings(self) -> GroupingSettings:
         """Get grouping settings from configuration system.
 
         Loads GroupingSettings from the main Settings system.
@@ -135,7 +131,7 @@ class GroupingEngine:
             settings = load_settings()
             if hasattr(settings, "grouping") and settings.grouping is not None:
                 return settings.grouping
-        except (ImportError, AttributeError, Exception) as e:
+        except (ImportError, AttributeError) as e:
             logger.debug(
                 "Could not load GroupingSettings from config, using defaults: %s",
                 e,
@@ -167,7 +163,7 @@ class GroupingEngine:
 
         # Check all values are in valid range
         for name, weight in weights.items():
-            if not (0.0 <= weight <= 1.0):
+            if not 0.0 <= weight <= 1.0:
                 msg = f"Weight for '{name}' must be between 0.0 and 1.0, got {weight}"
                 raise ValueError(msg)
 
@@ -244,13 +240,13 @@ class GroupingEngine:
             )
             # Hash matcher failure is critical for pipeline
             return []
-        except Exception as e:  # - Unexpected hash matcher errors
-            # Unexpected errors during hash matching
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Unexpected errors during hash matching (catch-all for unknown exceptions)
             context = ErrorContext(
                 operation="hash_matcher_match",
                 additional_data={"file_count": len(files)},
             )
-            error = AniVaultError(
+            error = AniVaultParsingError(
                 ErrorCode.FILE_GROUPING_FAILED,
                 f"Hash matcher failed, cannot continue pipeline: {e}",
                 context,
@@ -303,13 +299,13 @@ class GroupingEngine:
                     "Title matcher failed, using Hash results only: %s", error.message
                 )
                 # Title matcher failure is non-critical, use Hash results
-            except Exception as e:  # - Unexpected title matcher errors
-                # Unexpected errors during title matching
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Unexpected errors during title matching (catch-all for unknown exceptions)
                 context = ErrorContext(
                     operation="title_matcher_refine",
                     additional_data={"hash_group_count": len(hash_groups)},
                 )
-                error = AniVaultError(
+                error = AniVaultParsingError(
                     ErrorCode.FILE_GROUPING_FAILED,
                     f"Title matcher failed, using Hash results only: {e}",
                     context,
@@ -355,8 +351,8 @@ class GroupingEngine:
                 )
                 # Skip failed matcher
                 continue
-            except Exception as e:  # - Unexpected matcher errors
-                # Unexpected errors during matching
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Unexpected errors during matching (catch-all for unknown exceptions)
                 context = ErrorContext(
                     operation="other_matcher_match_step4",
                     additional_data={
@@ -364,7 +360,7 @@ class GroupingEngine:
                         "file_count": len(files),
                     },
                 )
-                error = AniVaultError(
+                error = AniVaultParsingError(
                     ErrorCode.FILE_GROUPING_FAILED,
                     f"Matcher '{matcher.component_name}' failed: {e}",
                     context,
@@ -441,8 +437,8 @@ class GroupingEngine:
                 )
                 # Skip failed matcher
                 continue
-            except Exception as e:  # - Unexpected parallel matcher errors
-                # Unexpected errors during parallel matching
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Unexpected errors during parallel matching (catch-all for unknown exceptions)
                 context = ErrorContext(
                     operation="parallel_matcher_match",
                     additional_data={
@@ -450,7 +446,7 @@ class GroupingEngine:
                         "file_count": len(files),
                     },
                 )
-                error = AniVaultError(
+                error = AniVaultParsingError(
                     ErrorCode.FILE_GROUPING_FAILED,
                     f"Matcher '{matcher.component_name}' failed: {e}",
                     context,
@@ -529,7 +525,9 @@ class GroupingEngine:
             try:
                 if has_refine_group:
                     # Use refine_group if available (preferred)
-                    refined_group = title_matcher.refine_group(hash_group)  # type: ignore[attr-defined]
+                    refined_group = title_matcher.refine_group(  # type: ignore[attr-defined]
+                        hash_group
+                    )
                     if refined_group:
                         # Merge evidence from Hash and Title matchers
                         refined_group.evidence = self._merge_pipeline_evidence(
@@ -582,7 +580,10 @@ class GroupingEngine:
                 )
                 error = AniVaultParsingError(
                     ErrorCode.FILE_GROUPING_FAILED,
-                    f"Title matcher failed for group '{hash_group.title}' due to data parsing error: {e}",
+                    (
+                        f"Title matcher failed for group '{hash_group.title}' "
+                        f"due to data parsing error: {e}"
+                    ),
                     context,
                     original_error=e,
                 )
@@ -598,8 +599,9 @@ class GroupingEngine:
                         f"{hash_group.evidence.explanation} (Title matcher failed)"
                     )
                 refined_groups.append(hash_group)
-            except Exception as e:  # - Unexpected title refinement errors
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 # Unexpected errors during title refinement per group
+                # (catch-all for unknown exceptions)
                 context = ErrorContext(
                     operation="title_matcher_refine_per_group",
                     additional_data={
@@ -607,7 +609,7 @@ class GroupingEngine:
                         "file_count": len(hash_group.files),
                     },
                 )
-                error = AniVaultError(
+                error = AniVaultParsingError(
                     ErrorCode.FILE_GROUPING_FAILED,
                     f"Title matcher failed for group '{hash_group.title}': {e}",
                     context,

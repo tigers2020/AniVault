@@ -17,13 +17,13 @@ except ImportError:
 from anivault.core.constants import ParsingConfidence
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.shared.constants.validation_constants import (
-    PARSER_ANIME_TITLE,
-    PARSER_EPISODE_NUMBER,
     PARSER_ANIME_SEASON,
+    PARSER_ANIME_TITLE,
+    PARSER_AUDIO_TERM,
+    PARSER_EPISODE_NUMBER,
+    PARSER_RAW_FILENAME,
     PARSER_VIDEO_RESOLUTION,
     PARSER_VIDEO_TERM,
-    PARSER_AUDIO_TERM,
-    PARSER_RAW_FILENAME,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,8 +101,8 @@ class AnitopyParser:
                     error=str(e), parser_specific={PARSER_RAW_FILENAME: filename}
                 ),
             )
-        except Exception as e:
-            # Handle unexpected errors
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Handle unexpected errors from anitopy library
             logger.exception(
                 "Anitopy failed to parse filename '%s' due to unexpected error",
                 filename,

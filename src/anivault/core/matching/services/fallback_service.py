@@ -11,7 +11,6 @@ import logging
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.strategies import FallbackStrategy
 from anivault.core.statistics import StatisticsCollector
-from anivault.shared.errors import ErrorCode
 from anivault.shared.models.tmdb_models import ScoredSearchResult
 
 logger = logging.getLogger(__name__)
@@ -143,47 +142,17 @@ class FallbackStrategyService:
                     score_delta,
                 )
 
-            except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
-                from anivault.shared.errors import AniVaultParsingError, ErrorContext
-
+            except (KeyError, ValueError, TypeError, AttributeError, IndexError):
                 # Data parsing errors during strategy execution
-                context = ErrorContext(
-                    operation="apply_fallback_strategy",
-                    additional_data={
-                        "strategy_name": strategy_name,
-                        "error_type": "data_parsing",
-                    },
-                )
-                error = AniVaultParsingError(
-                    ErrorCode.DATA_PROCESSING_ERROR,
-                    f"Failed to apply fallback strategy '{strategy_name}': {e}",
-                    context,
-                    original_error=e,
-                )
                 logger.exception(
-                    "Strategy failed: %s (continuing with remaining strategies)",
+                    "Strategy failed (parsing error): %s (continuing with remaining strategies)",
                     strategy_name,
                 )
                 # Keep current candidates unchanged
-            except Exception as e:
-                from anivault.shared.errors import AniVaultError, ErrorContext
-
+            except Exception:  # pylint: disable=broad-exception-caught
                 # Unexpected errors
-                context = ErrorContext(
-                    operation="apply_fallback_strategy",
-                    additional_data={
-                        "strategy_name": strategy_name,
-                        "error_type": "unexpected",
-                    },
-                )
-                error = AniVaultError(
-                    ErrorCode.DATA_PROCESSING_ERROR,
-                    f"Unexpected error applying fallback strategy '{strategy_name}': {e}",
-                    context,
-                    original_error=e,
-                )
                 logger.exception(
-                    "Strategy failed: %s (continuing with remaining strategies)",
+                    "Strategy failed (unexpected error): %s (continuing with remaining strategies)",
                     strategy_name,
                 )
                 # Keep current candidates unchanged

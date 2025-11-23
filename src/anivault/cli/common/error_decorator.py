@@ -11,10 +11,9 @@ from __future__ import annotations
 import functools
 import logging
 import sys
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 from rich.console import Console
-from typing import TypeVar
 
 from anivault.cli.common.error_messages import (
     ErrorMessageContext,

@@ -14,9 +14,6 @@ from __future__ import annotations
 
 import warnings
 
-# Re-export Settings from models for backward compatibility
-from anivault.config.models.settings import Settings
-
 # Re-export domain models from models package for backward compatibility
 from anivault.config.models import (
     APISettings,
@@ -37,6 +34,9 @@ from anivault.config.models import (
     TMDBConfig,
     TMDBSettings,
 )
+
+# Re-export Settings from models for backward compatibility
+from anivault.config.models.settings import Settings
 
 # Warn users about deprecated import path
 warnings.warn(

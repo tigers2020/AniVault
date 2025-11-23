@@ -13,6 +13,7 @@ from typing import Any
 
 from anivault.core.constants import ProcessingThresholds
 from anivault.core.parser.models import ParsingResult
+from anivault.services.tmdb import ScoredSearchResult, TMDBClient, TMDBSearchResult
 from anivault.shared.constants import APIFields
 from anivault.shared.constants.system import EnrichmentStatus
 from anivault.shared.errors import (
@@ -28,7 +29,6 @@ from .metadata_enricher.batch_processor import BatchProcessor
 from .metadata_enricher.fetcher import TMDBFetcher
 from .metadata_enricher.models import EnrichedMetadata
 from .metadata_enricher.scoring import ScoringEngine, create_default_scoring_engine
-from anivault.services.tmdb import ScoredSearchResult, TMDBClient, TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 

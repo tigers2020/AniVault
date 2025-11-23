@@ -34,10 +34,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# First-party imports
-from anivault.shared.constants.gui_messages import UIConfig
 from anivault.core.models import ScannedFile
 from anivault.core.parser.models import ParsingResult
+
+# First-party imports
+from anivault.shared.constants.gui_messages import UIConfig
 from anivault.shared.errors import (
     AniVaultError,
     AniVaultFileError,
@@ -388,18 +389,21 @@ class GroupCardWidget(QFrame):
         # Case 2: ScannedFile with ParsingResult containing TMDBMatchResult
         # Group.files contains ScannedFile objects, not FileItem
         if isinstance(first_file, ScannedFile):
-            parsed_result = first_file.metadata
-            if isinstance(parsed_result, ParsingResult):
+            parsed_result = getattr(first_file, "metadata", None)
+            if parsed_result and isinstance(parsed_result, ParsingResult):
                 # Check if TMDB match result exists in additional_info
+
                 match_result = parsed_result.additional_info.match_result
                 if match_result:
                     # Convert TMDBMatchResult to FileMetadata
                     file_metadata = FileMetadata(
                         title=match_result.title,
                         file_path=first_file.file_path,
-                        file_type=first_file.file_path.suffix.lstrip(".").lower()
-                        if first_file.file_path.suffix
-                        else "unknown",
+                        file_type=(
+                            first_file.file_path.suffix.lstrip(".").lower()
+                            if first_file.file_path.suffix
+                            else "unknown"
+                        ),
                         year=match_result.year,
                         season=parsed_result.season,
                         episode=parsed_result.episode,
@@ -437,9 +441,11 @@ class GroupCardWidget(QFrame):
                     file_metadata = FileMetadata(
                         title=match_result.title,
                         file_path=file_path,
-                        file_type=file_path.suffix.lstrip(".").lower()
-                        if file_path.suffix
-                        else "unknown",
+                        file_type=(
+                            file_path.suffix.lstrip(".").lower()
+                            if file_path.suffix
+                            else "unknown"
+                        ),
                         year=match_result.year,
                         season=first_file.season,
                         episode=first_file.episode,

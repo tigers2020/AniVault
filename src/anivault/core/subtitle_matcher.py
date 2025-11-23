@@ -7,10 +7,9 @@ corresponding video files based on filename patterns.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
-
-import re
 
 from anivault.config import load_settings
 from anivault.core.models import ScannedFile

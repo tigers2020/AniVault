@@ -14,8 +14,10 @@ Pattern:
 from __future__ import annotations
 
 import logging
-from anivault.gui.managers.status_manager import StatusManager
+
 from PySide6.QtWidgets import QMessageBox
+
+from anivault.gui.managers.status_manager import StatusManager
 
 
 class BaseEventHandler:

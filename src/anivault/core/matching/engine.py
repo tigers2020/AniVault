@@ -26,11 +26,6 @@ from anivault.core.matching.strategies import (
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
 from anivault.shared.constants import ConfidenceThresholds
-from anivault.shared.errors import (
-    AniVaultParsingError,
-    ErrorCode,
-    ErrorContext,
-)
 from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
 from anivault.shared.protocols.services import TMDBClientProtocol
 
@@ -100,15 +95,17 @@ class MatchingEngine:
         self,
         anitopy_result: dict[str, Any],
     ) -> MatchResult | None:
-        """Find the best match for an anime title using multi-stage matching with fallback strategies.
+        """Find the best match using multi-stage matching with fallback strategies.
 
-        This method orchestrates the entire matching process by delegating to service layer.
+        This method orchestrates the entire matching process by delegating
+        to service layer.
 
         Args:
             anitopy_result: Result from anitopy.parse() containing anime metadata
 
         Returns:
-            MatchResult domain object with confidence metadata or None if no good match found
+            MatchResult domain object with confidence metadata or None if
+            no good match found
         """
         self.statistics.start_timing("matching_operation")
 
@@ -203,37 +200,15 @@ class MatchingEngine:
 
             return match_result
 
-        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError):
             # Data parsing errors during matching
-            context = ErrorContext(
-                operation="find_match",
-                additional_data={"error_type": "data_parsing"},
-            )
-            error = AniVaultParsingError(
-                ErrorCode.DATA_PROCESSING_ERROR,
-                f"Failed to find match due to data parsing error: {e}",
-                context,
-                original_error=e,
-            )
-            logger.exception("Error in find_match")
+            logger.exception("Error in find_match (parsing error)")
             self.statistics.record_match_failure()
             self.statistics.end_timing("matching_operation")
             return None
-        except Exception as e:
-            from anivault.shared.errors import AniVaultError
-
+        except Exception:  # pylint: disable=broad-exception-caught
             # Unexpected errors
-            context = ErrorContext(
-                operation="find_match",
-                additional_data={"error_type": "unexpected"},
-            )
-            error = AniVaultError(
-                ErrorCode.DATA_PROCESSING_ERROR,
-                f"Unexpected error in find_match: {e}",
-                context,
-                original_error=e,
-            )
-            logger.exception("Error in find_match")
+            logger.exception("Error in find_match (unexpected error)")
             self.statistics.record_match_failure()
             self.statistics.end_timing("matching_operation")
             return None
@@ -256,7 +231,7 @@ class MatchingEngine:
             return None
 
         logger.debug("Searching for match: %s", normalized_query.title)
-        return normalized_query
+        return cast("NormalizedQuery", normalized_query)
 
     def _validate_final_confidence(self, best_candidate: ScoredSearchResult) -> bool:
         """Validate that the final confidence meets minimum threshold.
@@ -325,7 +300,7 @@ class MatchingEngine:
 
         return match_result
 
-    def _record_successful_match(
+    def _record_successful_match(  # pylint: disable=unused-argument
         self,
         result: ScoredSearchResult,
         query: NormalizedQuery,  # noqa: ARG002 - For future metadata extension

@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import logging
 
-
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
-
 from anivault.core.file_grouper.models import Group
 from anivault.core.models import ScannedFile
 

@@ -9,9 +9,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from enum import Enum
+
+from rich.console import Console
+
 from anivault.services import TMDBClient
 from anivault.shared.errors import ApplicationError, ErrorCode, InfrastructureError
-from rich.console import Console
 
 logger = logging.getLogger(__name__)
 

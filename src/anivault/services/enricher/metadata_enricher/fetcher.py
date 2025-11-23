@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from anivault.services.tmdb import TMDBClient, TMDBSearchResult, TMDBMediaDetails
+from anivault.services.tmdb import TMDBClient, TMDBMediaDetails, TMDBSearchResult
 from anivault.shared.constants import LogContextKeys, LogOperationNames
 from anivault.shared.errors import (
     AniVaultError,

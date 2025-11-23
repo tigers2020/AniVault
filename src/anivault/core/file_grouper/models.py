@@ -7,6 +7,7 @@ and grouping evidence, providing transparency in the grouping process.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
 from anivault.core.models import ScannedFile
 
 

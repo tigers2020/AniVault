@@ -44,7 +44,7 @@ class NormalizedQuery:
             current_year = datetime.now().year
             max_year = current_year + ValidationConstants.FUTURE_YEAR_TOLERANCE
 
-            if not (ValidationConstants.MIN_VALID_YEAR <= self.year <= max_year):
+            if self.year < ValidationConstants.MIN_VALID_YEAR or self.year > max_year:
                 error_message = (
                     f"year must be between {ValidationConstants.MIN_VALID_YEAR} "
                     f"and {max_year}, got {self.year}"
