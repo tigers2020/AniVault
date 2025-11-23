@@ -13,6 +13,7 @@ from typing import Any, cast
 
 from PySide6.QtCore import QObject, QThread, Signal
 
+from anivault.config import load_settings
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, ScannedFile
 from anivault.core.organizer import FileOrganizer
@@ -61,7 +62,6 @@ class OrganizeController(QObject):
         # Use user's home directory for logs
         log_root_path = Path.home()
         self.log_manager = OperationLogManager(log_root_path)
-        from anivault.config.settings import load_settings
 
         self.settings = load_settings()
         self.file_organizer = FileOrganizer(self.log_manager, self.settings)

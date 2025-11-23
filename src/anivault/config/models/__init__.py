@@ -30,6 +30,9 @@ from .scan_settings import FilterConfig, FilterSettings, ScanConfig, ScanSetting
 # Grouping Settings
 from .grouping_settings import GroupingSettings
 
+# Main Settings class
+from .settings import Settings
+
 __all__ = [
     # All exports in alphabetical order
     "APISettings",
@@ -48,6 +51,7 @@ __all__ = [
     "ScanConfig",  # Backward compatibility alias
     "ScanSettings",
     "SecuritySettings",
+    "Settings",  # Main settings facade
     "TMDBConfig",  # Backward compatibility alias
     "TMDBSettings",
 ]

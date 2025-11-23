@@ -11,7 +11,6 @@ import logging
 from rapidfuzz import fuzz
 
 from anivault.core.matching.models import NormalizedQuery
-from anivault.services.tmdb import TMDBSearchResult
 from anivault.shared.constants.matching import ScoringWeights
 from anivault.shared.constants.validation_constants import (
     DEFAULT_CONFIDENCE_THRESHOLD,
@@ -19,6 +18,13 @@ from anivault.shared.constants.validation_constants import (
     MEDIA_TYPE_MOVIE,
     MEDIA_TYPE_TV,
 )
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+)
+from anivault.shared.models.tmdb_models import TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -102,16 +108,46 @@ def calculate_confidence_score(
 
         return confidence_score
 
-    except (ValueError, AttributeError, TypeError):
-        # Handle specific data processing errors
+    except (KeyError, ValueError, AttributeError, TypeError, IndexError) as e:
+        # Handle specific data processing/parsing errors
+
+        context = ErrorContext(
+            operation="calculate_confidence_score",
+            additional_data={
+                "query_title": normalized_query.title,
+                "result_title": tmdb_result.title or tmdb_result.name or "Unknown",
+                "error_type": "data_parsing",
+            },
+        )
+        error = AniVaultParsingError(
+            ErrorCode.DATA_PROCESSING_ERROR,
+            f"Failed to calculate confidence score due to data parsing error: {e}",
+            context,
+            original_error=e,
+        )
         logger.exception(
             "Error calculating confidence score for query '%s' and result '%s'",
             normalized_query.title,
             tmdb_result.title or tmdb_result.name or "Unknown",
         )
         return 0.0
-    except Exception:
+    except Exception as e:
         # Handle unexpected errors
+
+        context = ErrorContext(
+            operation="calculate_confidence_score",
+            additional_data={
+                "query_title": normalized_query.title,
+                "result_title": tmdb_result.title or tmdb_result.name or "Unknown",
+                "error_type": "unexpected",
+            },
+        )
+        error = AniVaultError(
+            ErrorCode.DATA_PROCESSING_ERROR,
+            f"Unexpected error calculating confidence score: {e}",
+            context,
+            original_error=e,
+        )
         logger.exception(
             "Unexpected error calculating confidence score for query '%s' and result '%s'",
             normalized_query.title,

@@ -3,20 +3,22 @@
 This module provides TMDB API client and related functionality.
 """
 
-from .tmdb_client import TMDBClient
-from .tmdb_models import (
-    TMDBGenre,
-    TMDBSearchResult,
+# Re-export models from shared to maintain backward compatibility
+from anivault.shared.models.tmdb_models import (
     ScoredSearchResult,
     TMDBCandidate,
-    TMDBSearchResponse,
     TMDBEpisode,
+    TMDBGenre,
     TMDBMediaDetails,
+    TMDBSearchResponse,
+    TMDBSearchResult,
 )
+
+from .tmdb_client import TMDBClient
 from .tmdb_strategies import (
+    MovieSearchStrategy,
     SearchStrategy,
     TvSearchStrategy,
-    MovieSearchStrategy,
 )
 from .tmdb_utils import generate_shortened_titles
 

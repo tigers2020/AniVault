@@ -8,6 +8,7 @@ configuration in the AniVault GUI application.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +34,7 @@ from PySide6.QtWidgets import (
 
 from anivault.config.auto_scanner import AutoScanner
 from anivault.config.folder_validator import FolderValidator
-from anivault.config.settings import Settings, get_config, update_and_save_config
+from anivault.config import Settings, get_config, update_and_save_config
 from anivault.shared.constants.gui_constants import (
     DialogConstants,
 )
@@ -371,7 +372,6 @@ class SettingsDialog(QDialog):
         Raises:
             OSError: If file write fails
         """
-        import os
 
         env_file = env_file_path if env_file_path is not None else Path(".env")
         env_lines = []

@@ -12,7 +12,7 @@ from dataclasses import asdict
 from anivault.core.matching.filters import apply_genre_filter, filter_and_sort_by_year
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.tmdb import ScoredSearchResult, TMDBSearchResult
+from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class CandidateFilterService:
         statistics: Statistics collector for performance tracking
 
     Example:
-        >>> from anivault.services.tmdb import ScoredSearchResult
+        >>> from anivault.shared.models.tmdb_models import ScoredSearchResult
         >>> from anivault.core.matching.models import NormalizedQuery
         >>>
         >>> stats = StatisticsCollector()

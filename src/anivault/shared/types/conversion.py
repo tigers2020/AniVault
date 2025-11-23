@@ -15,13 +15,11 @@ Performance Target: <10ms per conversion for typical models
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from collections.abc import Mapping
+from typing import Any, TypeVar, cast
 
 import orjson
 from pydantic import BaseModel, TypeAdapter, ValidationError
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 T = TypeVar("T", bound=BaseModel)
 

@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import logging
 
-# Import for type checking
 import re
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt
+from anivault.shared.constants import VideoQuality
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QApplication,
@@ -270,8 +270,6 @@ class OrganizePreviewDialog(QDialog):
         """
         if not resolution:
             return ("❓", "미분류")
-
-        from anivault.shared.constants import VideoQuality
 
         is_high = VideoQuality.is_high_resolution(resolution)
 

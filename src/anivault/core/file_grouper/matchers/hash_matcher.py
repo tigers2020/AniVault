@@ -9,16 +9,12 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 
-if TYPE_CHECKING:
-    from anivault.core.file_grouper.models import Group
-    from anivault.core.models import ScannedFile
-else:
-    from anivault.core.file_grouper.models import Group
-    from anivault.core.models import ScannedFile
+from anivault.core.file_grouper.models import Group
+from anivault.core.models import ScannedFile
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +81,6 @@ class HashSimilarityMatcher:
         """
         if not files:
             return []
-
-        # Import here to avoid circular dependency at runtime
-        from anivault.core.file_grouper.models import Group
 
         # Step 1: Extract and normalize titles
         file_titles: list[

@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 
+from dependency_injector.wiring import Provide, inject
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
+from anivault.config import get_config
+from anivault.containers import Container
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
@@ -24,6 +26,13 @@ from anivault.services.semaphore_manager import SemaphoreManager
 from anivault.services.state_machine import RateLimitStateMachine
 from anivault.services.tmdb import TMDBClient
 from anivault.shared.constants import FileSystem
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultNetworkError,
+    ErrorCode,
+    ErrorContext,
+    SecurityError,
+)
 from anivault.shared.metadata_models import FileMetadata
 from anivault.utils.resource_path import get_project_root
 
@@ -46,13 +55,20 @@ class TMDBMatchingWorker(QObject):
     matching_error: Signal = Signal(str)  # Emits error message
     matching_cancelled: Signal = Signal()  # Emitted when cancelled
 
-    def __init__(self, api_key: str, parent: QObject | None = None) -> None:
+    @inject
+    def __init__(
+        self,
+        api_key: str,
+        parent: QObject | None = None,
+        matching_engine: MatchingEngine = Provide[Container.matching_engine],
+    ) -> None:
         """
         Initialize the TMDB matching worker.
 
         Args:
             api_key: TMDB API key for authentication
             parent: Parent widget
+            matching_engine: MatchingEngine instance injected from DI container
         """
         super().__init__(parent)
 
@@ -60,15 +76,18 @@ class TMDBMatchingWorker(QObject):
         self._api_key = api_key
         self._files_to_match: list[FileItem] = []
 
-        # Initialize core components
+        # Store injected matching engine
+        self.matching_engine = matching_engine
+
+        # Initialize remaining components
         self._initialize_components()
 
         logger.debug("TMDBMatchingWorker initialized")
 
     def _initialize_components(self) -> None:
-        """Initialize TMDB client and matching engine components."""
+        """Initialize remaining TMDB client components."""
         try:
-            # Initialize cache (SQLite DB)
+            # Initialize cache (SQLite DB) - kept for backward compatibility
             # Use centralized project root utility for consistent path resolution
             project_root = get_project_root()
             cache_db_path = project_root / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db"
@@ -79,7 +98,7 @@ class TMDBMatchingWorker(QObject):
             )
             self.cache = SQLiteCacheDB(cache_db_path)
 
-            # Initialize rate limiting components
+            # Initialize rate limiting components - kept for backward compatibility
             self.rate_limiter = TokenBucketRateLimiter(
                 capacity=50,  # Default rate limit
                 refill_rate=50,
@@ -87,17 +106,11 @@ class TMDBMatchingWorker(QObject):
             self.semaphore_manager = SemaphoreManager(concurrency_limit=4)
             self.state_machine = RateLimitStateMachine()
 
-            # Initialize TMDB client
+            # Initialize TMDB client - kept for backward compatibility
             self.tmdb_client = TMDBClient(
                 rate_limiter=self.rate_limiter,
                 semaphore_manager=self.semaphore_manager,
                 state_machine=self.state_machine,
-            )
-
-            # Initialize matching engine
-            self.matching_engine = MatchingEngine(
-                cache=self.cache,
-                tmdb_client=self.tmdb_client,
             )
 
             # Initialize parser
@@ -105,9 +118,39 @@ class TMDBMatchingWorker(QObject):
 
             logger.debug("TMDB components initialized successfully")
 
-        except Exception:
+        except (ConnectionError, TimeoutError) as e:
+            context = ErrorContext(
+                operation="initialize_tmdb_components",
+            )
+            if isinstance(e, TimeoutError):
+                error = AniVaultNetworkError(
+                    ErrorCode.TMDB_API_TIMEOUT,
+                    f"TMDB components initialization timeout: {e}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                error = AniVaultNetworkError(
+                    ErrorCode.TMDB_API_CONNECTION_ERROR,
+                    f"TMDB components initialization connection error: {e}",
+                    context,
+                    original_error=e,
+                )
             logger.exception("Failed to initialize TMDB components: %s")
-            raise
+            raise error from e
+        except Exception as e:
+            context = ErrorContext(
+                operation="initialize_tmdb_components",
+                additional_data={"error_type": type(e).__name__},
+            )
+            error = AniVaultError(
+                ErrorCode.PIPELINE_INITIALIZATION_ERROR,
+                f"Unexpected error initializing TMDB components: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to initialize TMDB components: %s")
+            raise error from e
 
     def match_files(self, files: list[FileItem]) -> None:
         """
@@ -335,8 +378,6 @@ class TMDBMatchingWorker(QObject):
         Raises:
             SecurityError: If API key is missing or invalid
         """
-        from anivault.config.settings import get_config
-        from anivault.shared.errors import ErrorCode, ErrorContext, SecurityError
 
         try:
             config = get_config()

@@ -14,7 +14,14 @@ import sys
 from pathlib import Path
 from typing import ClassVar
 
-from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultPermissionError,
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+)
 
 from .theme_validator import ThemeValidator
 
@@ -119,7 +126,51 @@ class ThemePathResolver:
                 themes.append(qss_file.stem)
             logger.debug("Available themes: %s", themes)
             return themes
-        except Exception:
+        except (FileNotFoundError, PermissionError) as e:
+            context = ErrorContext(
+                file_path=str(self.themes_dir),
+                operation="get_available_themes",
+            )
+            if isinstance(e, FileNotFoundError):
+                error = AniVaultFileError(
+                    ErrorCode.DIRECTORY_NOT_FOUND,
+                    f"Themes directory not found: {self.themes_dir}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                error = AniVaultPermissionError(
+                    ErrorCode.PERMISSION_DENIED,
+                    f"Permission denied accessing themes directory: {self.themes_dir}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("Failed to get available themes")
+            return []
+        except OSError as e:
+            context = ErrorContext(
+                file_path=str(self.themes_dir),
+                operation="get_available_themes",
+            )
+            error = AniVaultFileError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"File system error accessing themes directory: {self.themes_dir}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to get available themes")
+            return []
+        except Exception as e:
+            context = ErrorContext(
+                file_path=str(self.themes_dir),
+                operation="get_available_themes",
+            )
+            error = AniVaultError(
+                ErrorCode.CONFIG_ERROR,
+                f"Unexpected error getting available themes: {self.themes_dir}",
+                context,
+                original_error=e,
+            )
             logger.exception("Failed to get available themes")
             return []
 

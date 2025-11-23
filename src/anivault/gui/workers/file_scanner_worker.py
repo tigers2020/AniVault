@@ -15,6 +15,13 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from anivault.gui.models import FileItem
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultPermissionError,
+    ErrorCode,
+    ErrorContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -152,8 +159,52 @@ class FileScannerWorker(QObject):
 
             return True
 
-        except Exception:
-            logger.exception("Directory validation error: %s")
+        except (FileNotFoundError, PermissionError) as e:
+            context = ErrorContext(
+                file_path=str(directory),
+                operation="validate_directory",
+            )
+            if isinstance(e, FileNotFoundError):
+                error = AniVaultFileError(
+                    ErrorCode.DIRECTORY_NOT_FOUND,
+                    f"Directory not found: {directory}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                error = AniVaultPermissionError(
+                    ErrorCode.PERMISSION_DENIED,
+                    f"Permission denied accessing directory: {directory}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("Directory validation error: %s", directory)
+            return False
+        except OSError as e:
+            context = ErrorContext(
+                file_path=str(directory),
+                operation="validate_directory",
+            )
+            error = AniVaultFileError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"File system error validating directory: {directory}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Directory validation error: %s", directory)
+            return False
+        except Exception as e:
+            context = ErrorContext(
+                file_path=str(directory),
+                operation="validate_directory",
+            )
+            error = AniVaultError(
+                ErrorCode.INVALID_PATH,
+                f"Unexpected error validating directory: {directory}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Directory validation error: %s", directory)
             return False
 
     def _get_all_files(self, directory: Path) -> list[Path]:
@@ -192,10 +243,52 @@ class FileScannerWorker(QObject):
                         QApplication.processEvents()
 
         except PermissionError as e:
+            context = ErrorContext(
+                file_path=str(directory),
+                operation="get_all_files",
+            )
+            error = AniVaultPermissionError(
+                ErrorCode.PERMISSION_DENIED,
+                f"Permission denied accessing directory: {directory}",
+                context,
+                original_error=e,
+            )
             logger.warning("Permission denied accessing directory: %s", e)
-        except Exception:
-            logger.exception("Error walking directory: %s")
-            raise
+            raise error from e
+        except (FileNotFoundError, OSError) as e:
+            context = ErrorContext(
+                file_path=str(directory),
+                operation="get_all_files",
+            )
+            if isinstance(e, FileNotFoundError):
+                error = AniVaultFileError(
+                    ErrorCode.DIRECTORY_NOT_FOUND,
+                    f"Directory not found: {directory}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                error = AniVaultFileError(
+                    ErrorCode.FILE_ACCESS_ERROR,
+                    f"File system error walking directory: {directory}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("Error walking directory: %s", directory)
+            raise error from e
+        except Exception as e:
+            context = ErrorContext(
+                file_path=str(directory),
+                operation="get_all_files",
+            )
+            error = AniVaultError(
+                ErrorCode.SCANNER_ERROR,
+                f"Unexpected error walking directory: {directory}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error walking directory: %s", directory)
+            raise error from e
 
         return files
 

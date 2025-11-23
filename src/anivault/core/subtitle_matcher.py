@@ -10,6 +10,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import re
+
+from anivault.config import load_settings
 from anivault.core.models import ScannedFile
 from anivault.shared.errors import (
     AniVaultError,
@@ -102,8 +105,6 @@ class SubtitleMatcher:
             Strategy name: "indexed", "fallback", or "legacy"
         """
         try:
-            from anivault.config.loader import load_settings
-
             settings = load_settings()
             if hasattr(settings, "grouping") and settings.grouping is not None:
                 return settings.grouping.subtitle_matching_strategy
@@ -200,7 +201,9 @@ class SubtitleMatcher:
                                 continue
 
                             # Check if key matches video prefix
-                            if video_clean.startswith(key) or key.startswith(video_clean):
+                            if video_clean.startswith(key) or key.startswith(
+                                video_clean
+                            ):
                                 for subtitle_path in subtitle_paths:
                                     if subtitle_path not in candidate_subtitles:
                                         candidate_subtitles.append(subtitle_path)
@@ -318,7 +321,6 @@ class SubtitleMatcher:
             Cleaned filename
         """
         # Remove common subtitle-specific patterns
-        import re
 
         patterns_to_remove = [
             r"\.(?:srt|smi|ass|ssa|vtt|sub)$",  # File extensions
@@ -345,7 +347,6 @@ class SubtitleMatcher:
             Cleaned filename
         """
         # Remove common video-specific patterns
-        import re
 
         patterns_to_remove = [
             r"\.(?:mkv|mp4|avi|mov|wmv|flv|webm|m4v)$",  # File extensions
@@ -371,7 +372,6 @@ class SubtitleMatcher:
         Returns:
             True if they have matching hash patterns
         """
-        import re
 
         # Extract hash patterns (8+ character hex strings)
         subtitle_hashes = re.findall(r"[A-Fa-f0-9]{8,}", subtitle_name)
@@ -389,7 +389,6 @@ class SubtitleMatcher:
         Returns:
             First hash found, or None if no hash exists
         """
-        import re
 
         # Extract hash patterns (8+ character hex strings)
         hashes = re.findall(r"[A-Fa-f0-9]{8,}", name)

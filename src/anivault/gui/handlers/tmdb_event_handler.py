@@ -11,18 +11,16 @@ and error handling across the application.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
+from anivault.gui.controllers.tmdb_controller import TMDBController
+from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
+from anivault.gui.managers.status_manager import StatusManager
+from anivault.gui.state_model import StateModel
 from anivault.shared.constants.gui_messages import DialogTitles
 from anivault.shared.metadata_models import FileMetadata
 
 from .base_event_handler import BaseEventHandler
-
-if TYPE_CHECKING:
-    from anivault.gui.controllers.tmdb_controller import TMDBController
-    from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
-    from anivault.gui.managers.status_manager import StatusManager
-    from anivault.gui.state_model import StateModel
 
 
 class TMDBEventHandler(BaseEventHandler):

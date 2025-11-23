@@ -8,12 +8,14 @@ help generation, shell completion, and better error handling.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from anivault.cli.common.context import CliContext, LogLevel, set_cli_context
+from anivault.cli.common.error_handler import handle_cli_error
 from anivault.cli.common.models import DirectoryPath
 from anivault.cli.common.options import (
     benchmark_option,
@@ -30,6 +32,7 @@ from anivault.cli.rollback_handler import rollback_command
 from anivault.cli.run_handler import run_command
 from anivault.cli.scan_handler import scan_command
 from anivault.cli.verify_handler import verify_command
+from anivault.containers import Container
 from anivault.shared.constants import (
     CLICommands,
     CLIDefaults,
@@ -40,6 +43,29 @@ from anivault.shared.constants import (
 
 # Version information
 __version__ = CLIDefaults.VERSION
+
+# Initialize DI container
+logger = logging.getLogger(__name__)
+_container: Container | None = None
+
+
+def get_container() -> Container:
+    """Get or create the DI container instance.
+
+    Returns:
+        Container instance for dependency injection
+    """
+    global _container
+    if _container is None:
+        _container = Container()
+        # Wire modules that use DI
+        _container.wire(
+            modules=[
+                "anivault.cli.helpers.match",
+            ]
+        )
+        logger.debug("DI container initialized and wired for CLI")
+    return _container
 
 
 def version_callback(value: bool) -> None:
@@ -104,12 +130,12 @@ def main(
 ) -> None:
     """Main CLI callback with error handling."""
     try:
+        # Initialize DI container
+        get_container()
+
         # Process the common options
         main_callback(verbose, log_level, json_output, benchmark, version)
     except Exception as e:
-        # Import here to avoid circular imports
-        from anivault.cli.common.error_handler import handle_cli_error
-
         exit_code = handle_cli_error(e, "main-callback", json_output=json_output)
         raise typer.Exit(exit_code) from e
 

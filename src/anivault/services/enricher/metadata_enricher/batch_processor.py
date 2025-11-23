@@ -11,15 +11,12 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from anivault.core.parser.models import ParsingResult
+from anivault.services.enricher.metadata_enricher.models import EnrichedMetadata
 from anivault.shared.errors import AniVaultError, ErrorCode, InfrastructureError
 from anivault.shared.logging import log_operation_error
-
-if TYPE_CHECKING:
-    # Avoid circular import by using TYPE_CHECKING
-    from anivault.services.enricher.metadata_enricher.models import EnrichedMetadata
 
 logger = logging.getLogger(__name__)
 

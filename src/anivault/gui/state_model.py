@@ -16,6 +16,14 @@ from typing import Any
 from PySide6.QtCore import QObject, Signal
 
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultParsingError,
+    AniVaultPermissionError,
+    ErrorCode,
+    ErrorContext,
+)
 from anivault.shared.metadata_models import FileMetadata
 
 from .models import FileItem
@@ -292,6 +300,84 @@ class StateModel(QObject):
             logger.info("Imported state from: %s", file_path)
             return True
 
-        except Exception:
-            logger.exception("Failed to import state: %s")
+        except (FileNotFoundError, PermissionError) as e:
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="import_state",
+            )
+            if isinstance(e, FileNotFoundError):
+                error = AniVaultFileError(
+                    ErrorCode.FILE_NOT_FOUND,
+                    f"State file not found: {file_path}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                error = AniVaultPermissionError(
+                    ErrorCode.PERMISSION_DENIED,
+                    f"Permission denied reading state file: {file_path}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("Failed to import state: %s", file_path)
+            return False
+        except OSError as e:
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="import_state",
+            )
+            error = AniVaultFileError(
+                ErrorCode.FILE_READ_ERROR,
+                f"File system error reading state file: {file_path}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to import state: %s", file_path)
+            return False
+        except json.JSONDecodeError as e:
+            # JSON parsing errors (must come before ValueError since JSONDecodeError extends ValueError)
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="import_state",
+                additional_data={
+                    "error_type": "json_parsing",
+                    "json_error_line": getattr(e, "lineno", None),
+                },
+            )
+            error = AniVaultParsingError(
+                ErrorCode.PARSING_ERROR,
+                f"Invalid JSON format in state file: {file_path} (line {getattr(e, 'lineno', 'unknown')})",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to import state: %s", file_path)
+            return False
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+            # Data parsing errors during state restoration
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="import_state",
+                additional_data={"error_type": "data_parsing"},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.PARSING_ERROR,
+                f"Failed to parse state data from file: {file_path}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to import state: %s", file_path)
+            return False
+        except Exception as e:
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="import_state",
+                additional_data={"error_type": "unexpected"},
+            )
+            error = AniVaultError(
+                ErrorCode.CONFIG_ERROR,
+                f"Unexpected error importing state: {file_path}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to import state: %s", file_path)
             return False

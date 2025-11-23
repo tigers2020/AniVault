@@ -14,6 +14,7 @@ from typing import Any
 
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
+from anivault.core.subtitle_matcher import SubtitleMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -173,14 +174,16 @@ class FileOperationExecutor:
             >>> print(f"{len(successful)}/{len(results)} operations succeeded")
         """
         results: list[OperationResult] = []
-        
+
         # Cache for created directories to avoid redundant checks
         created_dirs: set[Path] = set()
 
         for operation in operations:
             try:
                 # Execute single operation with directory cache
-                result = self.execute(operation, dry_run=dry_run, created_dirs=created_dirs)
+                result = self.execute(
+                    operation, dry_run=dry_run, created_dirs=created_dirs
+                )
                 results.append(result)
 
             except FileNotFoundError as e:
@@ -251,7 +254,6 @@ class FileOperationExecutor:
         Returns:
             List of FileOperation objects for matching subtitle files
         """
-        from anivault.core.subtitle_matcher import SubtitleMatcher
 
         operations: list[FileOperation] = []
         subtitle_matcher = SubtitleMatcher()

@@ -11,15 +11,22 @@ import logging
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.tmdb import (
-    ScoredSearchResult,
-    TMDBCandidate,
-    TMDBSearchResult,
-)
+from anivault.shared.constants import ConfidenceThresholds
 from anivault.shared.constants.validation_constants import (
     SCORE_HIGH,
     SCORE_MEDIUM,
     SCORE_VERY_LOW,
+)
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+)
+from anivault.shared.models.tmdb_models import (
+    ScoredSearchResult,
+    TMDBCandidate,
+    TMDBSearchResult,
 )
 from anivault.shared.utils.dataclass_serialization import to_dict
 
@@ -39,7 +46,7 @@ class CandidateScoringService:
         statistics: Statistics collector for performance tracking
 
     Example:
-        >>> from anivault.services.tmdb import TMDBSearchResult
+        >>> from anivault.shared.models.tmdb_models import TMDBSearchResult
         >>> from anivault.core.matching.models import NormalizedQuery
         >>>
         >>> stats = StatisticsCollector()
@@ -124,13 +131,54 @@ class CandidateScoringService:
                     confidence_score,
                 )
 
-            except Exception:
-                # Graceful degradation: assign 0.0 score on error
+            except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+                # Data parsing errors during scoring
+                context = ErrorContext(
+                    operation="calculate_confidence_score",
+                    additional_data={
+                        "candidate_title": candidate.display_title,
+                        "error_type": "data_parsing",
+                    },
+                )
+                error = AniVaultParsingError(
+                    ErrorCode.DATA_PROCESSING_ERROR,
+                    f"Failed to calculate confidence score for candidate '{candidate.display_title}': {e}",
+                    context,
+                    original_error=e,
+                )
                 logger.exception(
                     "Error calculating confidence score for candidate '%s'",
                     candidate.display_title,
                 )
 
+                # Graceful degradation: assign 0.0 score on error
+                candidate_dict = to_dict(candidate)
+                scored_result = ScoredSearchResult(
+                    **candidate_dict,
+                    confidence_score=0.0,
+                )
+                scored_candidates.append(scored_result)
+            except Exception as e:
+                # Unexpected errors
+                context = ErrorContext(
+                    operation="calculate_confidence_score",
+                    additional_data={
+                        "candidate_title": candidate.display_title,
+                        "error_type": "unexpected",
+                    },
+                )
+                error = AniVaultError(
+                    ErrorCode.DATA_PROCESSING_ERROR,
+                    f"Unexpected error calculating confidence score for candidate '{candidate.display_title}': {e}",
+                    context,
+                    original_error=e,
+                )
+                logger.exception(
+                    "Error calculating confidence score for candidate '%s'",
+                    candidate.display_title,
+                )
+
+                # Graceful degradation: assign 0.0 score on error
                 candidate_dict = to_dict(candidate)
                 scored_result = ScoredSearchResult(
                     **candidate_dict,
@@ -218,7 +266,6 @@ class CandidateScoringService:
             >>> service.get_confidence_level(0.65)
             'medium'
         """
-        from anivault.shared.constants import ConfidenceThresholds
 
         if confidence_score >= ConfidenceThresholds.HIGH:
             return SCORE_HIGH

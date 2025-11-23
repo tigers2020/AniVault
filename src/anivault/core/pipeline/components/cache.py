@@ -12,7 +12,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from anivault.services.sqlite_cache_db import SQLiteCacheDB
 from anivault.shared.constants import Cache
 from anivault.utils.resource_path import get_project_root
 
@@ -47,6 +46,9 @@ class CacheV1:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Use unified cache database (same as TMDB cache)
+        # Import at runtime to avoid dependency layer violation
+        from anivault.services.cache import SQLiteCacheDB
+
         db_path = self.cache_dir / "anivault_cache.db"
         self._sqlite_cache = SQLiteCacheDB(db_path)
 

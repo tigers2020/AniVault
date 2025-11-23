@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from anivault.config.settings import FilterConfig
+from anivault.config import FilterConfig
 
 
 class FilterEngine:

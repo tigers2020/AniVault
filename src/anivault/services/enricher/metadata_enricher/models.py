@@ -10,6 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from anivault.core.parser.models import ParsingResult
+from anivault.services.enricher.metadata_enricher.transformer import (
+    MetadataTransformer,
+)
 from anivault.services.tmdb import TMDBMediaDetails
 from anivault.shared.constants.api_fields import APIFields
 from anivault.shared.metadata_models import FileMetadata
@@ -200,10 +203,6 @@ class EnrichedMetadata:
             >>> enriched = EnrichedMetadata(file_info=parsing_result)
             >>> file_metadata = enriched.to_file_metadata(Path("/anime/aot.mkv"))
         """
-        # Import at runtime to avoid circular dependency
-        from anivault.services.enricher.metadata_enricher.transformer import (
-            MetadataTransformer,
-        )
 
         transformer = MetadataTransformer()
         return transformer.transform(

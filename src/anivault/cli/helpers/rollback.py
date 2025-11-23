@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
-
 from anivault.core.log_manager import LogFileNotFoundError, OperationLogManager
 from anivault.core.models import FileOperation
+from anivault.core.organizer import FileOrganizer
 from anivault.core.rollback_manager import RollbackManager
 from anivault.shared.errors import (
     ApplicationError,
@@ -19,9 +18,8 @@ from anivault.shared.errors import (
     ErrorContext,
     InfrastructureError,
 )
-
-if TYPE_CHECKING:
-    from rich.console import Console
+from prompt_toolkit.shortcuts import confirm
+from rich.console import Console
 
 logger = logging.getLogger(__name__)
 
@@ -153,8 +151,6 @@ def execute_rollback_plan(
         InfrastructureError: If file operations fail
     """
     try:
-        from anivault.core.organizer import FileOrganizer
-
         log_manager = OperationLogManager(Path.cwd())
         organizer = FileOrganizer(log_manager=log_manager)
 
@@ -268,8 +264,6 @@ def confirm_rollback(console: Console) -> bool:
         True if confirmed, False otherwise
     """
     try:
-        from prompt_toolkit.shortcuts import confirm
-
         if not confirm("Do you want to proceed with the rollback?"):
             console.print("[yellow]Rollback cancelled.[/yellow]")
             return False

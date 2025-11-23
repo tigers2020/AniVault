@@ -32,6 +32,13 @@ jobs:
           python -m pre_commit run --all-files
         continue-on-error: true  # Don't fail initially
 
+      - name: Detect circular imports and validate dependency layers
+        run: |
+          python scripts/detect_circular_imports.py
+        continue-on-error: false
+        env:
+          PYTHONIOENCODING: 'utf-8'
+
       - name: Validate magic values
         run: |
           python scripts/validate_magic_values.py src/anivault --format=json > magic_results.json

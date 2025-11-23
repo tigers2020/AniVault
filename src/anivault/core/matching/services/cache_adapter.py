@@ -9,11 +9,17 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from anivault.core.matching.cache_models import CachedSearchData
-from anivault.services.cache import SQLiteCacheDB
 from anivault.shared.constants import Cache
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+)
+from anivault.shared.utils.dataclass_serialization import from_dict, to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +103,7 @@ class SQLiteCacheAdapter:
         - Maintains key uniqueness through SHA-256 hashing
 
     Example:
-        >>> from anivault.services.cache import SQLiteCacheDB
+        >>> # SQLiteCacheDB is imported at runtime
         >>> db = SQLiteCacheDB(Path("cache.db"))
         >>> adapter = SQLiteCacheAdapter(db, language="ko-KR")
         >>> adapter.set("search:anime:test", {"results": []})
@@ -106,13 +112,19 @@ class SQLiteCacheAdapter:
 
     MAX_KEY_LENGTH = 256  # Maximum cache key length before hashing
 
-    def __init__(self, backend: SQLiteCacheDB, language: str = "ko-KR") -> None:
+    def __init__(self, backend: Any, language: str = "ko-KR") -> None:
         """Initialize cache adapter with SQLite backend.
 
         Args:
-            backend: SQLiteCacheDB instance for storage operations
+            backend: Cache backend instance (SQLiteCacheDB or compatible)
             language: Language code for cache key generation (default: 'ko-KR')
         """
+        # Import at runtime to avoid dependency layer violation
+        from anivault.services.cache import SQLiteCacheDB
+
+        if not isinstance(backend, SQLiteCacheDB):
+            raise TypeError(f"Expected SQLiteCacheDB, got {type(backend)}")
+
         self.backend = backend
         self.language = language
 
@@ -151,7 +163,6 @@ class SQLiteCacheAdapter:
                     cache_type,
                 )
                 # Deserialize dict to dataclass (type-safe!)
-                from anivault.shared.utils.dataclass_serialization import from_dict
 
                 return cast(
                     "CachedSearchData", from_dict(CachedSearchData, cached_dict)
@@ -165,9 +176,44 @@ class SQLiteCacheAdapter:
             )
             return None
 
-        except Exception:
-            # Graceful degradation: log error and return None (cache miss)
-            # Includes Pydantic validation errors
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+            # Data parsing errors during cache deserialization
+            context = ErrorContext(
+                operation="cache_get",
+                additional_data={
+                    "cache_key": key[:50],
+                    "cache_type": cache_type,
+                    "error_type": "data_parsing",
+                },
+            )
+            error = AniVaultParsingError(
+                ErrorCode.CACHE_READ_FAILED,
+                f"Failed to parse cached data for key={key[:50]}, type={cache_type}: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "Cache get operation failed for key=%s, type=%s",
+                key[:50],
+                cache_type,
+            )
+            return None
+        except Exception as e:
+            # Unexpected errors (includes Pydantic validation errors)
+            context = ErrorContext(
+                operation="cache_get",
+                additional_data={
+                    "cache_key": key[:50],
+                    "cache_type": cache_type,
+                    "error_type": "unexpected",
+                },
+            )
+            error = AniVaultError(
+                ErrorCode.CACHE_READ_FAILED,
+                f"Unexpected error during cache get for key={key[:50]}, type={cache_type}: {e}",
+                context,
+                original_error=e,
+            )
             logger.exception(
                 "Cache get operation failed for key=%s, type=%s",
                 key[:50],
@@ -199,8 +245,43 @@ class SQLiteCacheAdapter:
                 cache_type,
             )
 
-        except Exception:
-            # Graceful degradation: log error but don't raise
+        except (KeyError, ValueError, TypeError) as e:
+            # Data parsing errors during cache delete
+            context = ErrorContext(
+                operation="cache_delete",
+                additional_data={
+                    "cache_key": key[:50],
+                    "cache_type": cache_type,
+                    "error_type": "data_parsing",
+                },
+            )
+            error = AniVaultParsingError(
+                ErrorCode.CACHE_ERROR,
+                f"Failed to delete cache entry for key={key[:50]}, type={cache_type}: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "Cache delete operation failed for key=%s, type=%s",
+                key[:50],
+                cache_type,
+            )
+        except Exception as e:
+            # Unexpected errors
+            context = ErrorContext(
+                operation="cache_delete",
+                additional_data={
+                    "cache_key": key[:50],
+                    "cache_type": cache_type,
+                    "error_type": "unexpected",
+                },
+            )
+            error = AniVaultError(
+                ErrorCode.CACHE_ERROR,
+                f"Unexpected error during cache delete for key={key[:50]}, type={cache_type}: {e}",
+                context,
+                original_error=e,
+            )
             logger.exception(
                 "Cache delete operation failed for key=%s, type=%s",
                 key[:50],
@@ -233,7 +314,6 @@ class SQLiteCacheAdapter:
 
         try:
             # Serialize dataclass to dict for backend storage
-            from anivault.shared.utils.dataclass_serialization import to_dict
 
             data_dict = to_dict(data)
 
@@ -252,9 +332,43 @@ class SQLiteCacheAdapter:
                 ttl_seconds,
             )
 
-        except Exception:
-            # Graceful degradation: log error but don't raise
-            # Allows application to continue even if caching fails
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
+            # Data parsing errors during cache serialization
+            context = ErrorContext(
+                operation="cache_set",
+                additional_data={
+                    "cache_key": key[:50],
+                    "cache_type": cache_type,
+                    "error_type": "data_parsing",
+                },
+            )
+            error = AniVaultParsingError(
+                ErrorCode.CACHE_WRITE_FAILED,
+                f"Failed to serialize data for cache set key={key[:50]}, type={cache_type}: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "Cache set operation failed for key=%s, type=%s",
+                key[:50],
+                cache_type,
+            )
+        except Exception as e:
+            # Unexpected errors
+            context = ErrorContext(
+                operation="cache_set",
+                additional_data={
+                    "cache_key": key[:50],
+                    "cache_type": cache_type,
+                    "error_type": "unexpected",
+                },
+            )
+            error = AniVaultError(
+                ErrorCode.CACHE_WRITE_FAILED,
+                f"Unexpected error during cache set for key={key[:50]}, type={cache_type}: {e}",
+                context,
+                original_error=e,
+            )
             logger.exception(
                 "Cache set operation failed for key=%s, type=%s",
                 key[:50],

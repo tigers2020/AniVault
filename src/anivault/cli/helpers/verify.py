@@ -9,13 +9,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from enum import Enum
-from typing import TYPE_CHECKING
-
 from anivault.services import TMDBClient
 from anivault.shared.errors import ApplicationError, ErrorCode, InfrastructureError
-
-if TYPE_CHECKING:
-    from rich.console import Console
+from rich.console import Console
 
 logger = logging.getLogger(__name__)
 

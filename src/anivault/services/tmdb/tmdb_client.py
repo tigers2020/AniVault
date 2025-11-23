@@ -14,7 +14,7 @@ from typing import Any, Callable
 from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
 
-from anivault.config.settings import get_config
+from anivault.config import get_config
 from anivault.services.rate_limiter import TokenBucketRateLimiter
 from anivault.services.semaphore_manager import SemaphoreManager
 from anivault.services.state_machine import RateLimitState, RateLimitStateMachine
@@ -27,8 +27,12 @@ from anivault.shared.errors import (
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
+from anivault.shared.models.tmdb_models import (
+    TMDBMediaDetails,
+    TMDBSearchResponse,
+    TMDBSearchResult,
+)
 
-from .tmdb_models import TMDBMediaDetails, TMDBSearchResponse, TMDBSearchResult
 from .tmdb_strategies import MovieSearchStrategy, SearchStrategy, TvSearchStrategy
 from .tmdb_utils import generate_shortened_titles
 

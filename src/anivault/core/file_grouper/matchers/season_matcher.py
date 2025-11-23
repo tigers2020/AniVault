@@ -7,16 +7,12 @@ Files from the same series and season are grouped together.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+
 
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 
-if TYPE_CHECKING:
-    from anivault.core.file_grouper.models import Group
-    from anivault.core.models import ScannedFile
-else:
-    from anivault.core.file_grouper.models import Group
-    from anivault.core.models import ScannedFile
+from anivault.core.file_grouper.models import Group
+from anivault.core.models import ScannedFile
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +72,6 @@ class SeasonEpisodeMatcher:
         """
         if not files:
             return []
-
-        # Import here to avoid circular dependency at runtime
-        from anivault.core.file_grouper.models import Group
 
         # Step 1: Extract metadata and create group keys using LinkedHashTable for O(1) operations
         file_groups = LinkedHashTable[str, list[ScannedFile]](

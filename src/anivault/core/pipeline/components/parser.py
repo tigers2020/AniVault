@@ -16,7 +16,13 @@ from typing import Any
 from anivault.core.pipeline.components.cache import CacheV1
 from anivault.core.pipeline.utils import BoundedQueue, ParserStatistics
 from anivault.shared.constants import CoreCacheConfig, NetworkConfig
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+)
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 
@@ -128,8 +134,9 @@ class ParserWorker(threading.Thread):
                 {"file_path": str(file_path), "worker_id": self.worker_id},
             )
 
-        except (KeyError, ValueError, TypeError, AttributeError) as e:
-            # Handle data processing errors
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+            # Handle data processing/parsing errors
+
             self.stats.increment_failures()
             duration_ms = (time.time() - start_time) * 1000
 
@@ -143,9 +150,9 @@ class ParserWorker(threading.Thread):
                     "error_type": "data_processing",
                 },
             )
-            error = InfrastructureError(
-                ErrorCode.PARSER_ERROR,
-                f"Failed to process file due to data processing error: {file_path}",
+            error = AniVaultParsingError(
+                ErrorCode.PARSING_ERROR,
+                f"Failed to process file due to data parsing error: {file_path}",
                 context,
                 original_error=e,
             )
@@ -153,6 +160,7 @@ class ParserWorker(threading.Thread):
 
         except Exception as e:  # noqa: BLE001
             # Handle unexpected errors
+
             self.stats.increment_failures()
             duration_ms = (time.time() - start_time) * 1000
 
@@ -166,7 +174,7 @@ class ParserWorker(threading.Thread):
                     "error_type": "unexpected",
                 },
             )
-            error = InfrastructureError(
+            error = AniVaultError(
                 ErrorCode.PARSER_ERROR,
                 f"Failed to process file due to unexpected error: {file_path}",
                 context,
@@ -194,13 +202,27 @@ class ParserWorker(threading.Thread):
 
         try:
             return self.cache.get(str(file_path))
+        except (KeyError, ValueError, TypeError) as e:
+            context = ErrorContext(
+                file_path=str(file_path),
+                operation="check_cache",
+                additional_data={"worker_id": self.worker_id},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.CACHE_READ_FAILED,
+                f"Failed to parse cached data for file: {file_path}",
+                context,
+                original_error=e,
+            )
+            log_operation_error(logger, error)
+            raise error from e
         except Exception as e:
             context = ErrorContext(
                 file_path=str(file_path),
                 operation="check_cache",
                 additional_data={"worker_id": self.worker_id},
             )
-            error = InfrastructureError(
+            error = AniVaultError(
                 ErrorCode.CACHE_READ_FAILED,
                 f"Failed to check cache for file: {file_path}",
                 context,

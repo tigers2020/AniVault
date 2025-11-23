@@ -13,8 +13,8 @@ import logging
 from rapidfuzz import fuzz
 
 from anivault.core.matching.models import NormalizedQuery
-from anivault.services.tmdb import TMDBSearchResult
 from anivault.shared.constants import GenreConfig
+from anivault.shared.models.tmdb_models import TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultPermissionError,
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +57,7 @@ def set_secure_file_permissions(file_path: Path | str) -> None:
         logger.info("Secure permissions set for: %s", file_path)
 
     except PermissionError as e:
-        error = ApplicationError(
+        error = AniVaultPermissionError(
             ErrorCode.PERMISSION_DENIED,
             f"Cannot set permissions: {file_path}",
             context,
@@ -58,10 +65,27 @@ def set_secure_file_permissions(file_path: Path | str) -> None:
         )
         logger.exception("Permission denied: %s", file_path)
         raise error from e
+    except (FileNotFoundError, OSError) as e:
+        if isinstance(e, FileNotFoundError):
+            error = AniVaultFileError(
+                ErrorCode.FILE_NOT_FOUND,
+                f"File not found while setting permissions: {file_path}",
+                context,
+                original_error=e,
+            )
+        else:
+            error = AniVaultFileError(
+                ErrorCode.FILE_WRITE_ERROR,
+                f"File system error setting permissions: {file_path}",
+                context,
+                original_error=e,
+            )
+        logger.exception("Failed to set permissions: %s", file_path)
+        raise error from e
     except Exception as e:
-        error = ApplicationError(
+        error = AniVaultError(
             ErrorCode.FILE_WRITE_ERROR,
-            f"Failed to set permissions: {file_path}",
+            f"Unexpected error setting permissions: {file_path}",
             context,
             original_error=e,
         )

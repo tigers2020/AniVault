@@ -9,10 +9,11 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import typer
 from pydantic import ValidationError
+from rich.console import Console
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
@@ -32,9 +33,6 @@ from anivault.core.models import FileOperation, OperationType
 from anivault.shared.constants import CLI, CLIDefaults
 from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.types.cli import RollbackOptions
-
-if TYPE_CHECKING:
-    from rich.console import Console
 
 logger = logging.getLogger(__name__)
 

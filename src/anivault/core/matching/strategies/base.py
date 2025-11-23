@@ -6,11 +6,10 @@ fallback strategies must implement.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    from anivault.core.matching.models import NormalizedQuery
-    from anivault.services.tmdb import ScoredSearchResult
+from anivault.core.matching.models import NormalizedQuery
+from anivault.shared.models.tmdb_models import ScoredSearchResult
 
 
 @runtime_checkable

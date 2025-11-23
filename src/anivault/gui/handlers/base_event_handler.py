@@ -14,12 +14,8 @@ Pattern:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
-
+from anivault.gui.managers.status_manager import StatusManager
 from PySide6.QtWidgets import QMessageBox
-
-if TYPE_CHECKING:
-    from anivault.gui.managers.status_manager import StatusManager
 
 
 class BaseEventHandler:

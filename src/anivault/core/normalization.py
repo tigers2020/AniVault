@@ -18,10 +18,7 @@ import functools
 import logging
 import re
 import unicodedata
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from anivault.core.matching.models import NormalizedQuery
+from typing import Any
 
 from anivault.shared.constants import NormalizationConfig
 from anivault.shared.constants.core import LanguageDetectionConfig
@@ -84,7 +81,6 @@ def normalize_query_from_anitopy(
                 logger.debug("Failed to convert year hint to int: %s", year_hint)
 
         # Create NormalizedQuery domain object (validates title and year)
-        # Import here to avoid circular import
         from anivault.core.matching.models import NormalizedQuery
 
         try:

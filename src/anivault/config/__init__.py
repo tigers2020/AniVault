@@ -12,8 +12,11 @@ All configuration components are available through this package:
 
 from __future__ import annotations
 
-# Import from refactored settings facade
-from .settings import (
+# Import Settings from models package
+from .models.settings import Settings
+
+# Import domain models from models package for backward compatibility
+from .models import (
     APISettings,
     AppConfig,
     AppSettings,
@@ -29,9 +32,12 @@ from .settings import (
     ScanConfig,
     ScanSettings,
     SecuritySettings,
-    Settings,
     TMDBConfig,
     TMDBSettings,
+)
+
+# Import loader functions directly from loader module to avoid circular dependency
+from .loader import (
     get_config,
     load_settings,
     reload_config,

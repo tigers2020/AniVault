@@ -18,6 +18,7 @@ dependencies = [
     "anitopy>=2.1.1",
     "rich>=14.1.0",
     "cryptography>=41.0.0",
+    "dependency-injector>=4.41.0",
     "parse>=1.20.0",
     "requests>=2.32.0",
     "requests-cache>=1.1.0",
@@ -246,6 +247,15 @@ markers = [
     "benchmark: marks tests as benchmark/performance tests",
 ]
 pythonpath = ["src"]
+
+[tool.pylint.main]
+# PySide6는 C++ 확장 모듈로 타입 스텁이 완전하지 않아 Pylint가 인식하지 못함
+# 런타임에는 정상 작동하며, PySide6-stubs가 설치되어 있어도 Pylint는 인식하지 못함
+disable = ["no-name-in-module"]
+
+[tool.pylint."messages control"]
+# PySide6 모듈에 대한 no-name-in-module 에러 억제
+disable = ["no-name-in-module"]
 
 [tool.anivault.config]
 log_file = "logs/anivault.log"

@@ -18,14 +18,13 @@ from typing import Any
 
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.cache import SQLiteCacheDB
-from anivault.services.tmdb import TMDBClient
 from anivault.shared.constants import (
     CLIFormatting,
     ConfidenceThresholds,
     Encoding,
     JsonKeys,
 )
+from anivault.shared.protocols.services import TMDBClientProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -138,15 +137,21 @@ class BenchmarkRunner:
         self.statistics = statistics or StatisticsCollector()
 
         # Initialize components (SQLite cache)
+        # Import at runtime to avoid dependency layer violation
+        from anivault.core.matching.services import SQLiteCacheAdapter
+        from anivault.services.cache import SQLiteCacheDB
+        from anivault.services.tmdb import TMDBClient
+
         cache_db_path = Path(self.cache_dir) / "benchmark_cache.db"
-        self.cache = SQLiteCacheDB(cache_db_path, self.statistics)
-        self.tmdb_client = TMDBClient(
+        cache_db = SQLiteCacheDB(cache_db_path, self.statistics)
+        cache_adapter = SQLiteCacheAdapter(backend=cache_db, language="ko-KR")
+        self.tmdb_client: TMDBClientProtocol = TMDBClient(
             rate_limiter=None,
             semaphore_manager=None,
             state_machine=None,
         )
         self.matching_engine = MatchingEngine(
-            cache=self.cache,
+            cache_adapter=cache_adapter,
             tmdb_client=self.tmdb_client,
             statistics=self.statistics,
         )

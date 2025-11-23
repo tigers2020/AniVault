@@ -367,6 +367,61 @@ class InfrastructureError(AniVaultError):
     """
 
 
+class AniVaultFileError(InfrastructureError):
+    """File I/O related errors.
+
+    These errors occur during file system operations like reading,
+    writing, or accessing files.
+
+    Examples:
+    - File not found
+    - File access denied
+    - File read/write errors
+    - Directory creation failures
+    """
+
+
+class AniVaultPermissionError(InfrastructureError):
+    """Permission-related errors.
+
+    These errors occur when file or directory access permissions
+    are insufficient for the requested operation.
+
+    Examples:
+    - Permission denied for file access
+    - Directory write permission denied
+    - File read permission denied
+    """
+
+
+class AniVaultNetworkError(InfrastructureError):
+    """Network-related errors.
+
+    These errors occur during network operations like API calls,
+    HTTP requests, or network timeouts.
+
+    Examples:
+    - Connection errors
+    - Request timeouts
+    - API server errors
+    - Network unreachable
+    """
+
+
+class AniVaultParsingError(DomainError):
+    """Data parsing and processing errors.
+
+    These errors occur during data parsing, JSON decoding,
+    or data structure access operations.
+
+    Examples:
+    - JSON decode errors
+    - KeyError when accessing dictionaries
+    - IndexError when accessing lists
+    - ValueError during data conversion
+    """
+
+
 class ApplicationError(AniVaultError):
     """Application-level errors.
 

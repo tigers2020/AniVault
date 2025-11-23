@@ -11,10 +11,8 @@ import sys
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from rich.console import Console
+from typing import Any
+from rich.console import Console
 
 from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.json_formatter import format_json_output

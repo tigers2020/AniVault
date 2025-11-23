@@ -7,10 +7,7 @@ and grouping evidence, providing transparency in the grouping process.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from anivault.core.models import ScannedFile
+from anivault.core.models import ScannedFile
 
 
 @dataclass

@@ -11,15 +11,47 @@ import logging
 import sys
 from pathlib import Path
 
+import toml
 from PySide6.QtWidgets import QApplication
 
+from anivault.config import get_config, load_settings
 from anivault.config.auto_scanner import AutoScanner
-from anivault.config.settings import load_settings
+from anivault.containers import Container
+from anivault.shared.errors import (
+    AniVaultError,
+    AniVaultFileError,
+    AniVaultParsingError,
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+)
 
 from .main_window import MainWindow
 from .themes import ThemeManager
 
 logger = logging.getLogger(__name__)
+
+# Global DI container instance
+_container: Container | None = None
+
+
+def get_container() -> Container:
+    """Get or create the DI container instance.
+
+    Returns:
+        Container instance for dependency injection
+    """
+    global _container
+    if _container is None:
+        _container = Container()
+        # Wire modules that use DI
+        _container.wire(
+            modules=[
+                "anivault.gui.workers.tmdb_matching_worker",
+            ]
+        )
+        logger.debug("DI container initialized and wired for GUI")
+    return _container
 
 
 class AniVaultGUI:
@@ -40,6 +72,9 @@ class AniVaultGUI:
             True if initialization successful, False otherwise
         """
         try:
+            # Initialize DI container first
+            get_container()
+
             # Create QApplication
             self.app = QApplication(sys.argv)
             self.app.setApplicationName("AniVault")
@@ -77,8 +112,38 @@ class AniVaultGUI:
             logger.info("GUI application initialized successfully")
             return True
 
-        except Exception:
-            logger.exception("Failed to initialize GUI application: %s")
+        except (OSError, PermissionError) as e:
+            # File I/O errors during initialization
+            context = ErrorContext(operation="gui_initialization")
+            error = AniVaultFileError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"File I/O error during GUI initialization: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to initialize GUI application: %s", error.message)
+            return False
+        except (ValueError, AttributeError) as e:
+            # Configuration/data structure errors
+            context = ErrorContext(operation="gui_initialization")
+            error = AniVaultParsingError(
+                ErrorCode.CONFIGURATION_ERROR,
+                f"Configuration error during GUI initialization: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to initialize GUI application: %s", error.message)
+            return False
+        except Exception as e:  # - Unexpected initialization errors
+            # Unexpected errors during initialization
+            context = ErrorContext(operation="gui_initialization")
+            error = AniVaultError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Unexpected error during GUI initialization: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to initialize GUI application: %s", error.message)
             return False
 
     def _ensure_config_exists(self) -> None:
@@ -97,13 +162,37 @@ class AniVaultGUI:
             else:
                 logger.info("Config file found, using existing configuration")
 
-        except Exception:
-            logger.exception("Failed to ensure config exists")
-            raise
+        except (OSError, PermissionError) as e:
+            # File I/O errors during config creation
+            context = ErrorContext(
+                file_path=str(self.config_path),
+                operation="ensure_config_exists",
+            )
+            error = AniVaultFileError(
+                ErrorCode.FILE_CREATE_ERROR,
+                f"Failed to ensure config exists: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to ensure config exists: %s", error.message)
+            raise error from e
+        except Exception as e:  # - Unexpected config errors
+            # Unexpected errors during config creation
+            context = ErrorContext(
+                file_path=str(self.config_path),
+                operation="ensure_config_exists",
+            )
+            error = AniVaultError(
+                ErrorCode.CONFIGURATION_ERROR,
+                f"Unexpected error ensuring config exists: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Failed to ensure config exists: %s", error.message)
+            raise error from e
 
     def _create_default_config(self) -> None:
         """Create default configuration file."""
-        import toml
 
         default_config = {
             "app": {
@@ -150,15 +239,25 @@ class AniVaultGUI:
             # Run event loop
             return self.app.exec()
 
-        except Exception:
-            logger.exception("Error running GUI application: %s")
+        except (KeyboardInterrupt, SystemExit):
+            # Expected termination signals - re-raise
+            raise
+        except Exception as e:  # - Unexpected runtime errors
+            # Unexpected errors during application execution
+            context = ErrorContext(operation="gui_application_run")
+            error = AniVaultError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Error running GUI application: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error running GUI application: %s", error.message)
             return 1
 
     def _load_initial_theme(self) -> None:
         """Load and apply the initial theme from configuration."""
         try:
             # Get saved theme from configuration
-            from anivault.config.settings import get_config
 
             config = get_config()
             saved_theme = config.app.theme
@@ -169,9 +268,26 @@ class AniVaultGUI:
 
             logger.info("Initial theme loaded: %s", saved_theme)
 
-        except Exception:
-            # Exception already handled by apply_theme's fallback chain
+        except ApplicationError:
+            # ApplicationError already handled by apply_theme's fallback chain
             logger.exception("Theme loading failed, fallback applied")
+        except Exception as e:  # - Unexpected theme loading errors
+            # Unexpected errors during theme loading (fallback already applied)
+            context = ErrorContext(
+                operation="load_initial_theme",
+                additional_data={
+                    "theme": saved_theme if "saved_theme" in locals() else None
+                },
+            )
+            error = AniVaultError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Unexpected error loading theme: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception(
+                "Theme loading failed, fallback applied: %s", error.message
+            )
 
     def _setup_auto_scanner(self) -> None:
         """Setup auto scanner with callback to main window."""
@@ -187,8 +303,32 @@ class AniVaultGUI:
                             folder_path
                         )
                         self.main_window.start_file_scan()
-                except Exception:
-                    logger.exception("Auto scan callback failed: %s")
+                except (OSError, PermissionError) as e:
+                    # File I/O errors during auto scan
+                    context = ErrorContext(
+                        operation="auto_scan_callback",
+                        additional_data={"folder_path": folder_path},
+                    )
+                    error = AniVaultFileError(
+                        ErrorCode.FILE_ACCESS_ERROR,
+                        f"Auto scan callback failed: {e}",
+                        context,
+                        original_error=e,
+                    )
+                    logger.exception("Auto scan callback failed: %s", error.message)
+                except Exception as e:  # - Unexpected callback errors
+                    # Unexpected errors during auto scan callback
+                    context = ErrorContext(
+                        operation="auto_scan_callback",
+                        additional_data={"folder_path": folder_path},
+                    )
+                    error = AniVaultError(
+                        ErrorCode.APPLICATION_ERROR,
+                        f"Unexpected error in auto scan callback: {e}",
+                        context,
+                        original_error=e,
+                    )
+                    logger.exception("Auto scan callback failed: %s", error.message)
 
             self.auto_scanner.set_scan_callback(scan_callback)
 
@@ -210,9 +350,20 @@ class AniVaultGUI:
                     logger.warning("Auto scan on startup failed: %s", message)
             else:
                 logger.info("Auto scan on startup not enabled or configured")
-        except Exception:
+        except ApplicationError:
             # ApplicationError from should_auto_scan_on_startup provides detailed context
             logger.exception("Error during auto scan startup check")
+            # Continue app startup gracefully
+        except Exception as e:  # - Unexpected startup errors
+            # Unexpected errors during auto scan startup check
+            context = ErrorContext(operation="check_auto_scan_startup")
+            error = AniVaultError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Unexpected error during auto scan startup check: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error during auto scan startup check: %s", error.message)
             # Continue app startup gracefully
 
     def cleanup(self) -> None:
@@ -232,13 +383,22 @@ class AniVaultGUI:
             if self.app:
                 self.app.quit()
                 logger.info("GUI application cleaned up")
-        except Exception:
-            logger.exception("Error during cleanup: %s")
+        except Exception as e:  # - Unexpected cleanup errors
+            # Unexpected errors during cleanup - log but don't crash
+            context = ErrorContext(operation="gui_cleanup")
+            error = AniVaultError(
+                ErrorCode.APPLICATION_ERROR,
+                f"Error during cleanup: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error during cleanup: %s", error.message)
 
 
 def main() -> int:
     """Main entry point for GUI application."""
     gui_app = AniVaultGUI()
+    container = get_container()
 
     try:
         # Initialize application
@@ -258,6 +418,9 @@ def main() -> int:
 
     finally:
         gui_app.cleanup()
+        # Unwire container on cleanup
+        if container:
+            container.unwire()
 
 
 if __name__ == "__main__":

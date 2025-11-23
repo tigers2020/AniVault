@@ -19,13 +19,8 @@ Usage:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QWidget
-
-if TYPE_CHECKING:
-    from anivault.gui.main_window import MainWindow
 
 
 class MenuManager:

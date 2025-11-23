@@ -129,8 +129,6 @@ def safe_json_serialize(obj: Any) -> Any:
     # Optimize for Pydantic models - use model_dump_json() for better performance
     if hasattr(obj, "model_dump_json"):
         try:
-            import orjson
-
             return orjson.loads(obj.model_dump_json())
         except (ImportError, ValueError):
             # Fallback to model_dump() if orjson not available or fails

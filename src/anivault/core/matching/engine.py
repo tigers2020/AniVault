@@ -8,19 +8,31 @@ fuzzy matching, year-based filtering, and confidence scoring.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from anivault.core.matching.models import MatchResult, NormalizedQuery
-from anivault.core.matching.services import SQLiteCacheAdapter
+from anivault.core.matching.services import (
+    CacheAdapterProtocol,
+    CandidateFilterService,
+    CandidateScoringService,
+    FallbackStrategyService,
+    TMDBSearchService,
+)
+from anivault.core.matching.strategies import (
+    FallbackStrategy,
+    GenreBoostStrategy,
+    PartialMatchStrategy,
+)
 from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
-from anivault.services.cache import SQLiteCacheDB
-from anivault.services.tmdb import ScoredSearchResult, TMDBClient, TMDBSearchResult
-from anivault.shared.constants import (
-    ConfidenceThresholds,
-    DefaultLanguage,
-    TMDBSearchKeys,
+from anivault.shared.constants import ConfidenceThresholds
+from anivault.shared.errors import (
+    AniVaultParsingError,
+    ErrorCode,
+    ErrorContext,
 )
+from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
+from anivault.shared.protocols.services import TMDBClientProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -42,36 +54,25 @@ class MatchingEngine:
 
     def __init__(
         self,
-        cache: SQLiteCacheDB,
-        tmdb_client: TMDBClient,
+        cache_adapter: CacheAdapterProtocol,
+        tmdb_client: TMDBClientProtocol,
         statistics: StatisticsCollector | None = None,
     ):
         """Initialize the matching engine.
 
         Args:
-            cache: SQLite cache database for storing TMDB search results
+            cache_adapter: Cache adapter for storing TMDB search results
             tmdb_client: TMDB client for API calls
             statistics: Optional statistics collector for performance tracking
         """
         self.statistics = statistics or StatisticsCollector()
 
-        # Create cache adapter with language from TMDB client
-        language = getattr(tmdb_client, TMDBSearchKeys.LANGUAGE, DefaultLanguage.KOREAN)
-        self.cache = SQLiteCacheAdapter(backend=cache, language=language)
+        # Use provided cache adapter
+        self.cache = cache_adapter
 
         self.tmdb_client = tmdb_client
 
         # Initialize services
-        from anivault.core.matching.services import (
-            CandidateFilterService,
-            CandidateScoringService,
-            FallbackStrategyService,
-            TMDBSearchService,
-        )
-        from anivault.core.matching.strategies import (
-            GenreBoostStrategy,
-            PartialMatchStrategy,
-        )
 
         self._search_service = TMDBSearchService(
             cache=self.cache,
@@ -82,9 +83,6 @@ class MatchingEngine:
         self._filter_service = CandidateFilterService(statistics=self.statistics)
 
         # Initialize fallback strategies
-        from typing import cast
-
-        from anivault.core.matching.strategies import FallbackStrategy
 
         fallback_strategies: list[FallbackStrategy] = cast(
             "list[FallbackStrategy]",
@@ -205,7 +203,36 @@ class MatchingEngine:
 
             return match_result
 
-        except Exception:
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
+            # Data parsing errors during matching
+            context = ErrorContext(
+                operation="find_match",
+                additional_data={"error_type": "data_parsing"},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.DATA_PROCESSING_ERROR,
+                f"Failed to find match due to data parsing error: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error in find_match")
+            self.statistics.record_match_failure()
+            self.statistics.end_timing("matching_operation")
+            return None
+        except Exception as e:
+            from anivault.shared.errors import AniVaultError
+
+            # Unexpected errors
+            context = ErrorContext(
+                operation="find_match",
+                additional_data={"error_type": "unexpected"},
+            )
+            error = AniVaultError(
+                ErrorCode.DATA_PROCESSING_ERROR,
+                f"Unexpected error in find_match: {e}",
+                context,
+                original_error=e,
+            )
             logger.exception("Error in find_match")
             self.statistics.record_match_failure()
             self.statistics.end_timing("matching_operation")

@@ -22,6 +22,11 @@ from anivault.services.tmdb.tmdb_models import (
     TMDBMediaDetails,
     TMDBSearchResult,
 )
+from anivault.shared.errors import (
+    AniVaultNetworkError,
+    ErrorCode,
+    ErrorContext,
+)
 from anivault.shared.utils.dataclass_serialization import from_dict
 
 logger = logging.getLogger(__name__)
@@ -193,7 +198,44 @@ class TvSearchStrategy(SearchStrategy):
             logger.debug("TV search for '%s' returned %d results", title, len(results))
             return results
 
-        except Exception:
+        except (ConnectionError, TimeoutError) as e:
+            context = ErrorContext(
+                operation="tv_search",
+                additional_data={"title": title},
+            )
+            if isinstance(e, TimeoutError):
+                error = AniVaultNetworkError(
+                    ErrorCode.TMDB_API_TIMEOUT,
+                    f"TV search timeout for '{title}': {e}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                error = AniVaultNetworkError(
+                    ErrorCode.TMDB_API_CONNECTION_ERROR,
+                    f"TV search connection error for '{title}': {e}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("TV search failed for '%s'", title)
+            return []
+        except Exception as e:
+            from anivault.shared.errors import (
+                AniVaultNetworkError,
+                ErrorCode,
+                ErrorContext,
+            )
+
+            context = ErrorContext(
+                operation="tv_search",
+                additional_data={"title": title, "error_type": type(e).__name__},
+            )
+            error = AniVaultNetworkError(
+                ErrorCode.TMDB_API_REQUEST_FAILED,
+                f"TV search failed for '{title}': {e}",
+                context,
+                original_error=e,
+            )
             logger.exception("TV search failed for '%s'", title)
             return []
 
@@ -249,6 +291,43 @@ class MovieSearchStrategy(SearchStrategy):
             )
             return results
 
-        except Exception:
+        except (ConnectionError, TimeoutError) as e:
+            context = ErrorContext(
+                operation="movie_search",
+                additional_data={"title": title},
+            )
+            if isinstance(e, TimeoutError):
+                error = AniVaultNetworkError(
+                    ErrorCode.TMDB_API_TIMEOUT,
+                    f"Movie search timeout for '{title}': {e}",
+                    context,
+                    original_error=e,
+                )
+            else:
+                error = AniVaultNetworkError(
+                    ErrorCode.TMDB_API_CONNECTION_ERROR,
+                    f"Movie search connection error for '{title}': {e}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("Movie search failed for '%s'", title)
+            return []
+        except Exception as e:
+            from anivault.shared.errors import (
+                AniVaultNetworkError,
+                ErrorCode,
+                ErrorContext,
+            )
+
+            context = ErrorContext(
+                operation="movie_search",
+                additional_data={"title": title, "error_type": type(e).__name__},
+            )
+            error = AniVaultNetworkError(
+                ErrorCode.TMDB_API_REQUEST_FAILED,
+                f"Movie search failed for '{title}': {e}",
+                context,
+                original_error=e,
+            )
             logger.exception("Movie search failed for '%s'", title)
             return []

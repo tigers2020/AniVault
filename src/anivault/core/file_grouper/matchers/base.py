@@ -7,11 +7,10 @@ strategies to be added without modifying the core grouping logic.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    from anivault.core.file_grouper.models import Group
-    from anivault.core.models import ScannedFile
+from anivault.core.file_grouper.models import Group
+from anivault.core.models import ScannedFile
 
 
 @runtime_checkable
