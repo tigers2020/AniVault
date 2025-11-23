@@ -138,9 +138,10 @@ class BenchmarkRunner:
 
         # Initialize components (SQLite cache)
         # Import at runtime to avoid dependency layer violation
-        from anivault.core.matching.services import SQLiteCacheAdapter
-        from anivault.services.cache import SQLiteCacheDB
-        from anivault.services.tmdb import TMDBClient
+        # pylint: disable=import-outside-toplevel
+        from anivault.core.matching.services import SQLiteCacheAdapter  # noqa: PLC0415
+        from anivault.services.cache import SQLiteCacheDB  # noqa: PLC0415
+        from anivault.services.tmdb import TMDBClient  # noqa: PLC0415
 
         cache_db_path = Path(self.cache_dir) / "benchmark_cache.db"
         cache_db = SQLiteCacheDB(cache_db_path, self.statistics)

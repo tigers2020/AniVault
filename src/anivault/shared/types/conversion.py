@@ -115,8 +115,9 @@ class ModelConverter:
                 f"Failed to convert dict to {model_name}: "
                 f"{error_count} validation error(s)"
             )
+            # pylint: disable=import-outside-toplevel
             # Lazy import to avoid circular dependency
-            from anivault.shared.errors import create_type_coercion_error
+            from anivault.shared.errors import create_type_coercion_error  # noqa: PLC0415
 
             raise create_type_coercion_error(
                 message=error_msg,

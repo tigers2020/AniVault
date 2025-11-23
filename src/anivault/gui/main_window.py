@@ -42,9 +42,12 @@ from anivault.shared.errors import (
 from anivault.shared.metadata_models import FileMetadata
 
 from .controllers import OrganizeController, ScanController, TMDBController
+from .factories import DialogFactory
+from .handlers import OrganizeEventHandler, ScanEventHandler, TMDBEventHandler
 from .managers import MenuManager, SignalCoordinator, StatusManager
 from .state_model import StateModel
 from .themes import ThemeManager
+from .views import ViewUpdater
 from .widgets import GroupGridViewWidget
 
 logger = logging.getLogger(__name__)
@@ -103,13 +106,9 @@ class MainWindow(QMainWindow):
         self.status_manager.setup_status_bar()
 
         # Dialog factory
-        from .factories import DialogFactory
-
         self.dialog_factory = DialogFactory()
 
         # View updater
-        from .views import ViewUpdater
-
         self.view_updater = ViewUpdater(
             group_view=self.group_view,
             file_list=self.file_list,
@@ -119,7 +118,6 @@ class MainWindow(QMainWindow):
 
     def _setup_event_handlers(self) -> None:
         """Initialize event handlers."""
-        from .handlers import OrganizeEventHandler, ScanEventHandler, TMDBEventHandler
 
         self.scan_event_handler = ScanEventHandler(
             status_manager=self.status_manager,
@@ -643,16 +641,10 @@ class MainWindow(QMainWindow):
             # Handle None metadata by creating a default ParsingResult
             metadata = file_item.metadata
             if metadata is None:
-                from anivault.core.parser.models import ParsingResult
-
                 parsing_metadata: ParsingResult = ParsingResult(title="Unknown")
             else:
                 # metadata is FileMetadata (guaranteed by type annotation)
                 # Convert FileMetadata to ParsingResult for ScannedFile
-                from anivault.core.parser.models import (
-                    ParsingAdditionalInfo,
-                    ParsingResult,
-                )
 
                 assert isinstance(metadata, FileMetadata)
                 parsing_metadata = ParsingResult(

@@ -11,12 +11,23 @@ Refactored from monolithic settings.py for better modularity.
 
 from __future__ import annotations
 
+import importlib
+import logging
+import os
 import sys
 import threading
 from pathlib import Path
 from typing import Callable
 
 from anivault.config.models.settings import Settings
+from anivault.shared.constants import FileSystem
+from anivault.shared.errors import (
+    ApplicationError,
+    ErrorCode,
+    ErrorContext,
+    InfrastructureError,
+    SecurityError,
+)
 
 
 class SettingsLoader:
@@ -86,9 +97,6 @@ class SettingsLoader:
         Raises:
             ApplicationError: If validation fails or save operation fails
         """
-        import logging
-
-        from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
         logger = logging.getLogger(__name__)
         config_path = Path(config_path)
@@ -173,9 +181,6 @@ def _check_env_file_exists(env_file: Path) -> None:
     Raises:
         SecurityError: If .env file is missing and TMDB_API_KEY is not set
     """
-    import os
-
-    from anivault.shared.errors import ErrorCode, ErrorContext, SecurityError
 
     if not env_file.exists():
         # If TMDB_API_KEY is already in environment (CI/tests), allow missing .env
@@ -204,8 +209,6 @@ def _load_with_dotenv(env_file: Path) -> None:
     Raises:
         ImportError: If python-dotenv is not available
     """
-    import importlib
-
     dotenv = importlib.import_module("dotenv")
     dotenv.load_dotenv(env_file, override=True)
 
@@ -219,14 +222,6 @@ def _load_manually(env_file: Path) -> None:
     Raises:
         InfrastructureError: If file cannot be read
     """
-    import os
-
-    from anivault.shared.errors import (
-        ErrorCode,
-        ErrorContext,
-        InfrastructureError,
-    )
-
     try:
         with open(env_file, encoding="utf-8") as f:
             for line in f:
@@ -269,9 +264,6 @@ def _validate_api_key(env_file: Path) -> None:
     Raises:
         SecurityError: If TMDB_API_KEY is missing or invalid
     """
-    import os
-
-    from anivault.shared.errors import ErrorCode, ErrorContext, SecurityError
 
     # Check if API key is set
     api_key = os.getenv("TMDB_API_KEY")
@@ -326,8 +318,6 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     Returns:
         Settings instance loaded from the specified source
     """
-    from anivault.shared.constants import FileSystem
-
     # Load .env file if it exists (only once)
     _load_env_file()
 

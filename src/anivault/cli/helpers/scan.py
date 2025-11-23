@@ -14,8 +14,10 @@ from typing import Any
 from rich.console import Console
 
 from anivault.cli.progress import create_progress_manager
-from anivault.core.parser.models import ParsingResult
+from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.core.pipeline.main import run_pipeline
+from anivault.shared.constants import CLIFormatting
+from rich.table import Table
 from anivault.services import (
     RateLimitStateMachine,
     SemaphoreManager,
@@ -199,8 +201,6 @@ def run_scan_pipeline(
             # Skip invalid results but continue processing
 
     if not is_json_output and file_results:
-        from anivault.shared.constants import CLIFormatting
-
         console.print(
             CLIFormatting.format_colored_message(
                 ScanMessages.SCAN_COMPLETED,
@@ -224,8 +224,6 @@ def _file_metadata_to_parsing_result(metadata: FileMetadata) -> ParsingResult:
     Returns:
         ParsingResult instance for enrichment
     """
-    from anivault.core.parser.models import ParsingAdditionalInfo
-
     additional_info = ParsingAdditionalInfo()
     return ParsingResult(
         title=metadata.title,
@@ -461,8 +459,6 @@ def display_scan_results(
         console: Rich console for output
         show_tmdb: Whether to show TMDB metadata
     """
-    from rich.table import Table
-
     if not results:
         console.print(f"[{ScanColors.YELLOW}]No files found.[/{ScanColors.YELLOW}]")
         return

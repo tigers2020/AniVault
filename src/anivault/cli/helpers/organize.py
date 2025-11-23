@@ -14,13 +14,16 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+from rich.prompt import Confirm
 
 from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.log_manager import OperationLogManager
+from anivault.core.models import ScannedFile
 from anivault.core.organizer import FileOrganizer
+from anivault.core.pipeline.main import run_pipeline
 from anivault.core.resolution_detector import ResolutionDetector
 from anivault.core.subtitle_matcher import SubtitleMatcher
 from anivault.services.tmdb import TMDBClient
@@ -44,8 +47,6 @@ def get_scanned_files(
     Returns:
         List of scanned files
     """
-    from anivault.core.models import ScannedFile
-    from anivault.core.pipeline.main import run_pipeline
 
     progress_manager = create_progress_manager(disabled=options.json_output)
 
@@ -267,7 +268,6 @@ def confirm_organization(console: Console) -> bool:
         True if confirmed
     """
     try:
-        from rich.prompt import Confirm
 
         if not Confirm.ask("Do you want to proceed?"):
             console.print("[yellow]Operation cancelled.[/yellow]")

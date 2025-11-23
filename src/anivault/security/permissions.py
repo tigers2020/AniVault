@@ -117,8 +117,10 @@ def _set_windows_permissions(file_path: Path) -> None:
     """
     try:
         # Try to import win32security for proper ACL management
-        import ntsecuritycon as con
-        import win32security
+        # pylint: disable=import-outside-toplevel
+        # Windows-only import
+        import ntsecuritycon as con  # noqa: PLC0415
+        import win32security  # noqa: PLC0415
 
         # Get current user's SID
         user_sid = win32security.GetFileSecurity(

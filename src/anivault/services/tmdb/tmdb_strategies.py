@@ -220,7 +220,6 @@ class TvSearchStrategy(SearchStrategy):
             logger.exception("TV search failed for '%s'", title)
             return []
         except Exception as e:
-
             context = ErrorContext(
                 operation="tv_search",
                 additional_data={"title": title, "error_type": type(e).__name__},

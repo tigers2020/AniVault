@@ -135,7 +135,9 @@ class ScanEventHandler(BaseEventHandler):
         """
         # Convert list[Group] to dict for view updater callback (temporary compatibility)
         # ScannedFile and FileItem have compatible interfaces for display purposes
-        from typing import cast
+        # pylint: disable=import-outside-toplevel
+        # Import at function level for type casting
+        from typing import cast  # noqa: PLC0415
 
         grouped_dict = {
             group.title: cast("list[FileItem]", group.files) for group in grouped_files

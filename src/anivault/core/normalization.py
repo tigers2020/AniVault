@@ -20,6 +20,7 @@ import re
 import unicodedata
 from typing import Any
 
+from anivault.core.matching.models import NormalizedQuery
 from anivault.shared.constants import NormalizationConfig
 from anivault.shared.constants.core import LanguageDetectionConfig
 
@@ -80,9 +81,6 @@ def normalize_query_from_anitopy(
             except (ValueError, TypeError):
                 logger.debug("Failed to convert year hint to int: %s", year_hint)
 
-        # Create NormalizedQuery domain object (validates title and year)
-        from anivault.core.matching.models import NormalizedQuery
-
         try:
             normalized_query = NormalizedQuery(title=normalized_title, year=year_int)
         except ValueError as e:
@@ -130,7 +128,9 @@ def normalize_query(filename: str) -> tuple[str, str]:
     """
     try:
         # Parse with anitopy to extract structured data
-        import anitopy
+        # pylint: disable=import-outside-toplevel
+        # Optional dependency, import when needed
+        import anitopy  # noqa: PLC0415
 
         parsed_data = anitopy.parse(filename)
 
