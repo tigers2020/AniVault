@@ -47,8 +47,6 @@ class DialogFactory:
         Returns:
             TMDBProgressDialog: Configured TMDB progress dialog instance
         """
-        from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
-
         return TMDBProgressDialog(parent)
 
     @staticmethod
@@ -65,8 +63,6 @@ class DialogFactory:
         Returns:
             SettingsDialog: Configured settings dialog instance
         """
-        from anivault.gui.dialogs.settings_dialog import SettingsDialog
-
         return SettingsDialog(parent, config_path)
 
     @staticmethod
@@ -83,8 +79,6 @@ class DialogFactory:
         Returns:
             OrganizePreviewDialog: Configured preview dialog instance
         """
-        from anivault.gui.dialogs.organize_preview_dialog import OrganizePreviewDialog
-
         return OrganizePreviewDialog(plan, parent)
 
     @staticmethod
@@ -101,6 +95,4 @@ class DialogFactory:
         Returns:
             OrganizeProgressDialog: Configured progress dialog instance
         """
-        from anivault.gui.dialogs.organize_progress_dialog import OrganizeProgressDialog
-
         return OrganizeProgressDialog(total_files, parent)

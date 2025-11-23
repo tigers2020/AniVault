@@ -211,7 +211,7 @@ class TvSearchStrategy(SearchStrategy):
                     original_error=e,
                 )
             else:
-                error = AniVaultNetworkError(
+                _ = AniVaultNetworkError(
                     ErrorCode.TMDB_API_CONNECTION_ERROR,
                     f"TV search connection error for '{title}': {e}",
                     context,
@@ -220,21 +220,10 @@ class TvSearchStrategy(SearchStrategy):
             logger.exception("TV search failed for '%s'", title)
             return []
         except Exception as e:
-            from anivault.shared.errors import (
-                AniVaultNetworkError,
-                ErrorCode,
-                ErrorContext,
-            )
 
             context = ErrorContext(
                 operation="tv_search",
                 additional_data={"title": title, "error_type": type(e).__name__},
-            )
-            error = AniVaultNetworkError(
-                ErrorCode.TMDB_API_REQUEST_FAILED,
-                f"TV search failed for '{title}': {e}",
-                context,
-                original_error=e,
             )
             logger.exception("TV search failed for '%s'", title)
             return []
@@ -304,7 +293,7 @@ class MovieSearchStrategy(SearchStrategy):
                     original_error=e,
                 )
             else:
-                error = AniVaultNetworkError(
+                _ = AniVaultNetworkError(
                     ErrorCode.TMDB_API_CONNECTION_ERROR,
                     f"Movie search connection error for '{title}': {e}",
                     context,
@@ -312,22 +301,6 @@ class MovieSearchStrategy(SearchStrategy):
                 )
             logger.exception("Movie search failed for '%s'", title)
             return []
-        except Exception as e:
-            from anivault.shared.errors import (
-                AniVaultNetworkError,
-                ErrorCode,
-                ErrorContext,
-            )
-
-            context = ErrorContext(
-                operation="movie_search",
-                additional_data={"title": title, "error_type": type(e).__name__},
-            )
-            error = AniVaultNetworkError(
-                ErrorCode.TMDB_API_REQUEST_FAILED,
-                f"Movie search failed for '{title}': {e}",
-                context,
-                original_error=e,
-            )
+        except Exception:
             logger.exception("Movie search failed for '%s'", title)
             return []

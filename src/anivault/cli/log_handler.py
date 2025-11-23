@@ -39,9 +39,7 @@ def handle_log_command(options: LogOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    from rich.console import Console as RichConsole
-
-    console: Console = kwargs.get("console") or RichConsole()
+    console: Console = kwargs.get("console") or Console()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
     logger_adapter.info(
@@ -140,8 +138,6 @@ def log_command(
 
     except Exception as e:
         # Handle validation errors
-        from rich.console import Console
-
         console = Console()
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(CLIDefaults.EXIT_ERROR) from e

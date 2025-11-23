@@ -48,9 +48,7 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    from rich.console import Console as RichConsole
-
-    console: Console = kwargs.get("console") or RichConsole()
+    console: Console = kwargs.get("console") or Console()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
     logger_adapter.info(
@@ -425,7 +423,7 @@ def run_command(
         "--include-metadata/--no-include-metadata",
         help="Include metadata files in processing",
     ),
-    output_file: Path | None = typer.Option(  # noqa: ARG001
+    output_file: Path | None = typer.Option(  # pylint: disable=unused-argument
         None,
         "--output",
         "-o",

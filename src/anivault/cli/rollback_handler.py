@@ -49,9 +49,7 @@ def handle_rollback_command(options: RollbackOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    from rich.console import Console as RichConsole
-
-    console: Console = kwargs.get("console") or RichConsole()
+    console: Console = kwargs.get("console") or Console()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
     logger_adapter.info(
@@ -272,14 +270,10 @@ def rollback_command(
             raise typer.Exit(exit_code)
 
     except (ValueError, ValidationError) as e:
-        from rich.console import Console
-
         console = Console()
         console.print(f"[red]Validation error: {e}[/red]")
         raise typer.Exit(1) from e
     except Exception as e:
-        from rich.console import Console
-
         console = Console()
         console.print(f"[red]Unexpected error: {e}[/red]")
         logger.exception("%sin rollback command", CLIMessages.Error.UNEXPECTED_ERROR)

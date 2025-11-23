@@ -635,8 +635,6 @@ class MainWindow(QMainWindow):
         Returns:
             List of ScannedFile objects for Core processing
         """
-        from anivault.core.models import ScannedFile
-
         scanned_files = []
         for file_item in file_items:
             # Create ScannedFile from FileItem

@@ -131,9 +131,6 @@ class BatchProcessor:
         Returns:
             BatchSummary with success/failure counts and results
         """
-        # Import at runtime to avoid circular dependency
-        from anivault.services.enricher.metadata_enricher.models import EnrichedMetadata
-
         enriched_results: list[EnrichedMetadata] = []
         success_count = 0
         failed_count = 0

@@ -173,7 +173,7 @@ def scan_command_typer(
         help=CLIHelp.SCAN_OUTPUT_HELP,
         writable=True,
     ),
-    json_output: bool = typer.Option(  # noqa: ARG001
+    json_output: bool = typer.Option(  # pylint: disable=unused-argument
         False,
         CLIOptions.JSON,
         help="Output results in JSON format",
@@ -402,7 +402,7 @@ def run_command_typer(
         CLIOptions.YES_SHORT,
         help=CLIHelp.RUN_YES_HELP,
     ),
-    json_output: bool = typer.Option(  # noqa: ARG001
+    json_output: bool = typer.Option(  # pylint: disable=unused-argument
         False,
         CLIOptions.JSON,
         help=CLIHelp.RUN_JSON_HELP,
@@ -561,7 +561,6 @@ if __name__ == "__main__":
         app()
     except KeyboardInterrupt:
         # Handle Ctrl+C gracefully
-        import logging
         import sys
 
         logger = logging.getLogger(__name__)
@@ -573,8 +572,6 @@ if __name__ == "__main__":
     except Exception as e:  # noqa: BLE001
         # Handle unexpected errors with structured logging
         import sys
-
-        from anivault.cli.common.error_handler import handle_cli_error
 
         exit_code = handle_cli_error(e, "typer-app")
         sys.exit(exit_code)

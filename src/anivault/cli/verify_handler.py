@@ -39,9 +39,7 @@ def handle_verify_command(options: VerifyOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    from rich.console import Console as RichConsole
-
-    console: Console = kwargs.get("console") or RichConsole()
+    console: Console = kwargs.get("console") or Console()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
     logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command="verify"))

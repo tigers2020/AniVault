@@ -289,8 +289,6 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
     Returns:
         Exit code
     """
-    from rich.console import Console
-
     console = Console()
     log_manager = OperationLogManager(Path.cwd())
     organizer = FileOrganizer(log_manager=log_manager)
