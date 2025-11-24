@@ -10,6 +10,7 @@ import logging
 import re
 from typing import Any
 
+from datasketch import MinHash, MinHashLSH
 from rapidfuzz import fuzz
 
 from anivault.config import load_settings
@@ -471,10 +472,26 @@ class TitleIndex:
         1
     """
 
-    def __init__(self) -> None:
-        """Initialize an empty TitleIndex."""
+    def __init__(self, lsh_threshold: float = 0.5, num_perm: int = 128) -> None:
+        """Initialize an empty TitleIndex.
+
+        Args:
+            lsh_threshold: Jaccard similarity threshold for LSH (0.0-1.0). Default 0.5.
+            num_perm: Number of permutations for MinHash. Higher = more accurate but slower.
+                     Default 128 (good balance).
+        """
         self.keyword_index: dict[str, set[int]] = {}
         self.normalized_hash: dict[str, list[int]] = {}
+        # Reverse index: file_id -> set of keywords (for efficient removal)
+        self.reverse_keyword_index: dict[int, set[str]] = {}
+        # Reverse index: file_id -> normalized title (for efficient removal)
+        self.file_id_to_normalized: dict[int, str] = {}
+        # LSH index for approximate similarity search
+        self.lsh_index: MinHashLSH = MinHashLSH(threshold=lsh_threshold, num_perm=num_perm)
+        # Store MinHash objects for each file_id (for querying)
+        self.file_id_to_minhash: dict[int, MinHash] = {}
+        # Soft-deleted keys (for incremental updates)
+        self.deleted_keys: set[int] = set()
 
     def _normalize_title(self, title: str) -> str:
         """Normalize title for indexing and matching.
@@ -606,15 +623,149 @@ class TitleIndex:
         if file_id not in self.normalized_hash[normalized]:
             self.normalized_hash[normalized].append(file_id)
 
+        # Store reverse mapping: file_id -> normalized title
+        self.file_id_to_normalized[file_id] = normalized
+
         # Tokenize normalized title into keywords (split by whitespace)
         keywords = normalized.split()
 
         # Update keyword_index: each keyword maps to a set of file IDs
+        keyword_set: set[str] = set()
         for keyword in keywords:
             if keyword:  # Skip empty strings
                 if keyword not in self.keyword_index:
                     self.keyword_index[keyword] = set()
                 self.keyword_index[keyword].add(file_id)
+                keyword_set.add(keyword)
+
+        # Store reverse mapping: file_id -> set of keywords
+        self.reverse_keyword_index[file_id] = keyword_set
+
+        # Create MinHash for LSH and add to index
+        minhash = self._create_minhash_from_title(normalized)
+        if minhash is not None:
+            # If file_id already exists in LSH, we need to handle it
+            # Since LSH doesn't support removal, we soft-delete the old entry
+            if file_id in self.file_id_to_minhash:
+                self.deleted_keys.add(file_id)
+                logger.debug("File ID %d already in LSH, soft-deleting old entry", file_id)
+
+            # Store MinHash and remove from deleted_keys (will be re-added if insert fails)
+            self.file_id_to_minhash[file_id] = minhash
+            self.deleted_keys.discard(file_id)
+
+            # Try to insert into LSH
+            try:
+                self.lsh_index.insert(file_id, minhash)
+            except ValueError:
+                # Key already exists in LSH (from previous insert)
+                # This can happen if the same file_id was added before
+                # We'll keep it in deleted_keys to filter it out, but also keep the new MinHash
+                logger.debug(
+                    "LSH key %d already exists in index, will use soft-delete filtering",
+                    file_id,
+                )
+                # Keep the new MinHash but mark as deleted to avoid duplicates
+                # Actually, we want to use the new one, so don't add to deleted_keys
+                # Instead, just log and continue (the new MinHash is stored)
+
+    def _create_minhash_from_title(self, normalized_title: str, num_perm: int | None = None) -> MinHash | None:
+        """Create MinHash signature from normalized title using shingling.
+
+        This method converts the normalized title into character shingles (n-grams)
+        and creates a MinHash signature for LSH indexing.
+
+        Args:
+            normalized_title: Normalized title string (already processed).
+            num_perm: Number of permutations for MinHash. If None, uses the same
+                     value as the LSH index.
+
+        Returns:
+            MinHash object, or None if title is empty or invalid.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> minhash = index._create_minhash_from_title("attack on titan")
+            >>> minhash is not None
+            True
+        """
+        if not normalized_title:
+            return None
+
+        # Use same num_perm as LSH index if not specified
+        if num_perm is None:
+            num_perm = self.lsh_index.h  # h is the number of permutations
+
+        # Create character shingles (3-grams) from normalized title
+        # This captures character-level similarity
+        shingles: set[str] = set()
+        n = 3  # 3-gram shingles
+
+        # Generate shingles
+        for i in range(len(normalized_title) - n + 1):
+            shingle = normalized_title[i : i + n]
+            shingles.add(shingle)
+
+        # If title is too short, use word-level shingles as fallback
+        if len(shingles) < 3:
+            words = normalized_title.split()
+            for word in words:
+                if len(word) >= 2:
+                    # Use 2-grams for short words
+                    for j in range(len(word) - 1):
+                        shingles.add(word[j : j + 2])
+
+        if not shingles:
+            return None
+
+        # Create MinHash from shingles
+        minhash = MinHash(num_perm=num_perm)
+        for shingle in shingles:
+            minhash.update(shingle.encode("utf-8"))
+
+        return minhash
+
+    def query_similar_titles(self, title: str) -> list[int]:
+        """Query LSH index for titles similar to the given title.
+
+        This method uses LSH to quickly find candidate titles that are likely
+        to be similar to the query title, without comparing against all titles.
+
+        Args:
+            title: Original title to find similar matches for.
+
+        Returns:
+            List of file IDs with titles that are likely similar (above LSH threshold).
+            Results exclude soft-deleted files. Returns empty list if no matches found.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> index.add_title(1, "Attack on Titan")
+            >>> index.add_title(2, "Attack on Titan S2")
+            >>> candidates = index.query_similar_titles("Attack on Titan")
+            >>> len(candidates) >= 1
+            True
+        """
+        if not title:
+            return []
+
+        # Normalize the query title
+        normalized = self._normalize_title(title)
+        if not normalized:
+            return []
+
+        # Create MinHash for query
+        query_minhash = self._create_minhash_from_title(normalized)
+        if query_minhash is None:
+            return []
+
+        # Query LSH index
+        candidate_ids = self.lsh_index.query(query_minhash)
+
+        # Filter out soft-deleted files
+        result = [file_id for file_id in candidate_ids if file_id not in self.deleted_keys]
+
+        return result
 
     def get_exact_matches(self, title: str) -> list[int]:
         """Get all file IDs with titles that normalize to the same string.
@@ -649,6 +800,110 @@ class TitleIndex:
 
         # Return file IDs from normalized_hash (O(1) lookup)
         return self.normalized_hash.get(normalized, []).copy()
+
+    def add_file(self, file_id: int, title: str) -> None:
+        """Add a file to the index (public API for incremental updates).
+
+        This is a public wrapper around add_title() for consistency with
+        remove_file() and update_file() methods.
+
+        If the file_id was previously soft-deleted, it will be removed from
+        deleted_keys before adding.
+
+        Args:
+            file_id: Unique identifier for the file.
+            title: Original title string to index.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> index.add_file(1, "Attack on Titan - S01E01")
+            >>> matches = index.get_exact_matches("Attack on Titan - S01E01")
+            >>> len(matches)
+            1
+        """
+        # Remove from deleted_keys if it was soft-deleted
+        self.deleted_keys.discard(file_id)
+        self.add_title(file_id, title)
+
+    def remove_file(self, file_id: int, title: str | None = None) -> None:  # noqa: ARG002
+        """Remove a file from the index.
+
+        This method efficiently removes a file from all relevant indexes
+        using the reverse index for O(1) keyword lookup.
+
+        For LSH index, uses soft-delete strategy: marks the file_id as deleted
+        instead of removing from LSH (which doesn't support removal efficiently).
+
+        Args:
+            file_id: Unique identifier for the file to remove.
+            title: Optional title (for documentation/validation only, not used).
+                   Always uses stored normalized title from reverse index.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> index.add_file(1, "Attack on Titan - S01E01")
+            >>> index.remove_file(1)
+            >>> matches = index.get_exact_matches("Attack on Titan - S01E01")
+            >>> len(matches)
+            0
+        """
+        # Always use stored normalized title from reverse index
+        # (title parameter is for validation/documentation only)
+        normalized = self.file_id_to_normalized.get(file_id)
+
+        if normalized is None:
+            # File not in index, nothing to remove
+            return
+
+        # Remove from normalized_hash
+        if normalized in self.normalized_hash:
+            if file_id in self.normalized_hash[normalized]:
+                self.normalized_hash[normalized].remove(file_id)
+            # Clean up empty lists
+            if not self.normalized_hash[normalized]:
+                del self.normalized_hash[normalized]
+
+        # Remove from keyword_index using reverse index
+        keywords = self.reverse_keyword_index.get(file_id, set())
+        for keyword in keywords:
+            if keyword in self.keyword_index:
+                self.keyword_index[keyword].discard(file_id)
+                # Clean up empty sets
+                if not self.keyword_index[keyword]:
+                    del self.keyword_index[keyword]
+
+        # Remove from reverse indexes
+        self.reverse_keyword_index.pop(file_id, None)
+        self.file_id_to_normalized.pop(file_id, None)
+
+        # Soft-delete from LSH index (LSH doesn't support efficient removal)
+        self.deleted_keys.add(file_id)
+        self.file_id_to_minhash.pop(file_id, None)
+
+    def update_file(self, file_id: int, old_title: str, new_title: str) -> None:
+        """Update a file's title in the index.
+
+        This method efficiently updates the index by removing the old title
+        and adding the new title. This ensures consistency even if the
+        normalized titles differ.
+
+        Args:
+            file_id: Unique identifier for the file to update.
+            old_title: Previous title string.
+            new_title: New title string.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> index.add_file(1, "Old Title - 01")
+            >>> index.update_file(1, "Old Title - 01", "New Title - 01")
+            >>> matches = index.get_exact_matches("New Title - 01")
+            >>> len(matches)
+            1
+        """
+        # Remove old title first
+        self.remove_file(file_id, old_title)
+        # Add new title
+        self.add_file(file_id, new_title)
 
 
 __all__ = ["TitleIndex", "TitleSimilarityMatcher"]

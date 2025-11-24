@@ -534,6 +534,8 @@ class SubtitleIndex:
         """Initialize an empty SubtitleIndex."""
         self.hash_index: dict[str, list[Path]] = {}
         self.name_index: dict[str, list[Path]] = {}
+        # Reverse index: Path -> (content_hash, normalized_name) for efficient removal
+        self.path_to_metadata: dict[Path, tuple[str, str]] = {}
 
     def normalize_subtitle_name(self, name: str) -> str:
         """Normalize subtitle filename for indexing.
@@ -632,6 +634,9 @@ class SubtitleIndex:
                     if subtitle_file not in self.name_index[normalized_name]:
                         self.name_index[normalized_name].append(subtitle_file)
 
+                # Store reverse mapping: Path -> (hash, normalized_name)
+                self.path_to_metadata[subtitle_file] = (content_hash, normalized_name)
+
             except (OSError, FileNotFoundError) as e:
                 logger.warning(
                     "Failed to index subtitle file %s: %s",
@@ -707,6 +712,106 @@ class SubtitleIndex:
             if name.startswith(prefix):
                 matches.extend(paths)
         return matches
+
+    def add_file(self, subtitle_file: Path) -> None:
+        """Add a subtitle file to the index (incremental update).
+
+        This method adds a single subtitle file to the existing index
+        without rebuilding the entire index.
+
+        Args:
+            subtitle_file: Path to the subtitle file to add.
+
+        Example:
+            >>> index = SubtitleIndex()
+            >>> index.add_file(Path("sub1.srt"))
+            >>> matches = index.get_by_name("sub1")
+            >>> len(matches)
+            1
+        """
+        if not subtitle_file.exists():
+            logger.warning("Subtitle file does not exist: %s", subtitle_file)
+            return
+
+        # Skip if already indexed
+        if subtitle_file in self.path_to_metadata:
+            logger.debug("Subtitle file already in index: %s", subtitle_file)
+            return
+
+        try:
+            # Calculate content hash
+            content_hash = calculate_file_hash(subtitle_file)
+            if content_hash not in self.hash_index:
+                self.hash_index[content_hash] = []
+            if subtitle_file not in self.hash_index[content_hash]:
+                self.hash_index[content_hash].append(subtitle_file)
+
+            # Normalize filename
+            normalized_name = self.normalize_subtitle_name(subtitle_file.stem)
+            if normalized_name:
+                if normalized_name not in self.name_index:
+                    self.name_index[normalized_name] = []
+                if subtitle_file not in self.name_index[normalized_name]:
+                    self.name_index[normalized_name].append(subtitle_file)
+
+            # Store reverse mapping
+            self.path_to_metadata[subtitle_file] = (content_hash, normalized_name)
+
+            logger.debug("Added subtitle file to index: %s", subtitle_file)
+
+        except (OSError, FileNotFoundError) as e:
+            logger.warning(
+                "Failed to add subtitle file to index %s: %s",
+                subtitle_file,
+                e,
+            )
+
+    def remove_file(self, subtitle_file: Path) -> None:
+        """Remove a subtitle file from the index (incremental update).
+
+        This method efficiently removes a subtitle file from all relevant indexes
+        using the reverse index for O(1) lookup.
+
+        Args:
+            subtitle_file: Path to the subtitle file to remove.
+
+        Example:
+            >>> index = SubtitleIndex()
+            >>> index.add_file(Path("sub1.srt"))
+            >>> index.remove_file(Path("sub1.srt"))
+            >>> matches = index.get_by_name("sub1")
+            >>> len(matches)
+            0
+        """
+        # Get metadata from reverse index
+        metadata = self.path_to_metadata.get(subtitle_file)
+        if metadata is None:
+            # File not in index, nothing to remove
+            logger.debug("Subtitle file not in index: %s", subtitle_file)
+            return
+
+        content_hash, normalized_name = metadata
+
+        # Remove from hash_index
+        if content_hash in self.hash_index:
+            if subtitle_file in self.hash_index[content_hash]:
+                self.hash_index[content_hash].remove(subtitle_file)
+            # Clean up empty lists
+            if not self.hash_index[content_hash]:
+                del self.hash_index[content_hash]
+
+        # Remove from name_index
+        if normalized_name and normalized_name in self.name_index:
+            if subtitle_file in self.name_index[normalized_name]:
+                self.name_index[normalized_name].remove(subtitle_file)
+            # Clean up empty lists
+            if not self.name_index[normalized_name]:
+                del self.name_index[normalized_name]
+
+        # Remove from reverse index
+        self.path_to_metadata.pop(subtitle_file, None)
+
+        logger.debug("Removed subtitle file from index: %s", subtitle_file)
 
 
 @dataclass
