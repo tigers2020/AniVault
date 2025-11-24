@@ -298,7 +298,7 @@ class TitleSimilarityMatcher:
             )
             return result
 
-        # Step 4: Group remaining files using keyword-based filtering
+        # Step 4: Group remaining files using LSH + keyword-based filtering with fallback
         # Build keyword sets for each remaining file
         file_keywords: dict[int, set[str]] = {}
         for file_id, title in file_id_to_title.items():
@@ -306,7 +306,7 @@ class TitleSimilarityMatcher:
                 normalized = title_index._normalize_title(title)
                 file_keywords[file_id] = set(normalized.split()) if normalized else set()
 
-        # Group remaining files using keyword intersection filtering
+        # Group remaining files using LSH-first approach with keyword fallback
         for file, title in remaining_files:
             file_id = next((fid for fid, f in file_id_to_file.items() if f is file), None)
             if file_id is None or file_id in processed_file_ids:
@@ -315,25 +315,55 @@ class TitleSimilarityMatcher:
             file_keyword_set = file_keywords.get(file_id, set())
             matched_group = None
 
-            # Check against existing groups
+            # Strategy 1: Try LSH to find similar candidates first
+            lsh_candidates = title_index.query_similar_titles(title)
+            lsh_candidates = [c for c in lsh_candidates if c != file_id and c not in processed_file_ids]
+
+            # Strategy 2: Check against existing groups using LSH candidates if available
+            # Otherwise fall back to keyword-based filtering
+            candidate_file_ids: set[int] = set()
+            if lsh_candidates:
+                # Use LSH candidates to narrow down the search
+                candidate_file_ids = set(lsh_candidates)
+                logger.debug(
+                    "LSH found %d candidates for title '%s' (file_id=%d)",
+                    len(lsh_candidates),
+                    title,
+                    file_id,
+                )
+            else:
+                # Fallback: Use keyword intersection to find candidates
+                # This is the original keyword-based filtering approach
+                for other_file_id, other_keywords in file_keywords.items():
+                    if other_file_id != file_id and other_file_id not in processed_file_ids:
+                        if file_keyword_set and other_keywords:
+                            if file_keyword_set.intersection(other_keywords):
+                                candidate_file_ids.add(other_file_id)
+                logger.debug(
+                    "LSH found no candidates, using keyword intersection: %d candidates for title '%s'",
+                    len(candidate_file_ids),
+                    title,
+                )
+
+            # Check against existing groups using candidates
             for group_name, group_files in all_groups_table:
-                # Find a representative file from this group to compare with
                 if not group_files:
                     continue
 
-                # Get keywords from first file in group (as representative)
+                # Find a representative file from this group to compare with
                 rep_file_id = next((fid for fid, f in file_id_to_file.items() if f is group_files[0]), None)
                 if rep_file_id is None:
                     continue
 
-                rep_keyword_set = file_keywords.get(rep_file_id, set())
-
-                # Only compare if keywords intersect (filtering step)
-                if not file_keyword_set or not rep_keyword_set:
+                # Only compare if rep_file_id is in our candidate set (LSH or keyword-based)
+                if candidate_file_ids and rep_file_id not in candidate_file_ids:
                     continue
 
-                if not file_keyword_set.intersection(rep_keyword_set):
-                    continue  # No keyword overlap, skip expensive similarity calculation
+                # Additional keyword check for safety (even with LSH)
+                rep_keyword_set = file_keywords.get(rep_file_id, set())
+                if file_keyword_set and rep_keyword_set:
+                    if not file_keyword_set.intersection(rep_keyword_set):
+                        continue  # No keyword overlap, skip
 
                 # Get representative title from group
                 rep_title = file_id_to_title.get(rep_file_id, group_name)
