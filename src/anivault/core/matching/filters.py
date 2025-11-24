@@ -9,12 +9,16 @@ All functions are pure (no side effects) for easy testing and composition.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from rapidfuzz import fuzz
 
 from anivault.core.matching.models import NormalizedQuery
 from anivault.shared.constants import GenreConfig
 from anivault.shared.models.tmdb_models import TMDBSearchResult
+
+if TYPE_CHECKING:
+    from anivault.core.matching.services.sort_cache import SortCache
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,7 @@ YEAR_FILTER_TOLERANCE = 10  # Allow ±10 years for anime (long-running series, p
 def filter_and_sort_by_year(
     candidates: list[TMDBSearchResult],
     normalized_query: NormalizedQuery,
+    sort_cache: SortCache | None = None,
 ) -> list[TMDBSearchResult]:
     """Filter candidates by year proximity and sort them.
 
@@ -34,6 +39,7 @@ def filter_and_sort_by_year(
     Args:
         candidates: List of TMDB search results
         normalized_query: Normalized query containing year hint
+        sort_cache: Optional sort cache for optimizing repeated sorts
 
     Returns:
         Filtered and sorted list of candidates (closest year first)
@@ -74,7 +80,17 @@ def filter_and_sort_by_year(
         year_diff = abs(candidate_year - query_year)
         return (year_diff, candidate_year)
 
-    filtered.sort(key=year_sort_key)
+    # Use cache if available
+    if sort_cache is not None:
+        sort_criteria = f"year_{query_year}"
+        filtered = sort_cache.get_or_compute_sorted(
+            filtered,
+            sort_criteria,
+            year_sort_key,
+        )
+    else:
+        # Fallback to direct sort (no cache)
+        filtered.sort(key=year_sort_key)
 
     return filtered
 

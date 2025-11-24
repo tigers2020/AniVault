@@ -11,6 +11,7 @@ from dataclasses import asdict
 
 from anivault.core.matching.filters import apply_genre_filter, filter_and_sort_by_year
 from anivault.core.matching.models import NormalizedQuery
+from anivault.core.matching.services.sort_cache import SortCache
 from anivault.core.statistics import StatisticsCollector
 from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
 
@@ -24,9 +25,11 @@ class CandidateFilterService:
     1. Year-based filtering (with configurable tolerance)
     2. Genre-based filtering (anime/animation genres)
     3. Immutable list operations (input not modified)
+    4. Sort caching for performance optimization
 
     Attributes:
         statistics: Statistics collector for performance tracking
+        sort_cache: Cache for sorted candidate lists
 
     Example:
         >>> from anivault.shared.models.tmdb_models import ScoredSearchResult
@@ -47,6 +50,7 @@ class CandidateFilterService:
             statistics: Statistics collector for performance tracking
         """
         self.statistics = statistics
+        self.sort_cache = SortCache()
 
     def filter_by_year(
         self,
@@ -80,8 +84,12 @@ class CandidateFilterService:
         # Create temp query for filter function
         temp_query = NormalizedQuery(title="temp_query_for_filter", year=year_hint)
 
-        # Apply year filter
-        filtered_tmdb = filter_and_sort_by_year(tmdb_results, temp_query)
+        # Apply year filter (with sort cache)
+        filtered_tmdb = filter_and_sort_by_year(
+            tmdb_results,
+            temp_query,
+            sort_cache=self.sort_cache,
+        )
 
         # Convert back to ScoredSearchResult (preserve confidence scores)
         filtered_scored = [self._find_scored_by_id(c.id, candidates) for c in filtered_tmdb]

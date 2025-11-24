@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QModelIndex, QObject, Qt, Signal
+from PySide6.QtCore import QModelIndex, QObject, QSortFilterProxyModel, Qt, Signal
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 
 from anivault.shared.metadata_models import FileMetadata
@@ -66,6 +66,9 @@ class FileTreeModel(QStandardItemModel):
 
     This model manages the file data and provides it to the view
     in a structured format with columns for File Name, Path, and Status.
+
+    Note: For optimal sorting and filtering performance, use FileTreeProxyModel
+    as an intermediary between this model and QTreeView.
     """
 
     # Signals
@@ -80,6 +83,8 @@ class FileTreeModel(QStandardItemModel):
         )
 
         # Configure model properties
+        # Note: Sorting is now handled by FileTreeProxyModel
+        # This model only manages data, not sorting/filtering
         self.setSortRole(Qt.DisplayRole)
 
     def add_file(
@@ -257,3 +262,106 @@ class FileTreeModel(QStandardItemModel):
                     if file_item:
                         files.append(file_item)
         return files
+
+
+class FileTreeProxyModel(QSortFilterProxyModel):
+    """
+    Proxy model for FileTreeModel that handles sorting and filtering.
+
+    This proxy model sits between FileTreeModel and QTreeView, handling
+    all sorting and filtering operations at the view level. This prevents
+    the need to re-sort the entire model when filter conditions change.
+
+    Usage:
+        >>> source_model = FileTreeModel()
+        >>> proxy_model = FileTreeProxyModel()
+        >>> proxy_model.setSourceModel(source_model)
+        >>> tree_view.setModel(proxy_model)
+    """
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        """Initialize the proxy model.
+
+        Args:
+            parent: Parent QObject
+        """
+        super().__init__(parent)
+
+        # Configure proxy model properties
+        self.setFilterCaseSensitivity(Qt.CaseInsensitive)
+        self.setSortCaseSensitivity(Qt.CaseInsensitive)
+        self.setDynamicSortFilter(True)  # Enable dynamic sorting/filtering
+
+        # Default to sorting by first column (File Name)
+        self.setSortRole(Qt.DisplayRole)
+
+    def filterAcceptsRow(
+        self,
+        source_row: int,
+        source_parent: QModelIndex,
+    ) -> bool:
+        """Determine if a row should be included in the filtered view.
+
+        This method is called by QSortFilterProxyModel to determine
+        which rows should be visible based on the current filter.
+
+        Args:
+            source_row: Row index in the source model
+            source_parent: Parent index in the source model
+
+        Returns:
+            True if the row should be shown, False otherwise
+        """
+        # Get the source model
+        source_model = self.sourceModel()
+        if not source_model:
+            return False
+
+        # Check if any column in the row matches the filter
+        filter_pattern = self.filterRegularExpression().pattern()
+        if not filter_pattern:
+            return True  # No filter, show all rows
+
+        # Check each searchable column (File Name, Path, Status)
+        searchable_columns = [0, 1, 2]  # File Name, Path, Status
+        for column in searchable_columns:
+            index = source_model.index(source_row, column, source_parent)
+            if index.isValid():
+                data = source_model.data(index, Qt.DisplayRole)
+                if data:
+                    data_str = str(data).lower()
+                    # Use substring matching (setFilterFixedString uses QRegularExpression.escape)
+                    if filter_pattern.lower() in data_str:
+                        return True
+
+        return False
+
+    def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:
+        """Compare two items for sorting.
+
+        This method is called by QSortFilterProxyModel to determine
+        the sort order of items.
+
+        Args:
+            left: Left index to compare
+            right: Right index to compare
+
+        Returns:
+            True if left < right, False otherwise
+        """
+        # Get data from both indices
+        left_data = self.sourceModel().data(left, Qt.DisplayRole)
+        right_data = self.sourceModel().data(right, Qt.DisplayRole)
+
+        # Handle None values
+        if left_data is None:
+            return False
+        if right_data is None:
+            return True
+
+        # Convert to string for comparison
+        left_str = str(left_data)
+        right_str = str(right_data)
+
+        # Case-insensitive comparison
+        return left_str.lower() < right_str.lower()
