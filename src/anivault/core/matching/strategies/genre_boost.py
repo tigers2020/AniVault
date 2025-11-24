@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 
+from anivault.core.matching.models import NormalizedQuery
 from anivault.shared.constants import GenreConfig
 from anivault.shared.models.tmdb_models import ScoredSearchResult
 
@@ -32,12 +33,16 @@ class GenreBoostStrategy:
     boost: float = GenreConfig.ANIMATION_BOOST
     priority: int = 10
 
-    def apply(self, candidates: list[ScoredSearchResult]) -> list[ScoredSearchResult]:
+    def apply(
+        self,
+        candidates: list[ScoredSearchResult],
+        _query: NormalizedQuery,
+    ) -> list[ScoredSearchResult]:
         """Apply genre-based confidence boost.
 
         Args:
             candidates: List of scored candidates
-            query: Normalized query (unused, for protocol compliance)
+            _query: Normalized query (unused, for protocol compliance)
 
         Returns:
             New list with boosted confidence for animation candidates
