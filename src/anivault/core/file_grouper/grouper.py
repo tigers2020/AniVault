@@ -298,22 +298,42 @@ class FileGrouper:
 
         Args:
             similarity_threshold: Minimum similarity score for matching
+                                 (deprecated: use MatchingWeights.title_similarity_threshold)
 
         Returns:
             Configured GroupingEngine instance
         """
+        # Load matching weights from config
+        try:
+            from anivault.config import load_settings
+
+            settings = load_settings()
+            weights = settings.matching_weights
+        except (ImportError, AttributeError):
+            from anivault.config.models.matching_weights import MatchingWeights
+
+            weights = MatchingWeights()
+
         # Create helper instances for matchers
         title_extractor = TitleExtractor()
         quality_evaluator = TitleQualityEvaluator()
 
         # Create default matchers with proper dependencies
+        # Use similarity_threshold if provided (for backward compatibility),
+        # otherwise use weights.title_similarity_threshold
+        threshold = similarity_threshold if similarity_threshold != BusinessRules.FUZZY_MATCH_THRESHOLD else None
+
         title_matcher = TitleSimilarityMatcher(
             title_extractor=title_extractor,
             quality_evaluator=quality_evaluator,
-            threshold=similarity_threshold,
+            threshold=threshold,
+            weights=weights,
         )
-        hash_matcher = HashSimilarityMatcher(title_extractor=title_extractor)
-        season_matcher = SeasonEpisodeMatcher()
+        hash_matcher = HashSimilarityMatcher(
+            title_extractor=title_extractor,
+            weights=weights,
+        )
+        season_matcher = SeasonEpisodeMatcher(weights=weights)
 
         # Create engine with default weights
         return GroupingEngine(

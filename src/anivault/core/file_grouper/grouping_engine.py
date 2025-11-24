@@ -26,12 +26,32 @@ from .strategies import BestMatcherStrategy, GroupingStrategy
 logger = logging.getLogger(__name__)
 
 
-# Default weights for matchers
+# Default weights for matchers (deprecated: use MatchingWeights)
+# Kept for backward compatibility, but should use MatchingWeights.grouping_*_weight instead
 DEFAULT_WEIGHTS = {
     "title": 0.6,  # Title similarity is most important
     "hash": 0.3,  # Hash-based matching is secondary
     "season": 0.1,  # Season metadata is supplementary
 }
+
+
+def _get_default_weights_from_config() -> dict[str, float]:
+    """Get default weights from MatchingWeights configuration.
+
+    Returns:
+        Dictionary mapping matcher component_name to weight.
+    """
+    try:
+        settings = load_settings()
+        weights = settings.matching_weights
+        return {
+            "title": weights.grouping_title_weight,
+            "hash": weights.grouping_hash_weight,
+            "season": weights.grouping_season_weight,
+        }
+    except (ImportError, AttributeError):
+        # Fallback to hardcoded defaults if config not available
+        return DEFAULT_WEIGHTS.copy()
 
 
 class GroupingEngine:
@@ -97,7 +117,7 @@ class GroupingEngine:
 
         # Use default weights if not provided
         if weights is None:
-            weights = DEFAULT_WEIGHTS.copy()
+            weights = _get_default_weights_from_config()
 
         # Validate weights
         self._validate_weights(weights)
@@ -523,7 +543,7 @@ class GroupingEngine:
                         # Fallback to Hash group if refinement returns None
                         # Update evidence to indicate pipeline was attempted
                         if hash_group.evidence:
-                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} " "(Title refinement returned None)"
+                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title refinement returned None)"
                         refined_groups.append(hash_group)
                 else:
                     # Fallback: Extract files and use match() method
@@ -542,7 +562,7 @@ class GroupingEngine:
                         # Fallback to Hash group if Title matcher returns empty
                         # Update evidence to indicate Title matcher was attempted
                         if hash_group.evidence:
-                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} " "(Title matcher returned empty)"
+                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title matcher returned empty)"
                         refined_groups.append(hash_group)
 
             except (KeyError, ValueError, AttributeError, TypeError) as e:
@@ -556,7 +576,7 @@ class GroupingEngine:
                 )
                 error = AniVaultParsingError(
                     ErrorCode.FILE_GROUPING_FAILED,
-                    (f"Title matcher failed for group '{hash_group.title}' " f"due to data parsing error: {e}"),
+                    (f"Title matcher failed for group '{hash_group.title}' due to data parsing error: {e}"),
                     context,
                     original_error=e,
                 )
@@ -662,7 +682,7 @@ class GroupingEngine:
             selected_matcher = "hash,title"
         elif len(contributing_matchers) == 1:
             matcher_name = contributing_matchers[0]
-            explanation = f"Grouped by {matcher_name} similarity " f"({int(match_scores.get(matcher_name, 0.0) * 100)}%)"
+            explanation = f"Grouped by {matcher_name} similarity ({int(match_scores.get(matcher_name, 0.0) * 100)}%)"
             selected_matcher = matcher_name
         else:
             matcher_list = ", ".join(contributing_matchers)

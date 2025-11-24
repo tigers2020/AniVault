@@ -11,6 +11,7 @@ import logging
 import re
 from typing import Any
 
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 from anivault.core.file_grouper.models import Group
 from anivault.core.models import ScannedFile
@@ -42,12 +43,29 @@ class HashSimilarityMatcher:
         5
     """
 
-    def __init__(self, title_extractor: Any) -> None:
+    def __init__(
+        self,
+        title_extractor: Any,
+        weights: MatchingWeights | None = None,
+    ) -> None:
         """Initialize the hash similarity matcher.
 
         Args:
             title_extractor: TitleExtractor instance for extracting titles.
+            weights: MatchingWeights instance for configurable weights.
+                    If None, loads from config or uses defaults.
         """
+        # Load weights if not provided
+        if weights is None:
+            try:
+                from anivault.config import load_settings
+
+                settings = load_settings()
+                weights = settings.matching_weights
+            except (ImportError, AttributeError):
+                weights = MatchingWeights()
+
+        self.weights = weights
         self.component_name = "hash"
         self.title_extractor = title_extractor
 

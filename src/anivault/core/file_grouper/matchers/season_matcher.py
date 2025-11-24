@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 from anivault.core.file_grouper.models import Group
 from anivault.core.models import ScannedFile
@@ -37,8 +38,24 @@ class SeasonEpisodeMatcher:
         12
     """
 
-    def __init__(self) -> None:
-        """Initialize the season/episode matcher."""
+    def __init__(self, weights: MatchingWeights | None = None) -> None:
+        """Initialize the season/episode matcher.
+
+        Args:
+            weights: MatchingWeights instance for configurable weights.
+                    If None, loads from config or uses defaults.
+        """
+        # Load weights if not provided
+        if weights is None:
+            try:
+                from anivault.config import load_settings
+
+                settings = load_settings()
+                weights = settings.matching_weights
+            except (ImportError, AttributeError):
+                weights = MatchingWeights()
+
+        self.weights = weights
         self.component_name = "season"
 
     def match(self, files: list[ScannedFile]) -> list[Group]:

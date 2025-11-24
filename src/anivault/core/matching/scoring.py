@@ -10,8 +10,8 @@ import logging
 
 from rapidfuzz import fuzz
 
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.core.matching.models import NormalizedQuery
-from anivault.shared.constants.matching import ScoringWeights
 from anivault.shared.constants.validation_constants import (
     DEFAULT_CONFIDENCE_THRESHOLD,
     MAX_SCORE,
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 def calculate_confidence_score(
     normalized_query: NormalizedQuery,
     tmdb_result: TMDBSearchResult,
+    weights: MatchingWeights | None = None,
 ) -> float:
     """Calculate a confidence score for a TMDB result based on the normalized query.
 
@@ -69,6 +70,16 @@ def calculate_confidence_score(
         0.95
     """
     try:
+        # Load weights if not provided
+        if weights is None:
+            try:
+                from anivault.config import load_settings
+
+                settings = load_settings()
+                weights = settings.matching_weights
+            except (ImportError, AttributeError):
+                weights = MatchingWeights()
+
         # Validate input
         if not _is_valid_input(normalized_query, tmdb_result):
             return 0.0
@@ -88,10 +99,11 @@ def calculate_confidence_score(
             year_score,
             media_type_score,
             popularity_bonus,
+            weights=weights,
         )
 
         logger.debug(
-            "Confidence score calculation: title=%.3f, year=%.3f, media_type=%.3f, " "popularity=%.3f, final=%.3f",
+            "Confidence score calculation: title=%.3f, year=%.3f, media_type=%.3f, popularity=%.3f, final=%.3f",
             title_score,
             year_score,
             media_type_score,
@@ -188,6 +200,7 @@ def _aggregate_scores(
     year_score: float,
     media_type_score: float,
     popularity_bonus: float,
+    weights: MatchingWeights,
 ) -> float:
     """Aggregate individual scores into final confidence score.
 
@@ -196,18 +209,19 @@ def _aggregate_scores(
         year_score: Year match score (0.0-1.0)
         media_type_score: Media type preference score (0.0-1.0)
         popularity_bonus: Popularity bonus score (0.0-0.2)
+        weights: MatchingWeights instance for configurable weights
 
     Returns:
         Final confidence score between 0.0 and 1.0
     """
-    # Weighted aggregation using centralized constants (weights sum to 1.0)
-    # Note: These weights are defined in shared.constants.matching.ScoringWeights
+    # Weighted aggregation using MatchingWeights (weights sum to 1.0)
+    # Note: These weights are defined in config.models.matching_weights.MatchingWeights
     # and are tuned based on empirical testing with anime filenames
     confidence_score = (
-        title_score * ScoringWeights.TITLE_MATCH
-        + year_score * ScoringWeights.YEAR_MATCH
-        + media_type_score * ScoringWeights.MEDIA_TYPE_MATCH
-        + popularity_bonus * ScoringWeights.POPULARITY_MATCH
+        title_score * weights.scoring_title_match
+        + year_score * weights.scoring_year_match
+        + media_type_score * weights.scoring_media_type_match
+        + popularity_bonus * weights.scoring_popularity_match
     )
 
     # Ensure score is within bounds

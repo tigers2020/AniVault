@@ -146,16 +146,26 @@ class FallbackStrategy:
 class ScoringWeights:
     """Scoring weight configuration for matching.
 
+    .. deprecated:: Use `anivault.config.models.matching_weights.MatchingWeights` instead.
+
     These weights are used in calculate_confidence_score() to determine
     the overall match confidence. The sum must equal 1.0.
 
     Note: These values are tuned based on empirical testing with anime filenames.
+    This class is kept for backward compatibility but should be replaced with
+    MatchingWeights from the configuration system.
+
+    .. deprecated:: Use `MatchingWeights.scoring_*` attributes instead.
     """
 
     # Primary weights (sum = 1.0)
+    # Deprecated: Use MatchingWeights.scoring_title_match instead
     TITLE_MATCH = 0.5  # Title similarity is most important
+    # Deprecated: Use MatchingWeights.scoring_year_match instead
     YEAR_MATCH = 0.25  # Year match is important for accuracy
+    # Deprecated: Use MatchingWeights.scoring_media_type_match instead
     MEDIA_TYPE_MATCH = 0.15  # Media type preference (tv vs movie)
+    # Deprecated: Use MatchingWeights.scoring_popularity_match instead
     POPULARITY_MATCH = 0.1  # Popularity bonus for disambiguation
 
     # Legacy aliases (for backwards compatibility)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.scoring import calculate_confidence_score
 from anivault.core.statistics import StatisticsCollector
@@ -58,13 +59,31 @@ class CandidateScoringService:
         >>> best = scored[0]  # Highest confidence
     """
 
-    def __init__(self, statistics: StatisticsCollector) -> None:
+    def __init__(
+        self,
+        statistics: StatisticsCollector,
+        weights: MatchingWeights | None = None,
+    ) -> None:
         """Initialize scoring service.
 
         Args:
             statistics: Statistics collector for performance tracking
+            weights: MatchingWeights instance for configurable weights.
+                    If None, loads from config or uses defaults.
         """
         self.statistics = statistics
+
+        # Load weights if not provided
+        if weights is None:
+            try:
+                from anivault.config import load_settings
+
+                settings = load_settings()
+                weights = settings.matching_weights
+            except (ImportError, AttributeError):
+                weights = MatchingWeights()
+
+        self.weights = weights
 
     @staticmethod
     def _candidate_sort_key(candidate: ScoredSearchResult) -> tuple[float, float]:
@@ -114,6 +133,7 @@ class CandidateScoringService:
                 confidence_score = calculate_confidence_score(
                     normalized_query=normalized_query,
                     tmdb_result=candidate,
+                    weights=self.weights,
                 )
 
                 # Create scored result
@@ -142,7 +162,7 @@ class CandidateScoringService:
                 )
                 error = AniVaultParsingError(  # noqa: F841  # pylint: disable=unused-variable
                     ErrorCode.DATA_PROCESSING_ERROR,
-                    (f"Failed to calculate confidence score " f"for candidate '{candidate.display_title}': {e}"),
+                    (f"Failed to calculate confidence score for candidate '{candidate.display_title}': {e}"),
                     context,
                     original_error=e,
                 )
@@ -174,7 +194,7 @@ class CandidateScoringService:
                 _error = AniVaultError(
                     ErrorCode.DATA_PROCESSING_ERROR,
                     (
-                        f"Unexpected error calculating confidence score " f"for candidate '{candidate.display_title}': {e}"  # pylint: disable=line-too-long
+                        f"Unexpected error calculating confidence score for candidate '{candidate.display_title}': {e}"  # pylint: disable=line-too-long
                     ),
                     context,
                     original_error=e,

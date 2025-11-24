@@ -13,6 +13,7 @@ from typing import Any
 from rapidfuzz import fuzz
 
 from anivault.config import load_settings
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 from anivault.core.file_grouper.models import Group
 from anivault.core.models import ScannedFile
@@ -43,7 +44,8 @@ class TitleSimilarityMatcher:
         self,
         title_extractor: Any,
         quality_evaluator: Any,
-        threshold: float = 0.85,
+        threshold: float | None = None,
+        weights: MatchingWeights | None = None,
     ) -> None:
         """Initialize title similarity matcher.
 
@@ -51,7 +53,10 @@ class TitleSimilarityMatcher:
             title_extractor: Extractor for parsing titles from filenames.
             quality_evaluator: Evaluator for selecting best title variant.
             threshold: Minimum similarity score (0.0-1.0) for grouping.
-                      Default is 0.85 (85% similarity).
+                      If None, uses title_similarity_threshold from weights.
+                      Default is 0.85 (85% similarity) if weights is also None.
+            weights: MatchingWeights instance for configurable weights.
+                    If None, loads from config or uses defaults.
 
         Raises:
             ValueError: If threshold is not in range [0.0, 1.0].
@@ -62,6 +67,20 @@ class TitleSimilarityMatcher:
             >>> evaluator = TitleQualityEvaluator()
             >>> matcher = TitleSimilarityMatcher(extractor, evaluator, threshold=0.9)
         """
+        # Load weights if not provided
+        if weights is None:
+            try:
+                settings = load_settings()
+                weights = settings.matching_weights
+            except (ImportError, AttributeError):
+                weights = MatchingWeights()
+
+        self.weights = weights
+
+        # Use threshold from weights if not explicitly provided
+        if threshold is None:
+            threshold = self.weights.title_similarity_threshold
+
         if not 0.0 <= threshold <= 1.0:
             msg = f"Threshold must be between 0.0 and 1.0, got {threshold}"
             raise ValueError(msg)
@@ -208,7 +227,7 @@ class TitleSimilarityMatcher:
         title_index = TitleIndex()
         file_id_to_file: dict[int, ScannedFile] = {}
         file_id_to_title: dict[int, str] = {}
-        
+
         for file_id, file in enumerate(files, start=1):
             title = self._extract_title_from_file(file)
             if title:
@@ -231,14 +250,14 @@ class TitleSimilarityMatcher:
             initial_capacity=max(len(file_titles) * 2, 64),
             load_factor=0.75,
         )
-        
+
         for file_id, title in file_id_to_title.items():
             if file_id in processed_file_ids:
                 continue
-            
+
             # Get all files with exact normalized match
             exact_matches = title_index.get_exact_matches(title)
-            
+
             if len(exact_matches) > 1:  # More than just this file
                 # Create group from exact matches
                 exact_files = [file_id_to_file[fid] for fid in exact_matches if fid in file_id_to_file]
@@ -252,22 +271,20 @@ class TitleSimilarityMatcher:
                                 group_title,
                                 candidate_title,
                             )
-                    
+
                     # Add to groups
                     existing_files = all_groups_table.get(group_title)
                     if existing_files:
                         existing_files.extend(exact_files)
                     else:
                         all_groups_table.put(group_title, exact_files.copy())
-                    
+
                     # Mark all as processed
                     processed_file_ids.update(exact_matches)
 
         # Step 3: Process remaining files using keyword-based filtering
         remaining_files: list[tuple[ScannedFile, str]] = [
-            (file_id_to_file[fid], file_id_to_title[fid])
-            for fid in file_id_to_file.keys()
-            if fid not in processed_file_ids
+            (file_id_to_file[fid], file_id_to_title[fid]) for fid in file_id_to_file if fid not in processed_file_ids
         ]
 
         if not remaining_files:
@@ -293,33 +310,33 @@ class TitleSimilarityMatcher:
             file_id = next((fid for fid, f in file_id_to_file.items() if f is file), None)
             if file_id is None or file_id in processed_file_ids:
                 continue
-            
+
             file_keyword_set = file_keywords.get(file_id, set())
             matched_group = None
-            
+
             # Check against existing groups
             for group_name, group_files in all_groups_table:
                 # Find a representative file from this group to compare with
                 if not group_files:
                     continue
-                
+
                 # Get keywords from first file in group (as representative)
                 rep_file_id = next((fid for fid, f in file_id_to_file.items() if f is group_files[0]), None)
                 if rep_file_id is None:
                     continue
-                
+
                 rep_keyword_set = file_keywords.get(rep_file_id, set())
-                
+
                 # Only compare if keywords intersect (filtering step)
                 if not file_keyword_set or not rep_keyword_set:
                     continue
-                
+
                 if not file_keyword_set.intersection(rep_keyword_set):
                     continue  # No keyword overlap, skip expensive similarity calculation
-                
+
                 # Get representative title from group
                 rep_title = file_id_to_title.get(rep_file_id, group_name)
-                
+
                 # Guard conditions: skip similarity calculation if titles are too different
                 len1, len2 = len(title), len(rep_title)
                 if len1 > 0 and len2 > 0:
@@ -579,7 +596,7 @@ class TitleIndex:
 
         # Normalize the title
         normalized = self._normalize_title(title)
-        
+
         if not normalized:
             return
 
@@ -591,7 +608,7 @@ class TitleIndex:
 
         # Tokenize normalized title into keywords (split by whitespace)
         keywords = normalized.split()
-        
+
         # Update keyword_index: each keyword maps to a set of file IDs
         for keyword in keywords:
             if keyword:  # Skip empty strings
@@ -626,7 +643,7 @@ class TitleIndex:
 
         # Normalize the input title
         normalized = self._normalize_title(title)
-        
+
         if not normalized:
             return []
 
@@ -634,4 +651,4 @@ class TitleIndex:
         return self.normalized_hash.get(normalized, []).copy()
 
 
-__all__ = ["TitleSimilarityMatcher", "TitleIndex"]
+__all__ = ["TitleIndex", "TitleSimilarityMatcher"]
