@@ -6,8 +6,10 @@ corresponding video files based on filename patterns.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,9 @@ from anivault.shared.logging import log_operation_error
 
 logger = logging.getLogger(__name__)
 
+# Chunk size for streaming file hash calculation (64KB)
+HASH_CHUNK_SIZE = 65536
+
 
 class SubtitleMatcher:
     """Matches subtitle files with their corresponding video files."""
@@ -32,12 +37,16 @@ class SubtitleMatcher:
         # Supported subtitle extensions
         self.subtitle_extensions = {".srt", ".smi", ".ass", ".ssa", ".vtt", ".sub"}
         # Index for fast subtitle lookup: key -> list of subtitle file paths
+        # DEPRECATED: Kept for backward compatibility, use _index_cache instead
         self.index: dict[str, list[Path]] = {}
+        # Cache for SubtitleIndex instances per directory
+        self._index_cache = SubtitleIndexCache()
 
     def _build_subtitle_index(self, directory: Path) -> None:
         """Build an index of subtitle files for fast lookup.
 
-        Scans the directory for subtitle files and indexes them by hash or series prefix.
+        Scans the directory for subtitle files and builds a SubtitleIndex using caching.
+        Also maintains backward compatibility by populating self.index.
 
         Args:
             directory: Directory to scan for subtitle files
@@ -45,49 +54,18 @@ class SubtitleMatcher:
         if not directory.exists():
             return
 
-        # Clear existing index
-        self.index.clear()
-
         # Scan directory for subtitle files
-        for subtitle_file in directory.iterdir():
-            if not self._is_subtitle_file(subtitle_file):
-                continue
+        subtitle_files = [f for f in directory.iterdir() if self._is_subtitle_file(f)]
 
-            # Generate index key
+        # Build or get cached SubtitleIndex (cache is used internally)
+        self._index_cache.get_or_build(directory, subtitle_files)
+
+        # Populate legacy self.index for backward compatibility
+        self.index.clear()
+        for subtitle_file in subtitle_files:
             key = self._get_subtitle_index_key(subtitle_file)
-
-            # Add to index
             if key not in self.index:
                 self.index[key] = []
-
-            # Check for potential collisions (different series with same prefix)
-            existing_files = self.index[key]
-            if existing_files:
-                # Simple collision detection: check if file names are similar
-                # This is a heuristic - more sophisticated collision detection
-                # could be added later if needed
-                first_file_name = self._clean_subtitle_name(existing_files[0].stem)
-                current_file_name = self._clean_subtitle_name(subtitle_file.stem)
-
-                # If cleaned names are very different, log a warning
-                if first_file_name != current_file_name:
-                    # Check if they share a common prefix (at least 5 characters)
-                    common_prefix_length = 0
-                    min_length = min(len(first_file_name), len(current_file_name))
-                    for i in range(min_length):
-                        if first_file_name[i].lower() == current_file_name[i].lower():
-                            common_prefix_length += 1
-                        else:
-                            break
-
-                    if common_prefix_length < 5:
-                        logger.warning(
-                            "Potential index key collision for key '%s': " "files '%s' and '%s' may belong to different series",
-                            key,
-                            existing_files[0].name,
-                            subtitle_file.name,
-                        )
-
             self.index[key].append(subtitle_file)
 
         logger.debug(
@@ -108,9 +86,7 @@ class SubtitleMatcher:
                 return settings.grouping.subtitle_matching_strategy
         except (ImportError, AttributeError, Exception) as e:  # pylint: disable=broad-exception-caught
             logger.debug(
-                (
-                    "Could not load subtitle_matching_strategy from config, " "using default 'indexed': %s"  # pylint: disable=line-too-long
-                ),
+                "Could not load subtitle_matching_strategy from config, using default 'indexed': %s",
                 e,
             )
 
@@ -163,63 +139,66 @@ class SubtitleMatcher:
                             matching_subtitles.append(subtitle_file)
 
             elif strategy in ("indexed", "fallback"):
-                # Indexed mode: use index for fast lookup
-                if not self.index:
-                    # Index not built yet, fall back to full scan
+                # Indexed mode: use SubtitleIndex for fast lookup
+                # Build or get cached index
+                subtitle_files = [f for f in directory.iterdir() if self._is_subtitle_file(f)]
+                subtitle_index = self._index_cache.get_or_build(
+                    directory,
+                    subtitle_files,
+                )
+
+                # Get candidate subtitles using SubtitleIndex
+                candidate_subtitles: list[Path] = []
+
+                # 1. Check hash-based matches (content hash)
+                video_hash = self._extract_hash_from_name(video_name)
+                if video_hash:
+                    # Try to get content hash from video file if possible
+                    # For now, use name-based hash matching
+                    hash_matches = subtitle_index.get_by_hash(video_hash)
+                    candidate_subtitles.extend(hash_matches)
+
+                # 2. Check normalized name matches
+                video_clean = self._clean_video_name(video_name)
+                # Use SubtitleIndex's normalization (public method)
+                normalized_video_name = subtitle_index.normalize_subtitle_name(
+                    video_clean,
+                )
+                if normalized_video_name:
+                    name_matches = subtitle_index.get_by_name(normalized_video_name)
+                    candidate_subtitles.extend(name_matches)
+
+                # 3. Check prefix matches
+                if normalized_video_name:
+                    prefix_matches = subtitle_index.get_by_name_prefix(
+                        normalized_video_name,
+                    )
+                    candidate_subtitles.extend(prefix_matches)
+
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_candidates: list[Path] = []
+                for path in candidate_subtitles:
+                    if path not in seen:
+                        seen.add(path)
+                        unique_candidates.append(path)
+
+                # Match within candidates only
+                for subtitle_path in unique_candidates:
+                    if self._matches_video(subtitle_path.stem, video_name):
+                        matching_subtitles.append(subtitle_path)
+
+                # Fallback mode: if no matches found and strategy is "fallback", try full scan
+                if strategy == "fallback" and not matching_subtitles:
                     logger.debug(
-                        "Index not available, falling back to full scan for %s",
+                        "No matches found in index, falling back to full scan for %s",
                         video_file.file_path.name,
                     )
                     for subtitle_file in directory.iterdir():
                         if self._is_subtitle_file(subtitle_file):
                             if self._matches_video(subtitle_file.stem, video_name):
-                                matching_subtitles.append(subtitle_file)
-                else:
-                    # Generate index key for video file
-                    video_key = self._get_video_index_key(video_file)
-
-                    # Get candidate subtitles from index
-                    candidate_subtitles: list[Path] = []
-                    if video_key in self.index:
-                        candidate_subtitles = self.index[video_key]
-
-                    # Also check for hash-based matches
-                    video_hash = self._extract_hash_from_name(video_name)
-                    if video_hash and video_hash in self.index:
-                        for subtitle_path in self.index[video_hash]:
-                            if subtitle_path not in candidate_subtitles:
-                                candidate_subtitles.append(subtitle_path)
-
-                    # Check series prefix matches (for non-hash keys)
-                    if not candidate_subtitles:
-                        video_clean = self._clean_video_name(video_name)
-                        for key, subtitle_paths in self.index.items():
-                            # Skip hash keys (already checked)
-                            if len(key) >= 8 and all(c in "0123456789ABCDEFabcdef" for c in key):
-                                continue
-
-                            # Check if key matches video prefix
-                            if video_clean.startswith(key) or key.startswith(video_clean):
-                                for subtitle_path in subtitle_paths:
-                                    if subtitle_path not in candidate_subtitles:
-                                        candidate_subtitles.append(subtitle_path)
-
-                    # Match within candidates only
-                    for subtitle_path in candidate_subtitles:
-                        if self._matches_video(subtitle_path.stem, video_name):
-                            matching_subtitles.append(subtitle_path)
-
-                    # Fallback mode: if no matches found and strategy is "fallback", try full scan
-                    if strategy == "fallback" and not matching_subtitles:
-                        logger.debug(
-                            "No matches found in index, falling back to full scan for %s",
-                            video_file.file_path.name,
-                        )
-                        for subtitle_file in directory.iterdir():
-                            if self._is_subtitle_file(subtitle_file):
-                                if self._matches_video(subtitle_file.stem, video_name):
-                                    if subtitle_file not in matching_subtitles:
-                                        matching_subtitles.append(subtitle_file)
+                                if subtitle_file not in matching_subtitles:
+                                    matching_subtitles.append(subtitle_file)
 
             logger.debug(
                 "Found %d matching subtitles for %s (strategy: %s)",
@@ -530,6 +509,380 @@ class SubtitleMatcher:
                 context=context,
                 original_error=e,
             ) from e
+
+
+class SubtitleIndex:
+    """Index for efficient subtitle file matching using content hash and normalized names.
+
+    This class provides O(1) lookup for exact content matches and efficient filtering
+    for similar filenames using normalized name indexing.
+
+    Attributes:
+        hash_index: Dictionary mapping content hashes to lists of subtitle file paths.
+        name_index: Dictionary mapping normalized names to lists of subtitle file paths.
+
+    Example:
+        >>> index = SubtitleIndex()
+        >>> subtitle_files = [Path("sub1.srt"), Path("sub2.srt")]
+        >>> index.build_index(subtitle_files)
+        >>> matches = index.get_by_hash("abc123...")
+        >>> len(matches)
+        1
+    """
+
+    def __init__(self) -> None:
+        """Initialize an empty SubtitleIndex."""
+        self.hash_index: dict[str, list[Path]] = {}
+        self.name_index: dict[str, list[Path]] = {}
+
+    def normalize_subtitle_name(self, name: str) -> str:
+        """Normalize subtitle filename for indexing.
+
+        This function removes common subtitle-specific patterns and standardizes
+        the name for consistent matching.
+
+        Args:
+            name: Original filename (without extension) to normalize.
+
+        Returns:
+            Normalized name string.
+
+        Example:
+            >>> index = SubtitleIndex()
+            >>> index.normalize_subtitle_name("Series.S01E01.[SubsPlease].srt")
+            'series s01e01'
+        """
+        return self._normalize_subtitle_name(name)
+
+    def _normalize_subtitle_name(self, name: str) -> str:
+        """Internal normalization method.
+
+        Args:
+            name: Original filename (without extension) to normalize.
+
+        Returns:
+            Normalized name string.
+        """
+        if not name:
+            return ""
+
+        # Remove common subtitle-specific patterns
+        patterns_to_remove = [
+            r"\.(?:srt|smi|ass|ssa|vtt|sub)$",  # File extensions
+            r"\[(?:sub|subs|subtitles)\]",  # Subtitle indicators
+            r"\((?:sub|subs|subtitles)\)",
+            r"\.(?:eng|kor|jpn|jap)",  # Language codes
+            r"\[(?:eng|kor|jpn|jap)\]",
+            r"\((?:eng|kor|jpn|jap)\)",
+            r"\[[^\]]*\]",  # Any brackets
+            r"\([^)]*\)",  # Any parentheses
+        ]
+
+        normalized = name.lower()
+        for pattern in patterns_to_remove:
+            normalized = re.sub(pattern, "", normalized, flags=re.IGNORECASE)
+
+        # Remove special characters (keep only alphanumeric, Korean, and whitespace)
+        normalized = re.sub(r"[^\w\s]", "", normalized)
+
+        # Normalize whitespace
+        normalized = re.sub(r"\s+", " ", normalized)
+
+        return normalized.strip()
+
+    def build_index(self, subtitle_files: list[Path]) -> None:
+        """Build hash_index and name_index from subtitle files.
+
+        This method processes each subtitle file to:
+        1. Calculate content hash and add to hash_index
+        2. Normalize filename and add to name_index
+
+        Args:
+            subtitle_files: List of subtitle file paths to index.
+
+        Example:
+            >>> index = SubtitleIndex()
+            >>> files = [Path("sub1.srt"), Path("sub2.srt")]
+            >>> index.build_index(files)
+            >>> len(index.hash_index)
+            2
+        """
+        # Clear existing indices
+        self.hash_index.clear()
+        self.name_index.clear()
+
+        for subtitle_file in subtitle_files:
+            if not subtitle_file.exists():
+                logger.warning("Subtitle file does not exist: %s", subtitle_file)
+                continue
+
+            try:
+                # Build hash_index: content hash -> list of paths
+                content_hash = calculate_file_hash(subtitle_file)
+                if content_hash not in self.hash_index:
+                    self.hash_index[content_hash] = []
+                if subtitle_file not in self.hash_index[content_hash]:
+                    self.hash_index[content_hash].append(subtitle_file)
+
+                # Build name_index: normalized name -> list of paths
+                normalized_name = self.normalize_subtitle_name(subtitle_file.stem)
+                if normalized_name:
+                    if normalized_name not in self.name_index:
+                        self.name_index[normalized_name] = []
+                    if subtitle_file not in self.name_index[normalized_name]:
+                        self.name_index[normalized_name].append(subtitle_file)
+
+            except (OSError, FileNotFoundError) as e:
+                logger.warning(
+                    "Failed to index subtitle file %s: %s",
+                    subtitle_file,
+                    e,
+                )
+                continue
+
+        logger.debug(
+            "Built SubtitleIndex: %d hash entries, %d name entries, %d total files",
+            len(self.hash_index),
+            len(self.name_index),
+            len(subtitle_files),
+        )
+
+    def get_by_hash(self, content_hash: str) -> list[Path]:
+        """Get subtitle files with the given content hash.
+
+        Args:
+            content_hash: SHA256 hash of the file content.
+
+        Returns:
+            List of subtitle file paths with matching content hash.
+            Returns empty list if no matches found.
+
+        Example:
+            >>> index = SubtitleIndex()
+            >>> index.build_index([Path("sub1.srt")])
+            >>> matches = index.get_by_hash("abc123...")
+            >>> len(matches)
+            1
+        """
+        return self.hash_index.get(content_hash, []).copy()
+
+    def get_by_name(self, normalized_name: str) -> list[Path]:
+        """Get subtitle files with the given normalized name.
+
+        Args:
+            normalized_name: Normalized filename (should be normalized using _normalize_subtitle_name).
+
+        Returns:
+            List of subtitle file paths with matching normalized name.
+            Returns empty list if no matches found.
+
+        Example:
+            >>> index = SubtitleIndex()
+            >>> index.build_index([Path("Series.S01E01.srt")])
+            >>> matches = index.get_by_name("series s01e01")
+            >>> len(matches)
+            1
+        """
+        return self.name_index.get(normalized_name, []).copy()
+
+    def get_by_name_prefix(self, prefix: str) -> list[Path]:
+        """Get subtitle files whose normalized names start with the given prefix.
+
+        Args:
+            prefix: Prefix to search for (should be normalized).
+
+        Returns:
+            List of subtitle file paths with matching prefix.
+            Returns empty list if no matches found.
+
+        Example:
+            >>> index = SubtitleIndex()
+            >>> index.build_index([Path("Series.S01E01.srt"), Path("Series.S01E02.srt")])
+            >>> matches = index.get_by_name_prefix("series s01")
+            >>> len(matches)
+            2
+        """
+        matches: list[Path] = []
+        for name, paths in self.name_index.items():
+            if name.startswith(prefix):
+                matches.extend(paths)
+        return matches
+
+
+@dataclass
+class CachedSubtitleIndex:
+    """Cached SubtitleIndex with metadata for cache validation."""
+
+    index: SubtitleIndex
+    directory_mtime: float
+    cached_at: float
+
+
+class SubtitleIndexCache:
+    """Cache manager for SubtitleIndex objects.
+
+    This class caches SubtitleIndex instances per directory to avoid
+    repeated file system scans and hash calculations.
+
+    Attributes:
+        _cache: Dictionary mapping directory paths to CachedSubtitleIndex objects.
+
+    Example:
+        >>> cache = SubtitleIndexCache()
+        >>> index = cache.get_or_build(Path("/path/to/dir"), subtitle_files)
+        >>> # Second call returns cached index if directory unchanged
+        >>> index2 = cache.get_or_build(Path("/path/to/dir"), subtitle_files)
+    """
+
+    def __init__(self) -> None:
+        """Initialize an empty cache."""
+        self._cache: dict[str, CachedSubtitleIndex] = {}
+
+    def get_or_build(
+        self,
+        directory: Path,
+        subtitle_files: list[Path],
+    ) -> SubtitleIndex:
+        """Get cached SubtitleIndex or build a new one.
+
+        Checks if the directory has been modified since the last cache.
+        If modified or cache miss, builds a new index and caches it.
+
+        Args:
+            directory: Directory path to cache for.
+            subtitle_files: List of subtitle file paths in the directory.
+
+        Returns:
+            SubtitleIndex instance (cached or newly built).
+
+        Example:
+            >>> cache = SubtitleIndexCache()
+            >>> files = [Path("sub1.srt"), Path("sub2.srt")]
+            >>> index = cache.get_or_build(Path("/dir"), files)
+        """
+        directory_str = str(directory.resolve())
+
+        # Check if we have a cached index
+        if directory_str in self._cache:
+            cached = self._cache[directory_str]
+
+            # Check if directory has been modified
+            try:
+                current_mtime = directory.stat().st_mtime
+                if current_mtime == cached.directory_mtime:
+                    # Cache is valid, return cached index
+                    logger.debug(
+                        "Using cached SubtitleIndex for directory: %s",
+                        directory,
+                    )
+                    return cached.index
+                # Directory modified, invalidate cache
+                logger.debug(
+                    "Directory modified, invalidating cache for: %s",
+                    directory,
+                )
+                del self._cache[directory_str]
+            except OSError as e:
+                # Directory access error, invalidate cache
+                logger.warning(
+                    "Error accessing directory %s, invalidating cache: %s",
+                    directory,
+                    e,
+                )
+                if directory_str in self._cache:
+                    del self._cache[directory_str]
+
+        # Build new index and cache it
+        index = SubtitleIndex()
+        index.build_index(subtitle_files)
+
+        try:
+            directory_mtime = directory.stat().st_mtime
+        except OSError:
+            # If we can't get mtime, use 0 (will always rebuild)
+            directory_mtime = 0.0
+
+        try:
+            cached_at = directory.stat().st_mtime if directory.exists() else 0.0
+        except OSError:
+            cached_at = 0.0
+
+        self._cache[directory_str] = CachedSubtitleIndex(
+            index=index,
+            directory_mtime=directory_mtime,
+            cached_at=cached_at,
+        )
+
+        logger.debug(
+            "Built and cached SubtitleIndex for directory: %s (%d files)",
+            directory,
+            len(subtitle_files),
+        )
+
+        return index
+
+    def clear(self) -> None:
+        """Clear all cached indices."""
+        self._cache.clear()
+        logger.debug("Cleared SubtitleIndex cache")
+
+    def invalidate(self, directory: Path) -> None:
+        """Invalidate cache for a specific directory.
+
+        Args:
+            directory: Directory path to invalidate.
+        """
+        directory_str = str(directory.resolve())
+        if directory_str in self._cache:
+            del self._cache[directory_str]
+            logger.debug("Invalidated cache for directory: %s", directory)
+
+
+def calculate_file_hash(file_path: Path) -> str:
+    """Calculate SHA256 hash of a file's contents using streaming.
+
+    This function reads the file in chunks to minimize memory usage,
+    making it suitable for large subtitle files.
+
+    Args:
+        file_path: Path to the file to hash.
+
+    Returns:
+        Hexadecimal string representation of the SHA256 hash.
+
+    Raises:
+        OSError: If the file cannot be read.
+        FileNotFoundError: If the file does not exist.
+
+    Example:
+        >>> from pathlib import Path
+        >>> hash1 = calculate_file_hash(Path("subtitle1.srt"))
+        >>> hash2 = calculate_file_hash(Path("subtitle2.srt"))
+        >>> hash1 == hash2  # True if files have identical content
+        True
+
+    Note:
+        Empty files will return a hash of the empty string:
+        SHA256("") = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    """
+    sha256_hash = hashlib.sha256()
+
+    try:
+        with file_path.open("rb") as f:
+            # Read file in chunks to minimize memory usage
+            while True:
+                chunk = f.read(HASH_CHUNK_SIZE)
+                if not chunk:
+                    break
+                sha256_hash.update(chunk)
+    except FileNotFoundError:
+        logger.error("File not found for hashing: %s", file_path)
+        raise
+    except OSError as e:
+        logger.error("Error reading file for hashing %s: %s", file_path, e)
+        raise
+
+    return sha256_hash.hexdigest()
 
 
 def find_subtitles_for_video(video_file: ScannedFile, directory: Path) -> list[Path]:
