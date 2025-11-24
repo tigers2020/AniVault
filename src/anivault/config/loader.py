@@ -19,6 +19,7 @@ import threading
 from pathlib import Path
 from typing import Callable
 
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.config.models.settings import Settings
 from anivault.shared.constants import FileSystem
 from anivault.shared.errors import (
@@ -330,6 +331,36 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
 
     # Fall back to environment variables (no need to reload .env file)
     return Settings()
+
+
+def load_weights(config_path: str | Path | None = None) -> MatchingWeights:
+    """Load matching weights from TOML configuration file.
+
+    This is a convenience function that loads MatchingWeights from the
+    configuration file. If the file doesn't exist or the section is missing,
+    returns default MatchingWeights instance.
+
+    Args:
+        config_path: Optional path to TOML configuration file. If None, tries to load
+                    from default locations.
+
+    Returns:
+        MatchingWeights instance loaded from configuration or defaults.
+
+    Example:
+        >>> weights = load_weights()
+        >>> weights.scoring_title_match
+        0.5
+        >>> weights = load_weights("config/config.toml")
+        >>> weights.grouping_title_weight
+        0.6
+    """
+    try:
+        settings = load_settings(config_path)
+        return settings.matching_weights
+    except FileNotFoundError:
+        # If config file doesn't exist, return default MatchingWeights
+        return MatchingWeights()
 
 
 # Global loader instance

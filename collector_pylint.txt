@@ -1,5 +1,0 @@
-﻿************* Module anivault.core.pipeline.components.collector
-src\anivault\core\pipeline\components\collector.py:186:4: R0912: Too many branches (13/12) (too-many-branches)
-
------------------------------------
-Your code has been rated at 9.96/10

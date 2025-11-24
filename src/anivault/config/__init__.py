@@ -16,6 +16,7 @@ from __future__ import annotations
 from .loader import (
     get_config,
     load_settings,
+    load_weights,
     reload_config,
     update_and_save_config,
 )
@@ -32,6 +33,7 @@ from .models import (
     FolderSettings,
     LoggingConfig,
     LoggingSettings,
+    MatchingWeights,
     PerformanceConfig,
     PerformanceSettings,
     ScanConfig,
@@ -55,6 +57,7 @@ __all__ = [
     "FolderSettings",
     "LoggingConfig",
     "LoggingSettings",
+    "MatchingWeights",
     "PerformanceConfig",
     "PerformanceSettings",
     "ScanConfig",
@@ -65,6 +68,7 @@ __all__ = [
     "TMDBSettings",
     "get_config",
     "load_settings",
+    "load_weights",
     "reload_config",
     "update_and_save_config",
 ]

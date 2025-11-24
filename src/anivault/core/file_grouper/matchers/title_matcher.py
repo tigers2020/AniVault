@@ -180,6 +180,11 @@ class TitleSimilarityMatcher:
         Files with similar titles (above threshold) are grouped together.
         The best title variant is selected as the group name using quality evaluation.
 
+        This method uses TitleIndex for efficient matching:
+        1. Builds keyword index and normalized hash for all titles
+        2. Processes exact matches first (O(1) lookup)
+        3. Filters candidates using keyword intersection before expensive similarity calculations
+
         Args:
             files: List of ScannedFile objects to group.
 
@@ -198,12 +203,19 @@ class TitleSimilarityMatcher:
         if not files:
             return []
 
-        # Step 1: Extract titles from all files
+        # Step 1: Extract titles from all files and build TitleIndex
         file_titles: list[tuple[ScannedFile, str]] = []
-        for file in files:
+        title_index = TitleIndex()
+        file_id_to_file: dict[int, ScannedFile] = {}
+        file_id_to_title: dict[int, str] = {}
+        
+        for file_id, file in enumerate(files, start=1):
             title = self._extract_title_from_file(file)
             if title:
                 file_titles.append((file, title))
+                title_index.add_title(file_id, title)
+                file_id_to_file[file_id] = file
+                file_id_to_title[file_id] = title
             else:
                 logger.warning(
                     "Could not extract title from file: %s",
@@ -213,139 +225,149 @@ class TitleSimilarityMatcher:
         if not file_titles:
             return []
 
-        # Step 2: Group files into buckets using blocking keys
-        buckets: dict[str, list[tuple[ScannedFile, str]]] = {}
-        for file, title in file_titles:
-            blocking_key = self._generate_blocking_key(title, k=4)
-            if blocking_key not in buckets:
-                buckets[blocking_key] = []
-            buckets[blocking_key].append((file, title))
-
-        # Get max_title_match_group_size from configuration
-        max_group_size = self._get_max_title_match_group_size()
-
-        # Monitor bucket sizes and filter out large buckets
-        bucket_size_threshold = 100  # Warn if bucket exceeds this size
-        skipped_buckets = 0
-        filtered_buckets: dict[str, list[tuple[ScannedFile, str]]] = {}
-
-        for key, bucket_files in buckets.items():
-            bucket_size = len(bucket_files)
-            if bucket_size > bucket_size_threshold:
-                logger.warning(
-                    "Large bucket detected for key '%s': %d files. Blocking efficiency may be reduced.",
-                    key,
-                    bucket_size,
-                )
-
-            # Skip buckets that exceed max_title_match_group_size (DoS protection)
-            if bucket_size > max_group_size:
-                logger.debug(
-                    "Skipping bucket '%s' (size: %d > limit: %d)",
-                    key,
-                    bucket_size,
-                    max_group_size,
-                )
-                skipped_buckets += 1
-                continue
-
-            # Add to filtered buckets for processing
-            filtered_buckets[key] = bucket_files
-
-        if skipped_buckets > 0:
-            logger.info(
-                "Skipped %d bucket(s) exceeding max_title_match_group_size (%d)",
-                skipped_buckets,
-                max_group_size,
-            )
-
-        # Step 3: Process each bucket independently using LinkedHashTable
+        # Step 2: Process exact matches first (O(1) lookup using normalized_hash)
+        processed_file_ids: set[int] = set()
         all_groups_table = LinkedHashTable[str, list[ScannedFile]](
             initial_capacity=max(len(file_titles) * 2, 64),
             load_factor=0.75,
         )
+        
+        for file_id, title in file_id_to_title.items():
+            if file_id in processed_file_ids:
+                continue
+            
+            # Get all files with exact normalized match
+            exact_matches = title_index.get_exact_matches(title)
+            
+            if len(exact_matches) > 1:  # More than just this file
+                # Create group from exact matches
+                exact_files = [file_id_to_file[fid] for fid in exact_matches if fid in file_id_to_file]
+                if exact_files:
+                    # Select best title as group name
+                    group_title = title
+                    for fid in exact_matches:
+                        if fid in file_id_to_title:
+                            candidate_title = file_id_to_title[fid]
+                            group_title = self.quality_evaluator.select_better_title(
+                                group_title,
+                                candidate_title,
+                            )
+                    
+                    # Add to groups
+                    existing_files = all_groups_table.get(group_title)
+                    if existing_files:
+                        existing_files.extend(exact_files)
+                    else:
+                        all_groups_table.put(group_title, exact_files.copy())
+                    
+                    # Mark all as processed
+                    processed_file_ids.update(exact_matches)
 
-        for bucket_files in filtered_buckets.values():  # pylint: disable=too-many-nested-blocks
-            # Create LinkedHashTable for this bucket
-            bucket_groups_table = LinkedHashTable[str, list[ScannedFile]](
-                initial_capacity=max(len(bucket_files) * 2, 64),
-                load_factor=0.75,
+        # Step 3: Process remaining files using keyword-based filtering
+        remaining_files: list[tuple[ScannedFile, str]] = [
+            (file_id_to_file[fid], file_id_to_title[fid])
+            for fid in file_id_to_file.keys()
+            if fid not in processed_file_ids
+        ]
+
+        if not remaining_files:
+            # All files were exact matches, return groups
+            result = [Group(title=group_name, files=group_files) for group_name, group_files in all_groups_table]
+            logger.info(
+                "Title matcher grouped %d files into %d groups (all exact matches)",
+                len(files),
+                len(result),
             )
-            bucket_title_to_group = LinkedHashTable[str, str](
-                initial_capacity=max(len(bucket_files) * 2, 64),
-                load_factor=0.75,
-            )
+            return result
 
-            # Process files within this bucket
-            for file, title in bucket_files:
-                # Check if title is similar to any existing group in this bucket
-                matched_group = None
-                for group_name, group_title in bucket_title_to_group:
-                    # Guard conditions: skip similarity calculation if titles are too different
-                    # 1. Check length difference (skip if >50% difference)
-                    len1, len2 = len(title), len(group_title)
-                    if len1 > 0 and len2 > 0:
-                        length_ratio = min(len1, len2) / max(len1, len2)
-                        if length_ratio < 0.5:  # More than 50% difference
-                            continue
+        # Step 4: Group remaining files using keyword-based filtering
+        # Build keyword sets for each remaining file
+        file_keywords: dict[int, set[str]] = {}
+        for file_id, title in file_id_to_title.items():
+            if file_id not in processed_file_ids:
+                normalized = title_index._normalize_title(title)
+                file_keywords[file_id] = set(normalized.split()) if normalized else set()
 
-                    # 2. Check token count difference (skip if >3 tokens difference)
-                    title_tokens = title.split()
-                    group_title_tokens = group_title.split()
-                    token_diff = abs(len(title_tokens) - len(group_title_tokens))
-                    if token_diff > 3:
+        # Group remaining files using keyword intersection filtering
+        for file, title in remaining_files:
+            file_id = next((fid for fid, f in file_id_to_file.items() if f is file), None)
+            if file_id is None or file_id in processed_file_ids:
+                continue
+            
+            file_keyword_set = file_keywords.get(file_id, set())
+            matched_group = None
+            
+            # Check against existing groups
+            for group_name, group_files in all_groups_table:
+                # Find a representative file from this group to compare with
+                if not group_files:
+                    continue
+                
+                # Get keywords from first file in group (as representative)
+                rep_file_id = next((fid for fid, f in file_id_to_file.items() if f is group_files[0]), None)
+                if rep_file_id is None:
+                    continue
+                
+                rep_keyword_set = file_keywords.get(rep_file_id, set())
+                
+                # Only compare if keywords intersect (filtering step)
+                if not file_keyword_set or not rep_keyword_set:
+                    continue
+                
+                if not file_keyword_set.intersection(rep_keyword_set):
+                    continue  # No keyword overlap, skip expensive similarity calculation
+                
+                # Get representative title from group
+                rep_title = file_id_to_title.get(rep_file_id, group_name)
+                
+                # Guard conditions: skip similarity calculation if titles are too different
+                len1, len2 = len(title), len(rep_title)
+                if len1 > 0 and len2 > 0:
+                    length_ratio = min(len1, len2) / max(len1, len2)
+                    if length_ratio < 0.5:  # More than 50% difference
                         continue
 
-                    # Only calculate similarity if guard conditions pass
-                    similarity = self._calculate_similarity(title, group_title)
-                    if similarity >= self.threshold:
-                        matched_group = group_name
-                        break
+                # Check token count difference
+                title_tokens = title.split()
+                rep_title_tokens = rep_title.split()
+                token_diff = abs(len(title_tokens) - len(rep_title_tokens))
+                if token_diff > 3:
+                    continue
 
-                if matched_group:
-                    # Add to existing group
-                    existing_files = bucket_groups_table.get(matched_group)
-                    if existing_files:
-                        existing_files.append(file)
-                    else:
-                        bucket_groups_table.put(matched_group, [file])
+                # Only calculate similarity if guard conditions pass
+                similarity = self._calculate_similarity(title, rep_title)
+                if similarity >= self.threshold:
+                    matched_group = group_name
+                    break
 
-                    # Update group name if this title is better quality
-                    better_title = self.quality_evaluator.select_better_title(
-                        matched_group,
-                        title,
-                    )
-                    if better_title != matched_group:
-                        # Replace group name with better title
-                        old_files = bucket_groups_table.remove(matched_group)
-                        if old_files:
-                            bucket_groups_table.put(better_title, old_files)
-                        # Update mapping
-                        for t, g in bucket_title_to_group:
-                            if g == matched_group:
-                                bucket_title_to_group.put(t, better_title)
-                        matched_group = better_title
+            if matched_group:
+                # Add to existing group
+                existing_files = all_groups_table.get(matched_group)
+                if existing_files:
+                    existing_files.append(file)
                 else:
-                    # Create new group
-                    bucket_groups_table.put(title, [file])
-                    bucket_title_to_group.put(title, title)
+                    all_groups_table.put(matched_group, [file])
 
-            # Merge bucket groups into all_groups_table
-            for group_name, group_files in bucket_groups_table:
-                # Check if group name already exists in all_groups_table
-                existing_all_files = all_groups_table.get(group_name)
-                if existing_all_files:
-                    # Merge files
-                    existing_all_files.extend(group_files)
-                else:
-                    # Add new group
-                    all_groups_table.put(group_name, group_files.copy())
+                # Update group name if this title is better quality
+                better_title = self.quality_evaluator.select_better_title(
+                    matched_group,
+                    title,
+                )
+                if better_title != matched_group:
+                    # Replace group name with better title
+                    old_files = all_groups_table.remove(matched_group)
+                    if old_files:
+                        all_groups_table.put(better_title, old_files)
+                    matched_group = better_title
+            else:
+                # Create new group
+                all_groups_table.put(title, [file])
 
-        # Step 4: Convert to Group objects
+        # Step 5: Convert to Group objects
         result = [Group(title=group_name, files=group_files) for group_name, group_files in all_groups_table]
 
         logger.info(
-            "Title matcher grouped %d files into %d groups",
+            "Title matcher grouped %d files into %d groups (using TitleIndex optimization)",
             len(files),
             len(result),
         )
@@ -409,4 +431,207 @@ class TitleSimilarityMatcher:
         return subgroups[0]
 
 
-__all__ = ["TitleSimilarityMatcher"]
+# Security: Maximum title length to prevent ReDoS attacks
+MAX_TITLE_LENGTH = 500
+
+
+class TitleIndex:
+    """Index for efficient title matching using keyword indexing and normalized hashing.
+
+    This class provides O(1) lookup for exact matches and efficient filtering
+    for similar titles using keyword-based indexing.
+
+    Attributes:
+        keyword_index: Dictionary mapping keywords to sets of file IDs.
+        normalized_hash: Dictionary mapping normalized titles to lists of file IDs.
+
+    Example:
+        >>> index = TitleIndex()
+        >>> index.add_title(1, "Attack on Titan - S01E01")
+        >>> index.add_title(2, "Attack on Titan - S01E02")
+        >>> matches = index.get_exact_matches("Attack on Titan - S01E01")
+        >>> len(matches)
+        1
+    """
+
+    def __init__(self) -> None:
+        """Initialize an empty TitleIndex."""
+        self.keyword_index: dict[str, set[int]] = {}
+        self.normalized_hash: dict[str, list[int]] = {}
+
+    def _normalize_title(self, title: str) -> str:
+        """Normalize title for indexing and matching.
+
+        This function removes metadata (brackets, special characters, version info)
+        and standardizes the title for consistent matching.
+
+        Normalization process:
+        1. Truncate to MAX_TITLE_LENGTH to prevent ReDoS attacks
+        2. Convert to lowercase
+        3. Remove file extensions: .mkv, .mp4, etc.
+        4. Remove brackets and their contents: [], (), 【】, etc. (iteratively for nested)
+        5. Remove version patterns: _v2, _v1.0, etc.
+        6. Replace hyphens and underscores with spaces
+        7. Remove special characters (keep only alphanumeric, Korean, and whitespace)
+        8. Normalize whitespace (multiple spaces/tabs/newlines to single space)
+        9. Strip leading/trailing whitespace
+
+        Args:
+            title: Original title to normalize.
+
+        Returns:
+            Normalized title string.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> index._normalize_title("[Group] Show Name - 01 (1080p).mkv")
+            'show name 01'
+            >>> index._normalize_title("Show_Name_S2_Ep2.mp4")
+            'show name s2 ep2'
+            >>> index._normalize_title("Title (_v2)")
+            'title'
+        """
+        if not title:
+            return ""
+
+        # Security: Truncate to prevent ReDoS attacks with malicious input
+        if len(title) > MAX_TITLE_LENGTH:
+            logger.warning(
+                "Title exceeds maximum length (%d), truncating: %s",
+                MAX_TITLE_LENGTH,
+                title[:50] + "...",
+            )
+            title = title[:MAX_TITLE_LENGTH]
+
+        # Convert to lowercase
+        normalized = title.lower()
+
+        # Remove file extensions: .mkv, .mp4, etc.
+        normalized = re.sub(r"\.(?:mkv|mp4|avi|mov|wmv|flv|webm|m4v|m2ts|ts|srt|ass|ssa|sub)$", "", normalized)
+
+        # Remove brackets and their contents: [], (), 【】, 「」, 『』
+        # Use iterative removal to handle nested brackets
+        bracket_patterns = [
+            r"\[[^\]]*\]",  # Square brackets
+            r"\([^)]*\)",  # Parentheses
+            r"【[^】]*】",  # Full-width square brackets
+            r"「[^」]*」",  # Japanese quotation marks
+            r"『[^』]*』",  # Japanese double quotation marks
+        ]
+        # Iterate multiple times to handle nested brackets
+        for _ in range(5):  # Max nesting depth of 5
+            changed = False
+            for pattern in bracket_patterns:
+                new_normalized = re.sub(pattern, "", normalized)
+                if new_normalized != normalized:
+                    changed = True
+                    normalized = new_normalized
+            if not changed:
+                break
+
+        # Remove version patterns: _v2, _v1.0, _ver2, etc.
+        version_patterns = [
+            r"_v\d+(?:\.\d+)?",  # _v2, _v1.0
+            r"_ver\d+",  # _ver2
+            r"\(v\d+\)",  # (v2)
+            r"\[v\d+\]",  # [v2]
+        ]
+        for pattern in version_patterns:
+            normalized = re.sub(pattern, "", normalized, flags=re.IGNORECASE)
+
+        # Replace hyphens and underscores with spaces (before removing special chars)
+        normalized = re.sub(r"[-_]", " ", normalized)
+
+        # Remove special characters (keep only alphanumeric, Korean, and whitespace)
+        # Pattern: [^\w\s] matches anything that's NOT word character or whitespace
+        # \w includes alphanumeric and Korean characters (가-힣)
+        normalized = re.sub(r"[^\w\s]", "", normalized)
+
+        # Normalize whitespace (multiple spaces/tabs/newlines to single space)
+        normalized = re.sub(r"\s+", " ", normalized)
+
+        # Strip leading/trailing whitespace
+        return normalized.strip()
+
+    def add_title(self, file_id: int, title: str) -> None:
+        """Add a title to the index.
+
+        This method normalizes the title, tokenizes it into keywords,
+        and updates both the keyword_index and normalized_hash.
+
+        Args:
+            file_id: Unique identifier for the file.
+            title: Original title string to index.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> index.add_title(1, "Attack on Titan - S01E01")
+            >>> index.add_title(2, "Attack on Titan - S01E02")
+            >>> "attack" in index.keyword_index
+            True
+            >>> 1 in index.keyword_index["attack"]
+            True
+            >>> 2 in index.keyword_index["attack"]
+            True
+        """
+        if not title:
+            return
+
+        # Normalize the title
+        normalized = self._normalize_title(title)
+        
+        if not normalized:
+            return
+
+        # Update normalized_hash (for exact match lookup)
+        if normalized not in self.normalized_hash:
+            self.normalized_hash[normalized] = []
+        if file_id not in self.normalized_hash[normalized]:
+            self.normalized_hash[normalized].append(file_id)
+
+        # Tokenize normalized title into keywords (split by whitespace)
+        keywords = normalized.split()
+        
+        # Update keyword_index: each keyword maps to a set of file IDs
+        for keyword in keywords:
+            if keyword:  # Skip empty strings
+                if keyword not in self.keyword_index:
+                    self.keyword_index[keyword] = set()
+                self.keyword_index[keyword].add(file_id)
+
+    def get_exact_matches(self, title: str) -> list[int]:
+        """Get all file IDs with titles that normalize to the same string.
+
+        This method provides O(1) lookup for exact matches after normalization.
+        Titles that differ only in metadata (brackets, special characters, etc.)
+        will be matched together.
+
+        Args:
+            title: Original title to find matches for.
+
+        Returns:
+            List of file IDs that have titles normalizing to the same string.
+            Returns empty list if no matches found.
+
+        Example:
+            >>> index = TitleIndex()
+            >>> index.add_title(1, "Show Title - 01.mkv")
+            >>> index.add_title(2, "show title - 01 [1080p].mp4")
+            >>> matches = index.get_exact_matches("Show Title - 01")
+            >>> sorted(matches)
+            [1, 2]
+        """
+        if not title:
+            return []
+
+        # Normalize the input title
+        normalized = self._normalize_title(title)
+        
+        if not normalized:
+            return []
+
+        # Return file IDs from normalized_hash (O(1) lookup)
+        return self.normalized_hash.get(normalized, []).copy()
+
+
+__all__ = ["TitleSimilarityMatcher", "TitleIndex"]

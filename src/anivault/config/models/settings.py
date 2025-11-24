@@ -31,6 +31,7 @@ from anivault.config.models.folder_security_settings import (
     SecuritySettings,
 )
 from anivault.config.models.grouping_settings import GroupingSettings
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.config.models.performance_settings import (
     PerformanceSettings,
 )
@@ -71,6 +72,7 @@ class Settings(BaseSettings):
     cache: CacheSettings = Field(default_factory=CacheSettings)
     performance: PerformanceSettings = Field(default_factory=PerformanceSettings)
     grouping: GroupingSettings = Field(default_factory=GroupingSettings)
+    matching_weights: MatchingWeights = Field(default_factory=MatchingWeights)
     folders: FolderSettings | None = Field(default=None)
     security: SecuritySettings | None = Field(default=None)
 

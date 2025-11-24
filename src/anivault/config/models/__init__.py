@@ -24,6 +24,9 @@ from .folder_security_settings import FolderSettings, SecuritySettings
 # Grouping Settings
 from .grouping_settings import GroupingSettings
 
+# Matching Weights
+from .matching_weights import MatchingWeights
+
 # Performance Settings
 from .performance_settings import PerformanceConfig, PerformanceSettings
 
@@ -45,6 +48,7 @@ __all__ = [
     "FolderSettings",
     "GroupingSettings",
     "LoggingConfig",  # Backward compatibility alias
+    "MatchingWeights",
     "LoggingSettings",
     "PerformanceConfig",  # Backward compatibility alias
     "PerformanceSettings",
