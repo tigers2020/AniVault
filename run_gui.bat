@@ -16,8 +16,17 @@ echo.
 REM 현재 디렉터리를 프로젝트 루트로 설정
 cd /d "%~dp0"
 
+REM 가상환경이 있으면 활성화, 없으면 시스템 Python 사용
+set PYTHON_CMD=python
+if exist "venv\Scripts\python.exe" (
+    set PYTHON_CMD=venv\Scripts\python.exe
+    echo [INFO] 가상환경을 사용합니다.
+) else (
+    echo [INFO] 시스템 Python을 사용합니다.
+)
+
 REM Python이 설치되어 있는지 확인
-python --version >nul 2>&1
+%PYTHON_CMD% --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Python이 설치되어 있지 않습니다.
     echo [INFO] Python 3.11 이상을 설치해주세요.
@@ -39,16 +48,21 @@ if not exist "requirements.txt" (
 
 REM pip 업그레이드 확인 및 설치
 echo [INFO] pip 업그레이드 확인 중...
-python -m pip install --upgrade pip --quiet >nul 2>&1
+%PYTHON_CMD% -m pip install --upgrade pip --quiet >nul 2>&1
 
 REM 핵심 패키지 확인 (빠른 체크)
-python -c "import PySide6" >nul 2>&1
+%PYTHON_CMD% -c "import PySide6" >nul 2>&1
 set MISSING_DEPS=0
 if %errorlevel% neq 0 (
     set MISSING_DEPS=1
 )
 
-python -c "import pydantic" >nul 2>&1
+%PYTHON_CMD% -c "import pydantic" >nul 2>&1
+if %errorlevel% neq 0 (
+    set MISSING_DEPS=1
+)
+
+%PYTHON_CMD% -c "import dependency_injector" >nul 2>&1
 if %errorlevel% neq 0 (
     set MISSING_DEPS=1
 )
@@ -58,9 +72,9 @@ if %MISSING_DEPS%==1 (
     echo [INSTALL] 누락된 패키지를 자동으로 설치합니다...
     echo [INFO] 이 작업은 처음 실행 시에만 필요하며 시간이 걸릴 수 있습니다.
     echo.
-    
-    python -m pip install -r requirements.txt
-    
+
+    %PYTHON_CMD% -m pip install -r requirements.txt
+
     if %errorlevel% neq 0 (
         echo.
         echo [ERROR] 패키지 설치 중 오류가 발생했습니다.
@@ -70,7 +84,7 @@ if %MISSING_DEPS%==1 (
         pause
         exit /b 1
     )
-    
+
     echo.
     echo [OK] 모든 패키지가 성공적으로 설치되었습니다.
     echo.
@@ -84,7 +98,7 @@ echo [RUN] AniVault GUI를 시작합니다...
 echo.
 
 REM Python 경로 설정 후 실행
-python run_gui.py
+%PYTHON_CMD% run_gui.py
 
 REM 실행 결과 확인
 if %errorlevel% neq 0 (

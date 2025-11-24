@@ -86,18 +86,13 @@ class CacheEntry(BaseDataclass):
         # Validate key_hash length
         if len(self.key_hash) != CacheValidationConstants.SHA256_HASH_LENGTH:
             msg = (
-                f"key_hash must be {CacheValidationConstants.SHA256_HASH_LENGTH} "
-                f"characters, got {len(self.key_hash)}"
+                f"key_hash must be {CacheValidationConstants.SHA256_HASH_LENGTH} " f"characters, got {len(self.key_hash)}"  # pylint: disable=line-too-long
             )
             raise ValueError(msg)
 
         # Validate key_hash format (hexadecimal)
-        if not all(
-            c in CacheValidationConstants.HEX_CHARS for c in self.key_hash.lower()
-        ):
-            preview = self.key_hash[
-                : CacheValidationConstants.ERROR_MESSAGE_PREVIEW_LENGTH
-            ]
+        if not all(c in CacheValidationConstants.HEX_CHARS for c in self.key_hash.lower()):
+            preview = self.key_hash[: CacheValidationConstants.ERROR_MESSAGE_PREVIEW_LENGTH]
             msg = f"key_hash must be a valid hexadecimal string, got: {preview}..."
             raise ValueError(msg)
 
@@ -106,10 +101,7 @@ class CacheEntry(BaseDataclass):
 
         # Validate expires_at is after created_at
         if self.expires_at is not None and self.expires_at < self.created_at:
-            msg = (
-                f"expires_at ({self.expires_at}) must not be "
-                f"before created_at ({self.created_at})"
-            )
+            msg = f"expires_at ({self.expires_at}) must not be " f"before created_at ({self.created_at})"
             raise ValueError(msg)
 
         # Validate hit_count is non-negative

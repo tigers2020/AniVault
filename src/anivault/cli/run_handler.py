@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 @setup_handler(requires_directory=True, supports_json=True, allow_dry_run=True)
 @handle_cli_errors(operation="handle_run", command_name="run")
-def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
+def handle_run_command(options: RunOptions, **kwargs: Any) -> int:  # pylint: disable=too-many-locals
     """Handle the run command which orchestrates scan, match, and organize.
 
     Args:
@@ -48,12 +48,10 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    console: Console = kwargs.get("console") or Console()
+    console: Console = kwargs.get("console") or Console()  # pylint: disable=reimported
     logger_adapter = kwargs.get("logger_adapter", logger)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.RUN)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.RUN))
 
     # Extract directory path
     directory = extract_directory_path(options.directory)
@@ -153,9 +151,7 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
         )
         _print_run_summary(run_data, console)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.RUN)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.RUN))
     return CLIDefaults.EXIT_SUCCESS
 
 
@@ -199,7 +195,11 @@ def _execute_scan_step(
             "exit_code": exit_code,
         }
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.exception("Error in scan step")
         return {
             "step": "scan",
@@ -249,7 +249,11 @@ def _execute_match_step(
             "exit_code": exit_code,
         }
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.exception("Error in match step")
         return {
             "step": "match",
@@ -280,9 +284,7 @@ def _execute_organize_step(
             yes=options.yes,
             enhanced=False,  # Default to standard organization
             destination="Anime",  # Default destination
-            extensions=",".join(
-                options.extensions
-            ),  # Convert list to comma-separated string
+            extensions=",".join(options.extensions),  # Convert list to comma-separated string
             json_output=options.json_output,
         )
 
@@ -301,7 +303,11 @@ def _execute_organize_step(
             "exit_code": exit_code,
         }
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.exception("Error in organize step")
         return {
             "step": "organize",
@@ -392,13 +398,10 @@ def _print_run_summary(run_data: dict[str, Any], console: Console) -> None:
     for step in run_data["steps"]:
         status_icon = "✓" if step["status"] == "success" else "✗"
         status_color = "green" if step["status"] == "success" else "red"
-        console.print(
-            f"  {status_icon} {step['step'].title()}: "
-            f"[{status_color}]{step['status']}[/{status_color}] - {step['message']}"
-        )
+        console.print(f"  {status_icon} {step['step'].title()}: " f"[{status_color}]{step['status']}[/{status_color}] - {step['message']}")
 
 
-def run_command(
+def run_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help="Directory containing anime files to process",

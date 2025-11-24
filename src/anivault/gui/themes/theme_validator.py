@@ -138,9 +138,7 @@ class ThemeValidator:
         # Check if path is within EITHER themes_dir OR base_theme_dir
         # CRITICAL: OR condition allows bundle theme imports (bug fix)
         try:
-            if resolved_path.is_relative_to(
-                themes_dir_resolved
-            ) or resolved_path.is_relative_to(base_dir_resolved):
+            if resolved_path.is_relative_to(themes_dir_resolved) or resolved_path.is_relative_to(base_dir_resolved):
                 logger.debug("Import path validated: %s", resolved_path)
                 return resolved_path
         except (ValueError, AttributeError):

@@ -48,9 +48,7 @@ class FileScannerWorker(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._cancelled = False
-        self._current_directory: Path | None = (
-            None  # Will be set in scan_directory (Python 3.9 compat)
-        )
+        self._current_directory: Path | None = None  # Will be set in scan_directory (Python 3.9 compat)
 
         logger.debug("FileScannerWorker initialized")
 
@@ -114,7 +112,11 @@ class FileScannerWorker(QObject):
                     len(file_items),
                 )
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Error during file scan")
             self.scan_error.emit(f"Scan error: {e!s}")
 
@@ -123,7 +125,7 @@ class FileScannerWorker(QObject):
         self._cancelled = True
         logger.info("File scan cancellation requested")
 
-    def _validate_directory(self, directory: str) -> bool:
+    def _validate_directory(self, directory: str) -> bool:  # pylint: disable=too-many-return-statements
         """
         Validate that the directory exists and is accessible.
 
@@ -164,6 +166,7 @@ class FileScannerWorker(QObject):
                 file_path=str(directory),
                 operation="validate_directory",
             )
+            _error: AniVaultError
             if isinstance(e, FileNotFoundError):
                 _error = AniVaultFileError(
                     ErrorCode.DIRECTORY_NOT_FOUND,
@@ -193,7 +196,11 @@ class FileScannerWorker(QObject):
             )
             logger.exception("Directory validation error: %s", directory)
             return False
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             context = ErrorContext(
                 file_path=str(directory),
                 operation="validate_directory",
@@ -247,7 +254,7 @@ class FileScannerWorker(QObject):
                 file_path=str(directory),
                 operation="get_all_files",
             )
-            error = AniVaultPermissionError(
+            error: AniVaultError = AniVaultPermissionError(
                 ErrorCode.PERMISSION_DENIED,
                 f"Permission denied accessing directory: {directory}",
                 context,
@@ -276,7 +283,11 @@ class FileScannerWorker(QObject):
                 )
             logger.exception("Error walking directory: %s", directory)
             raise error from e
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             context = ErrorContext(
                 file_path=str(directory),
                 operation="get_all_files",

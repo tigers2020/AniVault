@@ -67,8 +67,8 @@ class GroupGridViewWidget(QScrollArea):
         )
 
         # Configure scroll area
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # type: ignore[attr-defined]
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # type: ignore[attr-defined]
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
         # Store cards for reference
         self.group_cards: dict[str, GroupCardWidget] = {}
@@ -163,9 +163,7 @@ class GroupGridViewWidget(QScrollArea):
             total_files,
         )
 
-    def update_group_name_with_parser(
-        self, old_group_name: str, files: list[Any]
-    ) -> None:
+    def update_group_name_with_parser(self, old_group_name: str, files: list[Any]) -> None:
         """
         Update group name using parser.
 
@@ -192,9 +190,7 @@ class GroupGridViewWidget(QScrollArea):
                 representative_file = files[0]
                 parsed_result = parser.parse(representative_file.file_path.name)
 
-                new_group_name = (
-                    parsed_result.title if parsed_result.title else old_group_name
-                )
+                new_group_name = parsed_result.title if parsed_result.title else old_group_name
 
                 # Update the group name
                 self._update_group_card_name(old_group_name, new_group_name, files)
@@ -212,7 +208,11 @@ class GroupGridViewWidget(QScrollArea):
                     "Parser Unavailable",
                     "AnitopyParser is not available. Please install anitopy library.",
                 )
-            except Exception as e:
+            # pylint: disable-next=broad-exception-caught
+
+            # pylint: disable-next=broad-exception-caught
+
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.exception("Failed to update group name with parser")
                 QMessageBox.critical(
                     self,
@@ -220,7 +220,11 @@ class GroupGridViewWidget(QScrollArea):
                     f"Failed to update group name: {e!s}",
                 )
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Error updating group name with parser")
             QMessageBox.critical(self, "Error", f"Error updating group name: {e!s}")
 
@@ -256,7 +260,11 @@ class GroupGridViewWidget(QScrollArea):
                 else:
                     logger.debug("Group name unchanged: %s", old_group_name)
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Error editing group name")
             QMessageBox.critical(self, "Error", f"Error editing group name: {e!s}")
 
@@ -340,7 +348,11 @@ class GroupGridViewWidget(QScrollArea):
             )
             logger.exception("Error updating group card name: %s", error.message)
             raise error from e
-        except Exception as e:  # - Unexpected errors
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during group card update
             context = ErrorContext(
                 operation="update_group_card_name",
@@ -349,11 +361,11 @@ class GroupGridViewWidget(QScrollArea):
                     "new_group_name": new_group_name,
                 },
             )
-            error = AniVaultError(
+            unexpected_error = AniVaultError(
                 ErrorCode.APPLICATION_ERROR,
                 f"Unexpected error updating group card name: {e}",
                 context,
                 original_error=e,
             )
-            logger.exception("Error updating group card name: %s", error.message)
-            raise error from e
+            logger.exception("Error updating group card name: %s", unexpected_error.message)
+            raise unexpected_error from e

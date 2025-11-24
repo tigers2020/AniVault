@@ -35,4 +35,3 @@ exclude_lines =
 
 [html]
 directory = htmlcov
-

@@ -19,17 +19,14 @@ import typer
 
 from anivault.cli.common.context import LogLevel
 
-# Verbose option - count-based for multiple -v flags
-verbose_option: Annotated[
+
+verbose_option: Annotated[  # pylint: disable=invalid-name
     int,
     typer.Option(
         "--verbose",
         "-v",
         count=True,
-        help=(
-            "Enable verbose output (equivalent to --log-level DEBUG). "
-            "Use multiple times for increased verbosity."
-        ),
+        help=("Enable verbose output " "(equivalent to --log-level DEBUG). " "Use multiple times for increased verbosity."),
     ),
 ] = 0
 
@@ -40,13 +37,13 @@ log_level_option: Annotated[
     typer.Option(
         "--log-level",
         case_sensitive=False,
-        help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). Default: INFO.",
+        help=("Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). " "Default: INFO."),
     ),
 ] = LogLevel.INFO
 
 
 # JSON output option - flag-based
-json_output_option: Annotated[
+json_output_option: Annotated[  # pylint: disable=invalid-name
     bool,
     typer.Option(
         "--json",
@@ -56,17 +53,17 @@ json_output_option: Annotated[
 
 
 # Benchmark option - flag-based
-benchmark_option: Annotated[
+benchmark_option: Annotated[  # pylint: disable=invalid-name
     bool,
     typer.Option(
         "--benchmark",
-        help="Enable benchmark mode to measure performance metrics for each processing step.",
+        help=("Enable benchmark mode to measure performance metrics " "for each processing step."),
     ),
 ] = False
 
 
 # Version option - for main app only
-version_option: Annotated[
+version_option: Annotated[  # pylint: disable=invalid-name
     bool,
     typer.Option(
         "--version",

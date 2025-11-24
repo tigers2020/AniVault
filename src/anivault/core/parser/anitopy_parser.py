@@ -53,8 +53,7 @@ class AnitopyParser:
         """
         if anitopy is None:
             raise ImportError(
-                "anitopy library is not installed. "
-                "Install it with: pip install anitopy",
+                "anitopy library is not installed. " "Install it with: pip install anitopy",
             )
 
     def parse(self, filename: str) -> ParsingResult:
@@ -97,9 +96,7 @@ class AnitopyParser:
                 title=filename,
                 confidence=ParsingConfidence.ERROR_CONFIDENCE_ANITOPY,
                 parser_used="anitopy",
-                additional_info=ParsingAdditionalInfo(
-                    error=str(e), parser_specific={PARSER_RAW_FILENAME: filename}
-                ),
+                additional_info=ParsingAdditionalInfo(error=str(e), parser_specific={PARSER_RAW_FILENAME: filename}),
             )
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Handle unexpected errors from anitopy library
@@ -112,9 +109,7 @@ class AnitopyParser:
                 title=filename,
                 confidence=ParsingConfidence.ERROR_CONFIDENCE_ANITOPY,
                 parser_used="anitopy",
-                additional_info=ParsingAdditionalInfo(
-                    error=str(e), parser_specific={PARSER_RAW_FILENAME: filename}
-                ),
+                additional_info=ParsingAdditionalInfo(error=str(e), parser_specific={PARSER_RAW_FILENAME: filename}),
             )
 
     def _convert_to_result(

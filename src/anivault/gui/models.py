@@ -80,7 +80,7 @@ class FileTreeModel(QStandardItemModel):
         )
 
         # Configure model properties
-        self.setSortRole(Qt.DisplayRole)  # type: ignore[attr-defined]
+        self.setSortRole(Qt.DisplayRole)
 
     def add_file(
         self,
@@ -95,13 +95,13 @@ class FileTreeModel(QStandardItemModel):
         matched_item = QStandardItem("")  # Initially empty for matched series
 
         # Set data for sorting and filtering
-        name_item.setData(file_item.file_name, Qt.DisplayRole)  # type: ignore[attr-defined]
-        path_item.setData(str(file_item.file_path), Qt.DisplayRole)  # type: ignore[attr-defined]
-        status_item.setData(file_item.status, Qt.DisplayRole)  # type: ignore[attr-defined]
-        matched_item.setData("", Qt.DisplayRole)  # type: ignore[attr-defined]
+        name_item.setData(file_item.file_name, Qt.DisplayRole)
+        path_item.setData(str(file_item.file_path), Qt.DisplayRole)
+        status_item.setData(file_item.status, Qt.DisplayRole)
+        matched_item.setData("", Qt.DisplayRole)
 
         # Store the FileItem object in the name item for easy access
-        name_item.setData(file_item, Qt.UserRole)  # type: ignore[attr-defined]
+        name_item.setData(file_item, Qt.UserRole)
 
         # Add items to the model
         if parent_item:
@@ -119,8 +119,8 @@ class FileTreeModel(QStandardItemModel):
         group_status_item = QStandardItem("Group")
 
         # Set group item properties
-        group_item.setData(group_name, Qt.UserRole)  # type: ignore[attr-defined]
-        group_item.setData(files, Qt.UserRole + 1)  # type: ignore[attr-defined]
+        group_item.setData(group_name, Qt.UserRole)
+        group_item.setData(files, Qt.UserRole + 1)
 
         # Make group item bold
         font = group_item.font()
@@ -155,7 +155,7 @@ class FileTreeModel(QStandardItemModel):
 
         item = self.itemFromIndex(index)
         if item:
-            file_item = item.data(Qt.UserRole)  # type: ignore[attr-defined]
+            file_item = item.data(Qt.UserRole)
             return file_item if isinstance(file_item, FileItem) else None
         return None
 
@@ -164,15 +164,13 @@ class FileTreeModel(QStandardItemModel):
         for row in range(self.rowCount()):
             name_item = self.item(row, 0)
             if name_item:
-                file_item = name_item.data(Qt.UserRole)  # type: ignore[attr-defined]
+                file_item = name_item.data(Qt.UserRole)
                 if file_item and file_item.file_path == file_path:
                     # Update the status item
                     status_item = self.item(row, 2)
                     if status_item:
                         status_item.setText(new_status)
-                        status_item.setData(
-                            new_status, Qt.DisplayRole
-                        )  # type: ignore[attr-defined]
+                        status_item.setData(new_status, Qt.DisplayRole)  # pylint: disable=line-too-long  # type: ignore[attr-defined]
 
                     # Update the file item
                     file_item.status = new_status
@@ -201,13 +199,13 @@ class FileTreeModel(QStandardItemModel):
         for row in range(self.rowCount()):
             name_item = self.item(row, 0)
             if name_item:
-                file_item = name_item.data(Qt.UserRole)  # type: ignore[attr-defined]
+                file_item = name_item.data(Qt.UserRole)
                 if file_item and file_item.file_path == file_path:
                     # Update the status item
                     status_item = self.item(row, 2)
                     if status_item:
                         status_item.setText(status)
-                        status_item.setData(status, Qt.DisplayRole)  # type: ignore[attr-defined]
+                        status_item.setData(status, Qt.DisplayRole)
 
                     # Extract title for display
                     series_title = "Unknown"
@@ -219,14 +217,10 @@ class FileTreeModel(QStandardItemModel):
                     if matched_item:
                         if match_result:
                             matched_item.setText(series_title)
-                            matched_item.setData(
-                                series_title, Qt.DisplayRole
-                            )  # type: ignore[attr-defined]
+                            matched_item.setData(series_title, Qt.DisplayRole)  # pylint: disable=line-too-long  # type: ignore[attr-defined]
                         else:
                             matched_item.setText("No match found")
-                            matched_item.setData(
-                                "No match found", Qt.DisplayRole
-                            )  # type: ignore[attr-defined]
+                            matched_item.setData("No match found", Qt.DisplayRole)
 
                     # Update the file item status and metadata
                     file_item.status = status
@@ -246,7 +240,7 @@ class FileTreeModel(QStandardItemModel):
         for row in range(self.rowCount()):
             name_item = self.item(row, 0)
             if name_item:
-                file_item = name_item.data(Qt.UserRole)  # type: ignore[attr-defined]
+                file_item = name_item.data(Qt.UserRole)
                 if file_item:
                     files.append(file_item)
         return files
@@ -259,7 +253,7 @@ class FileTreeModel(QStandardItemModel):
             if status_item and status_item.text() == status:
                 name_item = self.item(row, 0)
                 if name_item:
-                    file_item = name_item.data(Qt.UserRole)  # type: ignore[attr-defined]
+                    file_item = name_item.data(Qt.UserRole)
                     if file_item:
                         files.append(file_item)
         return files

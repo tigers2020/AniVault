@@ -106,10 +106,7 @@ class SeasonEpisodeMatcher:
             )
 
         # Step 2: Convert to Group objects
-        result = [
-            Group(title=group_name, files=group_files)
-            for group_name, group_files in file_groups
-        ]
+        result = [Group(title=group_name, files=group_files) for group_name, group_files in file_groups]
 
         logger.info(
             "Season matcher grouped %d files into %d groups",

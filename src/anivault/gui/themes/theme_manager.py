@@ -58,9 +58,7 @@ class ThemeManager:
             # Create minimal validator for PathResolver initialization
             # (PathResolver only needs validator for get_qss_path validation)
             temp_dir = Path.home() / ".anivault" / "themes"
-            temp_validator = ThemeValidator(
-                themes_dir=temp_dir, base_theme_dir=temp_dir
-            )
+            temp_validator = ThemeValidator(themes_dir=temp_dir, base_theme_dir=temp_dir)
             self._path_resolver = ThemePathResolver(themes_dir, temp_validator)
         else:
             self._path_resolver = path_resolver
@@ -162,7 +160,7 @@ class ThemeManager:
                     "No QApplication instance found",
                     ErrorContext(operation="apply_theme"),
                 )
-            app = instance  # type: ignore[assignment]
+            app = instance
 
         # Level 1: Try requested theme
         try:
@@ -176,21 +174,29 @@ class ThemeManager:
                 logger.info("Successfully applied theme: %s", theme_name)
             return
 
-        except Exception as e:
-            logger.warning("Failed to apply theme %s: %s", theme_name, e, exc_info=True)
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            original_error = e
+            logger.warning("Failed to apply theme %s: %s", theme_name, original_error, exc_info=True)
 
             # Level 2: Fallback to default
             if not _fallback_attempted and theme_name != self.DEFAULT_THEME:
                 logger.warning("Falling back to default theme: %s", self.DEFAULT_THEME)
                 try:
+                    # pylint: disable-next=redefined-outer-name
                     self.apply_theme(self.DEFAULT_THEME, app, _fallback_attempted=True)
                     return
                 except ApplicationError:
                     # ApplicationError from apply_theme already handled
-                    logger.exception(
-                        "Failed to apply fallback theme %s", self.DEFAULT_THEME
-                    )
-                except Exception as e:  # - Unexpected theme errors
+                    logger.exception("Failed to apply fallback theme %s", self.DEFAULT_THEME)
+                # pylint: disable-next=broad-exception-caught
+
+                # pylint: disable-next=broad-exception-caught
+
+                except Exception as fallback_error:  # pylint: disable=broad-exception-caught
                     # Unexpected errors during fallback theme application
 
                     context = ErrorContext(
@@ -199,9 +205,9 @@ class ThemeManager:
                     )
                     error = AniVaultError(
                         ErrorCode.APPLICATION_ERROR,
-                        f"Unexpected error applying fallback theme: {e}",
+                        f"Unexpected error applying fallback theme: {fallback_error}",
                         context,
-                        original_error=e,
+                        original_error=fallback_error,
                     )
                     logger.exception(
                         "Failed to apply fallback theme %s: %s",
@@ -219,12 +225,12 @@ class ThemeManager:
                 self.current_theme = None
                 logger.warning("Safe mode activated: using default system styles")
                 return
-            except Exception as safe_mode_error:
+            except Exception as safe_mode_error:  # pylint: disable=broad-exception-caught
                 logger.critical("Safe mode failed: %s", safe_mode_error, exc_info=True)
 
             raise ApplicationError(
                 ErrorCode.APPLICATION_ERROR,
-                f"Failed to apply theme and all fallbacks: {e}",
+                f"Failed to apply theme and all fallbacks: {original_error}",
                 ErrorContext(
                     operation="apply_theme",
                     additional_data={
@@ -233,7 +239,7 @@ class ThemeManager:
                         "safe_mode": True,
                     },
                 ),
-            ) from e
+            ) from original_error
 
     def _repolish_all_top_levels(self, app: QApplication) -> None:
         """Repolish all top-level widgets to ensure theme changes are applied."""

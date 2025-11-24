@@ -104,9 +104,7 @@ class ScanController(QObject):
             logger.info("Cancelling file scan")
             self.scanner_worker.cancel_scan()
 
-    def _group_files_by_filename(
-        self, file_items: list[FileItem]
-    ) -> LinkedHashTable[str, list[FileItem]]:
+    def _group_files_by_filename(self, file_items: list[FileItem]) -> LinkedHashTable[str, list[FileItem]]:
         """Helper method to group files by filename (for unmatched files).
 
         Args:
@@ -121,7 +119,11 @@ class ScanController(QObject):
         for file_item in file_items:
             try:
                 parsed_result = self.parser.parse(file_item.file_path.name)
-            except Exception as e:  # noqa: BLE001
+            # pylint: disable-next=broad-exception-caught
+
+            # pylint: disable-next=broad-exception-caught
+
+            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 logger.warning("Failed to parse '%s': %s", file_item.file_path.name, e)
                 parsed_result = ParsingResult(
                     title=file_item.file_name,
@@ -162,9 +164,7 @@ class ScanController(QObject):
 
         return result
 
-    def group_files_by_tmdb_title(
-        self, file_items: list[FileItem]
-    ) -> LinkedHashTable[str, list[ScannedFile]]:
+    def group_files_by_tmdb_title(self, file_items: list[FileItem]) -> LinkedHashTable[str, list[ScannedFile]]:
         """Group files by TMDB title after matching.
 
         Args:
@@ -183,9 +183,7 @@ class ScanController(QObject):
             logger.info("Regrouping %d files by TMDB title", len(file_items))
 
             # Separate matched and unmatched files
-            matched_files, unmatched_files = self._separate_matched_unmatched(
-                file_items
-            )
+            matched_files, unmatched_files = self._separate_matched_unmatched(file_items)
 
             logger.info(
                 "TMDB grouping: %d matched, %d unmatched files",
@@ -198,9 +196,7 @@ class ScanController(QObject):
 
             # Merge unmatched files
             if unmatched_files:
-                grouped_by_tmdb = self._merge_unmatched_files(
-                    grouped_by_tmdb, unmatched_files
-                )
+                grouped_by_tmdb = self._merge_unmatched_files(grouped_by_tmdb, unmatched_files)
 
             # Convert FileItem back to ScannedFile for compatibility
             final_groups = self._convert_to_scanned_files(grouped_by_tmdb)
@@ -211,9 +207,7 @@ class ScanController(QObject):
             )
 
             # Convert LinkedHashTable to list[Group] for signal emission (NO dict!)
-            group_list = [
-                Group(title=title, files=files) for title, files in final_groups
-            ]
+            group_list = [Group(title=title, files=files) for title, files in final_groups]
             self.files_grouped.emit(group_list)
 
             return final_groups
@@ -238,32 +232,34 @@ class ScanController(QObject):
                 operation="tmdb_grouping",
                 additional_data={"error_type": "file_io"},
             )
-            error = AniVaultFileError(
+            file_error: AniVaultError = AniVaultFileError(
                 ErrorCode.FILE_GROUPING_FAILED,
                 f"TMDB-based grouping failed due to file I/O error: {e}",
                 context,
                 original_error=e,
             )
-            logger.exception("TMDB-based grouping failed: %s", error.message)
-            raise error from e
-        except Exception as e:
+            logger.exception("TMDB-based grouping failed: %s", file_error.message)
+            raise file_error from e
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during TMDB grouping
             context = ErrorContext(
                 operation="tmdb_grouping",
                 additional_data={"error_type": "unexpected"},
             )
-            error = AniVaultError(
+            unexpected_error = AniVaultError(
                 ErrorCode.FILE_GROUPING_FAILED,
                 f"TMDB-based grouping failed: {e}",
                 context,
                 original_error=e,
             )
-            logger.exception("TMDB-based grouping failed: %s", error.message)
-            raise error from e
+            logger.exception("TMDB-based grouping failed: %s", unexpected_error.message)
+            raise unexpected_error from e
 
-    def _separate_matched_unmatched(
-        self, file_items: list[FileItem]
-    ) -> tuple[list[FileItem], list[FileItem]]:
+    def _separate_matched_unmatched(self, file_items: list[FileItem]) -> tuple[list[FileItem], list[FileItem]]:
         """Separate files into matched and unmatched based on TMDB metadata.
 
         Args:
@@ -289,9 +285,7 @@ class ScanController(QObject):
 
         return matched_files, unmatched_files
 
-    def _group_matched_files(
-        self, matched_files: list[FileItem]
-    ) -> LinkedHashTable[str, list[FileItem]]:
+    def _group_matched_files(self, matched_files: list[FileItem]) -> LinkedHashTable[str, list[FileItem]]:
         """Group matched files by TMDB title.
 
         Args:
@@ -349,9 +343,7 @@ class ScanController(QObject):
 
         return grouped_by_tmdb
 
-    def _convert_to_scanned_files(
-        self, grouped_by_tmdb: LinkedHashTable[str, list[FileItem]]
-    ) -> LinkedHashTable[str, list[ScannedFile]]:
+    def _convert_to_scanned_files(self, grouped_by_tmdb: LinkedHashTable[str, list[FileItem]]) -> LinkedHashTable[str, list[ScannedFile]]:
         """Convert FileItem groups to ScannedFile groups.
 
         Args:
@@ -429,7 +421,11 @@ class ScanController(QObject):
                         parsed_result.title,
                         parsed_result.confidence,
                     )
-                except Exception as e:  # noqa: BLE001
+                # pylint: disable-next=broad-exception-caught
+
+                # pylint: disable-next=broad-exception-caught
+
+                except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                     logger.warning(
                         "Failed to parse '%s': %s",
                         file_item.file_path.name,
@@ -520,28 +516,32 @@ class ScanController(QObject):
                 operation="file_grouping",
                 additional_data={"error_type": "file_io"},
             )
-            error = AniVaultFileError(
+            file_error: AniVaultError = AniVaultFileError(
                 ErrorCode.FILE_GROUPING_FAILED,
                 f"File grouping failed due to file I/O error: {e}",
                 context,
                 original_error=e,
             )
-            logger.exception("File grouping failed: %s", error.message)
-            raise error from e
-        except Exception as e:
+            logger.exception("File grouping failed: %s", file_error.message)
+            raise file_error from e
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during file grouping
             context = ErrorContext(
                 operation="file_grouping",
                 additional_data={"error_type": "unexpected"},
             )
-            error = AniVaultError(
+            unexpected_error = AniVaultError(
                 ErrorCode.FILE_GROUPING_FAILED,
                 f"File grouping failed: {e}",
                 context,
                 original_error=e,
             )
-            logger.exception("File grouping failed: %s", error.message)
-            raise error from e
+            logger.exception("File grouping failed: %s", unexpected_error.message)
+            raise unexpected_error from e
 
     def _start_scanning_thread(self, directory_path: Path) -> None:
         """Start the file scanning worker thread.

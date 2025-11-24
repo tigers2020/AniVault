@@ -92,9 +92,7 @@ def validate_patterns_list(patterns: list[str]) -> list[str]:
         return patterns
 
     # Fail-fast: Check all at once
-    empty_patterns = [
-        i for i, p in enumerate(patterns) if not isinstance(p, str) or not p.strip()
-    ]
+    empty_patterns = [i for i, p in enumerate(patterns) if not isinstance(p, str) or not p.strip()]
     if empty_patterns:
         msg = f"Patterns at indices {empty_patterns} must be non-empty strings"
         raise ValueError(msg)

@@ -145,8 +145,33 @@ anivault verify <directory>          # 정리 결과 검증
 git clone https://github.com/tigers2020/AniVault.git
 cd AniVault
 pip install -e ".[dev]"  # Install with development dependencies
-pre-commit install
+pre-commit install      # Install pre-commit hooks
 ```
+
+### Pre-commit Hooks
+
+커밋 전 자동으로 코드 품질 검사를 수행합니다:
+
+```bash
+# Hook 설치
+pre-commit install
+
+# 모든 파일 검사
+pre-commit run --all-files
+
+# Hook 업데이트
+pre-commit autoupdate
+```
+
+**포함된 검사 항목:**
+- ✅ Ruff (린터 & 포맷터)
+- ✅ Black (코드 포맷터)
+- ✅ MyPy (타입 검사)
+- ✅ Bandit (보안 검사)
+- ✅ Pytest (빠른 단위 테스트)
+- ✅ 순환 import 검사
+
+자세한 내용은 [Pre-commit 설정 가이드](docs/guides/pre-commit-setup.md)를 참조하세요.
 
 ### 테스트 실행
 ```bash

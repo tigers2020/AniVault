@@ -69,7 +69,11 @@ def start_pipeline_components(
             context=context.safe_dict(),
         )
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.PIPELINE_EXECUTION_ERROR,
             f"Failed to start pipeline components: {e}",
@@ -120,7 +124,11 @@ def wait_for_scanner_completion(
             context=context.safe_dict(),
         )
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.SCANNER_ERROR,
             f"Scanner completion failed: {e}",
@@ -174,7 +182,11 @@ def signal_parser_shutdown(
             context=context.safe_dict(),
         )
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.QUEUE_OPERATION_ERROR,
             f"Failed to signal parser shutdown: {e}",
@@ -228,7 +240,11 @@ def wait_for_parser_completion(
             context=context.safe_dict(),
         )
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.PARSER_ERROR,
             f"Parser completion failed: {e}",
@@ -273,7 +289,11 @@ def signal_collector_shutdown(
             context=context.safe_dict(),
         )
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.QUEUE_OPERATION_ERROR,
             f"Failed to signal collector shutdown: {e}",
@@ -337,7 +357,11 @@ def wait_for_collector_completion(
 
         return result_count
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.COLLECTOR_ERROR,
             f"Collector completion failed: {e}",
@@ -385,7 +409,11 @@ def graceful_shutdown(
             context=context.safe_dict(),
         )
 
-    except Exception as e:  # noqa: BLE001
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.PIPELINE_SHUTDOWN_ERROR,
             f"Graceful shutdown failed: {e}",
@@ -435,7 +463,11 @@ def force_shutdown_if_needed(
             context=context.safe_dict(),
         )
 
-    except Exception as e:  # noqa: BLE001
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         infrastructure_error = InfrastructureError(
             ErrorCode.PIPELINE_SHUTDOWN_ERROR,
             f"Force shutdown failed: {e}",

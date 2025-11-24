@@ -90,7 +90,7 @@ def open_utf8(
     if "b" not in mode and "errors" not in kwargs:
         kwargs["errors"] = "replace"
 
-    file_handle = Path(file_path).open(mode, **kwargs)
+    file_handle = Path(file_path).open(mode, **kwargs)  # pylint: disable=consider-using-with
     return file_handle  # type: ignore[return-value]
 
 
@@ -208,8 +208,8 @@ def get_file_encoding(file_path: str | Path) -> str:
         with Path(file_path).open("rb") as f:
             raw_data = f.read()
             result = chardet.detect(raw_data)
-            encoding = result.get("encoding", UTF8_ENCODING)
-            return encoding if encoding is not None else UTF8_ENCODING
+            detected_encoding: str | None = result.get("encoding") if isinstance(result, dict) else None
+            return detected_encoding if detected_encoding is not None else UTF8_ENCODING
     except ImportError:
         # Fallback to UTF-8 if chardet is not available
         logger.debug("chardet library not available, using UTF-8 fallback")

@@ -140,12 +140,9 @@ class CandidateScoringService:
                         "error_type": "data_parsing",
                     },
                 )
-                error = AniVaultParsingError(
+                error = AniVaultParsingError(  # noqa: F841  # pylint: disable=unused-variable
                     ErrorCode.DATA_PROCESSING_ERROR,
-                    (
-                        f"Failed to calculate confidence score for candidate "
-                        f"'{candidate.display_title}': {e}"
-                    ),
+                    (f"Failed to calculate confidence score " f"for candidate '{candidate.display_title}': {e}"),
                     context,
                     original_error=e,
                 )
@@ -161,7 +158,11 @@ class CandidateScoringService:
                     confidence_score=0.0,
                 )
                 scored_candidates.append(scored_result)
-            except Exception as e:
+            # pylint: disable-next=broad-exception-caught
+
+            # pylint: disable-next=broad-exception-caught
+
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 # Unexpected errors
                 context = ErrorContext(
                     operation="calculate_confidence_score",
@@ -170,11 +171,10 @@ class CandidateScoringService:
                         "error_type": "unexpected",
                     },
                 )
-                error = AniVaultError(
+                _error = AniVaultError(
                     ErrorCode.DATA_PROCESSING_ERROR,
                     (
-                        f"Unexpected error calculating confidence score "
-                        f"for candidate '{candidate.display_title}': {e}"
+                        f"Unexpected error calculating confidence score " f"for candidate '{candidate.display_title}': {e}"  # pylint: disable=line-too-long
                     ),
                     context,
                     original_error=e,

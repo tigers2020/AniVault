@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from tmdbv3api import TV, Movie, TMDb
 from tmdbv3api.exceptions import TMDbException
@@ -52,7 +52,7 @@ class TMDBClient:
         state_machine: Rate limiting state machine
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         rate_limiter: TokenBucketRateLimiter | None = None,
         semaphore_manager: SemaphoreManager | None = None,
@@ -88,9 +88,7 @@ class TMDBClient:
         self._tmdb.api_key = self.config.api.tmdb.api_key
         self._tmdb.language = language  # Set language BEFORE creating TV/Movie objects
         self._tmdb.region = region
-        self._tmdb.debug = (
-            True  # Force debug to see actual API calls with language parameter
-        )
+        self._tmdb.debug = True  # Force debug to see actual API calls with language parameter
 
         # Store language for explicit parameter passing
         self.language = language
@@ -149,7 +147,7 @@ class TMDBClient:
             try:
                 results = await strategy.search(title)
                 all_results.extend(results)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 # Strategies already log their own errors
                 # Just continue with next strategy
                 logger.debug(
@@ -273,17 +271,23 @@ class TMDBClient:
             )
             raise error
 
-        # Select strategy based on media_type
-        strategy = (
-            self._tv_strategy if media_type == MediaType.TV else self._movie_strategy
-        )
+        # Select API and strategy based on media_type
+        if media_type == MediaType.TV:
+            api = self._tv
+            strategy: SearchStrategy = self._tv_strategy
+        elif media_type == MediaType.MOVIE:
+            api = self._movie
+            strategy = cast(SearchStrategy, self._movie_strategy)
+        else:
+            error_msg = f"Unsupported media type: {media_type}"
+            raise TypeError(error_msg)
 
         try:
-            # Delegate to strategy
-            # Note: get_details is implemented in concrete strategy classes
-            # but not in the abstract base class, so we use type: ignore
-            details_raw = await strategy.get_details(media_id)  # type: ignore[union-attr]
-            details: TMDBMediaDetails | None = details_raw
+            # Call TMDB API directly (TV.details or Movie.details)
+            raw_details = await self._make_request(lambda: api.details(media_id))
+
+            # Convert raw result to TMDBMediaDetails using strategy's conversion method
+            details: TMDBMediaDetails | None = strategy._to_details_model(raw_details)
 
             if details:
                 log_operation_success(
@@ -298,7 +302,7 @@ class TMDBClient:
         except AniVaultError:
             # Strategy already logged the error
             raise
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = InfrastructureError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
                 message=f"Media details request failed: {e!s}",
@@ -450,7 +454,7 @@ class TMDBClient:
     async def _process_error_response(
         self,
         exception: TMDbException,
-        context: ErrorContext,  # noqa: ARG002
+        context: ErrorContext,  # noqa: ARG002  # pylint: disable=unused-argument
     ) -> None:
         """Process error response and update state machine accordingly.
 
@@ -529,7 +533,7 @@ class TMDBClient:
         )
         raise error
 
-    def _convert_tmdb_exception(
+    def _convert_tmdb_exception(  # pylint: disable=too-many-return-statements
         self,
         exception: TMDbException,
     ) -> tuple[ErrorCode, str]:

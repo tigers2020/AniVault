@@ -97,18 +97,12 @@ class FileMetadata:
             raise ValueError(SEASON_NEGATIVE_ERROR_TEMPLATE.format(season=self.season))
 
         if self.episode is not None and self.episode < 0:
-            raise ValueError(
-                EPISODE_NEGATIVE_ERROR_TEMPLATE.format(episode=self.episode)
-            )
+            raise ValueError(EPISODE_NEGATIVE_ERROR_TEMPLATE.format(episode=self.episode))
 
         # Validate vote_average if provided
         if self.vote_average is not None:
             if not MIN_VOTE_AVERAGE <= self.vote_average <= MAX_VOTE_AVERAGE:
-                raise ValueError(
-                    VOTE_AVERAGE_RANGE_ERROR_TEMPLATE.format(
-                        vote_average=self.vote_average
-                    )
-                )
+                raise ValueError(VOTE_AVERAGE_RANGE_ERROR_TEMPLATE.format(vote_average=self.vote_average))
 
     @property
     def display_name(self) -> str:
@@ -201,8 +195,4 @@ class TMDBMatchResult:
 
         if self.vote_average is not None:
             if not MIN_VOTE_AVERAGE <= self.vote_average <= MAX_VOTE_AVERAGE:
-                raise ValueError(
-                    VOTE_AVERAGE_RANGE_ERROR_TEMPLATE.format(
-                        vote_average=self.vote_average
-                    )
-                )
+                raise ValueError(VOTE_AVERAGE_RANGE_ERROR_TEMPLATE.format(vote_average=self.vote_average))

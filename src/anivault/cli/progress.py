@@ -95,12 +95,10 @@ class ProgressManager:
         # Add a new task to track progress
         # Handle both sequences and generators
         try:
-            if hasattr(sequence, "__len__") and hasattr(sequence, "__getitem__"):
-                total = len(sequence)  # type: ignore[arg-type]
-            else:
-                total = None
+            total = len(sequence) if hasattr(sequence, "__len__") and hasattr(sequence, "__getitem__") else None  # type: ignore[arg-type]
         except TypeError:
-            # For generators and other non-length objects, use None for indeterminate progress
+            # For generators and other non-length objects,
+            # use None for indeterminate progress
             total = None
 
         task_id = self._progress.add_task(description, total=total)

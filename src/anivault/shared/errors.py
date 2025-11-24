@@ -107,9 +107,7 @@ class ErrorCode(str, Enum):
     # Security Errors
     INVALID_TOKEN = "INVALID_TOKEN"  # noqa: S105  # nosec B105 - Error code constant
     TOKEN_EXPIRED = "TOKEN_EXPIRED"  # noqa: S105  # nosec B105 - Error code constant
-    TOKEN_MALFORMED = (
-        "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
-    )
+    TOKEN_MALFORMED = "TOKEN_MALFORMED"  # noqa: S105  # nosec B105 - Error code constant
     ENCRYPTION_FAILED = "ENCRYPTION_FAILED"
     DECRYPTION_FAILED = "DECRYPTION_FAILED"
 
@@ -205,10 +203,7 @@ def _coerce_primitives(value: Any | None) -> dict[str, PrimitiveContextValue] | 
         elif isinstance(val, Decimal):
             coerced[key] = float(val)
         else:
-            error_msg = (
-                f"Cannot coerce {type(val).__name__} to primitive type. "
-                f"Only str, int, float, bool, Path, Enum, Decimal are allowed."
-            )
+            error_msg = f"Cannot coerce {type(val).__name__} to primitive type. " f"Only str, int, float, bool, Path, Enum, Decimal are allowed."
             raise TypeError(error_msg)
 
     return coerced
@@ -296,7 +291,7 @@ class AniVaultError(Exception):
     AniVault application, following the structured error handling pattern.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         code: ErrorCode,
         message: str,
@@ -510,9 +505,7 @@ def create_validation_error(
     original_error: Exception | None = None,
 ) -> DomainError:
     """Create a validation error with context."""
-    additional_data: dict[str, PrimitiveContextValue] | None = (
-        {"field": field} if field else None
-    )
+    additional_data: dict[str, PrimitiveContextValue] | None = {"field": field} if field else None
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -568,9 +561,7 @@ def create_config_error(
     original_error: Exception | None = None,
 ) -> ApplicationError:
     """Create a configuration error with context."""
-    additional_data: dict[str, PrimitiveContextValue] | None = (
-        {"config_key": config_key} if config_key else None
-    )
+    additional_data: dict[str, PrimitiveContextValue] | None = {"config_key": config_key} if config_key else None
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -590,9 +581,7 @@ def create_data_processing_error(
     original_error: Exception | None = None,
 ) -> DataProcessingError:
     """Create a data processing error with context."""
-    additional_data: dict[str, PrimitiveContextValue] | None = (
-        {"field": field} if field else None
-    )
+    additional_data: dict[str, PrimitiveContextValue] | None = {"field": field} if field else None
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -608,7 +597,7 @@ def create_data_processing_error(
 class CliError(ApplicationError):
     """CLI-specific error with enhanced context for command-line operations."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         code: ErrorCode,
         message: str,
@@ -630,9 +619,7 @@ def create_cli_error(
     exit_code: int = 1,
 ) -> CliError:
     """Create a CLI error with context."""
-    additional_data: dict[str, PrimitiveContextValue] | None = (
-        {"command": command} if command else None
-    )
+    additional_data: dict[str, PrimitiveContextValue] | None = {"command": command} if command else None
     context = ErrorContext(
         operation=operation,
         additional_data=additional_data,
@@ -704,7 +691,7 @@ class TypeCoercionError(DomainError):
         ...     )
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         code: ErrorCode,
         message: str,

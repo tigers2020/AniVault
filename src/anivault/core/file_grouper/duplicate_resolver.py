@@ -232,9 +232,7 @@ class DuplicateResolver:
             0
         """
         # Check each quality pattern (sorted by score descending to match highest first)
-        for quality_tag, score in sorted(
-            self.quality_scores.items(), key=lambda x: x[1], reverse=True
-        ):
+        for quality_tag, score in sorted(self.quality_scores.items(), key=lambda x: x[1], reverse=True):
             # Build pattern that matches the quality tag (case-insensitive)
             # Match tag surrounded by delimiters or at boundaries
             escaped_tag = re.escape(quality_tag)

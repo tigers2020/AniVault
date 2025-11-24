@@ -122,9 +122,7 @@ class FileOrganizer:
         """
         return self._executor.execute_batch(operations)
 
-    def organize(
-        self, scanned_files: list[ScannedFile], dry_run: bool = True
-    ) -> list[FileOperation] | list[OperationResult]:
+    def organize(self, scanned_files: list[ScannedFile], dry_run: bool = True) -> list[FileOperation] | list[OperationResult]:
         """
         Organize files based on scanned files.
 
@@ -154,9 +152,7 @@ class FileOrganizer:
             Path object for the destination.
         """
         if not scanned_file.metadata:
-            return (
-                Path.home() / FileSystem.OUTPUT_DIRECTORY / scanned_file.file_path.name
-            )
+            return Path.home() / FileSystem.OUTPUT_DIRECTORY / scanned_file.file_path.name
 
         # Get settings for path context (handle None case)
         if self.settings.folders is None:
@@ -167,19 +163,13 @@ class FileOrganizer:
         else:
             default_target = str(Path.home() / FileSystem.OUTPUT_DIRECTORY)
             target_folder = Path(self.settings.folders.target_folder or default_target)
-            media_type = (
-                self.settings.folders.media_type or FolderDefaults.DEFAULT_MEDIA_TYPE
-            )
+            media_type = self.settings.folders.media_type or FolderDefaults.DEFAULT_MEDIA_TYPE
             organize_by_resolution = self.settings.folders.organize_by_resolution
             organize_by_year = self.settings.folders.organize_by_year
 
         # Determine if series has mixed resolutions
         summaries = self._resolution_analyzer.analyze_series([scanned_file])
-        series_has_mixed_resolutions = (
-            any(summary.has_mixed_resolutions for _, summary in summaries)
-            if summaries.size > 0
-            else False
-        )
+        series_has_mixed_resolutions = any(summary.has_mixed_resolutions for _, summary in summaries) if summaries.size > 0 else False
 
         # Create path context
         context = PathContext(

@@ -137,9 +137,7 @@ class ScanEventHandler(BaseEventHandler):
         # ScannedFile and FileItem have compatible interfaces for display purposes
         # pylint: disable=import-outside-toplevel
         # Import at function level for type casting
-        from typing import cast  # noqa: PLC0415
+        from typing import cast
 
-        grouped_dict = {
-            group.title: cast("list[FileItem]", group.files) for group in grouped_files
-        }
+        grouped_dict = {group.title: cast("list[FileItem]", group.files) for group in grouped_files}
         self._update_file_tree_callback(grouped_dict)

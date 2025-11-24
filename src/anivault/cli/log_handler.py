@@ -39,12 +39,11 @@ def handle_log_command(options: LogOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
+    # pylint: disable-next=reimported  # Console is intentionally reimported for local use
     console: Console = kwargs.get("console") or Console()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.LOG)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.LOG))
 
     # Extract log directory path
     log_dir = extract_directory_path(options.log_dir)
@@ -69,9 +68,7 @@ def handle_log_command(options: LogOptions, **kwargs: Any) -> int:
 
         exit_code = print_log_list(log_dir, console)
         if exit_code == CLIDefaults.EXIT_SUCCESS:
-            logger_adapter.info(
-                CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.LOG)
-            )
+            logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.LOG))
         return exit_code
 
     # Unknown command
@@ -136,8 +133,9 @@ def log_command(
         if exit_code != CLIDefaults.EXIT_SUCCESS:
             raise typer.Exit(exit_code)
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         # Handle validation errors
-        console = Console()
-        console.print(f"[red]Error: {e}[/red]")
+        # pylint: disable-next=redefined-outer-name,reimported  # Intentionally create new Console instance
+        error_console = Console()
+        error_console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(CLIDefaults.EXIT_ERROR) from e

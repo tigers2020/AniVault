@@ -278,4 +278,3 @@ if __name__ == "__main__":
         optimized_path=args.optimized,
         output_path=args.output,
     )
-

@@ -18,9 +18,6 @@ from PySide6.QtCore import QObject, Signal
 from anivault.core.data_structures.linked_hash_table import LinkedHashTable
 from anivault.shared.errors import (
     AniVaultError,
-    AniVaultFileError,
-    AniVaultParsingError,
-    AniVaultPermissionError,
     ErrorCode,
     ErrorContext,
 )
@@ -123,9 +120,7 @@ class StateModel(QObject):
         """Get all files with a specific status."""
         return [f for f in self._scanned_files if f.status == status]
 
-    def _dict_to_file_metadata(
-        self, file_path: Path, metadata_dict: dict[str, Any]
-    ) -> FileMetadata:
+    def _dict_to_file_metadata(self, file_path: Path, metadata_dict: dict[str, Any]) -> FileMetadata:
         """Convert dictionary metadata to FileMetadata dataclass.
 
         Args:
@@ -140,9 +135,7 @@ class StateModel(QObject):
         """
         # Extract required fields with fallbacks
         title = metadata_dict.get("title", file_path.stem)
-        file_type = metadata_dict.get(
-            "file_type", file_path.suffix.lstrip(".") or "unknown"
-        )
+        file_type = metadata_dict.get("file_type", file_path.suffix.lstrip(".") or "unknown")
 
         # Extract optional fields
         year = metadata_dict.get("year")
@@ -245,14 +238,10 @@ class StateModel(QObject):
     def export_state(self, file_path: Path) -> None:
         """Export current state to a JSON file."""
         state_data = {
-            "selected_directory": (
-                str(self._selected_directory) if self._selected_directory else None
-            ),
+            "selected_directory": (str(self._selected_directory) if self._selected_directory else None),
             "scanned_files": [f.to_dict() for f in self._scanned_files],
             "file_status_cache": {str(k): v for k, v in self._file_status_cache},
-            "metadata_cache": {
-                str(k): self._file_metadata_to_dict(v) for k, v in self._metadata_cache
-            },
+            "metadata_cache": {str(k): self._file_metadata_to_dict(v) for k, v in self._metadata_cache},
             "operation_history": self._operation_history,
             "export_timestamp": datetime.now().isoformat(),
         }
@@ -300,84 +289,25 @@ class StateModel(QObject):
             logger.info("Imported state from: %s", file_path)
             return True
 
-        except (FileNotFoundError, PermissionError) as e:
-            context = ErrorContext(
-                file_path=str(file_path),
-                operation="import_state",
-            )
-            if isinstance(e, FileNotFoundError):
-                error = AniVaultFileError(
-                    ErrorCode.FILE_NOT_FOUND,
-                    f"State file not found: {file_path}",
-                    context,
-                    original_error=e,
-                )
-            else:
-                error = AniVaultPermissionError(
-                    ErrorCode.PERMISSION_DENIED,
-                    f"Permission denied reading state file: {file_path}",
-                    context,
-                    original_error=e,
-                )
+        except (FileNotFoundError, PermissionError):
             logger.exception("Failed to import state: %s", file_path)
             return False
-        except OSError as e:
-            context = ErrorContext(
-                file_path=str(file_path),
-                operation="import_state",
-            )
-            error = AniVaultFileError(
-                ErrorCode.FILE_READ_ERROR,
-                f"File system error reading state file: {file_path}",
-                context,
-                original_error=e,
-            )
+        except OSError:
             logger.exception("Failed to import state: %s", file_path)
             return False
-        except json.JSONDecodeError as e:
-            # JSON parsing errors
-            # (must come before ValueError since JSONDecodeError extends ValueError)
-            context = ErrorContext(
-                file_path=str(file_path),
-                operation="import_state",
-                additional_data={
-                    "error_type": "json_parsing",
-                    "json_error_line": getattr(e, "lineno", None),
-                },
-            )
-            error = AniVaultParsingError(
-                ErrorCode.PARSING_ERROR,
-                (
-                    f"Invalid JSON format in state file: {file_path} "
-                    f"(line {getattr(e, 'lineno', 'unknown')})"
-                ),
-                context,
-                original_error=e,
-            )
+        except json.JSONDecodeError:
             logger.exception("Failed to import state: %s", file_path)
             return False
-        except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
-            # Data parsing errors during state restoration
-            context = ErrorContext(
-                file_path=str(file_path),
-                operation="import_state",
-                additional_data={"error_type": "data_parsing"},
-            )
-            error = AniVaultParsingError(
-                ErrorCode.PARSING_ERROR,
-                f"Failed to parse state data from file: {file_path}",
-                context,
-                original_error=e,
-            )
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError):
             logger.exception("Failed to import state: %s", file_path)
             return False
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             context = ErrorContext(
                 file_path=str(file_path),
                 operation="import_state",
                 additional_data={"error_type": "unexpected"},
             )
-            error = AniVaultError(
+            _error = AniVaultError(
                 ErrorCode.CONFIG_ERROR,
                 f"Unexpected error importing state: {file_path}",
                 context,

@@ -94,9 +94,7 @@ class ResolutionDetector:
                                 resolution_info.width,
                                 resolution_info.height,
                             )
-                            resolution_info.confidence = (
-                                ParsingConfidence.RESOLUTION_DETECTED
-                            )
+                            resolution_info.confidence = ParsingConfidence.RESOLUTION_DETECTED
                             break
                         except (ValueError, IndexError):
                             continue
@@ -161,9 +159,10 @@ class ResolutionDetector:
             return "480p"
         return "SD"
 
+    # pylint: disable-next=unused-argument
     def _detect_from_file_properties(
         self,
-        file_path: Path,  # noqa: ARG002 - Future implementation
+        file_path: Path,  # noqa: ARG002  # pylint: disable=unused-argument  # Future implementation
     ) -> ResolutionInfo:
         """Detect resolution from file properties (placeholder for future implementation).
 

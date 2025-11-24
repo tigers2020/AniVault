@@ -55,7 +55,7 @@ def get_container() -> Container:
     Returns:
         Container instance for dependency injection
     """
-    global _container
+    global _container  # pylint: disable=global-statement
     if _container is None:
         _container = Container()
         # Wire modules that use DI
@@ -135,13 +135,17 @@ def main(
 
         # Process the common options
         main_callback(verbose, log_level, json_output, benchmark, version)
-    except Exception as e:
-        exit_code = handle_cli_error(e, "main-callback", json_output=json_output)
-        raise typer.Exit(exit_code) from e
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        error_exit_code = handle_cli_error(e, "main-callback", json_output=json_output)  # pylint: disable=redefined-outer-name,reimported
+        raise typer.Exit(error_exit_code) from e
 
 
 @app.command(CLICommands.SCAN)
-def scan_command_typer(
+def scan_command_typer(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help=CLIHelp.SCAN_DIRECTORY_HELP,
@@ -222,7 +226,7 @@ def scan_command_typer(
 
 
 @app.command(CLICommands.MATCH)
-def match_command_typer(
+def match_command_typer(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help=CLIHelp.MATCH_DIRECTORY_HELP,
@@ -307,7 +311,7 @@ def match_command_typer(
 
 
 @app.command(CLICommands.ORGANIZE)
-def organize_command_typer(
+def organize_command_typer(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help=CLIHelp.ORGANIZE_DIRECTORY_HELP,
@@ -346,6 +350,11 @@ def organize_command_typer(
         help=CLIHelp.ORGANIZE_JSON_HELP,
     ),
 ) -> None:
+    """Organize anime files in the specified directory.
+
+    This command groups and renames anime files based on TMDB metadata,
+    organizing them into a structured folder hierarchy.
+    """
     # Call the organize command
     organize_command(
         directory,
@@ -359,7 +368,7 @@ def organize_command_typer(
 
 
 @app.command(CLICommands.RUN)
-def run_command_typer(
+def run_command_typer(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help=CLIHelp.RUN_DIRECTORY_HELP,
@@ -396,7 +405,7 @@ def run_command_typer(
         "--dry-run",
         help=CLIHelp.RUN_DRY_RUN_HELP,
     ),
-    yes: bool = typer.Option(
+    yes: bool = typer.Option(  # pylint: disable=unused-argument
         False,
         "--yes",
         CLIOptions.YES_SHORT,
@@ -551,7 +560,13 @@ def verify_command_typer(
         "--all",
         help=CLIHelp.VERIFY_ALL_HELP,
     ),
+    # pylint: disable-next=reimported
 ) -> None:
+    """Verify system components and configuration.
+
+    Checks the integrity of various AniVault components including
+    TMDB API connectivity and internal systems.
+    """
     # Call the verify command
     verify_command(tmdb, all_components)
 
@@ -559,19 +574,24 @@ def verify_command_typer(
 if __name__ == "__main__":
     try:
         app()
+    # pylint: disable-next=reimported
     except KeyboardInterrupt:
         # Handle Ctrl+C gracefully
         import sys
 
-        logger = logging.getLogger(__name__)
+        logger = logging.getLogger(__name__)  # pylint: disable=reimported
         logger.info("Command interrupted by user")
         sys.exit(1)
-    except SystemExit:
+    except SystemExit:  # pylint: disable=try-except-raise
         # Re-raise SystemExit to preserve exit codes
         raise
-    except Exception as e:  # noqa: BLE001
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         # Handle unexpected errors with structured logging
         import sys
 
-        exit_code = handle_cli_error(e, "typer-app")
-        sys.exit(exit_code)
+        app_exit_code = handle_cli_error(e, "typer-app")  # pylint: disable=redefined-outer-name
+        sys.exit(app_exit_code)

@@ -180,9 +180,7 @@ class FileOperationExecutor:
         for operation in operations:
             try:
                 # Execute single operation with directory cache
-                result = self.execute(
-                    operation, dry_run=dry_run, created_dirs=created_dirs
-                )
+                result = self.execute(operation, dry_run=dry_run, created_dirs=created_dirs)
                 results.append(result)
 
             except FileNotFoundError as e:
@@ -502,11 +500,7 @@ class FileOperationExecutor:
             return
 
         # Filter successful, non-skipped operations
-        successful_ops = [
-            (result.source_path, result.destination_path)
-            for result in results
-            if result.success and not result.skipped
-        ]
+        successful_ops = [(result.source_path, result.destination_path) for result in results if result.success and not result.skipped]
 
         if successful_ops:
             # Note: operation_id is not currently used by log_manager

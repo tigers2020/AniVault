@@ -200,9 +200,7 @@ class TMDBSearchService:
             return []
         except Exception:  # pylint: disable=broad-exception-caught
             # Unexpected errors
-            logger.exception(
-                "TMDB search failed (unexpected error) for query '%s'", title
-            )
+            logger.exception("TMDB search failed (unexpected error) for query '%s'", title)
             self.statistics.record_api_call(
                 "tmdb_search",
                 success=False,

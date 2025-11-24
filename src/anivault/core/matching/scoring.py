@@ -91,8 +91,7 @@ def calculate_confidence_score(
         )
 
         logger.debug(
-            "Confidence score calculation: title=%.3f, year=%.3f, media_type=%.3f, "
-            "popularity=%.3f, final=%.3f",
+            "Confidence score calculation: title=%.3f, year=%.3f, media_type=%.3f, " "popularity=%.3f, final=%.3f",
             title_score,
             year_score,
             media_type_score,

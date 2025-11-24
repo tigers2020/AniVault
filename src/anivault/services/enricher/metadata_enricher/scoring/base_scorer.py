@@ -76,7 +76,6 @@ class BaseScorer(Protocol):
             ... )
             >>> print(result.score)  # 0.85
         """
-        ...
 
 
 __all__ = ["BaseScorer"]

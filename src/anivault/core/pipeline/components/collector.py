@@ -62,12 +62,7 @@ def _dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:
 
     # Extract file_type from file_extension, fallback to file_path.suffix
     file_extension = result.get("file_extension", "")
-    if file_extension:
-        # Remove leading dot if present
-        file_type = file_extension.lstrip(".").lower()
-    else:
-        # Fallback to file_path suffix
-        file_type = file_path.suffix.lstrip(".").lower() or "unknown"
+    file_type = file_extension.lstrip(".").lower() if file_extension else file_path.suffix.lstrip(".").lower() or "unknown"
 
     # Create FileMetadata instance
     # Note: year, season, episode are None as parser doesn't extract them
@@ -141,7 +136,7 @@ class ResultCollector(threading.Thread):
             self._store_result_with_error_handling(item)
             return True
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Convert regular exception to InfrastructureError for logging
             if not hasattr(e, "context"):
                 infrastructure_error = InfrastructureError(
@@ -223,10 +218,7 @@ class ResultCollector(threading.Thread):
                         idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
                         if idle >= max_idle_loops if max_idle_loops else False:
                             logger.warning(
-                                (
-                                    "ResultCollector %s: Max idle loops reached, "
-                                    "stopping..."
-                                ),
+                                ("ResultCollector %s: Max idle loops reached, " "stopping..."),
                                 self.collector_id,
                             )
                             break
@@ -577,11 +569,7 @@ class ResultCollector(threading.Thread):
         with self._lock:
             # Normalize extension (remove leading dot, lowercase)
             normalized_ext = extension.lstrip(".").lower()
-            return [
-                result
-                for result in self._results
-                if result.file_type.lower() == normalized_ext
-            ]
+            return [result for result in self._results if result.file_type.lower() == normalized_ext]
 
     def get_results_by_worker(
         self,
@@ -634,9 +622,7 @@ class ResultCollector(threading.Thread):
             List of unique file extensions (from file_type field).
         """
         with self._lock:
-            extensions = {
-                result.file_type for result in self._results if result.file_type
-            }
+            extensions = {result.file_type for result in self._results if result.file_type}
             return sorted(extensions)
 
     def get_worker_ids(self) -> list[str]:

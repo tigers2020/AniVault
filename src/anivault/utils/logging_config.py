@@ -57,10 +57,7 @@ class AniVaultFormatter(logging.Formatter):
         self.detailed = detailed
 
         if detailed:
-            format_str = (
-                "%(asctime)s - %(name)s - %(levelname)s - "
-                "%(filename)s:%(lineno)d - %(funcName)s - %(message)s"
-            )
+            format_str = "%(asctime)s - %(name)s - %(levelname)s - " "%(filename)s:%(lineno)d - %(funcName)s - %(message)s"
         else:
             format_str = DEFAULT_LOG_FORMAT
 
@@ -84,7 +81,7 @@ class AniVaultFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logging(
+def setup_logging(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     log_level: int = DEFAULT_LOG_LEVEL,
     log_dir: Path | None = None,
     log_file: str | None = None,
@@ -291,11 +288,7 @@ class LoggingContext:
 
     def __enter__(self) -> logging.Logger:
         """Enter the context and set the log level."""
-        logger = (
-            logging.getLogger(self.logger_name)
-            if self.logger_name
-            else logging.getLogger()
-        )
+        logger = logging.getLogger(self.logger_name) if self.logger_name else logging.getLogger()
         self.original_level = logger.level
         logger.setLevel(self.level)
         return logger
@@ -307,11 +300,7 @@ class LoggingContext:
         exc_tb: types.TracebackType | None,
     ) -> None:
         """Exit the context and restore the original log level."""
-        logger = (
-            logging.getLogger(self.logger_name)
-            if self.logger_name
-            else logging.getLogger()
-        )
+        logger = logging.getLogger(self.logger_name) if self.logger_name else logging.getLogger()
         if self.original_level is not None:
             logger.setLevel(self.original_level)
 

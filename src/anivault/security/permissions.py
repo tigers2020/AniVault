@@ -57,40 +57,37 @@ def set_secure_file_permissions(file_path: Path | str) -> None:
         logger.info("Secure permissions set for: %s", file_path)
 
     except PermissionError as e:
-        error = AniVaultPermissionError(
+        logger.exception("Permission denied: %s", file_path)
+        raise AniVaultPermissionError(
             ErrorCode.PERMISSION_DENIED,
             f"Cannot set permissions: {file_path}",
             context,
             original_error=e,
-        )
-        logger.exception("Permission denied: %s", file_path)
-        raise error from e
+        ) from e
     except (FileNotFoundError, OSError) as e:
         if isinstance(e, FileNotFoundError):
-            error = AniVaultFileError(
+            logger.exception("Failed to set permissions: %s", file_path)
+            raise AniVaultFileError(
                 ErrorCode.FILE_NOT_FOUND,
                 f"File not found while setting permissions: {file_path}",
                 context,
                 original_error=e,
-            )
-        else:
-            error = AniVaultFileError(
-                ErrorCode.FILE_WRITE_ERROR,
-                f"File system error setting permissions: {file_path}",
-                context,
-                original_error=e,
-            )
+            ) from e
         logger.exception("Failed to set permissions: %s", file_path)
-        raise error from e
+        raise AniVaultFileError(
+            ErrorCode.FILE_WRITE_ERROR,
+            f"File system error setting permissions: {file_path}",
+            context,
+            original_error=e,
+        ) from e
     except Exception as e:
-        error = AniVaultError(
+        logger.exception("Failed to set permissions: %s", file_path)
+        raise AniVaultError(
             ErrorCode.FILE_WRITE_ERROR,
             f"Unexpected error setting permissions: {file_path}",
             context,
             original_error=e,
-        )
-        logger.exception("Failed to set permissions: %s", file_path)
-        raise error from e
+        ) from e
 
 
 def _set_unix_permissions(file_path: Path) -> None:
@@ -119,8 +116,8 @@ def _set_windows_permissions(file_path: Path) -> None:
         # Try to import win32security for proper ACL management
         # pylint: disable=import-outside-toplevel
         # Windows-only import
-        import ntsecuritycon as con  # noqa: PLC0415
-        import win32security  # noqa: PLC0415
+        import ntsecuritycon as con
+        import win32security
 
         # Get current user's SID
         user_sid = win32security.GetFileSecurity(
@@ -151,8 +148,7 @@ def _set_windows_permissions(file_path: Path) -> None:
     except ImportError:
         # Fallback to basic chmod if pywin32 is not available
         logger.warning(
-            "pywin32 not available, using basic chmod. "
-            "For better security on Windows, install pywin32.",
+            "pywin32 not available, using basic chmod. " "For better security on Windows, install pywin32.",
         )
         # This provides minimal protection on Windows
         Path(file_path).chmod(0o600)

@@ -121,9 +121,7 @@ class SettingsLoader:
                 # 6. Update global cache
                 self._instance = updated
 
-                logger.info(
-                    "Configuration updated and saved successfully to %s", config_path
-                )
+                logger.info("Configuration updated and saved successfully to %s", config_path)
 
             except Exception as e:
                 logger.exception("Failed to update and save configuration")
@@ -189,10 +187,7 @@ def _check_env_file_exists(env_file: Path) -> None:
 
         raise SecurityError(
             code=ErrorCode.MISSING_CONFIG,
-            message=(
-                "Environment file .env not found. "
-                "Copy env.template to .env and configure your TMDB API key."
-            ),
+            message=("Environment file .env not found. " "Copy env.template to .env and configure your TMDB API key."),
             context=ErrorContext(
                 operation="load_env",
                 additional_data={"file_name": env_file.name},
@@ -270,9 +265,7 @@ def _validate_api_key(env_file: Path) -> None:
     if not api_key:
         raise SecurityError(
             code=ErrorCode.MISSING_CONFIG,
-            message=(
-                "TMDB_API_KEY not found in environment. Set TMDB_API_KEY in .env file."
-            ),
+            message=("TMDB_API_KEY not found in environment. Set TMDB_API_KEY in .env file."),
             context=ErrorContext(
                 operation="validate_api_key",
                 additional_data={"env_file_name": env_file.name},

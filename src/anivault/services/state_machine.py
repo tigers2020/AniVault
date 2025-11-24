@@ -167,9 +167,7 @@ class RateLimitStateMachine:
         with self._lock:
             if self._state == RateLimitState.THROTTLE:
                 current_time = time.time()
-                remaining_delay = self._retry_after_delay - (
-                    current_time - self._last_429_time
-                )
+                remaining_delay = self._retry_after_delay - (current_time - self._last_429_time)
                 return max(0.0, remaining_delay)
 
             return 0.0
@@ -230,20 +228,14 @@ class RateLimitStateMachine:
             cutoff_time = current_time - self.time_window
 
             recent_errors = sum(1 for ts in self._error_timestamps if ts >= cutoff_time)
-            recent_successes = sum(
-                1 for ts in self._success_timestamps if ts >= cutoff_time
-            )
+            recent_successes = sum(1 for ts in self._success_timestamps if ts >= cutoff_time)
             total_recent = recent_errors + recent_successes
 
-            error_rate = (
-                (recent_errors / total_recent * 100) if total_recent > 0 else 0.0
-            )
+            error_rate = (recent_errors / total_recent * 100) if total_recent > 0 else 0.0
 
             # Calculate retry delay directly to avoid nested lock
             if self._state == RateLimitState.THROTTLE:
-                remaining_delay = self._retry_after_delay - (
-                    current_time - self._last_429_time
-                )
+                remaining_delay = self._retry_after_delay - (current_time - self._last_429_time)
                 retry_delay = max(0.0, remaining_delay)
             else:
                 retry_delay = 0.0

@@ -137,7 +137,7 @@ class NormalizationConfig:
     ]
 
     # Compiled patterns cache (lazy initialization)
-    _compiled_patterns: ClassVar[list[re.Pattern[str]]] | None = None
+    _compiled_patterns: ClassVar[list[re.Pattern[str]] | None] = None
 
     @classmethod
     def get_compiled_patterns(cls) -> list[re.Pattern[str]]:
@@ -190,9 +190,6 @@ class NormalizationConfig:
                 *cls.BRACKET_PATTERNS,
             ]
 
-            cls._compiled_patterns = [
-                re.compile(pattern, flags=re.IGNORECASE)
-                for pattern in patterns_to_compile
-            ]
+            cls._compiled_patterns = [re.compile(pattern, flags=re.IGNORECASE) for pattern in patterns_to_compile]
 
         return cls._compiled_patterns

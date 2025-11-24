@@ -161,9 +161,7 @@ class PathBuilder:
 
         # Priority 3: Extract from filename
         filename = scanned_file.file_path.name
-        title_match = re.search(
-            r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", filename
-        )
+        title_match = re.search(r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", filename)
         if title_match:
             extracted_title = (title_match.group(1) or title_match.group(2)).strip()
             if extracted_title:
@@ -358,7 +356,7 @@ class PathBuilder:
             return PathConstants.LD_LABEL
         return "SD"
 
-    def _apply_resolution_folder(
+    def _apply_resolution_folder(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         series_title: str,
         season_dir: str,
@@ -396,9 +394,7 @@ class PathBuilder:
                     )
 
             series_dir = base_path / series_title / season_dir
-            self.logger.debug(
-                "High resolution detected: %s -> %s", resolution, series_dir
-            )
+            self.logger.debug("High resolution detected: %s -> %s", resolution, series_dir)
         else:
             # Low resolution: under low_res folder (only when series has mixed resolutions)
             # Build low_res path first

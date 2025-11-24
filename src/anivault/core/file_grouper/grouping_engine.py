@@ -167,7 +167,7 @@ class GroupingEngine:
                 msg = f"Weight for '{name}' must be between 0.0 and 1.0, got {weight}"
                 raise ValueError(msg)
 
-    def group_files(self, files: list[ScannedFile]) -> list[Group]:
+    def group_files(self, files: list[ScannedFile]) -> list[Group]:  # pylint: disable=too-many-locals,too-many-branches
         """Group files using Hash-first pipeline with optional Title refinement.
 
         This method implements a pipeline approach:
@@ -235,9 +235,7 @@ class GroupingEngine:
                 context,
                 original_error=e,
             )
-            logger.exception(
-                "Hash matcher failed, cannot continue pipeline: %s", error.message
-            )
+            logger.exception("Hash matcher failed, cannot continue pipeline: %s", error.message)
             # Hash matcher failure is critical for pipeline
             return []
         except Exception as e:  # pylint: disable=broad-exception-caught
@@ -252,9 +250,7 @@ class GroupingEngine:
                 context,
                 original_error=e,
             )
-            logger.exception(
-                "Hash matcher failed, cannot continue pipeline: %s", error.message
-            )
+            logger.exception("Hash matcher failed, cannot continue pipeline: %s", error.message)
             # Hash matcher failure is critical for pipeline
             return []
 
@@ -295,9 +291,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Title matcher failed, using Hash results only: %s", error.message
-                )
+                logger.exception("Title matcher failed, using Hash results only: %s", error.message)
                 # Title matcher failure is non-critical, use Hash results
             except Exception as e:  # pylint: disable=broad-exception-caught
                 # Unexpected errors during title matching (catch-all for unknown exceptions)
@@ -311,9 +305,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Title matcher failed, using Hash results only: %s", error.message
-                )
+                logger.exception("Title matcher failed, using Hash results only: %s", error.message)
                 # Title matcher failure is non-critical, use Hash results
 
         # Step 4: Run other matchers in parallel (if any)
@@ -346,9 +338,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Matcher '%s' failed: %s", matcher.component_name, error.message
-                )
+                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
                 # Skip failed matcher
                 continue
             except Exception as e:  # pylint: disable=broad-exception-caught
@@ -366,9 +356,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Matcher '%s' failed: %s", matcher.component_name, error.message
-                )
+                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
                 # Skip failed matcher
                 continue
 
@@ -432,9 +420,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Matcher '%s' failed: %s", matcher.component_name, error.message
-                )
+                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
                 # Skip failed matcher
                 continue
             except Exception as e:  # pylint: disable=broad-exception-caught
@@ -452,9 +438,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Matcher '%s' failed: %s", matcher.component_name, error.message
-                )
+                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
                 # Skip failed matcher
                 continue
 
@@ -475,7 +459,7 @@ class GroupingEngine:
 
         return result_groups
 
-    def _refine_groups_with_title_matcher(
+    def _refine_groups_with_title_matcher(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches
         self,
         hash_groups: list[Group],
         title_matcher: BaseMatcher,
@@ -525,9 +509,7 @@ class GroupingEngine:
             try:
                 if has_refine_group:
                     # Use refine_group if available (preferred)
-                    refined_group = title_matcher.refine_group(  # type: ignore[attr-defined]
-                        hash_group
-                    )
+                    refined_group = title_matcher.refine_group(hash_group)  # type: ignore[attr-defined]
                     if refined_group:
                         # Merge evidence from Hash and Title matchers
                         refined_group.evidence = self._merge_pipeline_evidence(
@@ -541,10 +523,7 @@ class GroupingEngine:
                         # Fallback to Hash group if refinement returns None
                         # Update evidence to indicate pipeline was attempted
                         if hash_group.evidence:
-                            hash_group.evidence.explanation = (
-                                f"{hash_group.evidence.explanation} "
-                                "(Title refinement returned None)"
-                            )
+                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} " "(Title refinement returned None)"
                         refined_groups.append(hash_group)
                 else:
                     # Fallback: Extract files and use match() method
@@ -563,10 +542,7 @@ class GroupingEngine:
                         # Fallback to Hash group if Title matcher returns empty
                         # Update evidence to indicate Title matcher was attempted
                         if hash_group.evidence:
-                            hash_group.evidence.explanation = (
-                                f"{hash_group.evidence.explanation} "
-                                "(Title matcher returned empty)"
-                            )
+                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} " "(Title matcher returned empty)"
                         refined_groups.append(hash_group)
 
             except (KeyError, ValueError, AttributeError, TypeError) as e:
@@ -580,10 +556,7 @@ class GroupingEngine:
                 )
                 error = AniVaultParsingError(
                     ErrorCode.FILE_GROUPING_FAILED,
-                    (
-                        f"Title matcher failed for group '{hash_group.title}' "
-                        f"due to data parsing error: {e}"
-                    ),
+                    (f"Title matcher failed for group '{hash_group.title}' " f"due to data parsing error: {e}"),
                     context,
                     original_error=e,
                 )
@@ -595,9 +568,7 @@ class GroupingEngine:
                 # Use Hash group as fallback
                 # Update evidence to indicate Title matcher failed
                 if hash_group.evidence:
-                    hash_group.evidence.explanation = (
-                        f"{hash_group.evidence.explanation} (Title matcher failed)"
-                    )
+                    hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title matcher failed)"
                 refined_groups.append(hash_group)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 # Unexpected errors during title refinement per group
@@ -623,9 +594,7 @@ class GroupingEngine:
                 # Use Hash group as fallback
                 # Update evidence to indicate Title matcher failed
                 if hash_group.evidence:
-                    hash_group.evidence.explanation = (
-                        f"{hash_group.evidence.explanation} (Title matcher failed)"
-                    )
+                    hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title matcher failed)"
                 refined_groups.append(hash_group)
 
         return refined_groups
@@ -677,23 +646,13 @@ class GroupingEngine:
 
         # Calculate combined confidence (weighted average)
         if contributing_matchers:
-            total_weight = sum(
-                match_scores.get(matcher, 0.0) for matcher in contributing_matchers
-            )
-            confidence = (
-                total_weight / len(contributing_matchers)
-                if contributing_matchers
-                else 0.0
-            )
+            total_weight = sum(match_scores.get(matcher, 0.0) for matcher in contributing_matchers)
+            confidence = total_weight / len(contributing_matchers) if contributing_matchers else 0.0
         else:
             confidence = 0.0
 
         # Generate explanation with pipeline information
-        if (
-            len(contributing_matchers) == 2
-            and "hash" in contributing_matchers
-            and "title" in contributing_matchers
-        ):
+        if len(contributing_matchers) == 2 and "hash" in contributing_matchers and "title" in contributing_matchers:
             explanation = (
                 f"Hash → Title pipeline: "
                 f"Hash ({int(match_scores.get('hash', 0.0) * 100)}%) + "
@@ -703,16 +662,11 @@ class GroupingEngine:
             selected_matcher = "hash,title"
         elif len(contributing_matchers) == 1:
             matcher_name = contributing_matchers[0]
-            explanation = (
-                f"Grouped by {matcher_name} similarity "
-                f"({int(match_scores.get(matcher_name, 0.0) * 100)}%)"
-            )
+            explanation = f"Grouped by {matcher_name} similarity " f"({int(match_scores.get(matcher_name, 0.0) * 100)}%)"
             selected_matcher = matcher_name
         else:
             matcher_list = ", ".join(contributing_matchers)
-            explanation = (
-                f"Grouped by {matcher_list} ({int(confidence * 100)}% confidence)"
-            )
+            explanation = f"Grouped by {matcher_list} ({int(confidence * 100)}% confidence)"
             selected_matcher = ",".join(contributing_matchers)
 
         return GroupingEvidence(

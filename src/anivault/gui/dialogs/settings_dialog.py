@@ -5,6 +5,8 @@ This module contains the SettingsDialog class for managing TMDB API key
 configuration in the AniVault GUI application.
 """
 
+# pylint: disable=attribute-defined-outside-init  # PySide6 pattern: widgets created in _setup_ui()
+
 from __future__ import annotations
 
 import logging
@@ -58,9 +60,7 @@ class SettingsDialog(QDialog):
 
     # Signals
     api_key_saved: Signal = Signal(str)  # Emitted when API key is successfully saved
-    folder_settings_changed: Signal = (
-        Signal()
-    )  # Emitted when folder settings are changed
+    folder_settings_changed: Signal = Signal()  # Emitted when folder settings are changed
 
     def __init__(
         self,
@@ -111,8 +111,7 @@ class SettingsDialog(QDialog):
 
         # Button box
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel,
         )
         # Connect buttons directly to avoid double signal emission
         self.button_box.button(QDialogButtonBox.StandardButton.Save).clicked.connect(
@@ -248,10 +247,7 @@ class SettingsDialog(QDialog):
                 logger.debug("Loaded existing API key from configuration")
 
             # Load folder settings
-            if (
-                hasattr(self._cached_config, "folders")
-                and self._cached_config.folders is not None
-            ):
+            if hasattr(self._cached_config, "folders") and self._cached_config.folders is not None:
                 folders = self._cached_config.folders
                 self.source_folder_input.setText(folders.source_folder)
                 self.target_folder_input.setText(folders.target_folder)
@@ -315,7 +311,7 @@ class SettingsDialog(QDialog):
             # Close dialog
             self.accept()
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Failed to save API key")
             self._show_error(
                 DialogTitles.SAVE_FAILED,
@@ -475,7 +471,7 @@ class SettingsDialog(QDialog):
 
             logger.info("Folder settings saved successfully")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Failed to save folder settings")
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
@@ -490,7 +486,8 @@ class SettingsDialog(QDialog):
         Returns:
             Current API key string
         """
-        return self.api_key_input.text().strip()
+        text = self.api_key_input.text()
+        return str(text.strip()) if text else ""
 
     def get_folder_settings(self) -> dict[str, Any]:
         """

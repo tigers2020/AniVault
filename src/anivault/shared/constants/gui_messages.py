@@ -165,12 +165,8 @@ class UIConfig:
     """UI layout and display configuration constants."""
 
     # Text truncation limits
-    GROUP_CARD_TITLE_MAX_LENGTH = (
-        60  # Group card title truncation (increased for longer titles)
-    )
-    GROUP_CARD_OVERVIEW_MAX_LENGTH = (
-        180  # Overview/description truncation (~3-4 lines at 12px font)
-    )
+    GROUP_CARD_TITLE_MAX_LENGTH = 60  # Group card title truncation (increased for longer titles)
+    GROUP_CARD_OVERVIEW_MAX_LENGTH = 180  # Overview/description truncation (~3-4 lines at 12px font)
 
     # Group card poster dimensions
     POSTER_WIDTH = 100  # Poster width (px) - 2:3 aspect ratio

@@ -97,7 +97,7 @@ def _create_error_context(
     }
 
 
-def _map_error_to_cli_error(
+def _map_error_to_cli_error(  # pylint: disable=too-many-return-statements
     error: Exception,
     command: str,
     error_context: dict[str, Any],
@@ -275,7 +275,7 @@ def _handle_json_output_error(
     sys.stderr.write(f"JSON output failed: {cli_output_error.message}\n")
 
 
-def handle_specific_exceptions(
+def handle_specific_exceptions(  # pylint: disable=too-many-branches
     error: Exception,
     command: str,
     *,

@@ -32,9 +32,7 @@ class OrganizeWorker(QObject):
     # Signals for communication with main thread
     organization_started: Signal = Signal()  # Emitted when organization starts
     file_organized: Signal = Signal(object)  # Emits OperationResult object (NO dict!)
-    organization_progress: Signal = Signal(
-        int, str
-    )  # Emits (progress %, current filename)
+    organization_progress: Signal = Signal(int, str)  # Emits (progress %, current filename)
     organization_finished: Signal = Signal(list)  # Emits list[OperationResult]
     organization_error: Signal = Signal(str)  # Emits error message
     organization_cancelled: Signal = Signal()  # Emitted when cancelled
@@ -144,7 +142,11 @@ class OrganizeWorker(QObject):
                     current_filename = Path(result.source_path).name
                     self.organization_progress.emit(progress, current_filename)
 
-            except Exception as e:
+            # pylint: disable-next=broad-exception-caught
+
+            # pylint: disable-next=broad-exception-caught
+
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.exception("Failed to execute batch operations")
                 # Create failure results for all remaining operations
                 for idx, operation in enumerate(self._plan):
@@ -170,11 +172,7 @@ class OrganizeWorker(QObject):
                     self.organization_progress.emit(progress, current_filename)
 
             # Cleanup empty directories after organization
-            moved_files = [
-                (r.source_path, r.destination_path)
-                for r in operation_results
-                if r.success and not r.skipped
-            ]
+            moved_files = [(r.source_path, r.destination_path) for r in operation_results if r.success and not r.skipped]
             if moved_files:
                 self._cleanup_empty_directories(moved_files)
 
@@ -186,7 +184,11 @@ class OrganizeWorker(QObject):
                 total_operations,
             )
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Error during file organization")
             self.organization_error.emit(f"정리 중 오류 발생: {e}")
 
@@ -219,10 +221,7 @@ class OrganizeWorker(QObject):
         for source_path, _ in moved_files:
             current_parent = Path(source_path).parent
             # Find common ancestor
-            while (
-                source_root not in current_parent.parents
-                and source_root != current_parent
-            ):
+            while source_root not in current_parent.parents and source_root != current_parent:
                 if source_root.parent == source_root:  # Reached filesystem root
                     break
                 source_root = source_root.parent
@@ -269,9 +268,7 @@ class OrganizeWorker(QObject):
             try:
                 # Skip if directory doesn't exist
                 if not directory.exists():
-                    logger.debug(
-                        "Directory doesn't exist (already removed?): %s", directory
-                    )
+                    logger.debug("Directory doesn't exist (already removed?): %s", directory)
                     skipped_count += 1
                     continue
 

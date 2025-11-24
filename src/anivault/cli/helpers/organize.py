@@ -34,9 +34,7 @@ from anivault.shared.types.cli import OrganizeOptions
 logger = logging.getLogger(__name__)
 
 
-def get_scanned_files(
-    options: OrganizeOptions, directory: Path, console: Console
-) -> list[Any]:
+def get_scanned_files(options: OrganizeOptions, directory: Path, console: Console) -> list[Any]:
     """Get scanned files for organization.
 
     Args:
@@ -103,9 +101,7 @@ def generate_organization_plan(scanned_files: list[Any]) -> list[Any]:
     return organizer.generate_plan(scanned_files)
 
 
-def _generate_destination_paths(
-    destination_base: str, korean_title: str, season: int
-) -> tuple[Path, Path]:
+def _generate_destination_paths(destination_base: str, korean_title: str, season: int) -> tuple[Path, Path]:
     """Generate high and low resolution destination paths.
 
     Args:
@@ -122,9 +118,7 @@ def _generate_destination_paths(
     return high_res_path, low_res_path
 
 
-def _create_move_operation(
-    source: Path, destination: Path, **kwargs: Any
-) -> dict[str, Any]:
+def _create_move_operation(source: Path, destination: Path, **kwargs: Any) -> dict[str, Any]:
     """Create a move operation dictionary.
 
     Args:
@@ -144,10 +138,8 @@ def _create_move_operation(
     return operation
 
 
-@handle_cli_errors(
-    operation="generate_enhanced_organization_plan", command_name="organize"
-)
-def generate_enhanced_organization_plan(
+@handle_cli_errors(operation="generate_enhanced_organization_plan", command_name="organize")
+def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
     scanned_files: list[Any],
     options: OrganizeOptions,
 ) -> list[Any]:
@@ -162,8 +154,9 @@ def generate_enhanced_organization_plan(
     """
     grouper = FileGrouper(similarity_threshold=0.7)
     resolution_detector = ResolutionDetector()
+    # pylint: disable-next=unused-variable
     subtitle_matcher = SubtitleMatcher()
-    tmdb_client = TMDBClient(language=Language.KOREAN)  # noqa: F841
+    tmdb_client = TMDBClient(language=Language.KOREAN)  # noqa: F841  # pylint: disable=unused-variable
 
     file_groups = grouper.group_files(scanned_files)
     operations = []
@@ -181,9 +174,7 @@ def generate_enhanced_organization_plan(
 
         destination_base = options.destination if options.destination else "Anime"
         season = best_file.metadata.season or 1
-        high_res_path, low_res_path = _generate_destination_paths(
-            destination_base, korean_title, season
-        )
+        high_res_path, low_res_path = _generate_destination_paths(destination_base, korean_title, season)
 
         # Add best file operation
         operations.append(
@@ -268,7 +259,6 @@ def confirm_organization(console: Console) -> bool:
         True if confirmed
     """
     try:
-
         if not Confirm.ask("Do you want to proceed?"):
             console.print("[yellow]Operation cancelled.[/yellow]")
             return False
@@ -289,7 +279,7 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
     Returns:
         Exit code
     """
-    console = Console()
+    console = Console()  # pylint: disable=redefined-outer-name,reimported
     log_manager = OperationLogManager(Path.cwd())
     organizer = FileOrganizer(log_manager=log_manager)
 
@@ -307,9 +297,7 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
             if result.success:
                 console.print(f"[green]✅[/green] {Path(result.source_path).name}")
             else:
-                console.print(
-                    f"[red]❌[/red] {Path(result.source_path).name}: {result.message or 'Failed'}"
-                )
+                console.print(f"[red]❌[/red] {Path(result.source_path).name}: " f"{result.message or 'Failed'}")
         console.print()
 
     if options.json_output:
@@ -332,10 +320,12 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
         try:
             saved_log_path = log_manager.save_plan(plan)
             console.print(f"[grey62]Operation logged to: {saved_log_path}[/grey62]")
-        except Exception as e:  # noqa: BLE001
-            console.print(
-                f"[bold yellow]Warning: Could not save operation log: {e}[/bold yellow]"
-            )
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            console.print(f"[bold yellow]Warning: Could not save operation log: {e}[/bold yellow]")
     else:
         console.print("[yellow]No files were moved[/yellow]")
 
@@ -377,11 +367,7 @@ def _extract_parsing_result_data(parsing_result: Any) -> dict[str, Any]:
         "release_group": parsing_result.release_group,
         "confidence": parsing_result.confidence,
         "parser_used": parsing_result.parser_used,
-        "additional_info": (
-            asdict(parsing_result.additional_info)
-            if hasattr(parsing_result, "additional_info")
-            else {}
-        ),
+        "additional_info": (asdict(parsing_result.additional_info) if hasattr(parsing_result, "additional_info") else {}),
     }
 
 
@@ -405,7 +391,7 @@ def _format_file_size_human_readable(size_bytes: float) -> str:
 
 def collect_organize_data(
     plan: list[Any],
-    _options: OrganizeOptions,  # Unused, kept for API compatibility
+    _options: OrganizeOptions,  # Unused, kept for API compatibility  # pylint: disable=unused-argument
     moved_files: list[Any] | None = None,
     operation_id: str | None = None,
     *,
@@ -444,13 +430,8 @@ def collect_organize_data(
             "file_extension": Path(source_path).suffix.lower(),
         }
 
-        if (
-            hasattr(operation.source_file, "parsing_result")
-            and operation.source_file.parsing_result
-        ):
-            operation_info["parsing_result"] = _extract_parsing_result_data(
-                operation.source_file.parsing_result
-            )
+        if hasattr(operation.source_file, "parsing_result") and operation.source_file.parsing_result:
+            operation_info["parsing_result"] = _extract_parsing_result_data(operation.source_file.parsing_result)
 
         operations_data.append(operation_info)
 
@@ -462,11 +443,7 @@ def collect_organize_data(
             "operation_id": operation_id,
             "total_size_bytes": total_size,
             "total_size_formatted": _format_file_size_human_readable(total_size),
-            "success_rate": (
-                (successful_moves / total_operations * 100)
-                if total_operations > 0
-                else 0
-            ),
+            "success_rate": ((successful_moves / total_operations * 100) if total_operations > 0 else 0),
         },
         "operations": operations_data,
     }

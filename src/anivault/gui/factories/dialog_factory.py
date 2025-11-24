@@ -7,9 +7,10 @@ logic, making it easier to manage dialog instantiation and configuration.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from PySide6.QtWidgets import QWidget
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QWidget
 
 from anivault.gui.dialogs.organize_preview_dialog import OrganizePreviewDialog
 from anivault.gui.dialogs.organize_progress_dialog import OrganizeProgressDialog
@@ -47,7 +48,7 @@ class DialogFactory:
         Returns:
             TMDBProgressDialog: Configured TMDB progress dialog instance
         """
-        return TMDBProgressDialog(parent)
+        return TMDBProgressDialog(parent)  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
 
     @staticmethod
     def create_settings_dialog(
@@ -63,8 +64,9 @@ class DialogFactory:
         Returns:
             SettingsDialog: Configured settings dialog instance
         """
-        return SettingsDialog(parent, config_path)
+        return SettingsDialog(parent, config_path)  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
 
+    # pylint: disable-next=reimported,redefined-outer-name
     @staticmethod
     def create_organize_preview_dialog(
         plan: list[Any],
@@ -79,10 +81,11 @@ class DialogFactory:
         Returns:
             OrganizePreviewDialog: Configured preview dialog instance
         """
-        return OrganizePreviewDialog(plan, parent)
+        return OrganizePreviewDialog(plan, parent)  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
 
     @staticmethod
     def create_organize_progress_dialog(
+        # pylint: disable-next=reimported,redefined-outer-name
         total_files: int,
         parent: QWidget | None = None,
     ) -> OrganizeProgressDialog:
@@ -95,4 +98,4 @@ class DialogFactory:
         Returns:
             OrganizeProgressDialog: Configured progress dialog instance
         """
-        return OrganizeProgressDialog(total_files, parent)
+        return OrganizeProgressDialog(total_files, parent)  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported

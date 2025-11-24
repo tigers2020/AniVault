@@ -137,10 +137,7 @@ def get_error_message(
 
     if error_code not in ERROR_MESSAGES[language]:
         # Fallback to default language if error code not found
-        if (
-            language != DEFAULT_LANGUAGE
-            and error_code in ERROR_MESSAGES[DEFAULT_LANGUAGE]
-        ):
+        if language != DEFAULT_LANGUAGE and error_code in ERROR_MESSAGES[DEFAULT_LANGUAGE]:
             language = DEFAULT_LANGUAGE
         else:
             # Return a generic message if error code is not found

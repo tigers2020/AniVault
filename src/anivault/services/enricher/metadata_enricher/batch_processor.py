@@ -131,9 +131,9 @@ class BatchProcessor:
         Returns:
             BatchSummary with success/failure counts and results
         """
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
         # Lazy import to avoid circular dependency
-        from anivault.services.enricher.metadata_enricher.models import EnrichedMetadata  # noqa: PLC0415
+        from anivault.services.enricher.metadata_enricher.models import EnrichedMetadata
 
         enriched_results: list[EnrichedMetadata] = []
         success_count = 0

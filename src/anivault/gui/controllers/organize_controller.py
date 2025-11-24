@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+
+# pylint: disable-next=unused-import
 from typing import Any, cast
 
 from PySide6.QtCore import QObject, QThread, Signal
@@ -39,9 +41,7 @@ class OrganizeController(QObject):
     plan_generated: Signal = Signal(list)  # Emits list[FileOperation]
     organization_started: Signal = Signal()  # Emitted when organization starts
     file_organized: Signal = Signal(object)  # Emits OperationResult object (NO dict!)
-    organization_progress: Signal = Signal(
-        int, str
-    )  # Emits (progress %, current filename)
+    organization_progress: Signal = Signal(int, str)  # Emits (progress %, current filename)
     organization_finished: Signal = Signal(list)  # Emits list[OperationResult]
     organization_error: Signal = Signal(str)  # Emits error message
     organization_cancelled: Signal = Signal()  # Emitted when organization is cancelled
@@ -124,7 +124,7 @@ class OrganizeController(QObject):
 
             # Handle dict format (legacy - for backward compatibility)
             # Note: FileItem.metadata is typed as FileMetadata | None,
-            # but dict is accepted for backward compatibility
+            # but dict is accepted for backward compatibility  # pylint: disable=line-too-long
             if isinstance(file_item.metadata, dict):  # type: ignore[unreachable]
                 return self._convert_from_dict(file_item)
 
@@ -136,7 +136,11 @@ class OrganizeController(QObject):
             )
             return None
 
-        except Exception as e:  # noqa: BLE001 - GUI file conversion error fallback
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning(
                 "Failed to convert FileItem to ScannedFile for %s: %s",
                 file_item.file_path.name,
@@ -237,7 +241,11 @@ class OrganizeController(QObject):
         try:
             parsed = self.parser.parse(filename)
             return parsed.season, parsed.episode
-        except Exception as e:  # noqa: BLE001 - GUI parsing error fallback
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning(
                 "Failed to parse filename %s: %s",
                 filename,
@@ -347,7 +355,11 @@ class OrganizeController(QObject):
             if not dry_run:
                 self._execute_organization_plan(plan)
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Failed to organize files")
             self.organization_error.emit(f"파일 정리 실패: {e}")
 

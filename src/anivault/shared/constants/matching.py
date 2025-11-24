@@ -87,9 +87,7 @@ class ConfidenceThresholds:
 
     # Genre-specific thresholds (used in _apply_genre_filter)
     ANIMATION_MIN = 0.2  # Lenient for cross-script fuzzy matching
-    NON_ANIMATION_MIN = (
-        0.8  # Strict to avoid false positives (quiz shows, variety, etc.)
-    )
+    NON_ANIMATION_MIN = 0.8  # Strict to avoid false positives (quiz shows, variety, etc.)
 
     # Benchmark specific thresholds
     BENCHMARK_DEFAULT = 0.7

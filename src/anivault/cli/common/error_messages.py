@@ -10,13 +10,15 @@ The module follows these principles:
 - I18N Ready: Message catalog for future localization
 """
 
+# pylint: disable=no-member  # orjson is a C extension without complete type stubs
+
 from __future__ import annotations
 
 import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import orjson
 
@@ -157,7 +159,13 @@ def build_json_payload(
     }
 
     # Serialize with orjson (fast, preserves UTF-8)
-    return orjson.dumps(payload, option=orjson.OPT_INDENT_2)
+    # pylint: disable-next=no-member
+    result = orjson.dumps(
+        payload,
+        # pylint: disable-next=no-member
+        option=orjson.OPT_INDENT_2,
+    )
+    return cast(bytes, result)
 
 
 def build_log_context(context: ErrorMessageContext) -> dict[str, Any]:
@@ -271,9 +279,7 @@ def _mask_context_paths(context: ErrorContext) -> dict[str, Any]:
         masked_data = {}
         for key, value in context_dict["additional_data"].items():
             # Mask path-like values
-            if isinstance(value, (str, Path)) and (
-                "path" in key.lower() or "file" in key.lower()
-            ):
+            if isinstance(value, (str, Path)) and ("path" in key.lower() or "file" in key.lower()):
                 masked_data[key] = mask_sensitive_paths(str(value))
             else:
                 masked_data[key] = value
@@ -304,8 +310,8 @@ def _get_recovery_hint(error_code: ErrorCode | str) -> str | None:
     recovery_hints: dict[ErrorCode, str] = {
         ErrorCode.FILE_NOT_FOUND: "Check if the file path exists",
         ErrorCode.DIRECTORY_NOT_FOUND: "Verify the directory path",
-        ErrorCode.PERMISSION_DENIED: "Check file permissions or run with appropriate privileges",
-        ErrorCode.FILE_PERMISSION_DENIED: "Ensure you have read/write access to the file",
+        ErrorCode.PERMISSION_DENIED: ("Check file permissions or run with appropriate privileges"),
+        ErrorCode.FILE_PERMISSION_DENIED: ("Ensure you have read/write access to the file"),
         ErrorCode.API_RATE_LIMIT: "Wait a moment and try again",
         ErrorCode.API_TIMEOUT: "Check your network connection",
         ErrorCode.NETWORK_ERROR: "Verify your internet connection",

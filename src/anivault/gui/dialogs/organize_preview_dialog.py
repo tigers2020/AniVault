@@ -5,6 +5,8 @@ This module provides a dialog for previewing file organization plan
 before actual execution, allowing users to review and confirm changes.
 """
 
+# pylint: disable=attribute-defined-outside-init  # PySide6 pattern: widgets created in _setup_ui()
+
 from __future__ import annotations
 
 import logging
@@ -123,13 +125,13 @@ class OrganizePreviewDialog(QDialog):
         resolution = self._get_resolution(operation)
         resolution_text = resolution if resolution else "감지 실패"
         resolution_item = QTableWidgetItem(resolution_text)
-        resolution_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        resolution_item.setTextAlignment(Qt.AlignCenter)
         self.table.setItem(idx, 1, resolution_item)
 
         # Classification
         icon, label = self._classify_resolution(resolution)
         classify_item = QTableWidgetItem(f"{icon} {label}")
-        classify_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        classify_item.setTextAlignment(Qt.AlignCenter)
 
         bg_color, text_color = self._get_quality_colors(label)
         classify_item.setBackground(bg_color)
@@ -144,7 +146,7 @@ class OrganizePreviewDialog(QDialog):
 
         # Arrow
         arrow_item = QTableWidgetItem("→")
-        arrow_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        arrow_item.setTextAlignment(Qt.AlignCenter)
         self.table.setItem(idx, 4, arrow_item)
 
         # Destination
@@ -154,28 +156,28 @@ class OrganizePreviewDialog(QDialog):
 
         if hasattr(operation, "operation_type"):
             if str(operation.operation_type) == "OperationType.MOVE":
-                dest_item.setBackground(Qt.lightGray)  # type: ignore[attr-defined]
+                dest_item.setBackground(Qt.lightGray)
             elif str(operation.operation_type) == "OperationType.COPY":
-                dest_item.setBackground(Qt.cyan)  # type: ignore[attr-defined]
+                dest_item.setBackground(Qt.cyan)
 
         self.table.setItem(idx, 5, dest_item)
 
     def _configure_table_columns(self) -> None:
         """Configure table column widths and resize modes."""
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Fixed)  # type: ignore[attr-defined]
-        header.setSectionResizeMode(1, QHeaderView.Fixed)  # type: ignore[attr-defined]
-        header.setSectionResizeMode(2, QHeaderView.Fixed)  # type: ignore[attr-defined]
-        header.setSectionResizeMode(3, QHeaderView.Stretch)  # type: ignore[attr-defined]
-        header.setSectionResizeMode(4, QHeaderView.Fixed)  # type: ignore[attr-defined]
-        header.setSectionResizeMode(5, QHeaderView.Stretch)  # type: ignore[attr-defined]
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.Fixed)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
 
         self.table.setColumnWidth(0, 250)
         self.table.setColumnWidth(1, 70)
         self.table.setColumnWidth(2, 80)
         self.table.setColumnWidth(4, 40)
 
-        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # type: ignore[attr-defined]
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
     def _create_summary(self) -> QHBoxLayout:
         """Create summary statistics layout."""
@@ -241,9 +243,7 @@ class OrganizePreviewDialog(QDialog):
                 return resolution_match.group(1).upper()
 
         # Additional pattern: resolution as width x height (e.g., 1920x1080, 640x480)
-        dimension_match = re.search(
-            r"(\d{3,4})\s*x\s*(\d{3,4})", filename, re.IGNORECASE
-        )
+        dimension_match = re.search(r"(\d{3,4})\s*x\s*(\d{3,4})", filename, re.IGNORECASE)
         if dimension_match:
             width = int(dimension_match.group(1))
             height = int(dimension_match.group(2))
@@ -350,7 +350,7 @@ class OrganizePreviewDialog(QDialog):
 
             return bg_color, text_color
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.debug("Failed to parse theme colors: %s", e)
             # Return fallback colors
             fallback_colors = {

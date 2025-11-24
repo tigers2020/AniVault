@@ -148,7 +148,7 @@ class ScoringEngine:
             except DomainError:
                 # Re-raise domain errors
                 raise
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 # Log and skip scorer on unexpected errors
                 logger.warning(
                     "Scorer %s raised unexpected error: %s. Skipping.",

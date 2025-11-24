@@ -94,7 +94,8 @@ class NamingFormat(BaseModel):
             "{codec}",
         }
 
-        # Find all placeholders in the format string (including format specifiers like :02d)
+        # Find all placeholders in the format string
+        # (including format specifiers like :02d)
         placeholder_pattern = r"\{([^}:]+)(?::[^}]*)?\}"
         found_placeholders = set(re.findall(placeholder_pattern, format_str))
         # Convert to full placeholder format
@@ -104,10 +105,7 @@ class NamingFormat(BaseModel):
         open_braces = format_str.count("{")
         close_braces = format_str.count("}")
         if open_braces != close_braces:
-            msg = (
-                f"Format string has mismatched braces: "
-                f"{open_braces} opening, {close_braces} closing"
-            )
+            msg = f"Format string has mismatched braces: " f"{open_braces} opening, " f"{close_braces} closing"
             raise ValueError(
                 msg,
             )
@@ -116,7 +114,8 @@ class NamingFormat(BaseModel):
         invalid_placeholders = found_placeholders - valid_placeholders
         if invalid_placeholders:
             msg = (
-                f"Invalid placeholders found: {', '.join(sorted(invalid_placeholders))}. "
+                f"Invalid placeholders found: "
+                f"{', '.join(sorted(invalid_placeholders))}. "
                 f"Valid placeholders: {', '.join(sorted(valid_placeholders))}"
             )
             raise ValueError(
@@ -124,13 +123,8 @@ class NamingFormat(BaseModel):
             )
 
         # Check if at least one valid placeholder is present
-        if not any(
-            placeholder in valid_placeholders for placeholder in found_placeholders
-        ):
-            msg = (
-                f"Format string must contain at least one valid placeholder. "
-                f"Valid placeholders: {', '.join(sorted(valid_placeholders))}"
-            )
+        if not any(placeholder in valid_placeholders for placeholder in found_placeholders):
+            msg = f"Format string must contain at least one valid placeholder. " f"Valid placeholders: {', '.join(sorted(valid_placeholders))}"
             raise ValueError(
                 msg,
             )
@@ -361,10 +355,7 @@ def normalize_extensions_list(extensions: str | list[str]) -> list[str]:
         ['.mkv', '.mp4']
     """
     # Convert to list if string
-    if isinstance(extensions, str):
-        ext_list = [ext.strip() for ext in extensions.split(",")]
-    else:
-        ext_list = list(extensions)
+    ext_list = [ext.strip() for ext in extensions.split(",")] if isinstance(extensions, str) else list(extensions)
 
     # Normalize each extension
     normalized = []

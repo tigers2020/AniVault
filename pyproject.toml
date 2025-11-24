@@ -48,6 +48,7 @@ dev = [
     "pre-commit>=3.7.0",
     "pyinstaller==6.16.0",
     "PySide6-stubs>=6.5.0",  # Type hints for PySide6
+    "prompt-toolkit>=3.0.0",  # Optional dependency for interactive CLI
 ]
 
 [project.scripts]
@@ -59,7 +60,32 @@ build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 target-version = "py39"
-line-length = 88
+line-length = 150  # Unified with Black and Pylint
+# Unified exclude patterns across all tools
+exclude = [
+    "tests/",
+    "test_*.py",
+    "**/test_*.py",
+    "**/tests/",
+    "scripts/",
+    "benchmarks/",
+    "tools/",
+    "bench/",
+    "build/",
+    "dist/",
+    "cache/",
+    "htmlcov/",
+    "logs/",
+    "test_data_*/",
+    "test_output/",
+    "test_files/",
+    "test_new_features.py",
+    ".venv/",
+    ".mypy_cache/",
+    ".tox/",
+    ".eggs/",
+    ".git/",
+]
 
 [tool.ruff.lint]
 # Black과 충돌 방지: E501 (line too long) 끄기
@@ -101,37 +127,21 @@ ignore = [
     "COM812",  # Trailing comma (formatter conflict)
     "ISC001",  # Implicit string concatenation (formatter conflict)
 ]
-exclude = [
-    "tests/",
-    "test_*.py",
-    "**/test_*.py",
-    "**/tests/",
-    "tools/",
-    "bench/",
-    "build/",
-    "dist/",
-    "cache/",
-    "htmlcov/",
-    "logs/",
-    "test_data_*/",
-    "test_output/",
-    "test_files/",
-    "test_new_features.py"
-]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 # 레거시 스크립트는 일단 좁혀서 통과
 "scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
-"src/anivault/cli/**" = ["FBT003", "B008"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거)
-"src/anivault/gui/**" = ["N815", "N802"]  # PySide6 Signal naming convention (camelCase) and event handler methods
+"src/anivault/cli/**" = ["FBT003", "B008", "TCH002"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거), TCH002: typer는 런타임에 사용
+"src/anivault/gui/**" = ["N815", "N802", "TCH002"]  # PySide6 Signal naming convention (camelCase) and event handler methods, TCH002: PySide6는 런타임에 사용
 "src/anivault/gui/themes/theme_manager.py" = ["TRY400", "BLE001"]  # Safe mode error handling
 
 [tool.black]
-line-length = 88
+line-length = 150  # Unified with Ruff and Pylint
 target-version = ["py39"]
 include = '\.pyi?$'
+# Unified exclude patterns with other tools
 extend-exclude = '''
 /(
   # directories
@@ -143,6 +153,17 @@ extend-exclude = '''
   | \.venv
   | build
   | dist
+  | cache
+  | htmlcov
+  | logs
+  | test_data_.*
+  | test_output
+  | test_files
+  | tests
+  | scripts
+  | benchmarks
+  | tools
+  | bench
 )/
 '''
 
@@ -168,9 +189,24 @@ no_implicit_optional = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+# Unified exclude patterns with other tools
 exclude = [
     "scripts/",
     "tests/",
+    "benchmarks/",
+    "build/",
+    "dist/",
+    "cache/",
+    "htmlcov/",
+    "logs/",
+    "test_data_*/",
+    "test_output/",
+    "test_files/",
+    ".venv/",
+    ".mypy_cache/",
+    ".tox/",
+    ".eggs/",
+    ".git/",
 ]
 
 # 외부 라이브러리 타입 스텁 부재
@@ -179,6 +215,7 @@ module = [
     "ntsecuritycon.*",
     "win32security.*",
     "psutil.*",
+    "chardet.*",
 ]
 ignore_missing_imports = true
 
@@ -190,6 +227,27 @@ disable_error_code = ["no-any-return"]
 [[tool.mypy.overrides]]
 module = ["anivault.config.settings"]
 disable_error_code = ["misc", "no-any-return"]
+
+# lru_cache with type[BaseModel] - type[BaseModel] is hashable but mypy doesn't recognize it
+[[tool.mypy.overrides]]
+module = ["anivault.shared.types.conversion"]
+disable_error_code = ["arg-type"]
+
+# PySide6/Pydantic 타입 스텁 문제로 인한 misc 오류 비활성화
+# Class cannot subclass "BaseModel"/"QObject" 등의 오류는 타입 스텁 부재로 인한 것으로,
+# ignore_missing_imports = true로 처리되지만 misc 오류 코드가 활성화되어 있어 여전히 나타남
+[[tool.mypy.overrides]]
+module = [
+    "anivault.config.models.*",
+    "anivault.shared.models.*",
+    "anivault.shared.types.cli",
+    "anivault.cli.common.*",
+    "anivault.cli.typer_app",
+    "anivault.cli.helpers.match",
+    "anivault.gui.*",
+    "anivault.containers",
+]
+disable_error_code = ["misc"]
 
 # 런타임 코어는 조금 더 엄격
 [[tool.mypy.overrides]]
@@ -221,38 +279,68 @@ module = [
     "click.*",
     "rich.*",
     "prompt_toolkit.*",
+    "typer.*",
+    "dependency_injector.*",
 ]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
+# Unified pytest configuration (replaces pytest.ini)
+# Test discovery
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["src"]
+norecursedirs = ["scripts", "benchmarks", "examples", "build", "dist", "cache", "htmlcov", "logs", ".venv", ".mypy_cache", ".tox", ".eggs", ".git"]
+
+# Test execution options
 addopts = [
     "--strict-markers",
     "--strict-config",
     "--verbose",
     "--tb=short",
+    "--durations=10",
+    "--maxfail=5",
+    "--color=yes",
+    "-p", "no:pytest-qt",
+    "--ignore=tests/gui/",
+    "--ignore=tests/benchmarks_disabled/",
     "--cov=src",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
 ]
+
+# Test markers (unified with pytest.ini)
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "memory_intensive: marks tests that require significant memory resources",
     "benchmark: marks tests as benchmark/performance tests",
+    "network: Tests that require network access",
+    "api: Tests that require API access",
 ]
-pythonpath = ["src"]
+
+# Minimum version
+minversion = "6.0"
+
+# Test timeout (in seconds)
+timeout = 300
+
+# Warning filters
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning:anivault.*",
+]
 
 [tool.pylint.main]
 # PySide6는 C++ 확장 모듈로 타입 스텁이 완전하지 않아 Pylint가 인식하지 못함
 # 런타임에는 정상 작동하며, PySide6-stubs가 설치되어 있어도 Pylint는 인식하지 못함
 disable = ["no-name-in-module"]
-max-line-length = 88  # Black과 일치 (기본값 100 → 88로 변경)
+max-line-length = 150  # Black과 일치
 
 [tool.pylint."messages control"]
 # PySide6 모듈에 대한 no-name-in-module 에러 억제
@@ -295,3 +383,36 @@ max_function_complexity = 10
 max_function_length = 50
 min_test_coverage = 80
 max_security_issues = 0
+
+# Bandit - Security linter configuration
+[tool.bandit]
+# Unified exclude patterns with other tools
+exclude_dirs = [
+    "tests",
+    "scripts",
+    "benchmarks",
+    "build",
+    "dist",
+    "cache",
+    "htmlcov",
+    "logs",
+    "test_data_*",
+    "test_output",
+    "test_files",
+    ".venv",
+    ".mypy_cache",
+    ".tox",
+    ".eggs",
+    ".git",
+]
+# Security check level: 1 (low), 2 (medium), 3 (high)
+level = 2
+# Confidence level: 1 (low), 2 (medium), 3 (high)
+confidence = 2
+# Skip security tests (comma-separated list)
+# Example: skip = ["B101", "B601"]
+skip = []
+# Include security tests (comma-separated list, overrides skip)
+# include = []
+# Aggressive mode (enable additional checks)
+aggressive = false

@@ -12,6 +12,8 @@ Conversion Strategy:
 Performance Target: <10ms per conversion for typical models
 """
 
+# pylint: disable=no-member  # orjson is a C extension without complete type stubs
+
 from __future__ import annotations
 
 import functools
@@ -20,6 +22,8 @@ from typing import Any, TypeVar, cast
 
 import orjson
 from pydantic import BaseModel, TypeAdapter, ValidationError
+
+from anivault.shared.errors import create_type_coercion_error
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -101,23 +105,15 @@ class ModelConverter:
             'Animation'
         """
         try:
-            adapter = _get_type_adapter(model_cls)
+            adapter = _get_type_adapter(model_cls)  # type: ignore[arg-type]
             result = adapter.validate_python(data)
-            return result  # type: ignore[return-value]
+            return cast(T, result)
         except ValidationError as e:
             model_name = model_cls.__name__
             error_count = len(e.errors())
             # Convert ErrorDetails to dict for compatibility
-            validation_errors = cast(
-                "list[dict[str, Any]]", [dict(err) for err in e.errors()]
-            )
-            error_msg = (
-                f"Failed to convert dict to {model_name}: "
-                f"{error_count} validation error(s)"
-            )
-            # pylint: disable=import-outside-toplevel
-            # Lazy import to avoid circular dependency
-            from anivault.shared.errors import create_type_coercion_error  # noqa: PLC0415
+            validation_errors = cast("list[dict[str, Any]]", [dict(err) for err in e.errors()])
+            error_msg = f"Failed to convert dict to {model_name}: " f"{error_count} validation error(s)"
 
             raise create_type_coercion_error(
                 message=error_msg,
@@ -162,11 +158,12 @@ class ModelConverter:
             >>> result
             {'id': 16, 'name': 'Animation'}
         """
-        return model.model_dump(
+        result = model.model_dump(
             mode=mode,
             by_alias=by_alias,
             exclude_none=exclude_none,
         )
+        return cast(dict[str, Any], result)
 
     @staticmethod
     def to_json_bytes(
@@ -208,7 +205,9 @@ class ModelConverter:
             exclude_none=exclude_none,
         )
         # orjson.dumps is faster than json.dumps and produces compact output
-        return orjson.dumps(data)
+        # pylint: disable-next=no-member
+        result = orjson.dumps(data)
+        return cast(bytes, result)
 
     @staticmethod
     def to_json_str(

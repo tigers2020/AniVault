@@ -52,16 +52,10 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
     console = kwargs.get("console") or RichConsole()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.SCAN)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.SCAN))
 
     # Extract Path from DirectoryPath or use directly
-    directory = (
-        options.directory.path
-        if hasattr(options.directory, "path")
-        else Path(str(options.directory))
-    )
+    directory = options.directory.path if hasattr(options.directory, "path") else Path(str(options.directory))
 
     # Check if JSON output is enabled
     context = get_cli_context()
@@ -85,27 +79,18 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            console.print(
-                "[yellow]No anime files found in the specified directory[/yellow]"
-            )
+            console.print("[yellow]No anime files found in the specified directory[/yellow]")
         return CLIDefaults.EXIT_SUCCESS
 
     # Enrich metadata if requested
     enrich_metadata_flag = True  # Default to enrich metadata
-    if enrich_metadata_flag:
-        enriched_results = asyncio.run(
-            enrich_metadata(file_results, console, is_json_output=is_json_output)
-        )
-    else:
-        enriched_results = file_results
+    enriched_results = asyncio.run(enrich_metadata(file_results, console, is_json_output=is_json_output)) if enrich_metadata_flag else file_results
 
     # Output results
     if is_json_output:
         # Collect scan statistics for JSON output
         # enriched_results is list[FileMetadata] from enrich_metadata
-        scan_data = collect_scan_data(
-            enriched_results, directory, show_tmdb=enrich_metadata_flag
-        )
+        scan_data = collect_scan_data(enriched_results, directory, show_tmdb=enrich_metadata_flag)
 
         # Output JSON to stdout
         json_output = format_json_output(
@@ -132,9 +117,7 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
                 )
             )
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.SCAN)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.SCAN))
     return CLIDefaults.EXIT_SUCCESS
 
 
@@ -163,7 +146,7 @@ def _save_results_to_file(results: list[FileMetadata], output_path: Path) -> Non
         )
 
 
-def scan_command(
+def scan_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help=CLIHelp.SCAN_DIRECTORY_HELP,
@@ -195,7 +178,7 @@ def scan_command(
         help=CLIHelp.SCAN_OUTPUT_HELP,
         writable=True,
     ),
-    json: bool = typer.Option(
+    json: bool = typer.Option(  # pylint: disable=redefined-outer-name
         False,
         CLIOptions.JSON,
         help=CLIHelp.SCAN_JSON_HELP,

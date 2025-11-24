@@ -48,16 +48,10 @@ def handle_organize_command(options: OrganizeOptions, **kwargs: Any) -> int:
     console = kwargs.get("console") or RichConsole()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.ORGANIZE)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.ORGANIZE))
 
     # Extract Path from DirectoryPath or use directly
-    directory = (
-        options.directory.path
-        if hasattr(options.directory, "path")
-        else Path(str(options.directory))
-    )
+    directory = options.directory.path if hasattr(options.directory, "path") else Path(str(options.directory))
 
     scanned_files = get_scanned_files(options, directory, console)
     if not scanned_files:
@@ -74,22 +68,17 @@ def handle_organize_command(options: OrganizeOptions, **kwargs: Any) -> int:
             sys.stdout.buffer.flush()
         return 0
 
-    if options.enhanced:
-        plan = generate_enhanced_organization_plan(scanned_files, options)
-    else:
-        plan = generate_organization_plan(scanned_files)
+    plan = generate_enhanced_organization_plan(scanned_files, options) if options.enhanced else generate_organization_plan(scanned_files)
 
     result = execute_organization_plan(plan, options, console)
 
     if result == 0:
-        logger_adapter.info(
-            CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.ORGANIZE)
-        )
+        logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.ORGANIZE))
 
     return result
 
 
-def organize_command(
+def organize_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help="Directory containing scanned and matched anime files to organize",

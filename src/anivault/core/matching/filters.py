@@ -19,9 +19,7 @@ from anivault.shared.models.tmdb_models import TMDBSearchResult
 logger = logging.getLogger(__name__)
 
 # Year tolerance for filtering (years)
-YEAR_FILTER_TOLERANCE = (
-    10  # Allow ±10 years for anime (long-running series, prequels, etc.)
-)
+YEAR_FILTER_TOLERANCE = 10  # Allow ±10 years for anime (long-running series, prequels, etc.)
 
 
 def filter_and_sort_by_year(
@@ -190,10 +188,4 @@ def _get_candidate_title(candidate: TMDBSearchResult) -> str:
     Returns:
         Title string (prefers localized, falls back to original)
     """
-    return (
-        candidate.title
-        or candidate.name
-        or candidate.original_title
-        or candidate.original_name
-        or ""
-    )
+    return candidate.title or candidate.name or candidate.original_title or candidate.original_name or ""

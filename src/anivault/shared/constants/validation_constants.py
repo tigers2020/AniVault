@@ -94,9 +94,7 @@ EMPTY_FILE_TYPE_ERROR = "file_type cannot be empty"
 EMPTY_SERIES_TITLE_ERROR = "series_title cannot be empty"
 
 # Year validation error message template
-YEAR_RANGE_ERROR_TEMPLATE = (
-    f"year must be between {MIN_YEAR} and {MAX_YEAR}, got {{year}}"
-)
+YEAR_RANGE_ERROR_TEMPLATE = f"year must be between {MIN_YEAR} and {MAX_YEAR}, got {{year}}"
 
 # Season validation error message template
 SEASON_NEGATIVE_ERROR_TEMPLATE = "season must be non-negative, got {season}"
@@ -105,4 +103,6 @@ SEASON_NEGATIVE_ERROR_TEMPLATE = "season must be non-negative, got {season}"
 EPISODE_NEGATIVE_ERROR_TEMPLATE = "episode must be non-negative, got {episode}"
 
 # Vote average validation error message template
-VOTE_AVERAGE_RANGE_ERROR_TEMPLATE = f"vote_average must be between {MIN_VOTE_AVERAGE} and {MAX_VOTE_AVERAGE}, got {{vote_average}}"
+VOTE_AVERAGE_RANGE_ERROR_TEMPLATE = (
+    f"vote_average must be between {MIN_VOTE_AVERAGE} and {MAX_VOTE_AVERAGE}, " f"got {{vote_average}}"  # pylint: disable=line-too-long
+)

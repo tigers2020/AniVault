@@ -237,4 +237,3 @@ if __name__ == "__main__":
         file_count = len(list(path.glob("*.mkv"))) + len(list(path.glob("*.mp4"))) + len(list(path.glob("*.avi")))
         sub_count = len(list(path.glob("*.smi"))) + len(list(path.glob("*.srt"))) + len(list(path.glob("*.ass")))
         print(f"  - {name}: {file_count} files, {sub_count} subtitles")
-

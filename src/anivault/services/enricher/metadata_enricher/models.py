@@ -159,11 +159,7 @@ class MatchEvidence:
         lines = [f"Match Score: {self.total_score:.2f} ({self.total_score * 100:.0f}%)"]
         for comp in self.component_scores:
             weighted = comp.score * comp.weight
-            lines.append(
-                f"  - {comp.component}: {comp.score:.2f} "
-                f"(weight: {comp.weight * 100:.0f}%, "
-                f"contribution: {weighted:.2f})"
-            )
+            lines.append(f"  - {comp.component}: {comp.score:.2f} " f"(weight: {comp.weight * 100:.0f}%, " f"contribution: {weighted:.2f})")
         return "\n".join(lines)
 
 

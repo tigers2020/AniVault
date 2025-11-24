@@ -150,11 +150,7 @@ class Group:
         # Check if files have same episode numbers (requires metadata)
         episodes = set()
         for file in self.files:
-            if (
-                hasattr(file, "metadata")
-                and file.metadata
-                and hasattr(file.metadata, "episode")
-            ):
+            if hasattr(file, "metadata") and file.metadata and hasattr(file.metadata, "episode"):
                 episode = file.metadata.episode
                 if episode is not None:
                     if episode in episodes:

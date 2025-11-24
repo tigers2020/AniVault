@@ -91,7 +91,7 @@ class MatchingEngine:
             strategies=fallback_strategies,
         )
 
-    async def find_match(
+    async def find_match(  # pylint: disable=too-many-return-statements
         self,
         anitopy_result: dict[str, Any],
     ) -> MatchResult | None:
@@ -118,9 +118,7 @@ class MatchingEngine:
             # Step 2: Search for candidates (delegate to SearchService)
             candidates = await self._search_service.search(normalized_query)
             if not candidates:
-                logger.debug(
-                    "No candidates found for query: %s", normalized_query.title
-                )
+                logger.debug("No candidates found for query: %s", normalized_query.title)
                 return None
 
             # Step 3: Score and rank candidates (delegate to ScoringService)
@@ -145,9 +143,7 @@ class MatchingEngine:
             # breaking the original confidence-based ranking from score_candidates().
             # We must re-sort filtered candidates to ensure the highest confidence
             # candidate is selected as best_match.
-            ranked_candidates = self._scoring_service.rank_candidates(
-                filtered_candidates
-            )
+            ranked_candidates = self._scoring_service.rank_candidates(filtered_candidates)
             if not ranked_candidates:
                 logger.debug("No candidates after re-ranking")
                 return None
@@ -231,7 +227,7 @@ class MatchingEngine:
             return None
 
         logger.debug("Searching for match: %s", normalized_query.title)
-        return cast("NormalizedQuery", normalized_query)
+        return normalized_query
 
     def _validate_final_confidence(self, best_candidate: ScoredSearchResult) -> bool:
         """Validate that the final confidence meets minimum threshold.
@@ -335,9 +331,7 @@ class MatchingEngine:
         """
         # Get cache hit ratio from statistics
         hit_ratio = self.statistics.get_cache_hit_ratio()
-        total_requests = (
-            self.statistics.metrics.cache_hits + self.statistics.metrics.cache_misses
-        )
+        total_requests = self.statistics.metrics.cache_hits + self.statistics.metrics.cache_misses
 
         # Get cache item count from SQLite backend if available
         cache_items = 0

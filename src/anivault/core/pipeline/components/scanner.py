@@ -45,7 +45,7 @@ class DirectoryScanner(threading.Thread):
         stats: ScanStatistics instance for tracking scan metrics.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         root_path: str | Path,
         extensions: list[str],
@@ -84,9 +84,7 @@ class DirectoryScanner(threading.Thread):
         self.parallel = parallel
         # Use optimized worker count: min(32, (cpu_count or 4) + 4)
         self.max_workers = max_workers or min(32, (os.cpu_count() or 4) + 4)
-        self._stop_event = (
-            cancel_event if cancel_event is not None else threading.Event()
-        )
+        self._stop_event = cancel_event if cancel_event is not None else threading.Event()
         self._lock = threading.Lock()
         self._quiet_mode = quiet
         # Adaptive threshold for parallel processing
@@ -112,7 +110,8 @@ class DirectoryScanner(threading.Thread):
                     e,
                     exc_info=True,
                 )
-            except Exception as e:  # - Unexpected callback errors
+            # pylint: disable-next=broad-exception-caught  # Catch-all for unexpected callback errors
+            except Exception as e:
                 # Handle unexpected callback errors - log but don't interrupt scan
                 context = ErrorContext(operation="scan_progress_callback")
                 error = AniVaultError(
@@ -162,9 +161,7 @@ class DirectoryScanner(threading.Thread):
         # Apply directory filtering if FilterEngine is available
         if self.filter_engine:
             # Filter out excluded directories in-place to prevent os.walk from traversing them
-            dirs[:] = [
-                d for d in dirs if not self.filter_engine.should_skip_directory(d)
-            ]
+            dirs[:] = [d for d in dirs if not self.filter_engine.should_skip_directory(d)]
 
         # Update directory statistics
         self.stats.increment_directories_scanned()
@@ -483,10 +480,7 @@ class DirectoryScanner(threading.Thread):
                     try:
                         if entry.is_dir():
                             # Apply directory filtering if FilterEngine is available
-                            if (
-                                self.filter_engine
-                                and self.filter_engine.should_skip_directory(entry.name)
-                            ):
+                            if self.filter_engine and self.filter_engine.should_skip_directory(entry.name):
                                 continue  # Skip this directory
                             subdirectories.append(Path(entry.path))
                     except (OSError, PermissionError):
@@ -608,7 +602,7 @@ class DirectoryScanner(threading.Thread):
                     file_path=str(file_path),
                     operation="queue_file",
                 )
-                error = InfrastructureError(
+                error: AniVaultError = InfrastructureError(
                     ErrorCode.QUEUE_OPERATION_ERROR,
                     f"Failed to queue file: {e}",
                     context,
@@ -621,7 +615,7 @@ class DirectoryScanner(threading.Thread):
                     exc_info=True,
                 )
                 continue
-            except Exception as e:  # noqa: BLE001 - Unexpected queue errors
+            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 # Unexpected queue errors - log but continue
                 context = ErrorContext(
                     file_path=str(file_path),
@@ -692,26 +686,26 @@ class DirectoryScanner(threading.Thread):
                 file_path=str(self.root_path),
                 operation="directory_scanning",
             )
-            error = InfrastructureError(
+            error: AniVaultError = InfrastructureError(
                 ErrorCode.FILE_ACCESS_ERROR,
                 f"File system error during directory scanning: {e}",
                 context,
                 original_error=e,
             )
             logger.exception("Error during directory scanning: %s", error.message)
-        except Exception as e:  # - Unexpected scanning errors
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during scanning
             context = ErrorContext(
                 file_path=str(self.root_path),
                 operation="directory_scanning",
             )
-            error = AniVaultError(
+            unexpected_error = AniVaultError(
                 ErrorCode.SCANNER_ERROR,
                 f"Unexpected error during directory scanning: {e}",
                 context,
                 original_error=e,
             )
-            logger.exception("Error during directory scanning: %s", error.message)
+            logger.exception("Error during directory scanning: %s", unexpected_error.message)
         finally:
             # Signal completion with sentinel
             try:
@@ -719,16 +713,14 @@ class DirectoryScanner(threading.Thread):
             except (TimeoutError, OSError) as e:
                 # Queue timeout or OS errors
                 context = ErrorContext(operation="put_sentinel_value")
-                error = InfrastructureError(
+                queue_error: AniVaultError = InfrastructureError(
                     ErrorCode.QUEUE_OPERATION_ERROR,
                     f"Failed to put sentinel value: {e}",
                     context,
                     original_error=e,
                 )
-                logger.warning(
-                    "Failed to put sentinel value: %s", error.message, exc_info=True
-                )
-            except Exception as e:  # noqa: BLE001 - Unexpected queue errors
+                logger.warning("Failed to put sentinel value: %s", queue_error.message, exc_info=True)
+            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 # Unexpected queue errors - log but continue
                 context = ErrorContext(operation="put_sentinel_value")
                 error = AniVaultError(
@@ -737,9 +729,7 @@ class DirectoryScanner(threading.Thread):
                     context,
                     original_error=e,
                 )
-                logger.warning(
-                    "Failed to put sentinel value: %s", error.message, exc_info=True
-                )
+                logger.warning("Failed to put sentinel value: %s", error.message, exc_info=True)
 
     def _run_sequential_scan(self) -> None:
         """Run sequential directory scanning using the original method."""
@@ -758,17 +748,16 @@ class DirectoryScanner(threading.Thread):
                     file_path=str(file_path),
                     operation="put_file_sequential",
                 )
-                error = InfrastructureError(
+                error: AniVaultError = InfrastructureError(
                     ErrorCode.QUEUE_OPERATION_ERROR,
                     f"Error putting file into queue: {e}",
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Error putting file into queue: %s: %s", file_path, error.message
-                )
+                logger.exception("Error putting file into queue: %s: %s", file_path, error.message)
                 continue
-            except Exception as e:  # - Unexpected queue errors
+            # pylint: disable-next=broad-exception-caught  # Catch-all for unexpected callback errors
+            except Exception as e:
                 # Unexpected queue errors - log but continue
                 context = ErrorContext(
                     file_path=str(file_path),
@@ -780,9 +769,7 @@ class DirectoryScanner(threading.Thread):
                     context,
                     original_error=e,
                 )
-                logger.exception(
-                    "Error putting file into queue: %s: %s", file_path, error.message
-                )
+                logger.exception("Error putting file into queue: %s: %s", file_path, error.message)
                 continue
 
     def _run_parallel_scan(self) -> None:
@@ -855,17 +842,16 @@ class DirectoryScanner(threading.Thread):
                         file_path=str(subdir),
                         operation="process_subdirectory",
                     )
-                    error = InfrastructureError(
+                    error: AniVaultError = InfrastructureError(
                         ErrorCode.FILE_ACCESS_ERROR,
                         f"Error processing subdirectory: {e}",
                         context,
                         original_error=e,
                     )
-                    logger.exception(
-                        "Error processing subdirectory: %s: %s", subdir, error.message
-                    )
+                    logger.exception("Error processing subdirectory: %s: %s", subdir, error.message)
                     continue
-                except Exception as e:  # - Unexpected subdirectory errors
+                # pylint: disable-next=broad-exception-caught  # Catch-all for unexpected callback errors
+                except Exception as e:
                     # Unexpected errors during subdirectory processing
                     subdir = future_to_dir[future]
                     context = ErrorContext(
@@ -878,9 +864,7 @@ class DirectoryScanner(threading.Thread):
                         context,
                         original_error=e,
                     )
-                    logger.exception(
-                        "Error processing subdirectory: %s: %s", subdir, error.message
-                    )
+                    logger.exception("Error processing subdirectory: %s: %s", subdir, error.message)
                     continue
 
     def get_scan_summary(self) -> dict[str, Any]:

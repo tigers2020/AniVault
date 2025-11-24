@@ -180,4 +180,3 @@ if __name__ == "__main__":
     anitopy_results = generate_anitopy_results(50)
     print(f"✅ Generated {len(anitopy_results)} anitopy results")
     print(f"   Sample: {anitopy_results[0]}")
-

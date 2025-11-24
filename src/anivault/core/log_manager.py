@@ -62,7 +62,8 @@ class OperationLogManager:
         """
         Save a list of file operations to a timestamped log file.
 
-        This method orchestrates the saving process by delegating to specialized methods.
+        This method orchestrates the saving process by delegating to
+        specialized methods.
 
         Args:
             plan: List of FileOperation objects to save.
@@ -102,9 +103,7 @@ class OperationLogManager:
             Path object for the log file
         """
         timestamp = self._get_timestamp()
-        log_filename = (
-            f"{Logging.ORGANIZE_LOG_PREFIX}{timestamp}{Logging.FILE_EXTENSION}"
-        )
+        log_filename = f"{Logging.ORGANIZE_LOG_PREFIX}{timestamp}{Logging.FILE_EXTENSION}"
         return self.logs_dir / log_filename
 
     def _get_timestamp(self) -> str:
@@ -193,7 +192,8 @@ class OperationLogManager:
         List all available operation log files.
 
         Returns:
-            List of Path objects for available log files, sorted by creation time (newest first).
+            List of Path objects for available log files, sorted by
+            creation time (newest first).
         """
         if not self.logs_dir.exists():
             return []
@@ -224,12 +224,8 @@ class OperationLogManager:
             # Extract timestamp from filename
             # (e.g., "organize-20231027-153000.json" -> "20231027-153000")
             filename = log_file.name
-            if filename.startswith(Logging.ORGANIZE_LOG_PREFIX) and filename.endswith(
-                Logging.FILE_EXTENSION,
-            ):
-                timestamp = filename[
-                    len(Logging.ORGANIZE_LOG_PREFIX) : -len(Logging.FILE_EXTENSION)
-                ]  # Remove prefix and suffix
+            if filename.startswith(Logging.ORGANIZE_LOG_PREFIX) and filename.endswith(Logging.FILE_EXTENSION):
+                timestamp = filename[len(Logging.ORGANIZE_LOG_PREFIX) : -len(Logging.FILE_EXTENSION)]  # Remove prefix and suffix
                 identifiers.append(timestamp)
 
         return identifiers
@@ -247,9 +243,7 @@ class OperationLogManager:
         Raises:
             LogFileNotFoundError: If no log file with the given ID is found.
         """
-        expected_filename = (
-            f"{Logging.ORGANIZE_LOG_PREFIX}{log_id}{Logging.FILE_EXTENSION}"
-        )
+        expected_filename = f"{Logging.ORGANIZE_LOG_PREFIX}{log_id}{Logging.FILE_EXTENSION}"
         log_path = self.logs_dir / expected_filename
 
         if not log_path.exists():

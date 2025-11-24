@@ -26,6 +26,11 @@ Example:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from anivault.gui.main_window import MainWindow
+
 
 class SignalCoordinator:
     """Centrally manages signal connections for MainWindow.
@@ -48,6 +53,7 @@ class SignalCoordinator:
     Total: 16 signal connections
     """
 
+    # pylint: disable-next=undefined-variable  # MainWindow is imported in TYPE_CHECKING block
     def __init__(self, main_window: MainWindow) -> None:
         """Initialize SignalCoordinator.
 
@@ -127,22 +133,24 @@ class SignalCoordinator:
             - scan_error: Scanning encounters an error
             - files_grouped: Files have been grouped
         """
-        handler = self._main_window.scan_event_handler
+        from anivault.gui.handlers.scan_event_handler import ScanEventHandler
+
+        scan_handler: ScanEventHandler = self._main_window.scan_event_handler
 
         self._main_window.scan_controller.scan_started.connect(
-            handler.on_scan_started,
+            scan_handler.on_scan_started,
         )
         self._main_window.scan_controller.scan_progress.connect(
-            handler.on_scan_progress,
+            scan_handler.on_scan_progress,
         )
         self._main_window.scan_controller.scan_finished.connect(
-            handler.on_scan_finished,
+            scan_handler.on_scan_finished,
         )
         self._main_window.scan_controller.scan_error.connect(
-            handler.on_scan_error,
+            scan_handler.on_scan_error,
         )
         self._main_window.scan_controller.files_grouped.connect(
-            handler.on_files_grouped,
+            scan_handler.on_files_grouped,
         )
         # Also connect to MainWindow for TMDB auto-start orchestration
         self._main_window.scan_controller.files_grouped.connect(
@@ -165,25 +173,27 @@ class SignalCoordinator:
             - matching_cancelled: Matching is cancelled by user
             - cache_stats_updated: Cache statistics have changed (still handled by MainWindow)
         """
-        handler = self._main_window.tmdb_event_handler
+        from anivault.gui.handlers.tmdb_event_handler import TMDBEventHandler
+
+        tmdb_handler: TMDBEventHandler = self._main_window.tmdb_event_handler
 
         self._main_window.tmdb_controller.matching_started.connect(
-            handler.on_tmdb_matching_started,
+            tmdb_handler.on_tmdb_matching_started,
         )
         self._main_window.tmdb_controller.file_matched.connect(
-            handler.on_tmdb_file_matched,
+            tmdb_handler.on_tmdb_file_matched,
         )
         self._main_window.tmdb_controller.matching_progress.connect(
-            handler.on_tmdb_matching_progress,
+            tmdb_handler.on_tmdb_matching_progress,
         )
         self._main_window.tmdb_controller.matching_finished.connect(
-            handler.on_tmdb_matching_finished,
+            tmdb_handler.on_tmdb_matching_finished,
         )
         self._main_window.tmdb_controller.matching_error.connect(
-            handler.on_tmdb_matching_error,
+            tmdb_handler.on_tmdb_matching_error,
         )
         self._main_window.tmdb_controller.matching_cancelled.connect(
-            handler.on_tmdb_matching_cancelled,
+            tmdb_handler.on_tmdb_matching_cancelled,
         )
         # Cache stats still handled by MainWindow (not event-driven UI update)
         self._main_window.tmdb_controller.cache_stats_updated.connect(
@@ -206,26 +216,28 @@ class SignalCoordinator:
             - organization_error: Organization encounters an error
             - organization_cancelled: Organization is cancelled by user
         """
-        handler = self._main_window.organize_event_handler
+        from anivault.gui.handlers.organize_event_handler import OrganizeEventHandler
+
+        organize_handler: OrganizeEventHandler = self._main_window.organize_event_handler
 
         self._main_window.organize_controller.plan_generated.connect(
-            handler.on_plan_generated,
+            organize_handler.on_plan_generated,
         )
         self._main_window.organize_controller.organization_started.connect(
-            handler.on_organization_started,
+            organize_handler.on_organization_started,
         )
         self._main_window.organize_controller.file_organized.connect(
-            handler.on_file_organized,
+            organize_handler.on_file_organized,
         )
         self._main_window.organize_controller.organization_progress.connect(
-            handler.on_organization_progress,
+            organize_handler.on_organization_progress,
         )
         self._main_window.organize_controller.organization_finished.connect(
-            handler.on_organization_finished,
+            organize_handler.on_organization_finished,
         )
         self._main_window.organize_controller.organization_error.connect(
-            handler.on_organization_error,
+            organize_handler.on_organization_error,
         )
         self._main_window.organize_controller.organization_cancelled.connect(
-            handler.on_organization_cancelled,
+            organize_handler.on_organization_cancelled,
         )

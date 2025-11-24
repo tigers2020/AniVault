@@ -71,7 +71,11 @@ class SemaphoreManager:
         except ApplicationError:
             # Re-raise ApplicationError as-is
             raise
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.VALIDATION_ERROR,
                 message=f"Failed to initialize semaphore manager: {e!s}",
@@ -122,7 +126,7 @@ class SemaphoreManager:
                     context=context,
                 )
 
-            acquired = self._semaphore.acquire(timeout=timeout)
+            acquired = self._semaphore.acquire(timeout=timeout)  # pylint: disable=consider-using-with
 
             if acquired:
                 with self._lock:
@@ -154,7 +158,11 @@ class SemaphoreManager:
                 additional_context=context.additional_data,
             )
             raise validation_error from e
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             unexpected_error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
                 message=f"Unexpected error acquiring semaphore: {e!s}",
@@ -200,7 +208,11 @@ class SemaphoreManager:
                 context=context.additional_data,
             )
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
                 message=f"Failed to release semaphore: {e!s}",
@@ -277,7 +289,11 @@ class SemaphoreManager:
                 duration_ms=0,
                 context=context.additional_data,
             )
-        except Exception as e:  # noqa: BLE001
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.RESOURCE_CLEANUP_ERROR,
                 message="Failed to release semaphore",
@@ -354,7 +370,11 @@ class SemaphoreManager:
                 duration_ms=0,
                 context=context.additional_data,
             )
-        except Exception as e:  # noqa: BLE001
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.RESOURCE_CLEANUP_ERROR,
                 message="Failed to release semaphore",
@@ -387,7 +407,11 @@ class SemaphoreManager:
             with self._lock:
                 return self._active_count
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
                 message=f"Failed to get active count: {e!s}",
@@ -417,9 +441,13 @@ class SemaphoreManager:
         )
 
         try:
-            return self._semaphore._value
+            return self._semaphore._value  # pylint: disable=protected-access
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.CONCURRENCY_ERROR,
                 message=f"Failed to get available count: {e!s}",

@@ -19,8 +19,13 @@ Usage:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QWidget
+
+if TYPE_CHECKING:
+    from anivault.gui.main_window import MainWindow
 
 
 class MenuManager:
@@ -49,6 +54,7 @@ class MenuManager:
         - Organize Files
     """
 
+    # pylint: disable-next=undefined-variable  # MainWindow is imported in TYPE_CHECKING block
     def __init__(self, main_window: MainWindow) -> None:
         """Initialize MenuManager.
 

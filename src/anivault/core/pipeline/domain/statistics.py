@@ -36,23 +36,13 @@ def format_statistics(
     """
     # Calculate success/failure percentages
     total_processed = parser_stats.items_processed
-    success_rate = (
-        (parser_stats.successes / total_processed * 100) if total_processed > 0 else 0
-    )
-    failure_rate = (
-        (parser_stats.failures / total_processed * 100) if total_processed > 0 else 0
-    )
+    success_rate = (parser_stats.successes / total_processed * 100) if total_processed > 0 else 0
+    failure_rate = (parser_stats.failures / total_processed * 100) if total_processed > 0 else 0
 
     # Calculate cache hit/miss percentages
     total_cache_ops = parser_stats.cache_hits + parser_stats.cache_misses
-    cache_hit_rate = (
-        (parser_stats.cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0
-    )
-    cache_miss_rate = (
-        (parser_stats.cache_misses / total_cache_ops * 100)
-        if total_cache_ops > 0
-        else 0
-    )
+    cache_hit_rate = (parser_stats.cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0
+    cache_miss_rate = (parser_stats.cache_misses / total_cache_ops * 100) if total_cache_ops > 0 else 0
 
     # Build the statistics report
     lines = [
@@ -124,28 +114,12 @@ class StatisticsAggregator:
         """
         # Calculate percentages
         total_processed = self.parser_stats.items_processed
-        success_rate = (
-            (self.parser_stats.successes / total_processed * 100)
-            if total_processed > 0
-            else 0.0
-        )
-        failure_rate = (
-            (self.parser_stats.failures / total_processed * 100)
-            if total_processed > 0
-            else 0.0
-        )
+        success_rate = (self.parser_stats.successes / total_processed * 100) if total_processed > 0 else 0.0
+        failure_rate = (self.parser_stats.failures / total_processed * 100) if total_processed > 0 else 0.0
 
         total_cache_ops = self.parser_stats.cache_hits + self.parser_stats.cache_misses
-        cache_hit_rate = (
-            (self.parser_stats.cache_hits / total_cache_ops * 100)
-            if total_cache_ops > 0
-            else 0.0
-        )
-        cache_miss_rate = (
-            (self.parser_stats.cache_misses / total_cache_ops * 100)
-            if total_cache_ops > 0
-            else 0.0
-        )
+        cache_hit_rate = (self.parser_stats.cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0.0
+        cache_miss_rate = (self.parser_stats.cache_misses / total_cache_ops * 100) if total_cache_ops > 0 else 0.0
 
         return {
             "timing": {

@@ -8,9 +8,23 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from prompt_toolkit.shortcuts import confirm
+if TYPE_CHECKING:
+    from rich.console import Console
+
 from rich.console import Console
+
+# prompt_toolkit is an optional dependency
+try:
+    from prompt_toolkit.shortcuts import confirm
+except ImportError:
+    # Fallback for environments without prompt_toolkit
+    def confirm(message: str, default: bool = False) -> bool:
+        """Fallback confirm function when prompt_toolkit is not available."""
+        logger.warning("prompt_toolkit not available, using default: %s", default)
+        return default
+
 
 from anivault.core.log_manager import LogFileNotFoundError, OperationLogManager
 from anivault.core.models import FileOperation
@@ -96,7 +110,7 @@ def generate_rollback_plan(log_path: Path) -> list[FileOperation]:
 
         return rollback_plan
 
-    except (ApplicationError, InfrastructureError):
+    except (ApplicationError, InfrastructureError):  # pylint: disable=try-except-raise
         raise
     except OSError as e:
         raise InfrastructureError(
@@ -133,9 +147,10 @@ def validate_rollback_plan(
     return executable_plan, skipped_operations
 
 
+# pylint: disable-next=unused-argument
 def execute_rollback_plan(
     rollback_plan: list[FileOperation],
-    _log_id: str,  # Unused, kept for API compatibility
+    _log_id: str,  # Unused, kept for API compatibility  # pylint: disable=unused-argument
     console: Console,
 ) -> int:
     """Execute rollback plan.
@@ -160,9 +175,7 @@ def execute_rollback_plan(
         moved_files = organizer.execute_plan(rollback_plan)
 
         if moved_files:
-            console.print(
-                f"[green]Successfully rolled back {len(moved_files)} files[/green]"
-            )
+            console.print(f"[green]Successfully rolled back {len(moved_files)} files[/green]")
         else:
             console.print("[yellow]No files were moved during rollback[/yellow]")
 
@@ -170,7 +183,7 @@ def execute_rollback_plan(
 
     except (ApplicationError, InfrastructureError):
         raise
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         raise ApplicationError(
             code=ErrorCode.CLI_ROLLBACK_EXECUTION_FAILED,
             message="Failed to execute rollback plan",
@@ -197,10 +210,7 @@ def print_rollback_dry_run_plan(plan: list[FileOperation], console: Console) -> 
     console.print()
 
     for i, operation in enumerate(plan, 1):
-        console.print(
-            f"[cyan]{i:3d}.[/cyan] [green]MOVE:[/green] "
-            f"'{operation.source_path}' -> '{operation.destination_path}'"
-        )
+        console.print(f"[cyan]{i:3d}.[/cyan] [green]MOVE:[/green] " f"'{operation.source_path}' -> '{operation.destination_path}'")
 
     console.print()
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
@@ -217,16 +227,11 @@ def print_rollback_execution_plan(plan: list[FileOperation], console: Console) -
         console.print("[yellow]No rollback operations are needed.[/yellow]")
         return
 
-    console.print(
-        "[bold blue]The following rollback operations will be performed:[/bold blue]"
-    )
+    console.print("[bold blue]The following rollback operations will be performed:[/bold blue]")
     console.print()
 
     for i, operation in enumerate(plan, 1):
-        console.print(
-            f"[cyan]{i:3d}.[/cyan] [green]MOVE:[/green] "
-            f"'{operation.source_path}' -> '{operation.destination_path}'"
-        )
+        console.print(f"[cyan]{i:3d}.[/cyan] [green]MOVE:[/green] " f"'{operation.source_path}' -> '{operation.destination_path}'")
 
     console.print()
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
@@ -245,14 +250,9 @@ def print_skipped_operations(
     if not skipped_operations:
         return
 
-    console.print(
-        f"\n[yellow]Skipped {len(skipped_operations)} operations "
-        f"(source files not found):[/yellow]"
-    )
+    console.print(f"\n[yellow]Skipped {len(skipped_operations)} operations " f"(source files not found):[/yellow]")
     for operation in skipped_operations:
-        console.print(
-            f"  [dim]• {operation.source_path} → {operation.destination_path}[/dim]"
-        )
+        console.print(f"  [dim]• {operation.source_path} → {operation.destination_path}[/dim]")
     console.print()
 
 

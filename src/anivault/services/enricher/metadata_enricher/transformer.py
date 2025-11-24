@@ -99,11 +99,7 @@ class MetadataTransformer:
             media_type=media_type,
         )
 
-    def _from_pydantic(
-        self, tmdb_data: TMDBMediaDetails
-    ) -> tuple[
-        str, list[str], str | None, str | None, float | None, int, str, int | None
-    ]:
+    def _from_pydantic(self, tmdb_data: TMDBMediaDetails) -> tuple[str, list[str], str | None, str | None, float | None, int, str, int | None]:
         """Extract fields from TMDBMediaDetails Pydantic model.
 
         Args:

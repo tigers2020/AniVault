@@ -158,9 +158,7 @@ class SQLiteCacheAdapter:
                 )
                 # Deserialize dict to dataclass (type-safe!)
 
-                return cast(
-                    "CachedSearchData", from_dict(CachedSearchData, cached_dict)
-                )
+                return cast("CachedSearchData", from_dict(CachedSearchData, cached_dict))
 
             logger.debug(
                 "Cache miss: key=%s (length=%d), type=%s",

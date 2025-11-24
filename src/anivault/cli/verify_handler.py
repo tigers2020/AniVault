@@ -39,7 +39,7 @@ def handle_verify_command(options: VerifyOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
-    console: Console = kwargs.get("console") or Console()
+    console: Console = kwargs.get("console") or Console()  # pylint: disable=reimported
     logger_adapter = kwargs.get("logger_adapter", logger)
 
     logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command="verify"))

@@ -62,9 +62,7 @@ class GroupCardWidget(QFrame):
     # Signal emitted when card is clicked with group_name and files
     cardClicked: Signal = Signal(str, list)  # Emits (group_name: str, files: list)
 
-    def __init__(
-        self, group_name: str, files: list[Any], parent: QWidget | None = None
-    ):
+    def __init__(self, group_name: str, files: list[Any], parent: QWidget | None = None):
         """
         Initialize the group card widget.
 
@@ -89,7 +87,7 @@ class GroupCardWidget(QFrame):
         """Set up the card layout and styling (TMDB-style horizontal layout)."""
         # Explicitly set NoFrame to remove QFrame's default border
         # QSS themes will control borders (none by default, visible on hover/selected)
-        self.setFrameShape(QFrame.NoFrame)  # type: ignore[attr-defined]
+        self.setFrameShape(QFrame.NoFrame)
         # Note: Size is now handled by the central QSS theme system
 
         # Main horizontal layout (TMDB style: poster on left, info on right)
@@ -139,9 +137,7 @@ class GroupCardWidget(QFrame):
         info_layout.addStretch()
         return info_layout
 
-    def _populate_info_with_anime_data(
-        self, info_layout: QVBoxLayout, anime_metadata: FileMetadata
-    ) -> None:
+    def _populate_info_with_anime_data(self, info_layout: QVBoxLayout, anime_metadata: FileMetadata) -> None:
         """Populate info layout with anime data from TMDB.
 
         Args:
@@ -174,9 +170,7 @@ class GroupCardWidget(QFrame):
             info_layout: Layout to populate
         """
         # Group name as title
-        display_name = self._truncate_text(
-            self.group_name, max_length=UIConfig.GROUP_CARD_NAME_MAX_LENGTH
-        )
+        display_name = self._truncate_text(self.group_name, max_length=UIConfig.GROUP_CARD_NAME_MAX_LENGTH)
         title_label = QLabel(f"📁 {display_name}")
         title_label.setObjectName("groupTitleLabel")
         title_label.setWordWrap(True)
@@ -266,9 +260,9 @@ class GroupCardWidget(QFrame):
 
     def _setup_interactions(self) -> None:
         """Set up context menu and cursor interactions."""
-        self.setContextMenuPolicy(Qt.CustomContextMenu)  # type: ignore[attr-defined]
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
-        self.setCursor(Qt.PointingHandCursor)  # type: ignore[attr-defined]
+        self.setCursor(Qt.PointingHandCursor)
 
     def _create_poster_widget(self) -> QLabel:
         """
@@ -279,13 +273,11 @@ class GroupCardWidget(QFrame):
         """
         poster_label = QLabel()
         poster_label.setObjectName("posterLabel")
-        poster_label.setFixedSize(
-            UIConfig.POSTER_WIDTH, UIConfig.POSTER_HEIGHT
-        )  # 2:3 aspect ratio
-        poster_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        poster_label.setFixedSize(UIConfig.POSTER_WIDTH, UIConfig.POSTER_HEIGHT)  # 2:3 aspect ratio
+        poster_label.setAlignment(Qt.AlignCenter)
 
         # Explicitly remove any frame styling (QLabel inherits from QFrame)
-        poster_label.setFrameShape(QFrame.NoFrame)  # type: ignore[attr-defined]
+        poster_label.setFrameShape(QFrame.NoFrame)
         poster_label.setLineWidth(0)
 
         # Try to load poster from TMDB data
@@ -302,16 +294,8 @@ class GroupCardWidget(QFrame):
 
             logger.debug(
                 "🎨 Poster widget - title: '%s', poster_path: %s",
-                (
-                    title[: UIConfig.LOG_TRUNCATE_LENGTH]
-                    if title and title != "?"
-                    else "None"
-                ),
-                (
-                    poster_path[: UIConfig.LOG_TRUNCATE_LENGTH]
-                    if poster_path
-                    else "None"
-                ),
+                (title[: UIConfig.LOG_TRUNCATE_LENGTH] if title and title != "?" else "None"),
+                (poster_path[: UIConfig.LOG_TRUNCATE_LENGTH] if poster_path else "None"),
             )
 
             # Try to load actual poster image from TMDB
@@ -323,8 +307,8 @@ class GroupCardWidget(QFrame):
                     scaled_pixmap = pixmap.scaled(
                         UIConfig.POSTER_WIDTH,
                         UIConfig.POSTER_HEIGHT,
-                        Qt.KeepAspectRatio,  # type: ignore[attr-defined]
-                        Qt.SmoothTransformation,  # type: ignore[attr-defined]
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation,
                     )
                     poster_label.setPixmap(scaled_pixmap)
                     logger.debug(
@@ -374,10 +358,7 @@ class GroupCardWidget(QFrame):
         first_file = self.files[0]
 
         # Get filename safely (duck typing)
-        file_name = (
-            getattr(first_file, "file_name", None)
-            or getattr(first_file, "file_path", Path("unknown")).name
-        )
+        file_name = getattr(first_file, "file_name", None) or getattr(first_file, "file_path", Path("unknown")).name
         logger.debug("Checking anime metadata for file: %s", file_name)
 
         # Case 1: FileItem with FileMetadata (direct)
@@ -399,11 +380,7 @@ class GroupCardWidget(QFrame):
                     file_metadata = FileMetadata(
                         title=match_result.title,
                         file_path=first_file.file_path,
-                        file_type=(
-                            first_file.file_path.suffix.lstrip(".").lower()
-                            if first_file.file_path.suffix
-                            else "unknown"
-                        ),
+                        file_type=(first_file.file_path.suffix.lstrip(".").lower() if first_file.file_path.suffix else "unknown"),
                         year=match_result.year,
                         season=parsed_result.season,
                         episode=parsed_result.episode,
@@ -419,10 +396,7 @@ class GroupCardWidget(QFrame):
                         file_metadata.title,
                     )
                     return file_metadata
-                logger.debug(
-                    "ScannedFile has ParsingResult but no TMDB match result "
-                    "(TMDB matching may not have completed yet)"
-                )
+                logger.debug("ScannedFile has ParsingResult but no TMDB match result " "(TMDB matching may not have completed yet)")
                 # Return None silently - this is expected before TMDB matching
                 return None
             # Note: ScannedFile.metadata is typed as ParsingResult, so this branch is
@@ -434,18 +408,12 @@ class GroupCardWidget(QFrame):
             match_result = first_file.additional_info.match_result
             if match_result:
                 # Need file_path from somewhere - try to get it from files list
-                file_path = (
-                    getattr(self.files[0], "file_path", None) if self.files else None
-                )
+                file_path = getattr(self.files[0], "file_path", None) if self.files else None
                 if file_path:
                     file_metadata = FileMetadata(
                         title=match_result.title,
                         file_path=file_path,
-                        file_type=(
-                            file_path.suffix.lstrip(".").lower()
-                            if file_path.suffix
-                            else "unknown"
-                        ),
+                        file_type=(file_path.suffix.lstrip(".").lower() if file_path.suffix else "unknown"),
                         year=match_result.year,
                         season=first_file.season,
                         episode=first_file.episode,
@@ -465,8 +433,7 @@ class GroupCardWidget(QFrame):
         # Log warning only if we have metadata but couldn't process it
         if meta:
             logger.debug(
-                "File '%s' has metadata type '%s' but no TMDB match result yet. "
-                "This is normal before TMDB matching completes.",
+                "File '%s' has metadata type '%s' but no TMDB match result yet. " "This is normal before TMDB matching completes.",
                 file_name,
                 type(meta).__name__,
             )
@@ -507,9 +474,7 @@ class GroupCardWidget(QFrame):
         # Final fallback
         return "Unknown title"
 
-    def _truncate_text(
-        self, text: str, max_length: int = UIConfig.DEFAULT_TRUNCATE_LENGTH
-    ) -> str:
+    def _truncate_text(self, text: str, max_length: int = UIConfig.DEFAULT_TRUNCATE_LENGTH) -> str:
         """
         Truncate text to specified length with ellipsis.
 
@@ -555,9 +520,7 @@ class GroupCardWidget(QFrame):
 
         # Position popup to the right of the card
         card_pos = self.mapToGlobal(self.rect().topRight())
-        self._detail_popup.move(
-            card_pos.x() + UIConfig.POPUP_POSITION_OFFSET, card_pos.y()
-        )
+        self._detail_popup.move(card_pos.x() + UIConfig.POPUP_POSITION_OFFSET, card_pos.y())
 
         # Ensure popup is on top
         self._detail_popup.raise_()
@@ -599,9 +562,7 @@ class GroupCardWidget(QFrame):
 
     def _update_group_name_with_parser(self) -> None:
         """Update group name using parser."""
-        if self.parent_widget and hasattr(
-            self.parent_widget, "update_group_name_with_parser"
-        ):
+        if self.parent_widget and hasattr(self.parent_widget, "update_group_name_with_parser"):
             self.parent_widget.update_group_name_with_parser(
                 self.group_name,
                 self.files,
@@ -688,9 +649,7 @@ class GroupCardWidget(QFrame):
                     context,
                     original_error=e,
                 )
-            logger.exception(
-                "❌ Error initiating poster download: %s", network_error.message
-            )
+            logger.exception("❌ Error initiating poster download: %s", network_error.message)
             return None
         except (ValueError, AttributeError, RuntimeError) as e:
             # Handle unexpected errors during network request setup
@@ -776,9 +735,7 @@ class GroupCardWidget(QFrame):
                     context,
                     original_error=e,
                 )
-                logger.warning(
-                    "❌ Failed to cache poster: %s", unexpected_error.message
-                )
+                logger.warning("❌ Failed to cache poster: %s", unexpected_error.message)
 
             # Load into QPixmap
             pixmap = QPixmap()
@@ -787,8 +744,8 @@ class GroupCardWidget(QFrame):
                 scaled_pixmap = pixmap.scaled(
                     UIConfig.POSTER_WIDTH,
                     UIConfig.POSTER_HEIGHT,
-                    Qt.KeepAspectRatio,  # type: ignore[attr-defined]
-                    Qt.SmoothTransformation,  # type: ignore[attr-defined]
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
                 )
                 poster_label.setPixmap(scaled_pixmap)
                 logger.debug("✅ Downloaded and displayed poster: %s", cache_file.name)
@@ -807,9 +764,7 @@ class GroupCardWidget(QFrame):
                 context,
                 original_error=e,
             )
-            logger.exception(
-                "❌ Error processing downloaded poster: %s", io_error.message
-            )
+            logger.exception("❌ Error processing downloaded poster: %s", io_error.message)
         except (ValueError, TypeError) as e:
             # Image parsing/data processing errors
             context = ErrorContext(
@@ -822,9 +777,7 @@ class GroupCardWidget(QFrame):
                 context,
                 original_error=e,
             )
-            logger.exception(
-                "❌ Error processing downloaded poster: %s", parse_error.message
-            )
+            logger.exception("❌ Error processing downloaded poster: %s", parse_error.message)
         except (RuntimeError, AttributeError, MemoryError) as e:
             # Unexpected errors - log and continue (GUI should not crash)
             # Handle Qt runtime errors, missing attributes, or memory issues
@@ -838,9 +791,7 @@ class GroupCardWidget(QFrame):
                 context,
                 original_error=e,
             )
-            logger.exception(
-                "❌ Error processing downloaded poster: %s", unexpected_error.message
-            )
+            logger.exception("❌ Error processing downloaded poster: %s", unexpected_error.message)
         finally:
             reply.deleteLater()
 
@@ -851,7 +802,7 @@ class GroupCardWidget(QFrame):
         Args:
             event: Mouse event
         """
-        if event.button() == Qt.LeftButton:  # type: ignore[attr-defined]
+        if event.button() == Qt.LeftButton:
             logger.debug("Group card clicked: %s", self.group_name)
             self.cardClicked.emit(self.group_name, self.files)
         super().mousePressEvent(event)

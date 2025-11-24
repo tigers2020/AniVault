@@ -49,7 +49,7 @@ class TMDBEventHandler(BaseEventHandler):
         >>> tmdb_controller.matching_started.connect(handler.on_tmdb_matching_started)
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         status_manager: StatusManager,
         state_model: StateModel,
@@ -119,7 +119,7 @@ class TMDBEventHandler(BaseEventHandler):
             # Save TMDB metadata to FileItem directly (NO dict!)
             # Access _scanned_files directly (not the copy from .scanned_files property)
             if hasattr(self._state_model, "_scanned_files"):
-                for file_item in self._state_model._scanned_files:
+                for file_item in self._state_model._scanned_files:  # pylint: disable=protected-access
                     if file_item.file_path == file_path:
                         file_item.metadata = result  # FileMetadata object directly!
                         self._logger.debug(
@@ -162,9 +162,7 @@ class TMDBEventHandler(BaseEventHandler):
         if self._tmdb_progress_dialog:
             self._tmdb_progress_dialog.show_completion(matched_count, total_count)
 
-        self._show_status(
-            f"TMDB matching completed: {matched_count}/{total_count} matched"
-        )
+        self._show_status(f"TMDB matching completed: {matched_count}/{total_count} matched")
         self._logger.info(
             "TMDB matching completed: %d/%d files matched",
             matched_count,
@@ -174,9 +172,7 @@ class TMDBEventHandler(BaseEventHandler):
         # Enable organize button if any files matched
         if matched_count > 0 and self._enable_organize_callback:
             self._enable_organize_callback()
-            self._logger.debug(
-                "Organize button enabled (%d files matched)", matched_count
-            )
+            self._logger.debug("Organize button enabled (%d files matched)", matched_count)
 
         # Update UI with match results - re-group files with updated TMDB metadata
         if self._regroup_callback:

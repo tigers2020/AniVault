@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QLabel, QListWidget
 
 from PySide6.QtWidgets import QLabel, QListWidget
 

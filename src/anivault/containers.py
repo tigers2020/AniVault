@@ -5,7 +5,8 @@ to manage service dependencies and avoid circular imports.
 
 The container manages:
 - Settings (Singleton)
-- Rate limiting components (TokenBucketRateLimiter, SemaphoreManager, RateLimitStateMachine)
+- Rate limiting components (TokenBucketRateLimiter, SemaphoreManager,
+  RateLimitStateMachine)
 - TMDB client and related services
 - Cache adapters (SQLiteCacheDB, SQLiteCacheAdapter)
 - Matching engine
@@ -14,6 +15,7 @@ The container manages:
 
 from __future__ import annotations
 
+# pylint: disable=import-error  # dependency_injector is an optional dependency
 from dependency_injector import containers, providers
 
 from anivault.config.loader import load_settings
@@ -47,9 +49,7 @@ class Container(containers.DeclarativeContainer):
     config = providers.Singleton(load_settings)
 
     # Cache path provider
-    cache_db_path = providers.Singleton(
-        lambda: get_project_root() / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db"
-    )
+    cache_db_path = providers.Singleton(lambda: get_project_root() / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db")
 
     # Cache services
     sqlite_cache_db = providers.Factory(

@@ -100,13 +100,11 @@ class OrganizeProgressDialog(QDialog):
         # Update status label with current file
         if current_file:
             self.status_label.setText(
-                f"{self.organized_files + self.failed_files} / {self.total_files} "
-                f"파일 정리 중... (현재: {current_file})",
+                f"{self.organized_files + self.failed_files} / {self.total_files} " f"파일 정리 중... (현재: {current_file})",
             )
         else:
             self.status_label.setText(
-                f"{self.organized_files + self.failed_files} / {self.total_files} "
-                f"파일 정리됨",
+                f"{self.organized_files + self.failed_files} / {self.total_files} " f"파일 정리됨",
             )
 
     def add_file_result(self, result: dict[str, str]) -> None:
@@ -139,8 +137,7 @@ class OrganizeProgressDialog(QDialog):
 
         # Update status label
         self.status_label.setText(
-            f"{self.organized_files} / {self.total_files} 파일 정리됨 "
-            f"(실패: {self.failed_files})",
+            f"{self.organized_files} / {self.total_files} 파일 정리됨 " f"(실패: {self.failed_files})",
         )
 
         # Scroll to bottom

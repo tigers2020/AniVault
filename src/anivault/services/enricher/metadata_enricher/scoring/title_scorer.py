@@ -225,7 +225,8 @@ class TitleScorer:
             fuzzy_score = fuzz.token_sort_ratio(t1_lower, t2_lower)
 
             # Scale from 0-100 to 0.0-1.0
-            return min(fuzzy_score / 100.0, 1.0)
+            normalized_score: float = float(fuzzy_score) / 100.0
+            return min(normalized_score, 1.0)
 
         except (ValueError, TypeError, AttributeError) as e:
             raise DomainError(
@@ -241,7 +242,7 @@ class TitleScorer:
                 ),
                 original_error=e,
             ) from e
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             raise DomainError(
                 code=ErrorCode.DATA_PROCESSING_ERROR,
                 message=f"Unexpected error calculating title similarity: {e}",
@@ -256,9 +257,7 @@ class TitleScorer:
                 original_error=e,
             ) from e
 
-    def _generate_reason(
-        self, file_title: str, tmdb_title: str, similarity: float
-    ) -> str:
+    def _generate_reason(self, file_title: str, tmdb_title: str, similarity: float) -> str:
         """Generate human-readable reason for the score.
 
         Args:

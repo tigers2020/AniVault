@@ -110,22 +110,14 @@ class FallbackStrategyService:
             try:
                 # Record initial state
                 before_count = len(current_candidates)
-                before_top_score = (
-                    current_candidates[0].confidence_score
-                    if current_candidates
-                    else 0.0
-                )
+                before_top_score = current_candidates[0].confidence_score if current_candidates else 0.0
 
                 # Apply strategy
                 current_candidates = strategy.apply(current_candidates, query)
 
                 # Record result
                 after_count = len(current_candidates)
-                after_top_score = (
-                    current_candidates[0].confidence_score
-                    if current_candidates
-                    else 0.0
-                )
+                after_top_score = current_candidates[0].confidence_score if current_candidates else 0.0
 
                 # Log delta
                 count_delta = after_count - before_count

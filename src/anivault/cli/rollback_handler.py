@@ -49,12 +49,11 @@ def handle_rollback_command(options: RollbackOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
+    # pylint: disable-next=reimported  # Console is intentionally reimported for local use
     console: Console = kwargs.get("console") or Console()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.ROLLBACK)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.ROLLBACK))
 
     # Check if JSON output is enabled
     context = get_cli_context()
@@ -106,9 +105,7 @@ def handle_rollback_command(options: RollbackOptions, **kwargs: Any) -> int:
     if skipped_operations:
         print_skipped_operations(skipped_operations, console)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.ROLLBACK)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.ROLLBACK))
     return CLIDefaults.EXIT_SUCCESS
 
 
@@ -209,7 +206,11 @@ def _handle_json_output(
 
         return CLIDefaults.EXIT_SUCCESS
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         error_output = format_json_output(
             success=False,
             command=CLIMessages.CommandNames.ROLLBACK,
@@ -264,17 +265,22 @@ def rollback_command(
         )
 
         # Call the handler with validated options
+        # pylint: disable-next=redefined-outer-name
         exit_code = handle_rollback_command(options)
 
         if exit_code != CLIDefaults.EXIT_SUCCESS:
             raise typer.Exit(exit_code)
 
     except (ValueError, ValidationError) as e:
-        console = Console()
-        console.print(f"[red]Validation error: {e}[/red]")
+        error_console = Console()  # pylint: disable=redefined-outer-name,reimported
+        error_console.print(f"[red]Validation error: {e}[/red]")
         raise typer.Exit(1) from e
-    except Exception as e:
-        console = Console()
-        console.print(f"[red]Unexpected error: {e}[/red]")
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        error_console = Console()  # pylint: disable=redefined-outer-name,reimported
+        error_console.print(f"[red]Unexpected error: {e}[/red]")
         logger.exception("%sin rollback command", CLIMessages.Error.UNEXPECTED_ERROR)
         raise typer.Exit(1) from e

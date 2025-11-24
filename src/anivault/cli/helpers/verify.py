@@ -9,6 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 from rich.console import Console
 
@@ -26,9 +30,7 @@ class VerificationStatus(str, Enum):
     PENDING = "PENDING"
 
 
-def _build_status_entry(
-    *, status: VerificationStatus, message: str, extra: dict[str, str] | None = None
-) -> dict[str, str]:
+def _build_status_entry(*, status: VerificationStatus, message: str, extra: dict[str, str] | None = None) -> dict[str, str]:
     """Build a standardized verification entry dict.
 
     Args:

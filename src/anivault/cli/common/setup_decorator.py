@@ -78,11 +78,7 @@ def setup_handler(
                 if hasattr(options, "directory"):
                     # Validate using enhanced validation
                     validated_dir = validate_directory_with_context(
-                        (
-                            options.directory.path
-                            if hasattr(options.directory, "path")
-                            else options.directory
-                        ),
+                        (options.directory.path if hasattr(options.directory, "path") else options.directory),
                         operation=func.__name__,
                     )
                     # Update options with validated directory
@@ -104,11 +100,7 @@ def setup_handler(
             console = None
             if require_console:
                 # Skip console creation in JSON mode
-                is_json_mode = (
-                    supports_json
-                    and hasattr(options, "json_output")
-                    and options.json_output
-                )
+                is_json_mode = supports_json and hasattr(options, "json_output") and options.json_output
                 if not is_json_mode:
                     console = Console()
 

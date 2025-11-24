@@ -34,17 +34,11 @@ class FilterEngine:
         self.config = config
 
         # Pre-compile patterns for better performance
-        self._compiled_filename_patterns = [
-            pattern.lower() for pattern in config.excluded_filename_patterns
-        ]
-        self._compiled_dir_patterns = [
-            pattern.lower() for pattern in config.excluded_dir_patterns
-        ]
+        self._compiled_filename_patterns = [pattern.lower() for pattern in config.excluded_filename_patterns]
+        self._compiled_dir_patterns = [pattern.lower() for pattern in config.excluded_dir_patterns]
 
         # Pre-compile extensions for faster lookup
-        self._allowed_extensions_set = {
-            ext.lower() for ext in config.allowed_extensions
-        }
+        self._allowed_extensions_set = {ext.lower() for ext in config.allowed_extensions}
 
     def should_skip_directory(self, dir_name: str) -> bool:
         """
@@ -64,7 +58,7 @@ class FilterEngine:
                 return True
 
         # Check if directory matches filename exclusion patterns
-        # (for patterns like *sample*, *trailer*, etc.)
+        # (for patterns like *sample*, *trailer*, etc.)  # pylint: disable=line-too-long
         for pattern in self._compiled_filename_patterns:
             if fnmatch.fnmatch(dir_name_lower, pattern):
                 return True

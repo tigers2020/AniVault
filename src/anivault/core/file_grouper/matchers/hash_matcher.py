@@ -82,9 +82,7 @@ class HashSimilarityMatcher:
             return []
 
         # Step 1: Extract and normalize titles
-        file_titles: list[tuple[ScannedFile, str, str]] = (
-            []
-        )  # (file, original, normalized)
+        file_titles: list[tuple[ScannedFile, str, str]] = []  # (file, original, normalized)
         for file in files:
             title = self._extract_title_from_file(file)
             if title:
@@ -149,11 +147,7 @@ class HashSimilarityMatcher:
         """
         # Try to get parsed title first (more accurate)
         base_title = None
-        if (
-            hasattr(file, "metadata")
-            and file.metadata
-            and hasattr(file.metadata, "title")
-        ):
+        if hasattr(file, "metadata") and file.metadata and hasattr(file.metadata, "title"):
             parsed_title = file.metadata.title
             if parsed_title and parsed_title != file.file_path.name:
                 base_title = parsed_title

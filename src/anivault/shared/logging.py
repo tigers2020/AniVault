@@ -202,15 +202,13 @@ def log_operation_error(
         extra={
             "error_code": error.code.name,
             "context": context_dict,
-            "operation": (
-                operation or error.context.operation if error.context else None
-            ),
+            "operation": (operation or error.context.operation if error.context else None),
         },
         exc_info=error.original_error is not None,
     )
 
 
-def log_operation_success(
+def log_operation_success(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     logger: logging.Logger,
     operation: str,
     duration_ms: float,
@@ -318,7 +316,7 @@ def log_validation_error(
     )
 
 
-def log_api_call(
+def log_api_call(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     logger: logging.Logger,
     endpoint: str,
     method: str = "GET",
@@ -369,7 +367,7 @@ def log_api_call(
     )
 
 
-def log_file_operation(
+def log_file_operation(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     logger: logging.Logger,
     operation: str,
     source_path: str,

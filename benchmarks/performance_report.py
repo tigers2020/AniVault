@@ -394,4 +394,3 @@ if __name__ == "__main__":
     # Save results if output specified
     if args.output:
         save_benchmark_results(results, args.output)
-

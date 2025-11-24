@@ -35,7 +35,6 @@ class TMDBClientProtocol(Protocol):
         Returns:
             TMDBSearchResponse with typed search results
         """
-        ...
 
     async def get_media_details(
         self,
@@ -51,4 +50,3 @@ class TMDBClientProtocol(Protocol):
         Returns:
             TMDBMediaDetails or None if not found
         """
-        ...

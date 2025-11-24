@@ -5,6 +5,9 @@ This module provides a centralized JSON formatter that can be used by all CLI co
 to produce machine-readable output when the --json flag is used.
 """
 
+# pylint: disable=no-member  # orjson is a C extension without complete type stubs
+# pylint: disable=import-error  # orjson is an optional dependency
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -75,8 +78,10 @@ def format_json_output(
 
     try:
         # Serialize to JSON using orjson for performance
+        # pylint: disable-next=no-member
         return orjson.dumps(
             json_data,
+            # pylint: disable-next=no-member
             option=orjson.OPT_SORT_KEYS | orjson.OPT_INDENT_2,
         )
     except (TypeError, ValueError) as e:
@@ -89,13 +94,15 @@ def format_json_output(
             "errors": [f"JSON serialization failed: {e!s}"],
             "warnings": [],
         }
+        # pylint: disable-next=no-member
         return orjson.dumps(
             error_data,
+            # pylint: disable-next=no-member
             option=orjson.OPT_SORT_KEYS | orjson.OPT_INDENT_2,
         )
 
 
-def safe_json_serialize(obj: Any) -> Any:
+def safe_json_serialize(obj: Any) -> Any:  # pylint: disable=too-many-return-statements
     """
     Safely serialize an object to JSON-serializable format.
 
@@ -129,6 +136,7 @@ def safe_json_serialize(obj: Any) -> Any:
     # Optimize for Pydantic models - use model_dump_json() for better performance
     if hasattr(obj, "model_dump_json"):
         try:
+            # pylint: disable-next=no-member
             return orjson.loads(obj.model_dump_json())
         except (ImportError, ValueError):
             # Fallback to model_dump() if orjson not available or fails

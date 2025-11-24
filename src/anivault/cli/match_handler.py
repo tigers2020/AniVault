@@ -39,24 +39,20 @@ def handle_match_command(options: MatchOptions, **kwargs: Any) -> int:
     console = kwargs.get("console")
     logger_adapter = kwargs.get("logger_adapter", logger)
 
-    logger_adapter.info(
-        CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.MATCH)
-    )
+    logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.MATCH))
 
     # Run async pipeline
     result = asyncio.run(run_match_pipeline(options, console))
 
     if result == 0:
-        logger_adapter.info(
-            CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.MATCH)
-        )
+        logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.MATCH))
     else:
         logger_adapter.error("Match command failed with exit code %s", result)
 
     return result
 
 
-def match_command(
+def match_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     directory: Path = typer.Argument(
         ...,
         help="Directory to match anime files against TMDB database",

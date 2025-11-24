@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 class MetadataEnricher:
     """Service for enriching anime file metadata with TMDB data."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         tmdb_client: TMDBClient | None = None,
         min_confidence: float = ProcessingThresholds.MIN_ENRICHMENT_CONFIDENCE,
@@ -48,17 +48,9 @@ class MetadataEnricher:
         """Initialize the metadata enricher."""
         self.tmdb_client = tmdb_client if tmdb_client is not None else TMDBClient()
         self.min_confidence = min_confidence
-        self.scoring_engine = (
-            scoring_engine
-            if scoring_engine is not None
-            else create_default_scoring_engine()
-        )
+        self.scoring_engine = scoring_engine if scoring_engine is not None else create_default_scoring_engine()
         self.fetcher = fetcher if fetcher is not None else TMDBFetcher(self.tmdb_client)
-        self.batch_processor = (
-            batch_processor
-            if batch_processor is not None
-            else BatchProcessor(concurrency=batch_concurrency)
-        )
+        self.batch_processor = batch_processor if batch_processor is not None else BatchProcessor(concurrency=batch_concurrency)
 
     async def enrich_metadata(self, file_info: ParsingResult) -> EnrichedMetadata:
         """Enrich file metadata with TMDB data."""
@@ -158,7 +150,7 @@ class MetadataEnricher:
         except AniVaultError:
             # Re-raise our own errors (already logged by BatchProcessor)
             raise
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Wrap unexpected errors
             error = ApplicationError(
                 code=ErrorCode.DATA_PROCESSING_ERROR,

@@ -65,7 +65,7 @@ class StrictDataclass(BaseDataclass):
         ...
         >>> from anivault.shared.utils.dataclass_serialization import from_dict
         >>> from_dict(StrictUser, {'name': 'Alice', 'age': 30})  # OK
-        >>> from_dict(StrictUser, {'name': 'Alice', 'age': 30, 'extra': 'bad'}, extra="forbid")  # TypeError
+        >>> from_dict(StrictUser, {'name': 'Alice', 'age': 30, 'extra': 'bad'}, extra="forbid")  # TypeError  # pylint: disable=line-too-long
     """
 
 

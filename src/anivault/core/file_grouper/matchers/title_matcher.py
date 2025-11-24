@@ -89,11 +89,7 @@ class TitleSimilarityMatcher:
         """
         # Try to get parsed title first (more accurate)
         base_title = None
-        if (
-            hasattr(file, "metadata")
-            and file.metadata
-            and hasattr(file.metadata, "title")
-        ):
+        if hasattr(file, "metadata") and file.metadata and hasattr(file.metadata, "title"):
             parsed_title = file.metadata.title
             if parsed_title and parsed_title != file.file_path.name:
                 base_title = parsed_title
@@ -155,7 +151,7 @@ class TitleSimilarityMatcher:
             0.42
         """
         # Use rapidfuzz for similarity calculation (returns 0-100)
-        score = fuzz.ratio(title1.lower(), title2.lower())
+        score: float = float(fuzz.ratio(title1.lower(), title2.lower()))
         # Normalize to 0.0-1.0 range
         return score / 100.0
 
@@ -237,8 +233,7 @@ class TitleSimilarityMatcher:
             bucket_size = len(bucket_files)
             if bucket_size > bucket_size_threshold:
                 logger.warning(
-                    "Large bucket detected for key '%s': %d files. "
-                    "Blocking efficiency may be reduced.",
+                    "Large bucket detected for key '%s': %d files. Blocking efficiency may be reduced.",
                     key,
                     bucket_size,
                 )
@@ -270,7 +265,7 @@ class TitleSimilarityMatcher:
             load_factor=0.75,
         )
 
-        for bucket_files in filtered_buckets.values():
+        for bucket_files in filtered_buckets.values():  # pylint: disable=too-many-nested-blocks
             # Create LinkedHashTable for this bucket
             bucket_groups_table = LinkedHashTable[str, list[ScannedFile]](
                 initial_capacity=max(len(bucket_files) * 2, 64),
@@ -347,10 +342,7 @@ class TitleSimilarityMatcher:
                     all_groups_table.put(group_name, group_files.copy())
 
         # Step 4: Convert to Group objects
-        result = [
-            Group(title=group_name, files=group_files)
-            for group_name, group_files in all_groups_table
-        ]
+        result = [Group(title=group_name, files=group_files) for group_name, group_files in all_groups_table]
 
         logger.info(
             "Title matcher grouped %d files into %d groups",

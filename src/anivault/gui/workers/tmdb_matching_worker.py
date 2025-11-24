@@ -5,12 +5,17 @@ This module contains the worker class that handles background TMDB matching
 operations using PySide6's QThread and signal/slot mechanism.
 """
 
+# pylint: disable=import-error  # dependency_injector is an optional dependency
+
 from __future__ import annotations
 
 import asyncio
 import logging
 
-from dependency_injector.wiring import Provide, inject
+from dependency_injector.wiring import (  # pylint: disable=import-error
+    Provide,
+    inject,
+)
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
@@ -138,19 +143,20 @@ class TMDBMatchingWorker(QObject):
                 )
             logger.exception("Failed to initialize TMDB components")
             raise error from e
+        # pylint: disable-next=broad-exception-caught
         except Exception as e:
             context = ErrorContext(
                 operation="initialize_tmdb_components",
                 additional_data={"error_type": type(e).__name__},
             )
-            error = AniVaultError(
+            init_error: AniVaultError = AniVaultError(
                 ErrorCode.PIPELINE_INITIALIZATION_ERROR,
                 f"Unexpected error initializing TMDB components: {e}",
                 context,
                 original_error=e,
             )
-            logger.exception("Failed to initialize TMDB components: %s")
-            raise error from e
+            logger.exception("Failed to initialize TMDB components")
+            raise init_error from e
 
     def match_files(self, files: list[FileItem]) -> None:
         """
@@ -172,7 +178,7 @@ class TMDBMatchingWorker(QObject):
         try:
             # Run the async matching process
             asyncio.run(self._match_files_async())
-
+        # pylint: disable-next=broad-exception-caught
         except Exception as e:
             logger.exception("Error during TMDB matching")
             self.matching_error.emit(f"TMDB matching error: {e!s}")
@@ -206,34 +212,24 @@ class TMDBMatchingWorker(QObject):
                 # Match first file in group to get TMDB result
                 first_file = file_items[0]
                 group_match_result = await self._match_single_file(first_file)
-                match_result: MatchResult | None = group_match_result.get(
-                    "match_result"
-                )  # type: ignore[assignment]
+                match_result: MatchResult | None = group_match_result.get("match_result")  # type: ignore[assignment]
 
                 # Apply same match result to all files in group
                 for file_item in file_items:
-                    # Create FileMetadata object instead of dict (NO dict!)
+                    # Create FileMetadata object instead of dict (NO dict!)  # pylint: disable=line-too-long
                     # MatchResult has: tmdb_id, title, year, confidence_score, media_type,
                     # poster_path, backdrop_path, overview, popularity, vote_average, original_language
                     # FileMetadata accepts: title, file_path, file_type, year, season, episode,
                     # genres, overview, poster_path, vote_average, tmdb_id, media_type
                     result = FileMetadata(
                         file_path=file_item.file_path,
-                        file_type=(
-                            file_item.file_path.suffix.lstrip(".")
-                            if file_item.file_path.suffix
-                            else "unknown"
-                        ),
-                        title=(
-                            match_result.title if match_result else file_item.file_name
-                        ),
+                        file_type=(file_item.file_path.suffix.lstrip(".") if file_item.file_path.suffix else "unknown"),
+                        title=(match_result.title if match_result else file_item.file_name),
                         tmdb_id=match_result.tmdb_id if match_result else None,
                         year=match_result.year if match_result else None,
                         overview=match_result.overview if match_result else None,
                         poster_path=match_result.poster_path if match_result else None,
-                        vote_average=(
-                            match_result.vote_average if match_result else None
-                        ),
+                        vote_average=(match_result.vote_average if match_result else None),
                         media_type=match_result.media_type if match_result else None,
                     )
                     matching_results.append(result)
@@ -262,7 +258,7 @@ class TMDBMatchingWorker(QObject):
                 total_files,
                 len(groups),
             )
-
+        # pylint: disable-next=broad-exception-caught
         except Exception as e:
             logger.exception("Error in async matching process")
             self.matching_error.emit(f"Async matching error: {e!s}")
@@ -286,9 +282,7 @@ class TMDBMatchingWorker(QObject):
 
                 if parsing_result:
                     # Use anime title as group key
-                    title = (
-                        getattr(parsing_result, "title", None) or file_item.file_name
-                    )
+                    title = getattr(parsing_result, "title", None) or file_item.file_name
 
                     # Normalize title for grouping (lowercase, strip)
                     normalized_title = title.lower().strip()
@@ -299,8 +293,8 @@ class TMDBMatchingWorker(QObject):
                 else:
                     # Failed to parse - use filename as group
                     groups[file_item.file_name] = [file_item]
-
-            except Exception as e:  # noqa: BLE001 - GUI file grouping error fallback
+            # pylint: disable-next=broad-exception-caught
+            except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to group file %s: %s", file_item.file_name, e)
                 # Add to separate group
                 groups[file_item.file_name] = [file_item]
@@ -356,7 +350,7 @@ class TMDBMatchingWorker(QObject):
                 "match_result": match_result,  # MatchResult dataclass or None
                 "status": "matched" if match_result else "failed",
             }
-
+        # pylint: disable-next=broad-exception-caught
         except Exception as e:
             logger.exception("Error matching file %s", file_item.file_name)
             return {
@@ -400,6 +394,7 @@ class TMDBMatchingWorker(QObject):
         except SecurityError:
             # Re-raise SecurityError as-is
             raise
+        # pylint: disable-next=broad-exception-caught
         except Exception as e:
             # Wrap other exceptions in SecurityError
             raise SecurityError(

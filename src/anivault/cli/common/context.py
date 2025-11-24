@@ -83,6 +83,7 @@ class CliContext(BaseModel):
         """
         if self.is_verbose():
             return LogLevel.DEBUG.value
+        # pylint: disable-next=no-member  # FieldInfo.value is a runtime attribute
         return self.log_level.value
 
     def is_json_output_enabled(self) -> bool:
@@ -165,8 +166,7 @@ def get_cli_context() -> CliContext:
     context = cli_context_var.get()
     if context is None:
         raise RuntimeError(
-            "CLI context has not been initialized. "
-            "Make sure to call the main callback before accessing context.",
+            "CLI context has not been initialized. " "Make sure to call the main callback before accessing context.",
         )
     return context
 

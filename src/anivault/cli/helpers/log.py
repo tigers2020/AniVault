@@ -9,7 +9,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 from rich.console import Console
 from rich.table import Table
@@ -71,9 +74,7 @@ def collect_log_list_data(log_dir: Path) -> dict[str, Any]:
             size_str = _format_file_size(size)
 
             # Format modification time
-            modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(
-                DateFormats.STANDARD_DATETIME
-            )
+            modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(DateFormats.STANDARD_DATETIME)
 
             log_data.append(
                 {
@@ -159,16 +160,18 @@ def print_log_list(log_dir: Path, console: Console) -> int:
             size_str = _format_file_size(size)
 
             # Format modification time
-            modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(
-                DateFormats.STANDARD_DATETIME
-            )
+            modified_str = datetime.fromtimestamp(modified, tz=timezone.utc).strftime(DateFormats.STANDARD_DATETIME)
 
             table.add_row(log_file.name, size_str, modified_str)
 
         console.print(table)
         return 0
 
-    except Exception as e:
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         console.print(f"[red]Error listing log files: {e}[/red]")
         logger.exception("Log list error")
         return 1

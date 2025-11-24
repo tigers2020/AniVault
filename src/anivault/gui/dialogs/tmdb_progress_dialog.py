@@ -64,7 +64,7 @@ class TMDBProgressDialog(QProgressDialog):
 
         # Add custom status label
         self.status_label = QLabel(ProgressMessages.INITIALIZING_TMDB)
-        self.status_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setObjectName("statusLabel")
 
         # Add status label to the dialog
@@ -112,9 +112,7 @@ class TMDBProgressDialog(QProgressDialog):
             total_files: Total number of files to process
             current_index: Current file index (0-based)
         """
-        progress = (
-            int((current_index + 1) * 100 / total_files) if total_files > 0 else 0
-        )
+        progress = int((current_index + 1) * 100 / total_files) if total_files > 0 else 0
 
         # Truncate long filenames for display
         display_name = Path(current_file).name

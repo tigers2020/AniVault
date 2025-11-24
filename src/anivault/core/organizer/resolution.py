@@ -65,7 +65,7 @@ class FileResolutionInfo:
         is_high_res: Whether the file is high resolution (True) or low (False)
         quality_string: Original quality string (e.g., "1080p", "720p")
         detection_method: How the resolution was detected
-            ("tmdb_metadata", "tmdb_filename", "filename_only")
+            ("tmdb_metadata", "tmdb_filename", "filename_only")  # pylint: disable=line-too-long
     """
 
     series_title: str
@@ -111,9 +111,7 @@ class ResolutionAnalyzer:
         self.settings = settings
         self.logger = logger
 
-    def analyze_series(
-        self, scanned_files: list[ScannedFile]
-    ) -> LinkedHashTable[str, ResolutionSummary]:
+    def analyze_series(self, scanned_files: list[ScannedFile]) -> LinkedHashTable[str, ResolutionSummary]:
         """Analyze resolutions for all series in the file list.
 
         This method processes all scanned files, extracts resolution information,
@@ -189,9 +187,7 @@ class ResolutionAnalyzer:
 
         return summaries
 
-    def _extract_file_resolution(
-        self, scanned_file: ScannedFile
-    ) -> FileResolutionInfo | None:
+    def _extract_file_resolution(self, scanned_file: ScannedFile) -> FileResolutionInfo | None:
         """Extract resolution information from a single file.
 
         Tries multiple detection methods in priority order:
@@ -246,9 +242,7 @@ class ResolutionAnalyzer:
 
         return None
 
-    def _detect_from_tmdb_metadata(
-        self, series_title: str, quality: str
-    ) -> FileResolutionInfo:
+    def _detect_from_tmdb_metadata(self, series_title: str, quality: str) -> FileResolutionInfo:
         """Detect resolution from TMDB metadata quality field.
 
         This is the most reliable method as it uses structured metadata
@@ -355,9 +349,7 @@ class ResolutionAnalyzer:
         name_without_ext = filename
 
         # Pattern 1: [Group] Title - 01 style
-        title_match = re.search(
-            r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", name_without_ext
-        )
+        title_match = re.search(r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", name_without_ext)
         if title_match:
             series_title = title_match.group(1) or title_match.group(2)
             return series_title.strip()

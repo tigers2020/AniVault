@@ -30,9 +30,7 @@ class FilterSettings(BaseModel):
 
     # File extension filtering
     allowed_extensions: list[str] = Field(
-        default=list(VideoFormats.ALL_EXTENSIONS)
-        + FileSystem.ADDITIONAL_VIDEO_FORMATS
-        + SubtitleFormats.EXTENSIONS,
+        default=list(VideoFormats.ALL_EXTENSIONS) + FileSystem.ADDITIONAL_VIDEO_FORMATS + SubtitleFormats.EXTENSIONS,
         description="List of allowed file extensions including video and subtitle files",
     )
 

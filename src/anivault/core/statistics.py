@@ -53,15 +53,9 @@ class PerformanceMetrics:
 
     def __post_init__(self) -> None:
         """Calculate derived metrics after initialization."""
-        self.cache_hit_ratio = (
-            self.cache_hits / (self.cache_hits + self.cache_misses)
-            if (self.cache_hits + self.cache_misses) > 0
-            else 0.0
-        )
+        self.cache_hit_ratio = self.cache_hits / (self.cache_hits + self.cache_misses) if (self.cache_hits + self.cache_misses) > 0 else 0.0
 
-        self.match_success_rate = (
-            self.successful_matches / self.total_files if self.total_files > 0 else 0.0
-        )
+        self.match_success_rate = self.successful_matches / self.total_files if self.total_files > 0 else 0.0
 
 
 @dataclass
@@ -131,7 +125,7 @@ class StatisticsCollector:
         logger.debug("Ended timing operation: %s, duration: %.3fs", operation, duration)
         return duration
 
-    def record_matching_operation(
+    def record_matching_operation(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         file_path: str,
         success: bool,
@@ -213,12 +207,13 @@ class StatisticsCollector:
 
         logger.debug("Recorded cache operation: %s, hit=%s", operation, hit)
 
+    # pylint: disable-next=unused-argument
     def record_api_call(
         self,
         endpoint: str,
         success: bool,
         duration: float | None = None,
-        error: str | None = None,  # noqa: ARG002
+        error: str | None = None,  # noqa: ARG002  # pylint: disable=unused-argument
     ) -> None:
         """Record an API call.
 
@@ -257,10 +252,10 @@ class StatisticsCollector:
         """
         self.metrics.peak_memory_mb = max(memory_mb, self.metrics.peak_memory_mb)
 
-        # Update average memory usage using a separate counter
-        if not hasattr(self, "_memory_samples"):
-            self._memory_samples = 0
-            self._memory_sum = 0.0
+        # Update average memory usage using a separate counter (lazy initialization)
+        if not hasattr(self, "_memory_samples"):  # pylint: disable=attribute-defined-outside-init
+            self._memory_samples = 0  # pylint: disable=attribute-defined-outside-init
+            self._memory_sum = 0.0  # pylint: disable=attribute-defined-outside-init
 
         self._memory_samples += 1
         self._memory_sum += memory_mb
@@ -394,9 +389,7 @@ class StatisticsCollector:
         Returns:
             Dictionary containing summary statistics
         """
-        session_duration = (
-            datetime.now(timezone.utc) - self.session_start
-        ).total_seconds()
+        session_duration = (datetime.now(timezone.utc) - self.session_start).total_seconds()
 
         return {
             "session_info": {
@@ -443,10 +436,10 @@ class StatisticsCollector:
         self.api_call_times.clear()
         self.cache_operations.clear()
 
-        # Reset memory tracking
-        if hasattr(self, "_memory_samples"):
-            self._memory_samples = 0
-            self._memory_sum = 0.0
+        # Reset memory tracking (lazy initialization)
+        if hasattr(self, "_memory_samples"):  # pylint: disable=attribute-defined-outside-init
+            self._memory_samples = 0  # pylint: disable=attribute-defined-outside-init
+            self._memory_sum = 0.0  # pylint: disable=attribute-defined-outside-init
 
         logger.info("StatisticsCollector reset")
 
@@ -486,7 +479,7 @@ def get_statistics_collector() -> StatisticsCollector:
     Returns:
         StatisticsCollector instance
     """
-    global _global_collector
+    global _global_collector  # pylint: disable=global-statement
     if _global_collector is None:
         _global_collector = StatisticsCollector()
     return _global_collector

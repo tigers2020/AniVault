@@ -139,9 +139,9 @@ class BenchmarkRunner:
         # Initialize components (SQLite cache)
         # Import at runtime to avoid dependency layer violation
         # pylint: disable=import-outside-toplevel
-        from anivault.core.matching.services import SQLiteCacheAdapter  # noqa: PLC0415
-        from anivault.services.cache import SQLiteCacheDB  # noqa: PLC0415
-        from anivault.services.tmdb import TMDBClient  # noqa: PLC0415
+        from anivault.core.matching.services import SQLiteCacheAdapter
+        from anivault.services.cache import SQLiteCacheDB
+        from anivault.services.tmdb import TMDBClient
 
         cache_db_path = Path(self.cache_dir) / "benchmark_cache.db"
         cache_db = SQLiteCacheDB(cache_db_path, self.statistics)
@@ -177,9 +177,7 @@ class BenchmarkRunner:
         with open(dataset_path, encoding=Encoding.DEFAULT) as f:
             data = json.load(f)
 
-        self.ground_truth = [
-            GroundTruthEntry(**entry) for entry in data.get(JsonKeys.ENTRIES, [])
-        ]
+        self.ground_truth = [GroundTruthEntry(**entry) for entry in data.get(JsonKeys.ENTRIES, [])]
 
         logger.info(
             "Loaded %d ground truth entries from %s",
@@ -370,7 +368,11 @@ class BenchmarkRunner:
                 return self._create_no_match_result(entry, processing_time)
             return self._create_match_result(entry, match_result, processing_time)
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             processing_time = time.time() - test_start
             logger.exception("Error processing %s", entry.filename)
             return self._create_error_result(entry, str(e), processing_time)
@@ -401,21 +403,13 @@ class BenchmarkRunner:
     ) -> BenchmarkResult:
         """Create a result for when a match was found."""
         # Handle both MatchResult dataclass and dict (backward compatibility)
-        if hasattr(match_result, "to_dict"):
-            # MatchResult dataclass - convert to dict
-            match_dict = match_result.to_dict()
-        else:
-            # Already a dict
-            match_dict = match_result
+        match_dict = match_result.to_dict() if hasattr(match_result, "to_dict") else match_result
 
         actual_tmdb_id = match_dict.get("id")
         actual_title = match_dict.get("title", "")
         confidence_score = match_dict.get("confidence_score", 0.0)
 
-        is_correct = (
-            actual_tmdb_id == entry.expected_tmdb_id
-            and confidence_score >= entry.confidence_threshold
-        )
+        is_correct = actual_tmdb_id == entry.expected_tmdb_id and confidence_score >= entry.confidence_threshold
 
         return BenchmarkResult(
             filename=entry.filename,
@@ -453,19 +447,11 @@ class BenchmarkRunner:
     ) -> BenchmarkSummary:
         """Calculate summary statistics from benchmark results."""
         correct_matches = sum(1 for r in results if r.is_correct)
-        incorrect_matches = sum(
-            1 for r in results if not r.is_correct and r.actual_tmdb_id is not None
-        )
+        incorrect_matches = sum(1 for r in results if not r.is_correct and r.actual_tmdb_id is not None)
         failed_matches = sum(1 for r in results if r.actual_tmdb_id is None)
 
-        confidence_scores = [
-            r.confidence_score for r in results if r.confidence_score is not None
-        ]
-        average_confidence = (
-            sum(confidence_scores) / len(confidence_scores)
-            if confidence_scores
-            else 0.0
-        )
+        confidence_scores = [r.confidence_score for r in results if r.confidence_score is not None]
+        average_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
 
         total_processing_time = sum(r.processing_time for r in results)
 
@@ -476,9 +462,7 @@ class BenchmarkRunner:
             failed_matches=failed_matches,
             accuracy=(correct_matches / len(results)) * 100 if results else 0.0,
             average_confidence=average_confidence,
-            average_processing_time=(
-                total_processing_time / len(results) if results else 0.0
-            ),
+            average_processing_time=(total_processing_time / len(results) if results else 0.0),
             total_processing_time=total_processing_time,
             cache_hit_ratio=self.statistics.get_cache_hit_ratio(),
             api_calls=self.statistics.metrics.api_calls,

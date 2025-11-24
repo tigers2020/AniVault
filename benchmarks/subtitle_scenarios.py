@@ -135,4 +135,3 @@ if __name__ == "__main__":
     for name, path in scenarios.items():
         sub_count = len(list(path.glob("*.smi"))) + len(list(path.glob("*.srt"))) + len(list(path.glob("*.ass")))
         print(f"  - {name}: {sub_count} subtitles")
-

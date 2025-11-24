@@ -120,15 +120,9 @@ class TitleQualityEvaluator:
         # Length factor
         max_length_threshold = 100
 
-        if (
-            TitleQualityScores.GOOD_LENGTH_MIN
-            <= length
-            <= TitleQualityScores.GOOD_LENGTH_MAX
-        ):
+        if TitleQualityScores.GOOD_LENGTH_MIN <= length <= TitleQualityScores.GOOD_LENGTH_MAX:
             score += TitleQualityScores.GOOD_LENGTH_BONUS
-        elif (
-            length < TitleQualityScores.GOOD_LENGTH_MIN or length > max_length_threshold
-        ):
+        elif length < TitleQualityScores.GOOD_LENGTH_MIN or length > max_length_threshold:
             score += TitleQualityScores.BAD_LENGTH_PENALTY
 
         # Technical pattern penalties
@@ -160,10 +154,7 @@ class TitleQualityEvaluator:
 
     def contains_technical_info(self, title: str) -> bool:
         """Check if title contains technical information."""
-        for pattern in TECHNICAL_PATTERNS:
-            if re.search(pattern, title, re.IGNORECASE):
-                return True
-        return False
+        return any(re.search(pattern, title, re.IGNORECASE) for pattern in TECHNICAL_PATTERNS)
 
     def select_better_title(self, title1: str, title2: str) -> str:
         """Select the better title between two options."""
@@ -180,15 +171,9 @@ class TitleQualityEvaluator:
             return title1 if score1 > score2 else title2
 
         # If scores are close, prefer shorter title (but not too short)
-        if (
-            len(title1)
-            < len(title2) * TitleSelectionThresholds.LENGTH_REDUCTION_THRESHOLD
-        ):
+        if len(title1) < len(title2) * TitleSelectionThresholds.LENGTH_REDUCTION_THRESHOLD:
             return title2
-        if (
-            len(title2)
-            < len(title1) * TitleSelectionThresholds.LENGTH_REDUCTION_THRESHOLD
-        ):
+        if len(title2) < len(title1) * TitleSelectionThresholds.LENGTH_REDUCTION_THRESHOLD:
             return title1
 
         # Default to first title
@@ -211,10 +196,7 @@ class GroupNameManager:
             return group_name
 
         counter = 1
-        while (
-            f"{group_name}{GroupNaming.DUPLICATE_SUFFIX_FORMAT.format(counter)}"
-            in existing_groups
-        ):
+        while f"{group_name}{GroupNaming.DUPLICATE_SUFFIX_FORMAT.format(counter)}" in existing_groups:
             counter += 1
         return f"{group_name}{GroupNaming.DUPLICATE_SUFFIX_FORMAT.format(counter)}"
 
@@ -232,9 +214,7 @@ class GroupNameManager:
 
         # Group by normalized base name using defaultdict for O(n) complexity
         numbered_pattern = re.compile(GroupNaming.NUMBERED_SUFFIX_PATTERN)
-        grouped_by_base: defaultdict[str, list[tuple[str, list[ScannedFile]]]] = (
-            defaultdict(list)
-        )
+        grouped_by_base: defaultdict[str, list[tuple[str, list[ScannedFile]]]] = defaultdict(list)
 
         # Single pass: normalize each group name and group by base name
         for group_name, files in grouped_files.items():
@@ -304,17 +284,9 @@ class FileGrouper:
         self.similarity_threshold = similarity_threshold
 
         # Create default instances if not provided
-        self.engine = (
-            engine
-            if engine is not None
-            else self._create_default_engine(similarity_threshold)
-        )
-        self.resolver = (
-            resolver if resolver is not None else self._create_default_resolver()
-        )
-        self.name_manager = (
-            name_manager if name_manager is not None else GroupNameManager()
-        )
+        self.engine = engine if engine is not None else self._create_default_engine(similarity_threshold)
+        self.resolver = resolver if resolver is not None else self._create_default_resolver()
+        self.name_manager = name_manager if name_manager is not None else GroupNameManager()
 
         logger.info(
             "FileGrouper initialized (Facade pattern) with similarity_threshold=%.2f",
@@ -372,13 +344,9 @@ class FileGrouper:
         """
         final_groups = []
         for title, files in normalized_dict.items():
-            original_group = self._find_matching_original_group(
-                title, files, original_groups
-            )
+            original_group = self._find_matching_original_group(title, files, original_groups)
             if original_group and original_group.evidence:
-                final_groups.append(
-                    Group(title=title, files=files, evidence=original_group.evidence)
-                )
+                final_groups.append(Group(title=title, files=files, evidence=original_group.evidence))
             else:
                 final_groups.append(Group(title=title, files=files))
         return final_groups
@@ -469,9 +437,7 @@ class FileGrouper:
             normalized_dict = self.name_manager.merge_similar_group_names(groups_dict)
 
             # Step 4: Convert back to list[Group] (preserve evidence if exists)
-            final_groups = self._reconstruct_groups_with_evidence(
-                normalized_dict, groups
-            )
+            final_groups = self._reconstruct_groups_with_evidence(normalized_dict, groups)
 
             logger.info(
                 "Grouped %d files into %d groups (via Facade)",
@@ -481,7 +447,7 @@ class FileGrouper:
 
             return final_groups
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Preserve existing error handling behavior
             if isinstance(e, AniVaultError):
                 log_operation_error(

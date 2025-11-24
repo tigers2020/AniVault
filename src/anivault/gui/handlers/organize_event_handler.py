@@ -53,7 +53,7 @@ class OrganizeEventHandler(BaseEventHandler):
         >>> org_controller.plan_generated.connect(handler.on_plan_generated)
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         status_manager: StatusManager,
         state_model: StateModel,

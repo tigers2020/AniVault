@@ -180,25 +180,28 @@ class TMDBController(QObject):
         self.tmdb_worker = TMDBMatchingWorker(self.api_key)
 
         # Move worker to thread
-        self.tmdb_worker.moveToThread(self.tmdb_thread)
+        worker = self.tmdb_worker
+        if worker is None:
+            raise RuntimeError("Failed to create TMDB matching worker")
+        worker.moveToThread(self.tmdb_thread)
 
         # Convert ScannedFile to FileItem for worker
         file_items = [FileItem(file.file_path, "Scanned") for file in files]
 
         # Connect signals
         self.tmdb_thread.started.connect(
-            lambda: self.tmdb_worker.match_files(file_items),
+            lambda: worker.match_files(file_items),
         )
-        self.tmdb_worker.matching_started.connect(self._on_matching_started)
-        self.tmdb_worker.file_matched.connect(self._on_file_matched)
-        self.tmdb_worker.matching_progress.connect(self._on_matching_progress)
-        self.tmdb_worker.matching_finished.connect(self._on_matching_finished)
-        self.tmdb_worker.matching_error.connect(self._on_matching_error)
-        self.tmdb_worker.matching_cancelled.connect(self._on_matching_cancelled)
+        worker.matching_started.connect(self._on_matching_started)
+        worker.file_matched.connect(self._on_file_matched)
+        worker.matching_progress.connect(self._on_matching_progress)
+        worker.matching_finished.connect(self._on_matching_finished)
+        worker.matching_error.connect(self._on_matching_error)
+        worker.matching_cancelled.connect(self._on_matching_cancelled)
 
         # Cleanup when thread finishes
         self.tmdb_thread.finished.connect(self.tmdb_thread.deleteLater)
-        self.tmdb_thread.finished.connect(self.tmdb_worker.deleteLater)
+        self.tmdb_thread.finished.connect(worker.deleteLater)
         self.tmdb_thread.finished.connect(self._on_thread_finished)
 
         # Set matching state

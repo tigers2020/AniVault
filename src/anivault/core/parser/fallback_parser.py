@@ -34,10 +34,7 @@ class FallbackParser:
     PATTERNS: ClassVar[list[Pattern[str]]] = [
         # Pattern 1: [Group] Title - Episode [Quality]
         re.compile(
-            r"^\[(?P<group>[^\]]+)\]\s*"
-            r"(?P<title>.+?)\s*-\s*"
-            r"(?P<episode>\d+)"
-            r"(?:\s+v\d+)?",
+            r"^\[(?P<group>[^\]]+)\]\s*" r"(?P<title>.+?)\s*-\s*" r"(?P<episode>\d+)" r"(?:\s+v\d+)?",
             re.IGNORECASE,
         ),
         # Pattern 2: Title S##E## [Quality]
@@ -111,9 +108,7 @@ class FallbackParser:
                 title=filename,
                 confidence=ParsingConfidence.ERROR_CONFIDENCE_FALLBACK,
                 parser_used="fallback",
-                additional_info=ParsingAdditionalInfo(
-                    parser_specific={"raw_filename": filename}
-                ),
+                additional_info=ParsingAdditionalInfo(parser_specific={"raw_filename": filename}),
             )
 
         # Extract primary information from match

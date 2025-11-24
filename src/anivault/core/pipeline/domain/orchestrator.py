@@ -187,7 +187,11 @@ class PipelineFactory:
                 collector,
             )
 
-        except Exception as e:
+        # pylint: disable-next=broad-exception-caught
+
+        # pylint: disable-next=broad-exception-caught
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
             infrastructure_error = InfrastructureError(
                 ErrorCode.PIPELINE_INITIALIZATION_ERROR,
                 f"Failed to create pipeline components: {e}",
@@ -258,9 +262,7 @@ def run_pipeline(
     collector = None
 
     try:
-        components = _create_pipeline_components(
-            root_path, extensions, num_workers, max_queue_size, cache_path
-        )
+        components = _create_pipeline_components(root_path, extensions, num_workers, max_queue_size, cache_path)
         scanner, parser_pool, collector = (
             components["scanner"],
             components["parser_pool"],
@@ -272,7 +274,11 @@ def run_pipeline(
 
         return results
 
-    except Exception as e:  # noqa: BLE001
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         _handle_pipeline_error(e, context, scanner, parser_pool, collector)
         # _handle_pipeline_error raises InfrastructureError, so this is unreachable
         # but mypy needs an explicit return

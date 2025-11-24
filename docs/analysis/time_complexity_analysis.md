@@ -982,7 +982,7 @@ def _remove_metadata(title: str) -> str:
         # Fast path: exact match before cleaning (common case)
         if subtitle_name == video_name:
             return True
-        
+
         # Remove common subtitle-specific suffixes
         subtitle_clean = self._clean_subtitle_name(subtitle_name)
         video_clean = self._clean_video_name(video_name)
@@ -1263,7 +1263,7 @@ def _remove_metadata(title: str) -> str:
             >>> print(f"{len(successful)}/{len(results)} operations succeeded")
         """
         results: list[OperationResult] = []
-        
+
         # Cache for created directories to avoid redundant checks
         created_dirs: set[Path] = set()
 
@@ -1576,4 +1576,3 @@ def _remove_metadata(title: str) -> str:
 **작성자**: 사토 미나 (알고리즘 전문가)  
 **검토자**: 윤도현, 김지유, 최로건  
 **최종 업데이트**: 2025-01-13 (서브타이틀 매칭, 파일 스캔, 경로 빌더 등 추가 분석)
-

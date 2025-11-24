@@ -562,4 +562,3 @@ src\anivault\utils\resource_path.py:114:25: W0212: Access to a protected member 
 
 ------------------------------------------------------------------
 Your code has been rated at 9.65/10 (previous run: 9.65/10, +0.00)
-

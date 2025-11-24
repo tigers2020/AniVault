@@ -102,7 +102,7 @@ class AutoScanner:
             logger.exception("Error getting auto scan interval")
             return 0
 
-    def can_auto_scan(self) -> tuple[bool, str]:
+    def can_auto_scan(self) -> tuple[bool, str]:  # pylint: disable=too-many-return-statements
         """Check if auto scan can be performed.
 
         Returns:
@@ -193,7 +193,7 @@ class AutoScanner:
                 e,
             ) from e
 
-    def update_folder_settings(
+    def update_folder_settings(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         source_folder: str = "",
         target_folder: str = "",

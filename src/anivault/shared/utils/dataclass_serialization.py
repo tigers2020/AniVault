@@ -253,9 +253,7 @@ def from_dict(cls: type, data: dict[str, Any], extra: str = "ignore") -> Any:
                 value_type = args[1] if len(args) > 1 else None
                 if value_type and is_dataclass(value_type):
                     # Dict with dataclass values: convert each value
-                    result[field.name] = {
-                        k: from_dict(value_type, v) for k, v in value.items()
-                    }
+                    result[field.name] = {k: from_dict(value_type, v) for k, v in value.items()}
                 else:
                     result[field.name] = value
             else:

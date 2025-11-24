@@ -61,12 +61,8 @@ class CLIMessages:
         VERIFICATION_FAILED = "Error during verification: {error}"
         TMDB_CONNECTIVITY_FAILED = "✗ TMDB API connectivity failed: {error}"
         LISTING_LOGS = "Error listing logs: {error}"
-        APPLICATION_ERROR_DURING_SCAN = (
-            "[red]Application error during scan: {error}[/red]"
-        )
-        INFRASTRUCTURE_ERROR_DURING_SCAN = (
-            "[red]Infrastructure error during scan: {error}[/red]"
-        )
+        APPLICATION_ERROR_DURING_SCAN = "[red]Application error during scan: {error}[/red]"
+        INFRASTRUCTURE_ERROR_DURING_SCAN = "[red]Infrastructure error during scan: {error}[/red]"
         UNEXPECTED_ERROR_IN_SCAN = "[red]Unexpected error in scan command[/red]"
         APPLICATION_ERROR_IN_SCAN = "Application error in scan command"
         INFRASTRUCTURE_ERROR_IN_SCAN = "Infrastructure error in scan command"
@@ -77,9 +73,7 @@ class CLIMessages:
         INFRASTRUCTURE_ERROR = "Infrastructure error: "
         UNEXPECTED_ERROR = "Unexpected error: "
         DIRECTORY_VALIDATION_FAILED = "Directory validation failed"
-        UNEXPECTED_ERROR_DURING_VALIDATION = (
-            "Unexpected error during directory validation"
-        )
+        UNEXPECTED_ERROR_DURING_VALIDATION = "Unexpected error during directory validation"
         NO_LOG_COMMAND = "No log command specified"
         NO_LOG_FILES_FOUND = "No log files found"
 
@@ -359,9 +353,7 @@ class CLIHelp:
 
     # Organize command
     ORGANIZE_HELP = "Organize anime files into structured directories"
-    ORGANIZE_DIRECTORY_HELP = (
-        "Directory containing scanned and matched anime files to organize"
-    )
+    ORGANIZE_DIRECTORY_HELP = "Directory containing scanned and matched anime files to organize"
     ORGANIZE_DRY_RUN_HELP = "Show what would be organized without actually moving files"
     ORGANIZE_YES_HELP = "Skip confirmation prompts and proceed with organization"
     ORGANIZE_JSON_HELP = "Output results in JSON format"
@@ -402,9 +394,7 @@ class CLIHelp:
     # Rollback command
     ROLLBACK_HELP = "Rollback file organization operations"
     ROLLBACK_LOG_ID_HELP = "ID of the operation log to rollback"
-    ROLLBACK_DRY_RUN_HELP = (
-        "Show what would be rolled back without actually moving files"
-    )
+    ROLLBACK_DRY_RUN_HELP = "Show what would be rolled back without actually moving files"
     ROLLBACK_YES_HELP = "Skip confirmation prompts and proceed with rollback"
     ROLLBACK_DESCRIPTION = """
     Rollback file organization operations from a previous session.

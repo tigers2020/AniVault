@@ -43,9 +43,7 @@ class ParsingResult(BaseModel):
     release_group: str | None = None
     confidence: float = 0.0
     parser_used: str = "unknown"
-    other_info: dict[str, str | int | float | bool] = Field(
-        default_factory=dict, description="추가 정보"
-    )
+    other_info: dict[str, str | int | float | bool] = Field(default_factory=dict, description="추가 정보")
 
     def model_post_init(self, __context: Any, /) -> None:
         """초기화 후 파싱 결과를 검증.

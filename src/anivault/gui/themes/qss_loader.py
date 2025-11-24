@@ -57,7 +57,7 @@ class QSSLoader:
         - ThemeCache: For mtime-based content caching
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         validator: ThemeValidator,
         path_resolver: ThemePathResolver,
@@ -172,7 +172,7 @@ class QSSLoader:
                 return ""  # Safe fallback
 
             raise  # Re-raise other ApplicationErrors
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self._logger.exception("Failed to load theme content for %s", theme_name)
             raise ApplicationError(
                 ErrorCode.FILE_READ_ERROR,
@@ -182,9 +182,7 @@ class QSSLoader:
                 ),
             ) from e
 
-    def _read_with_imports(
-        self, qss_path: Path, visited: set[Path] | None = None
-    ) -> str:
+    def _read_with_imports(self, qss_path: Path, visited: set[Path] | None = None) -> str:
         """Read QSS file and resolve @import directives recursively.
 
         Supports @import url("path/to/file.qss"); syntax.
@@ -254,9 +252,7 @@ class QSSLoader:
                     # Resolve relative to current file's directory
                     nested_path = resolved_path.parent / import_path
 
-                    self._logger.debug(
-                        "Processing QSS import: %s -> %s", import_path, nested_path
-                    )
+                    self._logger.debug("Processing QSS import: %s -> %s", import_path, nested_path)
 
                     # Recursively read imported file
                     imported_content = self._read_with_imports(nested_path, visited)

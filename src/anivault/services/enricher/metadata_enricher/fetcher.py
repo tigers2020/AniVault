@@ -126,7 +126,7 @@ class TMDBFetcher:
                 ),
                 original_error=e,
             ) from e
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors → AniVaultNetworkError
 
             raise AniVaultNetworkError(
@@ -230,7 +230,7 @@ class TMDBFetcher:
             )
             return None
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             error = AniVaultNetworkError(
                 code=ErrorCode.TMDB_API_REQUEST_FAILED,
                 message=f"Unexpected error during media details retrieval: {e}",

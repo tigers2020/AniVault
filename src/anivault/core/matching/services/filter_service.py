@@ -84,9 +84,7 @@ class CandidateFilterService:
         filtered_tmdb = filter_and_sort_by_year(tmdb_results, temp_query)
 
         # Convert back to ScoredSearchResult (preserve confidence scores)
-        filtered_scored = [
-            self._find_scored_by_id(c.id, candidates) for c in filtered_tmdb
-        ]
+        filtered_scored = [self._find_scored_by_id(c.id, candidates) for c in filtered_tmdb]
 
         # Remove None values (should not happen but be safe)
         result = [c for c in filtered_scored if c is not None]

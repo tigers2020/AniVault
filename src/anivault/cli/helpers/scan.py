@@ -9,23 +9,20 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 from rich.console import Console
+from rich.table import Table
 
 from anivault.cli.progress import create_progress_manager
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.core.pipeline.main import run_pipeline
-from anivault.shared.constants import CLIFormatting
-from rich.table import Table
-from anivault.services import (
-    RateLimitStateMachine,
-    SemaphoreManager,
-    TMDBClient,
-    TokenBucketRateLimiter,
-)
+from anivault.services import RateLimitStateMachine, SemaphoreManager, TMDBClient, TokenBucketRateLimiter
 from anivault.services.enricher import MetadataEnricher
-from anivault.shared.constants import CLIDefaults, QueueConfig
+from anivault.shared.constants import CLIDefaults, CLIFormatting, QueueConfig
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.constants.scan_fields import ScanColors, ScanFields, ScanMessages
 from anivault.shared.metadata_models import FileMetadata
@@ -251,7 +248,7 @@ async def enrich_metadata(
 
     Args:
         file_results: List of FileMetadata instances to enrich
-        _console: Rich console for output (reserved for future use)
+        _console: Rich console for output (reserved for future use)  # pylint: disable=unused-argument  # noqa: ARG002
         is_json_output: Whether JSON output is enabled
 
     Returns:
@@ -282,9 +279,7 @@ async def enrich_metadata(
     progress_manager = create_progress_manager(disabled=is_json_output)
 
     # Convert FileMetadata to ParsingResult for enrichment
-    parsing_results = [
-        _file_metadata_to_parsing_result(metadata) for metadata in file_results
-    ]
+    parsing_results = [_file_metadata_to_parsing_result(metadata) for metadata in file_results]
 
     # Enrich metadata
     enriched_metadata_list = []
@@ -325,11 +320,7 @@ def _extract_parsing_result_dict(parsing_result: Any) -> dict[str, Any]:
         "release_group": parsing_result.release_group,
         "confidence": parsing_result.confidence,
         "parser_used": parsing_result.parser_used,
-        "additional_info": (
-            asdict(parsing_result.additional_info)
-            if hasattr(parsing_result, "additional_info")
-            else {}
-        ),
+        "additional_info": (asdict(parsing_result.additional_info) if hasattr(parsing_result, "additional_info") else {}),
     }
 
 
@@ -402,9 +393,7 @@ def collect_scan_data(
 
         # Count by extension
         file_ext = metadata.file_path.suffix.lower()
-        file_counts_by_extension[file_ext] = (
-            file_counts_by_extension.get(file_ext, 0) + 1
-        )
+        file_counts_by_extension[file_ext] = file_counts_by_extension.get(file_ext, 0) + 1
 
         # Prepare file data from FileMetadata
         file_info = {

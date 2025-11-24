@@ -18,9 +18,11 @@ import functools
 import logging
 import re
 import unicodedata
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from anivault.core.matching.models import NormalizedQuery
+if TYPE_CHECKING:
+    from anivault.core.matching.models import NormalizedQuery
+
 from anivault.shared.constants import NormalizationConfig
 from anivault.shared.constants.core import LanguageDetectionConfig
 
@@ -54,6 +56,10 @@ def normalize_query_from_anitopy(
         >>> query.year
         None
     """
+    # Lazy import to avoid circular dependency
+    # pylint: disable=import-outside-toplevel
+    from anivault.core.matching.models import NormalizedQuery
+
     try:
         # Extract title from anitopy results
         title = _extract_title_from_anitopy(anitopy_result)
@@ -96,6 +102,7 @@ def normalize_query_from_anitopy(
 
         return normalized_query
 
+    # pylint: disable-next=broad-exception-caught
     except Exception as e:  # noqa: BLE001
         logger.warning(
             "Failed to normalize anitopy result '%s': %s",
@@ -130,7 +137,7 @@ def normalize_query(filename: str) -> tuple[str, str]:
         # Parse with anitopy to extract structured data
         # pylint: disable=import-outside-toplevel
         # Optional dependency, import when needed
-        import anitopy  # noqa: PLC0415
+        import anitopy
 
         parsed_data = anitopy.parse(filename)
 
@@ -155,6 +162,7 @@ def normalize_query(filename: str) -> tuple[str, str]:
 
         return normalized_title, language
 
+    # pylint: disable-next=broad-exception-caught
     except Exception as e:  # noqa: BLE001
         logger.warning(
             "Failed to normalize query '%s': %s. Using filename as fallback.",
@@ -215,6 +223,7 @@ def _remove_metadata(title: str) -> str:
     patterns_to_remove = NormalizationConfig.get_compiled_patterns()
 
     cleaned = title
+    # pylint: disable-next=not-an-iterable,unsupported-membership-test  # list[re.Pattern[str]] is iterable
     for pattern in patterns_to_remove:
         cleaned = pattern.sub("", cleaned)
 
@@ -291,7 +300,7 @@ def _normalize_characters(title: str) -> str:
     return normalized
 
 
-def _detect_language(title: str) -> str:
+def _detect_language(title: str) -> str:  # pylint: disable=too-many-return-statements
     """Detect the language of a title string.
 
     This function performs basic language detection based on character

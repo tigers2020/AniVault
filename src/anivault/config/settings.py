@@ -40,8 +40,7 @@ from anivault.config.models.settings import Settings
 
 # Warn users about deprecated import path
 warnings.warn(
-    "Importing from anivault.config.settings is deprecated. "
-    "Use 'from anivault.config import Settings' instead.",
+    "Importing from anivault.config.settings is deprecated. " "Use 'from anivault.config import Settings' instead.",
     DeprecationWarning,
     stacklevel=2,
 )

@@ -14,11 +14,9 @@ from concurrent.futures import (
     CancelledError,
     Future,
     ThreadPoolExecutor,
-)
-from concurrent.futures import TimeoutError as FutureTimeoutError
-from concurrent.futures import (
     as_completed,
 )
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from pathlib import Path
 
 from anivault.config import load_settings
@@ -50,7 +48,7 @@ class ParallelDirectoryScanner(threading.Thread):
         chunk_size: Number of directories to process per worker (default: 10).
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         root_path: str | Path,
         extensions: list[str],
@@ -196,7 +194,7 @@ class ParallelDirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
-            except (TimeoutError, OSError) as e:
+            except (FutureTimeoutError, OSError) as e:  # pylint: disable=bad-except-order
                 # Queue timeout or OS errors
                 context = ErrorContext(
                     file_path=str(file_path),
@@ -350,11 +348,9 @@ class ParallelDirectoryScanner(threading.Thread):
                         exception = future.exception()
                         error = InfrastructureError(
                             ErrorCode.SCANNER_ERROR,
-                            f"Individual scan job failed for directory {subdir}: {exception}",
+                            (f"Individual scan job failed for directory {subdir}: " f"{exception}"),
                             error_context,
-                            original_error=(
-                                exception if isinstance(exception, Exception) else None
-                            ),
+                            original_error=(exception if isinstance(exception, Exception) else None),
                         )
                         log_operation_error(
                             logger=logger,
@@ -534,8 +530,40 @@ class ParallelDirectoryScanner(threading.Thread):
                 # Scan subdirectories using parallel method
                 self._scan_subdirectories(subdirectories)
 
-        except (PermissionError, OSError) as e:
-            # File system errors during parallel scanning
+        except PermissionError as e:
+            # Permission errors during parallel scanning
+            context = ErrorContext(
+                file_path=str(self.root_path),
+                operation="parallel_directory_scanning",
+            )
+            error = InfrastructureError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"Permission error in parallel directory scanning: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error in parallel directory scanning: %s", error.message)
+        # pylint: disable-next=bad-except-order  # TimeoutError is OSError subclass but must be handled first
+        except (TimeoutError, FutureTimeoutError) as e:
+            # Timeout errors (OSError subclass, must come before OSError)
+            # FutureTimeoutError is an alias for concurrent.futures.TimeoutError
+            # which is itself an alias for TimeoutError
+            # Note: TimeoutError is a subclass of OSError, but we want to handle
+            # timeout errors separately before general OSError handling.
+            # This is intentional - we catch TimeoutError first for specific handling.
+            context = ErrorContext(
+                file_path=str(self.root_path),
+                operation="parallel_directory_scanning",
+            )
+            error = InfrastructureError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"Timeout error in parallel directory scanning: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error in parallel directory scanning: %s", error.message)
+        except OSError as e:
+            # Other OS errors (must come after TimeoutError)
             context = ErrorContext(
                 file_path=str(self.root_path),
                 operation="parallel_directory_scanning",
@@ -549,7 +577,6 @@ class ParallelDirectoryScanner(threading.Thread):
             logger.exception("Error in parallel directory scanning: %s", error.message)
         except (
             CancelledError,
-            FutureTimeoutError,
             RuntimeError,
             ValueError,
             TypeError,
@@ -570,7 +597,7 @@ class ParallelDirectoryScanner(threading.Thread):
             # Signal completion with sentinel
             try:
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
-            except (TimeoutError, OSError) as e:
+            except (FutureTimeoutError, OSError) as e:  # pylint: disable=bad-except-order
                 # Queue timeout or OS errors
                 context = ErrorContext(operation="put_sentinel_parallel")
                 error = InfrastructureError(
@@ -579,9 +606,7 @@ class ParallelDirectoryScanner(threading.Thread):
                     context,
                     original_error=e,
                 )
-                logger.warning(
-                    "Failed to put sentinel value: %s", error.message, exc_info=True
-                )
+                logger.warning("Failed to put sentinel value: %s", error.message, exc_info=True)
 
     def _scan_root_files(self) -> list[Path]:
         """Scan the root directory for files directly.

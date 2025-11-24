@@ -64,7 +64,7 @@ def handle_cli_errors(
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:  # pylint: disable=inconsistent-return-statements
             # Extract options from args/kwargs to check for json_output
             options = _extract_options(args, kwargs)
 
@@ -77,7 +77,11 @@ def handle_cli_errors(
             except InfrastructureError as e:
                 _handle_infrastructure_error(e, options, operation, command_name)
 
-            except Exception as e:  # noqa: BLE001
+            # pylint: disable-next=broad-exception-caught
+
+            # pylint: disable-next=broad-exception-caught
+
+            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 # Must catch all exceptions to provide user-friendly CLI error messages
                 _handle_unexpected_error(e, options, operation, command_name)
 
@@ -107,6 +111,11 @@ def _extract_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
 
     # Fallback: Create mock options with json_output=None
     class MockOptions:
+        """Mock options object for error decorator fallback.
+
+        Used when json_output option is not available in the function arguments.
+        """
+
         json_output = None
 
     return MockOptions()

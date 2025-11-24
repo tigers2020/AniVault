@@ -44,7 +44,7 @@ class HashNode(Generic[K, V]):
 
     __slots__ = ("key", "next_in_bucket", "next_in_order", "prev_in_order", "value")
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         key: K,
         value: V,
@@ -250,7 +250,7 @@ class LinkedHashTable(Generic[K, V]):
         """
         bucket_index = self._hash(key)
         current = self._buckets[bucket_index]
-        prev = None
+        prev: HashNode[K, V] | None = None
 
         # Find the node to remove
         while current is not None:
@@ -259,6 +259,8 @@ class LinkedHashTable(Generic[K, V]):
                 if prev is None:
                     self._buckets[bucket_index] = current.next_in_bucket
                 else:
+                    # prev is guaranteed to be not None here
+                    assert prev is not None
                     prev.next_in_bucket = current.next_in_bucket
 
                 # Remove from insertion order (doubly linked list)
@@ -345,10 +347,7 @@ class LinkedHashTable(Generic[K, V]):
 
     def __repr__(self) -> str:
         """Return detailed string representation of the table."""
-        return (
-            f"LinkedHashTable(capacity={self._capacity}, "
-            f"size={self._size}, load_factor={self._load_factor})"
-        )
+        return f"LinkedHashTable(capacity={self._capacity}, size={self._size}, load_factor={self._load_factor})"
 
     @property
     def size(self) -> int:

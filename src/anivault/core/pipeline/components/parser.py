@@ -41,7 +41,7 @@ class ParserWorker(threading.Thread):
         worker_id: Optional identifier for this worker thread.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         input_queue: BoundedQueue,
         output_queue: BoundedQueue,
@@ -95,6 +95,7 @@ class ParserWorker(threading.Thread):
                     str(e),
                 )
                 continue
+            # pylint: disable-next=broad-exception-caught  # Handle timeout and other exceptions
             except Exception as e:
                 # Handle timeout and other exceptions
                 logger = logging.getLogger(__name__)
@@ -158,6 +159,7 @@ class ParserWorker(threading.Thread):
             )
             log_operation_error(logger, error)
 
+        # pylint: disable-next=broad-exception-caught
         except Exception as e:  # noqa: BLE001
             # Handle unexpected errors
 
@@ -174,12 +176,13 @@ class ParserWorker(threading.Thread):
                     "error_type": "unexpected",
                 },
             )
-            error = AniVaultError(
+            unexpected_error = AniVaultError(
                 ErrorCode.PARSER_ERROR,
                 f"Failed to process file due to unexpected error: {file_path}",
                 context,
                 original_error=e,
             )
+            log_operation_error(logger, unexpected_error)
             log_operation_error(logger, error)
 
         finally:
@@ -216,20 +219,20 @@ class ParserWorker(threading.Thread):
             )
             log_operation_error(logger, error)
             raise error from e
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             context = ErrorContext(
                 file_path=str(file_path),
                 operation="check_cache",
                 additional_data={"worker_id": self.worker_id},
             )
-            error = AniVaultError(
+            cache_error = AniVaultError(
                 ErrorCode.CACHE_READ_FAILED,
                 f"Failed to check cache for file: {file_path}",
                 context,
                 original_error=e,
             )
-            log_operation_error(logger, error)
-            raise error from e
+            log_operation_error(logger, cache_error)
+            raise cache_error from e
 
     def _handle_cache_hit(self, cached_result: dict[str, Any]) -> None:
         """Handle cache hit scenario.
@@ -263,7 +266,7 @@ class ParserWorker(threading.Thread):
                 {"worker_id": self.worker_id},
             )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             context = ErrorContext(
                 operation="handle_cache_hit",
                 additional_data={"worker_id": self.worker_id},
@@ -315,7 +318,7 @@ class ParserWorker(threading.Thread):
                 {"file_path": str(file_path), "worker_id": self.worker_id},
             )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             context = ErrorContext(
                 file_path=str(file_path),
                 operation="handle_cache_miss",
@@ -344,7 +347,7 @@ class ParserWorker(threading.Thread):
 
         try:
             # Store result in cache (24 hours TTL)
-            cache_key = self.cache._generate_key(
+            cache_key = self.cache._generate_key(  # pylint: disable=protected-access
                 str(file_path),
                 file_path.stat().st_mtime,
             )
@@ -361,7 +364,7 @@ class ParserWorker(threading.Thread):
                 {"file_path": str(file_path), "worker_id": self.worker_id},
             )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             context = ErrorContext(
                 file_path=str(file_path),
                 operation="store_in_cache",
@@ -422,7 +425,7 @@ class ParserWorker(threading.Thread):
 
             return result
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             # Create structured error context
             context = ErrorContext(
                 file_path=str(file_path),
@@ -465,7 +468,7 @@ class ParserWorkerPool:
         cache: CacheV1 instance for caching parsed results.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         num_workers: int,
         input_queue: BoundedQueue,

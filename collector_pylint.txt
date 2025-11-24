@@ -3,4 +3,3 @@ src\anivault\core\pipeline\components\collector.py:186:4: R0912: Too many branch
 
 -----------------------------------
 Your code has been rated at 9.96/10
-

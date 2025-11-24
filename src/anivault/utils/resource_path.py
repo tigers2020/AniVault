@@ -111,7 +111,7 @@ def get_resource_path(relative_path: str) -> Path:
     """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        base_path = Path(sys._MEIPASS)  # type: ignore[attr-defined]  # pylint: disable=protected-access
         logger.debug("Running as PyInstaller bundle, base path: %s", base_path)
     except AttributeError:
         # Development mode - use package directory

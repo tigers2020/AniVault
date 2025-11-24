@@ -99,12 +99,8 @@ class OptimizedFileOrganizer:
         if not scanned_file:
             raise ValueError("ScannedFile cannot be None")
 
-        if not hasattr(scanned_file, "file_path") or not hasattr(
-            scanned_file, "metadata"
-        ):
-            raise AttributeError(
-                "ScannedFile must have file_path and metadata attributes"
-            )
+        if not hasattr(scanned_file, "file_path") or not hasattr(scanned_file, "metadata"):
+            raise AttributeError("ScannedFile must have file_path and metadata attributes")
 
         # Validate file_path is not None
         if scanned_file.file_path is None:
@@ -136,9 +132,7 @@ class OptimizedFileOrganizer:
                     episode,
                 )
         except FileNotFoundError as e:
-            file_path_str = (
-                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            )
+            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
             context = ErrorContext(
                 file_path=file_path_str,
                 operation="add_file_to_cache",
@@ -152,9 +146,7 @@ class OptimizedFileOrganizer:
             logger.exception("Failed to add file to cache: %s", file_path_str)
             raise error from e
         except PermissionError as e:
-            file_path_str = (
-                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            )
+            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
             context = ErrorContext(
                 file_path=file_path_str,
                 operation="add_file_to_cache",
@@ -168,9 +160,7 @@ class OptimizedFileOrganizer:
             logger.exception("Failed to add file to cache: %s", file_path_str)
             raise permission_error from e
         except OSError as e:
-            file_path_str = (
-                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            )
+            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
             context = ErrorContext(
                 file_path=file_path_str,
                 operation="add_file_to_cache",
@@ -184,9 +174,7 @@ class OptimizedFileOrganizer:
             logger.exception("Failed to add file to cache: %s", file_path_str)
             raise os_error from e
         except Exception as e:
-            file_path_str = (
-                str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            )
+            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
             context = ErrorContext(
                 file_path=file_path_str,
                 operation="add_file_to_cache",
@@ -306,9 +294,7 @@ class OptimizedFileOrganizer:
 
         return operations
 
-    def organize(
-        self, scanned_files: list[ScannedFile], dry_run: bool = True
-    ) -> list[FileOperation] | list[OperationResult]:
+    def organize(self, scanned_files: list[ScannedFile], dry_run: bool = True) -> list[FileOperation] | list[OperationResult]:
         """
         Organize files based on the generated plan.
 
@@ -402,12 +388,7 @@ class OptimizedFileOrganizer:
         title_dir = title.replace(" ", "_")
 
         # Build duplicate path
-        duplicate_path = (
-            Path.home()
-            / "duplicates"
-            / title_dir
-            / f"E{episode:02d}_{quality}_{file.file_path.name}"
-        )
+        duplicate_path = Path.home() / "duplicates" / title_dir / f"E{episode:02d}_{quality}_{file.file_path.name}"
 
         return duplicate_path
 
@@ -432,12 +413,7 @@ class OptimizedFileOrganizer:
         title_dir = title.replace(" ", "_")
 
         # Build organization path
-        organized_path = (
-            Path.home()
-            / "organized"
-            / title_dir
-            / f"E{episode:02d}_{quality}_{file.file_path.name}"
-        )
+        organized_path = Path.home() / "organized" / title_dir / f"E{episode:02d}_{quality}_{file.file_path.name}"
 
         return organized_path
 

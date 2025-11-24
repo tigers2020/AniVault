@@ -77,7 +77,7 @@ class TokenBucketRateLimiter:
         except ApplicationError:
             # Re-raise ApplicationError as-is
             raise
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.VALIDATION_ERROR,
                 message=f"Failed to initialize rate limiter: {e!s}",
@@ -120,7 +120,7 @@ class TokenBucketRateLimiter:
                 self.tokens = min(self.capacity, self.tokens + tokens_to_add)
                 self.last_refill = now
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
                 message=f"Failed to refill tokens: {e!s}",
@@ -216,7 +216,7 @@ class TokenBucketRateLimiter:
                 additional_context=context.additional_data,
             )
             raise validation_error from e
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
                 message=f"Unexpected error acquiring tokens: {e!s}",
@@ -253,7 +253,7 @@ class TokenBucketRateLimiter:
                 self._refill()
                 return int(self.tokens)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
                 message=f"Failed to get available tokens: {e!s}",
@@ -297,7 +297,7 @@ class TokenBucketRateLimiter:
                 context=context.additional_data,
             )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error = ApplicationError(
                 code=ErrorCode.RATE_LIMIT_ERROR,
                 message=f"Failed to reset rate limiter: {e!s}",

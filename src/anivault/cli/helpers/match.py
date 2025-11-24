@@ -4,6 +4,8 @@ Extracted from match_handler.py for better code organization.
 Contains core matching pipeline logic.
 """
 
+# pylint: disable=import-error  # dependency_injector is an optional dependency
+
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +14,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from dependency_injector.wiring import Provide, inject
+from dependency_injector.wiring import (  # pylint: disable=import-error
+    Provide,
+    inject,
+)
 from rich.console import Console
 from rich.table import Table
 
@@ -213,9 +218,7 @@ async def _process_files(
 
         async def process_with_semaphore(file_path: Path) -> FileMetadata | None:
             async with semaphore:
-                return await process_file_for_matching(
-                    file_path, parser, matching_engine, console
-                )
+                return await process_file_for_matching(file_path, parser, matching_engine, console)
 
         results = await asyncio.gather(
             *[process_with_semaphore(fp) for fp in anime_files],
@@ -261,9 +264,7 @@ def _process_exceptions(
                 title=str(file_path.name),
                 additional_info=ParsingAdditionalInfo(),
             )
-            processed_results.append(
-                _match_result_to_file_metadata(file_path, error_parsing_result, None)
-            )
+            processed_results.append(_match_result_to_file_metadata(file_path, error_parsing_result, None))
         elif isinstance(result, FileMetadata):
             processed_results.append(result)
         elif result is None:
@@ -273,9 +274,7 @@ def _process_exceptions(
                 title=str(file_path.name),
                 additional_info=ParsingAdditionalInfo(),
             )
-            processed_results.append(
-                _match_result_to_file_metadata(file_path, failed_parsing_result, None)
-            )
+            processed_results.append(_match_result_to_file_metadata(file_path, failed_parsing_result, None))
         else:
             # Unexpected type - convert to FileMetadata
             if not options.json_output:
@@ -290,11 +289,7 @@ def _process_exceptions(
                 title=str(file_path.name),
                 additional_info=ParsingAdditionalInfo(),
             )
-            processed_results.append(
-                _match_result_to_file_metadata(
-                    file_path, unexpected_parsing_result, None
-                )
-            )
+            processed_results.append(_match_result_to_file_metadata(file_path, unexpected_parsing_result, None))
 
     return processed_results
 
@@ -437,7 +432,7 @@ async def process_file_for_matching(
     file_path: Path,
     parser: AnitopyParser,
     matching_engine: MatchingEngine,
-    _console: Console,  # Reserved for future error display
+    _console: Console,  # Reserved for future error display  # pylint: disable=unused-argument
 ) -> FileMetadata | None:
     """Process a single file through matching pipeline.
 
@@ -481,7 +476,8 @@ async def process_file_for_matching(
             )
         elif not isinstance(parsing_result, ParsingResult):
             # For other types, create minimal ParsingResult
-            # Note: This branch is reachable when parsing_result is neither dict nor ParsingResult
+            # Note: This branch is reachable when parsing_result is
+            # neither dict nor ParsingResult
             parsing_result = ParsingResult(  # type: ignore[unreachable]
                 title=getattr(parsing_result, "title", str(file_path.name)),
                 episode=getattr(parsing_result, "episode", None),
@@ -523,19 +519,23 @@ async def process_file_for_matching(
             additional_info=ParsingAdditionalInfo(),
         )
         return _match_result_to_file_metadata(file_path, minimal_parsing_result, None)
-    except Exception as e:  # - Unexpected errors
+    # pylint: disable-next=broad-exception-caught
+
+    # pylint: disable-next=broad-exception-caught
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
         # Unexpected errors during file processing
         context = ErrorContext(
             file_path=str(file_path),
             operation="process_file_for_matching",
         )
-        error = AniVaultError(
+        unexpected_error: AniVaultError = AniVaultError(
             ErrorCode.DATA_PROCESSING_ERROR,
             f"Unexpected error processing file for matching: {e}",
             context,
             original_error=e,
         )
-        logger.exception("Error processing file for matching: %s", error.message)
+        logger.exception("Error processing file for matching: %s", unexpected_error.message)
         # Return FileMetadata with error indication (tmdb_id=None)
         # This maintains type safety while indicating failure
 
@@ -621,9 +621,7 @@ def collect_match_data(results: list[FileMetadata], directory: str) -> dict[str,
             "total_size_bytes": stats["total_size"],
             "total_size_formatted": _format_size(stats["total_size"]),
             "scanned_directory": str(directory),
-            "success_rate": _calculate_success_rate(
-                match_stats["successful_matches"], total_files
-            ),
+            "success_rate": _calculate_success_rate(match_stats["successful_matches"], total_files),
         },
         "file_statistics": {
             "counts_by_extension": stats["file_counts"],

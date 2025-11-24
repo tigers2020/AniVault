@@ -125,11 +125,7 @@ class ThemeCache:
 
             # Clear specific theme entries
             # Match by Path.stem (filename without extension)
-            to_remove = [
-                path
-                for path, _ in self._cache
-                if path.stem == theme_name or path.name == f"{theme_name}.qss"
-            ]
+            to_remove = [path for path, _ in self._cache if path.stem == theme_name or path.name == f"{theme_name}.qss"]
 
             for path in to_remove:
                 self._cache.remove(path)

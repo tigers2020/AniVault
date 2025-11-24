@@ -63,9 +63,7 @@ class ParsingResult:
     release_group: str | None = None
     confidence: float = 0.0
     parser_used: str = "unknown"
-    additional_info: ParsingAdditionalInfo = field(
-        default_factory=ParsingAdditionalInfo
-    )
+    additional_info: ParsingAdditionalInfo = field(default_factory=ParsingAdditionalInfo)
 
     def __post_init__(self) -> None:
         """Validate the parsing result after initialization.

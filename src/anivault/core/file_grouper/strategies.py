@@ -105,9 +105,7 @@ class WeightedMergeStrategy(GroupingStrategy):
                     file_groups[matcher_name][file.file_path.name] = group
 
         # Step 2: Find overlapping groups across matchers
-        merged_groups = self._merge_overlapping_groups(
-            matcher_results, weights, file_groups
-        )
+        merged_groups = self._merge_overlapping_groups(matcher_results, weights, file_groups)
 
         # Step 3: Generate evidence for each merged group
         final_groups = []
@@ -121,15 +119,13 @@ class WeightedMergeStrategy(GroupingStrategy):
             final_groups.append(final_group)
 
         # Sort by confidence (highest first)
-        final_groups.sort(
-            key=lambda g: g.evidence.confidence if g.evidence else 0, reverse=True
-        )
+        final_groups.sort(key=lambda g: g.evidence.confidence if g.evidence else 0, reverse=True)
 
         logger.info("WeightedMergeStrategy produced %d final groups", len(final_groups))
 
         return final_groups
 
-    def _merge_overlapping_groups(
+    def _merge_overlapping_groups(  # pylint: disable=too-many-locals
         self,
         matcher_results: dict[str, list[Group]],
         weights: dict[str, float],
@@ -168,19 +164,14 @@ class WeightedMergeStrategy(GroupingStrategy):
                         continue
 
                     # Check if this file shares any groups with cluster
-                    if any(
-                        (matcher_name, group) in cluster_groups
-                        for matcher_name, group in other_groups
-                    ):
+                    if any((matcher_name, group) in cluster_groups for matcher_name, group in other_groups):
                         cluster_files.add(other_file)
                         cluster_groups.update(other_groups)
                         changed = True
 
             # Create merged group from cluster
             if cluster_files:
-                merged_group = self._create_merged_group(
-                    cluster_files, cluster_groups, matcher_results, weights
-                )
+                merged_group = self._create_merged_group(cluster_files, cluster_groups, matcher_results, weights)
                 merged_groups.append(merged_group)
                 processed_files.update(cluster_files)
 
@@ -221,7 +212,7 @@ class WeightedMergeStrategy(GroupingStrategy):
 
         return Group(title=best_title, files=unique_files)
 
-    def _generate_merge_evidence(
+    def _generate_merge_evidence(  # pylint: disable=too-many-locals
         self,
         group: Group,
         matcher_results: dict[str, list[Group]],
@@ -245,24 +236,15 @@ class WeightedMergeStrategy(GroupingStrategy):
                     break
 
         # Calculate overall confidence
-        confidence = (
-            sum(match_scores.values()) / len(contributing_matchers)
-            if contributing_matchers
-            else 0.0
-        )
+        confidence = sum(match_scores.values()) / len(contributing_matchers) if contributing_matchers else 0.0
 
         # Generate explanation
         confidence_pct = self._format_confidence_percentage(confidence)
         if len(contributing_matchers) == 1:
-            explanation = (
-                f"Grouped by {contributing_matchers[0]} similarity ({confidence_pct}%)"
-            )
+            explanation = f"Grouped by {contributing_matchers[0]} similarity ({confidence_pct}%)"
         else:
             matcher_list = ", ".join(contributing_matchers)
-            explanation = (
-                f"Grouped by multiple matchers ({matcher_list}) - "
-                f"{confidence_pct}% confidence"
-            )
+            explanation = f"Grouped by multiple matchers ({matcher_list}) - " f"{confidence_pct}% confidence"
 
         return self._create_evidence(
             match_scores=match_scores,
@@ -355,9 +337,7 @@ class ConsensusStrategy(GroupingStrategy):
         # Generate evidence
         result_groups = []
         for group in consensus_groups:
-            evidence = self._generate_consensus_evidence(
-                group, matcher_results, weights
-            )
+            evidence = self._generate_consensus_evidence(group, matcher_results, weights)
             final_group = Group(
                 title=group.title,
                 files=group.files,
@@ -372,7 +352,7 @@ class ConsensusStrategy(GroupingStrategy):
 
         return result_groups
 
-    def _find_consensus_groups(
+    def _find_consensus_groups(  # pylint: disable=too-many-branches
         self,
         matcher_results: dict[str, list[Group]],
         weights: dict[str, float],
@@ -397,9 +377,7 @@ class ConsensusStrategy(GroupingStrategy):
                 for matcher_name, groups in matcher_results.items():
                     if matcher_name in matchers:
                         for group in groups:
-                            group_file_set = frozenset(
-                                f.file_path.name for f in group.files
-                            )
+                            group_file_set = frozenset(f.file_path.name for f in group.files)
                             if group_file_set == file_set:
                                 all_files = group.files
                                 break
@@ -410,21 +388,17 @@ class ConsensusStrategy(GroupingStrategy):
                     best_matcher = max(matchers, key=lambda m: weights.get(m, 0.0))
                     best_title = None
                     for group in matcher_results[best_matcher]:
-                        group_file_set = frozenset(
-                            f.file_path.name for f in group.files
-                        )
+                        group_file_set = frozenset(f.file_path.name for f in group.files)
                         if group_file_set == file_set:
                             best_title = group.title
                             break
 
                     if best_title:
-                        consensus_groups.append(
-                            Group(title=best_title, files=all_files)
-                        )
+                        consensus_groups.append(Group(title=best_title, files=all_files))
 
         return consensus_groups
 
-    def _generate_consensus_evidence(
+    def _generate_consensus_evidence(  # pylint: disable=too-many-locals
         self,
         group: Group,
         matcher_results: dict[str, list[Group]],
@@ -440,9 +414,7 @@ class ConsensusStrategy(GroupingStrategy):
         for matcher_name, groups in matcher_results.items():
             weight = weights.get(matcher_name, 0.0)
             for matcher_group in groups:
-                matcher_file_set = frozenset(
-                    f.file_path.name for f in matcher_group.files
-                )
+                matcher_file_set = frozenset(f.file_path.name for f in matcher_group.files)
                 if matcher_file_set == group_file_set:
                     contributing_matchers.append(matcher_name)
                     match_scores[matcher_name] = weight
@@ -453,10 +425,7 @@ class ConsensusStrategy(GroupingStrategy):
         confidence = sum(match_scores.values()) * consensus_ratio
 
         confidence_pct = self._format_confidence_percentage(confidence)
-        explanation = (
-            f"Consensus from {len(contributing_matchers)} matcher(s) - "
-            f"{confidence_pct}% confidence"
-        )
+        explanation = f"Consensus from {len(contributing_matchers)} matcher(s) - " f"{confidence_pct}% confidence"
 
         return self._create_evidence(
             match_scores=match_scores,
