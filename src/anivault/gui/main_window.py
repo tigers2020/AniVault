@@ -35,6 +35,9 @@ from PySide6.QtWidgets import (
 from anivault.config import get_config, reload_config
 from anivault.core.file_grouper import Group
 from anivault.core.models import FileOperation, ScannedFile
+
+# Additional imports for type hints and runtime usage
+from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
 from anivault.gui.managers.status_manager import CacheStats
 from anivault.gui.models import FileItem
@@ -44,7 +47,7 @@ from anivault.shared.errors import (
     AniVaultParsingError,
     ApplicationError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
 )
 from anivault.shared.metadata_models import FileMetadata
 
@@ -56,9 +59,6 @@ from .state_model import StateModel
 from .themes import ThemeManager
 from .views import ViewUpdater
 from .widgets import GroupGridViewWidget
-
-# Additional imports for type hints and runtime usage
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ class MainWindow(QMainWindow):
         """
         try:
             config = get_config()
-            return config.tmdb.api_key
+            return config.api.tmdb.api_key
         except (ApplicationError, OSError, ValueError):
             return None
 
@@ -263,7 +263,7 @@ class MainWindow(QMainWindow):
                 )
         except (KeyError, ValueError, AttributeError) as e:
             # Data structure access errors during regrouping
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="regroup_files_after_tmdb_matching",
                 additional_data={"file_count": len(file_items) if file_items else 0},
             )
@@ -281,7 +281,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during regrouping - log but don't crash GUI
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="regroup_files_after_tmdb_matching",
                 additional_data={"file_count": len(file_items) if file_items else 0},
             )
@@ -387,7 +387,7 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About AniVault",
-            "AniVault - Anime File Organizer\n\n" "A tool for organizing anime files using TMDB metadata.\n\n" "Version: 1.0.0",
+            "AniVault - Anime File Organizer\n\nA tool for organizing anime files using TMDB metadata.\n\nVersion: 1.0.0",
         )
 
     def start_file_scan(self) -> None:

@@ -6,6 +6,7 @@ corresponding video files based on filename patterns.
 
 from __future__ import annotations
 
+import bisect
 import hashlib
 import logging
 import re
@@ -18,7 +19,7 @@ from anivault.core.models import ScannedFile
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error
@@ -36,9 +37,6 @@ class SubtitleMatcher:
         """Initialize the subtitle matcher."""
         # Supported subtitle extensions
         self.subtitle_extensions = {".srt", ".smi", ".ass", ".ssa", ".vtt", ".sub"}
-        # Index for fast subtitle lookup: key -> list of subtitle file paths
-        # DEPRECATED: Kept for backward compatibility, use _index_cache instead
-        self.index: dict[str, list[Path]] = {}
         # Cache for SubtitleIndex instances per directory
         self._index_cache = SubtitleIndexCache()
 
@@ -46,7 +44,6 @@ class SubtitleMatcher:
         """Build an index of subtitle files for fast lookup.
 
         Scans the directory for subtitle files and builds a SubtitleIndex using caching.
-        Also maintains backward compatibility by populating self.index.
 
         Args:
             directory: Directory to scan for subtitle files
@@ -58,20 +55,13 @@ class SubtitleMatcher:
         subtitle_files = [f for f in directory.iterdir() if self._is_subtitle_file(f)]
 
         # Build or get cached SubtitleIndex (cache is used internally)
-        self._index_cache.get_or_build(directory, subtitle_files)
-
-        # Populate legacy self.index for backward compatibility
-        self.index.clear()
-        for subtitle_file in subtitle_files:
-            key = self._get_subtitle_index_key(subtitle_file)
-            if key not in self.index:
-                self.index[key] = []
-            self.index[key].append(subtitle_file)
+        subtitle_index = self._index_cache.get_or_build(directory, subtitle_files)
 
         logger.debug(
-            "Built subtitle index with %d keys and %d total files",
-            len(self.index),
-            sum(len(files) for files in self.index.values()),
+            "Built subtitle index with %d hash keys, %d name keys, and %d total files",
+            len(subtitle_index.hash_index),
+            len(subtitle_index.name_index),
+            len(subtitle_files),
         )
 
     def _get_subtitle_matching_strategy(self) -> str:
@@ -115,7 +105,7 @@ class SubtitleMatcher:
         Raises:
             InfrastructureError: If matching fails
         """
-        context = ErrorContext(
+        context = ErrorContextModel(
             operation="find_matching_subtitles",
             additional_data={
                 "video_file": str(video_file.file_path),
@@ -450,7 +440,7 @@ class SubtitleMatcher:
         Raises:
             InfrastructureError: If grouping fails
         """
-        context = ErrorContext(
+        context = ErrorContextModel(
             operation="group_files_with_subtitles",
             additional_data={"file_count": len(files), "directory": str(directory)},
         )
@@ -469,11 +459,17 @@ class SubtitleMatcher:
                     "has_subtitles": len(subtitles) > 0,
                 }
 
+            # Get index size from cache if available
+            subtitle_index = self._index_cache.get(directory)
+            if subtitle_index:
+                index_size = len(subtitle_index.hash_index) + len(subtitle_index.name_index)
+            else:
+                index_size = 0
             logger.info(
                 "Grouped %d files with subtitles in %s (index size: %d)",
                 len(files),
                 directory,
-                len(self.index),
+                index_size,
             )
 
             return grouped_files
@@ -534,6 +530,8 @@ class SubtitleIndex:
         """Initialize an empty SubtitleIndex."""
         self.hash_index: dict[str, list[Path]] = {}
         self.name_index: dict[str, list[Path]] = {}
+        # Sorted keys for efficient prefix search (O(log n) binary search)
+        self._sorted_name_keys: list[str] = []
         # Reverse index: Path -> (content_hash, normalized_name) for efficient removal
         self.path_to_metadata: dict[Path, tuple[str, str]] = {}
 
@@ -612,6 +610,7 @@ class SubtitleIndex:
         # Clear existing indices
         self.hash_index.clear()
         self.name_index.clear()
+        self._sorted_name_keys.clear()
 
         for subtitle_file in subtitle_files:
             if not subtitle_file.exists():
@@ -636,7 +635,6 @@ class SubtitleIndex:
 
                 # Store reverse mapping: Path -> (hash, normalized_name)
                 self.path_to_metadata[subtitle_file] = (content_hash, normalized_name)
-
             except (OSError, FileNotFoundError) as e:
                 logger.warning(
                     "Failed to index subtitle file %s: %s",
@@ -644,6 +642,9 @@ class SubtitleIndex:
                     e,
                 )
                 continue
+
+        # Sort name keys for efficient prefix search (O(log n) binary search)
+        self._sorted_name_keys = sorted(self.name_index.keys())
 
         logger.debug(
             "Built SubtitleIndex: %d hash entries, %d name entries, %d total files",
@@ -693,6 +694,9 @@ class SubtitleIndex:
     def get_by_name_prefix(self, prefix: str) -> list[Path]:
         """Get subtitle files whose normalized names start with the given prefix.
 
+        Optimized using binary search on sorted keys for O(log n + k) performance
+        where k is the number of matches, instead of O(n) linear scan.
+
         Args:
             prefix: Prefix to search for (should be normalized).
 
@@ -707,10 +711,25 @@ class SubtitleIndex:
             >>> len(matches)
             2
         """
+        if not prefix or not self._sorted_name_keys:
+            return []
+
+        # Binary search to find the first key >= prefix
+        # Find insertion point for prefix (first key >= prefix)
+        start_idx = bisect.bisect_left(self._sorted_name_keys, prefix)
+
+        # Find the end of the prefix range
+        # We need to find the first key that doesn't start with prefix
+        # Since keys are sorted, we can iterate from start_idx until we find a non-match
         matches: list[Path] = []
-        for name, paths in self.name_index.items():
+        for i in range(start_idx, len(self._sorted_name_keys)):
+            name = self._sorted_name_keys[i]
             if name.startswith(prefix):
-                matches.extend(paths)
+                matches.extend(self.name_index[name])
+            else:
+                # Since keys are sorted, no more matches possible
+                break
+
         return matches
 
     def add_file(self, subtitle_file: Path) -> None:
@@ -749,10 +768,14 @@ class SubtitleIndex:
             # Normalize filename
             normalized_name = self.normalize_subtitle_name(subtitle_file.stem)
             if normalized_name:
-                if normalized_name not in self.name_index:
+                is_new_name = normalized_name not in self.name_index
+                if is_new_name:
                     self.name_index[normalized_name] = []
                 if subtitle_file not in self.name_index[normalized_name]:
                     self.name_index[normalized_name].append(subtitle_file)
+                    # Update sorted keys if this is a new name
+                    if is_new_name:
+                        bisect.insort(self._sorted_name_keys, normalized_name)
 
             # Store reverse mapping
             self.path_to_metadata[subtitle_file] = (content_hash, normalized_name)
@@ -807,6 +830,9 @@ class SubtitleIndex:
             # Clean up empty lists
             if not self.name_index[normalized_name]:
                 del self.name_index[normalized_name]
+                # Remove from sorted keys
+                if normalized_name in self._sorted_name_keys:
+                    self._sorted_name_keys.remove(normalized_name)
 
         # Remove from reverse index
         self.path_to_metadata.pop(subtitle_file, None)

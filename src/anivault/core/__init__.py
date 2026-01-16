@@ -5,7 +5,7 @@ This module contains fundamental data structures and utilities
 used throughout the AniVault system.
 """
 
-from .bounded_queue import BoundedQueue
+from .pipeline.utils.bounded_queue import BoundedQueue
 from .log_manager import (
     LogFileCorruptedError,
     LogFileNotFoundError,

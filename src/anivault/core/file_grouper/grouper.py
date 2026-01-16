@@ -35,14 +35,10 @@ from anivault.shared.constants.filename_patterns import (
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error
-
-# Type aliases
-DuplicateResolverType = DuplicateResolver
-GroupingEngineType = GroupingEngine
 
 logger = logging.getLogger(__name__)
 
@@ -258,8 +254,8 @@ class FileGrouper:
 
     def __init__(
         self,
-        engine: GroupingEngineType | None = None,
-        resolver: DuplicateResolverType | None = None,
+        engine: GroupingEngine | None = None,
+        resolver: DuplicateResolver | None = None,
         name_manager: GroupNameManager | None = None,
         similarity_threshold: float = BusinessRules.FUZZY_MATCH_THRESHOLD,
     ) -> None:
@@ -293,7 +289,7 @@ class FileGrouper:
             similarity_threshold,
         )
 
-    def _create_default_engine(self, similarity_threshold: float) -> GroupingEngineType:
+    def _create_default_engine(self, similarity_threshold: float) -> GroupingEngine:
         """Create default GroupingEngine with matchers.
 
         Args:
@@ -340,7 +336,7 @@ class FileGrouper:
             matchers=[title_matcher, hash_matcher, season_matcher],
         )
 
-    def _create_default_resolver(self) -> DuplicateResolverType:
+    def _create_default_resolver(self) -> DuplicateResolver:
         """Create default DuplicateResolver.
 
         Returns:
@@ -425,7 +421,7 @@ class FileGrouper:
             >>> for group in groups:
             ...     print(f"{group.title}: {len(group.files)} files")
         """
-        context = ErrorContext(
+        context = ErrorContextModel(
             operation="group_files",
             additional_data={"file_count": len(scanned_files)},
         )
@@ -435,29 +431,13 @@ class FileGrouper:
                 return []
 
             # Step 1: Delegate to GroupingEngine (strategy pattern)
-            logger.debug("Delegating to GroupingEngine for grouping")
-            groups = self.engine.group_files(scanned_files)
+            groups = self._run_grouping_engine(scanned_files)
 
             # Step 2: Resolve duplicates within each group
-            logger.debug("Resolving duplicates in %d group(s)", len(groups))
-            for group in groups:
-                if group.has_duplicates():
-                    # Keep only the best file
-                    best_file = self.resolver.resolve_duplicates(group.files)
-                    group.files = [best_file]
-                    logger.debug(
-                        "Group '%s': resolved %d duplicates to 1 file",
-                        group.title,
-                        len(group.files),
-                    )
+            groups = self._resolve_duplicates_in_groups(groups)
 
             # Step 3: Normalize group names (merge similar names)
-            logger.debug("Normalizing group names")
-            groups_dict = {group.title: group.files for group in groups}
-            normalized_dict = self.name_manager.merge_similar_group_names(groups_dict)
-
-            # Step 4: Convert back to list[Group] (preserve evidence if exists)
-            final_groups = self._reconstruct_groups_with_evidence(normalized_dict, groups)
+            final_groups = self._normalize_and_reconstruct_groups(groups)
 
             logger.info(
                 "Grouped %d files into %d groups (via Facade)",
@@ -468,33 +448,83 @@ class FileGrouper:
             return final_groups
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            # Preserve existing error handling behavior
-            if isinstance(e, AniVaultError):
-                log_operation_error(
-                    logger=logger,
-                    operation="group_files",
-                    error=e,
-                    additional_context=context.additional_data if context else None,
+            self._handle_grouping_error(e, context)
+            raise
+
+    def _run_grouping_engine(self, scanned_files: list[ScannedFile]) -> list[Group]:
+        """Run GroupingEngine to create initial groups.
+
+        Args:
+            scanned_files: List of scanned files to group
+
+        Returns:
+            List of Group objects from GroupingEngine
+        """
+        logger.debug("Delegating to GroupingEngine for grouping")
+        return self.engine.group_files(scanned_files)
+
+    def _resolve_duplicates_in_groups(self, groups: list[Group]) -> list[Group]:
+        """Resolve duplicates within each group.
+
+        Args:
+            groups: List of groups to process
+
+        Returns:
+            List of groups with duplicates resolved
+        """
+        logger.debug("Resolving duplicates in %d group(s)", len(groups))
+        for group in groups:
+            if group.has_duplicates():
+                best_file = self.resolver.resolve_duplicates(group.files)
+                group.files = [best_file]
+                logger.debug(
+                    "Group '%s': resolved duplicates to 1 file",
+                    group.title,
                 )
-            else:
-                error = InfrastructureError(
-                    code=ErrorCode.FILE_GROUPING_FAILED,
-                    message=f"Failed to group files: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-                log_operation_error(
-                    logger=logger,
-                    operation="group_files",
-                    error=error,
-                    additional_context=context.additional_data if context else None,
-                )
-            raise InfrastructureError(
+        return groups
+
+    def _normalize_and_reconstruct_groups(self, groups: list[Group]) -> list[Group]:
+        """Normalize group names and reconstruct Group objects with evidence.
+
+        Args:
+            groups: List of groups to normalize
+
+        Returns:
+            List of normalized Group objects with evidence preserved
+        """
+        logger.debug("Normalizing group names")
+        groups_dict = {group.title: group.files for group in groups}
+        normalized_dict = self.name_manager.merge_similar_group_names(groups_dict)
+        return self._reconstruct_groups_with_evidence(normalized_dict, groups)
+
+    def _handle_grouping_error(self, error: Exception, context: ErrorContextModel) -> None:
+        """Handle grouping errors with proper logging and error creation.
+
+        Args:
+            error: Exception that occurred
+            context: Error context for logging
+        """
+        if isinstance(error, AniVaultError):
+            log_operation_error(
+                logger=logger,
+                operation="group_files",
+                error=error,
+                additional_context=context.additional_data if context else None,
+            )
+        else:
+            infrastructure_error = InfrastructureError(
                 code=ErrorCode.FILE_GROUPING_FAILED,
-                message=f"Failed to group files: {e!s}",
+                message=f"Failed to group files: {error!s}",
                 context=context,
-                original_error=e,
-            ) from e
+                original_error=error,
+            )
+            log_operation_error(
+                logger=logger,
+                operation="group_files",
+                error=infrastructure_error,
+                additional_context=context.additional_data if context else None,
+            )
+            raise infrastructure_error from error
 
 
 def group_similar_files(

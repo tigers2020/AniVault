@@ -58,8 +58,6 @@ class SemaphoreManager:
 
             self.concurrency_limit = concurrency_limit
             self._semaphore = threading.Semaphore(concurrency_limit)
-            self._lock = threading.Lock()
-            self._active_count = 0
 
             log_operation_success(
                 logger=logger,
@@ -108,7 +106,7 @@ class SemaphoreManager:
         """
         additional_data: dict[str, str | int | float | bool] = {
             "concurrency_limit": self.concurrency_limit,
-            "active_count": self._active_count,
+            "active_count": self.get_active_count(),
         }
         if timeout is not None:
             additional_data["timeout"] = timeout
@@ -127,10 +125,6 @@ class SemaphoreManager:
                 )
 
             acquired = self._semaphore.acquire(timeout=timeout)  # pylint: disable=consider-using-with
-
-            if acquired:
-                with self._lock:
-                    self._active_count += 1
 
             log_operation_success(
                 logger=logger,
@@ -190,15 +184,11 @@ class SemaphoreManager:
             operation="semaphore_release",
             additional_data={
                 "concurrency_limit": self.concurrency_limit,
-                "active_count": self._active_count,
+                "active_count": self.get_active_count(),
             },
         )
 
         try:
-            with self._lock:
-                if self._active_count > 0:
-                    self._active_count -= 1
-
             self._semaphore.release()
 
             log_operation_success(
@@ -392,6 +382,9 @@ class SemaphoreManager:
     def get_active_count(self) -> int:
         """Get the current number of active requests.
 
+        Calculates active count from semaphore value without using locks.
+        Active count = concurrency_limit - available_count
+
         Returns:
             Number of currently active requests
 
@@ -404,8 +397,11 @@ class SemaphoreManager:
         )
 
         try:
-            with self._lock:
-                return self._active_count
+            # Calculate active count from semaphore value (no lock needed for read)
+            available = self.get_available_count()
+            active = self.concurrency_limit - available
+            # Ensure non-negative (defensive programming)
+            return max(0, active)
 
         # pylint: disable-next=broad-exception-caught
 

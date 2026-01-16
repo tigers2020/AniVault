@@ -16,9 +16,6 @@ from .year_scorer import YearScorer
 
 
 def create_default_scoring_engine(
-    title_weight: float | None = None,
-    year_weight: float | None = None,
-    media_type_weight: float | None = None,
     normalize_weights: bool = True,
     weights: MatchingWeights | None = None,
 ) -> ScoringEngine:
@@ -26,18 +23,9 @@ def create_default_scoring_engine(
 
     This factory function creates a ScoringEngine with the standard set of
     scorers (TitleScorer, YearScorer, MediaTypeScorer) using the provided
-    weights. Weights can be overridden via keyword arguments or MatchingWeights.
+    weights from MatchingWeights.
 
     Args:
-        title_weight: Weight for title similarity (deprecated: use weights parameter).
-                     If None and weights is provided, uses weights.enricher_title_weight.
-                     Default: 0.6
-        year_weight: Weight for year matching (deprecated: use weights parameter).
-                    If None and weights is provided, uses weights.enricher_year_weight.
-                    Default: 0.2
-        media_type_weight: Weight for media type matching (deprecated: use weights parameter).
-                          If None and weights is provided, uses weights.enricher_media_type_weight.
-                          Default: 0.2
         normalize_weights: If True, normalizes weights to sum to 1.0 (default: True)
         weights: MatchingWeights instance for configurable weights.
                 If None, loads from config or uses defaults.
@@ -59,13 +47,10 @@ def create_default_scoring_engine(
         except (ImportError, AttributeError):
             weights = MatchingWeights()
 
-    # Use weights from MatchingWeights if individual weights not provided
-    if title_weight is None:
-        title_weight = weights.enricher_title_weight
-    if year_weight is None:
-        year_weight = weights.enricher_year_weight
-    if media_type_weight is None:
-        media_type_weight = weights.enricher_media_type_weight
+    # Use weights from MatchingWeights
+    title_weight = weights.enricher_title_weight
+    year_weight = weights.enricher_year_weight
+    media_type_weight = weights.enricher_media_type_weight
 
     scorers: list[BaseScorer] = [
         TitleScorer(weight=title_weight),

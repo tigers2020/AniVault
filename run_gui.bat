@@ -50,48 +50,18 @@ REM Check and upgrade pip
 echo [INFO] Checking pip upgrade...
 %PYTHON_CMD% -m pip install --upgrade pip --quiet >nul 2>&1
 
-REM Check core packages (quick check)
-%PYTHON_CMD% -c "import PySide6" >nul 2>&1
-set MISSING_DEPS=0
+REM Use Python script for dependency checking (with debug logging)
+echo [CHECK] Checking dependencies...
+%PYTHON_CMD% check_dependencies.py %PYTHON_CMD%
 if %errorlevel% neq 0 (
-    set MISSING_DEPS=1
-)
-
-%PYTHON_CMD% -c "import pydantic" >nul 2>&1
-if %errorlevel% neq 0 (
-    set MISSING_DEPS=1
-)
-
-%PYTHON_CMD% -c "import dependency_injector" >nul 2>&1
-if %errorlevel% neq 0 (
-    set MISSING_DEPS=1
-)
-
-REM Auto-install if dependencies are missing
-if %MISSING_DEPS%==1 (
-    echo [INSTALL] Installing missing packages automatically...
-    echo [INFO] This is only needed on first run and may take some time.
     echo.
-
-    %PYTHON_CMD% -m pip install -r requirements.txt
-
-    if %errorlevel% neq 0 (
-        echo.
-        echo [ERROR] Error occurred during package installation.
-        echo [INFO] Please try running manually:
-        echo    pip install -r requirements.txt
-        echo.
-        pause
-        exit /b 1
-    )
-
+    echo [ERROR] Dependency check or installation failed.
+    echo [INFO] Please check the output above for details.
     echo.
-    echo [OK] All packages installed successfully.
-    echo.
-) else (
-    echo [OK] All dependencies verified.
-    echo.
+    pause
+    exit /b 1
 )
+echo.
 
 REM Launch GUI application
 echo [RUN] Starting AniVault GUI...

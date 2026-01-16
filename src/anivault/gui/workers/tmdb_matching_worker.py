@@ -35,7 +35,7 @@ from anivault.shared.errors import (
     AniVaultError,
     AniVaultNetworkError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
     SecurityError,
 )
 from anivault.shared.metadata_models import FileMetadata
@@ -124,7 +124,7 @@ class TMDBMatchingWorker(QObject):
             logger.debug("TMDB components initialized successfully")
 
         except (ConnectionError, TimeoutError) as e:
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="initialize_tmdb_components",
             )
             if isinstance(e, TimeoutError):
@@ -145,7 +145,7 @@ class TMDBMatchingWorker(QObject):
             raise error from e
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="initialize_tmdb_components",
                 additional_data={"error_type": type(e).__name__},
             )
@@ -273,31 +273,28 @@ class TMDBMatchingWorker(QObject):
         Returns:
             Dictionary mapping anime title to list of FileItem objects
         """
+        from anivault.core.parser.helpers import parse_with_fallback
+
         groups: dict[str, list[FileItem]] = {}
 
         for file_item in files:
-            try:
-                # Parse filename to extract title
-                parsing_result = self.parser.parse(file_item.file_name)
+            # Use common parsing helper for consistent error handling
+            parsing_result = parse_with_fallback(
+                self.parser,
+                file_item.file_name,
+                fallback_title=file_item.file_name,
+                fallback_parser_name="tmdb_grouping_fallback",
+            )
 
-                if parsing_result:
-                    # Use anime title as group key
-                    title = getattr(parsing_result, "title", None) or file_item.file_name
+            # Use anime title as group key
+            title = getattr(parsing_result, "title", None) or file_item.file_name
 
-                    # Normalize title for grouping (lowercase, strip)
-                    normalized_title = title.lower().strip()
+            # Normalize title for grouping (lowercase, strip)
+            normalized_title = title.lower().strip()
 
-                    if normalized_title not in groups:
-                        groups[normalized_title] = []
-                    groups[normalized_title].append(file_item)
-                else:
-                    # Failed to parse - use filename as group
-                    groups[file_item.file_name] = [file_item]
-            # pylint: disable-next=broad-exception-caught
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Failed to group file %s: %s", file_item.file_name, e)
-                # Add to separate group
-                groups[file_item.file_name] = [file_item]
+            if normalized_title not in groups:
+                groups[normalized_title] = []
+            groups[normalized_title].append(file_item)
 
         return groups
 
@@ -375,20 +372,20 @@ class TMDBMatchingWorker(QObject):
 
         try:
             config = get_config()
-            api_key = config.tmdb.api_key
+            api_key = config.api.tmdb.api_key
 
             if not api_key or len(api_key.strip()) == 0:
                 raise SecurityError(
                     code=ErrorCode.MISSING_CONFIG,
                     message="TMDB API key not configured in settings",
-                    context=ErrorContext(operation="validate_api_key"),
+                    context=ErrorContextModel(operation="validate_api_key"),
                 )
 
             if len(api_key) < 10:  # Basic validation
                 raise SecurityError(
                     code=ErrorCode.INVALID_CONFIG,
                     message=f"TMDB API key appears invalid (too short: {len(api_key)} characters)",
-                    context=ErrorContext(operation="validate_api_key"),
+                    context=ErrorContextModel(operation="validate_api_key"),
                 )
 
         except SecurityError:
@@ -400,6 +397,6 @@ class TMDBMatchingWorker(QObject):
             raise SecurityError(
                 code=ErrorCode.CONFIG_ERROR,
                 message=f"Failed to validate API key: {e}",
-                context=ErrorContext(operation="validate_api_key"),
+                context=ErrorContextModel(operation="validate_api_key"),
                 original_error=e,
             ) from e

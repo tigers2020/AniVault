@@ -18,7 +18,7 @@ from anivault.core.models import ScannedFile
 from anivault.shared.errors import (
     AniVaultParsingError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
 )
 
 from .strategies import BestMatcherStrategy, GroupingStrategy
@@ -187,7 +187,7 @@ class GroupingEngine:
                 msg = f"Weight for '{name}' must be between 0.0 and 1.0, got {weight}"
                 raise ValueError(msg)
 
-    def group_files(self, files: list[ScannedFile]) -> list[Group]:  # pylint: disable=too-many-locals,too-many-branches
+    def group_files(self, files: list[ScannedFile]) -> list[Group]:
         """Group files using Hash-first pipeline with optional Title refinement.
 
         This method implements a pipeline approach:
@@ -212,8 +212,46 @@ class GroupingEngine:
             return []
 
         # Step 1: Separate Hash and Title matchers
-        hash_matcher = None
-        title_matcher = None
+        hash_matcher, title_matcher, other_matchers = self._separate_matchers()
+
+        # Step 2: Run Hash matcher first (required for pipeline)
+        if hash_matcher is None:
+            logger.warning(
+                "Hash matcher not found, falling back to parallel execution",
+            )
+            return self._group_files_parallel(files)
+
+        hash_groups, matcher_results = self._run_hash_matcher(hash_matcher, files)
+        if not hash_groups and not matcher_results:
+            return []
+
+        # Step 3: Run Title matcher on Hash groups (if enabled)
+        self._refine_with_title_matcher(
+            title_matcher,
+            hash_groups,
+            matcher_results,
+        )
+
+        # Step 4: Run other matchers in parallel (if any)
+        self._run_other_matchers(other_matchers, files, matcher_results)
+
+        if not matcher_results:
+            logger.warning("All matchers failed, returning empty list")
+            return []
+
+        # Step 5: Use strategy to combine matcher results
+        return self._combine_matcher_results(matcher_results)
+
+    def _separate_matchers(
+        self,
+    ) -> tuple[BaseMatcher | None, BaseMatcher | None, list[BaseMatcher]]:
+        """Separate matchers by type (Hash, Title, Other).
+
+        Returns:
+            Tuple of (hash_matcher, title_matcher, other_matchers)
+        """
+        hash_matcher: BaseMatcher | None = None
+        title_matcher: BaseMatcher | None = None
         other_matchers: list[BaseMatcher] = []
 
         for matcher in self.matchers:
@@ -224,15 +262,24 @@ class GroupingEngine:
             else:
                 other_matchers.append(matcher)
 
-        # Step 2: Run Hash matcher first (required for pipeline)
-        matcher_results: dict[str, list[Group]] = {}
+        return hash_matcher, title_matcher, other_matchers
 
-        if hash_matcher is None:
-            logger.warning(
-                "Hash matcher not found, falling back to parallel execution",
-            )
-            # Fallback to original parallel execution
-            return self._group_files_parallel(files)
+    def _run_hash_matcher(
+        self,
+        hash_matcher: BaseMatcher,
+        files: list[ScannedFile],
+    ) -> tuple[list[Group], dict[str, list[Group]]]:
+        """Run Hash matcher and return results.
+
+        Args:
+            hash_matcher: Hash matcher instance
+            files: List of files to match
+
+        Returns:
+            Tuple of (hash_groups, matcher_results dict)
+            Returns empty lists on failure
+        """
+        matcher_results: dict[str, list[Group]] = {}
 
         try:
             logger.debug("Running Hash matcher (pipeline step 1)")
@@ -243,9 +290,10 @@ class GroupingEngine:
                 "Hash matcher produced %d group(s)",
                 len(hash_groups),
             )
+            return hash_groups, matcher_results
+
         except (KeyError, ValueError, AttributeError, TypeError) as e:
-            # Data structure access errors during hash matching
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="hash_matcher_match",
                 additional_data={"file_count": len(files)},
             )
@@ -256,11 +304,10 @@ class GroupingEngine:
                 original_error=e,
             )
             logger.exception("Hash matcher failed, cannot continue pipeline: %s", error.message)
-            # Hash matcher failure is critical for pipeline
-            return []
+            return [], {}
+
         except Exception as e:  # pylint: disable=broad-exception-caught
-            # Unexpected errors during hash matching (catch-all for unknown exceptions)
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="hash_matcher_match",
                 additional_data={"file_count": len(files)},
             )
@@ -271,64 +318,87 @@ class GroupingEngine:
                 original_error=e,
             )
             logger.exception("Hash matcher failed, cannot continue pipeline: %s", error.message)
-            # Hash matcher failure is critical for pipeline
-            return []
+            return [], {}
 
-        # Step 3: Run Title matcher on Hash groups (if enabled)
+    def _refine_with_title_matcher(
+        self,
+        title_matcher: BaseMatcher | None,
+        hash_groups: list[Group],
+        matcher_results: dict[str, list[Group]],
+    ) -> None:
+        """Refine Hash groups using Title matcher if enabled.
+
+        Args:
+            title_matcher: Title matcher instance or None
+            hash_groups: List of groups from Hash matcher
+            matcher_results: Dictionary to update with Title matcher results
+        """
+        if title_matcher is None:
+            return
+
         grouping_settings = self._get_grouping_settings()
-        use_title_matcher = grouping_settings.use_title_matcher
-        max_title_match_group_size = grouping_settings.max_title_match_group_size
+        if not grouping_settings.use_title_matcher:
+            return
 
-        if use_title_matcher and title_matcher is not None:
-            try:
-                logger.debug(
-                    "Running Title matcher on %d Hash group(s) (pipeline step 2)",
-                    len(hash_groups),
-                )
-                title_groups = self._refine_groups_with_title_matcher(
-                    hash_groups,
-                    title_matcher,
-                    hash_weight=self.weights.get("hash", 0.0),
-                    title_weight=self.weights.get("title", 0.0),
-                    max_title_match_group_size=max_title_match_group_size,
-                )
-                matcher_results["title"] = title_groups
+        try:
+            logger.debug(
+                "Running Title matcher on %d Hash group(s) (pipeline step 2)",
+                len(hash_groups),
+            )
+            title_groups = self._refine_groups_with_title_matcher(
+                hash_groups,
+                title_matcher,
+                hash_weight=self.weights.get("hash", 0.0),
+                title_weight=self.weights.get("title", 0.0),
+                max_title_match_group_size=grouping_settings.max_title_match_group_size,
+            )
+            matcher_results["title"] = title_groups
 
-                logger.info(
-                    "Title matcher refined %d Hash group(s) into %d group(s)",
-                    len(hash_groups),
-                    len(title_groups),
-                )
-            except (KeyError, ValueError, AttributeError, TypeError) as e:
-                # Data structure access errors during title matching
-                context = ErrorContext(
-                    operation="title_matcher_refine",
-                    additional_data={"hash_group_count": len(hash_groups)},
-                )
-                error = AniVaultParsingError(
-                    ErrorCode.FILE_GROUPING_FAILED,
-                    f"Title matcher failed due to data parsing error: {e}",
-                    context,
-                    original_error=e,
-                )
-                logger.exception("Title matcher failed, using Hash results only: %s", error.message)
-                # Title matcher failure is non-critical, use Hash results
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                # Unexpected errors during title matching (catch-all for unknown exceptions)
-                context = ErrorContext(
-                    operation="title_matcher_refine",
-                    additional_data={"hash_group_count": len(hash_groups)},
-                )
-                error = AniVaultParsingError(
-                    ErrorCode.FILE_GROUPING_FAILED,
-                    f"Title matcher failed, using Hash results only: {e}",
-                    context,
-                    original_error=e,
-                )
-                logger.exception("Title matcher failed, using Hash results only: %s", error.message)
-                # Title matcher failure is non-critical, use Hash results
+            logger.info(
+                "Title matcher refined %d Hash group(s) into %d group(s)",
+                len(hash_groups),
+                len(title_groups),
+            )
 
-        # Step 4: Run other matchers in parallel (if any)
+        except (KeyError, ValueError, AttributeError, TypeError) as e:
+            context = ErrorContextModel(
+                operation="title_matcher_refine",
+                additional_data={"hash_group_count": len(hash_groups)},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"Title matcher failed due to data parsing error: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Title matcher failed, using Hash results only: %s", error.message)
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            context = ErrorContextModel(
+                operation="title_matcher_refine",
+                additional_data={"hash_group_count": len(hash_groups)},
+            )
+            error = AniVaultParsingError(
+                ErrorCode.FILE_GROUPING_FAILED,
+                f"Title matcher failed, using Hash results only: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Title matcher failed, using Hash results only: %s", error.message)
+
+    def _run_other_matchers(
+        self,
+        other_matchers: list[BaseMatcher],
+        files: list[ScannedFile],
+        matcher_results: dict[str, list[Group]],
+    ) -> None:
+        """Run other matchers in parallel and update results.
+
+        Args:
+            other_matchers: List of matchers to run
+            files: List of files to match
+            matcher_results: Dictionary to update with matcher results
+        """
         for matcher in other_matchers:
             try:
                 logger.debug(
@@ -343,9 +413,9 @@ class GroupingEngine:
                     matcher.component_name,
                     len(groups),
                 )
+
             except (KeyError, ValueError, AttributeError, TypeError) as e:
-                # Data structure access errors during matching
-                context = ErrorContext(
+                context = ErrorContextModel(
                     operation="other_matcher_match_step4",
                     additional_data={
                         "matcher_name": matcher.component_name,
@@ -359,11 +429,10 @@ class GroupingEngine:
                     original_error=e,
                 )
                 logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
-                # Skip failed matcher
                 continue
+
             except Exception as e:  # pylint: disable=broad-exception-caught
-                # Unexpected errors during matching (catch-all for unknown exceptions)
-                context = ErrorContext(
+                context = ErrorContextModel(
                     operation="other_matcher_match_step4",
                     additional_data={
                         "matcher_name": matcher.component_name,
@@ -377,14 +446,20 @@ class GroupingEngine:
                     original_error=e,
                 )
                 logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
-                # Skip failed matcher
                 continue
 
-        if not matcher_results:
-            logger.warning("All matchers failed, returning empty list")
-            return []
+    def _combine_matcher_results(
+        self,
+        matcher_results: dict[str, list[Group]],
+    ) -> list[Group]:
+        """Combine matcher results using strategy pattern.
 
-        # Step 5: Use strategy to combine matcher results
+        Args:
+            matcher_results: Dictionary of matcher results
+
+        Returns:
+            List of combined Group objects
+        """
         result_groups = self.strategy.combine_results(
             matcher_results=matcher_results,
             weights=self.weights,
@@ -427,7 +502,7 @@ class GroupingEngine:
                 )
             except (KeyError, ValueError, AttributeError, TypeError) as e:
                 # Data structure access errors during parallel matching
-                context = ErrorContext(
+                context = ErrorContextModel(
                     operation="parallel_matcher_match",
                     additional_data={
                         "matcher_name": matcher.component_name,
@@ -445,7 +520,7 @@ class GroupingEngine:
                 continue
             except Exception as e:  # pylint: disable=broad-exception-caught
                 # Unexpected errors during parallel matching (catch-all for unknown exceptions)
-                context = ErrorContext(
+                context = ErrorContextModel(
                     operation="parallel_matcher_match",
                     additional_data={
                         "matcher_name": matcher.component_name,
@@ -567,7 +642,7 @@ class GroupingEngine:
 
             except (KeyError, ValueError, AttributeError, TypeError) as e:
                 # Data structure access errors during title refinement per group
-                context = ErrorContext(
+                context = ErrorContextModel(
                     operation="title_matcher_refine_per_group",
                     additional_data={
                         "group_title": hash_group.title,
@@ -593,7 +668,7 @@ class GroupingEngine:
             except Exception as e:  # pylint: disable=broad-exception-caught
                 # Unexpected errors during title refinement per group
                 # (catch-all for unknown exceptions)
-                context = ErrorContext(
+                context = ErrorContextModel(
                     operation="title_matcher_refine_per_group",
                     additional_data={
                         "group_title": hash_group.title,
@@ -697,4 +772,4 @@ class GroupingEngine:
         )
 
 
-__all__ = ["DEFAULT_WEIGHTS", "GroupingEngine"]
+__all__ = ["GroupingEngine"]

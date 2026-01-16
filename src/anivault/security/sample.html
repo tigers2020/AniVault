@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AniVault - 애니메이션 컬렉션 관리</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      color: #333;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100%;
+      background: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.2rem 2rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .header-actions { display: flex; gap: 12px; }
+
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: white;
+      color: #667eea;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255,255,255,0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .btn-secondary:hover { background: rgba(255,255,255,0.3); }
+
+    /* Main */
+    .main-content {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: white;
+      border-right: 1px solid #e2e8f0;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .sidebar-section { margin-bottom: 2rem; }
+
+    .sidebar-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.8rem;
+    }
+
+    .sidebar-item {
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.4rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      user-select: none;
+    }
+
+    .sidebar-item:hover { background: #f1f5f9; }
+
+    .sidebar-item.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .stats-card {
+      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+      padding: 1rem;
+      border-radius: 10px;
+      margin-top: 1rem;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .stat-item:last-child { border-bottom: none; }
+
+    .stat-label { font-size: 0.85rem; color: #64748b; }
+
+    .stat-value { font-weight: 600; color: #667eea; }
+
+    /* Workspace */
+    .workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+
+    .toolbar {
+      background: white;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar .hint {
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+
+    .search-box { flex: 1; max-width: 420px; position: relative; }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.7rem 1rem 0.7rem 2.5rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      background: #fff;
+    }
+
+    .search-box input:focus { outline: none; border-color: #667eea; }
+
+    .search-icon {
+      position: absolute;
+      left: 0.8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+    }
+
+    /* View container */
+    .view-container {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .view {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      display: none;
+    }
+
+    .view.active { display: block; }
+
+    /* Cards & panels */
+    .panel {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .muted { color: #64748b; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 1100px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .sidebar { width: 250px; }
+    }
+
+    /* Groups view */
+    .groups-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .group-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s;
+      cursor: pointer;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    .group-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(102,126,234,0.2);
+    }
+
+    .group-card-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.2rem;
+    }
+
+    .group-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .group-meta {
+      font-size: 0.85rem;
+      opacity: 0.9;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .group-card-body { padding: 1.2rem; }
+
+    .group-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .info-badge {
+      padding: 0.4rem 0.8rem;
+      background: #f1f5f9;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    .file-count { color: #667eea; font-weight: 800; }
+
+    .group-progress { margin-top: 1rem; }
+
+    .progress-label {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.8rem;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    th {
+      color: #475569;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: #eef2ff;
+      color: #4f46e5;
+      border: 1px solid rgba(79,70,229,0.15);
+    }
+
+    .tag.warn { background: #fffbeb; color: #b45309; border-color: rgba(180,83,9,0.15); }
+    .tag.ok { background: #ecfdf5; color: #047857; border-color: rgba(4,120,87,0.15); }
+
+    /* Detail panel */
+    .detail-panel {
+      position: fixed;
+      right: -500px;
+      top: 0;
+      width: 500px;
+      height: 100vh;
+      background: white;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+      transition: right 0.3s;
+      z-index: 1000;
+      overflow-y: auto;
+      border-left: 1px solid #e2e8f0;
+    }
+
+    .detail-panel.open { right: 0; }
+
+    .detail-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .detail-close {
+      position: absolute;
+      right: 1rem;
+      top: 1rem;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-close:hover { background: rgba(255,255,255,0.3); }
+
+    .detail-content { padding: 1.5rem; }
+
+    .detail-section { margin-bottom: 2rem; }
+
+    .detail-section-title {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #64748b;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .file-list { list-style: none; }
+
+    .file-item {
+      padding: 1rem;
+      background: #f8fafc;
+      border-radius: 8px;
+      margin-bottom: 0.8rem;
+      border-left: 3px solid #667eea;
+    }
+
+    .file-name {
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      word-break: break-all;
+    }
+
+    .file-meta { font-size: 0.8rem; color: #64748b; }
+
+    .action-buttons { display: flex; gap: 0.8rem; margin-top: 1.5rem; }
+
+    .btn-action {
+      flex: 1;
+      padding: 0.8rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-match { background: #667eea; color: white; }
+    .btn-match:hover { background: #5568d3; }
+
+    .btn-organize { background: #10b981; color: white; }
+    .btn-organize:hover { background: #059669; }
+
+    .btn-ghost {
+      background: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+    }
+    .btn-ghost:hover { background: #e2e8f0; }
+
+    /* Status bar */
+    .status-bar {
+      background: white;
+      border-top: 1px solid #e2e8f0;
+      padding: 0.8rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+
+    .status-left { display: flex; gap: 2rem; }
+
+    .status-item { display: flex; align-items: center; gap: 6px; }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    /* Loading */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loading-overlay.active { display: flex; }
+
+    .loading-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+      width: min(520px, 92vw);
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: white;
+      border-radius: 14px;
+      width: min(780px, 96vw);
+      max-height: 86vh;
+      overflow: auto;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+      border: 1px solid rgba(226,232,240,0.9);
+    }
+
+    .modal-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 1;
+    }
+
+    .modal-body { padding: 1.25rem; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.85rem;
+      color: #475569;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border-radius: 10px;
+      border: 2px solid #e2e8f0;
+      outline: none;
+      transition: border-color 0.2s;
+      font-size: 0.95rem;
+    }
+
+    .field input:focus, .field select:focus { border-color: #667eea; }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      padding: 1rem 1.25rem;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    @media (max-width: 720px) {
+      .form-row { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <div class="logo">
+          <div class="logo-icon">📁</div>
+          <div>
+            <div>AniVault</div>
+            <div style="font-size: 0.7rem; opacity: 0.8;">v1.0.0</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="btnSettings">⚙️ 설정</button>
+          <button class="btn btn-primary" onclick="scanDirectory()">📂 디렉터리 스캔</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <div class="main-content">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-title">작업</div>
+          <div class="sidebar-item active" data-view="groups">📊 그룹 관리</div>
+          <div class="sidebar-item" data-view="tmdb">🎬 TMDB 매칭</div>
+          <div class="sidebar-item" data-view="organize">📦 파일 정리</div>
+          <div class="sidebar-item" data-view="rollback">↩️ 롤백 관리</div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">도구</div>
+          <div class="sidebar-item" data-view="verify">✅ 검증</div>
+          <div class="sidebar-item" data-view="cache">💾 캐시 관리</div>
+          <div class="sidebar-item" data-view="logs">📝 로그 보기</div>
+        </div>
+
+        <div class="stats-card">
+          <div class="sidebar-title">통계</div>
+          <div class="stat-item">
+            <span class="stat-label">총 그룹</span>
+            <span class="stat-value" id="totalGroups">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">총 파일</span>
+            <span class="stat-value" id="totalFiles">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">매칭 완료</span>
+            <span class="stat-value" id="matchedGroups">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">정리 대기</span>
+            <span class="stat-value" id="pendingOrganize">0</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Workspace -->
+      <main class="workspace">
+        <!-- Context toolbar (changes per view) -->
+        <div class="toolbar" id="toolbar">
+          <!-- injected -->
+        </div>
+
+        <!-- Views -->
+        <div class="view-container">
+          <!-- Groups -->
+          <section class="view active" id="view-groups">
+            <div class="groups-grid" id="groupsGrid"></div>
+          </section>
+
+          <!-- TMDB -->
+          <section class="view" id="view-tmdb">
+            <div class="grid-2">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">미매칭 그룹 큐</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">자동 추천 후보를 확인하고 확정 매칭을 수행합니다.</div>
+                  </div>
+                  <button class="btn btn-ghost" onclick="runTmdbBatchSuggest()">✨ 자동 추천</button>
+                </div>
+                <div style="overflow:auto; border-radius:12px; border:1px solid #e2e8f0;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width:38%">그룹</th>
+                        <th style="width:22%">상태</th>
+                        <th style="width:22%">추천 후보</th>
+                        <th style="width:18%">액션</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tmdbQueue"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">선택된 그룹</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">후보를 선택하고 ‘확정 매칭’을 누르세요.</div>
+                  </div>
+                  <div style="display:flex; gap:10px;">
+                    <button class="btn btn-ghost" onclick="clearTmdbSelection()">선택 해제</button>
+                    <button class="btn btn-primary" onclick="confirmTmdbMatch()">✅ 확정 매칭</button>
+                  </div>
+                </div>
+
+                <div id="tmdbSelected" class="muted" style="font-size:0.95rem;">
+                  좌측 큐에서 그룹을 선택하세요.
+                </div>
+
+                <div style="margin-top:1rem;">
+                  <div class="panel-title" style="font-size:0.95rem; margin-bottom:0.6rem;">추천 후보</div>
+                  <div id="tmdbCandidates" class="muted" style="font-size:0.9rem;">선택된 그룹이 없습니다.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Organize -->
+          <section class="view" id="view-organize">
+            <div class="grid-3">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">정리 규칙</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">샘플 룰셋(프리셋) 적용</div>
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <div class="info-badge" style="display:block;">폴더: /Anime/{Title}/Season {S}</div>
+                  <div class="info-badge" style="display:block;">파일명: {Title}.S{S}E{E}.{Res}.{Lang}</div>
+                  <div class="info-badge" style="display:block;">부가: 자막/메타데이터 분리 저장</div>
+                  <button class="btn btn-primary" onclick="applyRulePreset()" style="justify-content:center;">프리셋 적용</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">정리 대기 큐</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">매칭 완료 그룹만 정리 가능</div>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn btn-ghost" onclick="refreshOrganizeQueue()">🔄 새로고침</button>
+                    <button class="btn btn-primary" onclick="executeAllOrganize()">▶️ 전체 실행</button>
+                  </div>
+                </div>
+                <div style="overflow:auto; border-radius:12px; border:1px solid #e2e8f0; max-height:420px;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>그룹</th>
+                        <th>파일</th>
+                        <th>대상 경로</th>
+                        <th>액션</th>
+                      </tr>
+                    </thead>
+                    <tbody id="organizeQueue"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">프리플라이트 체크</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">충돌/권한/중복 검사</div>
+                  </div>
+                  <button class="btn btn-primary" onclick="runPreflight()">🧪 체크 실행</button>
+                </div>
+                <div id="preflightResults" style="display:flex; flex-direction:column; gap:10px;">
+                  <div class="tag">대기</div>
+                  <div class="muted" style="font-size:0.9rem;">정리 작업 전에 체크를 실행해 안전성을 확보합니다.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:1rem;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">실행 로그 (정리)</div>
+                  <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">최근 작업/에러/롤백 포인트 기록</div>
+                </div>
+                <button class="btn btn-ghost" onclick="appendOrganizeLog()">➕ 샘플 로그 추가</button>
+              </div>
+              <div id="organizeLog" class="muted" style="font-size:0.9rem; line-height:1.7; white-space:pre-wrap;"></div>
+            </div>
+          </section>
+
+          <!-- Rollback -->
+          <section class="view" id="view-rollback">
+            <div class="grid-2">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">롤백 포인트</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">정리 실행마다 자동 생성</div>
+                  </div>
+                  <button class="btn btn-ghost" onclick="seedRollback()">🧷 샘플 생성</button>
+                </div>
+                <div style="overflow:auto; border-radius:12px; border:1px solid #e2e8f0; max-height:520px;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>시간</th>
+                        <th>그룹</th>
+                        <th>변경</th>
+                        <th>상태</th>
+                        <th>액션</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rollbackTable"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">선택 상세</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">롤백 대상 파일/경로를 확인</div>
+                  </div>
+                  <button class="btn btn-primary" onclick="executeRollback()">↩️ 롤백 실행</button>
+                </div>
+                <div id="rollbackDetail" class="muted" style="font-size:0.95rem;">테이블에서 항목을 선택하세요.</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Cache -->
+          <section class="view" id="view-cache">
+            <div class="grid-3">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">캐시 상태</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">메타데이터/이미지/검색 인덱스</div>
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <div class="info-badge" style="display:block;">TMDB 캐시: <strong id="cacheTmdb">정상</strong></div>
+                  <div class="info-badge" style="display:block;">이미지 캐시: <strong id="cacheImages">정상</strong></div>
+                  <div class="info-badge" style="display:block;">인덱스 캐시: <strong id="cacheIndex">정상</strong></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">유지보수</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">정리/검증/재빌드</div>
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <button class="btn btn-ghost" onclick="pruneCache()" style="justify-content:center;">🧹 오래된 캐시 정리</button>
+                  <button class="btn btn-ghost" onclick="verifyCache()" style="justify-content:center;">✅ 캐시 무결성 검사</button>
+                  <button class="btn btn-primary" onclick="rebuildIndex()" style="justify-content:center;">🧱 인덱스 재빌드</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">용량</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">샘플 수치</div>
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <div class="info-badge" style="display:block;">총 캐시: <strong id="cacheTotal">1.2 GB</strong></div>
+                  <div class="info-badge" style="display:block;">TMDB: <strong id="cacheTotalTmdb">220 MB</strong></div>
+                  <div class="info-badge" style="display:block;">이미지: <strong id="cacheTotalImages">720 MB</strong></div>
+                  <div class="info-badge" style="display:block;">인덱스: <strong id="cacheTotalIndex">260 MB</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:1rem;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">캐시 이벤트</div>
+                  <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">최근 정리/재빌드 기록</div>
+                </div>
+                <button class="btn btn-ghost" onclick="appendCacheEvent()">➕ 이벤트 추가</button>
+              </div>
+              <div id="cacheEvents" class="muted" style="font-size:0.9rem; line-height:1.7; white-space:pre-wrap;"></div>
+            </div>
+          </section>
+
+          <!-- Verify -->
+          <section class="view" id="view-verify">
+            <div class="grid-2">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">TMDB 연결 검증</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">API 키 및 연결 상태 확인</div>
+                  </div>
+                  <button class="btn btn-primary" onclick="runVerify()">🔍 검증 실행</button>
+                </div>
+                <div id="verifyResults" style="display:flex; flex-direction:column; gap:1rem;">
+                  <div class="tag">대기</div>
+                  <div class="muted" style="font-size:0.9rem;">검증을 실행하여 TMDB 연결 상태를 확인하세요.</div>
+                </div>
+                <div style="margin-top:1.5rem;">
+                  <div class="panel-title" style="font-size:0.95rem; margin-bottom:0.8rem;">검증 항목</div>
+                  <div style="display:flex; flex-direction:column; gap:0.8rem;">
+                    <div style="display:flex; align-items:center; gap:0.8rem;">
+                      <div class="tag" id="verifyApiKey">⚠️ API 키</div>
+                      <span class="muted" style="font-size:0.85rem;">API 키 유효성 검사</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.8rem;">
+                      <div class="tag" id="verifyConnectivity">⚠️ 연결</div>
+                      <span class="muted" style="font-size:0.85rem;">TMDB 서버 연결 테스트</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.8rem;">
+                      <div class="tag" id="verifyAuth">⚠️ 인증</div>
+                      <span class="muted" style="font-size:0.85rem;">API 키 인증 검증</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">설정 검증</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">설정 파일 및 옵션 확인</div>
+                  </div>
+                  <button class="btn btn-ghost" onclick="verifySettings()">⚙️ 설정 검증</button>
+                </div>
+                <div id="settingsVerifyResults" style="display:flex; flex-direction:column; gap:1rem;">
+                  <div class="tag">대기</div>
+                  <div class="muted" style="font-size:0.9rem;">설정 검증을 실행하여 구성 파일의 유효성을 확인하세요.</div>
+                </div>
+                <div style="margin-top:1.5rem;">
+                  <div class="panel-title" style="font-size:0.95rem; margin-bottom:0.8rem;">설정 상태</div>
+                  <div style="display:flex; flex-direction:column; gap:0.8rem;">
+                    <div class="info-badge" style="display:block;">
+                      <strong>설정 파일:</strong> <span id="configFileStatus">확인 필요</span>
+                    </div>
+                    <div class="info-badge" style="display:block;">
+                      <strong>API 키 설정:</strong> <span id="apiKeyConfigStatus">확인 필요</span>
+                    </div>
+                    <div class="info-badge" style="display:block;">
+                      <strong>폴더 경로:</strong> <span id="folderPathStatus">확인 필요</span>
+                    </div>
+                    <div class="info-badge" style="display:block;">
+                      <strong>자동 스캔:</strong> <span id="autoScanStatus">확인 필요</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Logs -->
+          <section class="view" id="view-logs">
+            <div class="grid-2">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">로그 필터</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">레벨/모듈별 조회</div>
+                  </div>
+                  <button class="btn btn-ghost" onclick="seedLogs()">🧾 샘플 채우기</button>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>레벨</label>
+                    <select id="logLevel" onchange="renderLogs()">
+                      <option value="ALL">ALL</option>
+                      <option value="INFO">INFO</option>
+                      <option value="WARN">WARN</option>
+                      <option value="ERROR">ERROR</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>모듈</label>
+                    <select id="logModule" onchange="renderLogs()">
+                      <option value="ALL">ALL</option>
+                      <option value="scanner">scanner</option>
+                      <option value="tmdb">tmdb</option>
+                      <option value="organizer">organizer</option>
+                      <option value="cache">cache</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>검색</label>
+                  <input id="logQuery" placeholder="메시지 검색..." oninput="renderLogs()" />
+                </div>
+                <div style="margin-top:1rem; display:flex; gap:10px;">
+                  <button class="btn btn-ghost" onclick="clearLogs()">지우기</button>
+                  <button class="btn btn-primary" onclick="exportLogs()">내보내기(샘플)</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">실시간 로그</div>
+                    <div class="muted" style="font-size:0.85rem; margin-top:0.25rem;">스크롤 하단으로 자동 유지(샘플)</div>
+                  </div>
+                  <button class="btn btn-ghost" onclick="appendLog()">➕ 로그 추가</button>
+                </div>
+                <div id="logViewer" style="height:520px; overflow:auto; background:#0b1020; color:#e5e7eb; border-radius:12px; padding:0.9rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:0.85rem; line-height:1.6;"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="status-left">
+        <div class="status-item">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">시스템 준비</span>
+        </div>
+        <div class="status-item">
+          <span>🗺️</span>
+          <span id="currentPath">디렉터리를 선택하세요</span>
+        </div>
+      </div>
+      <div class="status-item">
+        <span>캐시: <strong id="cacheStatus">활성</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail panel -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <button class="detail-close" onclick="closeDetailPanel()">×</button>
+      <h2 id="detailTitle">그룹 상세</h2>
+      <div id="detailMeta" style="margin-top: 0.5rem; opacity: 0.9; font-size: 0.9rem;"></div>
+    </div>
+    <div class="detail-content">
+      <div class="detail-section">
+        <div class="detail-section-title">그룹 정보</div>
+        <div id="detailInfo"></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">파일 목록</div>
+        <ul class="file-list" id="detailFiles"></ul>
+      </div>
+      <div class="action-buttons">
+        <button class="btn-action btn-match" onclick="matchGroup()">TMDB 매칭</button>
+        <button class="btn-action btn-organize" onclick="organizeGroup()">파일 정리</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <div id="loadingMessage">처리 중...</div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal" style="width: min(900px, 96vw);">
+      <div class="modal-header">
+        <div>
+          <div class="panel-title" style="font-size:1.05rem;">설정</div>
+          <div class="muted" style="font-size:0.85rem; margin-top:0.15rem;">TMDB API 키 및 폴더 설정</div>
+        </div>
+        <button class="btn btn-ghost" onclick="closeSettings()">닫기</button>
+      </div>
+      <div class="modal-body" style="padding:0;">
+        <!-- Tab Navigation -->
+        <div style="display:flex; border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+          <button class="tab-btn active" id="tabApiKey" onclick="switchSettingsTab('api')" style="padding:1rem 1.5rem; border:none; background:none; cursor:pointer; border-bottom:2px solid #667eea; font-weight:600; color:#667eea;">
+            API Key
+          </button>
+          <button class="tab-btn" id="tabFolders" onclick="switchSettingsTab('folders')" style="padding:1rem 1.5rem; border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; font-weight:500; color:#64748b;">
+            Folders
+          </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div style="padding:1.5rem;">
+          <!-- API Key Tab -->
+          <div id="settingsTabApi" class="settings-tab-content active">
+            <div class="field">
+              <label>TMDB API Key</label>
+              <input id="settingApiKey" type="password" placeholder="Enter your TMDB API key" />
+              <div class="muted" style="font-size:0.85rem; margin-top:0.5rem;">
+                Get your API key from: <a href="https://www.themoviedb.org/settings/api" target="_blank" style="color:#667eea;">https://www.themoviedb.org/settings/api</a>
+              </div>
+            </div>
+            <div style="margin-top:1.5rem; padding:1rem; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+              <div class="panel-title" style="font-size:0.9rem; margin-bottom:0.5rem;">💡 참고</div>
+              <div class="muted" style="font-size:0.85rem; line-height:1.6;">
+                API 키는 .env 파일에 안전하게 저장됩니다. (config.toml에는 저장되지 않음)
+              </div>
+            </div>
+          </div>
+
+          <!-- Folders Tab -->
+          <div id="settingsTabFolders" class="settings-tab-content" style="display:none;">
+            <!-- Source Folder -->
+            <div class="field" style="margin-bottom:1.5rem;">
+              <label>Source Folder</label>
+              <div style="display:flex; gap:0.5rem;">
+                <input id="settingSourceFolder" type="text" placeholder="Select source folder for media files" style="flex:1;" />
+                <button class="btn btn-ghost" onclick="browseFolder('source')">Browse...</button>
+              </div>
+              <div class="muted" style="font-size:0.85rem; margin-top:0.5rem;">미디어 파일이 있는 소스 폴더</div>
+            </div>
+
+            <!-- Target Folder -->
+            <div class="field" style="margin-bottom:1.5rem;">
+              <label>Target Folder</label>
+              <div style="display:flex; gap:0.5rem;">
+                <input id="settingTargetFolder" type="text" placeholder="Select target folder for organized files" style="flex:1;" />
+                <button class="btn btn-ghost" onclick="browseFolder('target')">Browse...</button>
+              </div>
+              <div class="muted" style="font-size:0.85rem; margin-top:0.5rem;">정리된 파일을 저장할 대상 폴더</div>
+            </div>
+
+            <!-- Organization Options -->
+            <div style="margin-bottom:1.5rem; padding:1rem; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+              <div class="panel-title" style="font-size:0.9rem; margin-bottom:0.8rem;">정리 옵션</div>
+              <div style="display:flex; flex-direction:column; gap:0.8rem;">
+                <label style="display:flex; align-items:center; gap:0.8rem; cursor:pointer;">
+                  <input id="settingOrganizeByResolution" type="checkbox" style="width:18px; height:18px;" />
+                  <span>해상도별로 정리 (1080p, 720p 등)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:0.8rem; cursor:pointer;">
+                  <input id="settingOrganizeByYear" type="checkbox" style="width:18px; height:18px;" />
+                  <span>출시 연도별로 정리 (2013, 2020 등)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Auto Scan Settings -->
+            <div style="padding:1rem; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+              <div class="panel-title" style="font-size:0.9rem; margin-bottom:0.8rem;">자동 스캔 설정</div>
+              <div style="display:flex; flex-direction:column; gap:1rem;">
+                <label style="display:flex; align-items:center; gap:0.8rem; cursor:pointer;">
+                  <input id="settingAutoScanStartup" type="checkbox" style="width:18px; height:18px;" />
+                  <span>시작 시 소스 폴더 자동 스캔</span>
+                </label>
+                <div class="form-row">
+                  <div class="field">
+                    <label>스캔 간격 (분)</label>
+                    <input id="settingAutoScanInterval" type="number" min="0" max="1440" value="0" />
+                    <div class="muted" style="font-size:0.8rem; margin-top:0.25rem;">0 = 비활성화</div>
+                  </div>
+                  <div class="field">
+                    <label>하위 디렉터리 포함</label>
+                    <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; margin-top:0.5rem;">
+                      <input id="settingIncludeSubdirs" type="checkbox" checked style="width:18px; height:18px;" />
+                      <span style="font-size:0.85rem;">하위 디렉터리 포함</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="resetSettings()">초기화</button>
+        <button class="btn btn-primary" onclick="saveSettings()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .tab-btn:hover {
+      background: rgba(102,126,234,0.05);
+    }
+    .tab-btn.active {
+      color: #667eea;
+    }
+    .settings-tab-content {
+      display: none;
+    }
+    .settings-tab-content.active {
+      display: block;
+    }
+  </style>
+
+  <script>
+    // ===== Sample data =====
+    const sampleGroups = [
+      { id: 1, title: "진격의 거인 Season 4", season: 4, episodes: 16, files: 16, matched: true,  confidence: 95, resolution: "1080p", language: "ko" },
+      { id: 2, title: "귀멸의 칼날 무한열차편",  season: 1, episodes: 7,  files: 7,  matched: true,  confidence: 98, resolution: "1080p", language: "ko" },
+      { id: 3, title: "주술회전 Season 2",         season: 2, episodes: 23, files: 23, matched: false, confidence: 0,  resolution: "1080p", language: "ko" },
+      { id: 4, title: "나의 히어로 아카데미아 Season 6", season: 6, episodes: 25, files: 25, matched: true, confidence: 92, resolution: "720p",  language: "ko" }
+    ];
+
+    let currentGroups = [...sampleGroups];
+    let selectedGroup = null;
+    let currentView = 'groups';
+
+    // TMDB view state
+    let tmdbSelectedId = null;
+    const tmdbSuggestions = new Map(); // groupId -> candidates
+
+    // Rollback state
+    let rollbackItems = [];
+    let rollbackSelectedId = null;
+
+    // Logs state
+    let logs = [];
+
+    // ===== Init =====
+    function init() {
+      wireSidebar();
+      renderToolbarForView('groups');
+      renderGroups(currentGroups);
+      updateStats();
+
+      renderTmdbQueue();
+      refreshOrganizeQueue();
+      seedRollback();
+      seedLogs();
+      renderLogs();
+      
+      // Initialize verify view
+      document.getElementById('verifyResults').innerHTML = `
+        <div class="tag">대기</div>
+        <div class="muted" style="font-size:0.9rem;">검증을 실행하여 TMDB 연결 상태를 확인하세요.</div>
+      `;
+      document.getElementById('settingsVerifyResults').innerHTML = `
+        <div class="tag">대기</div>
+        <div class="muted" style="font-size:0.9rem;">설정 검증을 실행하여 구성 파일의 유효성을 확인하세요.</div>
+      `;
+
+      document.getElementById('btnSettings').addEventListener('click', openSettings);
+
+      // seed
+      document.getElementById('organizeLog').textContent = "[ready] 정리 모듈 준비 완료\n";
+      document.getElementById('cacheEvents').textContent = "[ready] 캐시 모듈 준비 완료\n";
+    }
+
+    function wireSidebar() {
+      const items = document.querySelectorAll('.sidebar-item[data-view]');
+      items.forEach(item => {
+        item.addEventListener('click', () => switchView(item.dataset.view));
+      });
+    }
+
+    // ===== View switching =====
+    function switchView(view) {
+      currentView = view;
+
+      // sidebar active
+      const items = document.querySelectorAll('.sidebar-item[data-view]');
+      items.forEach(i => i.classList.toggle('active', i.dataset.view === view));
+
+      // show view
+      const views = document.querySelectorAll('.view');
+      views.forEach(v => v.classList.remove('active'));
+      const active = document.getElementById(`view-${view}`);
+      if (active) active.classList.add('active');
+
+      // toolbar
+      renderToolbarForView(view);
+
+      // status
+      setStatus(`탭 전환: ${view}`, 'ok');
+    }
+
+    function renderToolbarForView(view) {
+      const toolbar = document.getElementById('toolbar');
+
+      // default
+      const commonRight = `
+        <span class="hint">현재 탭: <strong>${labelForView(view)}</strong></span>
+      `;
+
+      if (view === 'groups') {
+        toolbar.innerHTML = `
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input id="groupSearch" type="text" placeholder="그룹 또는 파일 검색..." oninput="searchGroups(this.value)" />
+          </div>
+          <button class="btn btn-secondary" onclick="filterGroups('all')">전체</button>
+          <button class="btn btn-secondary" onclick="filterGroups('matched')">매칭됨</button>
+          <button class="btn btn-secondary" onclick="filterGroups('unmatched')">미매칭</button>
+          ${commonRight}
+        `;
+        return;
+      }
+
+      if (view === 'tmdb') {
+        toolbar.innerHTML = `
+          <div class="search-box">
+            <span class="search-icon">🎬</span>
+            <input id="tmdbSearch" type="text" placeholder="TMDB 후보 검색(샘플)" oninput="noop()" />
+          </div>
+          <button class="btn btn-secondary" onclick="runTmdbBatchSuggest()">자동 추천</button>
+          <button class="btn btn-secondary" onclick="confirmTmdbMatch()">확정 매칭</button>
+          <button class="btn btn-secondary" onclick="clearTmdbSelection()">선택 해제</button>
+          ${commonRight}
+        `;
+        return;
+      }
+
+      if (view === 'organize') {
+        toolbar.innerHTML = `
+          <div class="search-box">
+            <span class="search-icon">📦</span>
+            <input type="text" placeholder="정리 큐 검색(샘플)" oninput="noop()" />
+          </div>
+          <button class="btn btn-secondary" onclick="runPreflight()">프리플라이트</button>
+          <button class="btn btn-secondary" onclick="refreshOrganizeQueue()">새로고침</button>
+          <button class="btn btn-primary" onclick="executeAllOrganize()">▶️ 정리 작업 실행</button>
+          ${commonRight}
+        `;
+        return;
+      }
+
+      if (view === 'rollback') {
+        toolbar.innerHTML = `
+          <div class="search-box">
+            <span class="search-icon">↩️</span>
+            <input type="text" placeholder="롤백 항목 검색(샘플)" oninput="noop()" />
+          </div>
+          <button class="btn btn-secondary" onclick="seedRollback()">샘플 생성</button>
+          <button class="btn btn-secondary" onclick="executeRollback()">롤백 실행</button>
+          ${commonRight}
+        `;
+        return;
+      }
+
+      if (view === 'cache') {
+        toolbar.innerHTML = `
+          <div class="search-box">
+            <span class="search-icon">💾</span>
+            <input type="text" placeholder="캐시 키/리소스 검색(샘플)" oninput="noop()" />
+          </div>
+          <button class="btn btn-secondary" onclick="pruneCache()">정리</button>
+          <button class="btn btn-secondary" onclick="verifyCache()">검사</button>
+          <button class="btn btn-secondary" onclick="rebuildIndex()">재빌드</button>
+          ${commonRight}
+        `;
+        return;
+      }
+
+      if (view === 'verify') {
+        toolbar.innerHTML = `
+          <div class="search-box">
+            <span class="search-icon">✅</span>
+            <input type="text" placeholder="검증 결과 검색(샘플)" oninput="noop()" />
+          </div>
+          <button class="btn btn-secondary" onclick="runVerify()">TMDB 검증</button>
+          <button class="btn btn-secondary" onclick="verifySettings()">설정 검증</button>
+          <button class="btn btn-secondary" onclick="openSettings()">설정 열기</button>
+          ${commonRight}
+        `;
+        return;
+      }
+
+      if (view === 'logs') {
+        toolbar.innerHTML = `
+          <div class="search-box">
+            <span class="search-icon">📝</span>
+            <input type="text" placeholder="로그 빠른 검색(샘플)" oninput="document.getElementById('logQuery').value=this.value; renderLogs();" />
+          </div>
+          <button class="btn btn-secondary" onclick="appendLog()">로그 추가</button>
+          <button class="btn btn-secondary" onclick="clearLogs()">지우기</button>
+          ${commonRight}
+        `;
+        return;
+      }
+
+      toolbar.innerHTML = commonRight;
+    }
+
+    function labelForView(view) {
+      const map = {
+        groups: '그룹 관리',
+        tmdb: 'TMDB 매칭',
+        organize: '파일 정리',
+        rollback: '롤백 관리',
+        verify: '검증',
+        cache: '캐시 관리',
+        logs: '로그 보기'
+      };
+      return map[view] ?? view;
+    }
+
+    function noop() {}
+
+    // ===== Groups =====
+    function renderGroups(groups) {
+      const grid = document.getElementById('groupsGrid');
+      grid.innerHTML = groups.map(group => `
+        <div class="group-card" onclick="openGroupDetail(${group.id})">
+          <div class="group-card-header">
+            <div class="group-title">${group.title}</div>
+            <div class="group-meta">
+              <span>시즌 ${group.season}</span>
+              <span>총 ${group.episodes}화</span>
+            </div>
+          </div>
+          <div class="group-card-body">
+            <div class="group-info">
+              <span class="info-badge"><span class="file-count">${group.files}개</span> 파일</span>
+              <span class="info-badge">${group.resolution}</span>
+              <span class="info-badge">${group.language.toUpperCase()}</span>
+              ${group.matched
+                ? '<span class="info-badge" style="background:#10b98115; color:#047857;">✓ 매칭됨</span>'
+                : '<span class="info-badge" style="background:#f59e0b15; color:#b45309;">미매칭</span>'
+              }
+            </div>
+            ${group.matched ? `
+              <div class="group-progress">
+                <div class="progress-label">
+                  <span>매칭 신뢰도</span>
+                  <span>${group.confidence}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: ${group.confidence}%"></div>
+                </div>
+              </div>
+            ` : `
+              <div class="muted" style="font-size:0.85rem; margin-top:1rem;">TMDB 매칭을 실행하세요.</div>
+            `}
+          </div>
+        </div>
+      `).join('');
+      updateStats();
+    }
+
+    function openGroupDetail(groupId) {
+      const group = currentGroups.find(g => g.id === groupId);
+      if (!group) return;
+
+      selectedGroup = group;
+      document.getElementById('detailTitle').textContent = group.title;
+      document.getElementById('detailMeta').textContent = `시즌 ${group.season} | ${group.episodes}화 | ${group.resolution}`;
+      
+      document.getElementById('detailInfo').innerHTML = `
+        <div class="info-badge" style="display:block; margin-bottom:0.5rem;">파일: ${group.files}개</div>
+        <div class="info-badge" style="display:block; margin-bottom:0.5rem;">해상도: ${group.resolution}</div>
+        <div class="info-badge" style="display:block; margin-bottom:0.5rem;">언어: ${group.language.toUpperCase()}</div>
+        ${group.matched ? `<div class="info-badge" style="display:block; background:#10b98115; color:#047857;">매칭됨 (${group.confidence}%)</div>` : '<div class="info-badge" style="display:block; background:#f59e0b15; color:#b45309;">미매칭</div>'}
+      `;
+
+      // Sample file list
+      document.getElementById('detailFiles').innerHTML = Array.from({length: group.files}, (_, i) => `
+        <li class="file-item">
+          <div class="file-name">Episode ${i + 1}.mkv</div>
+          <div class="file-meta">${group.resolution} | ${group.language.toUpperCase()}</div>
+        </li>
+      `).join('');
+
+      document.getElementById('detailPanel').classList.add('open');
+    }
+
+    function closeDetailPanel() {
+      document.getElementById('detailPanel').classList.remove('open');
+    }
+
+    function searchGroups(query) {
+      if (!query.trim()) {
+        renderGroups(currentGroups);
+        return;
+      }
+      const filtered = currentGroups.filter(g => 
+        g.title.toLowerCase().includes(query.toLowerCase())
+      );
+      renderGroups(filtered);
+    }
+
+    function filterGroups(type) {
+      let filtered = currentGroups;
+      if (type === 'matched') filtered = currentGroups.filter(g => g.matched);
+      if (type === 'unmatched') filtered = currentGroups.filter(g => !g.matched);
+      renderGroups(filtered);
+    }
+
+    function updateStats() {
+      document.getElementById('totalGroups').textContent = currentGroups.length;
+      document.getElementById('totalFiles').textContent = currentGroups.reduce((sum, g) => sum + g.files, 0);
+      document.getElementById('matchedGroups').textContent = currentGroups.filter(g => g.matched).length;
+      document.getElementById('pendingOrganize').textContent = currentGroups.filter(g => g.matched).length;
+    }
+
+    // ===== TMDB =====
+    function renderTmdbQueue() {
+      const unmatched = currentGroups.filter(g => !g.matched);
+      const tbody = document.getElementById('tmdbQueue');
+      tbody.innerHTML = unmatched.map(g => `
+        <tr style="cursor:pointer;" onclick="selectTmdbGroup(${g.id})">
+          <td>${g.title}</td>
+          <td><span class="tag warn">미매칭</span></td>
+          <td>${tmdbSuggestions.has(g.id) ? `${tmdbSuggestions.get(g.id).length}개` : '-'}</td>
+          <td>
+            <button class="btn btn-ghost" onclick="event.stopPropagation(); suggestTmdb(${g.id})">추천</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function selectTmdbGroup(groupId) {
+      tmdbSelectedId = groupId;
+      const group = currentGroups.find(g => g.id === groupId);
+      document.getElementById('tmdbSelected').textContent = `선택: ${group.title}`;
+      
+      const candidates = tmdbSuggestions.get(groupId) || [];
+      document.getElementById('tmdbCandidates').innerHTML = candidates.length > 0
+        ? candidates.map((c, i) => `
+            <div style="padding:0.8rem; background:#f8fafc; border-radius:8px; margin-bottom:0.5rem; cursor:pointer; border:2px solid ${i === 0 ? '#667eea' : '#e2e8f0'};" onclick="confirmTmdbCandidate(${groupId}, ${i})">
+              <div style="font-weight:700;">${c.title}</div>
+              <div class="muted" style="font-size:0.85rem;">${c.year} | 신뢰도: ${c.confidence}%</div>
+            </div>
+          `).join('')
+        : '<div class="muted">추천 후보가 없습니다. 자동 추천을 실행하세요.</div>';
+      
+      renderTmdbQueue();
+    }
+
+    function suggestTmdb(groupId) {
+      const candidates = [
+        { title: "Sample Match 1", year: 2023, confidence: 92 },
+        { title: "Sample Match 2", year: 2022, confidence: 85 }
+      ];
+      tmdbSuggestions.set(groupId, candidates);
+      renderTmdbQueue();
+      if (tmdbSelectedId === groupId) selectTmdbGroup(groupId);
+    }
+
+    function runTmdbBatchSuggest() {
+      const unmatched = currentGroups.filter(g => !g.matched);
+      unmatched.forEach(g => suggestTmdb(g.id));
+      setStatus(`자동 추천 완료: ${unmatched.length}개 그룹`, 'ok');
+    }
+
+    function confirmTmdbCandidate(groupId, index) {
+      const group = currentGroups.find(g => g.id === groupId);
+      if (!group) return;
+      
+      group.matched = true;
+      group.confidence = tmdbSuggestions.get(groupId)[index].confidence;
+      
+      renderGroups(currentGroups);
+      renderTmdbQueue();
+      clearTmdbSelection();
+      setStatus(`${group.title} 매칭 완료`, 'ok');
+    }
+
+    function confirmTmdbMatch() {
+      if (!tmdbSelectedId) return;
+      const candidates = tmdbSuggestions.get(tmdbSelectedId);
+      if (!candidates || candidates.length === 0) return;
+      confirmTmdbCandidate(tmdbSelectedId, 0);
+    }
+
+    function clearTmdbSelection() {
+      tmdbSelectedId = null;
+      document.getElementById('tmdbSelected').textContent = '좌측 큐에서 그룹을 선택하세요.';
+      document.getElementById('tmdbCandidates').innerHTML = '<div class="muted">선택된 그룹이 없습니다.</div>';
+      renderTmdbQueue();
+    }
+
+    // ===== Organize =====
+    function refreshOrganizeQueue() {
+      const matched = currentGroups.filter(g => g.matched);
+      const tbody = document.getElementById('organizeQueue');
+      tbody.innerHTML = matched.map(g => `
+        <tr>
+          <td>${g.title}</td>
+          <td>${g.files}개</td>
+          <td style="font-size:0.85rem; color:#64748b;">/Anime/${g.title}/Season ${g.season}/</td>
+          <td>
+            <button class="btn btn-primary" onclick="organizeGroup(${g.id})">정리</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function applyRulePreset() {
+      setStatus('프리셋 적용 완료', 'ok');
+    }
+
+    function runPreflight() {
+      const results = document.getElementById('preflightResults');
+      results.innerHTML = `
+        <div class="tag ok">✓ 충돌 없음</div>
+        <div class="tag ok">✓ 권한 확인됨</div>
+        <div class="tag ok">✓ 중복 없음</div>
+        <div class="muted" style="font-size:0.9rem; margin-top:0.5rem;">모든 체크를 통과했습니다. 정리 작업을 진행할 수 있습니다.</div>
+      `;
+      setStatus('프리플라이트 체크 완료', 'ok');
+    }
+
+    function appendOrganizeLog() {
+      const log = document.getElementById('organizeLog');
+      const time = new Date().toLocaleTimeString();
+      log.textContent += `[${time}] 샘플 로그 항목 추가\n`;
+    }
+
+    function organizeGroup(groupId) {
+      const group = currentGroups.find(g => g.id === groupId);
+      if (!group) return;
+      
+      setStatus(`그룹 정리 시작: ${group.title}`, 'ok');
+      showLoading(`${group.title} 정리 중...`);
+      
+      setTimeout(() => {
+        hideLoading();
+        const time = new Date().toLocaleTimeString();
+        const log = document.getElementById('organizeLog');
+        log.textContent += `[${time}] 정리 완료: ${group.title} (${group.files}개 파일)\n`;
+        log.scrollTop = log.scrollHeight;
+        
+        setStatus(`그룹 정리 완료: ${group.title}`, 'ok');
+        refreshOrganizeQueue();
+      }, 2000);
+    }
+
+    function executeAllOrganize() {
+      const matchedGroups = currentGroups.filter(g => g.matched);
+      if (matchedGroups.length === 0) {
+        setStatus('정리할 그룹이 없습니다. 매칭이 완료된 그룹이 필요합니다.', 'warn');
+        return;
+      }
+
+      if (!confirm(`${matchedGroups.length}개 그룹을 정리하시겠습니까?`)) {
+        return;
+      }
+
+      setStatus(`전체 정리 작업 시작: ${matchedGroups.length}개 그룹`, 'ok');
+      showLoading(`정리 작업 진행 중... (0/${matchedGroups.length})`);
+
+      let completed = 0;
+      const total = matchedGroups.length;
+
+      matchedGroups.forEach((group, index) => {
+        setTimeout(() => {
+          completed++;
+          document.getElementById('loadingMessage').textContent = 
+            `정리 작업 진행 중... (${completed}/${total}) - ${group.title}`;
+          
+          const time = new Date().toLocaleTimeString();
+          const log = document.getElementById('organizeLog');
+          log.textContent += `[${time}] 정리 완료: ${group.title} (${group.files}개 파일)\n`;
+          log.scrollTop = log.scrollHeight;
+
+          if (completed === total) {
+            setTimeout(() => {
+              hideLoading();
+              setStatus(`전체 정리 작업 완료: ${total}개 그룹`, 'ok');
+              refreshOrganizeQueue();
+            }, 500);
+          }
+        }, (index + 1) * 1000);
+      });
+    }
+
+    // ===== Rollback =====
+    function seedRollback() {
+      rollbackItems = [
+        { id: 1, time: '2024-01-15 14:30:00', group: '진격의 거인 Season 4', changes: '16개 파일 이동', status: '완료' },
+        { id: 2, time: '2024-01-14 10:20:00', group: '귀멸의 칼날', changes: '7개 파일 이동', status: '완료' }
+      ];
+      renderRollback();
+    }
+
+    function renderRollback() {
+      const tbody = document.getElementById('rollbackTable');
+      tbody.innerHTML = rollbackItems.map(item => `
+        <tr style="cursor:pointer;" onclick="selectRollback(${item.id})">
+          <td>${item.time}</td>
+          <td>${item.group}</td>
+          <td>${item.changes}</td>
+          <td><span class="tag ok">${item.status}</span></td>
+          <td>
+            <button class="btn btn-ghost" onclick="event.stopPropagation(); executeRollback(${item.id})">롤백</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function selectRollback(id) {
+      rollbackSelectedId = id;
+      const item = rollbackItems.find(r => r.id === id);
+      document.getElementById('rollbackDetail').innerHTML = `
+        <div class="panel-title" style="margin-bottom:1rem;">${item.group}</div>
+        <div class="muted" style="margin-bottom:0.5rem;">시간: ${item.time}</div>
+        <div class="muted" style="margin-bottom:0.5rem;">변경사항: ${item.changes}</div>
+        <div class="muted" style="margin-bottom:1rem;">상태: ${item.status}</div>
+        <div class="file-list">
+          ${Array.from({length: 5}, (_, i) => `
+            <li class="file-item">
+              <div class="file-name">파일 ${i + 1}.mkv</div>
+              <div class="file-meta">원본 경로에서 이동됨</div>
+            </li>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function executeRollback(id) {
+      if (!id && !rollbackSelectedId) return;
+      const targetId = id || rollbackSelectedId;
+      setStatus(`롤백 실행: ${rollbackItems.find(r => r.id === targetId)?.group}`, 'ok');
+    }
+
+    // ===== Cache =====
+    function pruneCache() {
+      setStatus('오래된 캐시 정리 완료', 'ok');
+    }
+
+    function verifyCache() {
+      setStatus('캐시 무결성 검사 완료', 'ok');
+    }
+
+    function rebuildIndex() {
+      setStatus('인덱스 재빌드 시작...', 'ok');
+      setTimeout(() => setStatus('인덱스 재빌드 완료', 'ok'), 2000);
+    }
+
+    function appendCacheEvent() {
+      const events = document.getElementById('cacheEvents');
+      const time = new Date().toLocaleTimeString();
+      events.textContent += `[${time}] 샘플 캐시 이벤트 추가\n`;
+    }
+
+    // ===== Logs =====
+    function seedLogs() {
+      logs = [
+        { time: '14:30:15', level: 'INFO', module: 'scanner', message: '디렉터리 스캔 시작' },
+        { time: '14:30:20', level: 'INFO', module: 'scanner', message: '15개 파일 발견' },
+        { time: '14:30:25', level: 'WARN', module: 'tmdb', message: 'TMDB API 응답 지연' },
+        { time: '14:30:30', level: 'INFO', module: 'organizer', message: '파일 정리 완료' }
+      ];
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const level = document.getElementById('logLevel').value;
+      const module = document.getElementById('logModule').value;
+      const query = document.getElementById('logQuery').value.toLowerCase();
+
+      let filtered = logs;
+      if (level !== 'ALL') filtered = filtered.filter(l => l.level === level);
+      if (module !== 'ALL') filtered = filtered.filter(l => l.module === module);
+      if (query) filtered = filtered.filter(l => l.message.toLowerCase().includes(query));
+
+      const viewer = document.getElementById('logViewer');
+      viewer.innerHTML = filtered.map(log => `
+        <div style="margin-bottom:0.5rem;">
+          <span style="color:#94a3b8;">[${log.time}]</span>
+          <span style="color:${log.level === 'ERROR' ? '#ef4444' : log.level === 'WARN' ? '#f59e0b' : '#10b981'};">[${log.level}]</span>
+          <span style="color:#667eea;">[${log.module}]</span>
+          <span>${log.message}</span>
+        </div>
+      `).join('');
+      viewer.scrollTop = viewer.scrollHeight;
+    }
+
+    function appendLog() {
+      const levels = ['INFO', 'WARN', 'ERROR'];
+      const modules = ['scanner', 'tmdb', 'organizer', 'cache'];
+      const time = new Date().toLocaleTimeString();
+      logs.push({
+        time,
+        level: levels[Math.floor(Math.random() * levels.length)],
+        module: modules[Math.floor(Math.random() * modules.length)],
+        message: `샘플 로그 메시지 ${logs.length + 1}`
+      });
+      renderLogs();
+    }
+
+    function clearLogs() {
+      logs = [];
+      renderLogs();
+    }
+
+    function exportLogs() {
+      setStatus('로그 내보내기 완료 (샘플)', 'ok');
+    }
+
+    // ===== Verify =====
+    function runVerify() {
+      showLoading('TMDB 연결 검증 중...');
+      
+      // Reset status
+      document.getElementById('verifyApiKey').className = 'tag';
+      document.getElementById('verifyApiKey').textContent = '⏳ API 키';
+      document.getElementById('verifyConnectivity').className = 'tag';
+      document.getElementById('verifyConnectivity').textContent = '⏳ 연결';
+      document.getElementById('verifyAuth').className = 'tag';
+      document.getElementById('verifyAuth').textContent = '⏳ 인증';
+
+      // Simulate verification
+      setTimeout(() => {
+        const apiKey = document.getElementById('settingApiKey')?.value || '';
+        const hasApiKey = apiKey.length >= 10;
+        
+        // API Key check
+        if (hasApiKey) {
+          document.getElementById('verifyApiKey').className = 'tag ok';
+          document.getElementById('verifyApiKey').textContent = '✓ API 키';
+        } else {
+          document.getElementById('verifyApiKey').className = 'tag warn';
+          document.getElementById('verifyApiKey').textContent = '⚠️ API 키';
+        }
+
+        // Connectivity check
+        document.getElementById('verifyConnectivity').className = 'tag ok';
+        document.getElementById('verifyConnectivity').textContent = '✓ 연결';
+
+        // Auth check
+        if (hasApiKey) {
+          document.getElementById('verifyAuth').className = 'tag ok';
+          document.getElementById('verifyAuth').textContent = '✓ 인증';
+        } else {
+          document.getElementById('verifyAuth').className = 'tag warn';
+          document.getElementById('verifyAuth').textContent = '⚠️ 인증';
+        }
+
+        const results = document.getElementById('verifyResults');
+        if (hasApiKey) {
+          results.innerHTML = `
+            <div class="tag ok">✓ 검증 성공</div>
+            <div style="font-size:0.9rem; color:#047857;">
+              TMDB 연결이 정상적으로 작동합니다. API 키가 유효합니다.
+            </div>
+          `;
+          setStatus('TMDB 연결 검증 완료: 성공', 'ok');
+        } else {
+          results.innerHTML = `
+            <div class="tag warn">⚠️ 검증 부분 실패</div>
+            <div style="font-size:0.9rem; color:#b45309;">
+              API 키가 설정되지 않았거나 유효하지 않습니다. 설정에서 API 키를 입력하세요.
+            </div>
+          `;
+          setStatus('TMDB 연결 검증 완료: API 키 필요', 'warn');
+        }
+
+        hideLoading();
+      }, 1500);
+    }
+
+    function verifySettings() {
+      const sourceFolder = document.getElementById('settingSourceFolder')?.value || '';
+      const targetFolder = document.getElementById('settingTargetFolder')?.value || '';
+      const apiKey = document.getElementById('settingApiKey')?.value || '';
+
+      const results = document.getElementById('settingsVerifyResults');
+      
+      // Check config file
+      document.getElementById('configFileStatus').textContent = '✓ 정상';
+      document.getElementById('configFileStatus').style.color = '#047857';
+
+      // Check API key
+      if (apiKey.length >= 10) {
+        document.getElementById('apiKeyConfigStatus').textContent = '✓ 설정됨';
+        document.getElementById('apiKeyConfigStatus').style.color = '#047857';
+      } else {
+        document.getElementById('apiKeyConfigStatus').textContent = '⚠️ 미설정';
+        document.getElementById('apiKeyConfigStatus').style.color = '#b45309';
+      }
+
+      // Check folder paths
+      if (sourceFolder && targetFolder) {
+        document.getElementById('folderPathStatus').textContent = '✓ 설정됨';
+        document.getElementById('folderPathStatus').style.color = '#047857';
+      } else {
+        document.getElementById('folderPathStatus').textContent = '⚠️ 미설정';
+        document.getElementById('folderPathStatus').style.color = '#b45309';
+      }
+
+      // Check auto scan
+      const autoScan = document.getElementById('settingAutoScanStartup')?.checked || false;
+      const interval = parseInt(document.getElementById('settingAutoScanInterval')?.value || '0');
+      if (autoScan || interval > 0) {
+        document.getElementById('autoScanStatus').textContent = '✓ 활성화';
+        document.getElementById('autoScanStatus').style.color = '#047857';
+      } else {
+        document.getElementById('autoScanStatus').textContent = '⚠️ 비활성화';
+        document.getElementById('autoScanStatus').style.color = '#64748b';
+      }
+
+      results.innerHTML = `
+        <div class="tag ok">✓ 검증 완료</div>
+        <div class="muted" style="font-size:0.9rem;">
+          설정 파일과 구성 옵션이 확인되었습니다.
+        </div>
+      `;
+
+      setStatus('설정 검증 완료', 'ok');
+    }
+
+    // ===== Settings =====
+    function openSettings() {
+      document.getElementById('settingsModal').classList.add('active');
+      switchSettingsTab('api');
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').classList.remove('active');
+    }
+
+    function switchSettingsTab(tab) {
+      // Hide all tabs
+      document.getElementById('settingsTabApi').classList.remove('active');
+      document.getElementById('settingsTabApi').style.display = 'none';
+      document.getElementById('settingsTabFolders').classList.remove('active');
+      document.getElementById('settingsTabFolders').style.display = 'none';
+
+      // Remove active from all buttons
+      document.getElementById('tabApiKey').classList.remove('active');
+      document.getElementById('tabApiKey').style.borderBottomColor = 'transparent';
+      document.getElementById('tabApiKey').style.color = '#64748b';
+      document.getElementById('tabApiKey').style.fontWeight = '500';
+      document.getElementById('tabFolders').classList.remove('active');
+      document.getElementById('tabFolders').style.borderBottomColor = 'transparent';
+      document.getElementById('tabFolders').style.color = '#64748b';
+      document.getElementById('tabFolders').style.fontWeight = '500';
+
+      // Show selected tab
+      if (tab === 'api') {
+        document.getElementById('settingsTabApi').classList.add('active');
+        document.getElementById('settingsTabApi').style.display = 'block';
+        document.getElementById('tabApiKey').classList.add('active');
+        document.getElementById('tabApiKey').style.borderBottomColor = '#667eea';
+        document.getElementById('tabApiKey').style.color = '#667eea';
+        document.getElementById('tabApiKey').style.fontWeight = '600';
+      } else if (tab === 'folders') {
+        document.getElementById('settingsTabFolders').classList.add('active');
+        document.getElementById('settingsTabFolders').style.display = 'block';
+        document.getElementById('tabFolders').classList.add('active');
+        document.getElementById('tabFolders').style.borderBottomColor = '#667eea';
+        document.getElementById('tabFolders').style.color = '#667eea';
+        document.getElementById('tabFolders').style.fontWeight = '600';
+      }
+    }
+
+    function browseFolder(type) {
+      // In a real implementation, this would open a folder picker
+      // For sample, just set a placeholder path
+      if (type === 'source') {
+        document.getElementById('settingSourceFolder').value = '/Users/example/Anime/Source';
+      } else if (type === 'target') {
+        document.getElementById('settingTargetFolder').value = '/Users/example/Anime/Target';
+      }
+      setStatus(`폴더 선택: ${type}`, 'ok');
+    }
+
+    function saveSettings() {
+      const apiKey = document.getElementById('settingApiKey')?.value || '';
+      
+      if (apiKey && apiKey.length < 10) {
+        setStatus('API 키가 너무 짧습니다 (최소 10자)', 'warn');
+        return;
+      }
+
+      // Save settings (simulated)
+      setStatus('설정 저장 완료', 'ok');
+      closeSettings();
+      
+      // If verify view is active, refresh it
+      if (currentView === 'verify') {
+        verifySettings();
+      }
+    }
+
+    function resetSettings() {
+      // Reset API Key tab
+      document.getElementById('settingApiKey').value = '';
+      
+      // Reset Folders tab
+      document.getElementById('settingSourceFolder').value = '';
+      document.getElementById('settingTargetFolder').value = '';
+      document.getElementById('settingOrganizeByResolution').checked = false;
+      document.getElementById('settingOrganizeByYear').checked = false;
+      document.getElementById('settingAutoScanStartup').checked = false;
+      document.getElementById('settingAutoScanInterval').value = 0;
+      document.getElementById('settingIncludeSubdirs').checked = true;
+      
+      setStatus('설정 초기화 완료', 'ok');
+    }
+
+    // ===== Utilities =====
+    function scanDirectory() {
+      showLoading('디렉터리 스캔 중...');
+      setTimeout(() => {
+        hideLoading();
+        setStatus('스캔 완료', 'ok');
+        renderGroups(currentGroups);
+      }, 1500);
+    }
+
+    function matchGroup() {
+      if (!selectedGroup) return;
+      switchView('tmdb');
+      setTimeout(() => selectTmdbGroup(selectedGroup.id), 100);
+    }
+
+    function showLoading(message) {
+      document.getElementById('loadingMessage').textContent = message;
+      document.getElementById('loadingOverlay').classList.add('active');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('active');
+    }
+
+    function setStatus(text, type = 'ok') {
+      document.getElementById('statusText').textContent = text;
+      const dot = document.getElementById('statusDot');
+      dot.style.background = type === 'ok' ? '#10b981' : type === 'warn' ? '#f59e0b' : '#ef4444';
+    }
+
+    // ===== Initialize =====
+    init();
+  </script>
+</body>
+</html>

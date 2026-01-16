@@ -475,6 +475,7 @@ class ParserWorkerPool:
         output_queue: BoundedQueue,
         stats: ParserStatistics,
         cache: CacheV1,
+        enable_dynamic_adjustment: bool = False,
     ) -> None:
         """Initialize the parser worker pool.
 
@@ -484,6 +485,8 @@ class ParserWorkerPool:
             output_queue: BoundedQueue instance to put processed results into.
             stats: ParserStatistics instance for tracking parser metrics.
             cache: CacheV1 instance for caching parsed results.
+            enable_dynamic_adjustment: Whether to enable dynamic worker adjustment
+                                     based on queue sizes. Default is False.
         """
         self.num_workers = num_workers
         self.input_queue = input_queue
@@ -492,6 +495,9 @@ class ParserWorkerPool:
         self.cache = cache
         self.workers: list[ParserWorker] = []
         self._started = False
+        self.enable_dynamic_adjustment = enable_dynamic_adjustment
+        # Optimal ratio: 1 worker per 100-200 queue items (configurable)
+        self.optimal_queue_worker_ratio = 150
 
     def start(self) -> None:
         """Start all worker threads."""
@@ -560,14 +566,40 @@ class ParserWorkerPool:
         Returns:
             Dictionary containing pool status information.
         """
+        input_size = self.input_queue.size()
+        output_size = self.output_queue.size()
         return {
             "num_workers": self.num_workers,
             "started": self._started,
             "alive_workers": self.get_alive_worker_count(),
             "total_workers": self.get_worker_count(),
-            "input_queue_size": self.input_queue.qsize(),
-            "output_queue_size": self.output_queue.qsize(),
+            "input_queue_size": input_size,
+            "output_queue_size": output_size,
             "items_processed": self.stats.items_processed,
             "successes": self.stats.successes,
             "failures": self.stats.failures,
+            "optimal_worker_count": self._calculate_optimal_worker_count(),
         }
+
+    def _calculate_optimal_worker_count(self) -> int:
+        """Calculate optimal worker count based on queue sizes.
+
+        Uses the formula: optimal_workers = max(1, queue_size / optimal_ratio)
+        Considers both input and output queue sizes.
+
+        Returns:
+            Recommended number of workers based on current queue state.
+        """
+        if not self.enable_dynamic_adjustment:
+            return self.num_workers
+
+        input_size = self.input_queue.size()
+        output_size = self.output_queue.size()
+        # Use the larger queue size to determine optimal workers
+        max_queue_size = max(input_size, output_size)
+
+        # Calculate optimal workers: 1 worker per optimal_ratio items
+        optimal = max(1, max_queue_size // self.optimal_queue_worker_ratio)
+        # Cap at reasonable maximum (e.g., 2x current workers or 32, whichever is smaller)
+        max_workers = min(32, self.num_workers * 2)
+        return min(optimal, max_workers)

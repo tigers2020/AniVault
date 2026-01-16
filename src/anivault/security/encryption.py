@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from anivault.shared.errors import (
     ApplicationError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
     SecurityError,
 )
 
@@ -30,7 +30,7 @@ class DecryptionError(ApplicationError):
     def __init__(
         self,
         message: str = "Decryption failed",
-        context: ErrorContext | None = None,
+        context: ErrorContextModel | None = None,
         original_error: Exception | None = None,
     ):
         super().__init__(
@@ -68,14 +68,14 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 "PIN must be a non-empty string",
-                ErrorContext(operation="encryption_init"),
+                ErrorContextModel(operation="encryption_init"),
             )
 
         if not salt or len(salt) < 16:
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 "Salt must be at least 16 bytes",
-                ErrorContext(operation="encryption_init"),
+                ErrorContextModel(operation="encryption_init"),
             )
 
         try:
@@ -89,7 +89,7 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 f"Failed to initialize encryption service: {e}",
-                ErrorContext(operation="encryption_init"),
+                ErrorContextModel(operation="encryption_init"),
                 original_error=e,
             ) from e
 
@@ -131,7 +131,7 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 f"Key derivation failed: {e}",
-                ErrorContext(operation="key_derivation"),
+                ErrorContextModel(operation="key_derivation"),
                 original_error=e,
             ) from e
 
@@ -152,7 +152,7 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 "Data cannot be None",
-                ErrorContext(operation="encrypt"),
+                ErrorContextModel(operation="encrypt"),
             )
 
         try:
@@ -169,7 +169,7 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Encryption failed: {e}",
-                ErrorContext(operation="encrypt"),
+                ErrorContextModel(operation="encrypt"),
                 original_error=e,
             ) from e
 
@@ -190,7 +190,7 @@ class EncryptionService:
         if not token or not isinstance(token, str):
             raise DecryptionError(
                 "Token must be a non-empty string",
-                ErrorContext(operation="decrypt"),
+                ErrorContextModel(operation="decrypt"),
             )
 
         try:
@@ -206,7 +206,7 @@ class EncryptionService:
         except InvalidToken as e:
             raise DecryptionError(
                 "Invalid or tampered encryption token",
-                ErrorContext(operation="decrypt"),
+                ErrorContextModel(operation="decrypt"),
                 original_error=e,
             ) from e
 
@@ -214,7 +214,7 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Decryption failed: {e}",
-                ErrorContext(operation="decrypt"),
+                ErrorContextModel(operation="decrypt"),
                 original_error=e,
             ) from e
 
@@ -236,7 +236,7 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.VALIDATION_ERROR,
                 "Salt length must be at least 16 bytes",
-                ErrorContext(operation="generate_salt"),
+                ErrorContextModel(operation="generate_salt"),
             )
 
         try:
@@ -245,7 +245,7 @@ class EncryptionService:
             raise ApplicationError(
                 ErrorCode.CONFIG_ERROR,
                 f"Salt generation failed: {e}",
-                ErrorContext(operation="generate_salt"),
+                ErrorContextModel(operation="generate_salt"),
                 original_error=e,
             ) from e
 
@@ -264,7 +264,7 @@ class EncryptionService:
             raise SecurityError(
                 code=ErrorCode.INVALID_TOKEN,
                 message="Token is empty or None",
-                context=ErrorContext(operation="validate_token"),
+                context=ErrorContextModel(operation="validate_token"),
             )
 
         try:
@@ -275,34 +275,16 @@ class EncryptionService:
             raise SecurityError(
                 code=ErrorCode.INVALID_TOKEN,
                 message="Invalid or expired token",
-                context=ErrorContext(operation="validate_token"),
+                context=ErrorContextModel(operation="validate_token"),
                 original_error=e,
             ) from e
         except Exception as e:
             raise SecurityError(
                 code=ErrorCode.INVALID_TOKEN,
                 message=f"Token validation failed: {e}",
-                context=ErrorContext(
+                context=ErrorContextModel(
                     operation="validate_token",
                     additional_data={"error_type": type(e).__name__},
                 ),
                 original_error=e,
             ) from e
-
-    def is_valid_token(self, token: str) -> bool:
-        """Check if a token is valid (legacy method for backward compatibility).
-
-        This method is deprecated. Use validate_token() for new code.
-
-        Args:
-            token: Token to validate
-
-        Returns:
-            True if token is valid, False otherwise
-        """
-
-        try:
-            self.validate_token(token)
-            return True
-        except SecurityError:
-            return False

@@ -40,9 +40,10 @@ except DecryptionError as e:
 
 ```python
 # Check if a token is valid without decrypting
-if service.is_valid_token(encrypted_token):
+try:
+    service.validate_token(encrypted_token)
     print("Token is valid")
-else:
+except SecurityError:
     print("Token is invalid or tampered")
 ```
 

@@ -18,16 +18,15 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Literal, cast
 
-from anivault.services.tmdb.tmdb_models import (
-    TMDBMediaDetails,
-    TMDBSearchResult,
-)
-
 # pylint: disable-next=unused-import
 from anivault.shared.errors import (
     AniVaultNetworkError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
+)
+from anivault.shared.models.tmdb_models import (
+    TMDBMediaDetails,
+    TMDBSearchResult,
 )
 from anivault.shared.utils.dataclass_serialization import from_dict
 
@@ -191,7 +190,7 @@ class TvSearchStrategy(SearchStrategy):
             return results
 
         except (ConnectionError, TimeoutError) as e:
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="tv_search",
                 additional_data={"title": title},
             )
@@ -217,7 +216,7 @@ class TvSearchStrategy(SearchStrategy):
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="tv_search",
                 additional_data={"title": title, "error_type": type(e).__name__},
             )
@@ -273,7 +272,7 @@ class MovieSearchStrategy(SearchStrategy):
             return results
 
         except (ConnectionError, TimeoutError) as e:
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="movie_search",
                 additional_data={"title": title},
             )

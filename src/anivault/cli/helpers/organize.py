@@ -23,7 +23,7 @@ from anivault.core.file_grouper import FileGrouper
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import ScannedFile
 from anivault.core.organizer import FileOrganizer
-from anivault.core.pipeline.main import run_pipeline
+from anivault.core.pipeline import run_pipeline
 from anivault.core.resolution_detector import ResolutionDetector
 from anivault.core.subtitle_matcher import SubtitleMatcher
 from anivault.services.tmdb import TMDBClient

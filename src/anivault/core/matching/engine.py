@@ -138,11 +138,10 @@ class MatchingEngine:
                 logger.debug("All candidates filtered out")
                 return None
 
-            # Step 5: Re-rank candidates after filtering
-            # CRITICAL: Year filtering may sort by year proximity instead of confidence,
-            # breaking the original confidence-based ranking from score_candidates().
-            # We must re-sort filtered candidates to ensure the highest confidence
-            # candidate is selected as best_match.
+            # Step 5: Re-rank candidates after filtering (optional, for consistency)
+            # Note: FilterService.filter_by_year() now preserves confidence order,
+            # but we still re-rank here to ensure consistency and handle any edge cases.
+            # This also applies popularity tie-breaker for candidates with equal confidence.
             ranked_candidates = self._scoring_service.rank_candidates(filtered_candidates)
             if not ranked_candidates:
                 logger.debug("No candidates after re-ranking")

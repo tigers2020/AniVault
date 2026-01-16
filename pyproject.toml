@@ -251,9 +251,7 @@ module = [
 ]
 disable_error_code = ["misc"]
 
-# 런타임 코어는 조금 더 엄격
-[[tool.mypy.overrides]]
-module = "anivault.*"
+# Note: No specific overrides for anivault.* - strict mode applies globally
 
 # 서드파티 라이브러리 예외 처리 (타입 스텁 부재)
 [[tool.mypy.overrides]]

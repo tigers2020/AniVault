@@ -89,6 +89,8 @@ class FileSystem:
     ]
 
     # Media file extensions
+    # NOTE: For new code, prefer VideoFormats.ALL_EXTENSIONS from file_formats module
+    # These are kept for backward compatibility
     VIDEO_EXTENSIONS: ClassVar[list[str]] = [
         ".mkv",
         ".mp4",
@@ -103,6 +105,7 @@ class FileSystem:
     ]
 
     # CLI default video extensions (subset for CLI commands)
+    # NOTE: For new code, prefer VideoFormats.CORE_EXTENSIONS from file_formats module
     CLI_VIDEO_EXTENSIONS: ClassVar[list[str]] = [
         ".mkv",
         ".mp4",
@@ -113,6 +116,7 @@ class FileSystem:
         ".webm",
         ".m4v",
     ]
+    # NOTE: For new code, prefer SubtitleFormats.EXTENSIONS from file_formats module
     SUBTITLE_EXTENSIONS: ClassVar[list[str]] = [
         ".srt",
         ".ass",

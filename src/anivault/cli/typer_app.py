@@ -16,7 +16,7 @@ import typer
 
 from anivault.cli.common.context import CliContext, LogLevel, set_cli_context
 from anivault.cli.common.error_handler import handle_cli_error
-from anivault.cli.common.models import DirectoryPath
+from anivault.shared.types.cli import CLIDirectoryPath as DirectoryPath
 from anivault.cli.common.options import (
     benchmark_option,
     json_output_option,

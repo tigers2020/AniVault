@@ -15,6 +15,8 @@ anitopy>=2.1.1
 parse>=1.20.0
 chardet>=5.2.0
 rapidfuzz>=3.0.0
+datasketch>=1.5.9
+scikit-learn>=1.4.2
 
 # UI and formatting
 rich>=14.1.0

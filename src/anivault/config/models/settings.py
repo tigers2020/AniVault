@@ -76,54 +76,6 @@ class Settings(BaseSettings):
     folders: FolderSettings | None = Field(default=None)
     security: SecuritySettings | None = Field(default=None)
 
-    # Backward-compatible properties (deprecated)
-    @property
-    def tmdb(self) -> TMDBSettings:
-        """DEPRECATED: Use settings.api.tmdb instead.
-
-        This property provides backward compatibility but will be removed
-        in a future version.
-        """
-        warnings.warn(
-            "settings.tmdb is deprecated, use settings.api.tmdb instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Type checker workaround: Pydantic Field inference issue
-        # Runtime: self.api is APISettings instance, not FieldInfo
-        api = cast("APISettings", object.__getattribute__(self, "api"))
-        return api.tmdb
-
-    @property
-    def file_processing(self) -> ScanSettings:
-        """DEPRECATED: Use settings.scan instead.
-
-        This property provides backward compatibility but will be removed
-        in a future version.
-        """
-        warnings.warn(
-            "settings.file_processing is deprecated, use settings.scan instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.scan
-
-    @property
-    def filter(self) -> FilterSettings:
-        """DEPRECATED: Use settings.scan.filter_config instead.
-
-        This property provides backward compatibility but will be removed
-        in a future version.
-        """
-        warnings.warn(
-            "settings.filter is deprecated, use settings.scan.filter_config instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Type checker workaround: Pydantic Field inference issue
-        # Runtime: self.scan is ScanSettings instance, not FieldInfo
-        scan = cast("ScanSettings", object.__getattribute__(self, "scan"))
-        return scan.filter_config
 
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:

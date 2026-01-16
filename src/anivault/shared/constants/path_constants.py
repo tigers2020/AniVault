@@ -1,5 +1,7 @@
 """Path building constants for type safety and consistency."""
 
+from .validation_constants import MAX_YEAR, MIN_YEAR
+
 
 class PathConstants:
     """Constants for path building."""
@@ -8,9 +10,9 @@ class PathConstants:
     UNKNOWN_SERIES = "Unknown Series"
     UNKNOWN = "unknown"
 
-    # Year validation
-    MIN_YEAR = 1900
-    MAX_YEAR = 2100
+    # Year validation (imported from validation_constants for consistency)
+    MIN_YEAR = MIN_YEAR
+    MAX_YEAR = MAX_YEAR
 
     # Resolution thresholds
     RESOLUTION_THRESHOLD = 50

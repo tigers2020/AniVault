@@ -52,61 +52,19 @@ if (-not (Test-Path "requirements.txt")) {
 Write-Host "[INFO] Checking pip upgrade..."
 & $PythonCmd -m pip install --upgrade pip --quiet 2>&1 | Out-Null
 
-# Check core packages (quick check)
-$MissingDeps = $false
+# Use Python script for dependency checking (with debug logging)
+Write-Host "[CHECK] Checking dependencies..."
+& $PythonCmd check_dependencies.py $PythonCmd
 
-try {
-    $null = & $PythonCmd -c "import PySide6" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $MissingDeps = $true
-    }
-} catch {
-    $MissingDeps = $true
-}
-
-try {
-    $null = & $PythonCmd -c "import pydantic" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $MissingDeps = $true
-    }
-} catch {
-    $MissingDeps = $true
-}
-
-try {
-    $null = & $PythonCmd -c "import dependency_injector" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $MissingDeps = $true
-    }
-} catch {
-    $MissingDeps = $true
-}
-
-# Auto-install if dependencies are missing
-if ($MissingDeps) {
-    Write-Host "[INSTALL] Installing missing packages automatically..."
-    Write-Host "[INFO] This is only needed on first run and may take some time."
+if ($LASTEXITCODE -ne 0) {
     Write-Host ""
-
-    & $PythonCmd -m pip install -r requirements.txt
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "[ERROR] Error occurred during package installation."
-        Write-Host "[INFO] Please try running manually:"
-        Write-Host "   pip install -r requirements.txt"
-        Write-Host ""
-        Read-Host "Press Enter to exit"
-        exit 1
-    }
-
+    Write-Host "[ERROR] Dependency check or installation failed."
+    Write-Host "[INFO] Please check the output above for details."
     Write-Host ""
-    Write-Host "[OK] All packages installed successfully."
-    Write-Host ""
-} else {
-    Write-Host "[OK] All dependencies verified."
-    Write-Host ""
+    Read-Host "Press Enter to exit"
+    exit 1
 }
+Write-Host ""
 
 # Launch GUI application
 Write-Host "[RUN] Starting AniVault GUI..."

@@ -61,7 +61,7 @@ class SignalCoordinator:
             main_window: Parent MainWindow instance containing all components
         """
         self._main_window = main_window
-        self._connections: list[tuple[object, ...]] = []
+        self._connections: list[tuple[object, str, object]] = []
 
     def connect_all(self) -> None:
         """Connect all signals from components to MainWindow handlers.

@@ -15,6 +15,7 @@ from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.services.cache_adapter import CacheAdapterProtocol
 from anivault.core.statistics import StatisticsCollector
 from anivault.shared.constants import MatchingCacheConfig, NormalizationConfig
+from anivault.shared.errors import ErrorCode, InfrastructureError
 from anivault.shared.models.tmdb_models import TMDBSearchResult
 from anivault.shared.protocols.services import TMDBClientProtocol
 
@@ -189,6 +190,25 @@ class TMDBSearchService:
             )
             return results
 
+        except InfrastructureError as e:
+            # Handle specific TMDB errors
+            if e.code == ErrorCode.TMDB_API_MEDIA_NOT_FOUND:
+                # Media not found is expected - log as warning, not error
+                logger.warning("No media found for title: %s", title)
+                self.statistics.record_api_call(
+                    "tmdb_search",
+                    success=False,
+                    error="MediaNotFound",
+                )
+                return []
+            # Other infrastructure errors - re-raise or handle as needed
+            logger.exception("TMDB search failed (infrastructure error) for query '%s'", title)
+            self.statistics.record_api_call(
+                "tmdb_search",
+                success=False,
+                error="InfrastructureError",
+            )
+            return []
         except (KeyError, ValueError, TypeError, AttributeError, IndexError):
             # Data parsing errors during search result processing
             logger.exception("TMDB search failed (parsing error) for query '%s'", title)

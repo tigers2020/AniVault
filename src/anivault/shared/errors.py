@@ -5,7 +5,7 @@ structured error classes with context information and user-friendly messages.
 
 The error hierarchy follows these principles:
 - One Source of Truth: All error codes are defined in ErrorCode enum
-- Structured Context: ErrorContext provides additional information
+- Structured Context: ErrorContextModel provides additional information
 - User-friendly Messages: Errors can be converted to user-friendly messages
 - Proper Exception Chaining: Original exceptions are preserved
 """
@@ -203,7 +203,7 @@ def _coerce_primitives(value: Any | None) -> dict[str, PrimitiveContextValue] | 
         elif isinstance(val, Decimal):
             coerced[key] = float(val)
         else:
-            error_msg = f"Cannot coerce {type(val).__name__} to primitive type. " f"Only str, int, float, bool, Path, Enum, Decimal are allowed."
+            error_msg = f"Cannot coerce {type(val).__name__} to primitive type. Only str, int, float, bool, Path, Enum, Decimal are allowed."
             raise TypeError(error_msg)
 
     return coerced
@@ -279,11 +279,6 @@ class ErrorContextModel:
         return data
 
 
-# Legacy alias for backwards compatibility
-# NOTE: Deprecated - Use ErrorContextModel directly in new code
-ErrorContext = ErrorContextModel
-
-
 class AniVaultError(Exception):
     """Base exception class for all AniVault errors.
 
@@ -295,7 +290,7 @@ class AniVaultError(Exception):
         self,
         code: ErrorCode,
         message: str,
-        context: ErrorContext | None = None,
+        context: ErrorContextModel | None = None,
         original_error: Exception | None = None,
     ) -> None:
         """Initialize AniVaultError.
@@ -308,7 +303,7 @@ class AniVaultError(Exception):
         """
         self.code = code
         self.message = message
-        self.context = context or ErrorContext()
+        self.context = context or ErrorContextModel()
         self.original_error = original_error
 
         # Create formatted error message
@@ -468,7 +463,7 @@ def create_file_not_found_error(
     original_error: Exception | None = None,
 ) -> InfrastructureError:
     """Create a file not found error with context."""
-    context = ErrorContext(
+    context = ErrorContextModel(
         file_path=file_path,
         operation=operation,
     )
@@ -486,7 +481,7 @@ def create_permission_denied_error(
     original_error: Exception | None = None,
 ) -> InfrastructureError:
     """Create a permission denied error with context."""
-    context = ErrorContext(
+    context = ErrorContextModel(
         file_path=path,
         operation=operation,
     )
@@ -506,7 +501,7 @@ def create_validation_error(
 ) -> DomainError:
     """Create a validation error with context."""
     additional_data: dict[str, PrimitiveContextValue] | None = {"field": field} if field else None
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation=operation,
         additional_data=additional_data,
     )
@@ -524,7 +519,7 @@ def create_api_error(
     original_error: Exception | None = None,
 ) -> InfrastructureError:
     """Create an API error with context."""
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation=operation,
     )
     return InfrastructureError(
@@ -542,7 +537,7 @@ def create_parsing_error(
     original_error: Exception | None = None,
 ) -> DomainError:
     """Create a parsing error with context."""
-    context = ErrorContext(
+    context = ErrorContextModel(
         file_path=file_path,
         operation=operation,
     )
@@ -562,7 +557,7 @@ def create_config_error(
 ) -> ApplicationError:
     """Create a configuration error with context."""
     additional_data: dict[str, PrimitiveContextValue] | None = {"config_key": config_key} if config_key else None
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation=operation,
         additional_data=additional_data,
     )
@@ -582,7 +577,7 @@ def create_data_processing_error(
 ) -> DataProcessingError:
     """Create a data processing error with context."""
     additional_data: dict[str, PrimitiveContextValue] | None = {"field": field} if field else None
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation=operation,
         additional_data=additional_data,
     )
@@ -601,7 +596,7 @@ class CliError(ApplicationError):
         self,
         code: ErrorCode,
         message: str,
-        context: ErrorContext | None = None,
+        context: ErrorContextModel | None = None,
         original_error: Exception | None = None,
         command: str | None = None,
         exit_code: int = 1,
@@ -620,7 +615,7 @@ def create_cli_error(
 ) -> CliError:
     """Create a CLI error with context."""
     additional_data: dict[str, PrimitiveContextValue] | None = {"command": command} if command else None
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation=operation,
         additional_data=additional_data,
     )
@@ -647,7 +642,7 @@ def create_cli_output_error(
     if output_type is not None:
         additional_data["output_type"] = output_type
 
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation="cli_output",
         additional_data=additional_data if additional_data else None,
     )
@@ -670,7 +665,7 @@ class TypeCoercionError(DomainError):
     Attributes:
         code: Error code (TYPE_COERCION_ERROR)
         message: Human-readable error message
-        context: ErrorContext with model and data details
+        context: ErrorContextModel with model and data details
         original_error: Original Pydantic ValidationError
         model_name: Name of the target Pydantic model
         validation_errors: List of field-level validation errors
@@ -684,7 +679,7 @@ class TypeCoercionError(DomainError):
         ...     raise TypeCoercionError(
         ...         code=ErrorCode.TYPE_COERCION_ERROR,
         ...         message="Failed to convert dict to TMDBGenre",
-        ...         context=ErrorContext(operation="dict_to_model"),
+        ...         context=ErrorContextModel(operation="dict_to_model"),
         ...         original_error=e,
         ...         model_name="TMDBGenre",
         ...         validation_errors=e.errors()
@@ -695,7 +690,7 @@ class TypeCoercionError(DomainError):
         self,
         code: ErrorCode,
         message: str,
-        context: ErrorContext | None = None,
+        context: ErrorContextModel | None = None,
         original_error: Exception | None = None,
         model_name: str | None = None,
         validation_errors: list[dict[str, Any]] | None = None,
@@ -752,7 +747,7 @@ def create_type_coercion_error(
         "model_name": model_name,
         "validation_error_count": len(validation_errors) if validation_errors else 0,
     }
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation=operation or "type_conversion",
         additional_data=additional_data,
     )
@@ -764,3 +759,8 @@ def create_type_coercion_error(
         model_name=model_name,
         validation_errors=validation_errors,
     )
+
+
+# Backward compatibility alias
+# ErrorContext is an alias for ErrorContextModel for legacy code compatibility
+ErrorContext = ErrorContextModel

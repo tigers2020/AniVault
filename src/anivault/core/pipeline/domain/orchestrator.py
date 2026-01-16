@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -37,11 +38,29 @@ from anivault.core.pipeline.utils import (
     ScanStatistics,
 )
 from anivault.shared.constants import ProcessingConfig
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.errors import ErrorCode, ErrorContextModel, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 from anivault.shared.metadata_models import FileMetadata
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PipelineComponents:
+    """Container for all pipeline components.
+
+    This dataclass provides type-safe access to pipeline components,
+    replacing the previous dict-based approach.
+    """
+
+    scan_stats: ScanStatistics
+    queue_stats: QueueStatistics
+    parser_stats: ParserStatistics
+    file_queue: BoundedQueue
+    result_queue: BoundedQueue
+    scanner: DirectoryScanner
+    parser_pool: ParserWorkerPool
+    collector: ResultCollector
 
 
 def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
@@ -124,7 +143,7 @@ class PipelineFactory:
         Raises:
             InfrastructureError: If component initialization fails.
         """
-        context = ErrorContext(
+        context = ErrorContextModel(
             operation="create_pipeline_components",
             additional_data={
                 "root_path": root_path,
@@ -239,7 +258,7 @@ def run_pipeline(
     Raises:
         InfrastructureError: If pipeline execution fails.
     """
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation="run_pipeline",
         additional_data={
             "root_path": root_path,
@@ -263,11 +282,9 @@ def run_pipeline(
 
     try:
         components = _create_pipeline_components(root_path, extensions, num_workers, max_queue_size, cache_path)
-        scanner, parser_pool, collector = (
-            components["scanner"],
-            components["parser_pool"],
-            components["collector"],
-        )
+        scanner = components.scanner
+        parser_pool = components.parser_pool
+        collector = components.collector
 
         _execute_pipeline(components, num_workers)
         results = _collect_results(components, start_time, context)
@@ -295,8 +312,19 @@ def _create_pipeline_components(
     num_workers: int,
     max_queue_size: int,
     cache_path: str | None,
-) -> dict[str, Any]:
-    """Create pipeline components."""
+) -> PipelineComponents:
+    """Create pipeline components with type-safe structure.
+
+    Args:
+        root_path: Root directory to scan
+        extensions: File extensions to scan
+        num_workers: Number of parser workers
+        max_queue_size: Maximum queue size
+        cache_path: Optional cache path
+
+    Returns:
+        PipelineComponents dataclass with all components
+    """
     (
         scan_stats,
         queue_stats,
@@ -315,58 +343,59 @@ def _create_pipeline_components(
         _cache_path=cache_path,
     )
 
-    return {
-        "scan_stats": scan_stats,
-        "queue_stats": queue_stats,
-        "parser_stats": parser_stats,
-        "file_queue": file_queue,
-        "result_queue": result_queue,
-        "scanner": scanner,
-        "parser_pool": parser_pool,
-        "collector": collector,
-    }
+    return PipelineComponents(
+        scan_stats=scan_stats,
+        queue_stats=queue_stats,
+        parser_stats=parser_stats,
+        file_queue=file_queue,
+        result_queue=result_queue,
+        scanner=scanner,
+        parser_pool=parser_pool,
+        collector=collector,
+    )
 
 
-def _execute_pipeline(components: dict[str, Any], num_workers: int) -> None:
-    """Execute pipeline stages."""
-    scanner = components["scanner"]
-    parser_pool = components["parser_pool"]
-    collector = components["collector"]
-    file_queue = components["file_queue"]
-    result_queue = components["result_queue"]
-    scan_stats = components["scan_stats"]
-    parser_stats = components["parser_stats"]
+def _execute_pipeline(components: PipelineComponents, num_workers: int) -> None:
+    """Execute pipeline stages.
 
-    start_pipeline_components(scanner, parser_pool, collector, num_workers)
-    wait_for_scanner_completion(scanner, scan_stats)
-    signal_parser_shutdown(file_queue, num_workers)
-    wait_for_parser_completion(parser_pool, parser_stats)
-    signal_collector_shutdown(result_queue)
-    wait_for_collector_completion(collector)
+    Args:
+        components: Pipeline components container
+        num_workers: Number of parser workers
+    """
+    start_pipeline_components(components.scanner, components.parser_pool, components.collector, num_workers)
+    wait_for_scanner_completion(components.scanner, components.scan_stats)
+    signal_parser_shutdown(components.file_queue, num_workers)
+    wait_for_parser_completion(components.parser_pool, components.parser_stats)
+    signal_collector_shutdown(components.result_queue)
+    wait_for_collector_completion(components.collector)
 
 
 def _collect_results(
-    components: dict[str, Any],
+    components: PipelineComponents,
     start_time: float,
-    context: ErrorContext,
+    context: ErrorContextModel,
 ) -> list[dict[str, Any]]:
-    """Collect results and log statistics."""
-    collector = components["collector"]
-    scan_stats = components["scan_stats"]
-    queue_stats = components["queue_stats"]
-    parser_stats = components["parser_stats"]
+    """Collect results and log statistics.
 
-    result_count = wait_for_collector_completion(collector)
-    file_metadata_results = collector.get_results()
+    Args:
+        components: Pipeline components container
+        start_time: Pipeline start time
+        context: Error context for logging
+
+    Returns:
+        List of processed file results as dictionaries
+    """
+    result_count = wait_for_collector_completion(components.collector)
+    file_metadata_results = components.collector.get_results()
     total_duration = time.time() - start_time
 
     # Convert FileMetadata to dict for backward compatibility
     results = [_file_metadata_to_dict(metadata) for metadata in file_metadata_results]
 
     stats_report = format_statistics(
-        scan_stats=scan_stats,
-        queue_stats=queue_stats,
-        parser_stats=parser_stats,
+        scan_stats=components.scan_stats,
+        queue_stats=components.queue_stats,
+        parser_stats=components.parser_stats,
         total_duration=total_duration,
     )
 
@@ -390,18 +419,27 @@ def _collect_results(
 
 def _handle_pipeline_error(
     e: Exception,
-    context: ErrorContext,
-    scanner: Any,
-    parser_pool: Any,
-    collector: Any,
+    context: ErrorContextModel,
+    scanner: DirectoryScanner | None,
+    parser_pool: ParserWorkerPool | None,
+    collector: ResultCollector | None,
 ) -> None:
-    """Handle pipeline execution errors."""
+    """Handle pipeline execution errors with consistent error handling.
+
+    Args:
+        e: Exception that occurred
+        context: Error context for logging
+        scanner: Scanner instance or None
+        parser_pool: Parser pool instance or None
+        collector: Collector instance or None
+    """
     infrastructure_error = InfrastructureError(
         ErrorCode.PIPELINE_EXECUTION_ERROR,
         f"Pipeline execution failed: {e}",
         context,
         original_error=e,
     )
+
     log_operation_error(
         logger=logger,
         error=infrastructure_error,
@@ -412,9 +450,4 @@ def _handle_pipeline_error(
     if scanner and parser_pool and collector:
         graceful_shutdown(scanner, parser_pool, collector)
 
-    raise InfrastructureError(
-        ErrorCode.PIPELINE_EXECUTION_ERROR,
-        f"Pipeline execution failed: {e}",
-        context,
-        original_error=e,
-    ) from e
+    raise infrastructure_error from e

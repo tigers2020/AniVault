@@ -16,7 +16,7 @@ from anivault.shared.errors import (
     AniVaultError,
     ApplicationError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
 )
 
 from .path_resolver import ThemePathResolver
@@ -158,7 +158,7 @@ class ThemeManager:
                 raise ApplicationError(
                     ErrorCode.APPLICATION_ERROR,
                     "No QApplication instance found",
-                    ErrorContext(operation="apply_theme"),
+                    ErrorContextModel(operation="apply_theme"),
                 )
             app = instance
 
@@ -166,12 +166,12 @@ class ThemeManager:
         try:
             logger.info("Applying theme: %s", theme_name)
             qss_content = self.load_theme_content(theme_name)
-            if app:
-                app.setStyleSheet("")
-                app.setStyleSheet(qss_content)
-                self.current_theme = theme_name
-                self._repolish_all_top_levels(app)
-                logger.info("Successfully applied theme: %s", theme_name)
+            # app is guaranteed to be QApplication at this point (not None)
+            app.setStyleSheet("")
+            app.setStyleSheet(qss_content)
+            self.current_theme = theme_name
+            self._repolish_all_top_levels(app)
+            logger.info("Successfully applied theme: %s", theme_name)
             return
 
         # pylint: disable-next=broad-exception-caught
@@ -199,7 +199,7 @@ class ThemeManager:
                 except Exception as fallback_error:  # pylint: disable=broad-exception-caught
                     # Unexpected errors during fallback theme application
 
-                    context = ErrorContext(
+                    context = ErrorContextModel(
                         operation="apply_fallback_theme",
                         additional_data={"theme": self.DEFAULT_THEME},
                     )
@@ -231,7 +231,7 @@ class ThemeManager:
             raise ApplicationError(
                 ErrorCode.APPLICATION_ERROR,
                 f"Failed to apply theme and all fallbacks: {original_error}",
-                ErrorContext(
+                ErrorContextModel(
                     operation="apply_theme",
                     additional_data={
                         "requested_theme": theme_name,

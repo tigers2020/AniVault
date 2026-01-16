@@ -2,10 +2,11 @@
 Type Conversion Utilities
 
 This module provides utilities for converting between dict/Any and
-typed Pydantic models, facilitating gradual migration.
+typed Pydantic models and dataclasses, facilitating gradual migration.
 
 Conversion Strategy:
-- Use TypeAdapter for efficient dict → model conversion
+- Use TypeAdapter for efficient dict → model conversion (Pydantic)
+- Use dataclass serialization utilities for dataclass conversion
 - Cache TypeAdapter instances for performance
 - Provide clear error messages on validation failure
 
@@ -18,14 +19,18 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Mapping
+from dataclasses import is_dataclass
 from typing import Any, TypeVar, cast
 
 import orjson
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from anivault.shared.errors import create_type_coercion_error
+from anivault.shared.utils.dataclass_serialization import from_dict as dataclass_from_dict
+from anivault.shared.utils.dataclass_serialization import to_dict as dataclass_to_dict
 
 T = TypeVar("T", bound=BaseModel)
+D = TypeVar("D")  # For dataclasses
 
 
 @functools.lru_cache(maxsize=128)
@@ -56,23 +61,37 @@ def _get_type_adapter(model_cls: type[BaseModel]) -> TypeAdapter[BaseModel]:
 
 
 class ModelConverter:
-    """Static utility class for converting between dict and Pydantic models.
+    """Static utility class for converting between dict and typed models.
 
     This class provides a unified interface for type conversion operations,
-    replacing scattered conversion logic throughout the codebase.
+    supporting both Pydantic models and dataclasses. It replaces scattered
+    conversion logic throughout the codebase.
 
     Design Principles:
         - Static methods only (no state)
-        - Performance-optimized (TypeAdapter caching)
+        - Performance-optimized (TypeAdapter caching for Pydantic)
         - Type-safe (full mypy support)
         - Clear error messages (wrapped ValidationError)
+        - Unified interface for both Pydantic and dataclass models
 
     Usage:
+        # Pydantic models
         >>> from anivault.services.tmdb import TMDBGenre
         >>> data = {"id": 16, "name": "Animation"}
         >>> genre = ModelConverter.to_model(data, TMDBGenre)
         >>> genre.id
         16
+
+        # Dataclasses
+        >>> from dataclasses import dataclass
+        >>> @dataclass
+        ... class User:
+        ...     name: str
+        ...     age: int
+        >>> data = {"name": "Alice", "age": 30}
+        >>> user = ModelConverter.to_dataclass(data, User)
+        >>> user.name
+        'Alice'
     """
 
     @staticmethod
@@ -107,13 +126,13 @@ class ModelConverter:
         try:
             adapter = _get_type_adapter(model_cls)  # type: ignore[arg-type]
             result = adapter.validate_python(data)
-            return cast(T, result)
+            return cast("T", result)
         except ValidationError as e:
             model_name = model_cls.__name__
             error_count = len(e.errors())
             # Convert ErrorDetails to dict for compatibility
             validation_errors = cast("list[dict[str, Any]]", [dict(err) for err in e.errors()])
-            error_msg = f"Failed to convert dict to {model_name}: " f"{error_count} validation error(s)"
+            error_msg = f"Failed to convert dict to {model_name}: {error_count} validation error(s)"
 
             raise create_type_coercion_error(
                 message=error_msg,
@@ -163,7 +182,7 @@ class ModelConverter:
             by_alias=by_alias,
             exclude_none=exclude_none,
         )
-        return cast(dict[str, Any], result)
+        return cast("dict[str, Any]", result)
 
     @staticmethod
     def to_json_bytes(
@@ -207,7 +226,7 @@ class ModelConverter:
         # orjson.dumps is faster than json.dumps and produces compact output
         # pylint: disable-next=no-member
         result = orjson.dumps(data)
-        return cast(bytes, result)
+        return cast("bytes", result)
 
     @staticmethod
     def to_json_str(
@@ -271,3 +290,71 @@ class ModelConverter:
             return ModelConverter.to_model(data, model_cls)
         except ValidationError:
             return None
+
+    @staticmethod
+    def to_dataclass(data: dict[str, Any], dataclass_cls: type[D], *, extra: str = "ignore") -> D:
+        """Convert dictionary to dataclass instance.
+
+        This method provides a unified interface for dataclass conversion,
+        delegating to the dataclass serialization utilities.
+
+        Args:
+            data: Source dictionary to convert
+            dataclass_cls: Target dataclass class
+            extra: How to handle extra fields - "ignore" (default) or "forbid"
+
+        Returns:
+            Dataclass instance
+
+        Raises:
+            TypeError: If dataclass_cls is not a dataclass or validation fails
+
+        Example:
+            >>> from dataclasses import dataclass
+            >>> @dataclass
+            ... class User:
+            ...     name: str
+            ...     age: int
+            >>> data = {"name": "Alice", "age": 30}
+            >>> user = ModelConverter.to_dataclass(data, User)
+            >>> user.name
+            'Alice'
+        """
+        if not is_dataclass(dataclass_cls):
+            error_msg = f"{dataclass_cls.__name__} is not a dataclass"
+            raise TypeError(error_msg)
+
+        return cast("D", dataclass_from_dict(dataclass_cls, data, extra=extra))
+
+    @staticmethod
+    def dataclass_to_dict(obj: Any) -> dict[str, Any]:
+        """Convert dataclass instance to dictionary.
+
+        This method provides a unified interface for dataclass serialization,
+        delegating to the dataclass serialization utilities.
+
+        Args:
+            obj: Dataclass instance to convert
+
+        Returns:
+            Dictionary representation of the dataclass
+
+        Raises:
+            TypeError: If obj is not a dataclass
+
+        Example:
+            >>> from dataclasses import dataclass
+            >>> @dataclass
+            ... class User:
+            ...     name: str
+            ...     age: int
+            >>> user = User(name="Alice", age=30)
+            >>> result = ModelConverter.dataclass_to_dict(user)
+            >>> result
+            {'name': 'Alice', 'age': 30}
+        """
+        if not is_dataclass(obj):
+            error_msg = f"{type(obj).__name__} is not a dataclass"
+            raise TypeError(error_msg)
+
+        return dataclass_to_dict(obj)

@@ -239,6 +239,15 @@ integrated_*.json
 adaptive_*.json
 filenames.txt
 
+# Profiling results
+*.prof
+profile_*.json
+profile_*.txt
+parameter_tuning_*.json
+memory_usage_*.json
+grouping_comparison_*.json
+final_performance_*.json
+
 # ===========================================
 # Project Reports & Progress Tracking
 # ===========================================

@@ -17,13 +17,17 @@ from PySide6.QtWidgets import QApplication
 from anivault.config import get_config, load_settings
 from anivault.config.auto_scanner import AutoScanner
 from anivault.containers import Container
+from anivault.shared.error_handling import (
+    create_error_context,
+    map_exception_to_anivault_error,
+)
 from anivault.shared.errors import (
     AniVaultError,
     AniVaultFileError,
     AniVaultParsingError,
     ApplicationError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
 )
 
 from .main_window import MainWindow
@@ -104,7 +108,8 @@ class AniVaultGUI:
             self.main_window.set_theme_manager(self.theme_manager)
 
             # Load and apply initial theme AFTER window creation
-            self._load_initial_theme()
+            if self.theme_manager:
+                self._load_initial_theme()
 
             # Setup auto scanner callback
             self._setup_auto_scanner()
@@ -113,41 +118,53 @@ class AniVaultGUI:
             return True
 
         except (OSError, PermissionError) as e:
-            # File I/O errors during initialization
-            context = ErrorContext(operation="gui_initialization")
-            file_error = AniVaultFileError(
-                ErrorCode.FILE_ACCESS_ERROR,
-                f"File I/O error during GUI initialization: {e}",
-                context,
-                original_error=e,
+            # File I/O errors during initialization - use common error mapping
+            error = map_exception_to_anivault_error(
+                e,
+                "gui_initialization",
+                default_code=ErrorCode.FILE_ACCESS_ERROR,
             )
-            logger.exception("Failed to initialize GUI application: %s", file_error.message)
+            # Convert to AniVaultFileError for specific error type
+            if not isinstance(error, AniVaultFileError):
+                context = create_error_context("gui_initialization")
+                error = AniVaultFileError(
+                    ErrorCode.FILE_ACCESS_ERROR,
+                    f"File I/O error during GUI initialization: {e}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("Failed to initialize GUI application: %s", error.message)
             return False
         except (ValueError, AttributeError) as e:
-            # Configuration/data structure errors
-            context = ErrorContext(operation="gui_initialization")
-            config_error = AniVaultParsingError(
-                ErrorCode.CONFIGURATION_ERROR,
-                f"Configuration error during GUI initialization: {e}",
-                context,
-                original_error=e,
+            # Configuration/data structure errors - use common error mapping
+            error = map_exception_to_anivault_error(
+                e,
+                "gui_initialization",
+                default_code=ErrorCode.CONFIGURATION_ERROR,
             )
-            logger.exception("Failed to initialize GUI application: %s", config_error.message)
+            # Convert to AniVaultParsingError for specific error type
+            if not isinstance(error, AniVaultParsingError):
+                context = create_error_context("gui_initialization")
+                error = AniVaultParsingError(
+                    ErrorCode.CONFIGURATION_ERROR,
+                    f"Configuration error during GUI initialization: {e}",
+                    context,
+                    original_error=e,
+                )
+            logger.exception("Failed to initialize GUI application: %s", error.message)
             return False
         # pylint: disable-next=broad-exception-caught
 
         # pylint: disable-next=broad-exception-caught
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            # Unexpected errors during initialization
-            context = ErrorContext(operation="gui_initialization")
-            unexpected_error = AniVaultError(
-                ErrorCode.APPLICATION_ERROR,
-                f"Unexpected error during GUI initialization: {e}",
-                context,
-                original_error=e,
+            # Unexpected errors during initialization - use common error mapping
+            error = map_exception_to_anivault_error(
+                e,
+                "gui_initialization",
+                default_code=ErrorCode.APPLICATION_ERROR,
             )
-            logger.exception("Failed to initialize GUI application: %s", unexpected_error.message)
+            logger.exception("Failed to initialize GUI application: %s", error.message)
             return False
 
     def _ensure_config_exists(self) -> None:
@@ -168,7 +185,7 @@ class AniVaultGUI:
 
         except (OSError, PermissionError) as e:
             # File I/O errors during config creation
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.config_path),
                 operation="ensure_config_exists",
             )
@@ -186,7 +203,7 @@ class AniVaultGUI:
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during config creation
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.config_path),
                 operation="ensure_config_exists",
             )
@@ -257,7 +274,7 @@ class AniVaultGUI:
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during application execution
-            context = ErrorContext(operation="gui_application_run")
+            context = ErrorContextModel(operation="gui_application_run")
             run_error = AniVaultError(
                 ErrorCode.APPLICATION_ERROR,
                 f"Error running GUI application: {e}",
@@ -276,7 +293,7 @@ class AniVaultGUI:
             saved_theme = config.app.theme
 
             # Apply the theme (app parameter is optional, auto-detected)
-            if self.theme_manager:
+            if self.theme_manager is not None:
                 self.theme_manager.apply_theme(saved_theme, app=self.app)
 
             logger.info("Initial theme loaded: %s", saved_theme)
@@ -291,7 +308,7 @@ class AniVaultGUI:
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during theme loading (fallback already applied)
             theme_name_str = saved_theme if "saved_theme" in locals() and saved_theme is not None else "unknown"
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="load_initial_theme",
                 additional_data={"theme": theme_name_str},
             )
@@ -305,19 +322,21 @@ class AniVaultGUI:
 
     def _setup_auto_scanner(self) -> None:
         """Setup auto scanner with callback to main window."""
-        if self.auto_scanner and self.main_window:
+        if self.auto_scanner is not None and self.main_window is not None:
             # Set callback to trigger scanning in main window
+            main_window = self.main_window  # Local reference for type narrowing
+
             def scan_callback(folder_path: str) -> None:
                 """Callback function for auto scanning."""
                 try:
                     logger.info("Auto scan triggered for folder: %s", folder_path)
                     # Set directory in state model and start scanning
-                    if self.main_window:
-                        self.main_window.state_model.selected_directory = Path(folder_path)
-                        self.main_window.start_file_scan()
+                    if main_window is not None and main_window.state_model is not None:
+                        main_window.state_model.selected_directory = Path(folder_path)
+                        main_window.start_file_scan()
                 except (OSError, PermissionError) as e:
                     # File I/O errors during auto scan
-                    context = ErrorContext(
+                    context = ErrorContextModel(
                         operation="auto_scan_callback",
                         additional_data={"folder_path": folder_path},
                     )
@@ -334,7 +353,7 @@ class AniVaultGUI:
 
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     # Unexpected errors during auto scan callback
-                    context = ErrorContext(
+                    context = ErrorContextModel(
                         operation="auto_scan_callback",
                         additional_data={"folder_path": folder_path},
                     )
@@ -374,7 +393,7 @@ class AniVaultGUI:
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during auto scan startup check
-            context = ErrorContext(operation="check_auto_scan_startup")
+            context = ErrorContextModel(operation="check_auto_scan_startup")
             startup_error = AniVaultError(
                 ErrorCode.APPLICATION_ERROR,
                 f"Unexpected error during auto scan startup check: {e}",
@@ -407,7 +426,7 @@ class AniVaultGUI:
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during cleanup - log but don't crash
-            context = ErrorContext(operation="gui_cleanup")
+            context = ErrorContextModel(operation="gui_cleanup")
             cleanup_error = AniVaultError(
                 ErrorCode.APPLICATION_ERROR,
                 f"Error during cleanup: {e}",
@@ -418,7 +437,11 @@ class AniVaultGUI:
 
 
 def main() -> int:
-    """Main entry point for GUI application."""
+    """Main entry point for GUI application.
+
+    Returns:
+        Exit code (0 for success, non-zero for error)
+    """
     gui_app = AniVaultGUI()
     container = get_container()
 

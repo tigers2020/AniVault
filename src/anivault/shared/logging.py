@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.theme import Theme
 
-from anivault.shared.errors import AniVaultError, ErrorContext
+from anivault.shared.errors import AniVaultError, ErrorContextModel
 
 
 class StructuredFormatter(logging.Formatter):
@@ -191,7 +191,7 @@ def log_operation_error(
 
     # additional_context 정보 병합
     if additional_context:
-        if isinstance(additional_context, ErrorContext):
+        if isinstance(additional_context, ErrorContextModel):
             context_dict.update(additional_context.safe_dict())
         else:
             context_dict.update(additional_context)
@@ -238,7 +238,7 @@ def log_operation_success(  # pylint: disable=too-many-arguments,too-many-positi
 
     # additional_context 정보 병합
     if additional_context:
-        if isinstance(additional_context, ErrorContext):
+        if isinstance(additional_context, ErrorContextModel):
             context_dict.update(additional_context.safe_dict())
         else:
             context_dict.update(additional_context)

@@ -25,7 +25,7 @@ from anivault.shared.constants import ProcessingConfig
 from anivault.shared.constants.network import NetworkConfig
 from anivault.shared.errors import (
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
@@ -77,6 +77,10 @@ class ParallelDirectoryScanner(threading.Thread):
         self.chunk_size = chunk_size
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
+        # Use common synchronization utility for stats updates
+        from anivault.core.pipeline.utils.synchronization import ThreadSafeStatsUpdater
+
+        self._stats_updater = ThreadSafeStatsUpdater(stats, self._lock)
 
     def _get_parallel_threshold(self) -> int:
         """Get parallel_threshold from configuration.
@@ -196,7 +200,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 queued_count += 1
             except (FutureTimeoutError, OSError) as e:  # pylint: disable=bad-except-order
                 # Queue timeout or OS errors
-                context = ErrorContext(
+                context = ErrorContextModel(
                     file_path=str(file_path),
                     operation="queue_file_parallel",
                 )
@@ -223,15 +227,13 @@ class ParallelDirectoryScanner(threading.Thread):
     ) -> None:
         """Thread-safe method to update scan statistics.
 
+        Uses common synchronization utility for consistency.
+
         Args:
             files_count: Number of files processed.
             directories_count: Number of directories processed.
         """
-        with self._lock:
-            for _ in range(files_count):
-                self.stats.increment_files_scanned()
-            for _ in range(directories_count):
-                self.stats.increment_directories_scanned()
+        self._stats_updater.update_files_and_directories(files_count, directories_count)
 
     def _submit_scan_jobs(
         self,
@@ -250,7 +252,7 @@ class ParallelDirectoryScanner(threading.Thread):
         Raises:
             InfrastructureError: If job submission fails.
         """
-        context = ErrorContext(
+        context = ErrorContextModel(
             operation="submit_scan_jobs",
             additional_data={
                 "subdirectories_count": len(subdirectories),
@@ -322,7 +324,7 @@ class ParallelDirectoryScanner(threading.Thread):
         Args:
             future_to_dir: Dictionary mapping futures to their subdirectory paths.
         """
-        context = ErrorContext(
+        context = ErrorContextModel(
             operation="await_scan_completion",
             additional_data={"futures_count": len(future_to_dir)},
         )
@@ -340,7 +342,7 @@ class ParallelDirectoryScanner(threading.Thread):
                     # Check for exceptions from individual jobs
                     if future.exception():
                         subdir = future_to_dir[future]
-                        error_context = ErrorContext(
+                        error_context = ErrorContextModel(
                             operation="individual_scan_job",
                             additional_data={"subdirectory": str(subdir)},
                         )
@@ -348,7 +350,7 @@ class ParallelDirectoryScanner(threading.Thread):
                         exception = future.exception()
                         error = InfrastructureError(
                             ErrorCode.SCANNER_ERROR,
-                            (f"Individual scan job failed for directory {subdir}: " f"{exception}"),
+                            (f"Individual scan job failed for directory {subdir}: {exception}"),
                             error_context,
                             original_error=(exception if isinstance(exception, Exception) else None),
                         )
@@ -376,7 +378,7 @@ class ParallelDirectoryScanner(threading.Thread):
                     ValueError,
                 ) as e:
                     subdir = future_to_dir[future]
-                    error_context = ErrorContext(
+                    error_context = ErrorContextModel(
                         operation="process_scan_result",
                         additional_data={"subdirectory": str(subdir)},
                     )
@@ -433,7 +435,7 @@ class ParallelDirectoryScanner(threading.Thread):
         Args:
             subdirectories: List of subdirectory paths to scan.
         """
-        context = ErrorContext(
+        context = ErrorContextModel(
             operation="scan_subdirectories",
             additional_data={
                 "subdirectories_count": len(subdirectories),
@@ -532,7 +534,7 @@ class ParallelDirectoryScanner(threading.Thread):
 
         except PermissionError as e:
             # Permission errors during parallel scanning
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.root_path),
                 operation="parallel_directory_scanning",
             )
@@ -551,7 +553,7 @@ class ParallelDirectoryScanner(threading.Thread):
             # Note: TimeoutError is a subclass of OSError, but we want to handle
             # timeout errors separately before general OSError handling.
             # This is intentional - we catch TimeoutError first for specific handling.
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.root_path),
                 operation="parallel_directory_scanning",
             )
@@ -564,7 +566,7 @@ class ParallelDirectoryScanner(threading.Thread):
             logger.exception("Error in parallel directory scanning: %s", error.message)
         except OSError as e:
             # Other OS errors (must come after TimeoutError)
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.root_path),
                 operation="parallel_directory_scanning",
             )
@@ -582,7 +584,7 @@ class ParallelDirectoryScanner(threading.Thread):
             TypeError,
         ) as e:
             # Unexpected errors during parallel scanning
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.root_path),
                 operation="parallel_directory_scanning",
             )
@@ -599,7 +601,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
             except (FutureTimeoutError, OSError) as e:  # pylint: disable=bad-except-order
                 # Queue timeout or OS errors
-                context = ErrorContext(operation="put_sentinel_parallel")
+                context = ErrorContextModel(operation="put_sentinel_parallel")
                 error = InfrastructureError(
                     ErrorCode.QUEUE_OPERATION_ERROR,
                     f"Failed to put sentinel value: {e}",

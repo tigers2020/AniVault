@@ -15,7 +15,7 @@ import typer
 
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
-from anivault.cli.common.models import DirectoryPath, MatchOptions
+from anivault.shared.types.cli import CLIDirectoryPath as DirectoryPath, MatchOptions
 from anivault.cli.common.setup_decorator import setup_handler
 from anivault.cli.helpers.match import run_match_pipeline
 from anivault.shared.constants import CLI

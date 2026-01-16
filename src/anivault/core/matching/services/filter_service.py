@@ -9,8 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict
 
-from anivault.core.matching.filters import apply_genre_filter, filter_and_sort_by_year
-from anivault.core.matching.models import NormalizedQuery
+from anivault.core.matching.filters import apply_genre_filter
 from anivault.core.matching.services.sort_cache import SortCache
 from anivault.core.statistics import StatisticsCollector
 from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
@@ -57,54 +56,64 @@ class CandidateFilterService:
         candidates: list[ScoredSearchResult],
         year_hint: int | None,
     ) -> list[ScoredSearchResult]:
-        """Filter candidates by year proximity.
+        """Filter candidates by year proximity while preserving confidence order.
 
         Candidates are filtered based on year tolerance (±10 years default).
-        If no year hint provided, all candidates are returned.
+        After filtering, candidates are re-sorted by confidence score (descending)
+        to maintain the original confidence-based ranking.
 
         Args:
-            candidates: List of scored candidates to filter
+            candidates: List of scored candidates to filter (should be pre-sorted by confidence)
             year_hint: Year hint from normalized query (optional)
 
         Returns:
-            Filtered list of candidates (input not modified)
+            Filtered list of candidates sorted by confidence (descending)
             Empty list if no candidates match year criteria
 
         Example:
             >>> filtered = service.filter_by_year(candidates, 2013)
-            >>> # Only candidates with year 2003-2023 remain
+            >>> # Only candidates with year 2003-2023 remain, sorted by confidence
         """
         if not year_hint or not candidates:
             return candidates
 
-        # Convert to TMDBSearchResult for filter function
-        # (filter function expects TMDBSearchResult, not ScoredSearchResult)
-        tmdb_results = [self._to_tmdb_result(c) for c in candidates]
+        # Filter by year tolerance (±10 years)
+        from anivault.core.matching.filters import YEAR_FILTER_TOLERANCE
 
-        # Create temp query for filter function
-        temp_query = NormalizedQuery(title="temp_query_for_filter", year=year_hint)
+        filtered = []
+        for candidate in candidates:
+            # Extract year from release_date or first_air_date
+            candidate_year = self._extract_year_from_candidate(candidate)
 
-        # Apply year filter (with sort cache)
-        filtered_tmdb = filter_and_sort_by_year(
-            tmdb_results,
-            temp_query,
-            sort_cache=self.sort_cache,
-        )
+            if not candidate_year:
+                # Keep candidates without year (they go to end after sorting)
+                filtered.append(candidate)
+                continue
 
-        # Convert back to ScoredSearchResult (preserve confidence scores)
-        filtered_scored = [self._find_scored_by_id(c.id, candidates) for c in filtered_tmdb]
+            # Check year difference
+            year_diff = abs(candidate_year - year_hint)
+            if year_diff <= YEAR_FILTER_TOLERANCE:
+                filtered.append(candidate)
+                logger.debug(
+                    "Year match: query=%s, candidate=%s (diff=%s, confidence=%.3f)",
+                    year_hint,
+                    candidate_year,
+                    year_diff,
+                    candidate.confidence_score,
+                )
 
-        # Remove None values (should not happen but be safe)
-        result = [c for c in filtered_scored if c is not None]
+        # CRITICAL: Re-sort by confidence to maintain original ranking
+        # This ensures the highest confidence candidate is selected even after filtering
+        filtered.sort(key=lambda c: c.confidence_score, reverse=True)
 
         logger.debug(
-            "Filtered %d → %d candidates by year (hint: %d)",
+            "Filtered %d → %d candidates by year (hint: %d), re-sorted by confidence",
             len(candidates),
-            len(result),
+            len(filtered),
             year_hint,
         )
 
-        return result
+        return filtered
 
     def filter_by_genre(
         self,
@@ -170,3 +179,24 @@ class CandidateFilterService:
             if scored.id == tmdb_id:
                 return scored
         return None
+
+    def _extract_year_from_candidate(self, candidate: ScoredSearchResult) -> int | None:
+        """Extract year from candidate's release date.
+
+        Args:
+            candidate: Scored search result
+
+        Returns:
+            Year as integer or None if not available
+        """
+        # Try release_date (movies) or first_air_date (TV)
+        date_str = candidate.release_date or candidate.first_air_date
+
+        if not date_str:
+            return None
+
+        try:
+            # Extract year from YYYY-MM-DD format
+            return int(date_str.split("-")[0])
+        except (ValueError, IndexError):
+            return None

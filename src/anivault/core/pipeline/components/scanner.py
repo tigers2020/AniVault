@@ -20,12 +20,13 @@ from typing import Any
 from anivault.core.constants import ProcessingThresholds
 from anivault.core.filter import FilterEngine
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
+from anivault.core.pipeline.utils.synchronization import ThreadSafeStatsUpdater
 from anivault.shared.constants import ProcessingConfig
 from anivault.shared.constants.network import NetworkConfig
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
     InfrastructureError,
 )
 
@@ -86,6 +87,7 @@ class DirectoryScanner(threading.Thread):
         self.max_workers = max_workers or min(32, (os.cpu_count() or 4) + 4)
         self._stop_event = cancel_event if cancel_event is not None else threading.Event()
         self._lock = threading.Lock()
+        self._stats_updater = ThreadSafeStatsUpdater(stats, self._lock)
         self._quiet_mode = quiet
         # Adaptive threshold for parallel processing
         self.parallel_threshold = ProcessingConfig.PARALLEL_THRESHOLD
@@ -113,7 +115,7 @@ class DirectoryScanner(threading.Thread):
             # pylint: disable-next=broad-exception-caught  # Catch-all for unexpected callback errors
             except Exception as e:
                 # Handle unexpected callback errors - log but don't interrupt scan
-                context = ErrorContext(operation="scan_progress_callback")
+                context = ErrorContextModel(operation="scan_progress_callback")
                 error = AniVaultError(
                     ErrorCode.APPLICATION_ERROR,
                     f"Unexpected callback error during scan progress reporting: {e}",
@@ -598,7 +600,7 @@ class DirectoryScanner(threading.Thread):
                 queued_count += 1
             except (TimeoutError, OSError) as e:
                 # Queue timeout or OS errors
-                context = ErrorContext(
+                context = ErrorContextModel(
                     file_path=str(file_path),
                     operation="queue_file",
                 )
@@ -617,7 +619,7 @@ class DirectoryScanner(threading.Thread):
                 continue
             except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 # Unexpected queue errors - log but continue
-                context = ErrorContext(
+                context = ErrorContextModel(
                     file_path=str(file_path),
                     operation="queue_file",
                 )
@@ -644,15 +646,13 @@ class DirectoryScanner(threading.Thread):
     ) -> None:
         """Thread-safe method to update scan statistics.
 
+        Uses common synchronization utility for consistency.
+
         Args:
             files_count: Number of files processed.
             directories_count: Number of directories processed.
         """
-        with self._lock:
-            for _ in range(files_count):
-                self.stats.increment_files_scanned()
-            for _ in range(directories_count):
-                self.stats.increment_directories_scanned()
+        self._stats_updater.update_files_and_directories(files_count, directories_count)
 
     def stop(self) -> None:
         """Signal the scanner thread to stop."""
@@ -682,7 +682,7 @@ class DirectoryScanner(threading.Thread):
 
         except (OSError, PermissionError) as e:
             # File system errors during scanning
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.root_path),
                 operation="directory_scanning",
             )
@@ -695,7 +695,7 @@ class DirectoryScanner(threading.Thread):
             logger.exception("Error during directory scanning: %s", error.message)
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during scanning
-            context = ErrorContext(
+            context = ErrorContextModel(
                 file_path=str(self.root_path),
                 operation="directory_scanning",
             )
@@ -712,7 +712,7 @@ class DirectoryScanner(threading.Thread):
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
             except (TimeoutError, OSError) as e:
                 # Queue timeout or OS errors
-                context = ErrorContext(operation="put_sentinel_value")
+                context = ErrorContextModel(operation="put_sentinel_value")
                 queue_error: AniVaultError = InfrastructureError(
                     ErrorCode.QUEUE_OPERATION_ERROR,
                     f"Failed to put sentinel value: {e}",
@@ -722,7 +722,7 @@ class DirectoryScanner(threading.Thread):
                 logger.warning("Failed to put sentinel value: %s", queue_error.message, exc_info=True)
             except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 # Unexpected queue errors - log but continue
-                context = ErrorContext(operation="put_sentinel_value")
+                context = ErrorContextModel(operation="put_sentinel_value")
                 error = AniVaultError(
                     ErrorCode.QUEUE_OPERATION_ERROR,
                     f"Unexpected error putting sentinel value: {e}",
@@ -744,7 +744,7 @@ class DirectoryScanner(threading.Thread):
                 self.stats.increment_files_scanned()
             except (OSError, TimeoutError) as e:
                 # Queue operation errors
-                context = ErrorContext(
+                context = ErrorContextModel(
                     file_path=str(file_path),
                     operation="put_file_sequential",
                 )
@@ -759,7 +759,7 @@ class DirectoryScanner(threading.Thread):
             # pylint: disable-next=broad-exception-caught  # Catch-all for unexpected callback errors
             except Exception as e:
                 # Unexpected queue errors - log but continue
-                context = ErrorContext(
+                context = ErrorContextModel(
                     file_path=str(file_path),
                     operation="put_file_sequential",
                 )
@@ -838,7 +838,7 @@ class DirectoryScanner(threading.Thread):
                 except (OSError, PermissionError) as e:
                     # File system errors during subdirectory processing
                     subdir = future_to_dir[future]
-                    context = ErrorContext(
+                    context = ErrorContextModel(
                         file_path=str(subdir),
                         operation="process_subdirectory",
                     )
@@ -854,7 +854,7 @@ class DirectoryScanner(threading.Thread):
                 except Exception as e:
                     # Unexpected errors during subdirectory processing
                     subdir = future_to_dir[future]
-                    context = ErrorContext(
+                    context = ErrorContextModel(
                         file_path=str(subdir),
                         operation="process_subdirectory",
                     )

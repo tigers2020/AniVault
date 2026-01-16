@@ -33,7 +33,6 @@ from anivault.core.file_grouper.grouper import (
     group_similar_files,
 )
 from anivault.core.file_grouper.grouping_engine import (
-    DEFAULT_WEIGHTS,
     GroupingEngine,
 )
 
@@ -55,7 +54,6 @@ from anivault.core.file_grouper.strategies import (
 )
 
 __all__ = [
-    "DEFAULT_WEIGHTS",
     "BaseMatcher",
     "BestMatcherStrategy",
     "ConsensusStrategy",

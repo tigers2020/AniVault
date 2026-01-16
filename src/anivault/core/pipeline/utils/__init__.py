@@ -13,10 +13,18 @@ from anivault.core.pipeline.utils.statistics import (
     QueueStatistics,
     ScanStatistics,
 )
+from anivault.core.pipeline.utils.synchronization import (
+    ThreadSafeStatsUpdater,
+    synchronized,
+    thread_safe_operation,
+)
 
 __all__ = [
     "BoundedQueue",
     "ParserStatistics",
     "QueueStatistics",
     "ScanStatistics",
+    "ThreadSafeStatsUpdater",
+    "synchronized",
+    "thread_safe_operation",
 ]

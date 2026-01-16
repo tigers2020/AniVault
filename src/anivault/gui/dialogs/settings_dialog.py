@@ -44,7 +44,7 @@ from anivault.shared.constants.gui_messages import DialogMessages, DialogTitles
 from anivault.shared.errors import (
     AniVaultError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
 )
 
 logger = logging.getLogger(__name__)
@@ -241,9 +241,9 @@ class SettingsDialog(QDialog):
             if self._cached_config is None:
                 self._cached_config = get_config()
 
-            if self._cached_config.tmdb.api_key:
-                self.current_api_key = self._cached_config.tmdb.api_key
-                self.api_key_input.setText(self._cached_config.tmdb.api_key)
+            if self._cached_config.api.tmdb.api_key:
+                self.current_api_key = self._cached_config.api.tmdb.api_key
+                self.api_key_input.setText(self._cached_config.api.tmdb.api_key)
                 logger.debug("Loaded existing API key from configuration")
 
             # Load folder settings
@@ -298,9 +298,7 @@ class SettingsDialog(QDialog):
 
             # Show success message with .env file notice
             success_message = (
-                f"{DialogMessages.API_KEY_SAVED}\n\n"
-                "🔒 보안 알림: API 키는 .env 파일에 안전하게 저장되었습니다.\n"
-                "(config.toml에는 저장되지 않음)"
+                f"{DialogMessages.API_KEY_SAVED}\n\n🔒 보안 알림: API 키는 .env 파일에 안전하게 저장되었습니다.\n(config.toml에는 저장되지 않음)"
             )
             QMessageBox.information(
                 self,
@@ -337,7 +335,7 @@ class SettingsDialog(QDialog):
 
             # 2. Update memory cache (for current session)
             def update_api_key(cfg: Settings) -> None:
-                cfg.tmdb.api_key = api_key
+                cfg.api.tmdb.api_key = api_key
 
             # Note: This updates memory only, NOT saved to config.toml
             # to_toml_file() excludes api_key for security
@@ -350,7 +348,7 @@ class SettingsDialog(QDialog):
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save API key: {e!s}",
-                ErrorContext(operation="save_api_key"),
+                ErrorContextModel(operation="save_api_key"),
             ) from e
 
     def _save_api_key_to_env_file(
@@ -476,7 +474,7 @@ class SettingsDialog(QDialog):
             raise AniVaultError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Failed to save folder settings: {e!s}",
-                ErrorContext(operation="save_folder_settings"),
+                ErrorContextModel(operation="save_folder_settings"),
             ) from e
 
     def get_api_key(self) -> str:

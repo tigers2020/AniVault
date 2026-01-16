@@ -2,6 +2,9 @@
 
 This module provides BoundedQueue, a thread-safe queue wrapper
 with size limits for implementing backpressure in the pipeline.
+
+This is a queue.Queue-compatible wrapper used by pipeline components
+for inter-component communication with backpressure control.
 """
 
 from __future__ import annotations

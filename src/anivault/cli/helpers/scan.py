@@ -19,7 +19,7 @@ from rich.table import Table
 
 from anivault.cli.progress import create_progress_manager
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
-from anivault.core.pipeline.main import run_pipeline
+from anivault.core.pipeline import run_pipeline
 from anivault.services import RateLimitStateMachine, SemaphoreManager, TMDBClient, TokenBucketRateLimiter
 from anivault.services.enricher import MetadataEnricher
 from anivault.shared.constants import CLIDefaults, CLIFormatting, QueueConfig

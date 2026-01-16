@@ -23,7 +23,7 @@ from anivault.core.pipeline.utils import (
 )
 from anivault.shared.constants import Pipeline, Timeout
 from anivault.shared.constants.network import NetworkConfig
-from anivault.shared.errors import ErrorCode, ErrorContext, InfrastructureError
+from anivault.shared.errors import ErrorCode, ErrorContextModel, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def start_pipeline_components(
     Raises:
         InfrastructureError: If component startup fails.
     """
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation="start_pipeline_components",
         additional_data={"num_workers": num_workers},
     )
@@ -107,7 +107,7 @@ def wait_for_scanner_completion(
     Raises:
         InfrastructureError: If scanner completion fails.
     """
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation="wait_for_scanner_completion",
         additional_data={"files_scanned": scan_stats.files_scanned},
     )
@@ -162,7 +162,7 @@ def signal_parser_shutdown(
     Raises:
         InfrastructureError: If sentinel signaling fails.
     """
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation="signal_parser_shutdown",
         additional_data={"num_workers": num_workers},
     )
@@ -220,7 +220,7 @@ def wait_for_parser_completion(
     Raises:
         InfrastructureError: If parser completion fails.
     """
-    context = ErrorContext(
+    context = ErrorContextModel(
         operation="wait_for_parser_completion",
         additional_data={"items_processed": parser_stats.items_processed},
     )
@@ -276,7 +276,7 @@ def signal_collector_shutdown(
     Raises:
         InfrastructureError: If sentinel signaling fails.
     """
-    context = ErrorContext(operation="signal_collector_shutdown")
+    context = ErrorContextModel(operation="signal_collector_shutdown")
 
     try:
         logger.info("Sending sentinel value to result collector...")
@@ -328,7 +328,7 @@ def wait_for_collector_completion(
     Raises:
         InfrastructureError: If collector completion fails.
     """
-    context = ErrorContext(operation="wait_for_collector_completion")
+    context = ErrorContextModel(operation="wait_for_collector_completion")
 
     try:
         logger.info("Waiting for result collector to complete...")
@@ -394,7 +394,7 @@ def graceful_shutdown(
         parser_pool: ParserWorkerPool instance.
         collector: ResultCollector instance.
     """
-    context = ErrorContext(operation="graceful_shutdown")
+    context = ErrorContextModel(operation="graceful_shutdown")
 
     try:
         logger.info("Attempting graceful shutdown...")
@@ -440,7 +440,7 @@ def force_shutdown_if_needed(
         parser_pool: ParserWorkerPool instance.
         collector: ResultCollector instance.
     """
-    context = ErrorContext(operation="force_shutdown_if_needed")
+    context = ErrorContextModel(operation="force_shutdown_if_needed")
 
     try:
         # Ensure all threads are stopped

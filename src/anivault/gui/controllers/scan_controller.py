@@ -24,7 +24,7 @@ from anivault.shared.errors import (
     AniVaultFileError,
     AniVaultParsingError,
     ErrorCode,
-    ErrorContext,
+    ErrorContextModel,
 )
 from anivault.shared.metadata_models import FileMetadata, TMDBMatchResult
 
@@ -114,30 +114,18 @@ class ScanController(QObject):
             LinkedHashTable mapping group names to lists of FileItem objects
         """
         # Parse filenames and use FileGrouper for intelligent grouping
+        from anivault.core.parser.helpers import parse_with_fallback
+
         scanned_files = []
 
         for file_item in file_items:
-            try:
-                parsed_result = self.parser.parse(file_item.file_path.name)
-            # pylint: disable-next=broad-exception-caught
-
-            # pylint: disable-next=broad-exception-caught
-
-            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-                logger.warning("Failed to parse '%s': %s", file_item.file_path.name, e)
-                parsed_result = ParsingResult(
-                    title=file_item.file_name,
-                    episode=None,
-                    season=None,
-                    quality=None,
-                    source=None,
-                    codec=None,
-                    audio=None,
-                    release_group=None,
-                    confidence=0.0,
-                    parser_used="gui_fallback",
-                    additional_info=ParsingAdditionalInfo(error=str(e)),
-                )
+            # Use common parsing helper for consistent error handling
+            parsed_result = parse_with_fallback(
+                self.parser,
+                file_item.file_path.name,
+                fallback_title=file_item.file_name,
+                fallback_parser_name="gui_fallback",
+            )
 
             scanned_file = ScannedFile(
                 file_path=file_item.file_path,
@@ -214,7 +202,7 @@ class ScanController(QObject):
 
         except (KeyError, ValueError, TypeError, AttributeError) as e:
             # Data parsing errors during TMDB grouping
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="tmdb_grouping",
                 additional_data={"error_type": "data_parsing"},
             )
@@ -228,7 +216,7 @@ class ScanController(QObject):
             raise error from e
         except (OSError, PermissionError) as e:
             # File I/O errors during grouping
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="tmdb_grouping",
                 additional_data={"error_type": "file_io"},
             )
@@ -246,7 +234,7 @@ class ScanController(QObject):
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during TMDB grouping
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="tmdb_grouping",
                 additional_data={"error_type": "unexpected"},
             )
@@ -498,7 +486,7 @@ class ScanController(QObject):
 
         except (KeyError, ValueError, TypeError, AttributeError) as e:
             # Data parsing errors during file grouping
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="file_grouping",
                 additional_data={"error_type": "data_parsing"},
             )
@@ -512,7 +500,7 @@ class ScanController(QObject):
             raise error from e
         except (OSError, PermissionError) as e:
             # File I/O errors during grouping
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="file_grouping",
                 additional_data={"error_type": "file_io"},
             )
@@ -530,7 +518,7 @@ class ScanController(QObject):
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Unexpected errors during file grouping
-            context = ErrorContext(
+            context = ErrorContextModel(
                 operation="file_grouping",
                 additional_data={"error_type": "unexpected"},
             )

@@ -10,7 +10,6 @@ and error handling across the application.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Callable
 
 from anivault.gui.controllers.tmdb_controller import TMDBController
@@ -108,8 +107,8 @@ class TMDBEventHandler(BaseEventHandler):
                 - Other TMDB metadata fields
         """
         # FileMetadata is a dataclass, access attributes directly
-        file_path = Path(result.file_path) if result.file_path else Path()
-        file_name = result.file_name or "Unknown"
+        file_path = result.file_path
+        file_name = file_path.name if file_path else "Unknown"
         status = "matched" if result.tmdb_id is not None else "unknown"
 
         # Update state model

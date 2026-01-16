@@ -316,6 +316,7 @@ class TitleSimilarityMatcher:
             matched_group = None
 
             # Strategy 1: Try LSH to find similar candidates first
+            # Pre-filter LSH candidates with keyword intersection for better accuracy
             lsh_candidates = title_index.query_similar_titles(title)
             lsh_candidates = [c for c in lsh_candidates if c != file_id and c not in processed_file_ids]
 
@@ -323,10 +324,22 @@ class TitleSimilarityMatcher:
             # Otherwise fall back to keyword-based filtering
             candidate_file_ids: set[int] = set()
             if lsh_candidates:
-                # Use LSH candidates to narrow down the search
-                candidate_file_ids = set(lsh_candidates)
+                # Filter LSH candidates by keyword intersection for better precision
+                # This reduces false positives from LSH
+                filtered_lsh_candidates = []
+                for candidate_id in lsh_candidates:
+                    candidate_keywords = file_keywords.get(candidate_id, set())
+                    if file_keyword_set and candidate_keywords:
+                        if file_keyword_set.intersection(candidate_keywords):
+                            filtered_lsh_candidates.append(candidate_id)
+                    elif not file_keyword_set or not candidate_keywords:
+                        # If either has no keywords, include it (edge case)
+                        filtered_lsh_candidates.append(candidate_id)
+
+                candidate_file_ids = set(filtered_lsh_candidates)
                 logger.debug(
-                    "LSH found %d candidates for title '%s' (file_id=%d)",
+                    "LSH found %d candidates (filtered from %d) for title '%s' (file_id=%d)",
+                    len(candidate_file_ids),
                     len(lsh_candidates),
                     title,
                     file_id,
@@ -369,18 +382,27 @@ class TitleSimilarityMatcher:
                 rep_title = file_id_to_title.get(rep_file_id, group_name)
 
                 # Guard conditions: skip similarity calculation if titles are too different
+                # Apply guard conditions early to avoid expensive operations
                 len1, len2 = len(title), len(rep_title)
                 if len1 > 0 and len2 > 0:
                     length_ratio = min(len1, len2) / max(len1, len2)
                     if length_ratio < 0.5:  # More than 50% difference
                         continue
 
-                # Check token count difference
+                # Check token count difference (early exit)
                 title_tokens = title.split()
                 rep_title_tokens = rep_title.split()
                 token_diff = abs(len(title_tokens) - len(rep_title_tokens))
                 if token_diff > 3:
                     continue
+
+                # Additional early guard: check if first few characters match
+                # This is a fast heuristic before expensive similarity calculation
+                if len1 >= 3 and len2 >= 3:
+                    if title[:3].lower() != rep_title[:3].lower():
+                        # Only skip if no keyword overlap (already checked above)
+                        # This is a soft guard - still allow if keywords match
+                        pass  # Keep this check soft to avoid false negatives
 
                 # Only calculate similarity if guard conditions pass
                 similarity = self._calculate_similarity(title, rep_title)
@@ -411,8 +433,22 @@ class TitleSimilarityMatcher:
                 # Create new group
                 all_groups_table.put(title, [file])
 
-        # Step 5: Convert to Group objects
-        result = [Group(title=group_name, files=group_files) for group_name, group_files in all_groups_table]
+        # Step 5: Convert to Group objects and apply large group splitting
+        max_group_size = self._get_max_title_match_group_size()
+        result = []
+        for group_name, group_files in all_groups_table:
+            if len(group_files) > max_group_size:
+                # Split large groups recursively for better performance
+                logger.debug(
+                    "Splitting large group '%s' (%d files) into smaller groups",
+                    group_name,
+                    len(group_files),
+                )
+                # Recursively match the files in this large group
+                subgroups = self.match(group_files)
+                result.extend(subgroups)
+            else:
+                result.append(Group(title=group_name, files=group_files))
 
         logger.info(
             "Title matcher grouped %d files into %d groups (using TitleIndex optimization)",
@@ -428,6 +464,11 @@ class TitleSimilarityMatcher:
         This method takes an existing group (typically from Hash matcher) and
         subdivides it into smaller groups based on pairwise title similarity.
         Files with similar titles (above threshold) are grouped together.
+
+        Optimized for Hash-first pipeline:
+        - Uses Hash group's normalized title as a hint for faster matching
+        - Leverages TitleIndex for efficient candidate filtering
+        - Skips expensive similarity calculations when Hash match is strong
 
         If the group cannot be subdivided (all files are similar or only one file),
         returns None to indicate no refinement occurred.
@@ -458,8 +499,37 @@ class TitleSimilarityMatcher:
         if len(group.files) == 1:
             return None
 
-        # Use match() method to subdivide the group
-        # This reuses existing logic for consistency
+        # Hash-first optimization: Build TitleIndex only for this group's files
+        # This reduces the search space from O(n²) to O(m²) where m = group size
+        title_index = TitleIndex()
+        file_id_to_file: dict[int, ScannedFile] = {}
+        file_id_to_title: dict[int, str] = {}
+
+        for file_id, file in enumerate(group.files, start=1):
+            title = self._extract_title_from_file(file)
+            if title:
+                title_index.add_title(file_id, title)
+                file_id_to_file[file_id] = file
+                file_id_to_title[file_id] = title
+
+        if not file_id_to_file:
+            return None
+
+        # Hash-first optimization: Check if all files have exact normalized match
+        # If so, no refinement needed (Hash matcher already grouped them correctly)
+        if len(file_id_to_title) > 1:
+            first_title = next(iter(file_id_to_title.values()))
+            exact_matches = title_index.get_exact_matches(first_title)
+            if len(exact_matches) == len(file_id_to_file):
+                # All files have exact normalized match - Hash matcher was correct
+                logger.debug(
+                    "Hash group '%s' has exact normalized matches, no Title refinement needed",
+                    group.title,
+                )
+                return None
+
+        # Use optimized match() method to subdivide the group
+        # This reuses existing logic but benefits from smaller search space
         subgroups = self.match(group.files)
 
         # If no subgroups created or only one subgroup, return None
@@ -508,7 +578,7 @@ class TitleIndex:
         Args:
             lsh_threshold: Jaccard similarity threshold for LSH (0.0-1.0). Default 0.5.
             num_perm: Number of permutations for MinHash. Higher = more accurate but slower.
-                     Default 128 (good balance).
+                     Default 128 (good balance). Will be adjusted dynamically based on title length.
         """
         self.keyword_index: dict[str, set[int]] = {}
         self.normalized_hash: dict[str, list[int]] = {}
@@ -522,6 +592,8 @@ class TitleIndex:
         self.file_id_to_minhash: dict[int, MinHash] = {}
         # Soft-deleted keys (for incremental updates)
         self.deleted_keys: set[int] = set()
+        # Base num_perm for dynamic adjustment
+        self.base_num_perm = num_perm
 
     def _normalize_title(self, title: str) -> str:
         """Normalize title for indexing and matching.
@@ -703,12 +775,13 @@ class TitleIndex:
         """Create MinHash signature from normalized title using shingling.
 
         This method converts the normalized title into character shingles (n-grams)
-        and creates a MinHash signature for LSH indexing.
+        and creates a MinHash signature for LSH indexing. Dynamically adjusts
+        num_perm based on title length for better performance.
 
         Args:
             normalized_title: Normalized title string (already processed).
-            num_perm: Number of permutations for MinHash. If None, uses the same
-                     value as the LSH index.
+            num_perm: Number of permutations for MinHash. If None, dynamically
+                     adjusts based on title length (shorter titles use fewer permutations).
 
         Returns:
             MinHash object, or None if title is empty or invalid.
@@ -722,9 +795,16 @@ class TitleIndex:
         if not normalized_title:
             return None
 
-        # Use same num_perm as LSH index if not specified
+        # Dynamically adjust num_perm based on title length for better performance
         if num_perm is None:
-            num_perm = self.lsh_index.h  # h is the number of permutations
+            title_length = len(normalized_title)
+            # Short titles (< 10 chars): use 64 permutations
+            # Medium titles (10-30 chars): use base_num_perm
+            # Long titles (> 30 chars): use base_num_perm (no reduction needed)
+            if title_length < 10:
+                num_perm = max(64, self.base_num_perm // 2)
+            else:
+                num_perm = self.lsh_index.h  # Use LSH index's num_perm
 
         # Create character shingles (3-grams) from normalized title
         # This captures character-level similarity
