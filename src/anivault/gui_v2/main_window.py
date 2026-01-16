@@ -5,15 +5,15 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
+    QFileDialog,
     QHBoxLayout,
     QMainWindow,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
-    QFileDialog,
 )
 
 from anivault.gui_v2.app_context import AppContext
@@ -128,24 +128,18 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.status_bar)
 
     def _create_views(self) -> None:
-        """Create all view widgets."""
-        # Groups view
+        """Create all view widgets.
+
+        All tabs share the same GroupsView instance for consistent layout and data.
+        Only the toolbar changes based on the selected tab.
+        """
+        # Create a single GroupsView instance shared by all tabs
         self.groups_view = GroupsView()
         self.view_stack.addWidget(self.groups_view)
 
-        # Placeholder views (to be implemented)
-        from anivault.gui_v2.views.base_view import BaseView
-
-        for view_name in ["tmdb", "organize", "rollback", "verify", "cache", "logs"]:
-            placeholder = BaseView()
-            placeholder.view_name = view_name
-            placeholder_layout = QVBoxLayout(placeholder)
-            placeholder_layout.setContentsMargins(32, 32, 32, 32)
-            from PySide6.QtWidgets import QLabel
-
-            label = QLabel(f"{view_name.upper()} View (Coming Soon)")
-            placeholder_layout.addWidget(label)
-            self.view_stack.addWidget(placeholder)
+        # All tabs use the same GroupsView - no separate views needed
+        # Each tab name maps to the same groups_view (index 0)
+        self._view_name_to_index = {"groups": 0, "tmdb": 0, "organize": 0, "rollback": 0, "verify": 0, "cache": 0, "logs": 0}
 
         # Set initial view
         self.view_stack.setCurrentWidget(self.groups_view)
@@ -200,7 +194,7 @@ class MainWindow(QMainWindow):
         source_folder = ""
         if self.app_context.settings.folders and self.app_context.settings.folders.source_folder:
             source_folder = self.app_context.settings.folders.source_folder
-        
+
         # If no source folder in settings, show file dialog
         if not source_folder:
             directory = QFileDialog.getExistingDirectory(self, "스캔할 디렉터리 선택")
@@ -210,7 +204,7 @@ class MainWindow(QMainWindow):
         else:
             # Use source folder from settings
             directory = source_folder
-        
+
         # Validate directory exists
         directory_path = Path(directory)
         if not directory_path.exists() or not directory_path.is_dir():
@@ -225,15 +219,34 @@ class MainWindow(QMainWindow):
         self.scan_controller.scan_directory(directory_path)
 
     def _on_view_changed(self, view_name: str) -> None:
-        """Handle view change."""
-        # Find and switch to view
+        """Handle view change - all tabs share the same GroupsView.
+
+        Args:
+            view_name: Name of the tab to switch to (groups, tmdb, organize, etc.)
+        """
+        # All tabs use the same GroupsView (index 0)
+        # Only toolbar changes based on view_name
+        self.view_stack.setCurrentIndex(0)  # Always show groups_view
+        self.toolbar.set_view(view_name)
+        self.status_bar.set_status(f"탭 전환: {view_name}", "ok")
+
+        # Ensure the shared view has the latest metadata when switching
+        if self._scan_results:
+            self.groups_view.set_file_metadata(self._scan_results)
+
+    def _update_all_views_with_metadata(self, metadata: list) -> None:
+        """Update all views with the shared file metadata list.
+
+        This ensures all tabs have access to the same file metadata,
+        synchronized with the groups view.
+
+        Args:
+            metadata: List of FileMetadata instances to share across all views.
+        """
         for i in range(self.view_stack.count()):
             widget = self.view_stack.widget(i)
-            if isinstance(widget, BaseView) and widget.view_name == view_name:
-                self.view_stack.setCurrentIndex(i)
-                self.toolbar.set_view(view_name)
-                self.status_bar.set_status(f"탭 전환: {view_name}", "ok")
-                break
+            if isinstance(widget, BaseView):
+                widget.set_file_metadata(metadata)
 
     def _on_group_clicked(self, group_id: int) -> None:
         """Handle group card click."""
@@ -252,10 +265,7 @@ class MainWindow(QMainWindow):
             info_text = f"파일: {group.get('files', 0)}개\n해상도: {resolution}\n언어: {group.get('language', '').upper()}"
 
             # Generate sample file list
-            files = [
-                (f"Episode {i+1}.mkv", f"{resolution} | {group.get('language', '').upper()}")
-                for i in range(group.get("files", 0))
-            ]
+            files = [(f"Episode {i + 1}.mkv", f"{resolution} | {group.get('language', '').upper()}") for i in range(group.get("files", 0))]
 
             self.detail_panel.set_group_detail(title, meta, info_text, files)
             self.detail_panel.show_panel()
@@ -275,44 +285,44 @@ class MainWindow(QMainWindow):
         self.status_bar.set_status("unknown", "ok")
         self.status_bar.set_current_path("unknown")
         self.status_bar.set_cache_status("unknown")
-    
+
     def showEvent(self, event: QShowEvent) -> None:
         """Handle window show event."""
         super().showEvent(event)
         # Check for auto scan on startup
         self._check_auto_scan_startup()
-    
+
     def _check_auto_scan_startup(self) -> None:
         """Check if auto scan on startup is enabled and trigger scan if needed."""
         if not self.app_context or not self.scan_controller:
             return
-        
+
         settings = self.app_context.settings
         if not settings.folders:
             return
-        
+
         # Check if auto scan on startup is enabled
         if not settings.folders.auto_scan_on_startup:
             return
-        
+
         # Check if source folder is configured
         source_folder = settings.folders.source_folder
         if not source_folder:
             logger.warning("Auto scan on startup enabled but source folder not configured")
             return
-        
+
         # Validate source folder exists
         source_path = Path(source_folder)
         if not source_path.exists() or not source_path.is_dir():
             logger.warning(f"Auto scan on startup: source folder does not exist: {source_folder}")
             return
-        
+
         # Trigger auto scan after a short delay to ensure UI is fully rendered
         QTimer.singleShot(500, lambda: self._trigger_auto_scan(source_path))
-    
+
     def _trigger_auto_scan(self, directory_path: Path) -> None:
         """Trigger automatic scan of configured directory.
-        
+
         Args:
             directory_path: Path to directory to scan.
         """
@@ -343,12 +353,15 @@ class MainWindow(QMainWindow):
         """Handle scan completion."""
         logger.info("Scan finished: received %d results (type: %s)", len(results), type(results).__name__)
         if results:
-            logger.info("First result type: %s, keys: %s", type(results[0]).__name__, 
-                       list(results[0].__dict__.keys()) if hasattr(results[0], '__dict__') else "N/A")
+            logger.info(
+                "First result type: %s, keys: %s",
+                type(results[0]).__name__,
+                list(results[0].__dict__.keys()) if hasattr(results[0], "__dict__") else "N/A",
+            )
         self.loading_overlay.hide_loading()
         self.status_bar.set_status("스캔 완료", "ok")
         self._scan_results = results
-        self.groups_view.set_file_metadata(results)
+        self._update_all_views_with_metadata(results)
 
     def _on_scan_error(self, error: OperationError) -> None:
         """Handle scan errors."""
@@ -382,7 +395,7 @@ class MainWindow(QMainWindow):
         self.loading_overlay.hide_loading()
         self.status_bar.set_status("매칭 완료", "ok")
         self._scan_results = results
-        self.groups_view.set_file_metadata(results)
+        self._update_all_views_with_metadata(results)
 
     def _on_match_error(self, error: OperationError) -> None:
         """Handle match errors."""

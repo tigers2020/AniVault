@@ -26,7 +26,7 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.containers import Container
 from anivault.core.matching.engine import MatchingEngine
-from anivault.core.matching.models import MatchResult
+from anivault.core.matching.pipeline import match_result_to_file_metadata, process_file_for_matching
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.services import (
@@ -218,7 +218,12 @@ async def _process_files(
 
         async def process_with_semaphore(file_path: Path) -> FileMetadata | None:
             async with semaphore:
-                return await process_file_for_matching(file_path, parser, matching_engine, console)
+                bundle = await process_file_for_matching(
+                    file_path,
+                    engine=matching_engine,
+                    parser=parser,
+                )
+                return bundle.metadata
 
         results = await asyncio.gather(
             *[process_with_semaphore(fp) for fp in anime_files],
@@ -264,7 +269,7 @@ def _process_exceptions(
                 title=str(file_path.name),
                 additional_info=ParsingAdditionalInfo(),
             )
-            processed_results.append(_match_result_to_file_metadata(file_path, error_parsing_result, None))
+            processed_results.append(match_result_to_file_metadata(file_path, error_parsing_result, None))
         elif isinstance(result, FileMetadata):
             processed_results.append(result)
         elif result is None:
@@ -274,7 +279,7 @@ def _process_exceptions(
                 title=str(file_path.name),
                 additional_info=ParsingAdditionalInfo(),
             )
-            processed_results.append(_match_result_to_file_metadata(file_path, failed_parsing_result, None))
+            processed_results.append(match_result_to_file_metadata(file_path, failed_parsing_result, None))
         else:
             # Unexpected type - convert to FileMetadata
             if not options.json_output:
@@ -289,7 +294,7 @@ def _process_exceptions(
                 title=str(file_path.name),
                 additional_info=ParsingAdditionalInfo(),
             )
-            processed_results.append(_match_result_to_file_metadata(file_path, unexpected_parsing_result, None))
+            processed_results.append(match_result_to_file_metadata(file_path, unexpected_parsing_result, None))
 
     return processed_results
 
@@ -320,230 +325,6 @@ def _output_results(
         sys.stdout.buffer.flush()
     else:
         display_match_results(processed_results, console)
-
-
-def _parsing_result_to_dict(
-    parsing_result: ParsingResult | dict[str, Any] | Any,
-) -> dict[str, Any]:
-    """Convert ParsingResult to dict for matching engine.
-
-    This helper function extracts the complex conditional logic from
-    process_file_for_matching() to reduce cyclomatic complexity.
-
-    Args:
-        parsing_result: ParsingResult dataclass, dict, or any object with attributes
-
-    Returns:
-        Dictionary in format expected by MatchingEngine.find_match()
-
-    Example:
-        >>> result = ParsingResult(title="Attack on Titan", episode=1)
-        >>> d = _parsing_result_to_dict(result)
-        >>> d["anime_title"]
-        'Attack on Titan'
-    """
-    if isinstance(parsing_result, dict):
-        return parsing_result
-
-    if isinstance(parsing_result, ParsingResult):
-        return {
-            "anime_title": parsing_result.title,
-            "episode_number": parsing_result.episode,
-            "release_group": parsing_result.release_group,
-            "video_resolution": parsing_result.quality,
-            "anime_year": parsing_result.year,
-        }
-
-    # Fallback for other types (backward compatibility)
-    return {
-        "anime_title": getattr(parsing_result, "title", ""),
-        "episode_number": getattr(parsing_result, "episode", ""),
-        "release_group": getattr(parsing_result, "release_group", ""),
-        "video_resolution": getattr(parsing_result, "quality", ""),
-    }
-
-
-def _match_result_to_file_metadata(
-    file_path: Path,
-    parsing_result: ParsingResult,
-    match_result: MatchResult | None,
-) -> FileMetadata:
-    """Convert MatchResult and ParsingResult to FileMetadata.
-
-    This helper function combines parsing and matching results into
-    a single FileMetadata dataclass for type-safe processing.
-
-    Args:
-        file_path: Path to the media file
-        parsing_result: Parsed file information
-        match_result: TMDB match result or None
-
-    Returns:
-        FileMetadata instance with combined data
-
-    Example:
-        >>> parsing = ParsingResult(title="AOT", episode=1)
-        >>> match = MatchResult(tmdb_id=1429, title="Attack on Titan", ...)
-        >>> metadata = _match_result_to_file_metadata(Path("/aot.mkv"), parsing, match)
-        >>> metadata.tmdb_id
-        1429
-    """
-    # Start with parsing result data
-    title = parsing_result.title
-    year = parsing_result.year
-    season = parsing_result.season
-    episode = parsing_result.episode
-
-    # Initialize TMDB fields with defaults
-    genres: list[str] = []
-    overview: str | None = None
-    poster_path: str | None = None
-    vote_average: float | None = None
-    tmdb_id: int | None = None
-    media_type: str | None = None
-
-    # Override with match result data if available
-    if match_result is not None:
-        title = match_result.title
-        year = match_result.year or year
-        tmdb_id = match_result.tmdb_id
-        media_type = match_result.media_type
-        poster_path = match_result.poster_path
-        overview = match_result.overview
-        vote_average = match_result.vote_average
-
-    return FileMetadata(
-        title=title,
-        file_path=file_path,
-        file_type=file_path.suffix.lstrip(".").lower(),
-        year=year,
-        season=season,
-        episode=episode,
-        genres=genres,
-        overview=overview,
-        poster_path=poster_path,
-        vote_average=vote_average,
-        tmdb_id=tmdb_id,
-        media_type=media_type,
-    )
-
-
-async def process_file_for_matching(
-    file_path: Path,
-    parser: AnitopyParser,
-    matching_engine: MatchingEngine,
-    _console: Console,  # Reserved for future error display  # pylint: disable=unused-argument
-) -> FileMetadata | None:
-    """Process a single file through matching pipeline.
-
-    This function has been refactored to reduce cyclomatic complexity
-    by extracting helper functions for parsing conversion and result transformation.
-
-    Args:
-        file_path: Path to anime file
-        parser: Parser instance
-        matching_engine: Matching engine instance
-        _console: Rich console (reserved for future error display)
-
-    Returns:
-        FileMetadata instance with match results, or None if parsing fails
-
-    Example:
-        >>> metadata = await process_file_for_matching(
-        ...     Path("/anime/aot.mkv"), parser, engine, console
-        ... )
-        >>> metadata.tmdb_id if metadata else None
-        1429
-    """
-    try:
-        # Parse filename
-        parsing_result = parser.parse(str(file_path))
-
-        if not parsing_result:
-            return None
-
-        # Ensure ParsingResult type for conversion
-
-        if isinstance(parsing_result, dict):
-            parsing_result = ParsingResult(
-                title=parsing_result.get("anime_title", ""),
-                episode=parsing_result.get("episode_number"),
-                season=parsing_result.get("season"),
-                year=parsing_result.get("anime_year"),
-                quality=parsing_result.get("video_resolution"),
-                release_group=parsing_result.get("release_group"),
-                additional_info=ParsingAdditionalInfo(),
-            )
-        elif not isinstance(parsing_result, ParsingResult):
-            # For other types, create minimal ParsingResult
-            # Note: This branch is reachable when parsing_result is
-            # neither dict nor ParsingResult
-            parsing_result = ParsingResult(  # type: ignore[unreachable]
-                title=getattr(parsing_result, "title", str(file_path.name)),
-                episode=getattr(parsing_result, "episode", None),
-                season=getattr(parsing_result, "season", None),
-                year=getattr(parsing_result, "year", None),
-                quality=getattr(parsing_result, "quality", None),
-                release_group=getattr(parsing_result, "release_group", None),
-                additional_info=ParsingAdditionalInfo(),
-            )
-        # At this point, parsing_result is guaranteed to be ParsingResult
-
-        # Convert to dict for matching engine
-        parsing_dict = _parsing_result_to_dict(parsing_result)
-
-        # Match against TMDB
-        match_result = await matching_engine.find_match(parsing_dict)
-
-        # Convert to FileMetadata
-        return _match_result_to_file_metadata(file_path, parsing_result, match_result)
-
-    except (KeyError, ValueError, TypeError, AttributeError) as e:
-        # Data structure access errors during file processing
-        context = ErrorContext(
-            file_path=str(file_path),
-            operation="process_file_for_matching",
-        )
-        error = AniVaultParsingError(
-            ErrorCode.DATA_PROCESSING_ERROR,
-            f"Data parsing error processing file for matching: {e}",
-            context,
-            original_error=e,
-        )
-        logger.exception("Error processing file for matching: %s", error.message)
-        # Return FileMetadata with error indication (tmdb_id=None)
-        # This maintains type safety while indicating failure
-
-        minimal_parsing_result = ParsingResult(
-            title=str(file_path.name),
-            additional_info=ParsingAdditionalInfo(),
-        )
-        return _match_result_to_file_metadata(file_path, minimal_parsing_result, None)
-    # pylint: disable-next=broad-exception-caught
-
-    # pylint: disable-next=broad-exception-caught
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        # Unexpected errors during file processing
-        context = ErrorContext(
-            file_path=str(file_path),
-            operation="process_file_for_matching",
-        )
-        unexpected_error: AniVaultError = AniVaultError(
-            ErrorCode.DATA_PROCESSING_ERROR,
-            f"Unexpected error processing file for matching: {e}",
-            context,
-            original_error=e,
-        )
-        logger.exception("Error processing file for matching: %s", unexpected_error.message)
-        # Return FileMetadata with error indication (tmdb_id=None)
-        # This maintains type safety while indicating failure
-
-        minimal_parsing_result = ParsingResult(
-            title=str(file_path.name),
-            additional_info=ParsingAdditionalInfo(),
-        )
-        return _match_result_to_file_metadata(file_path, minimal_parsing_result, None)
 
 
 def display_match_results(results: list[FileMetadata], console: Console) -> None:
