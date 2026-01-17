@@ -8,6 +8,7 @@ and execution of file organization operations based on scanned anime metadata.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 from anivault.config import Settings, load_settings
@@ -139,7 +140,39 @@ class FileOrganizer:
 
         if dry_run:
             return plan
-        return self.execute_plan(plan)
+        results = self.execute_plan(plan)
+        self._cleanup_empty_leaf_dirs(scanned_files)
+        return results
+
+    def cleanup_empty_dirs_for_paths(
+        self, 
+        source_paths: list[Path], 
+        source_root: Path | None = None,
+    ) -> None:
+        """Remove empty leaf directories under source roots for given paths.
+        
+        Args:
+            source_paths: List of source file paths that were moved
+            source_root: Optional source root directory. If provided, cleanup will
+                        start from this root instead of finding common path from files.
+        """
+        if not source_paths:
+            return
+        
+        # Use provided source_root if available, otherwise find common path
+        if source_root and source_root.exists() and source_root.is_dir():
+            roots = [source_root]
+        else:
+            roots = self._collect_cleanup_roots_from_paths(source_paths)
+        
+        for root in roots:
+            removed_count = self._remove_empty_leaf_dirs(root)
+            if removed_count > 0:
+                logger.info(
+                    "Removed %d empty directories under %s",
+                    removed_count,
+                    root,
+                )
 
     def _build_destination_path(self, scanned_file: ScannedFile) -> Path:
         """
@@ -160,12 +193,24 @@ class FileOrganizer:
             media_type = FolderDefaults.DEFAULT_MEDIA_TYPE
             organize_by_resolution = FolderDefaults.ORGANIZE_BY_RESOLUTION
             organize_by_year = FolderDefaults.ORGANIZE_BY_YEAR
+            logger.error(
+                "Folder settings not found in self.settings! Using defaults: resolution=%s, year=%s",
+                organize_by_resolution,
+                organize_by_year,
+            )
         else:
             default_target = str(Path.home() / FileSystem.OUTPUT_DIRECTORY)
             target_folder = Path(self.settings.folders.target_folder or default_target)
             media_type = self.settings.folders.media_type or FolderDefaults.DEFAULT_MEDIA_TYPE
             organize_by_resolution = self.settings.folders.organize_by_resolution
             organize_by_year = self.settings.folders.organize_by_year
+            logger.debug(
+                "FileOrganizer settings: resolution=%s, year=%s, target=%s, media_type=%s",
+                organize_by_resolution,
+                organize_by_year,
+                target_folder,
+                media_type,
+            )
 
         # Determine if series has mixed resolutions
         summaries = self._resolution_analyzer.analyze_series([scanned_file])
@@ -180,7 +225,110 @@ class FileOrganizer:
             organize_by_resolution=organize_by_resolution,
             organize_by_year=organize_by_year,
         )
+        
+        logger.debug(
+            "Building path for %s with context: resolution=%s, year=%s, target=%s",
+            scanned_file.file_path.name[:50],
+            organize_by_resolution,
+            organize_by_year,
+            target_folder,
+        )
 
         organized_path = self._path_builder.build_path(context)
+        
+        logger.debug(
+            "Built path: %s -> %s",
+            scanned_file.file_path.name[:50],
+            organized_path,
+        )
 
         return organized_path
+
+    def _cleanup_empty_leaf_dirs(self, scanned_files: list[ScannedFile]) -> None:
+        """Remove empty leaf directories under source roots after organizing."""
+        roots = self._collect_cleanup_roots_from_paths([scanned_file.file_path for scanned_file in scanned_files])
+        for root in roots:
+            removed_count = self._remove_empty_leaf_dirs(root)
+            if removed_count > 0:
+                logger.info(
+                    "Removed %d empty directories under %s",
+                    removed_count,
+                    root,
+                )
+
+    @staticmethod
+    def _collect_cleanup_roots_from_paths(source_paths: list[Path]) -> list[Path]:
+        """Collect common source roots for cleanup."""
+        if not source_paths:
+            return []
+        grouped: dict[str, list[Path]] = {}
+        for source_path in source_paths:
+            parent = source_path.parent
+            anchor = parent.anchor or parent.drive
+            grouped.setdefault(anchor, []).append(parent)
+
+        roots: list[Path] = []
+        for parents in grouped.values():
+            if not parents:
+                continue
+            try:
+                common_path = Path(os.path.commonpath([str(p) for p in parents]))
+            except ValueError:
+                continue
+            if common_path.exists() and common_path.is_dir():
+                roots.append(common_path)
+
+        return roots
+
+    @staticmethod
+    def _remove_empty_leaf_dirs(root: Path) -> int:
+        """Remove empty leaf directories under a root path.
+        
+        Uses iterative approach to handle os.walk snapshot issue:
+        os.walk captures directory structure at start, so after removing
+        a child directory, parent may appear empty but os.walk still sees it
+        as non-empty. We iterate until no more empty directories are found.
+        """
+        if not root.exists() or not root.is_dir():
+            return 0
+
+        total_removed = 0
+        max_iterations = 100  # Safety limit to prevent infinite loops
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            removed_this_iteration = 0
+            root_str = str(root)
+            
+            # Walk bottom-up to remove leaf directories first
+            for dirpath, dirnames, filenames in os.walk(root_str, topdown=False):
+                if dirpath == root_str:
+                    continue
+                
+                # Check if directory is actually empty (not just in snapshot)
+                dir_path = Path(dirpath)
+                if not dir_path.exists():
+                    continue
+                    
+                try:
+                    # Re-check actual contents (not snapshot)
+                    actual_contents = list(dir_path.iterdir())
+                    
+                    if not actual_contents:
+                        # Directory is actually empty, remove it
+                        dir_path.rmdir()
+                        removed_this_iteration += 1
+                except OSError as e:
+                    logger.warning("Failed to remove empty directory: %s: %s", dirpath, e)
+            
+            total_removed += removed_this_iteration
+            
+            # If no directories were removed this iteration, we're done
+            if removed_this_iteration == 0:
+                break
+        
+        if iteration >= max_iterations:
+            logger.warning("Reached max iterations (%d) when removing empty directories under %s", max_iterations, root)
+
+        return total_removed

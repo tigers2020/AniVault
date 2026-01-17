@@ -103,7 +103,8 @@ class NormalizationConfig:
     EPISODE_PATTERNS: ClassVar[list[str]] = [
         r"\[(?:E\d+|Episode\s+\d+|Ep\s+\d+)\]",
         r"\((?:E\d+|Episode\s+\d+|Ep\s+\d+)\)",
-        r"\s+\d+\s*",
+        r"(?:\s*-\s*\d+)$",
+        r"(?:\s+\d+\s*$)",
     ]
 
     SEASON_PATTERNS: ClassVar[list[str]] = [

@@ -208,16 +208,31 @@ class PathBuilder:
         match_result = metadata.additional_info.match_result
 
         if not isinstance(match_result, TMDBMatchResult):
+            self.logger.debug(
+                "Match result is not TMDBMatchResult: %s (expected for year extraction)",
+                type(match_result).__name__ if match_result else "None",
+            )
             return None
 
         # Use year field from MatchResult (already processed from date fields)
         year = match_result.year
 
         if year is None:
+            self.logger.debug(
+                "TMDBMatchResult.year is None for file: %s",
+                scanned_file.file_path.name[:60],
+            )
             return None
 
         # Sanity check: reasonable year range
         if not PathConstants.MIN_YEAR <= year <= PathConstants.MAX_YEAR:
+            self.logger.warning(
+                "Year %s is outside valid range [%s, %s] for file: %s",
+                year,
+                PathConstants.MIN_YEAR,
+                PathConstants.MAX_YEAR,
+                scanned_file.file_path.name[:60],
+            )
             return None
 
         return year
@@ -253,6 +268,13 @@ class PathBuilder:
         Returns:
             Path to the series/season directory
         """
+        self.logger.debug(
+            "Building folder structure: resolution=%s, year=%s, series=%s",
+            context.organize_by_resolution,
+            context.organize_by_year,
+            series_title,
+        )
+        
         # Build base path with media type
         base_path = context.target_folder / context.media_type
 
@@ -261,13 +283,19 @@ class PathBuilder:
             # Determine resolution and apply folder organization
             resolution = self._extract_resolution(context.scanned_file)
             if resolution:
-                return self._apply_resolution_folder(
+                result_path = self._apply_resolution_folder(
                     series_title=series_title,
                     season_dir=season_dir,
                     resolution=resolution,
                     base_path=base_path,
                     organize_by_year=context.organize_by_year,
                     scanned_file=context.scanned_file,
+                )
+                return result_path
+            else:
+                self.logger.debug(
+                    "Resolution-based organization enabled but resolution not found for %s - using default path",
+                    context.scanned_file.file_path.name,
                 )
 
         # Add year folder if organize_by_year is enabled (for non-mixed resolution series)
@@ -283,7 +311,9 @@ class PathBuilder:
 
         # Default: Build path without resolution organization
         # (either feature disabled OR series has single resolution type)
-        return base_path / series_title / season_dir
+        final_path = base_path / series_title / season_dir
+        self.logger.debug("Final path: %s", final_path)
+        return final_path
 
     def _extract_resolution(self, scanned_file: ScannedFile) -> str | None:
         """Extract resolution from scanned file.
@@ -302,8 +332,9 @@ class PathBuilder:
         metadata = scanned_file.metadata
 
         # Try metadata quality field first
-        if metadata.quality:
-            return metadata.quality.upper()
+        normalized_quality = self._normalize_quality(metadata.quality)
+        if normalized_quality:
+            return normalized_quality.upper()
 
         # Extract from filename
         filename = scanned_file.file_path.name
@@ -335,6 +366,17 @@ class PathBuilder:
             )
             return resolution
 
+        return None
+
+    @staticmethod
+    def _normalize_quality(value: object) -> str | None:
+        """Normalize quality value to a string if possible."""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                if isinstance(item, str) and item.strip():
+                    return item
         return None
 
     @staticmethod
@@ -379,45 +421,32 @@ class PathBuilder:
             Path with resolution-based organization applied
         """
 
-        # Determine if high or low resolution
-        if resolution and VideoQuality.is_high_resolution(resolution):
-            # High resolution: normal folder structure
-            # Add year folder if organize_by_year is enabled
-            if organize_by_year and scanned_file:
-                year = self._extract_year_from_tmdb(scanned_file)
-                if year:
-                    base_path = base_path / str(year)
-                    self.logger.debug(
-                        "Added year folder for high resolution: %s -> %s",
-                        year,
-                        base_path,
-                    )
-
-            series_dir = base_path / series_title / season_dir
-            self.logger.debug("High resolution detected: %s -> %s", resolution, series_dir)
-        else:
-            # Low resolution: under low_res folder (only when series has mixed resolutions)
-            # Build low_res path first
-            low_res_path = base_path / VideoQuality.LOW_RES_FOLDER
-
-            # Add year folder inside low_res if organize_by_year is enabled
-            if organize_by_year and scanned_file:
-                year = self._extract_year_from_tmdb(scanned_file)
-                if year:
-                    low_res_path = low_res_path / str(year)
-                    self.logger.debug(
-                        "Added year folder inside low_res: %s -> %s",
-                        year,
-                        low_res_path,
-                    )
-
-            series_dir = low_res_path / series_title / season_dir
-            self.logger.debug(
-                "Low resolution detected: %s -> %s",
-                resolution or PathConstants.UNKNOWN,
-                series_dir,
-            )
-
+        # Normalize resolution string (lowercase for folder names)
+        resolution_folder = resolution.lower() if resolution else "unknown"
+        
+        # Build path structure: base_path / [year/] resolution / series_title / season_dir
+        current_path = base_path
+        
+        # Step 1: Add year folder first if organize_by_year is enabled
+        if organize_by_year and scanned_file:
+            year = self._extract_year_from_tmdb(scanned_file)
+            if year:
+                current_path = current_path / str(year)
+                self.logger.debug(
+                    "Added year folder: %s -> %s",
+                    year,
+                    current_path,
+                )
+        
+        # Step 2: Add resolution folder (after year, before series_title)
+        current_path = current_path / resolution_folder
+        
+        # Step 3: Add series title
+        current_path = current_path / series_title
+        
+        # Step 4: Add season directory
+        series_dir = current_path / season_dir
+        
         return series_dir
 
     @staticmethod

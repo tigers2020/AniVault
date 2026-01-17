@@ -175,6 +175,7 @@ class OrganizeWorker(QObject):
             moved_files = [(r.source_path, r.destination_path) for r in operation_results if r.success and not r.skipped]
             if moved_files:
                 self._cleanup_empty_directories(moved_files)
+            else:
 
             # Emit completion with OperationResult objects
             self.organization_finished.emit(operation_results)
@@ -225,7 +226,6 @@ class OrganizeWorker(QObject):
                 if source_root.parent == source_root:  # Reached filesystem root
                     break
                 source_root = source_root.parent
-
         logger.info("Source root directory (will be preserved): %s", source_root)
 
         # Collect unique source directories and their parents (excluding source root)

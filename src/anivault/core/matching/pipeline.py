@@ -147,6 +147,24 @@ async def process_file_for_matching(
     )
     parsing_dict = parsing_result_to_dict(normalized)
     match_result = await engine.find_match(parsing_dict)
+    
+    # Convert MatchResult to TMDBMatchResult and store in ParsingResult for organize
+    tmdb_match_result = None
+    if match_result:
+        from anivault.shared.metadata_models import TMDBMatchResult
+        tmdb_match_result = TMDBMatchResult(
+            id=match_result.tmdb_id,
+            title=match_result.title,
+            media_type=match_result.media_type,
+            year=match_result.year,  # Preserve year from MatchResult
+            genres=[],  # MatchResult doesn't have genres
+            overview=match_result.overview,
+            vote_average=match_result.vote_average,
+            poster_path=match_result.poster_path,
+        )
+        # Update ParsingResult with TMDB match result
+        normalized.additional_info.match_result = tmdb_match_result
+    
     metadata = match_result_to_file_metadata(file_path, normalized, match_result)
     _ = options
 

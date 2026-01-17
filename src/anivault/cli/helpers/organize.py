@@ -19,6 +19,7 @@ from rich.prompt import Confirm
 from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
+from anivault.config import Settings
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import ScannedFile
@@ -87,7 +88,11 @@ def get_scanned_files(options: OrganizeOptions, directory: Path, console: Consol
 
 
 @handle_cli_errors(operation="generate_organization_plan", command_name="organize")
-def generate_organization_plan(scanned_files: list[Any]) -> list[Any]:
+def generate_organization_plan(
+    scanned_files: list[Any],
+    *,
+    settings: Settings | None = None,
+) -> list[Any]:
     """Generate organization plan.
 
     Args:
@@ -97,7 +102,7 @@ def generate_organization_plan(scanned_files: list[Any]) -> list[Any]:
         Organization plan
     """
     log_manager = OperationLogManager(Path.cwd())
-    organizer = FileOrganizer(log_manager=log_manager)
+    organizer = FileOrganizer(log_manager=log_manager, settings=settings)
     return organizer.generate_plan(scanned_files)
 
 
@@ -213,6 +218,8 @@ def execute_organization_plan(
     plan: list[Any],
     options: OrganizeOptions,
     console: Console,
+    *,
+    settings: Settings | None = None,
 ) -> int:
     """Execute organization plan.
 
@@ -246,7 +253,7 @@ def execute_organization_plan(
         if not confirm_organization(console):
             return 0
 
-    return perform_organization(plan, options)
+    return perform_organization(plan, options, settings=settings)
 
 
 def confirm_organization(console: Console) -> bool:
@@ -269,7 +276,12 @@ def confirm_organization(console: Console) -> bool:
 
 
 @handle_cli_errors(operation="perform_organization", command_name="organize")
-def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
+def perform_organization(
+    plan: list[Any],
+    options: OrganizeOptions,
+    *,
+    settings: Settings | None = None,
+) -> int:
     """Perform the actual organization.
 
     Args:
@@ -281,7 +293,7 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
     """
     console = Console()  # pylint: disable=redefined-outer-name,reimported
     log_manager = OperationLogManager(Path.cwd())
-    organizer = FileOrganizer(log_manager=log_manager)
+    organizer = FileOrganizer(log_manager=log_manager, settings=settings)
 
     operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -289,6 +301,15 @@ def perform_organization(plan: list[Any], options: OrganizeOptions) -> int:
 
     with progress_manager.spinner("Organizing files..."):
         moved_files = organizer.execute_plan(plan)
+
+    successful_sources = [Path(result.source_path) for result in moved_files if result.success]
+    # Get source directory from options
+    source_directory = options.directory.path if hasattr(options.directory, "path") else Path(str(options.directory))
+    if successful_sources:
+        try:
+            organizer.cleanup_empty_dirs_for_paths(successful_sources, source_root=source_directory)
+        except OSError as exc:
+            logger.warning("Failed to cleanup empty directories: %s", exc)
 
     # Print individual file results if not JSON output
     if not options.json_output and moved_files:
@@ -460,8 +481,7 @@ def print_dry_run_plan(plan: list[Any], console: Console) -> None:
     console.print()
 
     for operation in plan:
-        source = operation.source_file.file_path
-        destination = operation.destination_path
+        source, destination = _extract_operation_paths(operation)
         console.print(f"[yellow]Would move:[/yellow] {source}")
         console.print(f"[green]To:[/green] {destination}")
         console.print()
@@ -480,8 +500,20 @@ def print_execution_plan(plan: list[Any], console: Console) -> None:
     console.print()
 
     for operation in plan:
-        source = operation.source_file.file_path
-        destination = operation.destination_path
+        source, destination = _extract_operation_paths(operation)
         console.print(f"[yellow]Will move:[/yellow] {source}")
         console.print(f"[green]To:[/green] {destination}")
         console.print()
+
+
+def _extract_operation_paths(operation: Any) -> tuple[Path, Path]:
+    """Extract source/destination paths from various operation types."""
+    if hasattr(operation, "source_path") and hasattr(operation, "destination_path"):
+        return operation.source_path, operation.destination_path
+    if hasattr(operation, "source_file") and hasattr(operation, "destination_path"):
+        return operation.source_file.file_path, operation.destination_path
+    if isinstance(operation, dict):
+        source = operation.get("source") or operation.get("source_path")
+        destination = operation.get("destination") or operation.get("destination_path")
+        return Path(str(source)), Path(str(destination))
+    raise AttributeError("Unsupported operation type for plan display")

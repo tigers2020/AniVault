@@ -15,7 +15,7 @@ class SidebarWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize sidebar widget."""
         super().__init__(parent)
-        self._current_view = "groups"
+        self._current_view = "work"
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -27,9 +27,8 @@ class SidebarWidget(QWidget):
 
         # Navigation sections
         self._add_navigation_section(layout, "작업", [
-            ("groups", "📊 그룹 관리"),
-            ("tmdb", "🎬 TMDB 매칭"),
-            ("organize", "📦 파일 정리"),
+            ("work", "📊 작업"),
+            ("subtitles", "📝 자막만"),
             ("rollback", "↩️ 롤백 관리"),
         ])
 
@@ -114,9 +113,8 @@ class SidebarWidget(QWidget):
 
         # Map view names to button labels
         view_labels = {
-            "groups": "📊 그룹 관리",
-            "tmdb": "🎬 TMDB 매칭",
-            "organize": "📦 파일 정리",
+            "work": "📊 작업",
+            "subtitles": "📝 자막만",
             "rollback": "↩️ 롤백 관리",
             "verify": "✅ 검증",
             "cache": "💾 캐시 관리",

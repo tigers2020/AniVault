@@ -159,8 +159,11 @@ class GroupsView(BaseView):
                     if res in file_name_lower:
                         resolutions.add(res.upper().replace("P", "p"))
                         break
-                if not resolutions:
-                    resolutions.add("unknown")
+                # Also check if quality is in ParsingResult metadata
+                if hasattr(item, 'quality') and item.quality:
+                    resolutions.add(item.quality)
+            if not resolutions:
+                resolutions.add("unknown")
             
             resolution = list(resolutions)[0] if resolutions else "unknown"
             
@@ -189,6 +192,7 @@ class GroupsView(BaseView):
                     "confidence": 100 if matched else 0,
                     "resolution": resolution,
                     "language": language,
+                    "file_metadata_list": all_files,  # Store actual FileMetadata list for detail panel
                 }
             )
 
