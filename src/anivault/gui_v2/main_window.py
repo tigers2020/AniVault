@@ -166,10 +166,6 @@ class MainWindow(QMainWindow):
             "tmdb": 0,
             "organize": 0,
             "subtitles": 0,
-            "rollback": 0,
-            "verify": 0,
-            "cache": 0,
-            "logs": 0,
         }
 
         # Set initial view

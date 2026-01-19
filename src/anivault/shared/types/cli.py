@@ -171,30 +171,6 @@ class LogOptions(BaseModel):
         return v
 
 
-class RollbackOptions(BaseModel):
-    """Rollback command options validation model."""
-
-    log_id: str = Field(..., description="ID of the operation log to rollback")
-    dry_run: bool = Field(
-        default=False,
-        description="Preview rollback without applying",
-    )
-    yes: bool = Field(default=False, description="Skip confirmation prompts")
-
-    @field_validator("log_id")
-    @classmethod
-    def validate_log_id(cls, v: str) -> str:
-        """Validate log ID format."""
-        if not v:
-            raise ValueError("Log ID cannot be empty")
-
-        # Basic validation for log ID format (timestamp-like)
-        if len(v) < 10:
-            raise ValueError("Log ID must be at least 10 characters long")
-
-        return v
-
-
 class VerifyOptions(BaseModel):
     """Verify command options validation model."""
 

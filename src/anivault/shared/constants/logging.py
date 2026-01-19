@@ -80,7 +80,6 @@ class LogPaths:
 
     # Log prefixes
     ORGANIZE_PREFIX = "organize-"
-    ROLLBACK_PREFIX = "rollback-"
 
     # File extensions
     LOG_EXTENSION = ".json"

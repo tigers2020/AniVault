@@ -98,7 +98,6 @@ class CLIMessages:
         SCAN = "scan"
         MATCH = "match"
         ORGANIZE = "organize"
-        ROLLBACK = "rollback"
         RUN = "run"
         LOG = "log"
         VERIFY = "verify"
@@ -308,7 +307,6 @@ class CLICommands:
     ORGANIZE = "organize"
     RUN = "run"
     LOG = "log"
-    ROLLBACK = "rollback"
     VERIFY = "verify"
     INIT = "init"
 
@@ -390,29 +388,6 @@ class CLIHelp:
     # Log command
     LOG_HELP = "Manage operation logs"
     LOG_DIR_HELP = "Directory containing log files"
-
-    # Rollback command
-    ROLLBACK_HELP = "Rollback file organization operations"
-    ROLLBACK_LOG_ID_HELP = "ID of the operation log to rollback"
-    ROLLBACK_DRY_RUN_HELP = "Show what would be rolled back without actually moving files"
-    ROLLBACK_YES_HELP = "Skip confirmation prompts and proceed with rollback"
-    ROLLBACK_DESCRIPTION = """
-    Rollback file organization operations from a previous session.
-
-    This command allows you to undo file organization operations by rolling back
-    files to their original locations based on operation logs. It can show what
-    would be rolled back without making changes using --dry-run.
-
-    Examples:
-        # Rollback operations from log ID "2024-01-15_143022"
-        anivault rollback 2024-01-15_143022
-
-        # Preview what would be rolled back without making changes
-        anivault rollback 2024-01-15_143022 --dry-run
-
-        # Rollback without confirmation prompts
-        anivault rollback 2024-01-15_143022 --yes
-    """
 
     # Verify command
     VERIFY_HELP = "Verify system components and connectivity"

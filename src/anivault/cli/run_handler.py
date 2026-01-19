@@ -466,7 +466,6 @@ def run_command(  # pylint: disable=too-many-arguments,too-many-positional-argum
     - Single command for complete workflow
     - Consistent options across all phases
     - Unified error handling and progress tracking
-    - Atomic operation with rollback support
 
     Examples:
         # Run complete workflow on current directory

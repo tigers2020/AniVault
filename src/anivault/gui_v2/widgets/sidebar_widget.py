@@ -32,17 +32,6 @@ class SidebarWidget(QWidget):
             [
                 ("work", "📊 작업"),
                 ("subtitles", "📝 자막만"),
-                ("rollback", "↩️ 롤백 관리"),
-            ],
-        )
-
-        self._add_navigation_section(
-            layout,
-            "도구",
-            [
-                ("verify", "✅ 검증"),
-                ("cache", "💾 캐시 관리"),
-                ("logs", "📝 로그 보기"),
             ],
         )
 
@@ -119,10 +108,6 @@ class SidebarWidget(QWidget):
         view_labels = {
             "work": "📊 작업",
             "subtitles": "📝 자막만",
-            "rollback": "↩️ 롤백 관리",
-            "verify": "✅ 검증",
-            "cache": "💾 캐시 관리",
-            "logs": "📝 로그 보기",
         }
 
         # Update active state for all items

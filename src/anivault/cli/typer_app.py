@@ -28,7 +28,6 @@ from anivault.cli.common.validation import create_validator
 from anivault.cli.log_handler import log_command
 from anivault.cli.match_handler import match_command
 from anivault.cli.organize_handler import organize_command
-from anivault.cli.rollback_handler import rollback_command
 from anivault.cli.run_handler import run_command
 from anivault.cli.scan_handler import scan_command
 from anivault.cli.verify_handler import verify_command
@@ -434,7 +433,6 @@ def run_command_typer(  # pylint: disable=too-many-arguments,too-many-positional
     - Single command for complete workflow
     - Consistent options across all phases
     - Unified error handling and progress tracking
-    - Atomic operation with rollback support
 
     Examples:
         # Run complete workflow on current directory
@@ -507,45 +505,6 @@ def log_command_typer(
     """
     # Call the log command
     log_command(command, log_dir)
-
-
-@app.command(CLICommands.ROLLBACK)
-def rollback_command_typer(
-    log_id: str = typer.Argument(
-        ...,
-        help=CLIHelp.ROLLBACK_LOG_ID_HELP,
-    ),
-    dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help=CLIHelp.ROLLBACK_DRY_RUN_HELP,
-    ),
-    yes: bool = typer.Option(
-        False,
-        "--yes",
-        CLIOptions.YES_SHORT,
-        help=CLIHelp.ROLLBACK_YES_HELP,
-    ),
-) -> None:
-    """
-    Rollback file organization operations from a previous session.
-
-    This command allows you to undo file organization operations by rolling back
-    files to their original locations based on operation logs. It can show what
-    would be rolled back without making changes using --dry-run.
-
-    Examples:
-        # Rollback operations from log ID "2024-01-15_143022"
-        anivault rollback 2024-01-15_143022
-
-        # Preview what would be rolled back without making changes
-        anivault rollback 2024-01-15_143022 --dry-run
-
-        # Rollback without confirmation prompts
-        anivault rollback 2024-01-15_143022 --yes
-    """
-    # Call the rollback command
-    rollback_command(log_id, dry_run, yes)
 
 
 @app.command(CLICommands.VERIFY)

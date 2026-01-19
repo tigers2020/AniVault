@@ -2,7 +2,7 @@
 Operation log management for AniVault.
 
 This module provides functionality to save and load operation logs,
-which are essential for dry-run previews and rollback capabilities.
+which are essential for dry-run previews and auditability.
 """
 
 from __future__ import annotations

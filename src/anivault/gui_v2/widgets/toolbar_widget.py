@@ -43,14 +43,6 @@ class ToolbarWidget(QWidget):
             self._setup_work_toolbar()
         elif view_name == "subtitles":
             self._setup_subtitles_toolbar()
-        elif view_name == "rollback":
-            self._setup_rollback_toolbar()
-        elif view_name == "cache":
-            self._setup_cache_toolbar()
-        elif view_name == "verify":
-            self._setup_verify_toolbar()
-        elif view_name == "logs":
-            self._setup_logs_toolbar()
         else:
             self._setup_default_toolbar()
 
@@ -216,98 +208,6 @@ class ToolbarWidget(QWidget):
         self._content_layout.addStretch()
 
         hint = QLabel("현재 탭: <strong>파일 정리</strong>")
-        hint.setObjectName("toolbarHint")
-        self._content_layout.addWidget(hint)
-
-    def _setup_rollback_toolbar(self) -> None:
-        """Set up toolbar for rollback view."""
-        search_box = QLineEdit()
-        search_box.setPlaceholderText("롤백 항목 검색(샘플)")
-        search_box.setObjectName("searchBox")
-        self._content_layout.addWidget(search_box)
-
-        seed_btn = QPushButton("샘플 생성")
-        seed_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(seed_btn)
-
-        execute_btn = QPushButton("롤백 실행")
-        execute_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(execute_btn)
-
-        self._content_layout.addStretch()
-
-        hint = QLabel("현재 탭: <strong>롤백 관리</strong>")
-        hint.setObjectName("toolbarHint")
-        self._content_layout.addWidget(hint)
-
-    def _setup_cache_toolbar(self) -> None:
-        """Set up toolbar for cache view."""
-        search_box = QLineEdit()
-        search_box.setPlaceholderText("캐시 키/리소스 검색(샘플)")
-        search_box.setObjectName("searchBox")
-        self._content_layout.addWidget(search_box)
-
-        prune_btn = QPushButton("정리")
-        prune_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(prune_btn)
-
-        verify_btn = QPushButton("검사")
-        verify_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(verify_btn)
-
-        rebuild_btn = QPushButton("재빌드")
-        rebuild_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(rebuild_btn)
-
-        self._content_layout.addStretch()
-
-        hint = QLabel("현재 탭: <strong>캐시 관리</strong>")
-        hint.setObjectName("toolbarHint")
-        self._content_layout.addWidget(hint)
-
-    def _setup_verify_toolbar(self) -> None:
-        """Set up toolbar for verify view."""
-        search_box = QLineEdit()
-        search_box.setPlaceholderText("검증 결과 검색(샘플)")
-        search_box.setObjectName("searchBox")
-        self._content_layout.addWidget(search_box)
-
-        tmdb_btn = QPushButton("TMDB 검증")
-        tmdb_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(tmdb_btn)
-
-        settings_btn = QPushButton("설정 검증")
-        settings_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(settings_btn)
-
-        open_settings_btn = QPushButton("설정 열기")
-        open_settings_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(open_settings_btn)
-
-        self._content_layout.addStretch()
-
-        hint = QLabel("현재 탭: <strong>검증</strong>")
-        hint.setObjectName("toolbarHint")
-        self._content_layout.addWidget(hint)
-
-    def _setup_logs_toolbar(self) -> None:
-        """Set up toolbar for logs view."""
-        search_box = QLineEdit()
-        search_box.setPlaceholderText("로그 빠른 검색(샘플)")
-        search_box.setObjectName("searchBox")
-        self._content_layout.addWidget(search_box)
-
-        add_btn = QPushButton("로그 추가")
-        add_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(add_btn)
-
-        clear_btn = QPushButton("지우기")
-        clear_btn.setObjectName("btnSecondary")
-        self._content_layout.addWidget(clear_btn)
-
-        self._content_layout.addStretch()
-
-        hint = QLabel("현재 탭: <strong>로그 보기</strong>")
         hint.setObjectName("toolbarHint")
         self._content_layout.addWidget(hint)
 
