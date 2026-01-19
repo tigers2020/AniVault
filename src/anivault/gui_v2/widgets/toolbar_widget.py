@@ -188,7 +188,7 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        hint = QLabel(f"현재 탭: <strong>TMDB 매칭</strong>")
+        hint = QLabel("현재 탭: <strong>TMDB 매칭</strong>")
         hint.setObjectName("toolbarHint")
         self._content_layout.addWidget(hint)
 
@@ -215,7 +215,7 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        hint = QLabel(f"현재 탭: <strong>파일 정리</strong>")
+        hint = QLabel("현재 탭: <strong>파일 정리</strong>")
         hint.setObjectName("toolbarHint")
         self._content_layout.addWidget(hint)
 
@@ -236,7 +236,7 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        hint = QLabel(f"현재 탭: <strong>롤백 관리</strong>")
+        hint = QLabel("현재 탭: <strong>롤백 관리</strong>")
         hint.setObjectName("toolbarHint")
         self._content_layout.addWidget(hint)
 
@@ -261,7 +261,7 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        hint = QLabel(f"현재 탭: <strong>캐시 관리</strong>")
+        hint = QLabel("현재 탭: <strong>캐시 관리</strong>")
         hint.setObjectName("toolbarHint")
         self._content_layout.addWidget(hint)
 
@@ -286,7 +286,7 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        hint = QLabel(f"현재 탭: <strong>검증</strong>")
+        hint = QLabel("현재 탭: <strong>검증</strong>")
         hint.setObjectName("toolbarHint")
         self._content_layout.addWidget(hint)
 
@@ -307,7 +307,7 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        hint = QLabel(f"현재 탭: <strong>로그 보기</strong>")
+        hint = QLabel("현재 탭: <strong>로그 보기</strong>")
         hint.setObjectName("toolbarHint")
         self._content_layout.addWidget(hint)
 

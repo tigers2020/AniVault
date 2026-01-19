@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPropertyAnimation, QRect, QSize, Property
+from PySide6.QtCore import QPropertyAnimation, Property
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -41,7 +41,7 @@ class DetailPanel(QWidget):
         # Close button
         close_layout = QHBoxLayout()
         close_layout.setContentsMargins(0, 0, 0, 0)
-        close_btn = QPushButton("×")
+        close_btn = QPushButton("x")
         close_btn.setObjectName("detailClose")
         close_btn.clicked.connect(self.close_panel)
         close_layout.addStretch()
@@ -157,11 +157,11 @@ class DetailPanel(QWidget):
             self._animation.setEndValue(target_x)
             self._animation.start()
 
-    def panelPosition(self) -> int:
+    def panelPosition(self) -> int:  # noqa: N802
         """Get current panel position."""
         return self._x_pos
 
-    def setPanelPosition(self, pos: int) -> None:
+    def setPanelPosition(self, pos: int) -> None:  # noqa: N802
         """Set panel position."""
         self._x_pos = pos
         if self.parent():
@@ -170,11 +170,9 @@ class DetailPanel(QWidget):
             self.setGeometry(self._x_pos, 0, self._panel_width, parent_height)
             self.raise_()
 
-    panelPosition = Property(int, panelPosition, setPanelPosition)
+    panelPosition = Property(int, panelPosition, setPanelPosition)  # noqa: N815
 
-    def set_group_detail(
-        self, title: str, meta: str, info: str, files: list[tuple[str, str]]
-    ) -> None:
+    def set_group_detail(self, title: str, meta: str, info: str, files: list[tuple[str, str]]) -> None:
         """Set group detail information.
 
         Args:

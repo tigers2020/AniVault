@@ -64,7 +64,7 @@ class OrganizeDryRunDialog(QDialog):
 
         for row, operation in enumerate(self._plan):
             source_path, destination_path = _extract_paths(operation)
-            
+
             name_item = QTableWidgetItem(source_path.name if source_path else "Unknown")
             name_item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
             table.setItem(row, 0, name_item)

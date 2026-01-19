@@ -124,7 +124,7 @@ class ModelConverter:
             'Animation'
         """
         try:
-            adapter = _get_type_adapter(model_cls)  # type: ignore[arg-type]
+            adapter = _get_type_adapter(model_cls)
             result = adapter.validate_python(data)
             return cast("T", result)
         except ValidationError as e:
@@ -177,12 +177,12 @@ class ModelConverter:
             >>> result
             {'id': 16, 'name': 'Animation'}
         """
-        result = model.model_dump(
+        result: dict[str, Any] = model.model_dump(
             mode=mode,
             by_alias=by_alias,
             exclude_none=exclude_none,
         )
-        return cast("dict[str, Any]", result)
+        return result
 
     @staticmethod
     def to_json_bytes(

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
@@ -55,8 +54,8 @@ class AniVaultGUIv2:
             logger.info("GUI v2 application initialized successfully")
             return True
 
-        except Exception as e:
-            logger.error(f"Failed to initialize GUI v2: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Failed to initialize GUI v2")
             return False
 
     def run(self) -> int:

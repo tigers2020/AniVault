@@ -6,7 +6,7 @@ primarily TMDB (The Movie Database) API settings.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -108,9 +108,9 @@ class TMDBSettings(BaseModel):
 
         Returns a dictionary representation without the api_key field.
         """
-        data = super().model_dump(**kwargs)
+        data: dict[str, Any] = super().model_dump(**kwargs)
         data.pop("api_key", None)  # Remove api_key if present
-        return cast(dict[str, Any], data)
+        return data
 
 
 class APISettings(BaseModel):

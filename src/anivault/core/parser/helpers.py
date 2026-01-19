@@ -75,5 +75,3 @@ def parse_with_fallback(
             parser_used=fallback_parser_name,
             additional_info=ParsingAdditionalInfo(error=str(e)),
         )
-
-

@@ -13,7 +13,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 from anivault.shared.constants.gui_messages import UIConfig
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

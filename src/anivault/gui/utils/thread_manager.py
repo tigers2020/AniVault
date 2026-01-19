@@ -47,7 +47,7 @@ class ThreadManager(Generic[T]):
 
     def start_worker(
         self,
-        worker_args: tuple[Any, ...] | None = None,  # pylint: disable=unused-argument
+        _worker_args: tuple[Any, ...] | None = None,  # pylint: disable=unused-argument
         worker_kwargs: dict[str, Any] | None = None,
         signal_connections: dict[str, Any] | None = None,
     ) -> T:
@@ -66,22 +66,25 @@ class ThreadManager(Generic[T]):
         self.thread = QThread()
         worker_kwargs = worker_kwargs or {}
         self.worker = self.worker_class(**worker_kwargs)
-        self.worker.moveToThread(self.thread)
+        worker = self.worker
+        if worker is None:
+            raise RuntimeError("Worker initialization failed")
+        worker.moveToThread(self.thread)
 
         if signal_connections:
             for signal_name, handler in signal_connections.items():
-                signal = getattr(self.worker, signal_name, None)
+                signal = getattr(worker, signal_name, None)
                 if signal:
                     signal.connect(handler)
 
-        self.thread.started.connect(self.worker.run)
+        self.thread.started.connect(worker.run)
         self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(worker.deleteLater)
 
         self.thread.start()
         logger.debug("Started %s in thread", self.worker_class.__name__)
 
-        return self.worker
+        return worker
 
     def cleanup(self) -> None:
         """Clean up existing thread and worker."""

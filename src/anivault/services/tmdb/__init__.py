@@ -4,7 +4,7 @@ This module provides TMDB API client and related functionality.
 """
 
 # Re-export models from shared to maintain backward compatibility
-from anivault.shared.models.tmdb_models import (
+from anivault.shared.models.api.tmdb import (
     ScoredSearchResult,
     TMDBCandidate,
     TMDBEpisode,

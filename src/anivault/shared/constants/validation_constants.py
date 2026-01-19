@@ -37,6 +37,20 @@ PARSER_VIDEO_TERM = "video_term"
 PARSER_AUDIO_TERM = "audio_term"
 PARSER_RAW_FILENAME = "raw_filename"
 
+
+class AnitopyFieldNames:
+    """Anitopy parser field name constants."""
+
+    RELEASE_GROUP = "release_group"
+    SOURCE = "source"
+    ANIME_YEAR = "anime_year"
+    YEAR = "year"
+    FILE_EXTENSION = "file_extension"
+    TITLE = "title"
+    SERIES_NAME = "series_name"
+    SHOW_NAME = "show_name"
+
+
 # File processing constants
 FILE_TYPE_UNKNOWN = "unknown"
 FILE_TYPE_FALLBACK = "fallback"

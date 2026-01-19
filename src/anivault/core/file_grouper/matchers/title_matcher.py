@@ -308,17 +308,21 @@ class TitleSimilarityMatcher:
 
         # Group remaining files using LSH-first approach with keyword fallback
         for file, title in remaining_files:
-            file_id = next((fid for fid, f in file_id_to_file.items() if f is file), None)
-            if file_id is None or file_id in processed_file_ids:
+            current_file_id: int | None = None
+            for fid, mapped_file in file_id_to_file.items():
+                if mapped_file is file:
+                    current_file_id = fid
+                    break
+            if current_file_id is None or current_file_id in processed_file_ids:
                 continue
 
-            file_keyword_set = file_keywords.get(file_id, set())
+            file_keyword_set = file_keywords.get(current_file_id, set())
             matched_group = None
 
             # Strategy 1: Try LSH to find similar candidates first
             # Pre-filter LSH candidates with keyword intersection for better accuracy
             lsh_candidates = title_index.query_similar_titles(title)
-            lsh_candidates = [c for c in lsh_candidates if c != file_id and c not in processed_file_ids]
+            lsh_candidates = [c for c in lsh_candidates if c != current_file_id and c not in processed_file_ids]
 
             # Strategy 2: Check against existing groups using LSH candidates if available
             # Otherwise fall back to keyword-based filtering
@@ -795,16 +799,9 @@ class TitleIndex:
         if not normalized_title:
             return None
 
-        # Dynamically adjust num_perm based on title length for better performance
+        # Use the LSH index's num_perm to avoid query length mismatches
         if num_perm is None:
-            title_length = len(normalized_title)
-            # Short titles (< 10 chars): use 64 permutations
-            # Medium titles (10-30 chars): use base_num_perm
-            # Long titles (> 30 chars): use base_num_perm (no reduction needed)
-            if title_length < 10:
-                num_perm = max(64, self.base_num_perm // 2)
-            else:
-                num_perm = self.lsh_index.h  # Use LSH index's num_perm
+            num_perm = self.lsh_index.h
 
         # Create character shingles (3-grams) from normalized title
         # This captures character-level similarity

@@ -461,10 +461,7 @@ class SubtitleMatcher:
 
             # Get index size from cache if available
             subtitle_index = self._index_cache.get(directory)
-            if subtitle_index:
-                index_size = len(subtitle_index.hash_index) + len(subtitle_index.name_index)
-            else:
-                index_size = 0
+            index_size = len(subtitle_index.hash_index) + len(subtitle_index.name_index) if subtitle_index else 0
             logger.info(
                 "Grouped %d files with subtitles in %s (index size: %d)",
                 len(files),
@@ -952,6 +949,12 @@ class SubtitleIndexCache:
 
         return index
 
+    def get(self, directory: Path) -> SubtitleIndex | None:
+        """Get cached SubtitleIndex for a directory if available."""
+        directory_str = str(directory.resolve())
+        cached = self._cache.get(directory_str)
+        return cached.index if cached else None
+
     def clear(self) -> None:
         """Clear all cached indices."""
         self._cache.clear()
@@ -1007,10 +1010,10 @@ def calculate_file_hash(file_path: Path) -> str:
                     break
                 sha256_hash.update(chunk)
     except FileNotFoundError:
-        logger.error("File not found for hashing: %s", file_path)
+        logger.exception("File not found for hashing: %s", file_path)
         raise
-    except OSError as e:
-        logger.error("Error reading file for hashing %s: %s", file_path, e)
+    except OSError:
+        logger.exception("Error reading file for hashing %s", file_path)
         raise
 
     return sha256_hash.hexdigest()

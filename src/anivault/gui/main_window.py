@@ -49,7 +49,7 @@ from anivault.shared.errors import (
     ErrorCode,
     ErrorContextModel,
 )
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 from .controllers import OrganizeController, ScanController, TMDBController
 from .factories import DialogFactory

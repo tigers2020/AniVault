@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
-    from anivault.shared.models.tmdb_models import TMDBSearchResult
+    from anivault.shared.models.api.tmdb import TMDBSearchResult
 
 logger = logging.getLogger(__name__)
+TSearchResult = TypeVar("TSearchResult", bound="TMDBSearchResult")
 
 
 class SortCache:
@@ -41,7 +43,7 @@ class SortCache:
 
     def __init__(self) -> None:
         """Initialize sort cache."""
-        self.sort_keys: dict[tuple[int, str], tuple[int, int]] = {}
+        self.sort_keys: dict[tuple[int, str], tuple[float, int]] = {}
         self.sorted_lists: dict[str, list[int]] = {}
 
     def _generate_cache_key(
@@ -68,10 +70,10 @@ class SortCache:
 
     def get_or_compute_sorted(
         self,
-        candidates: list[TMDBSearchResult],
+        candidates: list[TSearchResult],
         sort_criteria: str,
-        sort_key_fn: callable,  # type: ignore[type-arg]
-    ) -> list[TMDBSearchResult]:
+        sort_key_fn: Callable[[TSearchResult], tuple[float, int]],
+    ) -> list[TSearchResult]:
         """Get sorted candidates from cache or compute and cache.
 
         Args:
@@ -95,9 +97,7 @@ class SortCache:
 
             # Reconstruct sorted candidate list from cached IDs
             candidate_map = {c.id: c for c in candidates}
-            sorted_candidates = [
-                candidate_map[cid] for cid in sorted_ids if cid in candidate_map
-            ]
+            sorted_candidates = [candidate_map[cid] for cid in sorted_ids if cid in candidate_map]
 
             return sorted_candidates
 
@@ -105,7 +105,7 @@ class SortCache:
         logger.debug("Cache miss for sort criteria: %s, computing...", sort_criteria)
 
         # Compute sort keys (with caching)
-        sort_key_pairs: list[tuple[TMDBSearchResult, tuple[int, int]]] = []
+        sort_key_pairs: list[tuple[TSearchResult, tuple[float, int]]] = []
         for candidate in candidates:
             key_tuple = (candidate.id, sort_criteria)
 
@@ -157,7 +157,5 @@ class SortCache:
             return
 
         # For now, clear all cache when invalidating specific criteria
-        # TODO: Implement criteria-to-key mapping for precise invalidation
         self.clear()
         logger.debug("Invalidated cache (cleared all entries)")
-

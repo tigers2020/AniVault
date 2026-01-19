@@ -7,6 +7,7 @@ cache hit/miss logic, and result validation.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import re
 
@@ -16,7 +17,7 @@ from anivault.core.matching.services.cache_adapter import CacheAdapterProtocol
 from anivault.core.statistics import StatisticsCollector
 from anivault.shared.constants import MatchingCacheConfig, NormalizationConfig
 from anivault.shared.errors import ErrorCode, InfrastructureError
-from anivault.shared.models.tmdb_models import TMDBSearchResult
+from anivault.shared.models.api.tmdb import TMDBSearchResult
 from anivault.shared.protocols.services import TMDBClientProtocol
 
 logger = logging.getLogger(__name__)
@@ -165,10 +166,18 @@ class TMDBSearchService:
         try:
             # Call TMDB API
             self.statistics.record_api_call("tmdb_search", success=True)
-            search_response = await self.tmdb_client.search_media(title)
+            search_media = getattr(self.tmdb_client, "search_media", None)
+            if search_media and inspect.iscoroutinefunction(search_media):
+                search_response = await search_media(title)
+            elif hasattr(self.tmdb_client, "search_async"):
+                search_response = await self.tmdb_client.search_async(title)
+            elif callable(search_media):
+                search_response = search_media(title)
+            else:
+                raise AttributeError("TMDB client does not support search_media/search_async")
 
             # Extract results
-            results = search_response.results
+            results = search_response.results if hasattr(search_response, "results") else search_response
 
             # Store in cache with series-based key for reuse across episodes
             cached_data = CachedSearchData(

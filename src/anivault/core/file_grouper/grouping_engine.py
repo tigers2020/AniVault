@@ -12,6 +12,7 @@ import math
 
 from anivault.config import load_settings
 from anivault.config.models.grouping_settings import GroupingSettings
+from anivault.config.models.matching_weights import MatchingWeights
 from anivault.core.file_grouper.matchers.base import BaseMatcher
 from anivault.core.file_grouper.models import Group, GroupingEvidence
 from anivault.core.models import ScannedFile
@@ -24,15 +25,6 @@ from anivault.shared.errors import (
 from .strategies import BestMatcherStrategy, GroupingStrategy
 
 logger = logging.getLogger(__name__)
-
-
-# Default weights for matchers (deprecated: use MatchingWeights)
-# Kept for backward compatibility, but should use MatchingWeights.grouping_*_weight instead
-DEFAULT_WEIGHTS = {
-    "title": 0.6,  # Title similarity is most important
-    "hash": 0.3,  # Hash-based matching is secondary
-    "season": 0.1,  # Season metadata is supplementary
-}
 
 
 def _get_default_weights_from_config() -> dict[str, float]:
@@ -50,8 +42,13 @@ def _get_default_weights_from_config() -> dict[str, float]:
             "season": weights.grouping_season_weight,
         }
     except (ImportError, AttributeError):
-        # Fallback to hardcoded defaults if config not available
-        return DEFAULT_WEIGHTS.copy()
+        # Fallback to model defaults if config not available
+        default_weights = MatchingWeights()
+        return {
+            "title": default_weights.grouping_title_weight,
+            "hash": default_weights.grouping_hash_weight,
+            "season": default_weights.grouping_season_weight,
+        }
 
 
 class GroupingEngine:
@@ -93,7 +90,7 @@ class GroupingEngine:
         Args:
             matchers: List of matcher instances to use.
             weights: Optional custom weights for matchers.
-                    If None, uses DEFAULT_WEIGHTS.
+                    If None, uses MatchingWeights defaults.
                     Must sum to 1.0.
             strategy: Optional grouping strategy to use.
                      If None, uses BestMatcherStrategy (current behavior).

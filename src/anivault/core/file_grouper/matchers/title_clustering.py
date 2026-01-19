@@ -179,9 +179,7 @@ class TitleClustering:
         # DBSCAN doesn't support predict, so we need to refit or use approximate assignment
         # For now, we'll refit on the new data (this is a limitation of DBSCAN)
         # In practice, you might want to assign new points to nearest cluster
-        logger.warning(
-            "DBSCAN doesn't support direct prediction. Refitting on new titles."
-        )
+        logger.warning("DBSCAN doesn't support direct prediction. Refitting on new titles.")
         return self.fit(titles).labels_
 
     @property
@@ -252,4 +250,3 @@ class TitleClustering:
             cluster_counts[label] = cluster_counts.get(label, 0) + 1
 
         return cluster_counts
-

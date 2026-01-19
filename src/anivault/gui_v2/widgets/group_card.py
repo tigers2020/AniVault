@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, QTimer, Signal
+from PySide6.QtCore import QSize, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 
@@ -18,10 +18,10 @@ class GroupCard(QPushButton):
         self._group_data: dict | None = None
         self._group_id: int | None = None
         self._setup_ui()
-        
+
         # Connect QPushButton's clicked signal to emit our custom signal
         super().clicked.connect(self._on_clicked)
-    
+
     def _on_clicked(self) -> None:
         """Handle button click and emit card_clicked signal."""
         if self._group_id is not None:
@@ -31,7 +31,7 @@ class GroupCard(QPushButton):
         """Set up the group card UI."""
         self.setObjectName("groupCard")
         self.setCheckable(False)
-        
+
         # Set size policy to ensure proper sizing
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         # Set minimum size to ensure card is visible
@@ -177,7 +177,7 @@ class GroupCard(QPushButton):
         if matched:
             match_badge = QLabel("✓ 매칭됨")
             match_badge.setObjectName("infoBadge")
-            match_badge.setProperty("matched", True)
+            match_badge.setProperty("matched", True)  # noqa: FBT003
             self.info_widget.layout().addWidget(match_badge)
 
             # Show progress
@@ -190,13 +190,11 @@ class GroupCard(QPushButton):
             # Update progress fill width
             # Use fixed pixel width based on progress bar width
             # Note: Will be updated when widget is resized/shown
-            self.progress_fill.setStyleSheet(
-                f"min-width: {confidence}%; max-width: {confidence}%;"
-            )
+            self.progress_fill.setStyleSheet(f"min-width: {confidence}%; max-width: {confidence}%;")
         else:
             match_badge = QLabel("미매칭")
             match_badge.setObjectName("infoBadge")
-            match_badge.setProperty("unmatched", True)
+            match_badge.setProperty("unmatched", True)  # noqa: FBT003
             self.info_widget.layout().addWidget(match_badge)
 
             # Hide progress, show unmatched message

@@ -17,7 +17,7 @@ from anivault.gui.dialogs.tmdb_progress_dialog import TMDBProgressDialog
 from anivault.gui.managers.status_manager import StatusManager
 from anivault.gui.state_model import StateModel
 from anivault.shared.constants.gui_messages import DialogTitles
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 from .base_event_handler import BaseEventHandler
 

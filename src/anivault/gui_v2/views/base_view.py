@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
 
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 
 class BaseView(QWidget):
@@ -18,14 +18,13 @@ class BaseView(QWidget):
 
     def refresh(self) -> None:
         """Refresh view data. Override in subclasses."""
-        pass
 
     def set_file_metadata(self, files: list[FileMetadata]) -> None:
         """Set file metadata for this view.
-        
+
         This method stores the shared file metadata list. Subclasses can override
         to implement custom display logic.
-        
+
         Args:
             files: List of FileMetadata instances shared across all views.
         """
@@ -33,7 +32,7 @@ class BaseView(QWidget):
 
     def get_file_metadata(self) -> list[FileMetadata]:
         """Get the shared file metadata list.
-        
+
         Returns:
             List of FileMetadata instances.
         """

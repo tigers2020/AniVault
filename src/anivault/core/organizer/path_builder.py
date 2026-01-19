@@ -13,9 +13,8 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from anivault.core.models import ScannedFile
-from anivault.shared.constants import VideoQuality
 from anivault.shared.constants.path_constants import PathConstants
-from anivault.shared.metadata_models import TMDBMatchResult
+from anivault.shared.models.metadata import TMDBMatchResult
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +273,7 @@ class PathBuilder:
             context.organize_by_year,
             series_title,
         )
-        
+
         # Build base path with media type
         base_path = context.target_folder / context.media_type
 
@@ -292,11 +291,10 @@ class PathBuilder:
                     scanned_file=context.scanned_file,
                 )
                 return result_path
-            else:
-                self.logger.debug(
-                    "Resolution-based organization enabled but resolution not found for %s - using default path",
-                    context.scanned_file.file_path.name,
-                )
+            self.logger.debug(
+                "Resolution-based organization enabled but resolution not found for %s - using default path",
+                context.scanned_file.file_path.name,
+            )
 
         # Add year folder if organize_by_year is enabled (for non-mixed resolution series)
         if context.organize_by_year:
@@ -423,10 +421,10 @@ class PathBuilder:
 
         # Normalize resolution string (lowercase for folder names)
         resolution_folder = resolution.lower() if resolution else "unknown"
-        
+
         # Build path structure: base_path / [year/] resolution / series_title / season_dir
         current_path = base_path
-        
+
         # Step 1: Add year folder first if organize_by_year is enabled
         if organize_by_year and scanned_file:
             year = self._extract_year_from_tmdb(scanned_file)
@@ -437,16 +435,16 @@ class PathBuilder:
                     year,
                     current_path,
                 )
-        
+
         # Step 2: Add resolution folder (after year, before series_title)
         current_path = current_path / resolution_folder
-        
+
         # Step 3: Add series title
         current_path = current_path / series_title
-        
+
         # Step 4: Add season directory
         series_dir = current_path / season_dir
-        
+
         return series_dir
 
     @staticmethod

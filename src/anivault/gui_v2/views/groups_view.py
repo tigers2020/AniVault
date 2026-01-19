@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QWidget
@@ -12,7 +11,7 @@ from anivault.core.models import ScannedFile
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.gui_v2.views.base_view import BaseView
 from anivault.gui_v2.widgets.group_card import GroupCard
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 
 class GroupsView(BaseView):
@@ -73,6 +72,7 @@ class GroupsView(BaseView):
     def set_file_metadata(self, files: list[FileMetadata]) -> None:
         """Build groups from FileMetadata and update display."""
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info("set_file_metadata called with %d files", len(files))
         if not files:
@@ -93,7 +93,7 @@ class GroupsView(BaseView):
                 release_group=None,
                 additional_info=ParsingAdditionalInfo(),
             )
-            
+
             # Create ScannedFile
             scanned_file = ScannedFile(
                 file_path=file_metadata.file_path,
@@ -102,15 +102,16 @@ class GroupsView(BaseView):
                 last_modified=file_metadata.file_path.stat().st_mtime if file_metadata.file_path.exists() else 0.0,
             )
             scanned_files.append(scanned_file)
-        
+
         # Use FileGrouper to group files intelligently
         file_groups = self._file_grouper.group_files(scanned_files)
-        
+
         # Re-group FileGrouper results by series name (not by episode)
         # FileGrouper may group by episode, but we want series-level groups
         import re
+
         series_groups: dict[str, list[FileMetadata]] = {}
-        
+
         for group in file_groups:
             # Extract metadata from group files
             group_files_metadata: list[FileMetadata] = []
@@ -120,37 +121,37 @@ class GroupsView(BaseView):
                     if file_metadata.file_path == scanned_file.file_path:
                         group_files_metadata.append(file_metadata)
                         break
-            
+
             if not group_files_metadata:
                 continue
-            
+
             # Extract series name from group title (remove episode/season info)
             group_title = group.title
             # Remove episode patterns: " - 01", " - 02", " E01", " E02", etc.
-            series_name = re.sub(r'\s*-\s*\d+.*$', '', group_title)
-            series_name = re.sub(r'\s*E\d+.*$', '', series_name, flags=re.IGNORECASE)
-            series_name = re.sub(r'\s*Episode\s*\d+.*$', '', series_name, flags=re.IGNORECASE)
+            series_name = re.sub(r"\s*-\s*\d+.*$", "", group_title)
+            series_name = re.sub(r"\s*E\d+.*$", "", series_name, flags=re.IGNORECASE)
+            series_name = re.sub(r"\s*Episode\s*\d+.*$", "", series_name, flags=re.IGNORECASE)
             series_name = series_name.strip()
-            
+
             # If series name is empty or too short, use group title
             if not series_name or len(series_name) < 2:
                 series_name = group_title
-            
+
             # Group by series name
             if series_name not in series_groups:
                 series_groups[series_name] = []
             series_groups[series_name].extend(group_files_metadata)
-        
+
         # Convert to display format
         groups: list[dict] = []
         for index, (series_name, all_files) in enumerate(series_groups.items(), start=1):
             # Extract unique seasons and episodes
             seasons = {item.season for item in all_files if item.season is not None}
             episodes = {item.episode for item in all_files if item.episode is not None}
-            
+
             # Check if matched
             matched = any(item.tmdb_id is not None for item in all_files)
-            
+
             # Extract resolution/quality from file paths or metadata
             resolutions = set()
             for item in all_files:
@@ -160,13 +161,13 @@ class GroupsView(BaseView):
                         resolutions.add(res.upper().replace("P", "p"))
                         break
                 # Also check if quality is in ParsingResult metadata
-                if hasattr(item, 'quality') and item.quality:
+                if hasattr(item, "quality") and item.quality:
                     resolutions.add(item.quality)
             if not resolutions:
                 resolutions.add("unknown")
-            
-            resolution = list(resolutions)[0] if resolutions else "unknown"
-            
+
+            resolution = next(iter(resolutions), "unknown")
+
             # Language detection
             language = "unknown"
             for item in all_files:
@@ -174,13 +175,13 @@ class GroupsView(BaseView):
                 if any(lang in file_name_lower for lang in ["korean", "kor", "ko"]):
                     language = "ko"
                     break
-                elif any(lang in file_name_lower for lang in ["japanese", "jap", "ja"]):
+                if any(lang in file_name_lower for lang in ["japanese", "jap", "ja"]):
                     language = "ja"
                     break
-                elif any(lang in file_name_lower for lang in ["english", "eng", "en"]):
+                if any(lang in file_name_lower for lang in ["english", "eng", "en"]):
                     language = "en"
                     break
-            
+
             groups.append(
                 {
                     "id": index,
@@ -197,6 +198,7 @@ class GroupsView(BaseView):
             )
 
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info("Created %d groups from %d files", len(groups), len(files))
         self.set_groups(groups)
@@ -204,6 +206,7 @@ class GroupsView(BaseView):
     def _update_display(self) -> None:
         """Update the groups grid display."""
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info("_update_display called with %d groups", len(self._groups))
         # Clear existing cards
@@ -229,7 +232,7 @@ class GroupsView(BaseView):
             # Explicitly show the card and update geometry to ensure proper sizing
             card.show()
             card.updateGeometry()
-        
+
         # Force layout update and repaint
         self.grid_layout.update()
         # Update the grid container widget to ensure it's visible

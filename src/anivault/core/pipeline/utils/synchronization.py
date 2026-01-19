@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 from contextlib import contextmanager
 from typing import Any, Callable, TypeVar
+from collections.abc import Iterator
 
 T = TypeVar("T")
 
@@ -49,9 +50,8 @@ class ThreadSafeStatsUpdater:
                 elif hasattr(self.stats, "increment_files"):
                     self.stats.increment_files()
                 else:
-                    raise AttributeError(
-                        f"Stats object {type(self.stats)} does not have increment_files_scanned or increment_files method",
-                    )
+                    message = "Stats object " f"{type(self.stats)} does not have increment_files_scanned or increment_files method"
+                    raise AttributeError(message)
 
     def increment_directories(self, count: int = 1) -> None:
         """Increment directory count in a thread-safe manner.
@@ -66,9 +66,8 @@ class ThreadSafeStatsUpdater:
                 elif hasattr(self.stats, "increment_directories"):
                     self.stats.increment_directories()
                 else:
-                    raise AttributeError(
-                        f"Stats object {type(self.stats)} does not have increment_directories_scanned or increment_directories method",
-                    )
+                    message = "Stats object " f"{type(self.stats)} does not have increment_directories_scanned " "or increment_directories method"
+                    raise AttributeError(message)
 
     def update_files_and_directories(
         self,
@@ -87,7 +86,9 @@ class ThreadSafeStatsUpdater:
 
 
 @contextmanager
-def thread_safe_operation(lock: threading.Lock | threading.RLock):
+def thread_safe_operation(
+    lock: threading.Lock | threading.RLock,
+) -> Iterator[None]:
     """Context manager for thread-safe operations.
 
     Provides a clean way to execute code blocks with lock protection.
@@ -104,7 +105,9 @@ def thread_safe_operation(lock: threading.Lock | threading.RLock):
         yield
 
 
-def synchronized(lock: threading.Lock | threading.RLock):
+def synchronized(
+    lock: threading.Lock | threading.RLock,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator for thread-safe method execution.
 
     Args:

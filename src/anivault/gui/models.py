@@ -8,13 +8,17 @@ including the file tree model and related data structures.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QModelIndex, QObject, QSortFilterProxyModel, Qt, Signal
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 
-from anivault.shared.metadata_models import FileMetadata
+from anivault.core.matching.models import MatchResult
+from anivault.core.parser.models import ParsingResult
+from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +62,66 @@ class FileItem:
             "status": self.status,
             "metadata": metadata_dict,
         }
+
+
+class MatchStatus(str, Enum):
+    """Match status for TMDB matching results."""
+
+    PENDING = "pending"
+    MATCHED = "matched"
+    FAILED = "failed"
+
+
+@dataclass
+class FileMatchResult:
+    """TMDB match result for a single file."""
+
+    file_path: Path
+    file_name: str
+    parsing_result: ParsingResult
+    match_result: MatchResult | None
+    status: MatchStatus
+    error: str | None = None
+
+    @property
+    def is_matched(self) -> bool:
+        """Return True if match succeeded."""
+        return self.match_result is not None and self.status == MatchStatus.MATCHED
+
+    @classmethod
+    def matched(
+        cls,
+        file_path: Path,
+        file_name: str,
+        parsing_result: ParsingResult,
+        match_result: MatchResult,
+    ) -> FileMatchResult:
+        """Create a matched result."""
+        return cls(
+            file_path=file_path,
+            file_name=file_name,
+            parsing_result=parsing_result,
+            match_result=match_result,
+            status=MatchStatus.MATCHED,
+        )
+
+    @classmethod
+    def failed(
+        cls,
+        file_path: Path,
+        file_name: str,
+        parsing_result: ParsingResult | None = None,
+        error: str | None = None,
+    ) -> FileMatchResult:
+        """Create a failed result."""
+        return cls(
+            file_path=file_path,
+            file_name=file_name,
+            parsing_result=parsing_result or ParsingResult(title=file_name),
+            match_result=None,
+            status=MatchStatus.FAILED,
+            error=error,
+        )
 
 
 class FileTreeModel(QStandardItemModel):

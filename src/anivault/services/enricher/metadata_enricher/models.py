@@ -15,7 +15,7 @@ from anivault.services.enricher.metadata_enricher.transformer import (
 )
 from anivault.services.tmdb import TMDBMediaDetails
 from anivault.shared.constants.api_fields import APIFields
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 
 @dataclass

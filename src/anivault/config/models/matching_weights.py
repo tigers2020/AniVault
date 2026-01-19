@@ -6,7 +6,7 @@ algorithm weights and thresholds in a centralized, type-safe manner.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class MatchingWeights(BaseModel):
@@ -146,13 +146,9 @@ class MatchingWeights(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_title_weights_sum(self) -> "MatchingWeights":
+    def validate_title_weights_sum(self) -> MatchingWeights:
         """Validate that title matching weights sum to approximately 1.0."""
-        title_sum = (
-            self.title_jaccard_weight
-            + self.title_levenshtein_weight
-            + self.title_length_weight
-        )
+        title_sum = self.title_jaccard_weight + self.title_levenshtein_weight + self.title_length_weight
         if not (0.99 <= title_sum <= 1.01):  # Allow small floating point errors
             msg = (
                 f"Title matching weights must sum to 1.0, got {title_sum:.3f}. "
@@ -164,14 +160,9 @@ class MatchingWeights(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_scoring_weights_sum(self) -> "MatchingWeights":
+    def validate_scoring_weights_sum(self) -> MatchingWeights:
         """Validate that confidence scoring weights sum to approximately 1.0."""
-        scoring_sum = (
-            self.scoring_title_match
-            + self.scoring_year_match
-            + self.scoring_media_type_match
-            + self.scoring_popularity_match
-        )
+        scoring_sum = self.scoring_title_match + self.scoring_year_match + self.scoring_media_type_match + self.scoring_popularity_match
         if not (0.99 <= scoring_sum <= 1.01):  # Allow small floating point errors
             msg = (
                 f"Confidence scoring weights must sum to 1.0, got {scoring_sum:.3f}. "
@@ -184,13 +175,9 @@ class MatchingWeights(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_grouping_weights_sum(self) -> "MatchingWeights":
+    def validate_grouping_weights_sum(self) -> MatchingWeights:
         """Validate that grouping engine weights sum to approximately 1.0."""
-        grouping_sum = (
-            self.grouping_title_weight
-            + self.grouping_hash_weight
-            + self.grouping_season_weight
-        )
+        grouping_sum = self.grouping_title_weight + self.grouping_hash_weight + self.grouping_season_weight
         if not (0.99 <= grouping_sum <= 1.01):  # Allow small floating point errors
             msg = (
                 f"Grouping engine weights must sum to 1.0, got {grouping_sum:.3f}. "
@@ -202,13 +189,9 @@ class MatchingWeights(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_enricher_weights_sum(self) -> "MatchingWeights":
+    def validate_enricher_weights_sum(self) -> MatchingWeights:
         """Validate that enricher weights sum to approximately 1.0."""
-        enricher_sum = (
-            self.enricher_title_weight
-            + self.enricher_year_weight
-            + self.enricher_media_type_weight
-        )
+        enricher_sum = self.enricher_title_weight + self.enricher_year_weight + self.enricher_media_type_weight
         if not (0.99 <= enricher_sum <= 1.01):  # Allow small floating point errors
             msg = (
                 f"Enricher weights must sum to 1.0, got {enricher_sum:.3f}. "
@@ -221,4 +204,3 @@ class MatchingWeights(BaseModel):
 
 
 __all__ = ["MatchingWeights"]
-

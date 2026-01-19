@@ -15,7 +15,7 @@ from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from anivault.core.models import ScannedFile
 from anivault.gui.models import FileItem
 from anivault.gui.workers import TMDBMatchingWorker
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

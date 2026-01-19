@@ -22,7 +22,7 @@ from anivault.shared.errors import (
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 
 def _dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:

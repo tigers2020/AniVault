@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
 
 from anivault.config import Settings, update_and_save_config
 from anivault.config.auto_scanner import AutoScanner
-from anivault.config.models.folder_security_settings import FolderSettings
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, app_context, parent: QWidget | None = None) -> None:
         """Initialize settings dialog.
-        
+
         Args:
             app_context: Application context containing settings and config path.
             parent: Parent widget.
@@ -131,10 +130,7 @@ class SettingsDialog(QDialog):
         self.api_key_input.setPlaceholderText("Enter your TMDB API key")
         api_key_field.addWidget(self.api_key_input)
 
-        help_text = QLabel(
-            'Get your API key from: <a href="https://www.themoviedb.org/settings/api">'
-            "https://www.themoviedb.org/settings/api</a>"
-        )
+        help_text = QLabel('Get your API key from: <a href="https://www.themoviedb.org/settings/api">' "https://www.themoviedb.org/settings/api</a>")
         help_text.setOpenExternalLinks(True)
         help_text.setObjectName("helpText")
         api_key_field.addWidget(help_text)
@@ -151,9 +147,7 @@ class SettingsDialog(QDialog):
         note_title.setObjectName("noteTitle")
         note_layout.addWidget(note_title)
 
-        note_text = QLabel(
-            "API 키는 .env 파일에 안전하게 저장됩니다. (config.toml에는 저장되지 않음)"
-        )
+        note_text = QLabel("API 키는 .env 파일에 안전하게 저장됩니다. (config.toml에는 저장되지 않음)")
         note_text.setObjectName("noteText")
         note_layout.addWidget(note_text)
 
@@ -183,9 +177,7 @@ class SettingsDialog(QDialog):
 
         browse_source_btn = QPushButton("Browse...")
         browse_source_btn.setObjectName("btnGhost")
-        browse_source_btn.clicked.connect(
-            lambda: self._browse_folder(self.source_folder_input)
-        )
+        browse_source_btn.clicked.connect(lambda: self._browse_folder(self.source_folder_input))
         source_input_layout.addWidget(browse_source_btn)
 
         source_field.addLayout(source_input_layout)
@@ -209,9 +201,7 @@ class SettingsDialog(QDialog):
 
         browse_target_btn = QPushButton("Browse...")
         browse_target_btn.setObjectName("btnGhost")
-        browse_target_btn.clicked.connect(
-            lambda: self._browse_folder(self.target_folder_input)
-        )
+        browse_target_btn.clicked.connect(lambda: self._browse_folder(self.target_folder_input))
         target_input_layout.addWidget(browse_target_btn)
 
         target_field.addLayout(target_input_layout)
@@ -303,12 +293,12 @@ class SettingsDialog(QDialog):
         """Load current configuration into the dialog."""
         try:
             settings = self.app_context.settings
-            
+
             # Load API key from environment (not from config for security)
             api_key = os.environ.get("TMDB_API_KEY", "")
             if api_key:
                 self.api_key_input.setText(api_key)
-            
+
             # Load folder settings
             if settings.folders:
                 self.source_folder_input.setText(settings.folders.source_folder or "")
@@ -317,15 +307,17 @@ class SettingsDialog(QDialog):
                 self.organize_by_year.setChecked(settings.folders.organize_by_year or False)
                 self.auto_scan_startup.setChecked(settings.folders.auto_scan_on_startup or False)
                 self.scan_interval.setValue(settings.folders.auto_scan_interval_minutes or 0)
-                self.include_subdirs.setChecked(settings.folders.include_subdirectories if settings.folders.include_subdirectories is not None else True)
-        except Exception as e:
+                self.include_subdirs.setChecked(
+                    settings.folders.include_subdirectories if settings.folders.include_subdirectories is not None else True
+                )
+        except Exception:
             logger.exception("Failed to load current configuration")
             # Continue with empty form
 
     def _on_save(self) -> None:
         """Handle save button click."""
         api_key = self.api_key_input.text().strip()
-        
+
         # Validate API key if provided
         if api_key and len(api_key) < 10:
             QMessageBox.warning(
@@ -334,51 +326,53 @@ class SettingsDialog(QDialog):
                 "API 키는 최소 10자 이상이어야 합니다.",
             )
             return
-        
+
         try:
             # Save API key to .env file if provided
             if api_key:
                 self._save_api_key_to_env_file(api_key)
+
                 # Update memory cache
                 def update_api_key(cfg: Settings) -> None:
                     cfg.api.tmdb.api_key = api_key
+
                 update_and_save_config(update_api_key, self.config_path)
-            
+
             # Save folder settings
             self._save_folder_settings()
-            
+
             # Show success message
             QMessageBox.information(
                 self,
                 "설정 저장됨",
                 "설정이 성공적으로 저장되었습니다.\n\n🔒 보안 알림: API 키는 .env 파일에 안전하게 저장되었습니다.\n(config.toml에는 저장되지 않음)",
             )
-            
+
             # Close dialog
             self.accept()
-            
+
         except Exception as e:
             logger.exception("Failed to save settings")
             QMessageBox.critical(
                 self,
                 "저장 실패",
-                f"설정 저장 중 오류가 발생했습니다:\n{str(e)}",
+                f"설정 저장 중 오류가 발생했습니다:\n{e!s}",
             )
-    
+
     def _save_api_key_to_env_file(self, api_key: str) -> None:
         """Save API key to .env file.
-        
+
         Args:
             api_key: The API key to save
         """
         env_file = Path(".env")
         env_lines = []
-        
+
         # Read existing .env file if it exists
         if env_file.exists():
             with open(env_file, encoding="utf-8") as f:
                 env_lines = f.readlines()
-        
+
         # Update or add TMDB_API_KEY
         found = False
         for i, line in enumerate(env_lines):
@@ -386,19 +380,19 @@ class SettingsDialog(QDialog):
                 env_lines[i] = f"TMDB_API_KEY={api_key}\n"
                 found = True
                 break
-        
+
         if not found:
             env_lines.append(f"TMDB_API_KEY={api_key}\n")
-        
+
         # Write back to .env file
         with open(env_file, "w", encoding="utf-8") as f:
             f.writelines(env_lines)
-        
+
         # Set environment variable for current process
         os.environ["TMDB_API_KEY"] = api_key
-        
+
         logger.info("API key saved to .env file")
-    
+
     def _save_folder_settings(self) -> None:
         """Save folder settings to configuration."""
         source_folder = self.source_folder_input.text().strip()
@@ -408,7 +402,7 @@ class SettingsDialog(QDialog):
         auto_scan_startup = self.auto_scan_startup.isChecked()
         auto_scan_interval = self.scan_interval.value()
         include_subdirs = self.include_subdirs.isChecked()
-        
+
         # Update folder settings using auto scanner
         success, error = self.auto_scanner.update_folder_settings(
             source_folder=source_folder,
@@ -419,8 +413,9 @@ class SettingsDialog(QDialog):
             auto_scan_interval_minutes=auto_scan_interval,
             include_subdirectories=include_subdirs,
         )
-        
+
         if not success:
-            raise ValueError(f"Failed to update folder settings: {error}")
-        
+            message = f"Failed to update folder settings: {error}"
+            raise ValueError(message)
+
         logger.info("Folder settings saved successfully")

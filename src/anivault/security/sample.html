@@ -1266,7 +1266,7 @@
       seedRollback();
       seedLogs();
       renderLogs();
-      
+
       // Initialize verify view
       document.getElementById('verifyResults').innerHTML = `
         <div class="tag">대기</div>
@@ -1482,7 +1482,7 @@
       selectedGroup = group;
       document.getElementById('detailTitle').textContent = group.title;
       document.getElementById('detailMeta').textContent = `시즌 ${group.season} | ${group.episodes}화 | ${group.resolution}`;
-      
+
       document.getElementById('detailInfo').innerHTML = `
         <div class="info-badge" style="display:block; margin-bottom:0.5rem;">파일: ${group.files}개</div>
         <div class="info-badge" style="display:block; margin-bottom:0.5rem;">해상도: ${group.resolution}</div>
@@ -1510,7 +1510,7 @@
         renderGroups(currentGroups);
         return;
       }
-      const filtered = currentGroups.filter(g => 
+      const filtered = currentGroups.filter(g =>
         g.title.toLowerCase().includes(query.toLowerCase())
       );
       renderGroups(filtered);
@@ -1550,7 +1550,7 @@
       tmdbSelectedId = groupId;
       const group = currentGroups.find(g => g.id === groupId);
       document.getElementById('tmdbSelected').textContent = `선택: ${group.title}`;
-      
+
       const candidates = tmdbSuggestions.get(groupId) || [];
       document.getElementById('tmdbCandidates').innerHTML = candidates.length > 0
         ? candidates.map((c, i) => `
@@ -1560,7 +1560,7 @@
             </div>
           `).join('')
         : '<div class="muted">추천 후보가 없습니다. 자동 추천을 실행하세요.</div>';
-      
+
       renderTmdbQueue();
     }
 
@@ -1583,10 +1583,10 @@
     function confirmTmdbCandidate(groupId, index) {
       const group = currentGroups.find(g => g.id === groupId);
       if (!group) return;
-      
+
       group.matched = true;
       group.confidence = tmdbSuggestions.get(groupId)[index].confidence;
-      
+
       renderGroups(currentGroups);
       renderTmdbQueue();
       clearTmdbSelection();
@@ -1647,17 +1647,17 @@
     function organizeGroup(groupId) {
       const group = currentGroups.find(g => g.id === groupId);
       if (!group) return;
-      
+
       setStatus(`그룹 정리 시작: ${group.title}`, 'ok');
       showLoading(`${group.title} 정리 중...`);
-      
+
       setTimeout(() => {
         hideLoading();
         const time = new Date().toLocaleTimeString();
         const log = document.getElementById('organizeLog');
         log.textContent += `[${time}] 정리 완료: ${group.title} (${group.files}개 파일)\n`;
         log.scrollTop = log.scrollHeight;
-        
+
         setStatus(`그룹 정리 완료: ${group.title}`, 'ok');
         refreshOrganizeQueue();
       }, 2000);
@@ -1683,9 +1683,9 @@
       matchedGroups.forEach((group, index) => {
         setTimeout(() => {
           completed++;
-          document.getElementById('loadingMessage').textContent = 
+          document.getElementById('loadingMessage').textContent =
             `정리 작업 진행 중... (${completed}/${total}) - ${group.title}`;
-          
+
           const time = new Date().toLocaleTimeString();
           const log = document.getElementById('organizeLog');
           log.textContent += `[${time}] 정리 완료: ${group.title} (${group.files}개 파일)\n`;
@@ -1829,7 +1829,7 @@
     // ===== Verify =====
     function runVerify() {
       showLoading('TMDB 연결 검증 중...');
-      
+
       // Reset status
       document.getElementById('verifyApiKey').className = 'tag';
       document.getElementById('verifyApiKey').textContent = '⏳ API 키';
@@ -1842,7 +1842,7 @@
       setTimeout(() => {
         const apiKey = document.getElementById('settingApiKey')?.value || '';
         const hasApiKey = apiKey.length >= 10;
-        
+
         // API Key check
         if (hasApiKey) {
           document.getElementById('verifyApiKey').className = 'tag ok';
@@ -1894,7 +1894,7 @@
       const apiKey = document.getElementById('settingApiKey')?.value || '';
 
       const results = document.getElementById('settingsVerifyResults');
-      
+
       // Check config file
       document.getElementById('configFileStatus').textContent = '✓ 정상';
       document.getElementById('configFileStatus').style.color = '#047857';
@@ -1996,7 +1996,7 @@
 
     function saveSettings() {
       const apiKey = document.getElementById('settingApiKey')?.value || '';
-      
+
       if (apiKey && apiKey.length < 10) {
         setStatus('API 키가 너무 짧습니다 (최소 10자)', 'warn');
         return;
@@ -2005,7 +2005,7 @@
       // Save settings (simulated)
       setStatus('설정 저장 완료', 'ok');
       closeSettings();
-      
+
       // If verify view is active, refresh it
       if (currentView === 'verify') {
         verifySettings();
@@ -2015,7 +2015,7 @@
     function resetSettings() {
       // Reset API Key tab
       document.getElementById('settingApiKey').value = '';
-      
+
       // Reset Folders tab
       document.getElementById('settingSourceFolder').value = '';
       document.getElementById('settingTargetFolder').value = '';
@@ -2024,7 +2024,7 @@
       document.getElementById('settingAutoScanStartup').checked = false;
       document.getElementById('settingAutoScanInterval').value = 0;
       document.getElementById('settingIncludeSubdirs').checked = true;
-      
+
       setStatus('설정 초기화 완료', 'ok');
     }
 

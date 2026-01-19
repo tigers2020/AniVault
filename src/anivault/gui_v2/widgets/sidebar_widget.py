@@ -26,26 +26,32 @@ class SidebarWidget(QWidget):
         layout.setSpacing(32)
 
         # Navigation sections
-        self._add_navigation_section(layout, "작업", [
-            ("work", "📊 작업"),
-            ("subtitles", "📝 자막만"),
-            ("rollback", "↩️ 롤백 관리"),
-        ])
+        self._add_navigation_section(
+            layout,
+            "작업",
+            [
+                ("work", "📊 작업"),
+                ("subtitles", "📝 자막만"),
+                ("rollback", "↩️ 롤백 관리"),
+            ],
+        )
 
-        self._add_navigation_section(layout, "도구", [
-            ("verify", "✅ 검증"),
-            ("cache", "💾 캐시 관리"),
-            ("logs", "📝 로그 보기"),
-        ])
+        self._add_navigation_section(
+            layout,
+            "도구",
+            [
+                ("verify", "✅ 검증"),
+                ("cache", "💾 캐시 관리"),
+                ("logs", "📝 로그 보기"),
+            ],
+        )
 
         # Statistics card
         self._add_statistics_card(layout)
 
         layout.addStretch()
 
-    def _add_navigation_section(
-        self, parent_layout: QVBoxLayout, title: str, items: list[tuple[str, str]]
-    ) -> None:
+    def _add_navigation_section(self, parent_layout: QVBoxLayout, title: str, items: list[tuple[str, str]]) -> None:
         """Add a navigation section to the sidebar."""
         # Section title
         title_label = QLabel(title)
@@ -59,10 +65,10 @@ class SidebarWidget(QWidget):
             item_btn.setCheckable(True)
             if view_name == self._current_view:
                 item_btn.setChecked(True)
-                item_btn.setProperty("active", True)
+                item_btn.setProperty("active", True)  # noqa: FBT003
 
             item_btn.clicked.connect(
-                lambda checked, vn=view_name: self._on_view_clicked(vn)
+                lambda _checked, vn=view_name: self._on_view_clicked(vn),
             )
             parent_layout.addWidget(item_btn)
 
@@ -87,9 +93,7 @@ class SidebarWidget(QWidget):
 
         parent_layout.addWidget(stats_widget)
 
-    def _add_stat_item(
-        self, layout: QVBoxLayout, label_text: str, value_object_name: str, initial_value: str
-    ) -> None:
+    def _add_stat_item(self, layout: QVBoxLayout, label_text: str, value_object_name: str, initial_value: str) -> None:
         """Add a statistics item."""
         item_layout = QHBoxLayout()
         item_layout.setContentsMargins(0, 8, 0, 8)

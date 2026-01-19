@@ -11,7 +11,7 @@ from anivault.core.matching.pipeline import MatchOptions, process_file_for_match
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class MatchWorker(BaseWorker):
         try:
             results = asyncio.run(self._match_files())
             self.finished.emit(results)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Match workflow failed")
             self._emit_error(
                 OperationError(

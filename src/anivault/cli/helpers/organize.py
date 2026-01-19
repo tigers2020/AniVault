@@ -11,7 +11,6 @@ import sys
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from rich.console import Console
 from rich.prompt import Confirm
@@ -22,7 +21,9 @@ from anivault.cli.progress import create_progress_manager
 from anivault.config import Settings
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.log_manager import OperationLogManager
-from anivault.core.models import ScannedFile
+from anivault.core.models import FileOperation, OperationType, ScannedFile
+from anivault.core.organizer.executor import OperationResult
+from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.core.organizer import FileOrganizer
 from anivault.core.pipeline import run_pipeline
 from anivault.core.resolution_detector import ResolutionDetector
@@ -30,12 +31,40 @@ from anivault.core.subtitle_matcher import SubtitleMatcher
 from anivault.services.tmdb import TMDBClient
 from anivault.shared.constants import Language, QueueConfig, WorkerConfig
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
+from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import OrganizeOptions
 
 logger = logging.getLogger(__name__)
 
 
-def get_scanned_files(options: OrganizeOptions, directory: Path, console: Console) -> list[Any]:
+def _file_metadata_to_parsing_result(metadata: FileMetadata) -> ParsingResult:
+    """Convert FileMetadata to ParsingResult for organizing.
+
+    Args:
+        metadata: FileMetadata instance to convert
+
+    Returns:
+        ParsingResult instance for organizing
+    """
+    additional_info = ParsingAdditionalInfo()
+    title = metadata.title or metadata.file_path.stem
+    return ParsingResult(
+        title=title,
+        episode=metadata.episode,
+        season=metadata.season,
+        year=metadata.year,
+        quality=None,
+        source=None,
+        codec=None,
+        audio=None,
+        release_group=None,
+        confidence=1.0,
+        parser_used="file_metadata_converter",
+        additional_info=additional_info,
+    )
+
+
+def get_scanned_files(options: OrganizeOptions, directory: Path, console: Console) -> list[ScannedFile]:
     """Get scanned files for organization.
 
     Args:
@@ -67,14 +96,14 @@ def get_scanned_files(options: OrganizeOptions, directory: Path, console: Consol
             )
         return []
 
-    scanned_files = []
-    for result in file_results:
-        if CLIMessages.StatusKeys.PARSING_RESULT in result:
-            scanned_file = ScannedFile(
-                file_path=Path(result[CLIMessages.StatusKeys.FILE_PATH]),
-                metadata=result[CLIMessages.StatusKeys.PARSING_RESULT],
-            )
-            scanned_files.append(scanned_file)
+    scanned_files: list[ScannedFile] = []
+    for metadata in file_results:
+        parsing_result = _file_metadata_to_parsing_result(metadata)
+        scanned_file = ScannedFile(
+            file_path=metadata.file_path,
+            metadata=parsing_result,
+        )
+        scanned_files.append(scanned_file)
 
     if not scanned_files and not options.json_output:
         console.print(
@@ -89,10 +118,10 @@ def get_scanned_files(options: OrganizeOptions, directory: Path, console: Consol
 
 @handle_cli_errors(operation="generate_organization_plan", command_name="organize")
 def generate_organization_plan(
-    scanned_files: list[Any],
+    scanned_files: list[ScannedFile],
     *,
     settings: Settings | None = None,
-) -> list[Any]:
+) -> list[FileOperation]:
     """Generate organization plan.
 
     Args:
@@ -123,31 +152,27 @@ def _generate_destination_paths(destination_base: str, korean_title: str, season
     return high_res_path, low_res_path
 
 
-def _create_move_operation(source: Path, destination: Path, **kwargs: Any) -> dict[str, Any]:
-    """Create a move operation dictionary.
+def _create_move_operation(source: Path, destination: Path) -> FileOperation:
+    """Create a move operation.
 
     Args:
         source: Source file path
         destination: Destination file path
-        **kwargs: Additional operation metadata
-
     Returns:
-        Move operation dictionary
+        Move operation instance
     """
-    operation = {
-        "source": source,
-        "destination": destination,
-        "type": "move",
-    }
-    operation.update(kwargs)
-    return operation
+    return FileOperation(
+        operation_type=OperationType.MOVE,
+        source_path=source,
+        destination_path=destination,
+    )
 
 
 @handle_cli_errors(operation="generate_enhanced_organization_plan", command_name="organize")
 def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
-    scanned_files: list[Any],
+    scanned_files: list[ScannedFile],
     options: OrganizeOptions,
-) -> list[Any]:
+) -> list[FileOperation]:
     """Generate enhanced organization plan with grouping.
 
     Args:
@@ -164,7 +189,7 @@ def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
     tmdb_client = TMDBClient(language=Language.KOREAN)  # noqa: F841  # pylint: disable=unused-variable
 
     file_groups = grouper.group_files(scanned_files)
-    operations = []
+    operations: list[FileOperation] = []
 
     for group in file_groups:
         best_file = resolution_detector.find_highest_resolution(group.files)
@@ -186,7 +211,6 @@ def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
             _create_move_operation(
                 best_file.file_path,
                 high_res_path / best_file.file_path.name,
-                is_highest_resolution=True,
             )
         )
 
@@ -196,7 +220,6 @@ def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
                 _create_move_operation(
                     subtitle,
                     high_res_path / subtitle.name,
-                    is_subtitle=True,
                 )
             )
 
@@ -207,7 +230,6 @@ def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
                     _create_move_operation(
                         file.file_path,
                         low_res_path / file.file_path.name,
-                        is_highest_resolution=False,
                     )
                 )
 
@@ -215,7 +237,7 @@ def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
 
 
 def execute_organization_plan(
-    plan: list[Any],
+    plan: list[FileOperation],
     options: OrganizeOptions,
     console: Console,
     *,
@@ -277,7 +299,7 @@ def confirm_organization(console: Console) -> bool:
 
 @handle_cli_errors(operation="perform_organization", command_name="organize")
 def perform_organization(
-    plan: list[Any],
+    plan: list[FileOperation],
     options: OrganizeOptions,
     *,
     settings: Settings | None = None,
@@ -368,7 +390,7 @@ def _get_file_size_safe(file_path: str) -> int:
         return 0
 
 
-def _extract_parsing_result_data(parsing_result: Any) -> dict[str, Any]:
+def _extract_parsing_result_data(parsing_result: ParsingResult) -> dict[str, object]:
     """Extract parsing result data for JSON output.
 
     Args:
@@ -411,13 +433,13 @@ def _format_file_size_human_readable(size_bytes: float) -> str:
 
 
 def collect_organize_data(
-    plan: list[Any],
+    plan: list[FileOperation],
     _options: OrganizeOptions,  # Unused, kept for API compatibility  # pylint: disable=unused-argument
-    moved_files: list[Any] | None = None,
+    moved_files: list[OperationResult] | None = None,
     operation_id: str | None = None,
     *,
     is_dry_run: bool = False,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Collect organize data for JSON output.
 
     Args:
@@ -437,7 +459,7 @@ def collect_organize_data(
     total_size = 0
 
     for operation in plan:
-        source_path = str(operation.source_file.file_path)
+        source_path = str(operation.source_path)
         destination_path = str(operation.destination_path)
 
         file_size = _get_file_size_safe(source_path)
@@ -450,9 +472,6 @@ def collect_organize_data(
             "file_size": file_size,
             "file_extension": Path(source_path).suffix.lower(),
         }
-
-        if hasattr(operation.source_file, "parsing_result") and operation.source_file.parsing_result:
-            operation_info["parsing_result"] = _extract_parsing_result_data(operation.source_file.parsing_result)
 
         operations_data.append(operation_info)
 
@@ -470,7 +489,7 @@ def collect_organize_data(
     }
 
 
-def print_dry_run_plan(plan: list[Any], console: Console) -> None:
+def print_dry_run_plan(plan: list[FileOperation], console: Console) -> None:
     """Print dry run plan.
 
     Args:
@@ -489,7 +508,7 @@ def print_dry_run_plan(plan: list[Any], console: Console) -> None:
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
 
 
-def print_execution_plan(plan: list[Any], console: Console) -> None:
+def print_execution_plan(plan: list[FileOperation], console: Console) -> None:
     """Print execution plan.
 
     Args:
@@ -506,14 +525,6 @@ def print_execution_plan(plan: list[Any], console: Console) -> None:
         console.print()
 
 
-def _extract_operation_paths(operation: Any) -> tuple[Path, Path]:
+def _extract_operation_paths(operation: FileOperation) -> tuple[Path, Path]:
     """Extract source/destination paths from various operation types."""
-    if hasattr(operation, "source_path") and hasattr(operation, "destination_path"):
-        return operation.source_path, operation.destination_path
-    if hasattr(operation, "source_file") and hasattr(operation, "destination_path"):
-        return operation.source_file.file_path, operation.destination_path
-    if isinstance(operation, dict):
-        source = operation.get("source") or operation.get("source_path")
-        destination = operation.get("destination") or operation.get("destination_path")
-        return Path(str(source)), Path(str(destination))
-    raise AttributeError("Unsupported operation type for plan display")
+    return operation.source_path, operation.destination_path

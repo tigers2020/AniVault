@@ -175,8 +175,6 @@ class OrganizeWorker(QObject):
             moved_files = [(r.source_path, r.destination_path) for r in operation_results if r.success and not r.skipped]
             if moved_files:
                 self._cleanup_empty_directories(moved_files)
-            else:
-
             # Emit completion with OperationResult objects
             self.organization_finished.emit(operation_results)
             logger.info(

@@ -11,7 +11,7 @@ import logging
 from anivault.core.matching.models import NormalizedQuery
 from anivault.core.matching.strategies import FallbackStrategy
 from anivault.core.statistics import StatisticsCollector
-from anivault.shared.models.tmdb_models import ScoredSearchResult
+from anivault.shared.models.api.tmdb import ScoredSearchResult
 
 logger = logging.getLogger(__name__)
 

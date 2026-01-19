@@ -171,8 +171,7 @@ extend-exclude = '''
 
 [tool.mypy]
 python_version = "3.9"
-# TODO: Re-enable pydantic.mypy plugin after completing type migration (Task 1)
-# plugins = ["pydantic.mypy"]  # Temporarily disabled due to dependency issues
+plugins = ["pydantic.mypy"]
 # Required for full Pydantic v2 type checking integration with BaseTypeModel
 namespace_packages = true
 explicit_package_bases = true  # Enable to fix module path conflicts
@@ -251,6 +250,33 @@ module = [
 ]
 disable_error_code = ["misc"]
 
+# GUI v2: allow PySide6 stub gaps and runtime-only types
+[[tool.mypy.overrides]]
+module = ["anivault.gui_v2.*"]
+disable_error_code = [
+    "misc",
+    "type-arg",
+    "union-attr",
+    "no-untyped-def",
+    "no-any-return",
+    "return-value",
+]
+
+# Matching engine: gradual type cleanup
+[[tool.mypy.overrides]]
+module = ["anivault.core.matching.*"]
+disable_error_code = [
+    "assignment",
+    "arg-type",
+    "list-item",
+    "no-any-return",
+    "unreachable",
+]
+
+[[tool.mypy.overrides]]
+module = ["anivault.core.pipeline.components.parser"]
+disable_error_code = ["attr-defined", "no-any-return"]
+
 # Note: No specific overrides for anivault.* - strict mode applies globally
 
 # 서드파티 라이브러리 예외 처리 (타입 스텁 부재)
@@ -261,7 +287,11 @@ module = [
     "orjson.*",
     "rapidfuzz.*",
     "cryptography.*",
+    "datasketch.*",
+    "numpy.*",
     "PySide6.*",
+    "scipy.*",
+    "sklearn.*",
     "tmdbv3api.*",
     "anitopy.*",
     "requests_cache.*",

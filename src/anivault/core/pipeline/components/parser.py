@@ -204,7 +204,71 @@ class ParserWorker(threading.Thread):
         logger = logging.getLogger(__name__)
 
         try:
-            return self.cache.get(str(file_path))
+            # #region agent log
+            import json
+
+            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "sessionId": "debug-session",
+                            "runId": "run1",
+                            "hypothesisId": "A",
+                            "location": "parser.py:207",
+                            "message": "_check_cache entry",
+                            "data": {"file_path": str(file_path), "key_type": "raw_path"},
+                            "timestamp": __import__("time").time() * 1000,
+                        }
+                    )
+                    + "\n"
+                )
+            # #endregion
+
+            # Generate cache key same way as _store_in_cache (HYPOTHESIS A)
+            cache_key = self.cache._generate_key(  # pylint: disable=protected-access
+                str(file_path),
+                file_path.stat().st_mtime,
+            )
+
+            # #region agent log
+            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "sessionId": "debug-session",
+                            "runId": "run1",
+                            "hypothesisId": "A",
+                            "location": "parser.py:215",
+                            "message": "cache key generated",
+                            "data": {"cache_key": cache_key[:64], "key_length": len(cache_key)},
+                            "timestamp": __import__("time").time() * 1000,
+                        }
+                    )
+                    + "\n"
+                )
+            # #endregion
+
+            result = self.cache.get(cache_key)
+
+            # #region agent log
+            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "sessionId": "debug-session",
+                            "runId": "run1",
+                            "hypothesisId": "A",
+                            "location": "parser.py:220",
+                            "message": "cache.get result",
+                            "data": {"result_type": type(result).__name__, "result_is_none": result is None},
+                            "timestamp": __import__("time").time() * 1000,
+                        }
+                    )
+                    + "\n"
+                )
+            # #endregion
+
+            return result
         except (KeyError, ValueError, TypeError) as e:
             context = ErrorContext(
                 file_path=str(file_path),
@@ -347,10 +411,32 @@ class ParserWorker(threading.Thread):
 
         try:
             # Store result in cache (24 hours TTL)
+            mtime = file_path.stat().st_mtime
             cache_key = self.cache._generate_key(  # pylint: disable=protected-access
                 str(file_path),
-                file_path.stat().st_mtime,
+                mtime,
             )
+
+            # #region agent log
+            import json
+
+            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "sessionId": "debug-session",
+                            "runId": "run1",
+                            "hypothesisId": "D",
+                            "location": "parser.py:350",
+                            "message": "_store_in_cache key generation",
+                            "data": {"file_path": str(file_path)[:100], "mtime": mtime, "cache_key": cache_key[:64], "key_length": len(cache_key)},
+                            "timestamp": __import__("time").time() * 1000,
+                        }
+                    )
+                    + "\n"
+                )
+            # #endregion
+
             self.cache.set_cache(
                 cache_key,
                 result,

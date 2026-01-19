@@ -7,7 +7,6 @@ primary parsing engine for extracting metadata from anime filenames.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 try:
     import anitopy
@@ -15,8 +14,10 @@ except ImportError:
     anitopy = None
 
 from anivault.core.constants import ParsingConfidence
+from anivault.core.parser.models.anitopy_models import AnitopyResult
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.shared.constants.validation_constants import (
+    AnitopyFieldNames,
     PARSER_ANIME_SEASON,
     PARSER_ANIME_TITLE,
     PARSER_AUDIO_TERM,
@@ -75,7 +76,7 @@ class AnitopyParser:
         """
         try:
             # Call anitopy parser
-            parsed = anitopy.parse(filename)
+            parsed = AnitopyResult.from_dict(anitopy.parse(filename))
 
             # Convert anitopy output to our ParsingResult format
             result = self._convert_to_result(parsed, filename)
@@ -114,25 +115,25 @@ class AnitopyParser:
 
     def _convert_to_result(
         self,
-        parsed: dict[str, Any],
+        parsed: AnitopyResult,
         original_filename: str,
     ) -> ParsingResult:
         """Convert anitopy's dictionary output to ParsingResult.
 
         Args:
-            parsed: Dictionary output from anitopy.parse().
+            parsed: Typed output from anitopy.parse().
             original_filename: Original filename for reference.
 
         Returns:
             ParsingResult object with mapped fields and confidence score.
         """
         # Extract basic fields with direct mapping
-        title = parsed.get(PARSER_ANIME_TITLE, "")
-        release_group = parsed.get("release_group")
-        quality = parsed.get(PARSER_VIDEO_RESOLUTION)
-        source = parsed.get("source")
-        codec = parsed.get(PARSER_VIDEO_TERM)
-        audio = parsed.get(PARSER_AUDIO_TERM)
+        title = parsed.anime_title or ""
+        release_group = parsed.release_group
+        quality = parsed.video_resolution
+        source = parsed.source
+        codec = parsed.video_term
+        audio = parsed.audio_term
 
         # Extract and convert episode number
         episode = self._extract_episode_number(parsed)
@@ -160,16 +161,16 @@ class AnitopyParser:
             additional_info=ParsingAdditionalInfo(parser_specific=parser_specific),
         )
 
-    def _extract_episode_number(self, parsed: dict[str, Any]) -> int | None:
+    def _extract_episode_number(self, parsed: AnitopyResult) -> int | None:
         """Extract episode number from anitopy output.
 
         Args:
-            parsed: Dictionary output from anitopy.
+            parsed: Typed output from anitopy.
 
         Returns:
             Episode number as integer, or None if not found.
         """
-        episode_raw = parsed.get(PARSER_EPISODE_NUMBER)
+        episode_raw = parsed.episode_number
 
         if episode_raw is None:
             return None
@@ -189,16 +190,16 @@ class AnitopyParser:
             logger.warning("Failed to convert episode number: %s", episode_raw)
             return None
 
-    def _extract_season_number(self, parsed: dict[str, Any]) -> int | None:
+    def _extract_season_number(self, parsed: AnitopyResult) -> int | None:
         """Extract season number from anitopy output.
 
         Args:
-            parsed: Dictionary output from anitopy.
+            parsed: Typed output from anitopy.
 
         Returns:
             Season number as integer, or None if not found.
         """
-        season_raw = parsed.get(PARSER_ANIME_SEASON)
+        season_raw = parsed.anime_season
 
         if season_raw is None:
             return None
@@ -215,7 +216,7 @@ class AnitopyParser:
         title: str,
         episode: int | None,
         season: int | None,
-        parsed: dict[str, Any],
+        parsed: AnitopyResult,
     ) -> float:
         """Calculate confidence score based on extracted information.
 
@@ -223,7 +224,7 @@ class AnitopyParser:
             title: Extracted anime title.
             episode: Extracted episode number.
             season: Extracted season number.
-            parsed: Full anitopy output dictionary.
+            parsed: Full typed anitopy output.
 
         Returns:
             Confidence score between 0.0 and 1.0.
@@ -245,13 +246,13 @@ class AnitopyParser:
 
         # Additional metadata found
         metadata_fields = [
-            "release_group",
-            "video_resolution",
-            "source",
-            "video_term",
-            "audio_term",
+            parsed.release_group,
+            parsed.video_resolution,
+            parsed.source,
+            parsed.video_term,
+            parsed.audio_term,
         ]
-        found_metadata = sum(1 for field in metadata_fields if parsed.get(field))
+        found_metadata = sum(1 for field in metadata_fields if field)
 
         # Add small bonus for metadata (up to max)
         confidence += min(
@@ -262,11 +263,11 @@ class AnitopyParser:
         # Ensure confidence doesn't exceed 1.0
         return min(1.0, confidence)
 
-    def _collect_parser_specific(self, parsed: dict[str, Any]) -> dict[str, Any]:
+    def _collect_parser_specific(self, parsed: AnitopyResult) -> dict[str, object]:
         """Collect unmapped fields from anitopy output.
 
         Args:
-            parsed: Dictionary output from anitopy.
+            parsed: Typed output from anitopy.
 
         Returns:
             Dictionary containing unmapped metadata.
@@ -277,11 +278,11 @@ class AnitopyParser:
             PARSER_EPISODE_NUMBER,
             PARSER_ANIME_SEASON,
             PARSER_VIDEO_RESOLUTION,
-            "source",
+            AnitopyFieldNames.SOURCE,
             PARSER_VIDEO_TERM,
             PARSER_AUDIO_TERM,
-            "release_group",
+            AnitopyFieldNames.RELEASE_GROUP,
         }
 
         # Collect all other fields
-        return {key: value for key, value in parsed.items() if key not in mapped_fields}
+        return parsed.get_unmapped_fields(mapped_fields)

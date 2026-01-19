@@ -4,15 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from collections.abc import Mapping
 
 from anivault.core.matching.engine import MatchingEngine
-from anivault.core.matching.models import MatchResult
+from anivault.core.matching.models import MatchQuery, MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
-from anivault.shared.metadata_models import FileMetadata
-
-MatchQuery = dict[str, object]
+from anivault.shared.models.metadata import FileMetadata
 
 
 @dataclass(frozen=True)
@@ -71,14 +69,8 @@ def normalize_parsing_result(
 
 
 def parsing_result_to_dict(parsing_result: ParsingResult) -> MatchQuery:
-    """Convert ParsingResult to dict for matching engine."""
-    return {
-        "anime_title": parsing_result.title,
-        "episode_number": parsing_result.episode,
-        "release_group": parsing_result.release_group,
-        "video_resolution": parsing_result.quality,
-        "anime_year": parsing_result.year,
-    }
+    """Convert ParsingResult to MatchQuery for matching engine."""
+    return MatchQuery.from_parsing_result(parsing_result)
 
 
 def match_result_to_file_metadata(
@@ -128,9 +120,10 @@ async def process_file_for_matching(
     *,
     engine: MatchingEngine,
     parser: AnitopyParser,
-    options: MatchOptions = MatchOptions(),
+    options: MatchOptions | None = None,
 ) -> MatchResultBundle:
     """Process a single file through parsing and matching."""
+    options = options or MatchOptions()
     parsing_result = parser.parse(str(file_path.name))
     if not parsing_result:
         return MatchResultBundle(
@@ -147,11 +140,12 @@ async def process_file_for_matching(
     )
     parsing_dict = parsing_result_to_dict(normalized)
     match_result = await engine.find_match(parsing_dict)
-    
+
     # Convert MatchResult to TMDBMatchResult and store in ParsingResult for organize
     tmdb_match_result = None
     if match_result:
-        from anivault.shared.metadata_models import TMDBMatchResult
+        from anivault.shared.models.metadata import TMDBMatchResult
+
         tmdb_match_result = TMDBMatchResult(
             id=match_result.tmdb_id,
             title=match_result.title,
@@ -164,7 +158,7 @@ async def process_file_for_matching(
         )
         # Update ParsingResult with TMDB match result
         normalized.additional_info.match_result = tmdb_match_result
-    
+
     metadata = match_result_to_file_metadata(file_path, normalized, match_result)
     _ = options
 

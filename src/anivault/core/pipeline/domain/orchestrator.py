@@ -11,9 +11,6 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-
-from anivault.core.constants import ProcessStatus
 from anivault.core.pipeline.components import (
     CacheV1,
     DirectoryScanner,
@@ -40,7 +37,7 @@ from anivault.core.pipeline.utils import (
 from anivault.shared.constants import ProcessingConfig
 from anivault.shared.errors import ErrorCode, ErrorContextModel, InfrastructureError
 from anivault.shared.logging import log_operation_error, log_operation_success
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -61,37 +58,6 @@ class PipelineComponents:
     scanner: DirectoryScanner
     parser_pool: ParserWorkerPool
     collector: ResultCollector
-
-
-def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
-    """Convert FileMetadata to dictionary for backward compatibility.
-
-    This function converts FileMetadata instances back to dictionary format
-    to maintain compatibility with existing code that expects dict structures.
-
-    Args:
-        metadata: FileMetadata instance to convert
-
-    Returns:
-        Dictionary representation of FileMetadata
-    """
-    return {
-        "file_path": str(metadata.file_path),
-        "file_name": metadata.file_name,
-        "title": metadata.title,
-        "file_type": metadata.file_type,
-        "file_extension": f".{metadata.file_type}",
-        "year": metadata.year,
-        "season": metadata.season,
-        "episode": metadata.episode,
-        "genres": metadata.genres,
-        "overview": metadata.overview,
-        "poster_path": metadata.poster_path,
-        "vote_average": metadata.vote_average,
-        "tmdb_id": metadata.tmdb_id,
-        "media_type": metadata.media_type,
-        "status": ProcessStatus.SUCCESS.value,  # All FileMetadata are considered successful
-    }
 
 
 class PipelineFactory:
@@ -237,7 +203,7 @@ def run_pipeline(
     num_workers: int = ProcessingConfig.MAX_PROCESSING_WORKERS,
     max_queue_size: int = ProcessingConfig.DEFAULT_QUEUE_SIZE,
     cache_path: str | None = None,
-) -> list[dict[str, Any]]:
+) -> list[FileMetadata]:
     """Run the complete file processing pipeline.
 
     This function orchestrates the entire pipeline:
@@ -253,7 +219,7 @@ def run_pipeline(
         cache_path: Optional path to cache file for storing scan results.
 
     Returns:
-        List of processed file results.
+        List of FileMetadata instances.
 
     Raises:
         InfrastructureError: If pipeline execution fails.
@@ -374,7 +340,7 @@ def _collect_results(
     components: PipelineComponents,
     start_time: float,
     context: ErrorContextModel,
-) -> list[dict[str, Any]]:
+) -> list[FileMetadata]:
     """Collect results and log statistics.
 
     Args:
@@ -383,14 +349,11 @@ def _collect_results(
         context: Error context for logging
 
     Returns:
-        List of processed file results as dictionaries
+        List of processed file results as FileMetadata
     """
     result_count = wait_for_collector_completion(components.collector)
     file_metadata_results = components.collector.get_results()
     total_duration = time.time() - start_time
-
-    # Convert FileMetadata to dict for backward compatibility
-    results = [_file_metadata_to_dict(metadata) for metadata in file_metadata_results]
 
     stats_report = format_statistics(
         scan_stats=components.scan_stats,
@@ -414,7 +377,7 @@ def _collect_results(
         },
     )
 
-    return results
+    return file_metadata_results
 
 
 def _handle_pipeline_error(

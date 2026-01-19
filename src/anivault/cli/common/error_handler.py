@@ -13,6 +13,7 @@ import sys
 from typing import Any
 
 from anivault.shared.constants import CLIDefaults
+from anivault.shared.error_handling import map_exception_to_anivault_error
 from anivault.shared.errors import (
     AniVaultError,
     ApplicationError,
@@ -108,41 +109,6 @@ def _map_error_to_cli_error(  # pylint: disable=too-many-return-statements
         error_context["error_code"] = error.code.value
         return error
 
-    # Handle AniVault errors
-    if isinstance(error, ApplicationError):
-        error_context["error_code"] = error.code.value
-        return create_cli_error(
-            message=f"Application error: {error.message}",
-            command=command,
-            original_error=error,
-        )
-
-    if isinstance(error, InfrastructureError):
-        error_context["error_code"] = error.code.value
-        return create_cli_error(
-            message=f"Infrastructure error: {error.message}",
-            command=command,
-            original_error=error,
-        )
-
-    # Handle file system errors
-    if isinstance(error, (FileNotFoundError, PermissionError, OSError)):
-        error_context["error_category"] = "file_system"
-        return create_cli_error(
-            message=f"File system error: {error}",
-            command=command,
-            original_error=error,
-        )
-
-    # Handle data processing errors
-    if isinstance(error, (ValueError, KeyError, TypeError, AttributeError)):
-        error_context["error_category"] = "data_processing"
-        return create_cli_error(
-            message=f"Data processing error: {error}",
-            command=command,
-            original_error=error,
-        )
-
     # Handle user interrupts
     if isinstance(error, KeyboardInterrupt):
         error_context["interrupt_type"] = "user_interrupt"
@@ -153,7 +119,16 @@ def _map_error_to_cli_error(  # pylint: disable=too-many-return-statements
             exit_code=130,
         )
 
-    # Handle unexpected errors
+    # Normalize via shared mapper for consistent classification
+    mapped_error = map_exception_to_anivault_error(error, operation=command)
+    if isinstance(mapped_error, (ApplicationError, InfrastructureError)):
+        error_context["error_code"] = mapped_error.code.value
+        return create_cli_error(
+            message=f"{type(mapped_error).__name__}: {mapped_error.message}",
+            command=command,
+            original_error=mapped_error,
+        )
+
     error_context["error_category"] = "unexpected"
     return create_cli_error(
         message=f"Unexpected error: {error}",

@@ -24,7 +24,7 @@ from anivault.shared.errors import (
     ErrorCode,
     ErrorContextModel,
 )
-from anivault.shared.models.tmdb_models import (
+from anivault.shared.models.api.tmdb import (
     TMDBMediaDetails,
     TMDBSearchResult,
 )

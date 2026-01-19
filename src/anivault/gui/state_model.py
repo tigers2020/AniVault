@@ -11,7 +11,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 from PySide6.QtCore import QObject, Signal
 
@@ -21,9 +21,17 @@ from anivault.shared.errors import (
     ErrorCode,
     ErrorContext,
 )
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
+from anivault.shared.types.metadata_types import FileMetadataDict
+from anivault.shared.types.operation_types import OperationHistoryDict
+from anivault.shared.utils.metadata_converter import MetadataConverter
 
 from .models import FileItem
+from .models.operation_history import (
+    OperationDetails,
+    OperationHistory,
+    OperationHistoryEntry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +62,7 @@ class StateModel(QObject):
 
         # Operation tracking
         self._last_operation_id: str | None = None
-        self._operation_history: list[dict[str, Any]] = []
+        self._operation_history = OperationHistory()
 
         logger.info("StateModel initialized")
 
@@ -120,49 +128,6 @@ class StateModel(QObject):
         """Get all files with a specific status."""
         return [f for f in self._scanned_files if f.status == status]
 
-    def _dict_to_file_metadata(self, file_path: Path, metadata_dict: dict[str, Any]) -> FileMetadata:
-        """Convert dictionary metadata to FileMetadata dataclass.
-
-        Args:
-            file_path: Path to the file
-            metadata_dict: Dictionary containing metadata fields
-
-        Returns:
-            FileMetadata instance
-
-        Raises:
-            ValueError: If required fields are missing or invalid
-        """
-        # Extract required fields with fallbacks
-        title = metadata_dict.get("title", file_path.stem)
-        file_type = metadata_dict.get("file_type", file_path.suffix.lstrip(".") or "unknown")
-
-        # Extract optional fields
-        year = metadata_dict.get("year")
-        season = metadata_dict.get("season")
-        episode = metadata_dict.get("episode")
-        genres = metadata_dict.get("genres", [])
-        overview = metadata_dict.get("overview")
-        poster_path = metadata_dict.get("poster_path")
-        vote_average = metadata_dict.get("vote_average")
-        tmdb_id = metadata_dict.get("tmdb_id")
-        media_type = metadata_dict.get("media_type")
-
-        return FileMetadata(
-            title=title,
-            file_path=file_path,
-            file_type=file_type,
-            year=year,
-            season=season,
-            episode=episode,
-            genres=genres,
-            overview=overview,
-            poster_path=poster_path,
-            vote_average=vote_average,
-            tmdb_id=tmdb_id,
-            media_type=media_type,
-        )
-
     def set_file_metadata(self, file_path: Path, metadata: FileMetadata) -> None:
         """Set metadata for a specific file."""
         file_path = Path(file_path)
@@ -176,53 +141,37 @@ class StateModel(QObject):
 
         logger.debug("Set metadata for file: %s", file_path.name)
 
-    def _file_metadata_to_dict(self, metadata: FileMetadata) -> dict[str, Any]:
-        """Convert FileMetadata to dictionary for JSON serialization.
-
-        Args:
-            metadata: FileMetadata instance to convert
-
-        Returns:
-            Dictionary representation of the metadata
-        """
-        return {
-            "title": metadata.title,
-            "file_path": str(metadata.file_path),
-            "file_type": metadata.file_type,
-            "year": metadata.year,
-            "season": metadata.season,
-            "episode": metadata.episode,
-            "genres": metadata.genres,
-            "overview": metadata.overview,
-            "poster_path": metadata.poster_path,
-            "vote_average": metadata.vote_average,
-            "tmdb_id": metadata.tmdb_id,
-            "media_type": metadata.media_type,
-        }
-
     def get_file_metadata(self, file_path: Path) -> FileMetadata | None:
         """Get metadata for a specific file."""
         return self._metadata_cache.get(Path(file_path))
 
-    def log_operation(self, operation_type: str, details: dict[str, Any]) -> str:
+    def log_operation(self, operation_type: str, details: OperationDetails) -> str:
         """Log an operation for audit trail."""
         operation_id = f"{operation_type}_{datetime.now().isoformat()}"
-        operation = {
-            "id": operation_id,
-            "type": operation_type,
-            "timestamp": datetime.now().isoformat(),
-            "details": details,
-        }
+        entry = OperationHistoryEntry(
+            id=operation_id,
+            type=operation_type,
+            timestamp=datetime.now(),
+            details=details,
+        )
 
-        self._operation_history.append(operation)
+        self._operation_history.add(entry)
         self._last_operation_id = operation_id
 
         logger.info("Logged operation: %s", operation_type)
         return operation_id
 
-    def get_operation_history(self) -> list[dict[str, Any]]:
-        """Get the operation history."""
-        return self._operation_history.copy()
+    def get_operation_history(self) -> list[OperationHistoryDict]:
+        """Get the operation history.
+
+        Returns:
+            List of operation history entries as dictionaries (JSON-serializable)
+        """
+        return self._operation_history.to_dict()
+
+    def get_operation_history_entries(self) -> list[OperationHistoryEntry]:
+        """Get the operation history as strongly-typed entries."""
+        return self._operation_history.entries.copy()
 
     def get_last_operation_id(self) -> str | None:
         """Get the ID of the last operation."""
@@ -241,8 +190,8 @@ class StateModel(QObject):
             "selected_directory": (str(self._selected_directory) if self._selected_directory else None),
             "scanned_files": [f.to_dict() for f in self._scanned_files],
             "file_status_cache": {str(k): v for k, v in self._file_status_cache},
-            "metadata_cache": {str(k): self._file_metadata_to_dict(v) for k, v in self._metadata_cache},
-            "operation_history": self._operation_history,
+            "metadata_cache": {str(k): MetadataConverter.to_dict(v) for k, v in self._metadata_cache},
+            "operation_history": self._operation_history.to_dict(),
             "export_timestamp": datetime.now().isoformat(),
         }
 
@@ -268,7 +217,11 @@ class StateModel(QObject):
                     Path(file_data["file_path"]),
                     file_data.get("status", "Unknown"),
                 )
-                file_item.metadata = file_data.get("metadata")
+                metadata_dict = file_data.get("metadata")
+                if isinstance(metadata_dict, dict) and metadata_dict:
+                    file_item.metadata = MetadataConverter.from_dict(
+                        cast(FileMetadataDict, metadata_dict),
+                    )
                 self._scanned_files.append(file_item)
 
             # Restore caches
@@ -277,11 +230,19 @@ class StateModel(QObject):
                 self._file_status_cache.put(Path(k), v)
 
             self._metadata_cache.clear()
-            for k, v in state_data.get("metadata_cache", {}).items():
-                metadata = self._dict_to_file_metadata(Path(k), v)
-                self._metadata_cache.put(Path(k), metadata)
+            metadata_cache = state_data.get("metadata_cache", {})
+            if isinstance(metadata_cache, dict):
+                for k, v in metadata_cache.items():
+                    if isinstance(v, dict):
+                        metadata = MetadataConverter.from_dict(
+                            cast(FileMetadataDict, v),
+                        )
+                        self._metadata_cache.put(Path(k), metadata)
 
-            self._operation_history = state_data.get("operation_history", [])
+            operation_history = state_data.get("operation_history", [])
+            if isinstance(operation_history, list):
+                typed_history = [cast(OperationHistoryDict, item) for item in operation_history if isinstance(item, dict)]
+                self._operation_history = OperationHistory.from_dict_list(typed_history)
 
             # Emit signals
             self.files_updated.emit(self._scanned_files.copy())

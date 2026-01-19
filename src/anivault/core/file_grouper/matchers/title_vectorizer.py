@@ -7,7 +7,7 @@ high-dimensional vectors suitable for clustering algorithms like DBSCAN.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -126,9 +126,7 @@ class TitleVectorizer:
             if max_df_docs < self.vectorizer.min_df:
                 # Adjust max_df to be at least min_df
                 # Use 1.0 (all documents) if dataset is too small
-                adjusted_max_df = 1.0 if num_docs <= self.vectorizer.min_df else max(
-                    (self.vectorizer.min_df + 1) / num_docs, 0.95
-                )
+                adjusted_max_df = 1.0 if num_docs <= self.vectorizer.min_df else max((self.vectorizer.min_df + 1) / num_docs, 0.95)
                 logger.debug(
                     "Adjusting max_df from %.2f to %.2f for small dataset (n=%d, min_df=%d)",
                     self.vectorizer.max_df,
@@ -226,7 +224,7 @@ class TitleVectorizer:
             msg = "Vectorizer must be fitted before getting feature names. Call fit() first."
             raise ValueError(msg)
 
-        return self.vectorizer.get_feature_names_out().tolist()
+        return cast(list[str], self.vectorizer.get_feature_names_out().tolist())
 
     def get_vocabulary_size(self) -> int:
         """Get the size of the learned vocabulary.
@@ -249,4 +247,3 @@ class TitleVectorizer:
             raise ValueError(msg)
 
         return len(self.vectorizer.vocabulary_)
-

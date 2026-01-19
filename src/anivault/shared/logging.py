@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.theme import Theme
 
-from anivault.shared.errors import AniVaultError, ErrorContextModel
+from anivault.shared.errors import AniVaultError, ErrorContext, ErrorContextModel
 
 
 class StructuredFormatter(logging.Formatter):

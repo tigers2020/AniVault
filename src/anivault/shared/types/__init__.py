@@ -38,6 +38,9 @@ from .cli import (
     VerifyOptions,
 )
 from .conversion import ModelConverter
+from .match_types import MatchDataDict
+from .metadata_types import FileMetadataDict, ParsingResultDict
+from .operation_types import OperationDetailsDict, OperationHistoryDict
 
 __all__ = [
     "BaseDataclass",
@@ -45,14 +48,19 @@ __all__ = [
     "CLIDirectoryPath",
     "CLIFilePath",
     "CacheKey",
+    "FileMetadataDict",
     "ISODate",
     "LanguageCode",
     "LogOptions",
     "MatchOptions",
+    "MatchDataDict",
+    "OperationDetailsDict",
+    "OperationHistoryDict",
     "ModelConverter",
     "NonEmptyStr",
     "NonNegativeInt",
     "OrganizeOptions",
+    "ParsingResultDict",
     "PortNumber",
     "PositiveInt",
     "RollbackOptions",

@@ -24,7 +24,7 @@ from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.gui.models import FileItem
 from anivault.gui.workers.organize_worker import OrganizeWorker
-from anivault.shared.metadata_models import FileMetadata, TMDBMatchResult
+from anivault.shared.models.metadata import FileMetadata, TMDBMatchResult
 
 logger = logging.getLogger(__name__)
 

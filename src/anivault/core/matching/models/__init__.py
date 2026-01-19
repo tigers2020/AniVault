@@ -96,7 +96,7 @@ class MatchResult:
         # Validate confidence_score
         if not (ValidationConstants.MIN_CONFIDENCE_SCORE <= self.confidence_score <= ValidationConstants.MAX_CONFIDENCE_SCORE):
             error_message = (
-                f"Confidence score must be between "
+                "Confidence score must be between "
                 f"{ValidationConstants.MIN_CONFIDENCE_SCORE} and "
                 f"{ValidationConstants.MAX_CONFIDENCE_SCORE}, "
                 f"got {self.confidence_score}"
@@ -127,3 +127,14 @@ class MatchResult:
             "vote_average": self.vote_average,
             "original_language": self.original_language,
         }
+
+
+from .query_models import MatchQuery  # noqa: E402
+from .stats_models import CacheStats  # noqa: E402
+
+__all__ = [
+    "CacheStats",
+    "MatchQuery",
+    "MatchResult",
+    "NormalizedQuery",
+]

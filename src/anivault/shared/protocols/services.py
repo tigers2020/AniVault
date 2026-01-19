@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from anivault.shared.models.tmdb_models import TMDBMediaDetails, TMDBSearchResponse
+from anivault.shared.models.api.tmdb import TMDBMediaDetails, TMDBSearchResponse
 
 
 class TMDBClientProtocol(Protocol):

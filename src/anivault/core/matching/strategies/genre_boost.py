@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 
 from anivault.core.matching.models import NormalizedQuery
 from anivault.shared.constants import GenreConfig
-from anivault.shared.models.tmdb_models import ScoredSearchResult
+from anivault.shared.models.api.tmdb import ScoredSearchResult
 
 logger = logging.getLogger(__name__)
 

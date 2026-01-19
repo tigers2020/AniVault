@@ -15,7 +15,7 @@ from rapidfuzz import fuzz
 
 from anivault.core.matching.models import NormalizedQuery
 from anivault.shared.constants import GenreConfig
-from anivault.shared.models.tmdb_models import TMDBSearchResult
+from anivault.shared.models.api.tmdb import TMDBSearchResult
 
 if TYPE_CHECKING:
     from anivault.core.matching.services.sort_cache import SortCache

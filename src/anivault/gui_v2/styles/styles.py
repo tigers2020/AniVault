@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QApplication
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QApplication
 
 
 class StyleManager:
@@ -53,7 +55,7 @@ class StyleManager:
             theme_file = self._styles_dir / "styles.qss"
 
         if theme_file.exists():
-            with open(theme_file, "r", encoding="utf-8") as f:
+            with open(theme_file, encoding="utf-8") as f:
                 return f.read()
         return None
 

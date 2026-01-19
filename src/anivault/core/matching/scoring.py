@@ -18,7 +18,7 @@ from anivault.shared.constants.validation_constants import (
     MEDIA_TYPE_MOVIE,
     MEDIA_TYPE_TV,
 )
-from anivault.shared.models.tmdb_models import TMDBSearchResult
+from anivault.shared.models.api.tmdb import TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 

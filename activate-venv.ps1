@@ -44,4 +44,3 @@ Write-Host "✅ venv 활성화 완료!" -ForegroundColor Green
 Write-Host ""
 Write-Host "💡 Python 직접 사용:" -ForegroundColor Cyan
 Write-Host "   venv\Scripts\python.exe run_gui.py" -ForegroundColor White
-

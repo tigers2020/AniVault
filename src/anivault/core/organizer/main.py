@@ -145,12 +145,12 @@ class FileOrganizer:
         return results
 
     def cleanup_empty_dirs_for_paths(
-        self, 
-        source_paths: list[Path], 
+        self,
+        source_paths: list[Path],
         source_root: Path | None = None,
     ) -> None:
         """Remove empty leaf directories under source roots for given paths.
-        
+
         Args:
             source_paths: List of source file paths that were moved
             source_root: Optional source root directory. If provided, cleanup will
@@ -158,13 +158,13 @@ class FileOrganizer:
         """
         if not source_paths:
             return
-        
+
         # Use provided source_root if available, otherwise find common path
         if source_root and source_root.exists() and source_root.is_dir():
             roots = [source_root]
         else:
             roots = self._collect_cleanup_roots_from_paths(source_paths)
-        
+
         for root in roots:
             removed_count = self._remove_empty_leaf_dirs(root)
             if removed_count > 0:
@@ -225,7 +225,7 @@ class FileOrganizer:
             organize_by_resolution=organize_by_resolution,
             organize_by_year=organize_by_year,
         )
-        
+
         logger.debug(
             "Building path for %s with context: resolution=%s, year=%s, target=%s",
             scanned_file.file_path.name[:50],
@@ -235,7 +235,7 @@ class FileOrganizer:
         )
 
         organized_path = self._path_builder.build_path(context)
-        
+
         logger.debug(
             "Built path: %s -> %s",
             scanned_file.file_path.name[:50],
@@ -283,7 +283,7 @@ class FileOrganizer:
     @staticmethod
     def _remove_empty_leaf_dirs(root: Path) -> int:
         """Remove empty leaf directories under a root path.
-        
+
         Uses iterative approach to handle os.walk snapshot issue:
         os.walk captures directory structure at start, so after removing
         a child directory, parent may appear empty but os.walk still sees it
@@ -295,39 +295,39 @@ class FileOrganizer:
         total_removed = 0
         max_iterations = 100  # Safety limit to prevent infinite loops
         iteration = 0
-        
+
         while iteration < max_iterations:
             iteration += 1
             removed_this_iteration = 0
             root_str = str(root)
-            
+
             # Walk bottom-up to remove leaf directories first
-            for dirpath, dirnames, filenames in os.walk(root_str, topdown=False):
+            for dirpath, _dirnames, _filenames in os.walk(root_str, topdown=False):
                 if dirpath == root_str:
                     continue
-                
+
                 # Check if directory is actually empty (not just in snapshot)
                 dir_path = Path(dirpath)
                 if not dir_path.exists():
                     continue
-                    
+
                 try:
                     # Re-check actual contents (not snapshot)
                     actual_contents = list(dir_path.iterdir())
-                    
+
                     if not actual_contents:
                         # Directory is actually empty, remove it
                         dir_path.rmdir()
                         removed_this_iteration += 1
                 except OSError as e:
                     logger.warning("Failed to remove empty directory: %s: %s", dirpath, e)
-            
+
             total_removed += removed_this_iteration
-            
+
             # If no directories were removed this iteration, we're done
             if removed_this_iteration == 0:
                 break
-        
+
         if iteration >= max_iterations:
             logger.warning("Reached max iterations (%d) when removing empty directories under %s", max_iterations, root)
 

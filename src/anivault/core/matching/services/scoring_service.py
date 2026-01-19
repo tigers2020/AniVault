@@ -24,7 +24,7 @@ from anivault.shared.errors import (
     ErrorCode,
     ErrorContext,
 )
-from anivault.shared.models.tmdb_models import (
+from anivault.shared.models.api.tmdb import (
     ScoredSearchResult,
     TMDBCandidate,
     TMDBSearchResult,
@@ -47,7 +47,7 @@ class CandidateScoringService:
         statistics: Statistics collector for performance tracking
 
     Example:
-        >>> from anivault.shared.models.tmdb_models import TMDBSearchResult
+        >>> from anivault.shared.models.api.tmdb import TMDBSearchResult
         >>> from anivault.core.matching.models import NormalizedQuery
         >>>
         >>> stats = StatisticsCollector()

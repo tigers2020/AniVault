@@ -8,9 +8,9 @@ fuzzy matching, year-based filtering, and confidence scoring.
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 
-from anivault.core.matching.models import MatchResult, NormalizedQuery
+from anivault.core.matching.models import CacheStats, MatchQuery, MatchResult, NormalizedQuery
 from anivault.core.matching.services import (
     CacheAdapterProtocol,
     CandidateFilterService,
@@ -23,10 +23,10 @@ from anivault.core.matching.strategies import (
     GenreBoostStrategy,
     PartialMatchStrategy,
 )
-from anivault.core.normalization import normalize_query_from_anitopy
 from anivault.core.statistics import StatisticsCollector
+from anivault.core.parser.models import ParsingResult
 from anivault.shared.constants import ConfidenceThresholds
-from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
+from anivault.shared.models.api.tmdb import ScoredSearchResult, TMDBSearchResult
 from anivault.shared.protocols.services import TMDBClientProtocol
 
 logger = logging.getLogger(__name__)
@@ -79,13 +79,10 @@ class MatchingEngine:
 
         # Initialize fallback strategies
 
-        fallback_strategies: list[FallbackStrategy] = cast(
-            "list[FallbackStrategy]",
-            [
-                GenreBoostStrategy(),
-                PartialMatchStrategy(),
-            ],
-        )
+        fallback_strategies: list[FallbackStrategy] = [
+            GenreBoostStrategy(),
+            PartialMatchStrategy(),
+        ]
         self._fallback_service = FallbackStrategyService(
             statistics=self.statistics,
             strategies=fallback_strategies,
@@ -93,7 +90,7 @@ class MatchingEngine:
 
     async def find_match(  # pylint: disable=too-many-return-statements
         self,
-        anitopy_result: dict[str, Any],
+        query: MatchQuery | ParsingResult | dict[str, Any],
     ) -> MatchResult | None:
         """Find the best match using multi-stage matching with fallback strategies.
 
@@ -101,7 +98,7 @@ class MatchingEngine:
         to service layer.
 
         Args:
-            anitopy_result: Result from anitopy.parse() containing anime metadata
+            query: MatchQuery, ParsingResult, or dict containing anime metadata
 
         Returns:
             MatchResult domain object with confidence metadata or None if
@@ -111,7 +108,8 @@ class MatchingEngine:
 
         try:
             # Step 1: Validate and normalize input
-            normalized_query = self._validate_and_normalize_input(anitopy_result)
+            match_query = self._convert_input(query)
+            normalized_query = self._validate_and_normalize_input(match_query)
             if not normalized_query:
                 return None
 
@@ -208,19 +206,33 @@ class MatchingEngine:
             self.statistics.end_timing("matching_operation")
             return None
 
+    def _convert_input(
+        self,
+        query: MatchQuery | ParsingResult | dict[str, Any],
+    ) -> MatchQuery:
+        """Convert supported input types to MatchQuery."""
+        if isinstance(query, MatchQuery):
+            return query
+        if isinstance(query, ParsingResult):
+            return MatchQuery.from_parsing_result(query)
+        if isinstance(query, dict):
+            return MatchQuery.from_dict(query)
+        message = f"Unsupported query type: {type(query)}"
+        raise TypeError(message)
+
     def _validate_and_normalize_input(
         self,
-        anitopy_result: dict[str, Any],
+        query: MatchQuery,
     ) -> NormalizedQuery | None:
         """Validate and normalize the input query.
 
         Args:
-            anitopy_result: Result from anitopy.parse() containing anime metadata
+            query: MatchQuery containing anime metadata
 
         Returns:
             NormalizedQuery domain object or None if validation fails
         """
-        normalized_query = normalize_query_from_anitopy(anitopy_result)
+        normalized_query = query.to_normalized_query()
         if not normalized_query:
             logger.warning("Failed to normalize query from anitopy result")
             return None
@@ -317,16 +329,11 @@ class MatchingEngine:
             used_fallback=used_fallback,
         )
 
-    def get_cache_stats(self) -> dict[str, Any]:
+    def get_cache_stats(self) -> CacheStats:
         """Get comprehensive cache statistics for GUI display.
 
         Returns:
-            Dictionary containing cache statistics:
-            - hit_ratio: Cache hit ratio percentage (0.0-100.0)
-            - total_requests: Total cache requests (hits + misses)
-            - cache_items: Total items in cache
-            - cache_mode: Current cache mode (hybrid/db-only/json-only)
-            - cache_type: Primary cache type (SQLite/JSON/Hybrid)
+            CacheStats containing cache statistics.
         """
         # Get cache hit ratio from statistics
         hit_ratio = self.statistics.get_cache_hit_ratio()
@@ -352,10 +359,10 @@ class MatchingEngine:
         else:
             cache_type = "Unknown"
 
-        return {
-            "hit_ratio": hit_ratio,
-            "total_requests": total_requests,
-            "cache_items": cache_items,
-            "cache_mode": cache_mode,
-            "cache_type": cache_type,
-        }
+        return CacheStats(
+            hit_ratio=hit_ratio,
+            total_requests=total_requests,
+            cache_items=cache_items,
+            cache_mode=cache_mode,
+            cache_type=cache_type,
+        )

@@ -61,3 +61,6 @@ class ScannedFile:
     def __str__(self) -> str:
         """Return a human-readable string representation."""
         return f"ScannedFile: {self.file_path.name}"
+
+
+__all__ = ["FileOperation", "OperationType", "ScannedFile"]

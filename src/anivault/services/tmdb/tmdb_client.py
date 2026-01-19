@@ -27,7 +27,7 @@ from anivault.shared.errors import (
     InfrastructureError,
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
-from anivault.shared.models.tmdb_models import (
+from anivault.shared.models.api.tmdb import (
     TMDBMediaDetails,
     TMDBSearchResponse,
     TMDBSearchResult,

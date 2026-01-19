@@ -129,9 +129,7 @@ class IndexStateManager:
             >>> changes = manager.get_changes([Path("/anime/file1.mkv")])
         """
         self.library_root = Path(library_root).resolve()
-        self.state_file = (
-            Path(state_file).resolve() if state_file else self.library_root / "index.state.json"
-        )
+        self.state_file = Path(state_file).resolve() if state_file else self.library_root / "index.state.json"
 
         # Load previous state if state file exists
         self._previous_state: dict[str, FileState] = {}
@@ -302,14 +300,10 @@ class IndexStateManager:
         previous_paths: set[str] = set(self._previous_state.keys())
 
         # Find added files (in current but not in previous)
-        added: list[FileState] = [
-            current_state[path] for path in current_paths - previous_paths if path in current_state
-        ]
+        added: list[FileState] = [current_state[path] for path in current_paths - previous_paths if path in current_state]
 
         # Find removed files (in previous but not in current)
-        removed: list[FileState] = [
-            self._previous_state[path] for path in previous_paths - current_paths
-        ]
+        removed: list[FileState] = [self._previous_state[path] for path in previous_paths - current_paths]
 
         # Find modified files (in both but different)
         modified: list[FileState] = []
@@ -331,11 +325,7 @@ class IndexStateManager:
             is_modified = (
                 current.mtime != previous.mtime
                 or current.size != previous.size
-                or (
-                    current.content_hash is not None
-                    and previous.content_hash is not None
-                    and current.content_hash != previous.content_hash
-                )
+                or (current.content_hash is not None and previous.content_hash is not None and current.content_hash != previous.content_hash)
             )
 
             if is_modified:
@@ -362,4 +352,3 @@ class IndexStateManager:
                 logger.warning("Failed to delete state file %s: %s", self.state_file, e)
 
         self._previous_state = {}
-

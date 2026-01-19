@@ -37,7 +37,7 @@ class BaseController(QObject):
         """Cancel the current operation if possible."""
         if self._worker and hasattr(self._worker, "cancel"):
             logger.info("Cancelling current operation")
-            cancel_method: Callable[[], None] = getattr(self._worker, "cancel")
+            cancel_method: Callable[[], None] = self._worker.cancel
             cancel_method()
 
     def _start_worker(self, worker: QObject) -> None:
@@ -50,7 +50,7 @@ class BaseController(QObject):
         self._thread = QThread()
         self._worker.moveToThread(self._thread)
 
-        self._thread.started.connect(self._worker.run)  # type: ignore[attr-defined]
+        self._thread.started.connect(self._worker.run)
         self._connect_worker_signals()
         self._thread.finished.connect(self._thread.deleteLater)
 
@@ -64,11 +64,11 @@ class BaseController(QObject):
             return
 
         if hasattr(self._worker, "progress"):
-            self._worker.progress.connect(self.operation_progress)  # type: ignore[attr-defined]
+            self._worker.progress.connect(self.operation_progress)
         if hasattr(self._worker, "finished"):
-            self._worker.finished.connect(self._on_worker_finished)  # type: ignore[attr-defined]
+            self._worker.finished.connect(self._on_worker_finished)
         if hasattr(self._worker, "error"):
-            self._worker.error.connect(self._on_worker_error)  # type: ignore[attr-defined]
+            self._worker.error.connect(self._on_worker_error)
 
     def _on_worker_finished(self, result: Any) -> None:
         """Handle worker completion."""

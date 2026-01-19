@@ -8,10 +8,9 @@ from pathlib import Path
 from anivault.core.models import ScannedFile
 from anivault.core.organizer.main import FileOrganizer
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ class OrganizeWorker(BaseWorker):
                 )
             )
             self.finished.emit(result)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Organize workflow failed")
             self._emit_error(
                 OperationError(
@@ -75,16 +74,6 @@ class OrganizeWorker(BaseWorker):
                 break
 
             parsing_result = self._parser.parse(str(file_item.file_path))
-            if not isinstance(parsing_result, ParsingResult):
-                parsing_result = ParsingResult(
-                    title=file_item.title,
-                    episode=file_item.episode,
-                    season=file_item.season,
-                    year=file_item.year,
-                    quality=None,
-                    release_group=None,
-                    additional_info=ParsingAdditionalInfo(),
-                )
 
             scanned_files.append(
                 ScannedFile(

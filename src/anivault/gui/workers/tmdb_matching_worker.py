@@ -22,9 +22,9 @@ from PySide6.QtWidgets import QApplication
 from anivault.config import get_config
 from anivault.containers import Container
 from anivault.core.matching.engine import MatchingEngine
-from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.gui.models import FileItem
+from anivault.core.parser.models import ParsingResult
+from anivault.gui.models import FileItem, FileMatchResult
 from anivault.services.cache import SQLiteCacheDB
 from anivault.services.rate_limiter import TokenBucketRateLimiter
 from anivault.services.semaphore_manager import SemaphoreManager
@@ -38,7 +38,7 @@ from anivault.shared.errors import (
     ErrorContextModel,
     SecurityError,
 )
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 from anivault.utils.resource_path import get_project_root
 
 logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ class TMDBMatchingWorker(QObject):
                 # Match first file in group to get TMDB result
                 first_file = file_items[0]
                 group_match_result = await self._match_single_file(first_file)
-                match_result: MatchResult | None = group_match_result.get("match_result")  # type: ignore[assignment]
+                match_result = group_match_result.match_result
 
                 # Apply same match result to all files in group
                 for file_item in file_items:
@@ -298,65 +298,64 @@ class TMDBMatchingWorker(QObject):
 
         return groups
 
-    async def _match_single_file(self, file_item: FileItem) -> dict[str, object]:
+    async def _match_single_file(self, file_item: FileItem) -> FileMatchResult:
         """
-        Match a single file against TMDB (NO Any!).
+        Match a single file against TMDB.
 
         Args:
             file_item: FileItem to match
 
         Returns:
-            FileMetadata with TMDB information
+            FileMatchResult containing match result
         """
         try:
             # Parse the filename (not the full path)
             parsing_result = self.parser.parse(file_item.file_name)
 
             if not parsing_result:
-                return {
-                    "file_path": str(file_item.file_path),
-                    "file_name": file_item.file_name,
-                    "error": "Failed to parse filename",
-                    "match_result": None,
-                }
+                return FileMatchResult.failed(
+                    file_path=file_item.file_path,
+                    file_name=file_item.file_name,
+                    error="Failed to parse filename",
+                )
 
             # Convert ParsingResult to dict for MatchingEngine
-            if hasattr(parsing_result, "to_dict"):
-                parsing_dict = parsing_result.to_dict()
-            elif isinstance(parsing_result, dict):
-                parsing_dict = parsing_result
-            else:
-                # Convert ParsingResult to dict if needed
-                parsing_dict = {
-                    "anime_title": getattr(parsing_result, "title", ""),
-                    "episode_number": getattr(parsing_result, "episode", ""),
-                    "release_group": getattr(parsing_result, "release_group", ""),
-                    "video_resolution": getattr(parsing_result, "quality", ""),
-                }
+            parsing_dict = self._parsing_result_to_dict(parsing_result)
 
             # Match against TMDB (returns MatchResult | None)
             match_result = await self.matching_engine.find_match(parsing_dict)
 
-            # Keep MatchResult as dataclass (no conversion to dict)
-            # This preserves type safety throughout the application
-
-            return {
-                "file_path": str(file_item.file_path),
-                "file_name": file_item.file_name,
-                "parsing_result": parsing_result,
-                "match_result": match_result,  # MatchResult dataclass or None
-                "status": "matched" if match_result else "failed",
-            }
+            if match_result:
+                return FileMatchResult.matched(
+                    file_path=file_item.file_path,
+                    file_name=file_item.file_name,
+                    parsing_result=parsing_result,
+                    match_result=match_result,
+                )
+            return FileMatchResult.failed(
+                file_path=file_item.file_path,
+                file_name=file_item.file_name,
+                parsing_result=parsing_result,
+            )
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
             logger.exception("Error matching file %s", file_item.file_name)
-            return {
-                "file_path": str(file_item.file_path),
-                "file_name": file_item.file_name,
-                "error": str(e),
-                "match_result": None,
-                "status": "error",
-            }
+            return FileMatchResult.failed(
+                file_path=file_item.file_path,
+                file_name=file_item.file_name,
+                error=str(e),
+            )
+
+    def _parsing_result_to_dict(self, parsing_result: ParsingResult) -> dict[str, object]:
+        """Convert ParsingResult to MatchingEngine input dict."""
+        return {
+            "anime_title": parsing_result.title or "",
+            "episode_number": parsing_result.episode,
+            "season": parsing_result.season,
+            "anime_year": parsing_result.year,
+            "release_group": parsing_result.release_group,
+            "video_resolution": parsing_result.quality,
+        }
 
     def cancel_matching(self) -> None:
         """Cancel the current matching operation."""

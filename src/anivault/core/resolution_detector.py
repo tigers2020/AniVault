@@ -159,10 +159,9 @@ class ResolutionDetector:
             return "480p"
         return "SD"
 
-    # pylint: disable-next=unused-argument
     def _detect_from_file_properties(
         self,
-        file_path: Path,  # noqa: ARG002  # pylint: disable=unused-argument  # Future implementation
+        _file_path: Path,
     ) -> ResolutionInfo:
         """Detect resolution from file properties (placeholder for future implementation).
 

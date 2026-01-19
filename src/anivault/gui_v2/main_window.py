@@ -5,9 +5,9 @@ from __future__ import annotations
 import io
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -41,10 +41,13 @@ from anivault.gui_v2.widgets.sidebar_widget import SidebarWidget
 from anivault.gui_v2.widgets.status_bar import StatusBar
 from anivault.gui_v2.widgets.toolbar_widget import ToolbarWidget
 from anivault.shared.constants.file_formats import SubtitleFormats, VideoFormats
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import CLIDirectoryPath, OrganizeOptions
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QShowEvent
 
 
 class MainWindow(QMainWindow):
@@ -107,7 +110,6 @@ class MainWindow(QMainWindow):
         self.sidebar = SidebarWidget()
         content_layout.addWidget(self.sidebar)
 
-        # Workspace (toolbar + views)
         workspace = QWidget()
         workspace_layout = QVBoxLayout(workspace)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
@@ -270,10 +272,9 @@ class MainWindow(QMainWindow):
             if self._subtitle_scan_results:
                 self.groups_view.set_file_metadata(self._subtitle_scan_results)
                 self._refresh_statistics()
-        else:
-            if self._scan_results:
-                self.groups_view.set_file_metadata(self._scan_results)
-                self._refresh_statistics()
+        elif self._scan_results:
+            self.groups_view.set_file_metadata(self._scan_results)
+            self._refresh_statistics()
 
     def _update_all_views_with_metadata(self, metadata: list) -> None:
         """Update all views with the shared file metadata list.
@@ -404,7 +405,7 @@ class MainWindow(QMainWindow):
         cache_status = "ready" if has_results else "unknown"
         self.status_bar.set_cache_status(cache_status)
 
-    def showEvent(self, event: QShowEvent) -> None:
+    def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
         """Handle window show event."""
         super().showEvent(event)
         # Check for auto scan on startup
@@ -432,7 +433,10 @@ class MainWindow(QMainWindow):
         # Validate source folder exists
         source_path = Path(source_folder)
         if not source_path.exists() or not source_path.is_dir():
-            logger.warning(f"Auto scan on startup: source folder does not exist: {source_folder}")
+            logger.warning(
+                "Auto scan on startup: source folder does not exist: %s",
+                source_folder,
+            )
             return
 
         # Trigger auto scan after a short delay to ensure UI is fully rendered
@@ -584,7 +588,7 @@ class MainWindow(QMainWindow):
         config_file = self.app_context.config_path
         logger.info("Loading settings from: %s", config_file)
         self.app_context.settings = load_settings(config_file)
-        
+
         # Debug: Log current organize settings
         if self.app_context.settings.folders:
             logger.info(
@@ -656,31 +660,29 @@ class MainWindow(QMainWindow):
 
     def _build_scanned_files(self, files: list[FileMetadata]) -> list[ScannedFile]:
         """Convert FileMetadata to ScannedFile for organize helpers.
-        
+
         Preserves TMDB match result in additional_info.match_result for year extraction.
         """
-        from anivault.shared.metadata_models import TMDBMatchResult
-        
+        from anivault.shared.models.metadata import TMDBMatchResult
+
         scanned_files: list[ScannedFile] = []
         files_with_year = 0
         files_without_year = 0
-        
+
         for file_metadata in files:
             if not hasattr(file_metadata, "file_path"):
                 continue
-            
+
             # Create TMDBMatchResult from FileMetadata if TMDB data is available
             match_result = None
             file_metadata_year = getattr(file_metadata, "year", None)
             file_metadata_tmdb_id = getattr(file_metadata, "tmdb_id", None)
-            file_path_str = str(getattr(file_metadata, "file_path", "unknown"))
-            
             # Count files with/without year
             if file_metadata_year:
                 files_with_year += 1
             else:
                 files_without_year += 1
-            
+
             if hasattr(file_metadata, "tmdb_id") and file_metadata_tmdb_id is not None:
                 match_result = TMDBMatchResult(
                     id=file_metadata_tmdb_id,
@@ -694,7 +696,7 @@ class MainWindow(QMainWindow):
                 )
             else:
                 match_result = None
-            
+
             parsing_result = ParsingResult(
                 title=getattr(file_metadata, "title", ""),
                 episode=getattr(file_metadata, "episode", None),
@@ -713,7 +715,7 @@ class MainWindow(QMainWindow):
                     last_modified=file_path.stat().st_mtime if file_path.exists() else 0.0,
                 )
             )
-        
+
         if files_without_year > 0:
             logger.debug(
                 "_build_scanned_files: total=%d, with_year=%d, without_year=%d",

@@ -12,7 +12,7 @@ from dataclasses import asdict
 from anivault.core.matching.filters import apply_genre_filter
 from anivault.core.matching.services.sort_cache import SortCache
 from anivault.core.statistics import StatisticsCollector
-from anivault.shared.models.tmdb_models import ScoredSearchResult, TMDBSearchResult
+from anivault.shared.models.api.tmdb import ScoredSearchResult, TMDBSearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class CandidateFilterService:
         sort_cache: Cache for sorted candidate lists
 
     Example:
-        >>> from anivault.shared.models.tmdb_models import ScoredSearchResult
+        >>> from anivault.shared.models.api.tmdb import ScoredSearchResult
         >>> from anivault.core.matching.models import NormalizedQuery
         >>>
         >>> stats = StatisticsCollector()
@@ -104,7 +104,12 @@ class CandidateFilterService:
 
         # CRITICAL: Re-sort by confidence to maintain original ranking
         # This ensures the highest confidence candidate is selected even after filtering
-        filtered.sort(key=lambda c: c.confidence_score, reverse=True)
+        sort_criteria = f"confidence_desc_{year_hint}"
+        filtered = self.sort_cache.get_or_compute_sorted(
+            filtered,
+            sort_criteria,
+            lambda c: (-c.confidence_score, c.id),
+        )
 
         logger.debug(
             "Filtered %d → %d candidates by year (hint: %d), re-sorted by confidence",

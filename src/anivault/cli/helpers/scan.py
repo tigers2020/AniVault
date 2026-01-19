@@ -7,9 +7,9 @@ extracted for better maintainability and reusability.
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -24,104 +24,38 @@ from anivault.services import RateLimitStateMachine, SemaphoreManager, TMDBClien
 from anivault.services.enricher import MetadataEnricher
 from anivault.shared.constants import CLIDefaults, CLIFormatting, QueueConfig
 from anivault.shared.constants.file_formats import VideoFormats
-from anivault.shared.constants.scan_fields import ScanColors, ScanFields, ScanMessages
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.constants.scan_fields import ScanColors, ScanMessages
+from anivault.shared.models.metadata import FileMetadata
+from anivault.shared.types.metadata_types import FileMetadataDict, ParsingResultDict
+from anivault.shared.utils.metadata_converter import MetadataConverter
 
 logger = logging.getLogger(__name__)
 
 
-def _dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:
-    """Convert orchestrator dict result to FileMetadata.
-
-    This function converts the dictionary structure returned by run_pipeline()
-    (via orchestrator._file_metadata_to_dict) back to a type-safe FileMetadata
-    dataclass instance.
+def _dict_to_file_metadata(result: FileMetadataDict) -> FileMetadata:
+    """Convert FileMetadataDict to FileMetadata for compatibility.
 
     Args:
-        result: Dictionary containing file metadata with keys:
-            - file_path: str (required)
-            - file_name: str (optional, used for file_name property)
-            - title: str (required)
-            - file_type: str (required)
-            - file_extension: str (optional, ignored)
-            - year: int | None (optional)
-            - season: int | None (optional)
-            - episode: int | None (optional)
-            - genres: list[str] (optional)
-            - overview: str | None (optional)
-            - poster_path: str | None (optional)
-            - vote_average: float | None (optional)
-            - tmdb_id: int | None (optional)
-            - media_type: str | None (optional)
-            - status: str (optional, ignored)
+        result: FileMetadataDict containing file metadata
 
     Returns:
         FileMetadata instance with converted data
-
-    Raises:
-        ValueError: If required fields are missing or invalid
-        KeyError: If required keys are missing from result dict
-
-    Example:
-        >>> result_dict = {
-        ...     "file_path": "/anime/aot.mkv",
-        ...     "title": "Attack on Titan",
-        ...     "file_type": "mkv",
-        ...     "tmdb_id": 1429,
-        ... }
-        >>> metadata = _dict_to_file_metadata(result_dict)
-        >>> isinstance(metadata, FileMetadata)
-        True
     """
-    file_path_str = result.get("file_path")
-    if not file_path_str:
-        msg = "file_path is required in result dictionary"
-        raise ValueError(msg)
-
-    file_path = Path(file_path_str)
-
-    title = result.get("title")
-    if not title:
-        msg = "title is required in result dictionary"
-        raise ValueError(msg)
-
-    file_type = result.get("file_type")
-    if not file_type:
-        msg = "file_type is required in result dictionary"
-        raise ValueError(msg)
-
-    return FileMetadata(
-        title=title,
-        file_path=file_path,
-        file_type=file_type,
-        year=result.get("year"),
-        season=result.get("season"),
-        episode=result.get("episode"),
-        genres=result.get("genres", []),
-        overview=result.get("overview"),
-        poster_path=result.get("poster_path"),
-        vote_average=result.get("vote_average"),
-        tmdb_id=result.get("tmdb_id"),
-        media_type=result.get("media_type"),
-    )
+    return MetadataConverter.from_dict(result)
 
 
-def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
+def _file_metadata_to_dict(metadata: FileMetadata) -> FileMetadataDict:
     """Convert FileMetadata dataclass to JSON-serializable dict.
 
     This helper function converts a FileMetadata instance to a dictionary
-    suitable for JSON output, maintaining backward compatibility with
-    existing CLI JSON output format.
-
-    TODO(Task 3-5): Replace with ModelConverter.to_dict() after FileMetadata
-    is migrated to Pydantic BaseTypeModel. This manual conversion will be
-    obsolete once type migration is complete.
+    suitable for JSON output using MetadataConverter, maintaining backward
+    compatibility with existing CLI JSON output format.
 
     Args:
         metadata: FileMetadata instance to convert
 
     Returns:
-        JSON-serializable dictionary
+        FileMetadataDict (JSON-serializable dictionary)
 
     Example:
         >>> metadata = FileMetadata(
@@ -134,21 +68,7 @@ def _file_metadata_to_dict(metadata: FileMetadata) -> dict[str, Any]:
         >>> isinstance(result, dict)
         True
     """
-    return {
-        ScanFields.TITLE: metadata.title,
-        ScanFields.FILE_PATH: str(metadata.file_path),
-        ScanFields.FILE_NAME: metadata.file_name,
-        ScanFields.FILE_TYPE: metadata.file_type,
-        ScanFields.YEAR: metadata.year,
-        ScanFields.SEASON: metadata.season,
-        ScanFields.EPISODE: metadata.episode,
-        ScanFields.GENRES: metadata.genres,
-        ScanFields.OVERVIEW: metadata.overview,
-        ScanFields.POSTER_PATH: metadata.poster_path,
-        ScanFields.VOTE_AVERAGE: metadata.vote_average,
-        ScanFields.TMDB_ID: metadata.tmdb_id,
-        ScanFields.MEDIA_TYPE: metadata.media_type,
-    }
+    return MetadataConverter.to_dict(metadata)
 
 
 def run_scan_pipeline(
@@ -176,26 +96,12 @@ def run_scan_pipeline(
 
     # Run the file processing pipeline with progress display
     with progress_manager.spinner("Scanning files..."):
-        file_results_dict = run_pipeline(
+        file_results = run_pipeline(
             root_path=str(directory),
             extensions=list(VideoFormats.ALL_EXTENSIONS),
             num_workers=CLIDefaults.DEFAULT_WORKER_COUNT,
             max_queue_size=QueueConfig.DEFAULT_SIZE,
         )
-
-    # Convert dict results to FileMetadata instances
-    file_results: list[FileMetadata] = []
-    for result_dict in file_results_dict:
-        try:
-            file_metadata = _dict_to_file_metadata(result_dict)
-            file_results.append(file_metadata)
-        except (ValueError, KeyError) as e:
-            logger.warning(
-                "Failed to convert scan result to FileMetadata: %s",
-                e,
-                extra={"result_dict": result_dict},
-            )
-            # Skip invalid results but continue processing
 
     if not is_json_output and file_results:
         console.print(
@@ -300,32 +206,26 @@ async def enrich_metadata(
     return enriched_file_results
 
 
-def _extract_parsing_result_dict(parsing_result: Any) -> dict[str, Any]:
+def _extract_parsing_result_dict(parsing_result: ParsingResult) -> ParsingResultDict:
     """Extract parsing result as dictionary.
 
+    This function converts a ParsingResult instance to its TypedDict representation
+    using MetadataConverter for type safety.
+
     Args:
-        parsing_result: Parsing result object
+        parsing_result: ParsingResult instance to convert
 
     Returns:
-        Dictionary with parsing result data
+        ParsingResultDict with parsing result data
     """
-    return {
-        "title": parsing_result.title,
-        "episode": parsing_result.episode,
-        "season": parsing_result.season,
-        "quality": parsing_result.quality,
-        "source": parsing_result.source,
-        "codec": parsing_result.codec,
-        "audio": parsing_result.audio,
-        "release_group": parsing_result.release_group,
-        "confidence": parsing_result.confidence,
-        "parser_used": parsing_result.parser_used,
-        "additional_info": (asdict(parsing_result.additional_info) if hasattr(parsing_result, "additional_info") else {}),
-    }
+    return MetadataConverter.parsing_result_to_dict(parsing_result)
 
 
-def _extract_enriched_metadata_dict(enriched_metadata: Any) -> dict[str, Any]:
+def _extract_enriched_metadata_dict(enriched_metadata: object) -> dict[str, object]:
     """Extract enriched metadata as dictionary.
+
+    Note: This function is kept for backward compatibility but may be deprecated
+    in favor of direct EnrichedMetadata model usage.
 
     Args:
         enriched_metadata: Enriched metadata object
@@ -333,11 +233,20 @@ def _extract_enriched_metadata_dict(enriched_metadata: Any) -> dict[str, Any]:
     Returns:
         Dictionary with enriched metadata
     """
-    return {
-        "enrichment_status": enriched_metadata.enrichment_status,
-        "match_confidence": enriched_metadata.match_confidence,
-        "tmdb_data": enriched_metadata.tmdb_data,
-    }
+    # Type-safe access with fallback for backward compatibility
+    if hasattr(enriched_metadata, "enrichment_status"):
+        return {
+            "enrichment_status": enriched_metadata.enrichment_status,
+            "match_confidence": getattr(enriched_metadata, "match_confidence", None),
+            "tmdb_data": getattr(enriched_metadata, "tmdb_data", None),
+        }
+    # Fallback for dict-like objects
+    if isinstance(enriched_metadata, dict):
+        return dict(enriched_metadata)
+    # Fallback: convert to dict using asdict if dataclass
+    if is_dataclass(enriched_metadata):
+        return asdict(enriched_metadata)  # type: ignore[arg-type]
+    return {}
 
 
 def _format_size_human_readable(size_bytes: float) -> str:
@@ -361,7 +270,7 @@ def collect_scan_data(
     directory: Path,
     *,
     show_tmdb: bool = True,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Collect scan data for JSON output.
 
     Args:

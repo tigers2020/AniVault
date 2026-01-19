@@ -10,7 +10,7 @@ from pathlib import Path
 
 from anivault.core.parser.models import ParsingResult
 from anivault.services.tmdb import TMDBMediaDetails
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 
 class MetadataTransformer:

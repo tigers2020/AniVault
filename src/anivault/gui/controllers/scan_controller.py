@@ -26,7 +26,7 @@ from anivault.shared.errors import (
     ErrorCode,
     ErrorContextModel,
 )
-from anivault.shared.metadata_models import FileMetadata, TMDBMatchResult
+from anivault.shared.models.metadata import FileMetadata, TMDBMatchResult
 
 logger = logging.getLogger(__name__)
 

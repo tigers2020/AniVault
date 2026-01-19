@@ -12,15 +12,15 @@ project_root = Path(__file__).parent
 src_dir = project_root / "src"
 sys.path.insert(0, str(src_dir))
 
-# AniVault GUI 실행
+# AniVault GUI 실행 (v2)
 if __name__ == "__main__":
     try:
-        from anivault.gui.app import main
+        from anivault.gui_v2.app import main
 
         main()
     except ImportError as e:
         print(f"❌ Import error: {e}")
-        print("💡 Make sure you're running from the project root directory")
+        print("💡 Make sure you're running from the project root directory (GUI v2)")
         print(f"   Project root: {project_root}")
         print(f"   Python path: {sys.path[:3]}")
         sys.exit(1)

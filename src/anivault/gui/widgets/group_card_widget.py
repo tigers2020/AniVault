@@ -47,7 +47,7 @@ from anivault.shared.errors import (
     ErrorCode,
     ErrorContext,
 )
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 
 from .anime_detail_popup import AnimeDetailPopup
 

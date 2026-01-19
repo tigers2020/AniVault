@@ -6,7 +6,7 @@ including parsing confidence scores, processing thresholds, and status values.
 Note: For shared constants used across multiple modules, see `shared/constants/`.
 """
 
-from enum import Enum
+from anivault.shared.constants.business.processing import ConfigKeys, ProcessStatus, ProcessingThresholds
 
 
 class ParsingConfidence:
@@ -31,61 +31,6 @@ class ParsingConfidence:
     METADATA_BONUS = 0.05  # Small bonus for each metadata field found
     METADATA_BONUS_MAX = 0.1  # Maximum bonus for metadata fields
     METADATA_BONUS_MULTIPLIER = 0.02  # Multiplier for metadata bonus calculation
-
-
-class ProcessingThresholds:
-    """Threshold constants for processing operations."""
-
-    # Queue usage threshold (0.0 to 1.0)
-    QUEUE_BACKPRESSURE_THRESHOLD = 0.8  # 80% - trigger backpressure handling
-
-    # Minimum confidence for enrichment
-    MIN_ENRICHMENT_CONFIDENCE = 0.3  # Minimum confidence score for metadata enrichment
-
-
-class ProcessStatus(str, Enum):
-    """Status enumeration for processing operations.
-
-    This Enum represents the various states a processing operation
-    can be in. Using Enum ensures type safety and prevents typos.
-    """
-
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-    CANCELLED = "cancelled"
-    SUCCESS = "success"  # Operation completed successfully
-
-
-class ConfigKeys:
-    """Configuration key constants.
-
-    These constants represent keys used in configuration files
-    and settings dictionaries to ensure consistency and prevent typos.
-    """
-
-    # Processing configuration
-    BATCH_SIZE = "batch_size"
-    MAX_WORKERS = "max_workers"
-    TIMEOUT = "timeout"
-    RETRY_COUNT = "retry_count"
-
-    # Parser configuration
-    PARSER_TYPE = "parser_type"
-    CONFIDENCE_THRESHOLD = "confidence_threshold"
-    ENABLE_FALLBACK = "enable_fallback"
-
-    # Cache configuration
-    CACHE_ENABLED = "cache_enabled"
-    CACHE_TTL = "cache_ttl"
-    CACHE_SIZE = "cache_size"
-
-    # Pipeline configuration
-    SCAN_RECURSIVE = "scan_recursive"
-    INCLUDE_SUBTITLES = "include_subtitles"
-    INCLUDE_METADATA = "include_metadata"
 
 
 __all__ = [

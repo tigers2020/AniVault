@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import logging
 import typing
-import warnings
 from pathlib import Path
-from typing import cast
 
 import toml
 from pydantic import Field
@@ -19,7 +17,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Import domain models from refactored modules
 from anivault.config.models.api_settings import (
     APISettings,
-    TMDBSettings,
 )
 from anivault.config.models.app_settings import (
     AppSettings,
@@ -36,7 +33,6 @@ from anivault.config.models.performance_settings import (
     PerformanceSettings,
 )
 from anivault.config.models.scan_settings import (
-    FilterSettings,
     ScanSettings,
 )
 
@@ -75,7 +71,6 @@ class Settings(BaseSettings):
     matching_weights: MatchingWeights = Field(default_factory=MatchingWeights)
     folders: FolderSettings | None = Field(default=None)
     security: SecuritySettings | None = Field(default=None)
-
 
     @classmethod
     def from_toml_file(cls, file_path: str | Path) -> Settings:

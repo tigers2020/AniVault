@@ -12,7 +12,8 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
-from typing import Any
+from typing import cast
+from collections.abc import Mapping, Sequence
 
 from dependency_injector.wiring import (  # pylint: disable=import-error
     Provide,
@@ -26,7 +27,14 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.containers import Container
 from anivault.core.matching.engine import MatchingEngine
-from anivault.core.matching.pipeline import match_result_to_file_metadata, process_file_for_matching
+from anivault.core.matching.pipeline import (
+    MatchOptions as PipelineMatchOptions,
+    MatchResultBundle,
+    match_result_to_file_metadata,
+    parsing_result_to_dict,
+    process_file_for_matching as _process_file_for_matching,
+)
+from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.services import (
@@ -36,22 +44,112 @@ from anivault.services import (
     TMDBClient,
     TokenBucketRateLimiter,
 )
+from anivault.cli.models.match_services import MatchServices
 from anivault.shared.constants import FileSystem
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
-from anivault.shared.errors import (
-    AniVaultError,
-    AniVaultParsingError,
-    ErrorCode,
-    ErrorContext,
+from anivault.shared.models.metadata import FileMetadata
+from anivault.shared.types.cli import MatchOptions as CliMatchOptions
+from anivault.shared.types.match_types import (
+    FileStatisticsInternalDict,
+    MatchDataDict,
+    MatchFileInfoDict,
+    MatchStatisticsDict,
 )
-from anivault.shared.metadata_models import FileMetadata
 from anivault.utils.resource_path import get_project_root
 
 logger = logging.getLogger(__name__)
 
 
+async def process_file_for_matching(
+    file_path: Path,
+    *args: object,
+    engine: MatchingEngine | None = None,
+    parser: AnitopyParser | None = None,
+    options: PipelineMatchOptions | None = None,
+    **kwargs: object,
+) -> MatchResultBundle | FileMetadata | None:
+    """Compatibility wrapper for process_file_for_matching."""
+    legacy_signature = bool(args) and parser is None and engine is None
+    if args and parser is None and engine is None:
+        parser = cast(AnitopyParser | None, args[0] if len(args) > 0 else None)
+        engine = cast(MatchingEngine | None, args[1] if len(args) > 1 else None)
+    parser = parser or cast(AnitopyParser | None, kwargs.get("parser"))
+    engine = engine or cast(MatchingEngine | None, kwargs.get("engine"))
+    if parser is None or engine is None:
+        raise TypeError("process_file_for_matching requires parser and engine")
+    try:
+        bundle = await _process_file_for_matching(
+            file_path,
+            engine=engine,
+            parser=parser,
+            options=options or PipelineMatchOptions(),
+        )
+    except Exception:
+        if legacy_signature:
+            error_parsing_result = ParsingResult(
+                title=str(file_path.name),
+                additional_info=ParsingAdditionalInfo(),
+            )
+            return match_result_to_file_metadata(file_path, error_parsing_result, None)
+        raise
+    return bundle.metadata if legacy_signature else bundle
+
+
+def _parsing_result_to_dict(
+    parsing_result: ParsingResult | Mapping[str, object] | object,
+) -> dict[str, object]:
+    """Convert parsing result to dict for compatibility tests.
+
+    Args:
+        parsing_result: ParsingResult or dict-like object
+
+    Returns:
+        Dictionary representation of parsing result
+    """
+    if isinstance(parsing_result, dict):
+        return parsing_result
+    if isinstance(parsing_result, ParsingResult):
+        match_query = parsing_result_to_dict(parsing_result)
+        return {
+            "anime_title": match_query.anime_title,
+            "episode_number": _coerce_int(match_query.episode),
+            "season": _coerce_int(match_query.season),
+            "anime_year": match_query.year,
+            "video_resolution": match_query.video_resolution,
+            "release_group": match_query.release_group,
+        }
+    return {
+        "anime_title": getattr(parsing_result, "title", None),
+        "episode_number": _coerce_int(getattr(parsing_result, "episode", None)),
+        "season": _coerce_int(getattr(parsing_result, "season", None)),
+        "anime_year": _coerce_int(getattr(parsing_result, "year", None)),
+        "video_resolution": getattr(parsing_result, "quality", None),
+        "release_group": getattr(parsing_result, "release_group", None),
+    }
+
+
+def _match_result_to_file_metadata(
+    file_path: Path,
+    parsing_result: ParsingResult,
+    match_result: MatchResult | None,
+) -> FileMetadata:
+    """Convert match result to FileMetadata (compat wrapper)."""
+    return match_result_to_file_metadata(file_path, parsing_result, match_result)
+
+
+def _coerce_int(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        return int(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
 async def run_match_pipeline(
-    options: Any,
+    options: CliMatchOptions,
     console: Console | None = None,
 ) -> int:
     """Run the complete matching pipeline.
@@ -82,7 +180,7 @@ async def run_match_pipeline(
     return 0
 
 
-def _get_directory_from_options(options: Any) -> Path:
+def _get_directory_from_options(options: CliMatchOptions) -> Path:
     """Extract directory path from options.
 
     Note: This function is now redundant. Use extract_directory_path from
@@ -91,7 +189,7 @@ def _get_directory_from_options(options: Any) -> Path:
     return extract_directory_path(options.directory)
 
 
-def _show_start_message(directory: Path, options: Any, console: Console) -> None:
+def _show_start_message(directory: Path, options: CliMatchOptions, console: Console) -> None:
     """Show start message."""
     if not options.json_output:
         console.print(
@@ -105,14 +203,14 @@ def _show_start_message(directory: Path, options: Any, console: Console) -> None
 @inject
 def _initialize_services(
     matching_engine: MatchingEngine = Provide[Container.matching_engine],
-) -> dict[str, Any]:
+) -> MatchServices:
     """Initialize matching services.
 
     Args:
         matching_engine: MatchingEngine instance injected from DI container
 
     Returns:
-        Dictionary containing initialized services
+        MatchServices container with initialized services
     """
     # Use centralized project root utility for consistent path resolution
     project_root = get_project_root()
@@ -130,15 +228,15 @@ def _initialize_services(
 
     parser = AnitopyParser()
 
-    return {
-        "cache": cache,
-        "rate_limiter": rate_limiter,
-        "semaphore_manager": semaphore_manager,
-        "state_machine": state_machine,
-        "tmdb_client": tmdb_client,
-        "matching_engine": matching_engine,
-        "parser": parser,
-    }
+    return MatchServices(
+        cache=cache,
+        rate_limiter=rate_limiter,
+        semaphore_manager=semaphore_manager,
+        state_machine=state_machine,
+        tmdb_client=tmdb_client,
+        matching_engine=matching_engine,
+        parser=parser,
+    )
 
 
 def _find_anime_files(directory: Path) -> list[Path]:
@@ -151,7 +249,7 @@ def _find_anime_files(directory: Path) -> list[Path]:
 
 def _handle_no_files_found(
     directory: Path,
-    options: Any,
+    options: CliMatchOptions,
     console: Console,
 ) -> int:
     """Handle case when no anime files are found."""
@@ -178,7 +276,7 @@ def _handle_no_files_found(
 
 def _show_file_count(
     anime_files: list[Path],
-    options: Any,
+    options: CliMatchOptions,
     console: Console,
 ) -> None:
     """Show file count message."""
@@ -193,23 +291,23 @@ def _show_file_count(
 
 async def _process_files(
     anime_files: list[Path],
-    services: dict[str, Any],
-    options: Any,
+    services: MatchServices,
+    options: CliMatchOptions,
     console: Console,
 ) -> list[FileMetadata]:
     """Process anime files concurrently.
 
     Args:
         anime_files: List of file paths to process
-        services: Dictionary containing parser and matching_engine
+        services: MatchServices container with parser and matching_engine
         options: Match command options
         console: Rich console for output
 
     Returns:
         List of FileMetadata instances (None results are filtered out)
     """
-    parser = services["parser"]
-    matching_engine = services["matching_engine"]
+    parser = services.parser
+    matching_engine = services.matching_engine
     progress_manager = create_progress_manager(disabled=options.json_output)
 
     results = []
@@ -223,7 +321,9 @@ async def _process_files(
                     engine=matching_engine,
                     parser=parser,
                 )
-                return bundle.metadata
+                if isinstance(bundle, MatchResultBundle):
+                    return bundle.metadata
+                return bundle
 
         results = await asyncio.gather(
             *[process_with_semaphore(fp) for fp in anime_files],
@@ -234,15 +334,15 @@ async def _process_files(
 
 
 def _process_exceptions(
-    results: list[Any],
+    results: Sequence[object],
     anime_files: list[Path],
-    options: Any,
+    options: CliMatchOptions,
     console: Console,
 ) -> list[FileMetadata]:
     """Process exceptions in results and convert to FileMetadata.
 
     Args:
-        results: List of processing results (FileMetadata, None, or Exception)
+        results: List of processing results
         anime_files: List of file paths (for error reporting)
         options: Match command options
         console: Rich console for output
@@ -255,7 +355,7 @@ def _process_exceptions(
     for i, result in enumerate(results):
         file_path = anime_files[i]
 
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException):
             if not options.json_output:
                 console.print(
                     CLIFormatting.format_colored_message(
@@ -302,7 +402,7 @@ def _process_exceptions(
 def _output_results(
     processed_results: list[FileMetadata],
     directory: Path,
-    options: Any,
+    options: CliMatchOptions,
     console: Console,
 ) -> None:
     """Output match results.
@@ -377,7 +477,7 @@ def _calculate_success_rate(successful_matches: int, total_files: int) -> float:
     return (successful_matches / total_files) * 100
 
 
-def collect_match_data(results: list[FileMetadata], directory: str) -> dict[str, Any]:
+def collect_match_data(results: list[FileMetadata], directory: str) -> MatchDataDict:
     """Collect match data for JSON output.
 
     Args:
@@ -412,7 +512,7 @@ def collect_match_data(results: list[FileMetadata], directory: str) -> dict[str,
     }
 
 
-def _calculate_file_statistics(results: list[FileMetadata]) -> dict[str, Any]:
+def _calculate_file_statistics(results: list[FileMetadata]) -> FileStatisticsInternalDict:
     """Calculate file statistics from FileMetadata results.
 
     Args:
@@ -460,7 +560,7 @@ def _build_file_info(
     file_path: str,
     file_size: int,
     file_ext: str,
-) -> dict[str, Any]:
+) -> MatchFileInfoDict:
     """Build file information dictionary from FileMetadata.
 
     Args:
@@ -472,7 +572,7 @@ def _build_file_info(
     Returns:
         Dictionary with file information for JSON output
     """
-    file_info = {
+    file_info: MatchFileInfoDict = {
         "file_path": file_path,
         "file_name": Path(file_path).name,
         "file_size": file_size,
@@ -481,6 +581,11 @@ def _build_file_info(
         "year": metadata.year,
         "season": metadata.season,
         "episode": metadata.episode,
+        "match_result": {
+            "match_confidence": 0.0,
+            "tmdb_data": None,
+            "enrichment_status": "NO_MATCH",
+        },
     }
 
     # Add TMDB match information
@@ -497,17 +602,10 @@ def _build_file_info(
             },
             "enrichment_status": "SUCCESS",
         }
-    else:
-        file_info["match_result"] = {
-            "match_confidence": 0.0,
-            "tmdb_data": None,
-            "enrichment_status": "NO_MATCH",
-        }
-
     return file_info
 
 
-def _collect_matching_statistics(results: list[FileMetadata]) -> dict[str, int]:
+def _collect_matching_statistics(results: list[FileMetadata]) -> MatchStatisticsDict:
     """Collect matching statistics from FileMetadata results.
 
     Args:

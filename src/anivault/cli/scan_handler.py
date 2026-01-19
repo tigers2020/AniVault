@@ -30,7 +30,7 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants import CLI, CLIDefaults, CLIFormatting
 from anivault.shared.constants.cli import CLIHelp, CLIMessages, CLIOptions
 from anivault.shared.constants.logging import LogConfig
-from anivault.shared.metadata_models import FileMetadata
+from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import CLIDirectoryPath, ScanOptions
 
 logger = logging.getLogger(__name__)
