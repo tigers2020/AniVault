@@ -1,5 +1,0 @@
-# Ignore benchmark output files
-*.db
-*.log
-__pycache__/
-*.pyc
