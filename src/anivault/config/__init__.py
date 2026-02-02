@@ -45,6 +45,7 @@ from .models import (
 
 # Import Settings from models package
 from .models.settings import Settings
+from .settings_provider import DefaultSettingsProvider, SettingsProvider, get_settings_provider
 
 __all__ = [
     "APISettings",
@@ -52,6 +53,7 @@ __all__ = [
     "AppSettings",
     "CacheConfig",
     "CacheSettings",
+    "DefaultSettingsProvider",
     "FilterConfig",
     "FilterSettings",
     "FolderSettings",
@@ -64,9 +66,11 @@ __all__ = [
     "ScanSettings",
     "SecuritySettings",
     "Settings",
+    "SettingsProvider",
     "TMDBConfig",
     "TMDBSettings",
     "get_config",
+    "get_settings_provider",
     "load_settings",
     "load_weights",
     "reload_config",

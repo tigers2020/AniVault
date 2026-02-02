@@ -31,16 +31,15 @@ class PathContext:
         series_has_mixed_resolutions: Whether the series has mixed resolutions
         target_folder: Root directory for organized files
         media_type: Type of media (e.g., "TV", "Movies")
-        organize_by_resolution: Whether to organize files by resolution
-        organize_by_year: Whether to organize files by year
+        organize_path_template: Path template with placeholders:
+            {해상도}, {연도}, {제목}, {시즌}
     """
 
     scanned_file: ScannedFile
     series_has_mixed_resolutions: bool
     target_folder: Path
     media_type: str
-    organize_by_resolution: bool
-    organize_by_year: bool
+    organize_path_template: str
 
     def __post_init__(self) -> None:
         """Validate path context data."""
@@ -85,51 +84,51 @@ class PathBuilder:
         self.settings = settings
         self.logger = logger
 
+    # Placeholder keys for path template
+    PLACEHOLDER_RESOLUTION = "해상도"
+    PLACEHOLDER_YEAR = "연도"
+    PLACEHOLDER_TITLE = "제목"
+    PLACEHOLDER_SEASON = "시즌"
+
     def build_path(self, context: PathContext) -> Path:
         """Build the destination path for a file.
 
         This method orchestrates the path construction process:
-        1. Extract series title
-        2. Sanitize for filesystem
-        3. Determine season directory
-        4. Apply resolution-based folder organization (if enabled)
-        5. Combine with original filename
+        1. Extract values for template placeholders
+        2. Substitute placeholders in organize_path_template
+        3. Combine with original filename
 
         Args:
-            context: PathContext containing file and resolution information
+            context: PathContext containing file and template
 
         Returns:
             Path object representing the destination path
 
         Example:
-            >>> context = PathContext(...)
-            >>> builder = PathBuilder()
-            >>> path = builder.build_path(context)
-            >>> # Returns: /media/TV/Attack on Titan/Season 01/episode.mkv
+            Template "{해상도}/{연도}/{제목}/{시즌}" -> 1080p/2013/Attack on Titan/Season 01
         """
-        # 1. Extract and sanitize series title
+        # 1. Extract values for placeholders
         series_title = self._extract_series_title(context.scanned_file)
         series_title = self.sanitize_filename(series_title)
-
-        # 2. Extract season number
         season_number = self._extract_season_number(context.scanned_file)
-
-        # 3. Build season directory string
         season_dir = self._build_season_dir(season_number)
+        resolution = self._extract_resolution(context.scanned_file)
+        year = self._extract_year_from_tmdb(context.scanned_file)
 
-        # 4. Build folder structure (with or without resolution organization)
-        series_dir = self._build_folder_structure(
-            context=context,
+        # 2. Build folder structure from template
+        series_dir = self._build_path_from_template(
+            template=context.organize_path_template,
             series_title=series_title,
             season_dir=season_dir,
+            resolution=resolution,
+            year=year,
+            target_folder=context.target_folder,
+            media_type=context.media_type,
         )
 
-        # 5. Use original filename
+        # 3. Use original filename
         original_filename = context.scanned_file.file_path.name
-
-        # 6. Combine to create full path
-        result = series_dir / original_filename
-        return result
+        return series_dir / original_filename
 
     def _extract_series_title(self, scanned_file: ScannedFile) -> str:
         """Extract series title from scanned file metadata.
@@ -248,69 +247,50 @@ class PathBuilder:
         """
         return f"Season {season_number:02d}"
 
-    def _build_folder_structure(
+    def _build_path_from_template(
         self,
-        context: PathContext,
+        template: str,
         series_title: str,
         season_dir: str,
+        resolution: str | None,
+        year: int | None,
+        target_folder: Path,
+        media_type: str,
     ) -> Path:
-        """Build the folder structure for organizing files.
+        """Build folder path from template with placeholder substitution.
 
-        This method handles resolution-based and year-based folder organization
-        when enabled and appropriate.
+        Placeholders: {해상도}, {연도}, {제목}, {시즌}
+        Missing values default to PathConstants.UNKNOWN.
 
         Args:
-            context: PathContext containing configuration
+            template: Path template (e.g., "{해상도}/{연도}/{제목}/{시즌}")
             series_title: Sanitized series title
-            season_dir: Season directory string
+            season_dir: Season directory string (e.g., "Season 01")
+            resolution: Resolution string or None
+            year: Year as int or None
+            target_folder: Root target folder
+            media_type: Media type subfolder
 
         Returns:
-            Path to the series/season directory
+            Path to the series directory (without filename)
         """
-        self.logger.debug(
-            "Building folder structure: resolution=%s, year=%s, series=%s",
-            context.organize_by_resolution,
-            context.organize_by_year,
-            series_title,
-        )
-
-        # Build base path with media type
-        base_path = context.target_folder / context.media_type
-
-        # Check if resolution-based organization is enabled
-        if context.organize_by_resolution:
-            # Determine resolution and apply folder organization
-            resolution = self._extract_resolution(context.scanned_file)
-            if resolution:
-                result_path = self._apply_resolution_folder(
-                    series_title=series_title,
-                    season_dir=season_dir,
-                    resolution=resolution,
-                    base_path=base_path,
-                    organize_by_year=context.organize_by_year,
-                    scanned_file=context.scanned_file,
-                )
-                return result_path
-            self.logger.debug(
-                "Resolution-based organization enabled but resolution not found for %s - using default path",
-                context.scanned_file.file_path.name,
-            )
-
-        # Add year folder if organize_by_year is enabled (for non-mixed resolution series)
-        if context.organize_by_year:
-            year = self._extract_year_from_tmdb(context.scanned_file)
-            if year:
-                base_path = base_path / str(year)
-                self.logger.debug(
-                    "Added year folder to path: %s -> %s",
-                    year,
-                    base_path,
-                )
-
-        # Default: Build path without resolution organization
-        # (either feature disabled OR series has single resolution type)
-        final_path = base_path / series_title / season_dir
-        self.logger.debug("Final path: %s", final_path)
+        values = {
+            self.PLACEHOLDER_RESOLUTION: (resolution or PathConstants.UNKNOWN).lower(),
+            self.PLACEHOLDER_YEAR: str(year) if year else PathConstants.UNKNOWN,
+            self.PLACEHOLDER_TITLE: series_title,
+            self.PLACEHOLDER_SEASON: season_dir,
+        }
+        # Substitute placeholders
+        result = template
+        for key, val in values.items():
+            result = result.replace(f"{{{key}}}", val)
+        # Remove any remaining unknown placeholders (replace with Unknown)
+        result = re.sub(r"\{[^}]+\}", PathConstants.UNKNOWN, result)
+        # Normalize path: strip slashes, collapse multiple slashes
+        parts = [p for p in result.replace("\\", "/").split("/") if p.strip()]
+        base = target_folder / media_type
+        final_path = base / Path(*parts) if parts else base / series_title / season_dir
+        self.logger.debug("Built path from template: %s -> %s", template, final_path)
         return final_path
 
     def _extract_resolution(self, scanned_file: ScannedFile) -> str | None:
@@ -395,57 +375,6 @@ class PathBuilder:
         if width >= PathConstants.LD_WIDTH or height >= PathConstants.LD_HEIGHT:
             return PathConstants.LD_LABEL
         return "SD"
-
-    def _apply_resolution_folder(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        self,
-        series_title: str,
-        season_dir: str,
-        resolution: str | None,
-        base_path: Path,
-        organize_by_year: bool = False,
-        scanned_file: ScannedFile | None = None,
-    ) -> Path:
-        """Apply resolution-based folder organization.
-
-        Args:
-            series_title: Sanitized series title
-            season_dir: Season directory string
-            resolution: Resolution string or None
-            base_path: Base path (may include year folder)
-            organize_by_year: Whether to organize by year
-            scanned_file: ScannedFile for year extraction
-
-        Returns:
-            Path with resolution-based organization applied
-        """
-
-        # Normalize resolution string (lowercase for folder names)
-        resolution_folder = resolution.lower() if resolution else "unknown"
-
-        # Build path structure: base_path / [year/] resolution / series_title / season_dir
-        current_path = base_path
-
-        # Step 1: Add year folder first if organize_by_year is enabled
-        if organize_by_year and scanned_file:
-            year = self._extract_year_from_tmdb(scanned_file)
-            if year:
-                current_path = current_path / str(year)
-                self.logger.debug(
-                    "Added year folder: %s -> %s",
-                    year,
-                    current_path,
-                )
-
-        # Step 2: Add resolution folder (after year, before series_title)
-        current_path = current_path / resolution_folder
-
-        # Step 3: Add series title
-        current_path = current_path / series_title
-
-        # Step 4: Add season directory
-        series_dir = current_path / season_dir
-
-        return series_dir
 
     @staticmethod
     def sanitize_filename(filename: str) -> str:

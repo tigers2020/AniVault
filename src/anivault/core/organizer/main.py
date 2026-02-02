@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 from anivault.config import Settings, load_settings
+from anivault.config.models.folder_security_settings import FolderSettings
 from anivault.core.log_manager import OperationLogManager
 from anivault.core.models import FileOperation, OperationType, ScannedFile
 from anivault.core.organizer.executor import FileOperationExecutor, OperationResult
@@ -174,6 +175,23 @@ class FileOrganizer:
                     root,
                 )
 
+    @staticmethod
+    def _get_effective_path_template(folders: FolderSettings) -> str:
+        """Get effective path template, with backward compatibility for deprecated flags."""
+        template = folders.organize_path_template or ""
+        if template.strip():
+            return template.strip()
+        # Backward compatibility: derive from organize_by_resolution, organize_by_year
+        by_res = folders.organize_by_resolution or False
+        by_year = folders.organize_by_year or False
+        if by_res and by_year:
+            return "{해상도}/{연도}/{제목}/{시즌}"
+        if by_res:
+            return "{해상도}/{제목}/{시즌}"
+        if by_year:
+            return "{연도}/{제목}/{시즌}"
+        return FolderDefaults.ORGANIZE_PATH_TEMPLATE
+
     def _build_destination_path(self, scanned_file: ScannedFile) -> Path:
         """
         Build destination path for a scanned file.
@@ -191,23 +209,16 @@ class FileOrganizer:
         if self.settings.folders is None:
             target_folder = Path.home() / FileSystem.OUTPUT_DIRECTORY
             media_type = FolderDefaults.DEFAULT_MEDIA_TYPE
-            organize_by_resolution = FolderDefaults.ORGANIZE_BY_RESOLUTION
-            organize_by_year = FolderDefaults.ORGANIZE_BY_YEAR
-            logger.error(
-                "Folder settings not found in self.settings! Using defaults: resolution=%s, year=%s",
-                organize_by_resolution,
-                organize_by_year,
-            )
+            path_template = FolderDefaults.ORGANIZE_PATH_TEMPLATE
+            logger.error("Folder settings not found in self.settings! Using defaults")
         else:
             default_target = str(Path.home() / FileSystem.OUTPUT_DIRECTORY)
             target_folder = Path(self.settings.folders.target_folder or default_target)
             media_type = self.settings.folders.media_type or FolderDefaults.DEFAULT_MEDIA_TYPE
-            organize_by_resolution = self.settings.folders.organize_by_resolution
-            organize_by_year = self.settings.folders.organize_by_year
+            path_template = self._get_effective_path_template(self.settings.folders)
             logger.debug(
-                "FileOrganizer settings: resolution=%s, year=%s, target=%s, media_type=%s",
-                organize_by_resolution,
-                organize_by_year,
+                "FileOrganizer settings: template=%s, target=%s, media_type=%s",
+                path_template,
                 target_folder,
                 media_type,
             )
@@ -222,15 +233,13 @@ class FileOrganizer:
             series_has_mixed_resolutions=series_has_mixed_resolutions,
             target_folder=target_folder,
             media_type=media_type,
-            organize_by_resolution=organize_by_resolution,
-            organize_by_year=organize_by_year,
+            organize_path_template=path_template,
         )
 
         logger.debug(
-            "Building path for %s with context: resolution=%s, year=%s, target=%s",
+            "Building path for %s with template=%s, target=%s",
             scanned_file.file_path.name[:50],
-            organize_by_resolution,
-            organize_by_year,
+            path_template,
             target_folder,
         )
 

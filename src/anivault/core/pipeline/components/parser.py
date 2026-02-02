@@ -25,6 +25,8 @@ from anivault.shared.errors import (
 )
 from anivault.shared.logging import log_operation_error, log_operation_success
 
+logger = logging.getLogger(__name__)
+
 
 class ParserWorker(threading.Thread):
     """Worker thread that processes files from the input queue.
@@ -88,7 +90,6 @@ class ParserWorker(threading.Thread):
 
             except (KeyError, ValueError, TypeError, AttributeError) as e:
                 # Handle data processing errors
-                logger = logging.getLogger(__name__)
                 logger.warning(
                     "Worker %d data processing error: %s",
                     self.worker_id,
@@ -98,7 +99,6 @@ class ParserWorker(threading.Thread):
             # pylint: disable-next=broad-exception-caught  # Handle timeout and other exceptions
             except Exception as e:
                 # Handle timeout and other exceptions
-                logger = logging.getLogger(__name__)
                 if "timeout" not in str(e).lower():
                     logger.exception(
                         "Worker %d unexpected error",
@@ -112,7 +112,6 @@ class ParserWorker(threading.Thread):
         Args:
             file_path: Path to the file to process.
         """
-        logger = logging.getLogger(__name__)
         start_time = time.time()
 
         try:
@@ -183,7 +182,6 @@ class ParserWorker(threading.Thread):
                 original_error=e,
             )
             log_operation_error(logger, unexpected_error)
-            log_operation_error(logger, error)
 
         finally:
             # Always mark task as done
@@ -201,73 +199,14 @@ class ParserWorker(threading.Thread):
         Raises:
             InfrastructureError: If cache operation fails.
         """
-        logger = logging.getLogger(__name__)
-
         try:
-            # #region agent log
-            import json
-
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "A",
-                            "location": "parser.py:207",
-                            "message": "_check_cache entry",
-                            "data": {"file_path": str(file_path), "key_type": "raw_path"},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
-
-            # Generate cache key same way as _store_in_cache (HYPOTHESIS A)
+            # Generate cache key same way as _store_in_cache
             cache_key = self.cache._generate_key(  # pylint: disable=protected-access
                 str(file_path),
                 file_path.stat().st_mtime,
             )
 
-            # #region agent log
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "A",
-                            "location": "parser.py:215",
-                            "message": "cache key generated",
-                            "data": {"cache_key": cache_key[:64], "key_length": len(cache_key)},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
-
             result = self.cache.get(cache_key)
-
-            # #region agent log
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "A",
-                            "location": "parser.py:220",
-                            "message": "cache.get result",
-                            "data": {"result_type": type(result).__name__, "result_is_none": result is None},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
-
             return result
         except (KeyError, ValueError, TypeError) as e:
             context = ErrorContext(
@@ -307,8 +246,6 @@ class ParserWorker(threading.Thread):
         Raises:
             InfrastructureError: If queue operation fails.
         """
-        logger = logging.getLogger(__name__)
-
         try:
             # Cache hit - use cached data
             self.stats.increment_cache_hit()
@@ -353,8 +290,6 @@ class ParserWorker(threading.Thread):
         Raises:
             InfrastructureError: If parsing or cache operations fail.
         """
-        logger = logging.getLogger(__name__)
-
         try:
             # Cache miss - perform parsing
             self.stats.increment_cache_miss()
@@ -407,8 +342,6 @@ class ParserWorker(threading.Thread):
         Raises:
             InfrastructureError: If cache operation fails.
         """
-        logger = logging.getLogger(__name__)
-
         try:
             # Store result in cache (24 hours TTL)
             mtime = file_path.stat().st_mtime
@@ -416,26 +349,6 @@ class ParserWorker(threading.Thread):
                 str(file_path),
                 mtime,
             )
-
-            # #region agent log
-            import json
-
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "D",
-                            "location": "parser.py:350",
-                            "message": "_store_in_cache key generation",
-                            "data": {"file_path": str(file_path)[:100], "mtime": mtime, "cache_key": cache_key[:64], "key_length": len(cache_key)},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
 
             self.cache.set_cache(
                 cache_key,
@@ -466,34 +379,42 @@ class ParserWorker(threading.Thread):
             raise error from e
 
     def _parse_file(self, file_path: Path) -> dict[str, Any]:
-        """Parse a file and extract basic information.
+        """Parse a file and extract metadata using anitopy.
 
-        This is a placeholder implementation that extracts basic file
-        information. In a real implementation, this would perform
-        more sophisticated parsing operations.
+        Uses AnitopyParser to extract anime title, episode, season, year from
+        filename. Falls back to raw filename when parsing fails.
 
         Args:
             file_path: Path to the file to parse.
 
         Returns:
-            Dictionary containing parsed file information.
-
-        Raises:
-            InfrastructureError: If file parsing fails.
+            Dictionary containing parsed file information with keys:
+            file_path, file_name (anime_title or filename), file_extension,
+            episode_number, anime_season, anime_year (when extracted).
         """
-        logger = logging.getLogger(__name__)
-
         try:
-            # Get basic file information
             stat_info = file_path.stat()
-
-            # Extract file extension
             file_ext = file_path.suffix.lower()
+            file_name = file_path.name
+            episode_number: int | None = None
+            anime_season: int | None = None
+            anime_year: int | None = None
 
-            # Create result dictionary
-            result = {
+            try:
+                from anivault.core.parser.anitopy_parser import AnitopyParser
+
+                parsed = AnitopyParser().parse(file_name)
+                anime_title = parsed.title if parsed.title else None
+                episode_number = parsed.episode
+                anime_season = parsed.season
+                anime_year = parsed.year
+                display_name = anime_title if anime_title else file_name
+            except (ImportError, Exception):  # noqa: BLE001 - intentional fallback on any parse failure
+                display_name = file_name
+
+            result: dict[str, Any] = {
                 "file_path": str(file_path),
-                "file_name": file_path.name,
+                "file_name": display_name,
                 "file_size": stat_info.st_size,
                 "file_extension": file_ext,
                 "modified_time": stat_info.st_mtime,
@@ -501,14 +422,19 @@ class ParserWorker(threading.Thread):
                 "worker_id": self.worker_id,
                 "status": "success",
             }
+            if episode_number is not None:
+                result["episode_number"] = episode_number
+            if anime_season is not None:
+                result["anime_season"] = anime_season
+            if anime_year is not None:
+                result["anime_year"] = anime_year
 
             log_operation_success(
                 logger,
                 "parse_file",
-                0.0,  # Duration will be logged by parent
+                0.0,
                 {"file_path": str(file_path), "worker_id": self.worker_id},
             )
-
             return result
 
         except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught

@@ -130,7 +130,7 @@ class SettingsDialog(QDialog):
         self.api_key_input.setPlaceholderText("Enter your TMDB API key")
         api_key_field.addWidget(self.api_key_input)
 
-        help_text = QLabel('Get your API key from: <a href="https://www.themoviedb.org/settings/api">' "https://www.themoviedb.org/settings/api</a>")
+        help_text = QLabel('Get your API key from: <a href="https://www.themoviedb.org/settings/api">https://www.themoviedb.org/settings/api</a>')
         help_text.setOpenExternalLinks(True)
         help_text.setObjectName("helpText")
         api_key_field.addWidget(help_text)
@@ -212,22 +212,28 @@ class SettingsDialog(QDialog):
 
         layout.addLayout(target_field)
 
-        # Organization options
+        # Organization path template
         options_widget = QWidget()
         options_widget.setObjectName("optionsWidget")
         options_layout = QVBoxLayout(options_widget)
         options_layout.setContentsMargins(16, 16, 16, 16)
         options_layout.setSpacing(12)
 
-        options_title = QLabel("정리 옵션")
+        options_title = QLabel("정리 경로 템플릿")
         options_title.setObjectName("optionsTitle")
         options_layout.addWidget(options_title)
 
-        self.organize_by_resolution = QCheckBox("해상도별로 정리 (1080p, 720p 등)")
-        options_layout.addWidget(self.organize_by_resolution)
+        self.organize_path_template = QLineEdit()
+        self.organize_path_template.setPlaceholderText("{해상도}/{연도}/{제목}/{시즌}")
+        self.organize_path_template.setText("{제목}/{시즌}")
+        options_layout.addWidget(self.organize_path_template)
 
-        self.organize_by_year = QCheckBox("출시 연도별로 정리 (2013, 2020 등)")
-        options_layout.addWidget(self.organize_by_year)
+        hint_label = QLabel(
+            "사용 가능한 플레이스홀더: {해상도}, {연도}, {제목}, {시즌}\n예: {해상도}/{연도}/{제목}/{시즌} → 1080p/2013/진격의 거인/Season 01"
+        )
+        hint_label.setObjectName("helpText")
+        hint_label.setWordWrap(True)
+        options_layout.addWidget(hint_label)
 
         layout.addWidget(options_widget)
 
@@ -283,8 +289,7 @@ class SettingsDialog(QDialog):
         self.api_key_input.clear()
         self.source_folder_input.clear()
         self.target_folder_input.clear()
-        self.organize_by_resolution.setChecked(False)
-        self.organize_by_year.setChecked(False)
+        self.organize_path_template.setText("{제목}/{시즌}")
         self.auto_scan_startup.setChecked(False)
         self.scan_interval.setValue(0)
         self.include_subdirs.setChecked(True)
@@ -303,8 +308,8 @@ class SettingsDialog(QDialog):
             if settings.folders:
                 self.source_folder_input.setText(settings.folders.source_folder or "")
                 self.target_folder_input.setText(settings.folders.target_folder or "")
-                self.organize_by_resolution.setChecked(settings.folders.organize_by_resolution or False)
-                self.organize_by_year.setChecked(settings.folders.organize_by_year or False)
+                template = settings.folders.organize_path_template or "{제목}/{시즌}"
+                self.organize_path_template.setText(template)
                 self.auto_scan_startup.setChecked(settings.folders.auto_scan_on_startup or False)
                 self.scan_interval.setValue(settings.folders.auto_scan_interval_minutes or 0)
                 self.include_subdirs.setChecked(
@@ -397,8 +402,7 @@ class SettingsDialog(QDialog):
         """Save folder settings to configuration."""
         source_folder = self.source_folder_input.text().strip()
         target_folder = self.target_folder_input.text().strip()
-        organize_by_resolution = self.organize_by_resolution.isChecked()
-        organize_by_year = self.organize_by_year.isChecked()
+        path_template = self.organize_path_template.text().strip() or "{제목}/{시즌}"
         auto_scan_startup = self.auto_scan_startup.isChecked()
         auto_scan_interval = self.scan_interval.value()
         include_subdirs = self.include_subdirs.isChecked()
@@ -407,8 +411,7 @@ class SettingsDialog(QDialog):
         success, error = self.auto_scanner.update_folder_settings(
             source_folder=source_folder,
             target_folder=target_folder,
-            organize_by_resolution=organize_by_resolution,
-            organize_by_year=organize_by_year,
+            organize_path_template=path_template,
             auto_scan_on_startup=auto_scan_startup,
             auto_scan_interval_minutes=auto_scan_interval,
             include_subdirectories=include_subdirs,

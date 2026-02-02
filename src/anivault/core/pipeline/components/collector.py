@@ -24,6 +24,8 @@ from anivault.shared.errors import (
 from anivault.shared.logging import log_operation_error, log_operation_success
 from anivault.shared.models.metadata import FileMetadata
 
+logger = logging.getLogger(__name__)
+
 
 def _dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:
     """Convert parser result dictionary to FileMetadata.
@@ -54,7 +56,7 @@ def _dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:
 
     file_path = Path(file_path_str)
 
-    # Use file_name as title, fallback to file_path.name if not present
+    # Use file_name (anime_title from anitopy or filename) as title
     title = result.get("file_name") or file_path.name
     if not title:
         msg = "file_name or valid file_path.name is required"
@@ -64,16 +66,18 @@ def _dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:
     file_extension = result.get("file_extension", "")
     file_type = file_extension.lstrip(".").lower() if file_extension else file_path.suffix.lstrip(".").lower() or "unknown"
 
-    # Create FileMetadata instance
-    # Note: year, season, episode are None as parser doesn't extract them
-    # These will be populated later by enrichment process
+    # Extract episode, season, year from anitopy parser result (when present)
+    episode = result.get("episode_number")
+    season = result.get("anime_season")
+    year = result.get("anime_year")
+
     return FileMetadata(
         title=title,
         file_path=file_path,
         file_type=file_type,
-        year=None,
-        season=None,
-        episode=None,
+        year=year,
+        season=season,
+        episode=episode,
     )
 
 
@@ -116,7 +120,6 @@ class ResultCollector(threading.Thread):
             True if an item was processed, False if queue was empty or
             sentinel received.
         """
-        logger = logging.getLogger(__name__)
         context = ErrorContext(
             operation="poll_once",
             additional_data={"collector_id": self.collector_id, "timeout": timeout},
@@ -354,7 +357,6 @@ class ResultCollector(threading.Thread):
             True if sentinel was received and processing should stop.
         """
         if item is Pipeline.SENTINEL:
-            logger = logging.getLogger(__name__)
             logger.info(
                 "ResultCollector %s: Received sentinel, stopping...",
                 self.collector_id,
@@ -457,8 +459,6 @@ class ResultCollector(threading.Thread):
             error: The error that occurred.
             context: Error context.
         """
-        logger = logging.getLogger(__name__)
-
         # Log the error but don't re-raise for non-critical errors
         # Convert regular exception to InfrastructureError for logging
         if not hasattr(error, "context"):

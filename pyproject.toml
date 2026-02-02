@@ -136,8 +136,6 @@ ignore = [
 "scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
 "src/anivault/cli/**" = ["FBT003", "B008", "TCH002"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거), TCH002: typer는 런타임에 사용
-"src/anivault/gui/**" = ["N815", "N802", "TCH002"]  # PySide6 Signal naming convention (camelCase) and event handler methods, TCH002: PySide6는 런타임에 사용
-"src/anivault/gui/themes/theme_manager.py" = ["TRY400", "BLE001"]  # Safe mode error handling
 
 [tool.black]
 line-length = 150  # Unified with Ruff and Pylint
@@ -245,7 +243,6 @@ module = [
     "anivault.cli.common.*",
     "anivault.cli.typer_app",
     "anivault.cli.helpers.match",
-    "anivault.gui.*",
     "anivault.containers",
 ]
 disable_error_code = ["misc"]
@@ -336,14 +333,21 @@ addopts = [
     "-p", "no:pytest-qt",
     "--ignore=tests/gui/",
     "--ignore=tests/benchmarks_disabled/",
+    "--ignore=tests/core/file_grouper/test_group_name_manager_benchmark.py",
+    "--ignore=tests/unit/test_subtitle_matcher_benchmark.py",
+    "--ignore=tests/unit/test_title_matcher_accuracy_benchmark.py",
     "--cov=src",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
 ]
 
+# Async support (pytest-asyncio)
+asyncio_mode = "auto"
+
 # Test markers (unified with pytest.ini)
 markers = [
+    "asyncio: marks test as async (pytest-asyncio)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",

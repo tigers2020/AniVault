@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Mapping
 
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.models import MatchQuery, MatchResult
@@ -89,6 +89,7 @@ def match_result_to_file_metadata(
     vote_average = None
     tmdb_id = None
     media_type = None
+    match_confidence = None
 
     if match_result is not None:
         title = match_result.title
@@ -98,6 +99,7 @@ def match_result_to_file_metadata(
         poster_path = match_result.poster_path
         overview = match_result.overview
         vote_average = match_result.vote_average
+        match_confidence = match_result.confidence_score
 
     return FileMetadata(
         title=title,
@@ -112,6 +114,7 @@ def match_result_to_file_metadata(
         vote_average=vote_average,
         tmdb_id=tmdb_id,
         media_type=media_type,
+        match_confidence=match_confidence,
     )
 
 
@@ -185,8 +188,8 @@ def _coerce_int(value: object, fallback: int | None) -> int | None:
 
 __all__ = [
     "MatchOptions",
-    "MatchResultBundle",
     "MatchQuery",
+    "MatchResultBundle",
     "match_result_to_file_metadata",
     "normalize_parsing_result",
     "parsing_result_to_dict",

@@ -224,7 +224,7 @@ class TitleVectorizer:
             msg = "Vectorizer must be fitted before getting feature names. Call fit() first."
             raise ValueError(msg)
 
-        return cast(list[str], self.vectorizer.get_feature_names_out().tolist())
+        return cast("list[str]", self.vectorizer.get_feature_names_out().tolist())
 
     def get_vocabulary_size(self) -> int:
         """Get the size of the learned vocabulary.

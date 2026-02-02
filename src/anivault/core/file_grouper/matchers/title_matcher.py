@@ -462,7 +462,7 @@ class TitleSimilarityMatcher:
 
         return result
 
-    def refine_group(self, group: Group) -> Group | None:
+    def refine_group(self, group: Group) -> list[Group] | None:
         """Refine a group by subdividing it based on title similarity.
 
         This method takes an existing group (typically from Hash matcher) and
@@ -481,20 +481,20 @@ class TitleSimilarityMatcher:
             group: Group object containing files to refine.
 
         Returns:
-            Refined Group object if subdivision occurred (first subgroup),
+            List of refined Group objects if subdivision occurred (all subgroups),
             or None if no refinement was needed.
 
         Note:
             This method is designed to work with the Hash-first pipeline where
             Hash matcher creates initial groups, and Title matcher refines them.
-            If multiple subgroups are created, only the first one is returned.
-            The grouping engine handles multiple subgroups via the match() fallback.
+            When multiple subgroups are created, returns all of them to preserve
+            all files (previously only the first subgroup was returned, dropping others).
 
         Example:
             >>> hash_group = Group(title="Anime", files=[file1, file2, file3])
             >>> refined = matcher.refine_group(hash_group)
             >>> if refined:
-            ...     len(refined.files)  # May be smaller than original
+            ...     sum(len(g.files) for g in refined)  # All files preserved
         """
         if not group.files:
             return None
@@ -534,6 +534,7 @@ class TitleSimilarityMatcher:
 
         # Use optimized match() method to subdivide the group
         # This reuses existing logic but benefits from smaller search space
+        # Note: match() drops files without extractable title - we must preserve them
         subgroups = self.match(group.files)
 
         # If no subgroups created or only one subgroup, return None
@@ -541,16 +542,25 @@ class TitleSimilarityMatcher:
         if not subgroups or len(subgroups) == 1:
             return None
 
-        # If multiple subgroups created, return the first one
-        # Note: The grouping engine's fallback logic will handle
-        # multiple subgroups if needed via the match() method
+        # Preserve files that match() dropped (no extractable title)
+        files_in_subgroups = {f.file_path for g in subgroups for f in g.files}
+        orphaned = [f for f in group.files if f.file_path not in files_in_subgroups]
+        if orphaned:
+            subgroups[0].files.extend(orphaned)
+            logger.debug(
+                "Refined group '%s': preserved %d file(s) without extractable title",
+                group.title,
+                len(orphaned),
+            )
+
+        # Return all subgroups to preserve all files (fix: was returning only first)
         logger.debug(
-            "Refined group '%s' (%d files) into %d subgroup(s), returning first",
+            "Refined group '%s' (%d files) into %d subgroup(s)",
             group.title,
             len(group.files),
             len(subgroups),
         )
-        return subgroups[0]
+        return subgroups
 
 
 # Security: Maximum title length to prevent ReDoS attacks

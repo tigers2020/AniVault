@@ -7,6 +7,11 @@ consistency and maintainability across the codebase.
 
 The constants are organized in a hierarchical structure with parent-child relationships
 to eliminate duplication and provide a single source of truth.
+
+Recommended imports (domain-specific, reduces load):
+    from anivault.shared.constants.matching import MatchingAlgorithm, ConfidenceThresholds
+    from anivault.shared.constants.cli import CLIDefaults, OrganizeOptions
+    from anivault.shared.constants.file_formats import VideoFormats, SubtitleFormats
 """
 
 # Import all constant classes for direct access
@@ -15,13 +20,11 @@ from .api_fields import APIFields
 from .cache import (
     APICacheConfig,
     BaseCacheConfig,
-)
-from .cache import CacheValidationConstants as CacheValidation
-from .cache import (
     CLICacheConfig,
     CoreCacheConfig,
     MatchingCacheConfig,
 )
+from .cache import CacheValidationConstants as CacheValidation
 from .cli import (
     BatchConfig,
     CLICommands,
@@ -33,14 +36,12 @@ from .cli import (
     ConfidenceConfig,
     DateFormats,
     LogCommands,
-)
-from .cli import LogConfig as CLILogConfig
-from .cli import (
     LogJsonKeys,
     QueueConfig,
     RunDefaults,
     WorkerConfig,
 )
+from .cli import LogConfig as CLILogConfig
 from .core import BusinessRules, NormalizationConfig, ProcessingConfig
 from .error_keys import ErrorCategoryValues, ErrorContextKeys, StatusValues
 from .file_formats import (
@@ -63,9 +64,8 @@ from .gui_messages import (
     UIConfig,
 )
 from .http_codes import ContentTypes, HTTPHeaders, HTTPStatusCodes
-from .logging import ErrorLogging
+from .logging import ErrorLogging, LogLevels, LogMessages, LogPaths, PerformanceLogging
 from .logging import LogConfig as LoggingConfig
-from .logging import LogLevels, LogMessages, LogPaths, PerformanceLogging
 from .logging_keys import LogContextKeys, LogFieldNames, LogOperationNames
 from .matching import (
     ConfidenceThresholds,

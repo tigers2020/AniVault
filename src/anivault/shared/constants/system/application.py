@@ -61,9 +61,12 @@ class FolderDefaults:
     # Default media type for organization
     DEFAULT_MEDIA_TYPE = MediaType.TV
 
-    # Default organization flags
+    # Default organization flags (deprecated - use ORGANIZE_PATH_TEMPLATE)
     ORGANIZE_BY_RESOLUTION = False
     ORGANIZE_BY_YEAR = False
+
+    # Path template: {해상도}, {연도}, {제목}, {시즌}
+    ORGANIZE_PATH_TEMPLATE = "{제목}/{시즌}"
 
     # Default folder structure template
     DEFAULT_STRUCTURE = "season_##/korean_title/original_filename"

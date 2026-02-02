@@ -601,16 +601,20 @@ class GroupingEngine:
             try:
                 if has_refine_group:
                     # Use refine_group if available (preferred)
-                    refined_group = title_matcher.refine_group(hash_group)  # type: ignore[attr-defined]
-                    if refined_group:
-                        # Merge evidence from Hash and Title matchers
-                        refined_group.evidence = self._merge_pipeline_evidence(
-                            hash_group.evidence,
-                            refined_group.evidence,
-                            hash_weight,
-                            title_weight,
+                    refined_result = title_matcher.refine_group(hash_group)  # type: ignore[attr-defined]
+                    if refined_result:
+                        # refined_result can be Group or list[Group] (when multiple subgroups)
+                        groups_to_add: list[Group] = (
+                            refined_result if isinstance(refined_result, list) else [refined_result]
                         )
-                        refined_groups.append(refined_group)
+                        for refined_group in groups_to_add:
+                            refined_group.evidence = self._merge_pipeline_evidence(
+                                hash_group.evidence,
+                                refined_group.evidence,
+                                hash_weight,
+                                title_weight,
+                            )
+                            refined_groups.append(refined_group)
                     else:
                         # Fallback to Hash group if refinement returns None
                         # Update evidence to indicate pipeline was attempted

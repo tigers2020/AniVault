@@ -19,49 +19,26 @@ from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.config import Settings
-from anivault.core.file_grouper import FileGrouper
 from anivault.core.log_manager import OperationLogManager
-from anivault.core.models import FileOperation, OperationType, ScannedFile
+from anivault.core.models import FileOperation, ScannedFile
 from anivault.core.organizer.executor import OperationResult
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
-from anivault.core.organizer import FileOrganizer
+from anivault.core.organizer.organize_service import (
+    execute_organization_plan as core_execute_plan,
+)
+from anivault.core.organizer.organize_service import (
+    generate_enhanced_organization_plan as core_generate_enhanced_plan,
+)
+from anivault.core.organizer.organize_service import (
+    generate_organization_plan as core_generate_plan,
+)
+from anivault.core.parser.models import ParsingResult
 from anivault.core.pipeline import run_pipeline
-from anivault.core.resolution_detector import ResolutionDetector
-from anivault.core.subtitle_matcher import SubtitleMatcher
-from anivault.services.tmdb import TMDBClient
-from anivault.shared.constants import Language, QueueConfig, WorkerConfig
+from anivault.shared.constants import QueueConfig, WorkerConfig
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
-from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import OrganizeOptions
+from anivault.shared.utils.metadata_converter import MetadataConverter
 
 logger = logging.getLogger(__name__)
-
-
-def _file_metadata_to_parsing_result(metadata: FileMetadata) -> ParsingResult:
-    """Convert FileMetadata to ParsingResult for organizing.
-
-    Args:
-        metadata: FileMetadata instance to convert
-
-    Returns:
-        ParsingResult instance for organizing
-    """
-    additional_info = ParsingAdditionalInfo()
-    title = metadata.title or metadata.file_path.stem
-    return ParsingResult(
-        title=title,
-        episode=metadata.episode,
-        season=metadata.season,
-        year=metadata.year,
-        quality=None,
-        source=None,
-        codec=None,
-        audio=None,
-        release_group=None,
-        confidence=1.0,
-        parser_used="file_metadata_converter",
-        additional_info=additional_info,
-    )
 
 
 def get_scanned_files(options: OrganizeOptions, directory: Path, console: Console) -> list[ScannedFile]:
@@ -98,7 +75,7 @@ def get_scanned_files(options: OrganizeOptions, directory: Path, console: Consol
 
     scanned_files: list[ScannedFile] = []
     for metadata in file_results:
-        parsing_result = _file_metadata_to_parsing_result(metadata)
+        parsing_result = MetadataConverter.file_metadata_to_parsing_result(metadata)
         scanned_file = ScannedFile(
             file_path=metadata.file_path,
             metadata=parsing_result,
@@ -130,46 +107,11 @@ def generate_organization_plan(
     Returns:
         Organization plan
     """
-    log_manager = OperationLogManager(Path.cwd())
-    organizer = FileOrganizer(log_manager=log_manager, settings=settings)
-    return organizer.generate_plan(scanned_files)
-
-
-def _generate_destination_paths(destination_base: str, korean_title: str, season: int) -> tuple[Path, Path]:
-    """Generate high and low resolution destination paths.
-
-    Args:
-        destination_base: Base destination directory
-        korean_title: Korean title
-        season: Season number
-
-    Returns:
-        Tuple of (high_res_path, low_res_path)
-    """
-    season_str = f"Season {season:02d}"
-    high_res_path = Path(destination_base) / korean_title / season_str
-    low_res_path = Path(destination_base) / "low_res" / korean_title / season_str
-    return high_res_path, low_res_path
-
-
-def _create_move_operation(source: Path, destination: Path) -> FileOperation:
-    """Create a move operation.
-
-    Args:
-        source: Source file path
-        destination: Destination file path
-    Returns:
-        Move operation instance
-    """
-    return FileOperation(
-        operation_type=OperationType.MOVE,
-        source_path=source,
-        destination_path=destination,
-    )
+    return core_generate_plan(scanned_files, settings=settings)
 
 
 @handle_cli_errors(operation="generate_enhanced_organization_plan", command_name="organize")
-def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
+def generate_enhanced_organization_plan(
     scanned_files: list[ScannedFile],
     options: OrganizeOptions,
 ) -> list[FileOperation]:
@@ -182,58 +124,8 @@ def generate_enhanced_organization_plan(  # pylint: disable=too-many-locals
     Returns:
         Enhanced organization plan
     """
-    grouper = FileGrouper(similarity_threshold=0.7)
-    resolution_detector = ResolutionDetector()
-    # pylint: disable-next=unused-variable
-    subtitle_matcher = SubtitleMatcher()
-    tmdb_client = TMDBClient(language=Language.KOREAN)  # noqa: F841  # pylint: disable=unused-variable
-
-    file_groups = grouper.group_files(scanned_files)
-    operations: list[FileOperation] = []
-
-    for group in file_groups:
-        best_file = resolution_detector.find_highest_resolution(group.files)
-        if not best_file:
-            continue
-
-        korean_title = group.title
-        subtitles = subtitle_matcher.find_matching_subtitles(
-            best_file,
-            best_file.file_path.parent,
-        )
-
-        destination_base = options.destination if options.destination else "Anime"
-        season = best_file.metadata.season or 1
-        high_res_path, low_res_path = _generate_destination_paths(destination_base, korean_title, season)
-
-        # Add best file operation
-        operations.append(
-            _create_move_operation(
-                best_file.file_path,
-                high_res_path / best_file.file_path.name,
-            )
-        )
-
-        # Add subtitle operations
-        for subtitle in subtitles:
-            operations.append(
-                _create_move_operation(
-                    subtitle,
-                    high_res_path / subtitle.name,
-                )
-            )
-
-        # Add low resolution file operations
-        for file in group.files:
-            if file != best_file:
-                operations.append(
-                    _create_move_operation(
-                        file.file_path,
-                        low_res_path / file.file_path.name,
-                    )
-                )
-
-    return operations
+    destination = options.destination if options.destination else "Anime"
+    return core_generate_enhanced_plan(scanned_files, destination=destination)
 
 
 def execute_organization_plan(
@@ -315,23 +207,18 @@ def perform_organization(
     """
     console = Console()  # pylint: disable=redefined-outer-name,reimported
     log_manager = OperationLogManager(Path.cwd())
-    organizer = FileOrganizer(log_manager=log_manager, settings=settings)
-
     operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    source_directory = options.directory.path if hasattr(options.directory, "path") else Path(str(options.directory))
 
     progress_manager = create_progress_manager(disabled=options.json_output)
 
     with progress_manager.spinner("Organizing files..."):
-        moved_files = organizer.execute_plan(plan)
-
-    successful_sources = [Path(result.source_path) for result in moved_files if result.success]
-    # Get source directory from options
-    source_directory = options.directory.path if hasattr(options.directory, "path") else Path(str(options.directory))
-    if successful_sources:
-        try:
-            organizer.cleanup_empty_dirs_for_paths(successful_sources, source_root=source_directory)
-        except OSError as exc:
-            logger.warning("Failed to cleanup empty directories: %s", exc)
+        moved_files = core_execute_plan(
+            plan,
+            source_directory,
+            settings=settings,
+        )
 
     # Print individual file results if not JSON output
     if not options.json_output and moved_files:
@@ -340,7 +227,7 @@ def perform_organization(
             if result.success:
                 console.print(f"[green]✅[/green] {Path(result.source_path).name}")
             else:
-                console.print(f"[red]❌[/red] {Path(result.source_path).name}: " f"{result.message or 'Failed'}")
+                console.print(f"[red]❌[/red] {Path(result.source_path).name}: {result.message or 'Failed'}")
         console.print()
 
     if options.json_output:

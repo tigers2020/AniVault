@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPropertyAnimation, Property
+from PySide6.QtCore import Property, QPropertyAnimation, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
 
 class DetailPanel(QWidget):
     """Sliding detail panel widget."""
+
+    match_clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize detail panel widget."""
@@ -110,6 +112,7 @@ class DetailPanel(QWidget):
 
         match_btn = QPushButton("TMDB 매칭")
         match_btn.setObjectName("btnActionMatch")
+        match_btn.clicked.connect(self.match_clicked.emit)
         actions_layout.addWidget(match_btn)
 
         organize_btn = QPushButton("파일 정리")

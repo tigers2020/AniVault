@@ -39,13 +39,17 @@ class FolderSettings(BaseModel):
         default="season_##/korean_title/original_filename",
         description="Directory structure template for organization",
     )
+    organize_path_template: str = Field(
+        default="{제목}/{시즌}",
+        description="Path template for organization. Placeholders: {해상도}, {연도}, {제목}, {시즌}",
+    )
     organize_by_resolution: bool = Field(
         default=False,
-        description="Organize files by resolution (e.g., 1080p, 720p)",
+        description="(Deprecated) Use organize_path_template with {해상도} instead",
     )
     organize_by_year: bool = Field(
         default=False,
-        description="Organize files by release year (e.g., 2013, 2020)",
+        description="(Deprecated) Use organize_path_template with {연도} instead",
     )
     auto_scan_on_startup: bool = Field(
         default=False,

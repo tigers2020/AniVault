@@ -255,15 +255,16 @@ QLabel#progressValue {
     font-weight: 600;
 }
 
-QWidget#progressBar {
+QProgressBar#groupConfidenceBar {
     height: 6px;
     background-color: #e2e8f0;
+    border: none;
     border-radius: 3px;
+    text-align: center;
 }
 
-QWidget#progressFill {
+QProgressBar#groupConfidenceBar::chunk {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #667eea, stop:1 #764ba2);
-    height: 6px;
     border-radius: 3px;
 }
 

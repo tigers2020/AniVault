@@ -22,22 +22,22 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from anivault.shared.models.parser import ParsingAdditionalInfo, ParsingResult
     from anivault.shared.models.metadata import FileMetadata
+    from anivault.shared.models.parser import ParsingAdditionalInfo, ParsingResult
     from anivault.shared.types.metadata_types import (
         FileMetadataDict,
         ParsingResultDict,
     )
 
-from anivault.shared.utils.dataclass_serialization import from_dict as dataclass_from_dict
+from anivault.shared.models.metadata import FileMetadata, TMDBMatchResult
 
 # Type imports at runtime to avoid circular dependencies
 from anivault.shared.models.parser import ParsingAdditionalInfo, ParsingResult
-from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.metadata_types import (
     FileMetadataDict,
     ParsingResultDict,
 )
+from anivault.shared.utils.dataclass_serialization import from_dict as dataclass_from_dict
 
 
 class MetadataConverter:
@@ -164,6 +164,60 @@ class MetadataConverter:
             vote_average=vote_average,
             tmdb_id=tmdb_id,
             media_type=media_type,
+        )
+
+    @staticmethod
+    def file_metadata_to_parsing_result(metadata: FileMetadata) -> ParsingResult:
+        """Convert FileMetadata to ParsingResult for organizing.
+
+        Preserves TMDB match result in additional_info.match_result when metadata
+        has tmdb_id, enabling year extraction in path building.
+
+        Args:
+            metadata: FileMetadata instance to convert
+
+        Returns:
+            ParsingResult instance for organize pipeline
+
+        Example:
+            >>> metadata = FileMetadata(
+            ...     title="Attack on Titan",
+            ...     file_path=Path("/anime/aot.mkv"),
+            ...     file_type="mkv",
+            ...     tmdb_id=1429,
+            ...     year=2013,
+            ... )
+            >>> result = MetadataConverter.file_metadata_to_parsing_result(metadata)
+            >>> result.additional_info.match_result is not None
+            True
+        """
+        match_result: TMDBMatchResult | None = None
+        if metadata.tmdb_id is not None:
+            match_result = TMDBMatchResult(
+                id=metadata.tmdb_id,
+                title=metadata.title,
+                media_type=metadata.media_type or "tv",
+                year=metadata.year,
+                genres=metadata.genres or [],
+                overview=metadata.overview,
+                vote_average=metadata.vote_average,
+                poster_path=metadata.poster_path,
+            )
+        additional_info = ParsingAdditionalInfo(match_result=match_result)
+        title = metadata.title or (metadata.file_path.stem if metadata.file_path else "")
+        return ParsingResult(
+            title=title,
+            episode=metadata.episode,
+            season=metadata.season,
+            year=metadata.year,
+            quality=None,
+            source=None,
+            codec=None,
+            audio=None,
+            release_group=None,
+            confidence=1.0,
+            parser_used="metadata_converter",
+            additional_info=additional_info,
         )
 
     @staticmethod

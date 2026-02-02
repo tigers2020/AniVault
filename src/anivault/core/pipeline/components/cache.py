@@ -76,55 +76,12 @@ class CacheV1:
             ttl_seconds: Time-to-live in seconds for the cache entry.
         """
         try:
-            # #region agent log
-            import json
-
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "C",
-                            "location": "cache.py:79",
-                            "message": "CacheV1.set_cache entry",
-                            "data": {
-                                "key": key[:64] if len(key) > 64 else key,
-                                "key_length": len(key),
-                                "data_keys": list(data.keys())[:5] if data else [],
-                                "ttl_seconds": ttl_seconds,
-                            },
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
-
             self._sqlite_cache.set_cache(
                 key=key,
                 data=data,
                 cache_type=Cache.TYPE_PARSER,
                 ttl_seconds=ttl_seconds,
             )
-
-            # #region agent log
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "C",
-                            "location": "cache.py:93",
-                            "message": "CacheV1.set_cache success",
-                            "data": {"key": key[:64] if len(key) > 64 else key},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
         except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning(
                 "Failed to store cache entry for key %s: %s",
@@ -143,46 +100,7 @@ class CacheV1:
             The cached data if found and not expired, None otherwise.
         """
         try:
-            # #region agent log
-            import json
-
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "B",
-                            "location": "cache.py:103",
-                            "message": "CacheV1.get entry",
-                            "data": {"key": key[:64] if len(key) > 64 else key, "key_length": len(key), "cache_type": Cache.TYPE_PARSER},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
-
             result = self._sqlite_cache.get(key, cache_type=Cache.TYPE_PARSER)
-
-            # #region agent log
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "B",
-                            "location": "cache.py:110",
-                            "message": "CacheV1.get exit",
-                            "data": {"result_type": type(result).__name__, "result_is_none": result is None, "has_result": result is not None},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
-
             return result
         except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning(

@@ -40,6 +40,7 @@ class FileMetadata:
     vote_average: float | None = None
     tmdb_id: int | None = None
     media_type: str | None = None
+    match_confidence: float | None = None  # 0.0-1.0 from matching engine
 
     def __post_init__(self) -> None:
         """Validate fields after initialization."""
@@ -62,6 +63,11 @@ class FileMetadata:
         if self.vote_average is not None:
             if not MIN_VOTE_AVERAGE <= self.vote_average <= MAX_VOTE_AVERAGE:
                 raise ValueError(VOTE_AVERAGE_RANGE_ERROR_TEMPLATE.format(vote_average=self.vote_average))
+
+        if self.match_confidence is not None:
+            if not 0.0 <= self.match_confidence <= 1.0:
+                msg = f"match_confidence must be between 0.0 and 1.0, got {self.match_confidence}"
+                raise ValueError(msg)
 
     @property
     def display_name(self) -> str:

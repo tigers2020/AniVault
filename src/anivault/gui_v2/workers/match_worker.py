@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import defaultdict
 from dataclasses import replace
 
 from anivault.core.matching.engine import MatchingEngine
@@ -14,6 +15,12 @@ from anivault.gui_v2.workers.base_worker import BaseWorker
 from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
+
+
+def _title_year_key(fm: FileMetadata) -> tuple[str, int | None]:
+    """Key for deduplicating TMDB searches: (title, year)."""
+    title = (fm.title or "").strip() or fm.file_path.stem
+    return (title, fm.year)
 
 
 class MatchWorker(BaseWorker):
@@ -45,26 +52,63 @@ class MatchWorker(BaseWorker):
             )
 
     async def _match_files(self) -> list[FileMetadata]:
-        """Match files asynchronously."""
-        total = len(self._files)
-        results: list[FileMetadata] = []
+        """Match files asynchronously. Groups by (title, year) to reduce TMDB API calls."""
+        # Group files by (title, year) - same series = one TMDB search
+        groups: dict[tuple[str, int | None], list[FileMetadata]] = defaultdict(list)
+        for fm in self._files:
+            groups[_title_year_key(fm)].append(fm)
 
-        for index, file_item in enumerate(self._files, start=1):
+        unique_count = len(groups)
+        total = len(self._files)
+        logger.info(
+            "MatchWorker: %d unique titles from %d files (%.0f%% API reduction)",
+            unique_count,
+            total,
+            100 * (1 - unique_count / total) if total else 0,
+        )
+
+        # Match each unique (title, year) once
+        key_to_bundle: dict = {}
+        for idx, (key, group_files) in enumerate(groups.items(), start=1):
             if self.is_cancelled():
                 break
 
             self.progress.emit(
                 OperationProgress(
-                    current=index - 1,
-                    total=total,
+                    current=idx - 1,
+                    total=unique_count,
                     stage="matching",
-                    message=f"매칭 중... {index - 1}/{total}",
+                    message=f"매칭 중... {idx}/{unique_count} (고유 제목)",
                 )
             )
 
-            metadata = await self._match_single_file(file_item)
-            if metadata:
-                results.append(metadata)
+            representative = group_files[0]
+            bundle = await process_file_for_matching(
+                representative.file_path,
+                engine=self._matching_engine,
+                parser=self._parser,
+                options=MatchOptions(),
+            )
+            key_to_bundle[key] = bundle
+
+        # Build results in original file order
+        results: list[FileMetadata] = []
+        for fm in self._files:
+            key = _title_year_key(fm)
+            bundle = key_to_bundle.get(key)
+            if bundle and bundle.metadata:
+                meta = replace(
+                    bundle.metadata,
+                    file_path=fm.file_path,
+                    file_type=fm.file_type,
+                    episode=fm.episode,
+                    season=fm.season,
+                    year=fm.year or bundle.metadata.year,
+                    genres=fm.genres,
+                )
+                results.append(meta)
+            else:
+                results.append(fm)
 
         self.progress.emit(
             OperationProgress(
@@ -75,21 +119,3 @@ class MatchWorker(BaseWorker):
             )
         )
         return results
-
-    async def _match_single_file(self, file_item: FileMetadata) -> FileMetadata | None:
-        """Match a single file."""
-        bundle = await process_file_for_matching(
-            file_item.file_path,
-            engine=self._matching_engine,
-            parser=self._parser,
-            options=MatchOptions(),
-        )
-        if not bundle.metadata:
-            return None
-
-        return replace(
-            bundle.metadata,
-            file_path=file_item.file_path,
-            file_type=file_item.file_type,
-            genres=file_item.genres,
-        )

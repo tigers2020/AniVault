@@ -10,7 +10,6 @@ import sys
 import traceback
 from pathlib import Path
 
-
 # Debug mode: Set to True to enable debug output (useful for troubleshooting)
 DEBUG = False
 
@@ -58,15 +57,6 @@ def _run_gui_v2() -> int:
     return main()
 
 
-def _run_gui_v1() -> int:
-    """Run GUI v1 entry point."""
-    _debug_print("[DEBUG] Attempting to import gui_v1...")
-    from anivault.gui.app import main
-
-    _debug_print("[DEBUG] gui_v1 imported successfully, starting main()...")
-    return main()
-
-
 def _run_cli() -> None:
     """Run CLI fallback entry point."""
     _debug_print("[DEBUG] Attempting to import CLI...")
@@ -99,15 +89,6 @@ def main() -> int:
         except ImportError as e:
             # Always show errors, even in production
             print(f"\n[ERROR] GUI v2 import failed: {e}", file=sys.stderr)
-            if DEBUG:
-                traceback.print_exc()
-
-        # Fallback to GUI v1
-        _debug_print("\n[DEBUG] Falling back to GUI v1...")
-        try:
-            return _run_gui_v1()
-        except ImportError as e:
-            print(f"\n[ERROR] GUI v1 import failed: {e}", file=sys.stderr)
             if DEBUG:
                 traceback.print_exc()
 

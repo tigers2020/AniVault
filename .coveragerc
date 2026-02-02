@@ -4,8 +4,8 @@ omit =
     */tests/*
     */test_*.py
     src/anivault/gui/*
-    src/anivault/widgets/*
-    src/anivault/controllers/*
+    src/anivault/gui_v2/widgets/*
+    src/anivault/gui_v2/controllers/*
     src/anivault/core/benchmark.py
     src/anivault/core/profiler.py
     src/anivault/core/pipeline/parallel_scanner.py

@@ -400,14 +400,17 @@ class FileGrouper:
     def group_files(
         self,
         scanned_files: list[ScannedFile],
+        resolve_duplicates: bool = False,
     ) -> list[Group]:
         """Group scanned files by similarity (Facade delegation).
 
         This method delegates the actual grouping work to the GroupingEngine,
-        then applies duplicate resolution and group name normalization.
+        optionally resolves duplicates, and normalizes group names.
 
         Args:
             scanned_files: List of scanned files to group
+            resolve_duplicates: If True, resolve duplicate episodes (keep best per episode).
+                              If False, keep all files (for display/browsing). Default False.
 
         Returns:
             List of Group objects with similar files grouped together
@@ -433,8 +436,9 @@ class FileGrouper:
             # Step 1: Delegate to GroupingEngine (strategy pattern)
             groups = self._run_grouping_engine(scanned_files)
 
-            # Step 2: Resolve duplicates within each group
-            groups = self._resolve_duplicates_in_groups(groups)
+            # Step 2: Resolve duplicates within each group (optional, for organize use case)
+            if resolve_duplicates:
+                groups = self._resolve_duplicates_in_groups(groups)
 
             # Step 3: Normalize group names (merge similar names)
             final_groups = self._normalize_and_reconstruct_groups(groups)
@@ -464,23 +468,33 @@ class FileGrouper:
         return self.engine.group_files(scanned_files)
 
     def _resolve_duplicates_in_groups(self, groups: list[Group]) -> list[Group]:
-        """Resolve duplicates within each group.
+        """Resolve duplicates within each group, per episode.
 
-        Args:
-            groups: List of groups to process
-
-        Returns:
-            List of groups with duplicates resolved
+        Only resolves files with the same episode number (e.g., 720p vs 1080p of ep1).
+        Keeps one file per episode; files without episode info are preserved.
         """
         logger.debug("Resolving duplicates in %d group(s)", len(groups))
         for group in groups:
-            if group.has_duplicates():
-                best_file = self.resolver.resolve_duplicates(group.files)
-                group.files = [best_file]
-                logger.debug(
-                    "Group '%s': resolved duplicates to 1 file",
-                    group.title,
-                )
+            if not group.has_duplicates():
+                continue
+            # Group by episode: resolve only within same-episode files (episode is int)
+            # Keep all files with episode=None (unparseable) - they may be different episodes
+            by_episode: dict[int | None, list[ScannedFile]] = {}
+            for f in group.files:
+                ep = getattr(f.metadata, "episode", None) if hasattr(f, "metadata") and f.metadata else None
+                by_episode.setdefault(ep, []).append(f)
+            resolved: list[ScannedFile] = []
+            for ep, files_for_ep in by_episode.items():
+                if ep is None or len(files_for_ep) == 1:
+                    resolved.extend(files_for_ep)
+                else:
+                    resolved.append(self.resolver.resolve_duplicates(files_for_ep))
+            group.files = resolved
+            logger.debug(
+                "Group '%s': resolved duplicates to %d file(s) (one per episode)",
+                group.title,
+                len(resolved),
+            )
         return groups
 
     def _normalize_and_reconstruct_groups(self, groups: list[Group]) -> list[Group]:

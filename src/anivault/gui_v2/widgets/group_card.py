@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class GroupCard(QPushButton):
@@ -96,19 +104,12 @@ class GroupCard(QPushButton):
 
         progress_layout.addLayout(progress_label_layout)
 
-        self.progress_bar = QWidget()
-        self.progress_bar.setObjectName("progressBar")
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("groupConfidenceBar")
         self.progress_bar.setFixedHeight(6)
-
-        self.progress_fill = QWidget()
-        self.progress_fill.setObjectName("progressFill")
-        self.progress_fill.setFixedHeight(6)
-
-        progress_bar_layout = QHBoxLayout(self.progress_bar)
-        progress_bar_layout.setContentsMargins(0, 0, 0, 0)
-        progress_bar_layout.setSpacing(0)
-        progress_bar_layout.addWidget(self.progress_fill)
-        progress_bar_layout.addStretch()
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setTextVisible(False)
 
         progress_layout.addWidget(self.progress_bar)
 
@@ -186,11 +187,7 @@ class GroupCard(QPushButton):
 
             confidence = group_data.get("confidence", 0)
             self.progress_value.setText(f"{confidence}%")
-
-            # Update progress fill width
-            # Use fixed pixel width based on progress bar width
-            # Note: Will be updated when widget is resized/shown
-            self.progress_fill.setStyleSheet(f"min-width: {confidence}%; max-width: {confidence}%;")
+            self.progress_bar.setValue(confidence)
         else:
             match_badge = QLabel("미매칭")
             match_badge.setObjectName("infoBadge")

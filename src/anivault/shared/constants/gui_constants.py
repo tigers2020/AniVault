@@ -34,8 +34,8 @@ class LabelConstants:
     TARGET_FOLDER_PLACEHOLDER = "Select target folder for organized files"
 
     # Organization options
-    ORGANIZE_BY_RESOLUTION = "Organize by resolution (1080p, 720p, etc.)"
-    ORGANIZE_BY_YEAR = "Organize by release year (2013, 2020, etc.)"
+    ORGANIZE_PATH_TEMPLATE_LABEL = "정리 경로 템플릿"
+    ORGANIZE_PATH_TEMPLATE_PLACEHOLDER = "{해상도}/{연도}/{제목}/{시즌}"
 
     # Auto scan settings
     AUTO_SCAN_TITLE = "Auto Scan Settings"
@@ -70,8 +70,7 @@ class SettingKeys:
     SAVE_FOLDER_SETTINGS = "save_folder_settings"
     SOURCE_FOLDER = "source_folder"
     DESTINATION_FOLDER = "destination_folder"
-    ORGANIZE_BY_RESOLUTION = "organize_by_resolution"
-    ORGANIZE_BY_YEAR = "organize_by_year"
+    ORGANIZE_PATH_TEMPLATE = "organize_path_template"
 
 
 class AutoScanConstants:
