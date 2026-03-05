@@ -1,11 +1,14 @@
 """Pipeline components package.
 
 This package contains the core pipeline components:
-- DirectoryScanner: Scans directories for files
+- DirectoryScanner: Scans directories for files (uses scan_filters for filtering)
 - ParserWorkerPool: Processes files with worker threads
 - ResultCollector: Collects and stores processing results
 - CacheV1: Caching system for processed results
 - DirectoryCache: Cache for directory scanning
+
+Internal modules (Collector pattern):
+- scan_filters: Filter predicates for DirectoryScanner (extension, dir/file skip)
 """
 
 from __future__ import annotations

@@ -12,7 +12,7 @@ import math
 
 from anivault.config import load_settings
 from anivault.config.models.grouping_settings import GroupingSettings
-from anivault.config.models.matching_weights import MatchingWeights
+from anivault.core.file_grouper.grouping_weights import get_default_weights_from_config
 from anivault.core.file_grouper.matchers.base import BaseMatcher
 from anivault.core.file_grouper.models import Group, GroupingEvidence
 from anivault.core.models import ScannedFile
@@ -25,30 +25,6 @@ from anivault.shared.errors import (
 from .strategies import BestMatcherStrategy, GroupingStrategy
 
 logger = logging.getLogger(__name__)
-
-
-def _get_default_weights_from_config() -> dict[str, float]:
-    """Get default weights from MatchingWeights configuration.
-
-    Returns:
-        Dictionary mapping matcher component_name to weight.
-    """
-    try:
-        settings = load_settings()
-        weights = settings.matching_weights
-        return {
-            "title": weights.grouping_title_weight,
-            "hash": weights.grouping_hash_weight,
-            "season": weights.grouping_season_weight,
-        }
-    except (ImportError, AttributeError):
-        # Fallback to model defaults if config not available
-        default_weights = MatchingWeights()
-        return {
-            "title": default_weights.grouping_title_weight,
-            "hash": default_weights.grouping_hash_weight,
-            "season": default_weights.grouping_season_weight,
-        }
 
 
 class GroupingEngine:
@@ -114,7 +90,7 @@ class GroupingEngine:
 
         # Use default weights if not provided
         if weights is None:
-            weights = _get_default_weights_from_config()
+            weights = get_default_weights_from_config()
 
         # Validate weights
         self._validate_weights(weights)

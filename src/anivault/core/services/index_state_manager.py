@@ -6,17 +6,18 @@ modifications, and deletions to enable incremental index updates.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from anivault.core.subtitle_hash import calculate_file_hash
+
 logger = logging.getLogger(__name__)
 
-# Chunk size for streaming file hash calculation (64KB)
-HASH_CHUNK_SIZE = 65536
+# Re-export for backward compatibility (tests import from index_state_manager)
+__all__ = ["FileChanges", "FileState", "IndexStateManager", "calculate_file_hash"]
 
 
 @dataclass
@@ -71,35 +72,6 @@ class FileChanges:
     def is_empty(self) -> bool:
         """Check if there are no changes."""
         return self.total_changes() == 0
-
-
-def calculate_file_hash(file_path: Path) -> str:
-    """Calculate SHA256 hash of file content.
-
-    Args:
-        file_path: Path to the file
-
-    Returns:
-        SHA256 hash as hexadecimal string
-
-    Raises:
-        FileNotFoundError: If file doesn't exist
-        OSError: If file cannot be read
-    """
-    sha256_hash = hashlib.sha256()
-    try:
-        with file_path.open("rb") as f:
-            # Read file in chunks to handle large files efficiently
-            while chunk := f.read(HASH_CHUNK_SIZE):
-                sha256_hash.update(chunk)
-        return sha256_hash.hexdigest()
-    except FileNotFoundError:
-        logger.exception("File not found for hash calculation: %s", file_path)
-        raise
-    except OSError as e:
-        logger.exception("Error reading file for hash calculation: %s", file_path)
-        error_msg = f"Cannot read file for hash: {file_path}"
-        raise OSError(error_msg) from e
 
 
 class IndexStateManager:

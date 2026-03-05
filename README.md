@@ -128,15 +128,14 @@ anivault verify <directory>          # 정리 결과 검증
 ## 📚 상세 문서
 
 ### 시작하기
-- **[개발 가이드](docs/guides/getting-started.md)** - 환경 설정부터 첫 번째 커밋까지
-- **[TMDB API 설정](docs/api/tmdb-setup.md)** - TMDB API 키 발급 및 설정
-- **[전체 문서 목록](docs/README.md)** - 모든 문서 보기
+- **[개발 가이드](docs/development/DEVELOPMENT_GUIDE.md)** - 환경 설정부터 첫 번째 커밋까지
+- **[Pre-commit 설정](docs/guides/pre-commit-setup.md)** - 코드 품질 검사 훅 설치 및 사용
+- **[문서 인덱스](docs/protocols/README.md)** - 프로토콜 및 문서 목록
 
 ### 주요 문서
 - [아키텍처](docs/architecture/ARCHITECTURE_ANIVAULT.md) - 전체 시스템 구조
 - [개발 프로토콜](docs/protocols/DEVELOPMENT_PROTOCOL.md) - 개발 프로세스
-- [API 가이드](docs/api/README.md) - TMDB API 통합 가이드
-- [테스트 가이드](docs/testing/README.md) - 테스트 전략
+- [API 문서](docs/api/linked_hash_table_api.md) - LinkedHashTable API 등
 
 ## 🛠️ 개발
 
@@ -165,11 +164,12 @@ pre-commit autoupdate
 
 **포함된 검사 항목:**
 - ✅ Ruff (린터 & 포맷터)
-- ✅ Black (코드 포맷터)
 - ✅ MyPy (타입 검사)
 - ✅ Bandit (보안 검사)
 - ✅ Pytest (빠른 단위 테스트)
 - ✅ 순환 import 검사
+
+**검증 방법:** `pre-commit run --all-files` 실행 시 전체 검사 통과 여부 확인.
 
 자세한 내용은 [Pre-commit 설정 가이드](docs/guides/pre-commit-setup.md)를 참조하세요.
 

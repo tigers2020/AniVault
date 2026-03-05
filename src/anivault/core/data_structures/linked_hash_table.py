@@ -26,12 +26,14 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 K = TypeVar("K")
 V = TypeVar("V")
 
 
+@dataclass(slots=True)
 class HashNode(Generic[K, V]):
     """Hash table node with chaining and doubly linked list support.
 
@@ -39,33 +41,14 @@ class HashNode(Generic[K, V]):
     1. Chaining: next_in_bucket links nodes in the same hash bucket
     2. Order maintenance: prev_in_order and next_in_order maintain insertion order
 
-    Optimized for memory efficiency using __slots__.
+    Optimized for memory efficiency using __slots__ (via dataclass(slots=True)).
     """
 
-    __slots__ = ("key", "next_in_bucket", "next_in_order", "prev_in_order", "value")
-
-    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        self,
-        key: K,
-        value: V,
-        next_in_bucket: HashNode[K, V] | None = None,
-        prev_in_order: HashNode[K, V] | None = None,
-        next_in_order: HashNode[K, V] | None = None,
-    ):
-        """Initialize HashNode with optimized memory layout.
-
-        Args:
-            key: The key stored in this node
-            value: The value stored in this node
-            next_in_bucket: Next node in the hash bucket chain
-            prev_in_order: Previous node in insertion order
-            next_in_order: Next node in insertion order
-        """
-        self.key = key
-        self.value = value
-        self.next_in_bucket = next_in_bucket
-        self.prev_in_order = prev_in_order
-        self.next_in_order = next_in_order
+    key: K
+    value: V
+    next_in_bucket: HashNode[K, V] | None = None
+    prev_in_order: HashNode[K, V] | None = None
+    next_in_order: HashNode[K, V] | None = None
 
     def __repr__(self) -> str:
         """String representation of the node."""

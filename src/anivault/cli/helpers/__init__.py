@@ -33,7 +33,7 @@ from .organize import (
     print_execution_plan,
 )
 
-# Re-export scan helpers
+# Re-export scan helpers (scan.py re-exports from scan_formatters)
 from .scan import (
     collect_scan_data,
     display_scan_results,

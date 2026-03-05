@@ -16,6 +16,23 @@ from anivault.core.file_grouper.models import Group, GroupingEvidence
 logger = logging.getLogger(__name__)
 
 
+class _UnionFind:
+    """Union-Find for O(N*alpha(N)) connected component detection."""
+
+    def __init__(self, elements: list[str]) -> None:
+        self._parent: dict[str, str] = {e: e for e in elements}
+
+    def find(self, x: str) -> str:
+        if self._parent[x] != x:
+            self._parent[x] = self.find(self._parent[x])
+        return self._parent[x]
+
+    def union(self, x: str, y: str) -> None:
+        rx, ry = self.find(x), self.find(y)
+        if rx != ry:
+            self._parent[rx] = ry
+
+
 class GroupingStrategy(ABC):
     """Abstract base class for grouping strategies.
 
@@ -131,10 +148,9 @@ class WeightedMergeStrategy(GroupingStrategy):
         weights: dict[str, float],
         _file_groups: dict[str, dict[str, Group]],
     ) -> list[Group]:
-        """Merge groups that have overlapping files."""
-        # Create a mapping of files to all groups they belong to
+        """Merge groups that have overlapping files using Union-Find for O(N*alpha(N))."""
+        # Build file -> [(matcher_name, group), ...]
         file_to_groups: dict[str, list[tuple[str, Group]]] = {}
-
         for matcher_name, groups in matcher_results.items():
             for group in groups:
                 for file in group.files:
@@ -143,44 +159,51 @@ class WeightedMergeStrategy(GroupingStrategy):
                         file_to_groups[file_name] = []
                     file_to_groups[file_name].append((matcher_name, group))
 
-        # Group files by their overlapping groups
+        # Union-Find: connect files per (matcher_name, group) once per group (O(total entries) vs O(F^2))
+        all_files = list(file_to_groups.keys())
+        uf = _UnionFind(all_files)
+        seen_groups: set[tuple[str, int]] = set()
+        for matcher_name, groups in matcher_results.items():
+            for group in groups:
+                key = (matcher_name, id(group))
+                if key in seen_groups:
+                    continue
+                seen_groups.add(key)
+                names_in_index = [f.file_path.name for f in group.files if f.file_path.name in file_to_groups]
+                if len(names_in_index) < 2:
+                    continue
+                first = names_in_index[0]
+                for other in names_in_index[1:]:
+                    uf.union(first, other)
+
+        # Group files by component root and collect (matcher, group) per root in one pass
+        components: dict[str, set[str]] = {}
+        component_groups: dict[str, list[tuple[str, Group]]] = {}
+        seen_per_root: dict[str, set[tuple[str, int]]] = {}
+        for file_name in all_files:
+            root = uf.find(file_name)
+            components.setdefault(root, set()).add(file_name)
+            for m, g in file_to_groups[file_name]:
+                key = (m, id(g))
+                if key not in seen_per_root.setdefault(root, set()):
+                    seen_per_root[root].add(key)
+                    component_groups.setdefault(root, []).append((m, g))
+
+        # Build merged groups from each component (cluster_groups already built)
         merged_groups = []
-        processed_files = set()
-
-        for file_name, groups_info in file_to_groups.items():
-            if file_name in processed_files:
+        for root, cluster_files in components.items():
+            if not cluster_files:
                 continue
-
-            # Find all files that share groups with this file
-            cluster_files = {file_name}
-            cluster_groups = set(groups_info)
-
-            # Expand cluster by finding connected files
-            changed = True
-            while changed:
-                changed = False
-                for other_file, other_groups in file_to_groups.items():
-                    if other_file in processed_files:
-                        continue
-
-                    # Check if this file shares any groups with cluster
-                    if any((matcher_name, group) in cluster_groups for matcher_name, group in other_groups):
-                        cluster_files.add(other_file)
-                        cluster_groups.update(other_groups)
-                        changed = True
-
-            # Create merged group from cluster
-            if cluster_files:
-                merged_group = self._create_merged_group(cluster_files, cluster_groups, matcher_results, weights)
-                merged_groups.append(merged_group)
-                processed_files.update(cluster_files)
+            cluster_groups = component_groups.get(root, [])
+            merged_group = self._create_merged_group(cluster_files, cluster_groups, matcher_results, weights)
+            merged_groups.append(merged_group)
 
         return merged_groups
 
     def _create_merged_group(
         self,
         cluster_files: set[str],
-        cluster_groups: set[tuple[str, Group]],
+        cluster_groups: list[tuple[str, Group]],
         _matcher_results: dict[str, list[Group]],
         weights: dict[str, float],
     ) -> Group:
@@ -222,14 +245,14 @@ class WeightedMergeStrategy(GroupingStrategy):
         match_scores = {}
         contributing_matchers = []
 
+        # Build merged group's file set once (O(F) instead of per matcher/group)
+        group_files = {f.file_path.name for f in group.files}
+
         # Calculate contribution from each matcher
         for matcher_name, groups in matcher_results.items():
             weight = weights.get(matcher_name, 0.0)
             for matcher_group in groups:
-                # Check if this group contributed files to the merged group
-                group_files = {f.file_path.name for f in group.files}
                 matcher_files = {f.file_path.name for f in matcher_group.files}
-
                 if group_files.intersection(matcher_files):
                     match_scores[matcher_name] = weight
                     contributing_matchers.append(matcher_name)
@@ -244,7 +267,7 @@ class WeightedMergeStrategy(GroupingStrategy):
             explanation = f"Grouped by {contributing_matchers[0]} similarity ({confidence_pct}%)"
         else:
             matcher_list = ", ".join(contributing_matchers)
-            explanation = f"Grouped by multiple matchers ({matcher_list}) - " f"{confidence_pct}% confidence"
+            explanation = f"Grouped by multiple matchers ({matcher_list}) - {confidence_pct}% confidence"
 
         return self._create_evidence(
             match_scores=match_scores,
@@ -358,43 +381,37 @@ class ConsensusStrategy(GroupingStrategy):
         weights: dict[str, float],
     ) -> list[Group]:
         """Find groups that have consensus from multiple matchers."""
-        # Count how many matchers agree on each file grouping
+        # Count matchers per file_set and store (matcher_name, group) for O(1) reconstruction
         file_group_counts: dict[frozenset[str], list[str]] = {}
+        file_set_to_groups: dict[frozenset[str], list[tuple[str, Group]]] = {}
 
         for matcher_name, groups in matcher_results.items():
             for group in groups:
                 file_set = frozenset(f.file_path.name for f in group.files)
                 if file_set not in file_group_counts:
                     file_group_counts[file_set] = []
+                    file_set_to_groups[file_set] = []
                 file_group_counts[file_set].append(matcher_name)
+                file_set_to_groups[file_set].append((matcher_name, group))
 
-        # Find groups with sufficient consensus
+        # Find groups with sufficient consensus (no re-scan of matcher_results)
         consensus_groups = []
         for file_set, matchers in file_group_counts.items():
-            if len(matchers) >= self.min_consensus:
-                # Reconstruct group from file set
-                all_files = []
-                for matcher_name, groups in matcher_results.items():
-                    if matcher_name in matchers:
-                        for group in groups:
-                            group_file_set = frozenset(f.file_path.name for f in group.files)
-                            if group_file_set == file_set:
-                                all_files = group.files
-                                break
-                        break
-
-                if all_files:
-                    # Use title from highest-weighted matcher
-                    best_matcher = max(matchers, key=lambda m: weights.get(m, 0.0))
-                    best_title = None
-                    for group in matcher_results[best_matcher]:
-                        group_file_set = frozenset(f.file_path.name for f in group.files)
-                        if group_file_set == file_set:
-                            best_title = group.title
-                            break
-
-                    if best_title:
-                        consensus_groups.append(Group(title=best_title, files=all_files))
+            if len(matchers) < self.min_consensus:
+                continue
+            pairs = file_set_to_groups[file_set]
+            if not pairs:
+                continue
+            # all_files from first (matcher_name, group) that has this file_set
+            all_files = pairs[0][1].files
+            # best_title from highest-weighted matcher in this file_set
+            best_matcher = max(matchers, key=lambda m: weights.get(m, 0.0))
+            best_title = next(
+                (g.title for m, g in pairs if m == best_matcher),
+                None,
+            )
+            if best_title:
+                consensus_groups.append(Group(title=best_title, files=all_files))
 
         return consensus_groups
 
@@ -425,7 +442,7 @@ class ConsensusStrategy(GroupingStrategy):
         confidence = sum(match_scores.values()) * consensus_ratio
 
         confidence_pct = self._format_confidence_percentage(confidence)
-        explanation = f"Consensus from {len(contributing_matchers)} matcher(s) - " f"{confidence_pct}% confidence"
+        explanation = f"Consensus from {len(contributing_matchers)} matcher(s) - {confidence_pct}% confidence"
 
         return self._create_evidence(
             match_scores=match_scores,

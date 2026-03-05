@@ -75,6 +75,14 @@ class BoundedQueue:
         """
         return self._queue.qsize()
 
+    def size(self) -> int:
+        """Return the approximate size of the queue (alias for qsize).
+
+        Returns:
+            The approximate number of items in the queue.
+        """
+        return self._queue.qsize()
+
     def empty(self) -> bool:
         """Return True if the queue is empty.
 

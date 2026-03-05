@@ -322,10 +322,10 @@ pythonpath = ["src"]
 norecursedirs = ["scripts", "benchmarks", "examples", "build", "dist", "cache", "htmlcov", "logs", ".venv", ".mypy_cache", ".tox", ".eggs", ".git"]
 
 # Test execution options
+# For faster iteration (skip coverage): override with -o addopts="--tb=short -q"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--verbose",
     "--tb=short",
     "--durations=10",
     "--maxfail=5",
@@ -336,11 +336,11 @@ addopts = [
     "--ignore=tests/core/file_grouper/test_group_name_manager_benchmark.py",
     "--ignore=tests/unit/test_subtitle_matcher_benchmark.py",
     "--ignore=tests/unit/test_title_matcher_accuracy_benchmark.py",
-    "--cov=src",
+    "--cov=src/anivault",
     "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
+    "--cov-fail-under=90",
 ]
+# Optional: add --cov-report=html for browseable report, --cov-report=xml for CI
 
 # Async support (pytest-asyncio)
 asyncio_mode = "auto"
@@ -359,9 +359,6 @@ markers = [
 
 # Minimum version
 minversion = "6.0"
-
-# Test timeout (in seconds)
-timeout = 300
 
 # Warning filters
 filterwarnings = [

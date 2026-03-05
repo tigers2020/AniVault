@@ -62,6 +62,11 @@ class PathBuilder:
 
     # Characters not allowed in filenames on most filesystems
     INVALID_FILENAME_CHARS = '<>:"/\\|?*'
+    # Single-pass translation table for O(len) sanitization (built once at class load)
+    _INVALID_CHARS_TRANSLATION = str.maketrans(
+        INVALID_FILENAME_CHARS,
+        "_" * len(INVALID_FILENAME_CHARS),
+    )
 
     # Resolution detection patterns
     RESOLUTION_PATTERNS: ClassVar[list[str]] = [
@@ -400,13 +405,8 @@ class PathBuilder:
             >>> PathBuilder.sanitize_filename("My_Series_Name")
             "My Series Name"
         """
-        # Characters not allowed in filenames on most filesystems
-        invalid_chars = PathBuilder.INVALID_FILENAME_CHARS
-
-        # Replace invalid characters with underscores
-        sanitized = filename
-        for char in invalid_chars:
-            sanitized = sanitized.replace(char, "_")
+        # Replace invalid characters with underscores (single pass, O(len))
+        sanitized = filename.translate(PathBuilder._INVALID_CHARS_TRANSLATION)
 
         # Replace underscores with spaces
         sanitized = sanitized.replace("_", " ")

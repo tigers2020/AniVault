@@ -48,8 +48,8 @@ __all__ = [
     "FolderSettings",
     "GroupingSettings",
     "LoggingConfig",  # Backward compatibility alias
-    "MatchingWeights",
     "LoggingSettings",
+    "MatchingWeights",
     "PerformanceConfig",  # Backward compatibility alias
     "PerformanceSettings",
     "ScanConfig",  # Backward compatibility alias

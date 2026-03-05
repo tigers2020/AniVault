@@ -241,8 +241,13 @@ class OptimizedFileOrganizer:
         for scanned_file in scanned_files:
             self.add_file(scanned_file)
 
-        # Find duplicates
-        duplicate_groups = self.find_duplicates()
+        # Single pass: collect duplicate groups and all cache entries (avoid second full iteration)
+        duplicate_groups: list[list[ScannedFile]] = []
+        cache_entries: list[tuple[tuple[str, int], list[ScannedFile]]] = []
+        for key, files in self._file_cache:
+            cache_entries.append((key, files))
+            if files and len(files) > 1:
+                duplicate_groups.append(files)
 
         operations = []
 
@@ -277,10 +282,9 @@ class OptimizedFileOrganizer:
         processed_files = set()
         for duplicate_group in duplicate_groups:
             for file in duplicate_group:
-                # Use file path as identifier since ScannedFile is not hashable
                 processed_files.add(file.file_path)
 
-        for _key, files in self._file_cache:
+        for _key, files in cache_entries:
             for file in files:
                 if file.file_path not in processed_files:
                     destination_path = self._build_organization_path(file)

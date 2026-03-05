@@ -8,6 +8,7 @@ process them concurrently.
 from __future__ import annotations
 
 import logging
+import queue
 import threading
 import time
 from pathlib import Path
@@ -88,22 +89,23 @@ class ParserWorker(threading.Thread):
                 # Process the file
                 self._process_file(file_path)
 
+            except queue.Empty:
+                # Expected when queue is empty during timeout - just retry
+                continue
             except (KeyError, ValueError, TypeError, AttributeError) as e:
                 # Handle data processing errors
                 logger.warning(
-                    "Worker %d data processing error: %s",
+                    "Worker %s data processing error: %s",
                     self.worker_id,
                     str(e),
                 )
                 continue
-            # pylint: disable-next=broad-exception-caught  # Handle timeout and other exceptions
-            except Exception as e:
-                # Handle timeout and other exceptions
-                if "timeout" not in str(e).lower():
-                    logger.exception(
-                        "Worker %d unexpected error",
-                        self.worker_id,
-                    )
+            # pylint: disable-next=broad-exception-caught  # Handle other unexpected exceptions
+            except Exception:
+                logger.exception(
+                    "Worker %s unexpected error",
+                    self.worker_id,
+                )
                 continue
 
     def _process_file(self, file_path: Path) -> None:

@@ -88,6 +88,12 @@ class DuplicateResolver:
             **self._default_quality_scores,
             **self.config.quality_scores,
         }
+        # Cache sorted quality for O(1) per _extract_quality call (avoid sort every time)
+        self._sorted_quality_scores: list[tuple[str, int]] = sorted(
+            self.quality_scores.items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )
 
     def resolve_duplicates(self, files: list[ScannedFile]) -> ScannedFile:
         """Select the best file from a list of duplicates.
@@ -231,8 +237,8 @@ class DuplicateResolver:
             >>> resolver._extract_quality("anime.mkv")
             0
         """
-        # Check each quality pattern (sorted by score descending to match highest first)
-        for quality_tag, score in sorted(self.quality_scores.items(), key=lambda x: x[1], reverse=True):
+        # Use cached sorted quality (built once in __init__)
+        for quality_tag, score in self._sorted_quality_scores:
             # Build pattern that matches the quality tag (case-insensitive)
             # Match tag surrounded by delimiters or at boundaries
             escaped_tag = re.escape(quality_tag)

@@ -358,44 +358,25 @@ class FileGrouper:
         Returns:
             List of Group objects with evidence preserved where possible
         """
+        # Build O(1) lookup from original_groups (avoid O(G_norm * G_orig) linear scan)
+        original_lookup: dict[tuple[str, frozenset[Path]], Group] = {}
+        first_by_title: dict[str, Group] = {}
+        for group in original_groups:
+            key = (group.title, frozenset(f.file_path for f in group.files))
+            if key not in original_lookup:
+                original_lookup[key] = group
+            if group.title not in first_by_title:
+                first_by_title[group.title] = group
+
         final_groups = []
         for title, files in normalized_dict.items():
-            original_group = self._find_matching_original_group(title, files, original_groups)
+            key = (title, frozenset(f.file_path for f in files))
+            original_group = original_lookup.get(key) or first_by_title.get(title)
             if original_group and original_group.evidence:
                 final_groups.append(Group(title=title, files=files, evidence=original_group.evidence))
             else:
                 final_groups.append(Group(title=title, files=files))
         return final_groups
-
-    def _find_matching_original_group(
-        self,
-        title: str,
-        files: list[ScannedFile],
-        original_groups: list[Group],
-    ) -> Group | None:
-        """Find the original group that matches the normalized title and files.
-
-        Args:
-            title: Normalized group title
-            files: List of files in the normalized group
-            original_groups: List of original groups to search
-
-        Returns:
-            Matching original group or None if not found
-        """
-        # Note: Cannot use set() as ScannedFile is not hashable
-        for group in original_groups:
-            if group.title == title:
-                return group
-
-            # Check if files match (same count and same file paths)
-            if len(group.files) == len(files):
-                file_paths = {f.file_path for f in files}
-                group_file_paths = {f.file_path for f in group.files}
-                if file_paths == group_file_paths:
-                    return group
-
-        return None
 
     def group_files(
         self,

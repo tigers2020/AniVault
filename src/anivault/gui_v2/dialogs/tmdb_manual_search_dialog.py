@@ -50,7 +50,7 @@ class TmdbSearchWorker(QThread):
         try:
             response = asyncio.run(self._tmdb_client.search_media(self._query))
             self.finished.emit(response.results if response else [])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("TMDB search failed for '%s'", self._query)
             self.error.emit(str(exc))
 

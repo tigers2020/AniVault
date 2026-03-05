@@ -85,7 +85,7 @@ class ConfigKeys:
 
 __all__ = [
     "ConfigKeys",
+    "ProcessStatus",
     "ProcessingConfig",
     "ProcessingThresholds",
-    "ProcessStatus",
 ]

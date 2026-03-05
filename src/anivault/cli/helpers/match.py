@@ -8,33 +8,37 @@ Contains core matching pipeline logic.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
-from collections.abc import Mapping, Sequence
 
 from dependency_injector.wiring import (  # pylint: disable=import-error
     Provide,
     inject,
 )
 from rich.console import Console
-from rich.table import Table
 
+from anivault.app.use_cases.match_use_case import MatchUseCase
 from anivault.cli.common.path_utils import extract_directory_path
 from anivault.cli.json_formatter import format_json_output
+from anivault.cli.models.match_services import MatchServices
 from anivault.cli.progress import create_progress_manager
 from anivault.containers import Container
 from anivault.core.matching.engine import MatchingEngine
+from anivault.core.matching.models import MatchResult
 from anivault.core.matching.pipeline import (
     MatchOptions as PipelineMatchOptions,
+)
+from anivault.core.matching.pipeline import (
     MatchResultBundle,
     match_result_to_file_metadata,
     parsing_result_to_dict,
+)
+from anivault.core.matching.pipeline import (
     process_file_for_matching as _process_file_for_matching,
 )
-from anivault.core.matching.models import MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.services import (
@@ -44,18 +48,13 @@ from anivault.services import (
     TMDBClient,
     TokenBucketRateLimiter,
 )
-from anivault.cli.models.match_services import MatchServices
 from anivault.shared.constants import FileSystem
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import MatchOptions as CliMatchOptions
-from anivault.shared.types.match_types import (
-    FileStatisticsInternalDict,
-    MatchDataDict,
-    MatchFileInfoDict,
-    MatchStatisticsDict,
-)
 from anivault.utils.resource_path import get_project_root
+
+from .match_formatters import collect_match_data, display_match_results
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +70,10 @@ async def process_file_for_matching(
     """Compatibility wrapper for process_file_for_matching."""
     legacy_signature = bool(args) and parser is None and engine is None
     if args and parser is None and engine is None:
-        parser = cast(AnitopyParser | None, args[0] if len(args) > 0 else None)
-        engine = cast(MatchingEngine | None, args[1] if len(args) > 1 else None)
-    parser = parser or cast(AnitopyParser | None, kwargs.get("parser"))
-    engine = engine or cast(MatchingEngine | None, kwargs.get("engine"))
+        parser = cast("AnitopyParser | None", args[0] if len(args) > 0 else None)
+        engine = cast("MatchingEngine | None", args[1] if len(args) > 1 else None)
+    parser = parser or cast("AnitopyParser | None", kwargs.get("parser"))
+    engine = engine or cast("MatchingEngine | None", kwargs.get("engine"))
     if parser is None or engine is None:
         raise TypeError("process_file_for_matching requires parser and engine")
     try:
@@ -174,7 +173,14 @@ async def run_match_pipeline(
         return _handle_no_files_found(directory, options, console)
 
     _show_file_count(anime_files, options, console)
-    processed_results = await _process_files(anime_files, services, options, console)
+    use_case = MatchUseCase(services)
+    progress_manager = create_progress_manager(disabled=options.json_output)
+    with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
+        processed_results = await use_case.execute(
+            directory,
+            extensions=FileSystem.CLI_VIDEO_EXTENSIONS,
+            concurrency=4,
+        )
     _output_results(processed_results, directory, options, console)
 
     return 0
@@ -289,116 +295,6 @@ def _show_file_count(
         )
 
 
-async def _process_files(
-    anime_files: list[Path],
-    services: MatchServices,
-    options: CliMatchOptions,
-    console: Console,
-) -> list[FileMetadata]:
-    """Process anime files concurrently.
-
-    Args:
-        anime_files: List of file paths to process
-        services: MatchServices container with parser and matching_engine
-        options: Match command options
-        console: Rich console for output
-
-    Returns:
-        List of FileMetadata instances (None results are filtered out)
-    """
-    parser = services.parser
-    matching_engine = services.matching_engine
-    progress_manager = create_progress_manager(disabled=options.json_output)
-
-    results = []
-    with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
-        semaphore = asyncio.Semaphore(4)
-
-        async def process_with_semaphore(file_path: Path) -> FileMetadata | None:
-            async with semaphore:
-                bundle = await process_file_for_matching(
-                    file_path,
-                    engine=matching_engine,
-                    parser=parser,
-                )
-                if isinstance(bundle, MatchResultBundle):
-                    return bundle.metadata
-                return bundle
-
-        results = await asyncio.gather(
-            *[process_with_semaphore(fp) for fp in anime_files],
-            return_exceptions=True,
-        )
-
-    return _process_exceptions(results, anime_files, options, console)
-
-
-def _process_exceptions(
-    results: Sequence[object],
-    anime_files: list[Path],
-    options: CliMatchOptions,
-    console: Console,
-) -> list[FileMetadata]:
-    """Process exceptions in results and convert to FileMetadata.
-
-    Args:
-        results: List of processing results
-        anime_files: List of file paths (for error reporting)
-        options: Match command options
-        console: Rich console for output
-
-    Returns:
-        List of FileMetadata instances (None and Exception results are converted
-        to FileMetadata with error indication)
-    """
-    processed_results: list[FileMetadata] = []
-    for i, result in enumerate(results):
-        file_path = anime_files[i]
-
-        if isinstance(result, BaseException):
-            if not options.json_output:
-                console.print(
-                    CLIFormatting.format_colored_message(
-                        f"Error processing {file_path}: {result}",
-                        "error",
-                    ),
-                )
-            # Create FileMetadata with error indication
-
-            error_parsing_result = ParsingResult(
-                title=str(file_path.name),
-                additional_info=ParsingAdditionalInfo(),
-            )
-            processed_results.append(match_result_to_file_metadata(file_path, error_parsing_result, None))
-        elif isinstance(result, FileMetadata):
-            processed_results.append(result)
-        elif result is None:
-            # Parsing failed - create FileMetadata with minimal info
-
-            failed_parsing_result = ParsingResult(
-                title=str(file_path.name),
-                additional_info=ParsingAdditionalInfo(),
-            )
-            processed_results.append(match_result_to_file_metadata(file_path, failed_parsing_result, None))
-        else:
-            # Unexpected type - convert to FileMetadata
-            if not options.json_output:
-                console.print(
-                    CLIFormatting.format_colored_message(
-                        f"Unexpected result type for {file_path}",
-                        "warning",
-                    ),
-                )
-
-            unexpected_parsing_result = ParsingResult(
-                title=str(file_path.name),
-                additional_info=ParsingAdditionalInfo(),
-            )
-            processed_results.append(match_result_to_file_metadata(file_path, unexpected_parsing_result, None))
-
-    return processed_results
-
-
 def _output_results(
     processed_results: list[FileMetadata],
     directory: Path,
@@ -425,237 +321,3 @@ def _output_results(
         sys.stdout.buffer.flush()
     else:
         display_match_results(processed_results, console)
-
-
-def display_match_results(results: list[FileMetadata], console: Console) -> None:
-    """Display match results in formatted table.
-
-    Args:
-        results: List of FileMetadata instances
-        console: Rich console for output
-    """
-    if not results:
-        console.print("[yellow]No results to display.[/yellow]")
-        return
-
-    table = Table(title="Anime File Match Results")
-    table.add_column("File", style="cyan", no_wrap=True)
-    table.add_column("Title", style="green")
-    table.add_column("Episode", style="blue")
-    table.add_column("TMDB Match", style="yellow")
-    table.add_column("TMDB Rating", style="red")
-
-    for metadata in results:
-        file_name = metadata.file_path.name
-        title = metadata.title or "Unknown"
-        episode = str(metadata.episode) if metadata.episode else "-"
-
-        if metadata.tmdb_id:
-            tmdb_title = metadata.title or "Unknown"
-            rating = f"{metadata.vote_average:.1f}" if metadata.vote_average else "N/A"
-        else:
-            tmdb_title = "No match"
-            rating = "N/A"
-
-        table.add_row(file_name, title, episode, tmdb_title, rating)
-
-    console.print(table)
-
-
-def _calculate_success_rate(successful_matches: int, total_files: int) -> float:
-    """Calculate success rate percentage.
-
-    Args:
-        successful_matches: Number of successful matches
-        total_files: Total number of files
-
-    Returns:
-        Success rate as percentage (0-100)
-    """
-    if total_files == 0:
-        return 0.0
-    return (successful_matches / total_files) * 100
-
-
-def collect_match_data(results: list[FileMetadata], directory: str) -> MatchDataDict:
-    """Collect match data for JSON output.
-
-    Args:
-        results: List of FileMetadata instances
-        directory: Scanned directory path
-
-    Returns:
-        Match statistics and file data dictionary
-    """
-    total_files = len(results)
-    stats = _calculate_file_statistics(results)
-    match_stats = _collect_matching_statistics(results)
-
-    return {
-        "match_summary": {
-            "total_files": total_files,
-            "successful_matches": match_stats["successful_matches"],
-            "high_confidence_matches": match_stats["high_confidence"],
-            "medium_confidence_matches": match_stats["medium_confidence"],
-            "low_confidence_matches": match_stats["low_confidence"],
-            "errors": match_stats["errors"],
-            "total_size_bytes": stats["total_size"],
-            "total_size_formatted": _format_size(stats["total_size"]),
-            "scanned_directory": str(directory),
-            "success_rate": _calculate_success_rate(match_stats["successful_matches"], total_files),
-        },
-        "file_statistics": {
-            "counts_by_extension": stats["file_counts"],
-            "scanned_paths": stats["scanned_paths"],
-        },
-        "files": stats["file_data"],
-    }
-
-
-def _calculate_file_statistics(results: list[FileMetadata]) -> FileStatisticsInternalDict:
-    """Calculate file statistics from FileMetadata results.
-
-    Args:
-        results: List of FileMetadata instances
-
-    Returns:
-        Dictionary containing file statistics
-    """
-    total_size = 0
-    file_counts: dict[str, int] = {}
-    scanned_paths = []
-    file_data = []
-
-    for metadata in results:
-        file_path = str(metadata.file_path)
-        scanned_paths.append(file_path)
-
-        file_size = _get_file_size(file_path)
-        total_size += file_size
-
-        file_ext = metadata.file_path.suffix.lower()
-        file_counts[file_ext] = file_counts.get(file_ext, 0) + 1
-
-        file_info = _build_file_info(metadata, file_path, file_size, file_ext)
-        file_data.append(file_info)
-
-    return {
-        "total_size": total_size,
-        "file_counts": file_counts,
-        "scanned_paths": scanned_paths,
-        "file_data": file_data,
-    }
-
-
-def _get_file_size(file_path: str) -> int:
-    """Get file size in bytes."""
-    try:
-        return Path(file_path).stat().st_size
-    except (OSError, TypeError):
-        return 0
-
-
-def _build_file_info(
-    metadata: FileMetadata,
-    file_path: str,
-    file_size: int,
-    file_ext: str,
-) -> MatchFileInfoDict:
-    """Build file information dictionary from FileMetadata.
-
-    Args:
-        metadata: FileMetadata instance
-        file_path: File path string
-        file_size: File size in bytes
-        file_ext: File extension
-
-    Returns:
-        Dictionary with file information for JSON output
-    """
-    file_info: MatchFileInfoDict = {
-        "file_path": file_path,
-        "file_name": Path(file_path).name,
-        "file_size": file_size,
-        "file_extension": file_ext,
-        "title": metadata.title,
-        "year": metadata.year,
-        "season": metadata.season,
-        "episode": metadata.episode,
-        "match_result": {
-            "match_confidence": 0.0,
-            "tmdb_data": None,
-            "enrichment_status": "NO_MATCH",
-        },
-    }
-
-    # Add TMDB match information
-    if metadata.tmdb_id:
-        file_info["match_result"] = {
-            "match_confidence": 1.0,  # FileMetadata indicates successful match
-            "tmdb_data": {
-                "id": metadata.tmdb_id,
-                "title": metadata.title,
-                "media_type": metadata.media_type,
-                "poster_path": metadata.poster_path,
-                "overview": metadata.overview,
-                "vote_average": metadata.vote_average,
-            },
-            "enrichment_status": "SUCCESS",
-        }
-    return file_info
-
-
-def _collect_matching_statistics(results: list[FileMetadata]) -> MatchStatisticsDict:
-    """Collect matching statistics from FileMetadata results.
-
-    Args:
-        results: List of FileMetadata instances
-
-    Returns:
-        Dictionary with matching statistics
-    """
-    high_confidence_threshold = 0.8
-    medium_confidence_threshold = 0.6
-
-    successful_matches = 0
-    high_confidence = 0
-    medium_confidence = 0
-    low_confidence = 0
-    errors = 0
-
-    for metadata in results:
-        # Consider a match successful if tmdb_id is present
-        if metadata.tmdb_id:
-            successful_matches += 1
-            # Use vote_average as proxy for confidence (if available)
-            # Otherwise assume medium confidence for matched items
-            conf = metadata.vote_average if metadata.vote_average else 0.7
-
-            if conf >= high_confidence_threshold:
-                high_confidence += 1
-            elif conf >= medium_confidence_threshold:
-                medium_confidence += 1
-            else:
-                low_confidence += 1
-        else:
-            # No match found (not necessarily an error)
-            errors += 1
-
-    return {
-        "successful_matches": successful_matches,
-        "high_confidence": high_confidence,
-        "medium_confidence": medium_confidence,
-        "low_confidence": low_confidence,
-        "errors": errors,
-    }
-
-
-def _format_size(size_bytes: float) -> str:
-    """Format size in human-readable format."""
-    bytes_per_unit = 1024.0
-
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if size_bytes < bytes_per_unit:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= bytes_per_unit
-    return f"{size_bytes:.1f} PB"

@@ -19,6 +19,19 @@ from typing import Any
 
 from anivault.core.constants import ProcessingThresholds
 from anivault.core.filter import FilterEngine
+from anivault.core.pipeline.components.scan_filters import (
+    filter_directories_in_place,
+    has_valid_extension,
+)
+from anivault.core.pipeline.components.scan_filters import (
+    process_file_entry as filter_process_file_entry,
+)
+from anivault.core.pipeline.components.scan_filters import (
+    should_include_file as filter_should_include_file,
+)
+from anivault.core.pipeline.components.scan_filters import (
+    should_skip_directory as filter_should_skip_directory,
+)
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.core.pipeline.utils.synchronization import ThreadSafeStatsUpdater
 from anivault.shared.constants import ProcessingConfig
@@ -160,12 +173,7 @@ class DirectoryScanner(threading.Thread):
         Args:
             dirs: List of subdirectories to potentially filter.
         """
-        # Apply directory filtering if FilterEngine is available
-        if self.filter_engine:
-            # Filter out excluded directories in-place to prevent os.walk from traversing them
-            dirs[:] = [d for d in dirs if not self.filter_engine.should_skip_directory(d)]
-
-        # Update directory statistics
+        filter_directories_in_place(dirs, self.filter_engine)
         self.stats.increment_directories_scanned()
 
     def _process_files_in_directory(
@@ -185,63 +193,13 @@ class DirectoryScanner(threading.Thread):
         for file in files:
             file_path = root_path / file
 
-            # Check if file has one of the specified extensions
-            if not self._has_valid_extension(file_path):
+            if not has_valid_extension(file_path, self.extensions):
                 continue
 
-            # Apply file filtering if FilterEngine is available
-            if not self._should_include_file(file_path):
+            if not filter_should_include_file(file_path, self.filter_engine):
                 continue
 
             yield file_path.absolute()
-
-    def _has_valid_extension(self, file_path: Path) -> bool:
-        """Check if file has a valid extension.
-
-        Args:
-            file_path: Path to the file to check.
-
-        Returns:
-            True if file has a valid extension, False otherwise.
-        """
-        return file_path.suffix.lower() in self.extensions
-
-    def _should_include_file(self, file_path: Path) -> bool:
-        """Check if file should be included based on filtering criteria.
-
-        Args:
-            file_path: Path to the file to check.
-
-        Returns:
-            True if file should be included, False otherwise.
-        """
-        if not self.filter_engine:
-            return True
-
-        try:
-            # Get file stats for filtering
-            file_stat = file_path.stat()
-            return not self.filter_engine.should_skip_file(file_path, file_stat)
-        except PermissionError as e:
-            # Skip files we can't stat (permission denied)
-            logger.warning(
-                "Skipping file due to permission error: %s",
-                file_path,
-                extra={"error": str(e), "operation": "should_include_file"},
-            )
-            # Note: stats.increment_skipped() not available yet
-            # Skipped files are tracked implicitly
-            return False
-        except OSError as e:
-            # Skip files we can't stat (OS error)
-            logger.warning(
-                "Skipping file due to OS error: %s",
-                file_path,
-                extra={"error": str(e), "operation": "should_include_file"},
-            )
-            # Note: stats.increment_skipped() not available yet
-            # Skipped files are tracked implicitly
-            return False
 
     def scan(self) -> Generator[list[Path], None, None]:
         """
@@ -409,11 +367,9 @@ class DirectoryScanner(threading.Thread):
         Returns:
             Tuple of (list of file paths found, number of directories scanned).
         """
-        # Apply directory filtering if FilterEngine is available
-        if self.filter_engine and self.filter_engine.should_skip_directory(entry.name):
-            return [], 0  # Skip this directory
+        if filter_should_skip_directory(entry.name, self.filter_engine):
+            return [], 0
 
-        # Recursively scan subdirectories
         return self._parallel_scan_directory(Path(entry.path))
 
     def _process_file_entry(self, entry: os.DirEntry[str]) -> Path | None:
@@ -425,41 +381,7 @@ class DirectoryScanner(threading.Thread):
         Returns:
             Path object if file should be included, None otherwise.
         """
-        # Check if file has one of the specified extensions
-        if not entry.path.lower().endswith(tuple(self.extensions)):
-            return None
-
-        file_path = Path(entry.path).absolute()
-
-        # Apply file filtering if FilterEngine is available
-        if self.filter_engine:
-            try:
-                # Get file stats for filtering
-                file_stat = entry.stat()
-                if self.filter_engine.should_skip_file(file_path, file_stat):
-                    return None  # Skip this file
-            except PermissionError as e:
-                # Skip files we can't stat (permission denied)
-                logger.warning(
-                    "Skipping file entry due to permission error: %s",
-                    file_path,
-                    extra={"error": str(e), "operation": "process_file_entry"},
-                )
-                # Note: stats.increment_skipped() not available yet
-                # Skipped files are tracked implicitly
-                return None
-            except OSError as e:
-                # Skip files we can't stat (OS error)
-                logger.warning(
-                    "Skipping file entry due to OS error: %s",
-                    file_path,
-                    extra={"error": str(e), "operation": "process_file_entry"},
-                )
-                # Note: stats.increment_skipped() not available yet
-                # Skipped files are tracked implicitly
-                return None
-
-        return file_path
+        return filter_process_file_entry(entry, self.extensions, self.filter_engine)
 
     def _get_immediate_subdirectories(self) -> list[Path]:
         """Get immediate subdirectories of the root for parallel processing.
@@ -481,9 +403,8 @@ class DirectoryScanner(threading.Thread):
 
                     try:
                         if entry.is_dir():
-                            # Apply directory filtering if FilterEngine is available
-                            if self.filter_engine and self.filter_engine.should_skip_directory(entry.name):
-                                continue  # Skip this directory
+                            if filter_should_skip_directory(entry.name, self.filter_engine):
+                                continue
                             subdirectories.append(Path(entry.path))
                     except (OSError, PermissionError):
                         continue
@@ -535,7 +456,7 @@ class DirectoryScanner(threading.Thread):
             file_count = 0
             for _root, _dirs, files in os.walk(self.root_path):
                 for file in files:
-                    if Path(file).suffix.lower() in self.extensions:
+                    if has_valid_extension(Path(file), self.extensions):
                         file_count += 1
                 # Early termination if we have enough samples
                 if file_count > self.parallel_threshold * 2:

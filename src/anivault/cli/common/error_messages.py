@@ -165,7 +165,7 @@ def build_json_payload(
         # pylint: disable-next=no-member
         option=orjson.OPT_INDENT_2,
     )
-    return cast(bytes, result)
+    return cast("bytes", result)
 
 
 def build_log_context(context: ErrorMessageContext) -> dict[str, Any]:

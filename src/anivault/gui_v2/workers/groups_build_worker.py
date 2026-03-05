@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import logging
 import re
+from collections import Counter
 from pathlib import Path
+from typing import Callable
 
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.file_grouper.grouper import TitleExtractor
@@ -50,6 +52,58 @@ class GroupsBuildWorker(BaseWorker):
                     message="그룹 빌드 중 오류가 발생했습니다.",
                     detail=str(exc),
                 )
+            )
+
+
+def _merge_groups_by_tmdb_id(
+    series_groups: dict[str, list[FileMetadata]],
+) -> None:
+    """Merge groups that share the same tmdb_id (post-TMDB matching consolidation).
+
+    Modifies series_groups in place. Groups without tmdb_id are left unchanged.
+    When multiple groups share a tmdb_id, they are merged into one; the merged
+    group uses the TMDB title as key (from highest-confidence matched file).
+    """
+    tmdb_to_items: dict[int, list[tuple[str, list[FileMetadata]]]] = {}
+    unmerged: dict[str, list[FileMetadata]] = {}
+
+    for series_name, file_list in series_groups.items():
+        tmdb_ids = [fm.tmdb_id for fm in file_list if getattr(fm, "tmdb_id", None) is not None]
+        if not tmdb_ids:
+            unmerged[series_name] = file_list
+            continue
+        canonical_id = Counter(tmdb_ids).most_common(1)[0][0]
+        if canonical_id not in tmdb_to_items:
+            tmdb_to_items[canonical_id] = []
+        tmdb_to_items[canonical_id].append((series_name, file_list))
+
+    series_groups.clear()
+    series_groups.update(unmerged)
+
+    for tmdb_id, items in tmdb_to_items.items():
+        if len(items) == 1:
+            key, file_list = items[0]
+            series_groups[key] = file_list
+        else:
+            all_files: list[FileMetadata] = []
+            best_title = ""
+            best_confidence = -1.0
+            for _, file_list in items:
+                all_files.extend(file_list)
+                for fm in file_list:
+                    if fm.tmdb_id == tmdb_id and fm.title and fm.title != fm.file_path.name:
+                        conf = getattr(fm, "match_confidence", 0.0) or 0.0
+                        if conf > best_confidence:
+                            best_confidence = conf
+                            best_title = fm.title or ""
+            merge_key = best_title if best_title else items[0][0]
+            series_groups[merge_key] = all_files
+            logger.info(
+                "Merged %d groups by tmdb_id=%d into '%s' (%d files)",
+                len(items),
+                tmdb_id,
+                merge_key,
+                len(all_files),
             )
 
 
@@ -117,6 +171,8 @@ def _build_groups_from_metadata(files: list[FileMetadata]) -> list[dict]:
         if series_name not in series_groups:
             series_groups[series_name] = []
         series_groups[series_name].extend(group_files_metadata)
+
+    _merge_groups_by_tmdb_id(series_groups)
 
     grouped_resolved: set[Path] = {_path_resolved(fm.file_path) for files_list in series_groups.values() for fm in files_list}
     ungrouped = [fm for fm in files if _path_resolved(fm.file_path) not in grouped_resolved]
@@ -191,6 +247,25 @@ def _build_groups_from_metadata(files: list[FileMetadata]) -> list[dict]:
     return groups
 
 
+def _needs_merge_by_tmdb_id(
+    existing_groups: list[dict],
+    files_by_path: dict[Path, FileMetadata],
+    path_resolved: Callable[[Path], Path],
+) -> bool:
+    """Return True if multiple groups would share the same tmdb_id after update (merge required)."""
+    tmdb_id_to_group_indices: dict[int, set[int]] = {}
+    for idx, g in enumerate(existing_groups):
+        for fm in g.get("file_metadata_list", []):
+            resolved = path_resolved(fm.file_path)
+            new_fm = files_by_path.get(resolved)
+            if new_fm and getattr(new_fm, "tmdb_id", None) is not None:
+                tid = new_fm.tmdb_id
+                if tid not in tmdb_id_to_group_indices:
+                    tmdb_id_to_group_indices[tid] = set()
+                tmdb_id_to_group_indices[tid].add(idx)
+    return any(len(indices) > 1 for indices in tmdb_id_to_group_indices.values())
+
+
 def apply_metadata_update_to_groups(
     existing_groups: list[dict],
     files: list[FileMetadata],
@@ -198,6 +273,7 @@ def apply_metadata_update_to_groups(
     """Fast path: update group metadata when only tmdb_id/title changed (no re-grouping).
 
     Returns updated groups if path set matches, else None (caller should do full rebuild).
+    Forces full rebuild when multiple groups share the same tmdb_id (merge required).
     """
     if not existing_groups or not files:
         return None
@@ -218,6 +294,9 @@ def apply_metadata_update_to_groups(
             existing_paths.add(_path_resolved(fm.file_path))
 
     if new_paths != existing_paths or len(new_paths) != len(files):
+        return None
+
+    if _needs_merge_by_tmdb_id(existing_groups, files_by_path, _path_resolved):
         return None
 
     # Same path set - do metadata-only update

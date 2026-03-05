@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from anivault.core.pipeline import run_pipeline
+from anivault.app.use_cases.scan_use_case import ScanUseCase
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
 
@@ -37,7 +37,8 @@ class ScanWorker(BaseWorker):
 
         try:
             logger.info("Starting pipeline scan: root_path=%s, extensions=%s", self._root_path, self._extensions)
-            results = run_pipeline(str(self._root_path), self._extensions)
+            scan_use_case = ScanUseCase()
+            results = scan_use_case.execute(self._root_path, extensions=self._extensions)
             logger.info("Pipeline returned %d results", len(results))
             metadata_list = results
             self.progress.emit(

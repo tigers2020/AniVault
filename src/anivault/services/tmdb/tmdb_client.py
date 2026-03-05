@@ -277,7 +277,7 @@ class TMDBClient:
             strategy: SearchStrategy = self._tv_strategy
         elif media_type == MediaType.MOVIE:
             api = self._movie
-            strategy = cast(SearchStrategy, self._movie_strategy)
+            strategy = cast("SearchStrategy", self._movie_strategy)
         else:
             error_msg = f"Unsupported media type: {media_type}"
             raise TypeError(error_msg)

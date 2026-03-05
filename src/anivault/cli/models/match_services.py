@@ -1,28 +1,10 @@
-"""Typed service container for match CLI helpers."""
+"""Typed service container for match CLI helpers.
+
+Re-exports from app.models for backward compatibility.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from anivault.app.models.match_services import MatchServices
 
-from anivault.core.matching.engine import MatchingEngine
-from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.services import (
-    RateLimitStateMachine,
-    SemaphoreManager,
-    SQLiteCacheDB,
-    TMDBClient,
-    TokenBucketRateLimiter,
-)
-
-
-@dataclass(frozen=True)
-class MatchServices:
-    """Match command service container."""
-
-    cache: SQLiteCacheDB
-    rate_limiter: TokenBucketRateLimiter
-    semaphore_manager: SemaphoreManager
-    state_machine: RateLimitStateMachine
-    tmdb_client: TMDBClient
-    matching_engine: MatchingEngine
-    parser: AnitopyParser
+__all__ = ["MatchServices"]
