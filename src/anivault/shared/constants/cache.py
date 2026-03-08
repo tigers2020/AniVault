@@ -111,8 +111,8 @@ class CacheValidationConstants:
     MIN_CACHE_SIZE = 10
     MAX_CACHE_SIZE = 100000
 
-    # Key validation
-    MAX_KEY_LENGTH = 255
+    # Key validation (max length before SHA-256 hashing; DoS protection)
+    MAX_KEY_LENGTH = 256
     MIN_KEY_LENGTH = 1
 
     # Value validation

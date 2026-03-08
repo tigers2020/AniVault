@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Property, QPropertyAnimation, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -11,6 +13,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DetailPanel(QWidget):
@@ -211,3 +215,98 @@ class DetailPanel(QWidget):
             file_layout.addWidget(meta_label)
 
             self.file_list_layout.addWidget(file_item)
+
+    def set_group_data(self, group: dict | None) -> None:
+        """Set panel content from group dict; show or clear panel.
+
+        MainWindow passes the group dict only. Data extraction and UI update
+        are fully owned by this component (single responsibility).
+
+        Args:
+            group: Group dict with title, season, episodes, resolution, language,
+                files, file_metadata_list; or None to clear and hide.
+        """
+        if not group:
+            self._clear_panel()
+            return
+        try:
+            title = group.get("title", "")
+            season = group.get("season", 0)
+            episodes = group.get("episodes", 0)
+            resolution = group.get("resolution", "")
+            language = group.get("language", "unknown")
+            meta = f"시즌 {season} | {episodes}화 | {resolution}"
+            info_text = (
+                f"파일: {group.get('files', 0)}개\n"
+                f"해상도: {resolution}\n"
+                f"언어: {language.upper()}"
+            )
+            file_metadata_list = group.get("file_metadata_list", [])
+            files = self._build_file_list(file_metadata_list, resolution, language)
+            if not files:
+                files = [
+                    (f"Episode {i + 1}.mkv", f"{resolution} | {language.upper()}")
+                    for i in range(group.get("files", 0))
+                ]
+            self.set_group_detail(title, meta, info_text, files)
+            self.show_panel()
+        except Exception as e:
+            logger.error("Failed to parse group data for detail panel: %s", e)
+            self._clear_panel()
+
+    def _build_file_list(
+        self,
+        file_metadata_list: list,
+        fallback_resolution: str,
+        fallback_language: str,
+    ) -> list[tuple[str, str]]:
+        """Build (file_name, file_meta_str) list from FileMetadata list."""
+        result: list[tuple[str, str]] = []
+        for file_meta in file_metadata_list:
+            name = getattr(file_meta, "file_path", None)
+            file_name = name.name if name is not None else "unknown"
+            file_name_lower = file_name.lower()
+
+            file_resolution = "unknown"
+            for res in ("1080p", "720p", "480p", "2160p", "4k", "1440p"):
+                if res in file_name_lower:
+                    file_resolution = res.upper().replace("P", "p")
+                    break
+
+            parts: list[str] = []
+            if file_resolution != "unknown":
+                parts.append(file_resolution)
+            if getattr(file_meta, "episode", None) is not None:
+                if getattr(file_meta, "season", None) is not None:
+                    parts.append(
+                        f"S{file_meta.season:02d}E{file_meta.episode:02d}"
+                    )
+                else:
+                    parts.append(f"E{file_meta.episode:02d}")
+
+            file_language = "unknown"
+            if any(x in file_name_lower for x in ("korean", "kor", "ko")):
+                file_language = "KO"
+            elif any(x in file_name_lower for x in ("japanese", "jap", "ja")):
+                file_language = "JA"
+            elif any(x in file_name_lower for x in ("english", "eng", "en")):
+                file_language = "EN"
+            if file_language != "unknown":
+                parts.append(file_language)
+            elif fallback_language and fallback_language != "unknown":
+                parts.append(fallback_language.upper())
+
+            meta_str = " | ".join(parts) if parts else "정보 없음"
+            result.append((file_name, meta_str))
+        return result
+
+    def _clear_panel(self) -> None:
+        """Clear labels and file list, then hide panel."""
+        self.detail_title.setText("unknown")
+        self.detail_meta.setText("unknown")
+        self.detail_info.setText("unknown")
+        while self.file_list_layout.count():
+            child = self.file_list_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        self.hide_panel()

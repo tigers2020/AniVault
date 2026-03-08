@@ -29,6 +29,7 @@ from anivault.services import (
     TokenBucketRateLimiter,
 )
 from anivault.shared.constants.system import FileSystem
+from anivault.shared.constants.validation_constants import TMDB_CACHE_DB
 from anivault.utils.resource_path import get_project_root
 
 
@@ -49,7 +50,9 @@ class Container(containers.DeclarativeContainer):
     config = providers.Singleton(load_settings)
 
     # Cache path provider
-    cache_db_path = providers.Singleton(lambda: get_project_root() / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db")
+    cache_db_path = providers.Singleton(
+        lambda: get_project_root() / FileSystem.CACHE_DIRECTORY / TMDB_CACHE_DB
+    )
 
     # Cache services
     sqlite_cache_db = providers.Factory(

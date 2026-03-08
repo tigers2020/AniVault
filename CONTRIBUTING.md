@@ -40,7 +40,7 @@ git checkout -b fix/your-bug-fix
 
 #### 필수 요구사항
 
-- Python 3.8 이상
+- Python 3.9 이상
 - Git
 - Pre-commit 훅
 
@@ -58,9 +58,8 @@ venv\Scripts\activate
 # Linux/macOS
 source venv/bin/activate
 
-# 의존성 설치
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+# 의존성 설치 (개발용 의존성은 pyproject.toml [dev] extras에 정의됨)
+pip install -e .[dev]
 
 # Pre-commit 훅 설정
 # Windows
@@ -72,19 +71,27 @@ chmod +x scripts/setup-pre-commit.sh
 
 #### 개발 도구 설정
 
-```bash
-# IDE 설정 (VSCode 권장)
-# .vscode/settings.json에 다음 설정 추가:
+```json
+// IDE 설정 (VSCode 권장)
+// .vscode/settings.json에 다음 설정 추가 (Ruff + line-length 150 기준)
 {
     "python.defaultInterpreterPath": "./venv/Scripts/python.exe",
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": false,
-    "python.linting.flake8Enabled": true,
+    "python.linting.ruffEnabled": true,
     "python.linting.mypyEnabled": true,
-    "python.formatting.provider": "black",
-    "python.sortImports.args": ["--profile", "black"]
+    "python.formatting.provider": "none",
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        }
+    }
 }
 ```
+(Ruff 확장 `charliermarsh.ruff` 설치 권장. 포맷/린트 설정은 pyproject.toml [tool.ruff] line-length=150 기준.)
 
 ## 코드 스타일 가이드
 
@@ -217,8 +224,7 @@ def process_file(file_path: str) -> str:
 #### Python 스타일 가이드
 
 - **PEP 8** 준수
-- **Black** 포맷터 사용 (line-length=88)
-- **isort** import 정렬
+- **Ruff** 린터·포맷터 사용 (line-length=150, pyproject.toml [tool.ruff] 기준)
 - **Google/NumPy 스타일** 독스트링
 
 #### 타입 힌트
@@ -282,18 +288,17 @@ def calculate_confidence_score(
 PR 생성 전에 다음 검증을 모두 통과해야 합니다:
 
 ```bash
-# 1. 코드 포맷팅 검사
-black --check src/
-isort --check-only src/
+# 1. 린트 및 포맷 검사 (Ruff)
+ruff check src/
+ruff format --check src/
 
-# 2. 린팅 검사
-flake8 src/
-mypy src/
+# 2. 타입 검사
+mypy src/anivault/ --config-file=pyproject.toml
 
 # 3. 보안 검사
 bandit -r src/
 
-# 4. 커스텀 품질 검증
+# 4. 커스텀 품질 검증 (해당 스크립트가 있는 경우)
 python scripts/validate_code_quality.py src/
 python scripts/detect_magic_values.py src/
 python scripts/check_duplicates.py src/
@@ -326,8 +331,8 @@ pytest tests/performance/
 pre-commit run --all-files
 
 # 특정 훅만 실행
-pre-commit run black
-pre-commit run flake8
+pre-commit run ruff
+pre-commit run ruff-format
 pre-commit run mypy
 ```
 

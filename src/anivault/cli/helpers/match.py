@@ -49,6 +49,7 @@ from anivault.services import (
     TokenBucketRateLimiter,
 )
 from anivault.shared.constants import FileSystem
+from anivault.shared.constants.validation_constants import TMDB_CACHE_DB
 from anivault.shared.constants.cli import CLIFormatting, CLIMessages
 from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import MatchOptions as CliMatchOptions
@@ -220,7 +221,7 @@ def _initialize_services(
     """
     # Use centralized project root utility for consistent path resolution
     project_root = get_project_root()
-    cache_db_path = project_root / FileSystem.CACHE_DIRECTORY / "tmdb_cache.db"
+    cache_db_path = project_root / FileSystem.CACHE_DIRECTORY / TMDB_CACHE_DB
     cache = SQLiteCacheDB(cache_db_path)
     rate_limiter = TokenBucketRateLimiter(capacity=50, refill_rate=50)
     semaphore_manager = SemaphoreManager(concurrency_limit=4)

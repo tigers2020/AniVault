@@ -128,3 +128,26 @@ class SidebarWidget(QWidget):
             if label.property("id") == stat_id:
                 label.setText(value)
                 break
+
+    def update_statistics_from_data(
+        self,
+        groups: list[dict],
+        total_files: int,
+        pending_organize: int | None = None,
+    ) -> None:
+        """Compute and update all statistics from groups and file count.
+
+        MainWindow passes data only; this widget owns the calculation.
+
+        Args:
+            groups: List of group dicts (with 'matched', 'files' keys).
+            total_files: Total file count (e.g. from scan results).
+            pending_organize: Override for pending organize count; if None, uses matched_groups.
+        """
+        total_groups = len(groups)
+        matched_groups = sum(1 for g in groups if g.get("matched"))
+        pending = pending_organize if pending_organize is not None else matched_groups
+        self.update_statistic("totalGroups", str(total_groups))
+        self.update_statistic("totalFiles", str(total_files))
+        self.update_statistic("matchedGroups", str(matched_groups))
+        self.update_statistic("pendingOrganize", str(pending))

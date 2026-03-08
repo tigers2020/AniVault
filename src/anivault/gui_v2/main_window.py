@@ -9,26 +9,22 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QDialog,
-    QHBoxLayout,
     QMainWindow,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from anivault.gui_v2.app_context import AppContext
+from anivault.gui_v2.components.layout.main_content import MainContentComponent
+from anivault.gui_v2.components.layout.overlay_layer import OverlayLayerComponent
 from anivault.gui_v2.controllers import MatchController, OrganizeController, ScanController
 from anivault.gui_v2.dialogs.settings_dialog import SettingsDialog
 from anivault.gui_v2.dialogs.tmdb_manual_search_dialog import TmdbManualSearchDialog
 from anivault.gui_v2.handlers import MatchEventHandler, OrganizeEventHandler, ScanEventHandler
 from anivault.gui_v2.views.base_view import BaseView
 from anivault.gui_v2.views.groups_view import GroupsView
-from anivault.gui_v2.widgets.detail_panel import DetailPanel
 from anivault.gui_v2.widgets.header_widget import HeaderWidget
-from anivault.gui_v2.widgets.loading_overlay import LoadingOverlay
-from anivault.gui_v2.widgets.sidebar_widget import SidebarWidget
 from anivault.gui_v2.widgets.status_bar import StatusBar
-from anivault.gui_v2.widgets.toolbar_widget import ToolbarWidget
 from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
@@ -94,49 +90,18 @@ class MainWindow(QMainWindow):
         self.header = HeaderWidget()
         main_layout.addWidget(self.header)
 
-        # Main content area
-        content_widget = QWidget()
-        content_layout = QHBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(0)
-
-        # Sidebar
-        self.sidebar = SidebarWidget()
-        content_layout.addWidget(self.sidebar)
-
-        workspace = QWidget()
-        workspace_layout = QVBoxLayout(workspace)
-        workspace_layout.setContentsMargins(0, 0, 0, 0)
-        workspace_layout.setSpacing(0)
-
-        # Toolbar
-        self.toolbar = ToolbarWidget()
-        workspace_layout.addWidget(self.toolbar)
-
-        # View stack
-        self.view_stack = QStackedWidget()
-        workspace_layout.addWidget(self.view_stack)
-
-        # Create views
+        # Main content (sidebar + workspace)
+        self.main_content = MainContentComponent()
+        self.sidebar = self.main_content.sidebar
+        self.workspace = self.main_content.workspace
         self._create_views()
 
-        content_layout.addWidget(workspace)
+        # Overlay layer (detail panel + loading overlay)
+        self.overlay_layer = OverlayLayerComponent(central_widget)
+        self.detail_panel = self.overlay_layer.detail_panel
+        self.loading_overlay = self.overlay_layer.loading_overlay
 
-        # Detail panel (overlay)
-        self.detail_panel = DetailPanel(central_widget)
-        # Initialize position off-screen
-        if self.detail_panel.parent():
-            parent_width = self.detail_panel.parent().width()
-            self.detail_panel.setGeometry(parent_width, 0, 500, self.detail_panel.parent().height())
-        self.detail_panel.hide()
-
-        # Loading overlay
-        self.loading_overlay = LoadingOverlay(central_widget)
-        if self.loading_overlay.parent():
-            self.loading_overlay.setGeometry(0, 0, self.loading_overlay.parent().width(), self.loading_overlay.parent().height())
-        self.loading_overlay.hide()
-
-        main_layout.addWidget(content_widget)
+        main_layout.addWidget(self.main_content)
 
         # Status bar
         self.status_bar = StatusBar()
@@ -148,12 +113,8 @@ class MainWindow(QMainWindow):
         All tabs share the same GroupsView instance for consistent layout and data.
         Only the toolbar changes based on the selected tab.
         """
-        # Create a single GroupsView instance shared by all tabs
         self.groups_view = GroupsView()
-        self.view_stack.addWidget(self.groups_view)
-
-        # All tabs use the same GroupsView - no separate views needed
-        # Each tab name maps to the same groups_view (index 0)
+        self.workspace.add_view(self.groups_view)
         self._view_name_to_index = {
             "work": 0,
             "groups": 0,
@@ -161,9 +122,7 @@ class MainWindow(QMainWindow):
             "organize": 0,
             "subtitles": 0,
         }
-
-        # Set initial view
-        self.view_stack.setCurrentWidget(self.groups_view)
+        self.workspace.view_stack.setCurrentWidget(self.groups_view)
 
     def _setup_connections(self) -> None:
         """Set up signal connections."""
@@ -198,9 +157,9 @@ class MainWindow(QMainWindow):
             self.organize_controller.operation_finished.connect(self._organize_handler.on_organize_finished)
             self.organize_controller.operation_error.connect(self._organize_handler.on_organize_error)
 
-        self.toolbar.match_clicked.connect(self._match_handler.on_match_clicked)
-        self.toolbar.organize_preflight_clicked.connect(self._organize_handler.on_organize_preflight_clicked)
-        self.toolbar.organize_execute_clicked.connect(self._organize_handler.on_organize_execute_clicked)
+        self.workspace.match_clicked.connect(self._match_handler.on_match_clicked)
+        self.workspace.organize_preflight_clicked.connect(self._organize_handler.on_organize_preflight_clicked)
+        self.workspace.organize_execute_clicked.connect(self._organize_handler.on_organize_execute_clicked)
 
     def _on_settings_clicked(self) -> None:
         """Handle settings button click."""
@@ -215,10 +174,7 @@ class MainWindow(QMainWindow):
             view_name: Name of the tab to switch to (groups, tmdb, organize, etc.)
         """
         self._current_view = view_name
-        # All tabs use the same GroupsView (index 0)
-        # Only toolbar changes based on view_name
-        self.view_stack.setCurrentIndex(0)  # Always show groups_view
-        self.toolbar.set_view(view_name)
+        self.workspace.set_view(view_name)
         self.status_bar.set_status(f"탭 전환: {view_name}", "ok")
 
         # Ensure the shared view has the latest metadata when switching
@@ -239,83 +195,17 @@ class MainWindow(QMainWindow):
         Args:
             metadata: List of FileMetadata instances to share across all views.
         """
-        for i in range(self.view_stack.count()):
-            widget = self.view_stack.widget(i)
+        stack = self.workspace.view_stack
+        for i in range(stack.count()):
+            widget = stack.widget(i)
             if isinstance(widget, BaseView):
                 widget.set_file_metadata(metadata)
 
     def _on_group_clicked(self, group_id: int) -> None:
-        """Handle group card click."""
-        # Find group data
-        groups_view = self.groups_view
-        group = next((g for g in groups_view._groups if g["id"] == group_id), None)
-
-        if group:
-            self._current_detail_group = group
-            # Show detail panel
-            title = group.get("title", "")
-            season = group.get("season", 0)
-            episodes = group.get("episodes", 0)
-            resolution = group.get("resolution", "")
-            language = group.get("language", "unknown")
-            meta = f"시즌 {season} | {episodes}화 | {resolution}"
-
-            info_text = f"파일: {group.get('files', 0)}개\n해상도: {resolution}\n언어: {language.upper()}"
-
-            # Get actual file metadata list from group
-            file_metadata_list = group.get("file_metadata_list", [])
-
-            # Build actual file list from FileMetadata
-            files: list[tuple[str, str]] = []
-            for file_meta in file_metadata_list:
-                file_name = file_meta.file_path.name
-
-                # Extract resolution from actual file name
-                file_resolution = "unknown"
-                file_name_lower = file_name.lower()
-                for res in ["1080p", "720p", "480p", "2160p", "4k", "1440p"]:
-                    if res in file_name_lower:
-                        file_resolution = res.upper().replace("P", "p")
-                        break
-
-                # Build file meta string with actual data
-                file_meta_parts = []
-                if file_resolution != "unknown":
-                    file_meta_parts.append(file_resolution)
-
-                # Extract episode info if available
-                if file_meta.episode is not None:
-                    if file_meta.season is not None:
-                        file_meta_parts.append(f"S{file_meta.season:02d}E{file_meta.episode:02d}")
-                    else:
-                        file_meta_parts.append(f"E{file_meta.episode:02d}")
-
-                # Extract language from file name
-                file_language = "unknown"
-                file_name_lower = file_name.lower()
-                if any(lang in file_name_lower for lang in ["korean", "kor", "ko"]):
-                    file_language = "KO"
-                elif any(lang in file_name_lower for lang in ["japanese", "jap", "ja"]):
-                    file_language = "JA"
-                elif any(lang in file_name_lower for lang in ["english", "eng", "en"]):
-                    file_language = "EN"
-
-                if file_language != "unknown":
-                    file_meta_parts.append(file_language)
-                elif language and language != "unknown":
-                    file_meta_parts.append(language.upper())
-
-                file_meta_str = " | ".join(file_meta_parts) if file_meta_parts else "정보 없음"
-                files.append((file_name, file_meta_str))
-
-            # Fallback to sample data if no file metadata available
-            if not files:
-                files = [(f"Episode {i + 1}.mkv", f"{resolution} | {language.upper()}") for i in range(group.get("files", 0))]
-
-            self.detail_panel.set_group_detail(title, meta, info_text, files)
-            self.detail_panel.show_panel()
-        else:
-            self._current_detail_group = None
+        """Handle group card click: pass group dict to DetailPanel."""
+        group = next((g for g in self.groups_view._groups if g["id"] == group_id), None)
+        self._current_detail_group = group
+        self.detail_panel.set_group_data(group)
 
     def _on_detail_match_clicked(self) -> None:
         """Handle TMDB match button in detail panel - open manual search dialog."""
@@ -392,47 +282,26 @@ class MainWindow(QMainWindow):
         # Initialize with empty groups
         self.groups_view.set_groups([])
 
-        # Default view is work layout
-        self.toolbar.set_view("work")
+        self.workspace.set_view("work")
 
-        # Initialize statistics to 0
-        self.sidebar.update_statistic("totalGroups", "0")
-        self.sidebar.update_statistic("totalFiles", "0")
-        self.sidebar.update_statistic("matchedGroups", "0")
-        self.sidebar.update_statistic("pendingOrganize", "0")
-
-        # Initialize status bar with default values
+        self.sidebar.update_statistics_from_data([], 0)
         self.status_bar.set_status("unknown", "ok")
-        self.status_bar.set_current_path("unknown")
-        self.status_bar.set_cache_status("unknown")
+        self.status_bar.refresh_from_context("unknown", has_scan_results=False)
 
     def _refresh_statistics(self, *, pending_override: int | None = None) -> None:
-        """Recalculate and update sidebar statistics."""
+        """Recalculate and update sidebar statistics (data only; SidebarWidget computes)."""
         groups = self.groups_view._groups
-        total_groups = len(groups)
-        # Use actual scan count when available (FileGrouper may drop unparseable files)
         scan_results = self._subtitle_scan_results if self._current_view == "subtitles" else self._scan_results
-        total_files = len(scan_results) if scan_results else sum(int(group.get("files", 0) or 0) for group in groups)
-        matched_groups = sum(1 for group in groups if group.get("matched"))
-        pending_organize = pending_override if pending_override is not None else matched_groups
-
-        self.sidebar.update_statistic("totalGroups", str(total_groups))
-        self.sidebar.update_statistic("totalFiles", str(total_files))
-        self.sidebar.update_statistic("matchedGroups", str(matched_groups))
-        self.sidebar.update_statistic("pendingOrganize", str(pending_organize))
+        total_files = len(scan_results) if scan_results else sum(int(g.get("files", 0) or 0) for g in groups)
+        self.sidebar.update_statistics_from_data(groups, total_files, pending_override)
 
     def _refresh_status_bar(self) -> None:
-        """Refresh status bar path and cache status."""
+        """Refresh status bar path and cache status (data only; StatusBar updates display)."""
         source_folder = ""
         if self.app_context and self.app_context.settings.folders:
             source_folder = self.app_context.settings.folders.source_folder or ""
-
-        if source_folder:
-            self.status_bar.set_current_path(source_folder)
-
         has_results = bool(self._scan_results or self._subtitle_scan_results)
-        cache_status = "ready" if has_results else "unknown"
-        self.status_bar.set_cache_status(cache_status)
+        self.status_bar.refresh_from_context(source_folder, has_results)
 
     def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
         """Handle window show event."""
@@ -499,8 +368,5 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event) -> None:  # noqa: N802
         """Handle window resize event."""
         super().resizeEvent(event)
-        # Update detail panel and loading overlay position/size
-        if self.detail_panel and self.detail_panel.isVisible():
-            self.detail_panel.show_panel()
-        if self.loading_overlay:
-            self.loading_overlay.setGeometry(0, 0, self.width(), self.height())
+        if self.overlay_layer:
+            self.overlay_layer.update_geometry()

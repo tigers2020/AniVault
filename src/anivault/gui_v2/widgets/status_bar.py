@@ -89,3 +89,15 @@ class StatusBar(QWidget):
     def set_cache_status(self, status: str) -> None:
         """Update cache status display."""
         self.cache_status.setText(status)
+
+    def refresh_from_context(self, source_folder: str, has_scan_results: bool) -> None:
+        """Update path and cache status from app context data.
+
+        MainWindow passes only raw data; this widget owns the display logic.
+
+        Args:
+            source_folder: Current source folder path to display.
+            has_scan_results: True if scan results exist (cache "ready").
+        """
+        self.set_current_path(source_folder or "unknown")
+        self.set_cache_status("ready" if has_scan_results else "unknown")

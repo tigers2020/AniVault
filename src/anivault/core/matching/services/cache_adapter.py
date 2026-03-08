@@ -15,7 +15,7 @@ from anivault.core.matching.cache_models import CachedSearchData
 from anivault.services.cache import (
     SQLiteCacheDB,
 )
-from anivault.shared.constants import Cache
+from anivault.shared.constants import Cache, CacheValidation
 from anivault.shared.utils.dataclass_serialization import from_dict, to_dict
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ class SQLiteCacheAdapter:
     Attributes:
         backend: SQLiteCacheDB instance for actual storage operations
         language: Language code for cache key generation (e.g., 'ko-KR', 'en-US')
-        MAX_KEY_LENGTH: Maximum allowed cache key length (256 characters)
+        MAX_KEY_LENGTH: From CacheValidation.MAX_KEY_LENGTH (256); keys over this are hashed.
 
     Security:
         - Cache keys exceeding MAX_KEY_LENGTH are automatically hashed
@@ -103,8 +103,6 @@ class SQLiteCacheAdapter:
         >>> adapter.set("search:anime:test", {"results": []})
         >>> data = adapter.get("search:anime:test")
     """
-
-    MAX_KEY_LENGTH = 256  # Maximum cache key length before hashing
 
     def __init__(self, backend: Any, language: str = "ko-KR") -> None:
         """Initialize cache adapter with SQLite backend.
@@ -306,14 +304,14 @@ class SQLiteCacheAdapter:
             >>> len(hashed)
             64  # SHA-256 hash length
         """
-        if len(key) > self.MAX_KEY_LENGTH:
+        if len(key) > CacheValidation.MAX_KEY_LENGTH:
             # Hash overly long keys to prevent DoS
             hashed_key = hashlib.sha256(key.encode("utf-8")).hexdigest()
 
             logger.warning(
                 "Cache key exceeds MAX_KEY_LENGTH (%d > %d), using hash: %s",
                 len(key),
-                self.MAX_KEY_LENGTH,
+                CacheValidation.MAX_KEY_LENGTH,
                 hashed_key[:16],  # Log only prefix
             )
 

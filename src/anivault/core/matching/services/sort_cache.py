@@ -45,6 +45,7 @@ class SortCache:
         """Initialize sort cache."""
         self.sort_keys: dict[tuple[int, str], tuple[float, int]] = {}
         self.sorted_lists: dict[str, list[int]] = {}
+        self._criteria_keys: dict[str, set[str]] = {}
 
     def _generate_cache_key(
         self,
@@ -126,6 +127,7 @@ class SortCache:
 
         # Cache sorted ID list
         self.sorted_lists[cache_key] = sorted_ids
+        self._criteria_keys.setdefault(sort_criteria, set()).add(cache_key)
 
         logger.debug(
             "Cached sorted list for criteria: %s (key: %s)",
@@ -139,23 +141,28 @@ class SortCache:
         """Clear all cached data."""
         self.sort_keys.clear()
         self.sorted_lists.clear()
+        self._criteria_keys.clear()
         logger.debug("Sort cache cleared")
 
     def invalidate(self, sort_criteria: str | None = None) -> None:
-        """Invalidate cache entries for specific criteria or all.
+        """Invalidate cache entries for a specific criteria or all.
 
-        Note: Since cache keys are hashes, we cannot directly match by criteria.
-        This method clears all cache entries. For more precise invalidation,
-        use clear() or implement criteria-to-key mapping.
+        Supports criteria-level invalidation: when sort_criteria is given,
+        only entries for that criteria are removed; other criteria remain cached.
 
         Args:
-            sort_criteria: Specific criteria to invalidate, or None for all.
-                          Currently, any non-None value clears all cache.
+            sort_criteria: Criteria to invalidate (e.g. "year_asc"), or None to clear all.
         """
         if sort_criteria is None:
             self.clear()
             return
 
-        # For now, clear all cache when invalidating specific criteria
-        self.clear()
-        logger.debug("Invalidated cache (cleared all entries)")
+        keys_to_remove = self._criteria_keys.pop(sort_criteria, set())
+        for cache_key in keys_to_remove:
+            self.sorted_lists.pop(cache_key, None)
+
+        to_remove = [k for k in self.sort_keys if k[1] == sort_criteria]
+        for k in to_remove:
+            del self.sort_keys[k]
+
+        logger.debug("Invalidated sort cache for criteria: %s", sort_criteria)

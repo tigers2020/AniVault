@@ -66,6 +66,7 @@ ERROR_UNEXPECTED = "unexpected"
 
 # TMDB constants
 TMDB_CACHE_DB = "tmdb_cache.db"
+PIPELINE_CACHE_DB = "anivault_cache.db"
 TMDB_LANGUAGE_KO = "ko-KR"
 TMDB_MEDIA_TYPE_MOVIE = "movie"
 TMDB_MEDIA_TYPE_TV = "tv"

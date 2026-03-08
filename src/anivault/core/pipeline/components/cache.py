@@ -14,6 +14,8 @@ from typing import Any
 
 from anivault.services.cache import SQLiteCacheDB
 from anivault.shared.constants import Cache
+from anivault.shared.constants.system import FileSystem
+from anivault.shared.constants.validation_constants import PIPELINE_CACHE_DB
 from anivault.utils.resource_path import get_project_root
 
 logger = logging.getLogger(__name__)
@@ -41,13 +43,12 @@ class CacheV1:
         """
         if cache_dir is None:
             project_root = get_project_root()
-            cache_dir = project_root / "cache"
+            cache_dir = project_root / FileSystem.CACHE_DIRECTORY
 
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Use unified cache database (same as TMDB cache)
-        db_path = self.cache_dir / "anivault_cache.db"
+        db_path = self.cache_dir / PIPELINE_CACHE_DB
         self._sqlite_cache = SQLiteCacheDB(db_path)
 
     def _generate_key(self, file_path: str, mtime: float) -> str:

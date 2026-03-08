@@ -24,7 +24,9 @@ api_key = ""
 timeout = 30
 retry_attempts = 3
 retry_delay = 1.0
+# rate_limit_delay: extra delay in seconds between requests (token bucket is separate)
 rate_limit_delay = 0.25
+# rate_limit_rps: requests per second (token bucket capacity and refill rate); default 35 stays under TMDB's ~40/10s limit
 rate_limit_rps = 35.0
 concurrent_requests = 4
 

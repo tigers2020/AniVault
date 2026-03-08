@@ -406,8 +406,9 @@ class TMDBClient:
 
         for attempt in range(self.config.api.tmdb.retry_attempts + 1):
             try:
-                # Make the API call
-                result = api_call()
+                # NOTE: tmdbv3api may use synchronous I/O; run in thread to avoid
+                # blocking the event loop.
+                result = await asyncio.to_thread(api_call)
 
                 # Handle successful response
                 self.state_machine.handle_success()
