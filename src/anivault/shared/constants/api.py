@@ -77,11 +77,3 @@ class CacheValidationConstants:
     # Logging
     CACHE_KEY_LOG_MAX_LENGTH = 50  # Max cache key length for logging
     HASH_PREFIX_LOG_LENGTH = 16  # Hash prefix length for logging (first 16 chars)
-
-
-# =============================================================================
-# CACHE CONFIGURATION (Moved to cache.py)
-# =============================================================================
-
-# Cache configuration is now centralized in cache.py
-# Import APICacheConfig from cache module
