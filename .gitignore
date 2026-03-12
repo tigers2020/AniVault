@@ -203,12 +203,12 @@ test_*.flv
 test_*.webm
 test_*.m4v
 
-# AniVault specific cache and data directories
+# AniVault specific cache and data directories (root only; do not ignore src/.../cache/)
 .anivault/
 .benchmarks/
-cache/
-data/
-logs/
+/cache/
+/data/
+/logs/
 large_test_data/
 
 # Task Master files (keep config but ignore state)
@@ -416,8 +416,8 @@ error_*.json
 stage*_*.json
 .coverage
 
-# Data directories
-cache/
+# Data directories (root only)
+/cache/
 .anivault/
 .benchmarks/
 
