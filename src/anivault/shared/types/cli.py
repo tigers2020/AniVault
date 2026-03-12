@@ -25,6 +25,9 @@ PositiveInt = conint(gt=0)
 NonNegativeInt = conint(ge=0)
 PortNumber = conint(ge=1, le=65535)
 
+# Reusable Field descriptions (avoid S1192 string literal duplication)
+DESCRIPTION_OUTPUT_FILE_PATH = "Output file path"
+
 
 class CLIDirectoryPath(BaseModel):
     """Validated directory path model for CLI options."""
@@ -75,7 +78,7 @@ class ScanOptions(BaseModel):
     recursive: bool = Field(default=True, description="Scan recursively")
     include_subtitles: bool = Field(default=True, description="Include subtitle files")
     include_metadata: bool = Field(default=True, description="Include metadata files")
-    output: Path | None = Field(default=None, description="Output file path")
+    output: Path | None = Field(default=None, description=DESCRIPTION_OUTPUT_FILE_PATH)
     json_output: bool = Field(
         default=False,
         description="Output results in JSON format",
@@ -119,7 +122,7 @@ class MatchOptions(BaseModel):
     """Match command options validation model."""
 
     directory: CLIDirectoryPath = Field(..., description="Directory to match")
-    output: Path | None = Field(default=None, description="Output file path")
+    output: Path | None = Field(default=None, description=DESCRIPTION_OUTPUT_FILE_PATH)
     force: bool = Field(
         default=False,
         description="Force re-matching of existing files",
@@ -222,4 +225,4 @@ class RunOptions(BaseModel):
         description="Output results in JSON format",
     )
     verbose: int = Field(default=0, description="Verbosity level")
-    output: Path | None = Field(default=None, description="Output file path")
+    output: Path | None = Field(default=None, description=DESCRIPTION_OUTPUT_FILE_PATH)

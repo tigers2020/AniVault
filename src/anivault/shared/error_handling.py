@@ -161,6 +161,65 @@ def create_error_context(
     )
 
 
+def _apply_file_path_to_context(
+    error: AniVaultError,
+    file_path: str,
+) -> AniVaultError:
+    """Return a new error with context updated to include file_path."""
+    if not error.context:
+        return error
+    updated_context = ErrorContextModel(
+        operation=error.context.operation,
+        file_path=file_path,
+        user_id=error.context.user_id,
+        additional_data=error.context.additional_data,
+    )
+    if isinstance(error, ApplicationError):
+        return ApplicationError(
+            code=error.code,
+            message=error.message,
+            context=updated_context,
+            original_error=error.original_error,
+        )
+    if isinstance(error, InfrastructureError):
+        return InfrastructureError(
+            code=error.code,
+            message=error.message,
+            context=updated_context,
+            original_error=error.original_error,
+        )
+    return error
+
+
+def _handle_anivault_error_in_decorator(
+    error: AniVaultError,
+    operation: str,
+    file_path: str | None,
+    reraise: bool,
+) -> None:
+    """Log AniVaultError and optionally re-raise. Returns None otherwise."""
+    additional_ctx = {"file_path": file_path} if file_path else None
+    log_error_with_context(error, operation, additional_context=additional_ctx)
+    if reraise:
+        raise error
+
+
+def _handle_generic_error_in_decorator(
+    error: Exception,
+    operation: str,
+    file_path: str | None,
+    default_code: ErrorCode,
+    reraise: bool,
+) -> None:
+    """Map exception to AniVaultError, optionally add file_path, log, and re-raise or return."""
+    mapped = map_exception_to_anivault_error(error, operation, default_code=default_code)
+    if file_path:
+        mapped = _apply_file_path_to_context(mapped, file_path)
+    log_error_with_context(mapped, operation)
+    if reraise:
+        raise mapped from error
+
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 
@@ -198,48 +257,10 @@ def handle_operation_errors(
             try:
                 return func(*args, **kwargs)
             except AniVaultError as e:
-                # Already an AniVaultError, log and optionally re-raise
-                additional_ctx = {"file_path": file_path} if file_path else None
-                log_error_with_context(e, operation, additional_context=additional_ctx)
-                if reraise:
-                    raise
+                _handle_anivault_error_in_decorator(e, operation, file_path, reraise)
                 return None
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                # Map to AniVaultError with file_path in context
-                mapped_error = map_exception_to_anivault_error(
-                    e,
-                    operation,
-                    default_code=default_code,
-                )
-                # Create new context with file_path if provided (ErrorContextModel is frozen)
-                if file_path and mapped_error.context:
-                    updated_context = ErrorContextModel(
-                        operation=mapped_error.context.operation,
-                        file_path=file_path,
-                        user_id=mapped_error.context.user_id,
-                        additional_data=mapped_error.context.additional_data,
-                    )
-                    # Create new error with updated context
-                    if isinstance(mapped_error, ApplicationError):
-                        mapped_error = ApplicationError(
-                            code=mapped_error.code,
-                            message=mapped_error.message,
-                            context=updated_context,
-                            original_error=mapped_error.original_error,
-                        )
-                    elif isinstance(mapped_error, InfrastructureError):
-                        mapped_error = InfrastructureError(
-                            code=mapped_error.code,
-                            message=mapped_error.message,
-                            context=updated_context,
-                            original_error=mapped_error.original_error,
-                        )
-
-                # Log the error
-                log_error_with_context(mapped_error, operation)
-
-                if reraise:
-                    raise mapped_error from e
+            except Exception as e:  # noqa: BLE001 - decorator intentionally maps all exceptions to AniVaultError
+                _handle_generic_error_in_decorator(e, operation, file_path, default_code, reraise)
                 return None
 
         return wrapper  # type: ignore[return-value]

@@ -94,25 +94,26 @@ class CLIHelp:
     A comprehensive tool for organizing anime collections with TMDB integration,
     intelligent file matching, and automated organization capabilities.
     """
+    JSON_OUTPUT_HELP = "Output results in JSON format"
     SCAN_HELP = "Scan directory for anime files"
     SCAN_DIRECTORY_HELP = "Directory to scan for anime files"
     SCAN_RECURSIVE_HELP = "Scan directories recursively"
     SCAN_INCLUDE_SUBTITLES_HELP = "Include subtitle files in scan"
     SCAN_INCLUDE_METADATA_HELP = "Include metadata files in scan"
     SCAN_OUTPUT_HELP = "Output file for scan results (JSON format)"
-    SCAN_JSON_HELP = "Output results in JSON format"
+    SCAN_JSON_HELP = JSON_OUTPUT_HELP
     MATCH_HELP = "Match anime files against TMDB database"
     MATCH_DIRECTORY_HELP = "Directory to match anime files against TMDB database"
     MATCH_RECURSIVE_HELP = "Match files recursively in subdirectories"
     MATCH_INCLUDE_SUBTITLES_HELP = "Include subtitle files in matching"
     MATCH_INCLUDE_METADATA_HELP = "Include metadata files in matching"
     MATCH_OUTPUT_HELP = "Output file for match results (JSON format)"
-    MATCH_JSON_HELP = "Output results in JSON format"
+    MATCH_JSON_HELP = JSON_OUTPUT_HELP
     ORGANIZE_HELP = "Organize anime files into structured directories"
     ORGANIZE_DIRECTORY_HELP = "Directory containing scanned and matched anime files to organize"
     ORGANIZE_DRY_RUN_HELP = "Show what would be organized without actually moving files"
     ORGANIZE_YES_HELP = "Skip confirmation prompts and proceed with organization"
-    ORGANIZE_JSON_HELP = "Output results in JSON format"
+    ORGANIZE_JSON_HELP = JSON_OUTPUT_HELP
     ORGANIZE_DESTINATION_HELP = "Destination directory for organized files"
     ORGANIZE_DESCRIPTION = """
     Organize anime files into a structured directory layout.
@@ -139,7 +140,7 @@ class CLIHelp:
     RUN_OUTPUT_HELP = "Output file for processing results (JSON format)"
     RUN_DRY_RUN_HELP = "Show what would be processed without actually processing files"
     RUN_YES_HELP = "Skip confirmation prompts and proceed with processing"
-    RUN_JSON_HELP = "Output results in JSON format"
+    RUN_JSON_HELP = JSON_OUTPUT_HELP
     LOG_HELP = "Manage operation logs"
     LOG_DIR_HELP = "Directory containing log files"
     VERIFY_HELP = "Verify system components and connectivity"

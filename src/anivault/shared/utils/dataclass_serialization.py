@@ -23,6 +23,106 @@ from typing import Any, cast, get_args, get_origin, get_type_hints
 from uuid import UUID
 
 
+def _build_alias_to_field(cls: type) -> dict[str, str]:
+    """Build mapping from field alias to field name."""
+    alias_to_field: dict[str, str] = {}
+    for field in fields(cls):
+        if field.metadata and "alias" in field.metadata:
+            alias_to_field[field.metadata["alias"]] = field.name
+    return alias_to_field
+
+
+def _get_allowed_keys(cls: type) -> set[str]:
+    """Set of allowed keys (field names + aliases) for extra='forbid'."""
+    allowed: set[str] = set()
+    for f in fields(cls):
+        allowed.add(f.name)
+        if f.metadata and "alias" in f.metadata:
+            allowed.add(f.metadata["alias"])
+    return allowed
+
+
+def _validate_no_extra_keys(data: dict[str, Any], allowed_keys: set[str]) -> None:
+    """Raise TypeError if data contains keys not in allowed_keys."""
+    extra_keys = set(data.keys()) - allowed_keys
+    if extra_keys:
+        msg = "Extra fields not allowed: " + str(sorted(extra_keys))
+        raise TypeError(msg)
+
+
+def _resolve_field_key(
+    field: Any,
+    data: dict[str, Any],
+    alias_to_field: dict[str, str],
+) -> str | None:
+    """Return data key for field (field.name or its alias), or None if missing."""
+    if field.name in data:
+        return field.name
+    for alias, actual_field in alias_to_field.items():
+        if actual_field == field.name and alias in data:
+            return alias
+    return None
+
+
+def _unwrap_optional(field_type: Any) -> Any:
+    """Unwrap Optional/Union to get the non-None type, or return original."""
+    origin = get_origin(field_type)
+    if origin is None or origin in (list, dict):
+        return field_type
+    args = get_args(field_type)
+    non_none = [a for a in args if a is not type(None)]
+    if not non_none:
+        return field_type
+    inner = non_none[0]
+    return _unwrap_optional(inner)
+
+
+def _convert_datetime_or_uuid(field_type: Any, value: Any) -> Any | None:
+    """Return converted value for datetime/UUID, or None if not applicable."""
+    if field_type is datetime and isinstance(value, str):
+        return datetime.fromisoformat(value)
+    if field_type is UUID and isinstance(value, str):
+        return UUID(value)
+    return None
+
+
+def _convert_list_value(field_type: Any, value: list[Any]) -> Any:
+    """Convert list value; recurses into list of dataclasses."""
+    origin = get_origin(field_type)
+    args = get_args(field_type) if origin is not None else ()
+    item_type = args[0] if args else None
+    if item_type and is_dataclass(item_type):
+        return [from_dict(item_type, item) for item in value]
+    return value
+
+
+def _convert_dict_value(field_type: Any, value: dict[str, Any]) -> Any:
+    """Convert dict value; recurses into dict with dataclass values."""
+    origin = get_origin(field_type)
+    args = get_args(field_type) if origin is not None else ()
+    value_type = args[1] if len(args) > 1 else None
+    if value_type and is_dataclass(value_type):
+        return {k: from_dict(value_type, v) for k, v in value.items()}
+    return value
+
+
+def _convert_field_value(field_type: Any, value: Any) -> Any:
+    """Convert a single value for a field type (datetime, UUID, nested, list, dict)."""
+    if value is None:
+        return None
+    field_type = _unwrap_optional(field_type)
+    converted = _convert_datetime_or_uuid(field_type, value)
+    if converted is not None:
+        return converted
+    if is_dataclass(field_type) and isinstance(value, dict):
+        return from_dict(cast("type[Any]", field_type), value)
+    if get_origin(field_type) is list and isinstance(value, list):
+        return _convert_list_value(field_type, value)
+    if get_origin(field_type) is dict and isinstance(value, dict):
+        return _convert_dict_value(field_type, value)
+    return value
+
+
 def to_dict(obj: Any) -> dict[str, Any]:
     """Convert dataclass to dictionary.
 
@@ -148,118 +248,28 @@ def from_dict(cls: type, data: dict[str, Any], extra: str = "ignore") -> Any:
         'Alice'
     """
     if not is_dataclass(cls):
-        error_msg = f"{cls.__name__} is not a dataclass"
-        raise TypeError(error_msg)
+        msg = f"{cls.__name__} is not a dataclass"
+        raise TypeError(msg)
 
-    # Convert datetime/UUID strings back to objects
     type_hints = get_type_hints(cls)
+    alias_to_field = _build_alias_to_field(cls)
 
-    # Build alias mapping (Subtask 3.2)
-    alias_to_field: dict[str, str] = {}
-    for field in fields(cls):
-        if field.metadata and "alias" in field.metadata:
-            alias = field.metadata["alias"]
-            alias_to_field[alias] = field.name
-
-    # Check for extra fields if extra='forbid' (Subtask 3.3)
     if extra == "forbid":
-        allowed_keys: set[str] = set()
-        for f in fields(cls):
-            allowed_keys.add(f.name)
-            # Add aliases to allowed keys
-            if f.metadata and "alias" in f.metadata:
-                allowed_keys.add(f.metadata["alias"])
-
-        data_keys = set(data.keys())
-        extra_keys = data_keys - allowed_keys
-        if extra_keys:
-            error_msg = f"Extra fields not allowed: {sorted(extra_keys)}"
-            raise TypeError(error_msg)
+        _validate_no_extra_keys(data, _get_allowed_keys(cls))
 
     result: dict[str, Any] = {}
-
     for field in fields(cls):
-        # Check if data contains this field (by name or alias)
-        field_key = None
-        if field.name in data:
-            field_key = field.name
-        elif field.name in alias_to_field.values():
-            # This field has an alias, check if alias is in data
-            for alias, actual_field in alias_to_field.items():
-                if actual_field == field.name and alias in data:
-                    field_key = alias
-                    break
-
-        # Check if field has a default value
-        if field.default is not MISSING or field.default_factory is not MISSING:
-            # If field not in data, use default
-            if field_key is None:
-                continue
-
+        field_key = _resolve_field_key(field, data, alias_to_field)
+        has_default = field.default is not MISSING or field.default_factory is not MISSING
+        if has_default and field_key is None:
+            continue
         if field_key is None:
-            error_msg = f"Missing required field: {field.name}"
-            raise KeyError(error_msg)
+            msg = f"Missing required field: {field.name}"
+            raise KeyError(msg)
 
         value = data[field_key]
-
-        # Get actual type from type hints (handles string annotations)
         field_type = type_hints.get(field.name)
-
-        if field_type is not None:
-            # Handle type hints properly (considering Optional, Union, etc.)
-            origin = get_origin(field_type)
-            args = get_args(field_type) if origin is not None else ()
-
-            # Handle Optional[T] -> Union[T, None]
-            if origin is not None and origin not in (list, dict):
-                # Get the actual type from Union types
-                # Find non-None types
-                actual_types = [a for a in args if a is not type(None)]
-                if actual_types:
-                    field_type = actual_types[0]
-                    origin = get_origin(field_type)
-                    args = get_args(field_type) if origin is not None else ()
-
-            # Basic datetime/UUID conversion
-            if field_type is datetime and isinstance(value, str):
-                result[field.name] = datetime.fromisoformat(value)
-            elif field_type is UUID and isinstance(value, str):
-                uuid_value: UUID = UUID(value)
-                result[field.name] = uuid_value
-            # Handle None values for Optional fields
-            elif value is None:
-                result[field.name] = None
-            # Handle nested dataclasses (Subtask 2.1)
-            elif is_dataclass(field_type) and isinstance(value, dict):
-                # Type guard: field_type is a dataclass class (not instance)
-                # field_type is guaranteed to be a type due to is_dataclass check
-
-                # Cast to type for type safety (DataclassInstance is Python 3.11+ only)
-                dataclass_cls = cast("type[Any]", field_type)
-                nested_result = from_dict(dataclass_cls, value)
-                result[field.name] = nested_result
-            # Handle List types (Subtask 2.2)
-            elif origin is list and isinstance(value, list):
-                # Get item type from List[T]
-                item_type = args[0] if args else None
-                if item_type and is_dataclass(item_type):
-                    # List of dataclasses: convert each item
-                    result[field.name] = [from_dict(item_type, item) for item in value]
-                else:
-                    result[field.name] = value
-            # Handle Dict types (Subtask 2.2)
-            elif origin is dict and isinstance(value, dict):
-                # Get value type from Dict[K, V]
-                value_type = args[1] if len(args) > 1 else None
-                if value_type and is_dataclass(value_type):
-                    # Dict with dataclass values: convert each value
-                    result[field.name] = {k: from_dict(value_type, v) for k, v in value.items()}
-                else:
-                    result[field.name] = value
-            else:
-                result[field.name] = value
-        else:
-            result[field.name] = value
+        result[field.name] = _convert_field_value(field_type, value) if field_type is not None else value
 
     return cls(**result)
 
