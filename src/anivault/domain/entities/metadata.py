@@ -47,30 +47,45 @@ class FileMetadata:
 
     def __post_init__(self) -> None:
         """Validate fields after initialization."""
+        self._validate_required_fields()
+        self._validate_year()
+        self._validate_season()
+        self._validate_episode()
+        self._validate_vote_average()
+        self._validate_match_confidence()
+
+    def _validate_required_fields(self) -> None:
         if not self.title:
             raise ValueError(EMPTY_TITLE_ERROR)
-
         if not self.file_type:
             raise ValueError(EMPTY_FILE_TYPE_ERROR)
 
-        if self.year is not None:
-            if self.year < MIN_YEAR or self.year > MAX_YEAR:
-                raise ValueError(YEAR_RANGE_ERROR_TEMPLATE.format(year=self.year))
+    def _validate_year(self) -> None:
+        if self.year is None:
+            return
+        if self.year < MIN_YEAR or self.year > MAX_YEAR:
+            raise ValueError(YEAR_RANGE_ERROR_TEMPLATE.format(year=self.year))
 
+    def _validate_season(self) -> None:
         if self.season is not None and self.season < 0:
             raise ValueError(SEASON_NEGATIVE_ERROR_TEMPLATE.format(season=self.season))
 
+    def _validate_episode(self) -> None:
         if self.episode is not None and self.episode < 0:
             raise ValueError(EPISODE_NEGATIVE_ERROR_TEMPLATE.format(episode=self.episode))
 
-        if self.vote_average is not None:
-            if not MIN_VOTE_AVERAGE <= self.vote_average <= MAX_VOTE_AVERAGE:
-                raise ValueError(VOTE_AVERAGE_RANGE_ERROR_TEMPLATE.format(vote_average=self.vote_average))
+    def _validate_vote_average(self) -> None:
+        if self.vote_average is None:
+            return
+        if not MIN_VOTE_AVERAGE <= self.vote_average <= MAX_VOTE_AVERAGE:
+            raise ValueError(VOTE_AVERAGE_RANGE_ERROR_TEMPLATE.format(vote_average=self.vote_average))
 
-        if self.match_confidence is not None:
-            if not 0.0 <= self.match_confidence <= 1.0:
-                msg = f"match_confidence must be between 0.0 and 1.0, got {self.match_confidence}"
-                raise ValueError(msg)
+    def _validate_match_confidence(self) -> None:
+        if self.match_confidence is None:
+            return
+        if not 0.0 <= self.match_confidence <= 1.0:
+            msg = f"match_confidence must be between 0.0 and 1.0, got {self.match_confidence}"
+            raise ValueError(msg)
 
     @property
     def display_name(self) -> str:

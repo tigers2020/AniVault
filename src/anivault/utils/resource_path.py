@@ -13,6 +13,51 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+_PROJECT_ROOT_MARKERS = (".git", "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
+_MAX_ROOT_DEPTH = 10
+
+
+def _resolve_bundle_root() -> Path | None:
+    """Resolve project root when running as PyInstaller bundle. Returns None if not in bundle."""
+    if not hasattr(sys, "_MEIPASS"):
+        return None
+    if hasattr(sys, "executable") and sys.executable:
+        exe_dir = Path(sys.executable).parent
+        if (exe_dir / "config").exists() or (exe_dir / "cache").exists():
+            logger.debug("Using executable directory as project root: %s", exe_dir)
+            return exe_dir
+    cwd = Path.cwd()
+    logger.debug("Using current working directory as project root: %s", cwd)
+    return cwd
+
+
+def _find_root_by_markers(start: Path) -> Path | None:
+    """Walk up from start looking for project root markers. Returns None if not found."""
+    current = start
+    for _ in range(_MAX_ROOT_DEPTH):
+        if any((current / m).exists() for m in _PROJECT_ROOT_MARKERS):
+            logger.debug("Found project root: %s", current)
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
+
+
+def _find_root_by_src_structure(start: Path) -> Path | None:
+    """Walk up from start looking for src/anivault directory. Returns None if not found."""
+    current = start
+    for _ in range(_MAX_ROOT_DEPTH):
+        if (current / "src" / "anivault").exists():
+            logger.debug("Found project root via src/ structure: %s", current)
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
+
 
 def get_project_root() -> Path:
     """Get the project root directory path.
@@ -30,60 +75,19 @@ def get_project_root() -> Path:
         >>> root = get_project_root()
         >>> cache_dir = root / "cache"
     """
-    # Check if running as PyInstaller bundle
-    if hasattr(sys, "_MEIPASS"):
-        # In bundle, project root is typically the directory containing the executable
-        # For GUI apps, use user home directory for cache/config
-        # Return a writable location for cache files
+    bundle_root = _resolve_bundle_root()
+    if bundle_root is not None:
+        return bundle_root
 
-        # Try to get executable directory
-        if hasattr(sys, "executable") and sys.executable:
-            exe_dir = Path(sys.executable).parent
-            # Check if it looks like a project directory
-            if (exe_dir / "config").exists() or (exe_dir / "cache").exists():
-                logger.debug("Using executable directory as project root: %s", exe_dir)
-                return exe_dir
+    file_path = Path(__file__).resolve()
+    root = _find_root_by_markers(file_path)
+    if root is not None:
+        return root
 
-        # Fallback: use current working directory
-        cwd = Path.cwd()
-        logger.debug("Using current working directory as project root: %s", cwd)
-        return cwd
+    root = _find_root_by_src_structure(file_path)
+    if root is not None:
+        return root
 
-    # Development mode: find project root by looking for marker files
-    current = Path(__file__).resolve()
-    max_depth = 10  # Prevent infinite loops
-
-    for _ in range(max_depth):
-        # Check for common project root markers
-        markers = [
-            ".git",
-            "pyproject.toml",
-            "setup.py",
-            "setup.cfg",
-            "requirements.txt",
-        ]
-        if any((current / marker).exists() for marker in markers):
-            logger.debug("Found project root: %s", current)
-            return current
-
-        parent = current.parent
-        if parent == current:  # Reached filesystem root
-            break
-        current = parent
-
-    # Fallback: use directory containing src/ if it exists
-    current = Path(__file__).resolve()
-    for _ in range(max_depth):
-        if (current / "src" / "anivault").exists():
-            logger.debug("Found project root via src/ structure: %s", current)
-            return current
-
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-
-    # Last resort: use current working directory
     cwd = Path.cwd()
     logger.warning(
         "Could not determine project root, using current directory: %s",

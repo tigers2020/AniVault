@@ -228,7 +228,7 @@ def get_file_encoding(file_path: str | Path) -> str:
             exc_info=True,
         )
         return UTF8_ENCODING
-    except (UnicodeDecodeError, ValueError):
+    except ValueError:
         # Handle encoding detection errors
         logger.warning(
             "Encoding detection failed, falling back to UTF-8: %s",
