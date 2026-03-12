@@ -398,7 +398,7 @@ def _print_run_summary(run_data: dict[str, Any], console: Console) -> None:
     for step in run_data["steps"]:
         status_icon = "✓" if step["status"] == "success" else "✗"
         status_color = "green" if step["status"] == "success" else "red"
-        console.print(f"  {status_icon} {step['step'].title()}: " f"[{status_color}]{step['status']}[/{status_color}] - {step['message']}")
+        console.print(f"  {status_icon} {step['step'].title()}: [{status_color}]{step['status']}[/{status_color}] - {step['message']}")
 
 
 def run_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments

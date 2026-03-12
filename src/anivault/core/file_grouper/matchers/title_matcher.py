@@ -370,11 +370,7 @@ class TitleSimilarityMatcher:
                 candidate_file_ids.discard(current_file_id)
                 candidate_file_ids -= processed_file_ids
                 # Filter by keyword intersection for precision
-                candidate_file_ids = {
-                    oid
-                    for oid in candidate_file_ids
-                    if file_keyword_set.intersection(file_keywords.get(oid, set()))
-                }
+                candidate_file_ids = {oid for oid in candidate_file_ids if file_keyword_set.intersection(file_keywords.get(oid, set()))}
                 logger.debug(
                     "LSH found no candidates, using keyword intersection: %d candidates for title '%s'",
                     len(candidate_file_ids),

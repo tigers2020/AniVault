@@ -166,7 +166,7 @@ def get_cli_context() -> CliContext:
     context = cli_context_var.get()
     if context is None:
         raise RuntimeError(
-            "CLI context has not been initialized. " "Make sure to call the main callback before accessing context.",
+            "CLI context has not been initialized. Make sure to call the main callback before accessing context.",
         )
     return context
 

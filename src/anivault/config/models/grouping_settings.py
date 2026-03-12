@@ -50,7 +50,7 @@ class GroupingSettings(BaseModel):
         ge=1,
         le=100000,
         description=(
-            "Maximum number of files in a group for Title matcher processing. " "Groups larger than this will skip Title matcher (DoS protection)"
+            "Maximum number of files in a group for Title matcher processing. Groups larger than this will skip Title matcher (DoS protection)"
         ),
     )
 
@@ -58,9 +58,7 @@ class GroupingSettings(BaseModel):
         default=10000,
         ge=1,
         le=1000000,
-        description=(
-            "Maximum number of input files to process in a single grouping operation. " "Exceeding this will raise an error (DoS protection)"
-        ),
+        description=("Maximum number of input files to process in a single grouping operation. Exceeding this will raise an error (DoS protection)"),
     )
 
     title_similarity_threshold: float = Field(

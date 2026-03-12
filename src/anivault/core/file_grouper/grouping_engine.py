@@ -580,9 +580,7 @@ class GroupingEngine:
                     refined_result = title_matcher.refine_group(hash_group)  # type: ignore[attr-defined]
                     if refined_result:
                         # refined_result can be Group or list[Group] (when multiple subgroups)
-                        groups_to_add: list[Group] = (
-                            refined_result if isinstance(refined_result, list) else [refined_result]
-                        )
+                        groups_to_add: list[Group] = refined_result if isinstance(refined_result, list) else [refined_result]
                         for refined_group in groups_to_add:
                             refined_group.evidence = self._merge_pipeline_evidence(
                                 hash_group.evidence,

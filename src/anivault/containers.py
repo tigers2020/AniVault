@@ -50,9 +50,7 @@ class Container(containers.DeclarativeContainer):
     config = providers.Singleton(load_settings)
 
     # Cache path provider
-    cache_db_path = providers.Singleton(
-        lambda: get_project_root() / FileSystem.CACHE_DIRECTORY / TMDB_CACHE_DB
-    )
+    cache_db_path = providers.Singleton(lambda: get_project_root() / FileSystem.CACHE_DIRECTORY / TMDB_CACHE_DB)
 
     # Cache services
     sqlite_cache_db = providers.Factory(

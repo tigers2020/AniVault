@@ -119,5 +119,5 @@ EPISODE_NEGATIVE_ERROR_TEMPLATE = "episode must be non-negative, got {episode}"
 
 # Vote average validation error message template
 VOTE_AVERAGE_RANGE_ERROR_TEMPLATE = (
-    f"vote_average must be between {MIN_VOTE_AVERAGE} and {MAX_VOTE_AVERAGE}, " f"got {{vote_average}}"  # pylint: disable=line-too-long
+    f"vote_average must be between {MIN_VOTE_AVERAGE} and {MAX_VOTE_AVERAGE}, got {{vote_average}}"  # pylint: disable=line-too-long
 )

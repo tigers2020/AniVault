@@ -148,7 +148,7 @@ def _set_windows_permissions(file_path: Path) -> None:
     except ImportError:
         # Fallback to basic chmod if pywin32 is not available
         logger.warning(
-            "pywin32 not available, using basic chmod. " "For better security on Windows, install pywin32.",
+            "pywin32 not available, using basic chmod. For better security on Windows, install pywin32.",
         )
         # This provides minimal protection on Windows
         Path(file_path).chmod(0o600)

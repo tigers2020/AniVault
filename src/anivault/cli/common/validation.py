@@ -105,7 +105,7 @@ class NamingFormat(BaseModel):
         open_braces = format_str.count("{")
         close_braces = format_str.count("}")
         if open_braces != close_braces:
-            msg = f"Format string has mismatched braces: " f"{open_braces} opening, " f"{close_braces} closing"
+            msg = f"Format string has mismatched braces: {open_braces} opening, {close_braces} closing"
             raise ValueError(
                 msg,
             )
@@ -114,9 +114,7 @@ class NamingFormat(BaseModel):
         invalid_placeholders = found_placeholders - valid_placeholders
         if invalid_placeholders:
             msg = (
-                f"Invalid placeholders found: "
-                f"{', '.join(sorted(invalid_placeholders))}. "
-                f"Valid placeholders: {', '.join(sorted(valid_placeholders))}"
+                f"Invalid placeholders found: {', '.join(sorted(invalid_placeholders))}. Valid placeholders: {', '.join(sorted(valid_placeholders))}"
             )
             raise ValueError(
                 msg,
@@ -124,7 +122,7 @@ class NamingFormat(BaseModel):
 
         # Check if at least one valid placeholder is present
         if not any(placeholder in valid_placeholders for placeholder in found_placeholders):
-            msg = f"Format string must contain at least one valid placeholder. " f"Valid placeholders: {', '.join(sorted(valid_placeholders))}"
+            msg = f"Format string must contain at least one valid placeholder. Valid placeholders: {', '.join(sorted(valid_placeholders))}"
             raise ValueError(
                 msg,
             )

@@ -236,28 +236,21 @@ class DetailPanel(QWidget):
             resolution = group.get("resolution", "")
             language = group.get("language", "unknown")
             meta = f"시즌 {season} | {episodes}화 | {resolution}"
-            info_text = (
-                f"파일: {group.get('files', 0)}개\n"
-                f"해상도: {resolution}\n"
-                f"언어: {language.upper()}"
-            )
+            info_text = f"파일: {group.get('files', 0)}개\n해상도: {resolution}\n언어: {language.upper()}"
             file_metadata_list = group.get("file_metadata_list", [])
             files = self._build_file_list(file_metadata_list, resolution, language)
             if not files:
-                files = [
-                    (f"Episode {i + 1}.mkv", f"{resolution} | {language.upper()}")
-                    for i in range(group.get("files", 0))
-                ]
+                files = [(f"Episode {i + 1}.mkv", f"{resolution} | {language.upper()}") for i in range(group.get("files", 0))]
             self.set_group_detail(title, meta, info_text, files)
             self.show_panel()
-        except Exception as e:
-            logger.error("Failed to parse group data for detail panel: %s", e)
+        except Exception:
+            logger.exception("Failed to parse group data for detail panel")
             self._clear_panel()
 
     def _build_file_list(
         self,
         file_metadata_list: list,
-        fallback_resolution: str,
+        _fallback_resolution: str,
         fallback_language: str,
     ) -> list[tuple[str, str]]:
         """Build (file_name, file_meta_str) list from FileMetadata list."""
@@ -278,9 +271,7 @@ class DetailPanel(QWidget):
                 parts.append(file_resolution)
             if getattr(file_meta, "episode", None) is not None:
                 if getattr(file_meta, "season", None) is not None:
-                    parts.append(
-                        f"S{file_meta.season:02d}E{file_meta.episode:02d}"
-                    )
+                    parts.append(f"S{file_meta.season:02d}E{file_meta.episode:02d}")
                 else:
                     parts.append(f"E{file_meta.episode:02d}")
 

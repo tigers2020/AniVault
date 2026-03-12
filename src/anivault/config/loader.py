@@ -188,7 +188,7 @@ def _check_env_file_exists(env_file: Path) -> None:
 
         raise SecurityError(
             code=ErrorCode.MISSING_CONFIG,
-            message=("Environment file .env not found. " "Copy env.template to .env and configure your TMDB API key."),
+            message=("Environment file .env not found. Copy env.template to .env and configure your TMDB API key."),
             context=ErrorContext(
                 operation="load_env",
                 additional_data={"file_name": env_file.name},
@@ -289,8 +289,7 @@ def _validate_api_key(env_file: Path) -> None:
         raise SecurityError(
             code=ErrorCode.INVALID_CONFIG,
             message=(
-                f"TMDB_API_KEY appears invalid (too short: {len(api_key)} characters). "
-                f"Expected at least 20 characters. Please check your API key."
+                f"TMDB_API_KEY appears invalid (too short: {len(api_key)} characters). Expected at least 20 characters. Please check your API key."
             ),
             context=ErrorContext(
                 operation="validate_api_key",

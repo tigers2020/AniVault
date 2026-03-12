@@ -93,11 +93,7 @@ class TMDBSettings(BaseModel):
         """
         masked_key = "****" if self.api_key else "[empty]"
         return (
-            f"TMDBSettings("
-            f"api_key={masked_key}, "
-            f"timeout={self.timeout}, "
-            f"retry_attempts={self.retry_attempts}, "
-            f"rate_limit_rps={self.rate_limit_rps})"
+            f"TMDBSettings(api_key={masked_key}, timeout={self.timeout}, retry_attempts={self.retry_attempts}, rate_limit_rps={self.rate_limit_rps})"
         )
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:

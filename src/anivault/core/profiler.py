@@ -250,7 +250,7 @@ class Profiler:
 
         if metrics.cache_hit_ratio < 50.0:
             recommendations.append(
-                "Low cache hit ratio detected. Consider increasing cache TTL or " "implementing more aggressive caching strategies.",
+                "Low cache hit ratio detected. Consider increasing cache TTL or implementing more aggressive caching strategies.",
             )
 
         return recommendations
@@ -263,7 +263,7 @@ class Profiler:
             error_rate = (metrics.api_errors / max(metrics.api_calls, 1)) * 100
             if error_rate > 10.0:
                 recommendations.append(
-                    f"High API error rate detected ({error_rate:.1f}%). " "Consider implementing retry logic or rate limiting.",
+                    f"High API error rate detected ({error_rate:.1f}%). Consider implementing retry logic or rate limiting.",
                 )
 
         return recommendations
@@ -276,7 +276,7 @@ class Profiler:
             peak_memory = max(snapshot.peak_memory_mb for snapshot in self.memory_snapshots)
             if peak_memory > 1000:  # 1GB
                 recommendations.append(
-                    f"High memory usage detected ({peak_memory:.1f} MB peak). " "Consider implementing memory optimization strategies.",
+                    f"High memory usage detected ({peak_memory:.1f} MB peak). Consider implementing memory optimization strategies.",
                 )
 
         return recommendations
@@ -309,7 +309,7 @@ class Profiler:
             success_rate = (metrics.successful_matches / metrics.total_files) * 100
             if success_rate < 70.0:
                 recommendations.append(
-                    f"Low matching accuracy detected ({success_rate:.1f}%). " "Consider improving normalization or confidence scoring algorithms.",
+                    f"Low matching accuracy detected ({success_rate:.1f}%). Consider improving normalization or confidence scoring algorithms.",
                 )
 
         return recommendations
@@ -395,7 +395,7 @@ class Profiler:
             print("-" * 40)
             for snapshot in report.memory_snapshots:
                 print(
-                    f"{snapshot.timestamp}: {snapshot.current_memory_mb:.2f} MB " f"(peak: {snapshot.peak_memory_mb:.2f} MB) - {snapshot.context}",
+                    f"{snapshot.timestamp}: {snapshot.current_memory_mb:.2f} MB (peak: {snapshot.peak_memory_mb:.2f} MB) - {snapshot.context}",
                 )
             print()
 

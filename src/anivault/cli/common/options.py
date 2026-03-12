@@ -26,7 +26,7 @@ verbose_option: Annotated[  # pylint: disable=invalid-name
         "--verbose",
         "-v",
         count=True,
-        help=("Enable verbose output " "(equivalent to --log-level DEBUG). " "Use multiple times for increased verbosity."),
+        help=("Enable verbose output (equivalent to --log-level DEBUG). Use multiple times for increased verbosity."),
     ),
 ] = 0
 
@@ -37,7 +37,7 @@ log_level_option: Annotated[
     typer.Option(
         "--log-level",
         case_sensitive=False,
-        help=("Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). " "Default: INFO."),
+        help=("Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). Default: INFO."),
     ),
 ] = LogLevel.INFO
 
@@ -57,7 +57,7 @@ benchmark_option: Annotated[  # pylint: disable=invalid-name
     bool,
     typer.Option(
         "--benchmark",
-        help=("Enable benchmark mode to measure performance metrics " "for each processing step."),
+        help=("Enable benchmark mode to measure performance metrics for each processing step."),
     ),
 ] = False
 

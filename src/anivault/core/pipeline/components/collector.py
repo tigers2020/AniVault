@@ -167,7 +167,7 @@ class ResultCollector(threading.Thread):
                         idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
                         if idle >= max_idle_loops if max_idle_loops else False:
                             logger.warning(
-                                ("ResultCollector %s: Max idle loops reached, " "stopping..."),
+                                ("ResultCollector %s: Max idle loops reached, stopping..."),
                                 self.collector_id,
                             )
                             break

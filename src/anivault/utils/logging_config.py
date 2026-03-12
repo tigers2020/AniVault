@@ -57,7 +57,7 @@ class AniVaultFormatter(logging.Formatter):
         self.detailed = detailed
 
         if detailed:
-            format_str = "%(asctime)s - %(name)s - %(levelname)s - " "%(filename)s:%(lineno)d - %(funcName)s - %(message)s"
+            format_str = "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s - %(message)s"
         else:
             format_str = DEFAULT_LOG_FORMAT
 

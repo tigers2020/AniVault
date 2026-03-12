@@ -42,11 +42,7 @@ def dict_to_file_metadata(result: dict[str, Any]) -> FileMetadata:
         raise ValueError(msg)
 
     file_extension = result.get("file_extension", "")
-    file_type = (
-        file_extension.lstrip(".").lower()
-        if file_extension
-        else file_path.suffix.lstrip(".").lower() or "unknown"
-    )
+    file_type = file_extension.lstrip(".").lower() if file_extension else file_path.suffix.lstrip(".").lower() or "unknown"
 
     episode = result.get("episode_number")
     season = result.get("anime_season")

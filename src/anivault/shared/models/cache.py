@@ -56,7 +56,7 @@ class CacheEntry(BaseDataclass):
         self.cache_key = self.cache_key.strip()
 
         if len(self.key_hash) != CacheValidationConstants.SHA256_HASH_LENGTH:
-            msg = f"key_hash must be {CacheValidationConstants.SHA256_HASH_LENGTH} " f"characters, got {len(self.key_hash)}"
+            msg = f"key_hash must be {CacheValidationConstants.SHA256_HASH_LENGTH} characters, got {len(self.key_hash)}"
             raise ValueError(msg)
 
         if not all(c in CacheValidationConstants.HEX_CHARS for c in self.key_hash.lower()):

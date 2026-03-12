@@ -45,7 +45,7 @@ class NormalizedQuery:
             max_year = current_year + ValidationConstants.FUTURE_YEAR_TOLERANCE
 
             if self.year < ValidationConstants.MIN_VALID_YEAR or self.year > max_year:
-                error_message = f"year must be between {ValidationConstants.MIN_VALID_YEAR} " f"and {max_year}, got {self.year}"
+                error_message = f"year must be between {ValidationConstants.MIN_VALID_YEAR} and {max_year}, got {self.year}"
                 raise ValueError(error_message)
 
 
@@ -105,7 +105,7 @@ class MatchResult:
 
         # Validate media_type
         if self.media_type not in ValidationConstants.VALID_MEDIA_TYPES:
-            error_message = f"media_type must be one of {ValidationConstants.VALID_MEDIA_TYPES}, " f"got {self.media_type}"
+            error_message = f"media_type must be one of {ValidationConstants.VALID_MEDIA_TYPES}, got {self.media_type}"
             raise ValueError(error_message)
 
     def to_dict(self) -> dict[str, Any]:

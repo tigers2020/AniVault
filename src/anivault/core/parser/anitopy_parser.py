@@ -54,7 +54,7 @@ class AnitopyParser:
         """
         if anitopy is None:
             raise ImportError(
-                "anitopy library is not installed. " "Install it with: pip install anitopy",
+                "anitopy library is not installed. Install it with: pip install anitopy",
             )
 
     def parse(self, filename: str) -> ParsingResult:

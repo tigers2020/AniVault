@@ -50,7 +50,7 @@ class ThreadSafeStatsUpdater:
                 elif hasattr(self.stats, "increment_files"):
                     self.stats.increment_files()
                 else:
-                    message = "Stats object " f"{type(self.stats)} does not have increment_files_scanned or increment_files method"
+                    message = f"Stats object {type(self.stats)} does not have increment_files_scanned or increment_files method"
                     raise AttributeError(message)
 
     def increment_directories(self, count: int = 1) -> None:
@@ -66,7 +66,7 @@ class ThreadSafeStatsUpdater:
                 elif hasattr(self.stats, "increment_directories"):
                     self.stats.increment_directories()
                 else:
-                    message = "Stats object " f"{type(self.stats)} does not have increment_directories_scanned " "or increment_directories method"
+                    message = f"Stats object {type(self.stats)} does not have increment_directories_scanned or increment_directories method"
                     raise AttributeError(message)
 
     def update_files_and_directories(
