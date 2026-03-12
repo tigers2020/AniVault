@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QWidget
+from typing import TYPE_CHECKING
 
 from anivault.gui_v2.widgets.detail_panel import DetailPanel
 from anivault.gui_v2.widgets.loading_overlay import LoadingOverlay
+
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QWidget
 
 
 class OverlayLayerComponent:
