@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import cast
 
 from PySide6.QtCore import Property, QPropertyAnimation, Signal
 from PySide6.QtWidgets import (
@@ -15,6 +16,14 @@ from PySide6.QtWidgets import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Resolution/language markers for detail panel file list (display-only parsing)
+_RESOLUTION_MARKERS = ("1080p", "720p", "480p", "2160p", "4k", "1440p")
+_LANGUAGE_PATTERNS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("korean", "kor", "ko"), "KO"),
+    (("japanese", "jap", "ja"), "JA"),
+    (("english", "eng", "en"), "EN"),
+)
 
 
 class DetailPanel(QWidget):
@@ -146,7 +155,7 @@ class DetailPanel(QWidget):
     def show_panel(self) -> None:
         """Show the detail panel with slide animation."""
         if self.parent():
-            parent_width = self.parent().width()
+            parent_width = cast("QWidget", self.parent()).width()
             target_x = parent_width - self._panel_width
 
             self._animation.setStartValue(self._x_pos)
@@ -157,7 +166,7 @@ class DetailPanel(QWidget):
     def hide_panel(self) -> None:
         """Hide the detail panel with slide animation."""
         if self.parent():
-            parent_width = self.parent().width()
+            parent_width = cast("QWidget", self.parent()).width()
             target_x = parent_width
 
             self._animation.setStartValue(self._x_pos)
@@ -172,7 +181,7 @@ class DetailPanel(QWidget):
         """Set panel position."""
         self._x_pos = pos
         if self.parent():
-            parent = self.parent()
+            parent = cast("QWidget", self.parent())
             parent_height = parent.height()
             self.setGeometry(self._x_pos, 0, self._panel_width, parent_height)
             self.raise_()
@@ -238,58 +247,22 @@ class DetailPanel(QWidget):
             meta = f"시즌 {season} | {episodes}화 | {resolution}"
             info_text = f"파일: {group.get('files', 0)}개\n해상도: {resolution}\n언어: {language.upper()}"
             file_metadata_list = group.get("file_metadata_list", [])
-            files = self._build_file_list(file_metadata_list, resolution, language)
+            files = self._build_file_list(file_metadata_list, language)
             if not files:
                 files = [(f"Episode {i + 1}.mkv", f"{resolution} | {language.upper()}") for i in range(group.get("files", 0))]
             self.set_group_detail(title, meta, info_text, files)
             self.show_panel()
-        except Exception:
+        except (TypeError, AttributeError, KeyError):
             logger.exception("Failed to parse group data for detail panel")
             self._clear_panel()
 
     def _build_file_list(
         self,
         file_metadata_list: list,
-        _fallback_resolution: str,
         fallback_language: str,
     ) -> list[tuple[str, str]]:
         """Build (file_name, file_meta_str) list from FileMetadata list."""
-        result: list[tuple[str, str]] = []
-        for file_meta in file_metadata_list:
-            name = getattr(file_meta, "file_path", None)
-            file_name = name.name if name is not None else "unknown"
-            file_name_lower = file_name.lower()
-
-            file_resolution = "unknown"
-            for res in ("1080p", "720p", "480p", "2160p", "4k", "1440p"):
-                if res in file_name_lower:
-                    file_resolution = res.upper().replace("P", "p")
-                    break
-
-            parts: list[str] = []
-            if file_resolution != "unknown":
-                parts.append(file_resolution)
-            if getattr(file_meta, "episode", None) is not None:
-                if getattr(file_meta, "season", None) is not None:
-                    parts.append(f"S{file_meta.season:02d}E{file_meta.episode:02d}")
-                else:
-                    parts.append(f"E{file_meta.episode:02d}")
-
-            file_language = "unknown"
-            if any(x in file_name_lower for x in ("korean", "kor", "ko")):
-                file_language = "KO"
-            elif any(x in file_name_lower for x in ("japanese", "jap", "ja")):
-                file_language = "JA"
-            elif any(x in file_name_lower for x in ("english", "eng", "en")):
-                file_language = "EN"
-            if file_language != "unknown":
-                parts.append(file_language)
-            elif fallback_language and fallback_language != "unknown":
-                parts.append(fallback_language.upper())
-
-            meta_str = " | ".join(parts) if parts else "정보 없음"
-            result.append((file_name, meta_str))
-        return result
+        return [_single_file_display(file_meta, fallback_language) for file_meta in file_metadata_list]
 
     def _clear_panel(self) -> None:
         """Clear labels and file list, then hide panel."""
@@ -301,3 +274,54 @@ class DetailPanel(QWidget):
             if child.widget():
                 child.widget().deleteLater()
         self.hide_panel()
+
+
+def _resolution_from_filename(file_name_lower: str) -> str:
+    """Extract resolution string from filename for display."""
+    for res in _RESOLUTION_MARKERS:
+        if res in file_name_lower:
+            return res.upper().replace("P", "p")
+    return "unknown"
+
+
+def _language_from_filename(file_name_lower: str) -> str:
+    """Extract language code from filename for display."""
+    for keywords, code in _LANGUAGE_PATTERNS:
+        if any(kw in file_name_lower for kw in keywords):
+            return code
+    return "unknown"
+
+
+def _episode_season_part(file_meta: object) -> str | None:
+    """Format episode/season part from file metadata, or None."""
+    episode = getattr(file_meta, "episode", None)
+    if episode is None:
+        return None
+    season = getattr(file_meta, "season", None)
+    if season is not None:
+        return f"S{season:02d}E{episode:02d}"
+    return f"E{episode:02d}"
+
+
+def _single_file_display(file_meta: object, fallback_language: str) -> tuple[str, str]:
+    """Build (file_name, meta_str) for one file metadata (display only)."""
+    name = getattr(file_meta, "file_path", None)
+    file_name = name.name if name is not None else "unknown"
+    file_name_lower = file_name.lower()
+
+    file_resolution = _resolution_from_filename(file_name_lower)
+    file_language = _language_from_filename(file_name_lower)
+    episode_part = _episode_season_part(file_meta)
+
+    parts: list[str] = []
+    if file_resolution != "unknown":
+        parts.append(file_resolution)
+    if episode_part is not None:
+        parts.append(episode_part)
+    if file_language != "unknown":
+        parts.append(file_language)
+    elif fallback_language and fallback_language != "unknown":
+        parts.append(fallback_language.upper())
+
+    meta_str = " | ".join(parts) if parts else "정보 없음"
+    return (file_name, meta_str)
