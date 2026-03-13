@@ -160,7 +160,7 @@ class CandidateScoringService:
                         "error_type": "data_parsing",
                     },
                 )
-                error = AniVaultParsingError(  # noqa: F841  # pylint: disable=unused-variable
+                AniVaultParsingError(
                     ErrorCode.DATA_PROCESSING_ERROR,
                     (f"Failed to calculate confidence score for candidate '{candidate.display_title}': {e}"),
                     context,

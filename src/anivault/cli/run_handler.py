@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import typer
 from rich.console import Console
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 @setup_handler(requires_directory=True, supports_json=True, allow_dry_run=True)
 @handle_cli_errors(operation="handle_run", command_name="run")
-def handle_run_command(options: RunOptions, **kwargs: Any) -> int:  # pylint: disable=too-many-locals
+def handle_run_command(options: RunOptions, **kwargs: Any) -> int:
     """Handle the run command which orchestrates scan, match, and organize.
 
     Args:
@@ -53,19 +53,40 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:  # pylint: di
 
     logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.RUN))
 
-    # Extract directory path
     directory = extract_directory_path(options.directory)
-
-    # Check if JSON output and benchmark mode are enabled
     context = get_cli_context()
     is_json_output = bool(context and context.is_json_output_enabled())
     is_benchmark = bool(context and context.is_benchmark_enabled())
-
-    # Initialize statistics collector for benchmark mode
     stats_collector = get_statistics_collector() if is_benchmark else None
 
-    # Initialize run data for tracking
-    run_data: dict[str, Any] = {
+    run_data = _build_run_data(options, directory)
+    pipeline_steps = _get_pipeline_steps(options)
+
+    error_code = _execute_run_pipeline(
+        options=options,
+        directory=directory,
+        console=console,
+        run_data=run_data,
+        pipeline_steps=pipeline_steps,
+        is_json_output=is_json_output,
+        is_benchmark=is_benchmark,
+        stats_collector=stats_collector,
+        logger_adapter=logger_adapter,
+    )
+    if error_code is not None:
+        return error_code
+
+    if is_benchmark and stats_collector:
+        _display_benchmark_results(stats_collector, console, is_json_output, run_data)
+
+    _emit_run_success(run_data, console, is_json_output)
+    logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.RUN))
+    return CLIDefaults.EXIT_SUCCESS
+
+
+def _build_run_data(options: RunOptions, directory: Path) -> dict[str, Any]:
+    """Build initial run_data for workflow tracking."""
+    return {
         "workflow_summary": {
             CLIMessages.StatusKeys.DIRECTORY: str(directory),
             "extensions": options.extensions,
@@ -79,60 +100,111 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:  # pylint: di
         "steps": [],
     }
 
-    # Define pipeline steps
-    pipeline_steps = [
+
+def _get_pipeline_steps(
+    options: RunOptions,
+) -> list[tuple[str, bool, str, Callable[..., dict[str, Any]]]]:
+    """Return pipeline step definitions (name, skip_flag, message, executor)."""
+    return [
         ("scan", options.skip_scan, "Scanning for anime files", _execute_scan_step),
         ("match", options.skip_match, "Matching files with TMDB", _execute_match_step),
-        (
-            "organize",
-            options.skip_organize,
-            "Organizing files",
-            _execute_organize_step,
-        ),
+        ("organize", options.skip_organize, "Organizing files", _execute_organize_step),
     ]
 
-    # Execute pipeline steps
+
+def _execute_run_pipeline(
+    options: RunOptions,
+    directory: Path,
+    console: Console,
+    run_data: dict[str, Any],
+    pipeline_steps: list[tuple[str, bool, str, Callable[..., dict[str, Any]]]],
+    is_json_output: bool,
+    is_benchmark: bool,
+    stats_collector: Any,
+    logger_adapter: logging.LoggerAdapter[Any],
+) -> int | None:
+    """Execute pipeline steps. Returns exit code on error, None on success."""
     for step_name, should_skip, step_message, step_func in pipeline_steps:
         if should_skip:
             continue
 
-        # Print step header (console mode only)
-        if not is_json_output:
-            step_number = len(run_data["steps"]) + 1
-            console.print(
-                CLIFormatting.format_colored_message(
-                    f"\nStep {step_number}: {step_message}...",
-                    "info",
-                )
-            )
+        _print_step_header(console, run_data, step_message, is_json_output)
 
-        # Start timing for benchmark mode
-        if is_benchmark and stats_collector:
-            stats_collector.start_timing(step_name)
-
-        # Execute step
-        step_result = step_func(options, directory, console)
-
-        # End timing for benchmark mode
-        if is_benchmark and stats_collector:
-            stats_collector.end_timing(step_name)
+        step_result = _run_single_step(
+            step_name=step_name,
+            step_func=step_func,
+            options=options,
+            directory=directory,
+            console=console,
+            is_benchmark=is_benchmark,
+            stats_collector=stats_collector,
+        )
 
         run_data["steps"].append(step_result)
 
-        # Check for errors
         if step_result[CLIMessages.StatusKeys.STATUS] != "success":
-            error_message = f"{step_name.title()} step failed"
-            if is_json_output:
-                _output_json_error(error_message, run_data)
-            else:
-                logger_adapter.error(error_message)
-            return CLIDefaults.EXIT_ERROR
+            return _handle_step_failure(step_name, run_data, is_json_output, logger_adapter)
 
-    # Calculate and display benchmark results if enabled
+    return None
+
+
+def _print_step_header(
+    console: Console,
+    run_data: dict[str, Any],
+    step_message: str,
+    is_json_output: bool,
+) -> None:
+    """Print step header in console mode."""
+    if is_json_output:
+        return
+    step_number = len(run_data["steps"]) + 1
+    console.print(
+        CLIFormatting.format_colored_message(
+            f"\nStep {step_number}: {step_message}...",
+            "info",
+        )
+    )
+
+
+def _run_single_step(
+    step_name: str,
+    step_func: Callable[..., dict[str, Any]],
+    options: RunOptions,
+    directory: Path,
+    console: Console,
+    is_benchmark: bool,
+    stats_collector: Any,
+) -> dict[str, Any]:
+    """Run one pipeline step with optional benchmark timing."""
     if is_benchmark and stats_collector:
-        _display_benchmark_results(stats_collector, console, is_json_output, run_data)
+        stats_collector.start_timing(step_name)
+    result = step_func(options, directory, console)
+    if is_benchmark and stats_collector:
+        stats_collector.end_timing(step_name)
+    return result
 
-    # Success - output results
+
+def _handle_step_failure(
+    step_name: str,
+    run_data: dict[str, Any],
+    is_json_output: bool,
+    logger_adapter: logging.LoggerAdapter[Any],
+) -> int:
+    """Report step failure and return exit code."""
+    error_message = f"{step_name.title()} step failed"
+    if is_json_output:
+        _output_json_error(error_message, run_data)
+    else:
+        logger_adapter.error(error_message)
+    return CLIDefaults.EXIT_ERROR
+
+
+def _emit_run_success(
+    run_data: dict[str, Any],
+    console: Console,
+    is_json_output: bool,
+) -> None:
+    """Emit success output (JSON or console message + summary)."""
     if is_json_output:
         json_output = format_json_output(
             success=True,
@@ -150,9 +222,6 @@ def handle_run_command(options: RunOptions, **kwargs: Any) -> int:  # pylint: di
             )
         )
         _print_run_summary(run_data, console)
-
-    logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.RUN))
-    return CLIDefaults.EXIT_SUCCESS
 
 
 def _execute_scan_step(
@@ -426,7 +495,7 @@ def run_command(  # pylint: disable=too-many-arguments,too-many-positional-argum
         "--include-metadata/--no-include-metadata",
         help="Include metadata files in processing",
     ),
-    output_file: Path | None = typer.Option(  # pylint: disable=unused-argument
+    output_file: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -503,6 +572,7 @@ def run_command(  # pylint: disable=too-many-arguments,too-many-positional-argum
             yes=yes,
             json_output=bool(json),
             verbose=context.verbose if context else 0,
+            output=output_file,
         )
 
         # Call the handler with Pydantic model

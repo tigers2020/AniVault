@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
@@ -50,7 +52,7 @@ class LoadingOverlay(QWidget):
             message: Loading message to display
         """
         if self.parent():
-            parent = self.parent()
+            parent = cast("QWidget", self.parent())
             self.setGeometry(0, 0, parent.width(), parent.height())
         self.message_label.setText(message)
         self.show()

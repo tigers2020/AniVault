@@ -43,7 +43,7 @@ class MatchUseCase:
         Returns:
             List of FileMetadata (includes error-placeholder entries for failed files)
         """
-        exts = extensions or FileSystem.CLI_VIDEO_EXTENSIONS
+        exts = extensions or tuple(FileSystem.CLI_VIDEO_EXTENSIONS)
         anime_files = self._find_anime_files(directory, exts)
 
         if not anime_files:
@@ -78,7 +78,7 @@ class MatchUseCase:
                     )
                     if isinstance(bundle, MatchResultBundle):
                         return bundle.metadata
-                    return bundle
+                    return bundle  # type: ignore[unreachable]
                 except (OSError, ValueError, TypeError):
                     return None
 

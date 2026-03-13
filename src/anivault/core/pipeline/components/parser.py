@@ -411,7 +411,8 @@ class ParserWorker(threading.Thread):
                 anime_season = parsed.season
                 anime_year = parsed.year
                 display_name = anime_title if anime_title else file_name
-            except (ImportError, Exception):  # noqa: BLE001 - intentional fallback on any parse failure
+            except (ImportError, KeyError, ValueError, TypeError, AttributeError):
+                # Fallback to filename on parser import or data errors (avoids S5713 redundant catch)
                 display_name = file_name
 
             result: dict[str, Any] = {
@@ -420,7 +421,7 @@ class ParserWorker(threading.Thread):
                 "file_size": stat_info.st_size,
                 "file_extension": file_ext,
                 "modified_time": stat_info.st_mtime,
-                "created_time": stat_info.st_ctime,
+                "created_time": stat_info.st_birthtime if hasattr(stat_info, "st_birthtime") else stat_info.st_mtime,
                 "worker_id": self.worker_id,
                 "status": "success",
             }

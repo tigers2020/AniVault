@@ -33,7 +33,7 @@ K = TypeVar("K")
 V = TypeVar("V")
 
 
-@dataclass(slots=True)
+@dataclass(slots=True)  # type: ignore[call-overload]
 class HashNode(Generic[K, V]):
     """Hash table node with chaining and doubly linked list support.
 

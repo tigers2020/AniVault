@@ -6,9 +6,12 @@ import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import replace
-
 from anivault.core.matching.engine import MatchingEngine
-from anivault.core.matching.pipeline import MatchOptions, process_file_for_matching
+from anivault.core.matching.pipeline import (
+    MatchOptions,
+    MatchResultBundle,
+    process_file_for_matching,
+)
 from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
@@ -68,7 +71,7 @@ class MatchWorker(BaseWorker):
         )
 
         # Match each unique (title, year) once
-        key_to_bundle: dict = {}
+        key_to_bundle: dict[tuple[str, int | None], MatchResultBundle] = {}
         for idx, (key, group_files) in enumerate(groups.items(), start=1):
             if self.is_cancelled():
                 break
@@ -89,21 +92,22 @@ class MatchWorker(BaseWorker):
                 parser=self._parser,
                 options=MatchOptions(),
             )
-            key_to_bundle[key] = bundle
+            if bundle is not None:
+                key_to_bundle[key] = bundle
 
         # Build results in original file order
         results: list[FileMetadata] = []
         for fm in self._files:
             key = _title_year_key(fm)
-            bundle = key_to_bundle.get(key)
-            if bundle and bundle.metadata:
+            result_bundle = key_to_bundle.get(key)
+            if result_bundle and result_bundle.metadata:
                 meta = replace(
-                    bundle.metadata,
+                    result_bundle.metadata,
                     file_path=fm.file_path,
                     file_type=fm.file_type,
                     episode=fm.episode,
                     season=fm.season,
-                    year=fm.year or bundle.metadata.year,
+                    year=fm.year or result_bundle.metadata.year,
                     genres=fm.genres,
                 )
                 results.append(meta)

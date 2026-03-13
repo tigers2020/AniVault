@@ -217,7 +217,7 @@ class TitleIndex:
         self.deleted_keys.discard(file_id)
         self.add_title(file_id, title)
 
-    def remove_file(self, file_id: int, title: str | None = None) -> None:  # noqa: ARG002
+    def remove_file(self, file_id: int) -> None:
         """Remove a file from the index."""
         normalized = self.file_id_to_normalized.get(file_id)
 
@@ -242,9 +242,9 @@ class TitleIndex:
         self.deleted_keys.add(file_id)
         self.file_id_to_minhash.pop(file_id, None)
 
-    def update_file(self, file_id: int, old_title: str, new_title: str) -> None:
+    def update_file(self, file_id: int, new_title: str) -> None:
         """Update a file's title in the index."""
-        self.remove_file(file_id, old_title)
+        self.remove_file(file_id)
         self.add_file(file_id, new_title)
 
 

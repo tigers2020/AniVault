@@ -2,6 +2,7 @@
 
 This module provides update/delete operations for cache management.
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,10 +13,11 @@ from anivault.shared.constants import Cache
 
 logger = logging.getLogger(__name__)
 
+
 class UpdateOperations(BaseOperation):
     """Update/delete operations for cache management."""
 
-    def delete(self, key: str, cache_type: str=Cache.TYPE_SEARCH) -> bool:
+    def delete(self, key: str, cache_type: str = Cache.TYPE_SEARCH) -> bool:
         """Delete cache entry by key.
 
         Args:
@@ -50,7 +52,7 @@ class UpdateOperations(BaseOperation):
             logger.info("Purged %d expired cache entries", purged_count)
         return purged_count
 
-    def clear(self, cache_type: str | None=None) -> int:
+    def clear(self, cache_type: str | None = None) -> int:
         """Clear cache entries.
 
         Args:

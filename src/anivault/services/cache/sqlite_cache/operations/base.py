@@ -2,6 +2,7 @@
 
 This module provides shared functionality for all cache operations.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
 
     from anivault.core.statistics import StatisticsCollector
 logger = logging.getLogger(__name__)
+
 
 class BaseOperation:
     """Base class for cache operations with shared functionality."""

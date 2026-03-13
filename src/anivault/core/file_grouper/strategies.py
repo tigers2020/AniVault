@@ -142,14 +142,24 @@ class WeightedMergeStrategy(GroupingStrategy):
 
         return final_groups
 
-    def _merge_overlapping_groups(  # pylint: disable=too-many-locals
+    def _merge_overlapping_groups(
         self,
         matcher_results: dict[str, list[Group]],
         weights: dict[str, float],
         _file_groups: dict[str, dict[str, Group]],
     ) -> list[Group]:
         """Merge groups that have overlapping files using Union-Find for O(N*alpha(N))."""
-        # Build file -> [(matcher_name, group), ...]
+        file_to_groups = self._build_file_to_groups(matcher_results)
+        all_files = list(file_to_groups.keys())
+        uf = self._connect_overlapping_files(file_to_groups, matcher_results)
+        components, component_groups = self._build_components(all_files, file_to_groups, uf)
+        return self._build_merged_groups_from_components(components, component_groups, matcher_results, weights)
+
+    @staticmethod
+    def _build_file_to_groups(
+        matcher_results: dict[str, list[Group]],
+    ) -> dict[str, list[tuple[str, Group]]]:
+        """Build file -> [(matcher_name, group), ...] mapping."""
         file_to_groups: dict[str, list[tuple[str, Group]]] = {}
         for matcher_name, groups in matcher_results.items():
             for group in groups:
@@ -158,8 +168,14 @@ class WeightedMergeStrategy(GroupingStrategy):
                     if file_name not in file_to_groups:
                         file_to_groups[file_name] = []
                     file_to_groups[file_name].append((matcher_name, group))
+        return file_to_groups
 
-        # Union-Find: connect files per (matcher_name, group) once per group (O(total entries) vs O(F^2))
+    @staticmethod
+    def _connect_overlapping_files(
+        file_to_groups: dict[str, list[tuple[str, Group]]],
+        matcher_results: dict[str, list[Group]],
+    ) -> _UnionFind:
+        """Run Union-Find to connect files that belong to the same group across matchers."""
         all_files = list(file_to_groups.keys())
         uf = _UnionFind(all_files)
         seen_groups: set[tuple[str, int]] = set()
@@ -175,8 +191,15 @@ class WeightedMergeStrategy(GroupingStrategy):
                 first = names_in_index[0]
                 for other in names_in_index[1:]:
                     uf.union(first, other)
+        return uf
 
-        # Group files by component root and collect (matcher, group) per root in one pass
+    @staticmethod
+    def _build_components(
+        all_files: list[str],
+        file_to_groups: dict[str, list[tuple[str, Group]]],
+        uf: _UnionFind,
+    ) -> tuple[dict[str, set[str]], dict[str, list[tuple[str, Group]]]]:
+        """Group files by component root and collect (matcher, group) per root."""
         components: dict[str, set[str]] = {}
         component_groups: dict[str, list[tuple[str, Group]]] = {}
         seen_per_root: dict[str, set[tuple[str, int]]] = {}
@@ -188,8 +211,16 @@ class WeightedMergeStrategy(GroupingStrategy):
                 if key not in seen_per_root.setdefault(root, set()):
                     seen_per_root[root].add(key)
                     component_groups.setdefault(root, []).append((m, g))
+        return components, component_groups
 
-        # Build merged groups from each component (cluster_groups already built)
+    def _build_merged_groups_from_components(
+        self,
+        components: dict[str, set[str]],
+        component_groups: dict[str, list[tuple[str, Group]]],
+        matcher_results: dict[str, list[Group]],
+        weights: dict[str, float],
+    ) -> list[Group]:
+        """Build final merged Group list from component mappings."""
         merged_groups = []
         for root, cluster_files in components.items():
             if not cluster_files:
@@ -197,7 +228,6 @@ class WeightedMergeStrategy(GroupingStrategy):
             cluster_groups = component_groups.get(root, [])
             merged_group = self._create_merged_group(cluster_files, cluster_groups, matcher_results, weights)
             merged_groups.append(merged_group)
-
         return merged_groups
 
     def _create_merged_group(

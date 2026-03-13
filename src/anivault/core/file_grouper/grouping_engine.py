@@ -26,6 +26,9 @@ from .strategies import BestMatcherStrategy, GroupingStrategy
 
 logger = logging.getLogger(__name__)
 
+# Log format for matcher failure (S1192: single source for duplicated literal)
+_LOG_MATCHER_FAILED = "Matcher '%s' failed: %s"
+
 
 class GroupingEngine:
     """Orchestrates multiple matching strategies with weighted scoring.
@@ -401,7 +404,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
+                logger.exception(_LOG_MATCHER_FAILED, matcher.component_name, error.message)
                 continue
 
             except Exception as e:  # pylint: disable=broad-exception-caught
@@ -418,7 +421,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
+                logger.exception(_LOG_MATCHER_FAILED, matcher.component_name, error.message)
                 continue
 
     def _combine_matcher_results(
@@ -488,7 +491,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
+                logger.exception(_LOG_MATCHER_FAILED, matcher.component_name, error.message)
                 # Skip failed matcher
                 continue
             except Exception as e:  # pylint: disable=broad-exception-caught
@@ -506,7 +509,7 @@ class GroupingEngine:
                     context,
                     original_error=e,
                 )
-                logger.exception("Matcher '%s' failed: %s", matcher.component_name, error.message)
+                logger.exception(_LOG_MATCHER_FAILED, matcher.component_name, error.message)
                 # Skip failed matcher
                 continue
 
@@ -527,7 +530,120 @@ class GroupingEngine:
 
         return result_groups
 
-    def _refine_groups_with_title_matcher(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches
+    def _append_hash_group_fallback(
+        self,
+        refined_groups: list[Group],
+        hash_group: Group,
+        explanation_suffix: str,
+    ) -> None:
+        """Append hash_group to refined_groups and optionally update evidence."""
+        if hash_group.evidence:
+            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} {explanation_suffix}"
+        refined_groups.append(hash_group)
+
+    def _refine_one_group_via_refine_group(
+        self,
+        hash_group: Group,
+        title_matcher: BaseMatcher,
+        hash_weight: float,
+        title_weight: float,
+    ) -> list[Group] | None:
+        """Refine one hash group using title_matcher.refine_group(). Returns None to use fallback."""
+        refined_result = title_matcher.refine_group(hash_group)  # type: ignore[attr-defined]
+        if not refined_result:
+            return None
+        groups_to_add: list[Group] = refined_result if isinstance(refined_result, list) else [refined_result]
+        for refined_group in groups_to_add:
+            refined_group.evidence = self._merge_pipeline_evidence(
+                hash_group.evidence,
+                refined_group.evidence,
+                hash_weight,
+                title_weight,
+            )
+        return groups_to_add
+
+    def _refine_one_group_via_match(
+        self,
+        hash_group: Group,
+        title_matcher: BaseMatcher,
+        hash_weight: float,
+        title_weight: float,
+    ) -> list[Group]:
+        """Refine one hash group using title_matcher.match(). Returns list of groups or empty for fallback."""
+        title_subgroups = title_matcher.match(hash_group.files)
+        if not title_subgroups:
+            return []
+        for title_subgroup in title_subgroups:
+            title_subgroup.evidence = self._merge_pipeline_evidence(
+                hash_group.evidence,
+                title_subgroup.evidence,
+                hash_weight,
+                title_weight,
+            )
+        return title_subgroups
+
+    def _handle_title_refine_exception(
+        self,
+        refined_groups: list[Group],
+        hash_group: Group,
+        exc: Exception,
+        parsing_error: bool,
+    ) -> None:
+        """Log title refinement failure and append hash group as fallback."""
+        message = (
+            f"Title matcher failed for group '{hash_group.title}' due to data parsing error: {exc}"
+            if parsing_error
+            else f"Title matcher failed for group '{hash_group.title}': {exc}"
+        )
+        context = ErrorContextModel(
+            operation="title_matcher_refine_per_group",
+            additional_data={
+                "group_title": hash_group.title,
+                "file_count": len(hash_group.files),
+            },
+        )
+        error = AniVaultParsingError(
+            ErrorCode.FILE_GROUPING_FAILED,
+            message,
+            context,
+            original_error=exc,
+        )
+        logger.exception(
+            "Title matcher failed for group '%s', using Hash result: %s",
+            hash_group.title,
+            error.message,
+        )
+        self._append_hash_group_fallback(refined_groups, hash_group, "(Title matcher failed)")
+
+    def _process_one_hash_group_for_title_refine(
+        self,
+        refined_groups: list[Group],
+        hash_group: Group,
+        title_matcher: BaseMatcher,
+        has_refine_group: bool,
+        hash_weight: float,
+        title_weight: float,
+    ) -> None:
+        """Refine a single Hash group with Title matcher and append to refined_groups."""
+        try:
+            if has_refine_group:
+                groups = self._refine_one_group_via_refine_group(hash_group, title_matcher, hash_weight, title_weight)
+                if groups is not None:
+                    refined_groups.extend(groups)
+                else:
+                    self._append_hash_group_fallback(refined_groups, hash_group, "(Title refinement returned None)")
+            else:
+                groups = self._refine_one_group_via_match(hash_group, title_matcher, hash_weight, title_weight)
+                if groups:
+                    refined_groups.extend(groups)
+                else:
+                    self._append_hash_group_fallback(refined_groups, hash_group, "(Title matcher returned empty)")
+        except (KeyError, ValueError, AttributeError, TypeError) as e:
+            self._handle_title_refine_exception(refined_groups, hash_group, e, parsing_error=True)
+        except Exception as e:  # pylint: disable=broad-exception-caught  # noqa: BLE001
+            self._handle_title_refine_exception(refined_groups, hash_group, e, parsing_error=False)
+
+    def _refine_groups_with_title_matcher(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         hash_groups: list[Group],
         title_matcher: BaseMatcher,
@@ -554,15 +670,11 @@ class GroupingEngine:
             List of refined Group objects from Title matcher with updated evidence.
         """
         refined_groups: list[Group] = []
-
-        # Check if Title matcher has refine_group method (Task 2.1)
         has_refine_group = hasattr(title_matcher, "refine_group")
 
         for hash_group in hash_groups:
             if not hash_group.files:
                 continue
-
-            # Check group size limit (DoS protection)
             if len(hash_group.files) > max_title_match_group_size:
                 logger.debug(
                     "Skipping Title matcher for group '%s' (size: %d > limit: %d)",
@@ -570,104 +682,60 @@ class GroupingEngine:
                     len(hash_group.files),
                     max_title_match_group_size,
                 )
-                # Use Hash group as-is (skip Title matcher for large groups)
                 refined_groups.append(hash_group)
                 continue
-
-            try:
-                if has_refine_group:
-                    # Use refine_group if available (preferred)
-                    refined_result = title_matcher.refine_group(hash_group)  # type: ignore[attr-defined]
-                    if refined_result:
-                        # refined_result can be Group or list[Group] (when multiple subgroups)
-                        groups_to_add: list[Group] = refined_result if isinstance(refined_result, list) else [refined_result]
-                        for refined_group in groups_to_add:
-                            refined_group.evidence = self._merge_pipeline_evidence(
-                                hash_group.evidence,
-                                refined_group.evidence,
-                                hash_weight,
-                                title_weight,
-                            )
-                            refined_groups.append(refined_group)
-                    else:
-                        # Fallback to Hash group if refinement returns None
-                        # Update evidence to indicate pipeline was attempted
-                        if hash_group.evidence:
-                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title refinement returned None)"
-                        refined_groups.append(hash_group)
-                else:
-                    # Fallback: Extract files and use match() method
-                    title_subgroups = title_matcher.match(hash_group.files)
-                    if title_subgroups:
-                        # Merge evidence for each Title subgroup
-                        for title_subgroup in title_subgroups:
-                            title_subgroup.evidence = self._merge_pipeline_evidence(
-                                hash_group.evidence,
-                                title_subgroup.evidence,
-                                hash_weight,
-                                title_weight,
-                            )
-                        refined_groups.extend(title_subgroups)
-                    else:
-                        # Fallback to Hash group if Title matcher returns empty
-                        # Update evidence to indicate Title matcher was attempted
-                        if hash_group.evidence:
-                            hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title matcher returned empty)"
-                        refined_groups.append(hash_group)
-
-            except (KeyError, ValueError, AttributeError, TypeError) as e:
-                # Data structure access errors during title refinement per group
-                context = ErrorContextModel(
-                    operation="title_matcher_refine_per_group",
-                    additional_data={
-                        "group_title": hash_group.title,
-                        "file_count": len(hash_group.files),
-                    },
-                )
-                error = AniVaultParsingError(
-                    ErrorCode.FILE_GROUPING_FAILED,
-                    (f"Title matcher failed for group '{hash_group.title}' due to data parsing error: {e}"),
-                    context,
-                    original_error=e,
-                )
-                logger.exception(
-                    "Title matcher failed for group '%s', using Hash result: %s",
-                    hash_group.title,
-                    error.message,
-                )
-                # Use Hash group as fallback
-                # Update evidence to indicate Title matcher failed
-                if hash_group.evidence:
-                    hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title matcher failed)"
-                refined_groups.append(hash_group)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                # Unexpected errors during title refinement per group
-                # (catch-all for unknown exceptions)
-                context = ErrorContextModel(
-                    operation="title_matcher_refine_per_group",
-                    additional_data={
-                        "group_title": hash_group.title,
-                        "file_count": len(hash_group.files),
-                    },
-                )
-                error = AniVaultParsingError(
-                    ErrorCode.FILE_GROUPING_FAILED,
-                    f"Title matcher failed for group '{hash_group.title}': {e}",
-                    context,
-                    original_error=e,
-                )
-                logger.exception(
-                    "Title matcher failed for group '%s', using Hash result: %s",
-                    hash_group.title,
-                    error.message,
-                )
-                # Use Hash group as fallback
-                # Update evidence to indicate Title matcher failed
-                if hash_group.evidence:
-                    hash_group.evidence.explanation = f"{hash_group.evidence.explanation} (Title matcher failed)"
-                refined_groups.append(hash_group)
-
+            self._process_one_hash_group_for_title_refine(
+                refined_groups,
+                hash_group,
+                title_matcher,
+                has_refine_group,
+                hash_weight,
+                title_weight,
+            )
         return refined_groups
+
+    def _add_matcher_contribution(
+        self,
+        match_scores: dict[str, float],
+        contributing_matchers: list[str],
+        evidence: GroupingEvidence | None,
+        matcher_key: str,
+        fallback_weight: float,
+    ) -> None:
+        """Add one matcher's contribution to match_scores and contributing_matchers."""
+        if evidence:
+            match_scores.update(evidence.match_scores)
+            if matcher_key in evidence.match_scores and matcher_key not in contributing_matchers:
+                contributing_matchers.append(matcher_key)
+        elif fallback_weight > 0.0 and matcher_key not in contributing_matchers:
+            match_scores[matcher_key] = fallback_weight
+            contributing_matchers.append(matcher_key)
+
+    def _build_pipeline_explanation(
+        self,
+        match_scores: dict[str, float],
+        contributing_matchers: list[str],
+        confidence: float,
+    ) -> tuple[str, str]:
+        """Build explanation string and selected_matcher from merged evidence."""
+        is_pipeline = len(contributing_matchers) == 2 and "hash" in contributing_matchers and "title" in contributing_matchers
+        if is_pipeline:
+            explanation = (
+                f"Hash → Title pipeline: "
+                f"Hash ({int(match_scores.get('hash', 0.0) * 100)}%) + "
+                f"Title ({int(match_scores.get('title', 0.0) * 100)}%) = "
+                f"{int(confidence * 100)}% confidence"
+            )
+            return explanation, "hash,title"
+        if len(contributing_matchers) == 1:
+            matcher_name = contributing_matchers[0]
+            score_pct = int(match_scores.get(matcher_name, 0.0) * 100)
+            return f"Grouped by {matcher_name} similarity ({score_pct}%)", matcher_name
+        matcher_list = ", ".join(contributing_matchers)
+        return (
+            f"Grouped by {matcher_list} ({int(confidence * 100)}% confidence)",
+            ",".join(contributing_matchers),
+        )
 
     def _merge_pipeline_evidence(
         self,
@@ -690,54 +758,16 @@ class GroupingEngine:
         Returns:
             Merged GroupingEvidence reflecting both matchers' contributions.
         """
-        # Start with empty evidence
         match_scores: dict[str, float] = {}
         contributing_matchers: list[str] = []
 
-        # Add Hash matcher contribution
-        if hash_evidence:
-            match_scores.update(hash_evidence.match_scores)
-            if "hash" in hash_evidence.match_scores:
-                contributing_matchers.append("hash")
-        elif hash_weight > 0.0:
-            match_scores["hash"] = hash_weight
-            contributing_matchers.append("hash")
+        self._add_matcher_contribution(match_scores, contributing_matchers, hash_evidence, "hash", hash_weight)
+        self._add_matcher_contribution(match_scores, contributing_matchers, title_evidence, "title", title_weight)
 
-        # Add Title matcher contribution
-        if title_evidence:
-            match_scores.update(title_evidence.match_scores)
-            if "title" in title_evidence.match_scores:
-                if "title" not in contributing_matchers:
-                    contributing_matchers.append("title")
-        elif title_weight > 0.0:
-            match_scores["title"] = title_weight
-            if "title" not in contributing_matchers:
-                contributing_matchers.append("title")
+        total_weight = sum(match_scores.get(m, 0.0) for m in contributing_matchers)
+        confidence = total_weight / len(contributing_matchers) if contributing_matchers else 0.0
 
-        # Calculate combined confidence (weighted average)
-        if contributing_matchers:
-            total_weight = sum(match_scores.get(matcher, 0.0) for matcher in contributing_matchers)
-            confidence = total_weight / len(contributing_matchers) if contributing_matchers else 0.0
-        else:
-            confidence = 0.0
-
-        # Generate explanation with pipeline information
-        if len(contributing_matchers) == 2 and "hash" in contributing_matchers and "title" in contributing_matchers:
-            explanation = (
-                f"Hash → Title pipeline: "
-                f"Hash ({int(match_scores.get('hash', 0.0) * 100)}%) + "
-                f"Title ({int(match_scores.get('title', 0.0) * 100)}%) = "
-                f"{int(confidence * 100)}% confidence"
-            )
-            selected_matcher = "hash,title"
-        elif len(contributing_matchers) == 1:
-            matcher_name = contributing_matchers[0]
-            explanation = f"Grouped by {matcher_name} similarity ({int(match_scores.get(matcher_name, 0.0) * 100)}%)"
-            selected_matcher = matcher_name
-        else:
-            matcher_list = ", ".join(contributing_matchers)
-            explanation = f"Grouped by {matcher_list} ({int(confidence * 100)}% confidence)"
-            selected_matcher = ",".join(contributing_matchers)
+        explanation, selected_matcher = self._build_pipeline_explanation(match_scores, contributing_matchers, confidence)
 
         return GroupingEvidence(
             match_scores=match_scores,

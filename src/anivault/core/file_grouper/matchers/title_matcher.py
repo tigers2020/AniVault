@@ -195,6 +195,252 @@ class TitleSimilarityMatcher:
         # Default to 150 (reduced from 1000 for performance)
         return 150
 
+    def _build_title_index_and_mappings(self, files: list[ScannedFile]) -> tuple[
+        list[tuple[ScannedFile, str]],
+        TitleIndex,
+        dict[int, ScannedFile],
+        dict[int, str],
+    ]:
+        """Build title index and file-id mappings from scanned files.
+
+        Returns:
+            (file_titles, title_index, file_id_to_file, file_id_to_title).
+            file_titles may be empty if no titles could be extracted.
+        """
+        file_titles: list[tuple[ScannedFile, str]] = []
+        title_index = TitleIndex()
+        file_id_to_file: dict[int, ScannedFile] = {}
+        file_id_to_title: dict[int, str] = {}
+
+        for file_id, file in enumerate(files, start=1):
+            title = self._extract_title_from_file(file)
+            if title:
+                file_titles.append((file, title))
+                title_index.add_title(file_id, title)
+                file_id_to_file[file_id] = file
+                file_id_to_title[file_id] = title
+            else:
+                logger.warning(
+                    "Could not extract title from file: %s",
+                    file.file_path.name,
+                )
+
+        return file_titles, title_index, file_id_to_file, file_id_to_title
+
+    def _process_exact_matches(
+        self,
+        title_index: TitleIndex,
+        file_id_to_file: dict[int, ScannedFile],
+        file_id_to_title: dict[int, str],
+        processed_file_ids: set[int],
+        all_groups_table: LinkedHashTable[str, list[ScannedFile]],
+    ) -> None:
+        """Process exact normalized-title matches and fill all_groups_table."""
+        for file_id, title in file_id_to_title.items():
+            if file_id in processed_file_ids:
+                continue
+
+            exact_matches = title_index.get_exact_matches(title)
+            if len(exact_matches) <= 1:
+                continue
+
+            exact_files = [file_id_to_file[fid] for fid in exact_matches if fid in file_id_to_file]
+            if not exact_files:
+                continue
+
+            group_title = title
+            for fid in exact_matches:
+                if fid in file_id_to_title:
+                    candidate_title = file_id_to_title[fid]
+                    group_title = self.quality_evaluator.select_better_title(
+                        group_title,
+                        candidate_title,
+                    )
+
+            existing_files = all_groups_table.get(group_title)
+            if existing_files:
+                existing_files.extend(exact_files)
+            else:
+                all_groups_table.put(group_title, exact_files.copy())
+
+            processed_file_ids.update(exact_matches)
+
+    def _build_remaining_aux_structures(
+        self,
+        file_id_to_file: dict[int, ScannedFile],
+        file_id_to_title: dict[int, str],
+        processed_file_ids: set[int],
+        title_index: TitleIndex,
+        all_groups_table: LinkedHashTable[str, list[ScannedFile]],
+    ) -> tuple[
+        dict[int, set[str]],
+        dict[str, set[int]],
+        dict[int, int],
+        dict[int, tuple[str, list[ScannedFile]]],
+    ]:
+        """Build keyword sets, reverse index, id->file_id map, and rep->group map."""
+        file_keywords: dict[int, set[str]] = {}
+        for file_id, title in file_id_to_title.items():
+            if file_id not in processed_file_ids:
+                normalized = title_index._normalize_title(title)
+                file_keywords[file_id] = set(normalized.split()) if normalized else set()
+
+        id_to_file_id: dict[int, int] = {id(f): fid for fid, f in file_id_to_file.items()}
+
+        keyword_to_file_ids: dict[str, set[int]] = {}
+        for fid, kw in file_keywords.items():
+            for k in kw:
+                keyword_to_file_ids.setdefault(k, set()).add(fid)
+
+        rep_to_group: dict[int, tuple[str, list[ScannedFile]]] = {}
+        for _gn, _gf in all_groups_table:
+            if _gf:
+                _rep_id = id_to_file_id.get(id(_gf[0]))
+                if _rep_id is not None:
+                    rep_to_group[_rep_id] = (_gn, _gf)
+
+        return file_keywords, keyword_to_file_ids, id_to_file_id, rep_to_group
+
+    def _get_candidate_ids_for_title(
+        self,
+        current_file_id: int,
+        title: str,
+        file_keywords: dict[int, set[str]],
+        keyword_to_file_ids: dict[str, set[int]],
+        title_index: TitleIndex,
+        processed_file_ids: set[int],
+    ) -> set[int]:
+        """Get candidate file IDs for similarity check (LSH-first, then keyword fallback)."""
+        file_keyword_set = file_keywords.get(current_file_id, set())
+        lsh_candidates = title_index.query_similar_titles(title)
+        lsh_candidates = [c for c in lsh_candidates if c != current_file_id and c not in processed_file_ids]
+
+        if lsh_candidates:
+            filtered: list[int] = []
+            for candidate_id in lsh_candidates:
+                candidate_keywords = file_keywords.get(candidate_id, set())
+                if file_keyword_set and candidate_keywords:
+                    if file_keyword_set.intersection(candidate_keywords):
+                        filtered.append(candidate_id)
+                elif not file_keyword_set or not candidate_keywords:
+                    filtered.append(candidate_id)
+            candidate_file_ids = set(filtered)
+            logger.debug(
+                "LSH found %d candidates (filtered from %d) for title '%s' (file_id=%d)",
+                len(candidate_file_ids),
+                len(lsh_candidates),
+                title,
+                current_file_id,
+            )
+            return candidate_file_ids
+
+        candidate_file_ids = set()
+        for k in file_keyword_set:
+            candidate_file_ids.update(keyword_to_file_ids.get(k, set()))
+        candidate_file_ids.discard(current_file_id)
+        candidate_file_ids -= processed_file_ids
+        candidate_file_ids = {oid for oid in candidate_file_ids if file_keyword_set.intersection(file_keywords.get(oid, set()))}
+        logger.debug(
+            "LSH found no candidates, using keyword intersection: %d candidates for title '%s'",
+            len(candidate_file_ids),
+            title,
+        )
+        return candidate_file_ids
+
+    def _passes_similarity_guards(self, title: str, rep_title: str, file_keyword_set: set[str], rep_keyword_set: set[str]) -> bool:
+        """Return True if title and rep_title pass length/token/overlap guards."""
+        if file_keyword_set and rep_keyword_set:
+            if not file_keyword_set.intersection(rep_keyword_set):
+                return False
+        len1, len2 = len(title), len(rep_title)
+        if len1 > 0 and len2 > 0:
+            length_ratio = min(len1, len2) / max(len1, len2)
+            if length_ratio < 0.5:
+                return False
+        title_tokens = title.split()
+        rep_title_tokens = rep_title.split()
+        return abs(len(title_tokens) - len(rep_title_tokens)) <= 3
+
+    def _find_group_match_for_title(
+        self,
+        title: str,
+        current_file_id: int,
+        candidate_file_ids: set[int],
+        rep_to_group: dict[int, tuple[str, list[ScannedFile]]],
+        file_keywords: dict[int, set[str]],
+        file_id_to_title: dict[int, str],
+    ) -> str | None:
+        """Find an existing group that matches the title, or None."""
+        file_keyword_set = file_keywords.get(current_file_id, set())
+        for cid in candidate_file_ids:
+            if cid not in rep_to_group:
+                continue
+            group_name, group_files = rep_to_group[cid]
+            if not group_files:
+                continue
+            rep_keyword_set = file_keywords.get(cid, set())
+            rep_title = file_id_to_title.get(cid, group_name)
+            if not self._passes_similarity_guards(title, rep_title, file_keyword_set, rep_keyword_set):
+                continue
+            similarity = self._calculate_similarity(title, rep_title)
+            if similarity >= self.threshold:
+                return group_name
+        return None
+
+    def _add_file_to_existing_group(
+        self,
+        matched_group: str,
+        file: ScannedFile,
+        title: str,
+        all_groups_table: LinkedHashTable[str, list[ScannedFile]],
+        rep_to_group: dict[int, tuple[str, list[ScannedFile]]],
+        id_to_file_id: dict[int, int],
+    ) -> None:
+        """Add file to existing group and optionally upgrade group title."""
+        existing_files = all_groups_table.get(matched_group)
+        if existing_files:
+            existing_files.append(file)
+        else:
+            all_groups_table.put(matched_group, [file])
+
+        better_title = self.quality_evaluator.select_better_title(
+            matched_group,
+            title,
+        )
+        if better_title != matched_group:
+            old_files = all_groups_table.remove(matched_group)
+            if old_files:
+                all_groups_table.put(better_title, old_files)
+                rep_id = id_to_file_id.get(id(old_files[0]))
+                if rep_id is not None:
+                    rep_to_group[rep_id] = (better_title, old_files)
+
+    def _build_result_groups(
+        self,
+        all_groups_table: LinkedHashTable[str, list[ScannedFile]],
+        max_group_size: int,
+        total_file_count: int,
+    ) -> list[Group]:
+        """Convert table to list of Group, splitting large groups recursively."""
+        result: list[Group] = []
+        for group_name, group_files in all_groups_table:
+            if len(group_files) > max_group_size:
+                logger.debug(
+                    "Splitting large group '%s' (%d files) into smaller groups",
+                    group_name,
+                    len(group_files),
+                )
+                subgroups = self.match(group_files)
+                result.extend(subgroups)
+            else:
+                result.append(Group(title=group_name, files=group_files))
+        logger.info(
+            "Title matcher grouped %d files into %d groups (using TitleIndex optimization)",
+            total_file_count,
+            len(result),
+        )
+        return result
+
     def match(self, files: list[ScannedFile]) -> list[Group]:
         """Group files by title similarity.
 
@@ -224,73 +470,28 @@ class TitleSimilarityMatcher:
         if not files:
             return []
 
-        # Step 1: Extract titles from all files and build TitleIndex
-        file_titles: list[tuple[ScannedFile, str]] = []
-        title_index = TitleIndex()
-        file_id_to_file: dict[int, ScannedFile] = {}
-        file_id_to_title: dict[int, str] = {}
-
-        for file_id, file in enumerate(files, start=1):
-            title = self._extract_title_from_file(file)
-            if title:
-                file_titles.append((file, title))
-                title_index.add_title(file_id, title)
-                file_id_to_file[file_id] = file
-                file_id_to_title[file_id] = title
-            else:
-                logger.warning(
-                    "Could not extract title from file: %s",
-                    file.file_path.name,
-                )
-
+        file_titles, title_index, file_id_to_file, file_id_to_title = self._build_title_index_and_mappings(files)
         if not file_titles:
             return []
 
-        # Step 2: Process exact matches first (O(1) lookup using normalized_hash)
         processed_file_ids: set[int] = set()
         all_groups_table = LinkedHashTable[str, list[ScannedFile]](
             initial_capacity=max(len(file_titles) * 2, 64),
             load_factor=0.75,
         )
+        self._process_exact_matches(
+            title_index,
+            file_id_to_file,
+            file_id_to_title,
+            processed_file_ids,
+            all_groups_table,
+        )
 
-        for file_id, title in file_id_to_title.items():
-            if file_id in processed_file_ids:
-                continue
-
-            # Get all files with exact normalized match
-            exact_matches = title_index.get_exact_matches(title)
-
-            if len(exact_matches) > 1:  # More than just this file
-                # Create group from exact matches
-                exact_files = [file_id_to_file[fid] for fid in exact_matches if fid in file_id_to_file]
-                if exact_files:
-                    # Select best title as group name
-                    group_title = title
-                    for fid in exact_matches:
-                        if fid in file_id_to_title:
-                            candidate_title = file_id_to_title[fid]
-                            group_title = self.quality_evaluator.select_better_title(
-                                group_title,
-                                candidate_title,
-                            )
-
-                    # Add to groups
-                    existing_files = all_groups_table.get(group_title)
-                    if existing_files:
-                        existing_files.extend(exact_files)
-                    else:
-                        all_groups_table.put(group_title, exact_files.copy())
-
-                    # Mark all as processed
-                    processed_file_ids.update(exact_matches)
-
-        # Step 3: Process remaining files using keyword-based filtering
         remaining_files: list[tuple[ScannedFile, str]] = [
             (file_id_to_file[fid], file_id_to_title[fid]) for fid in file_id_to_file if fid not in processed_file_ids
         ]
 
         if not remaining_files:
-            # All files were exact matches, return groups
             result = [Group(title=group_name, files=group_files) for group_name, group_files in all_groups_table]
             logger.info(
                 "Title matcher grouped %d files into %d groups (all exact matches)",
@@ -299,184 +500,61 @@ class TitleSimilarityMatcher:
             )
             return result
 
-        # Step 4: Group remaining files using LSH + keyword-based filtering with fallback
-        # Build keyword sets for each remaining file
-        file_keywords: dict[int, set[str]] = {}
-        for file_id, title in file_id_to_title.items():
-            if file_id not in processed_file_ids:
-                normalized = title_index._normalize_title(title)
-                file_keywords[file_id] = set(normalized.split()) if normalized else set()
+        (
+            file_keywords,
+            keyword_to_file_ids,
+            id_to_file_id,
+            rep_to_group,
+        ) = self._build_remaining_aux_structures(
+            file_id_to_file,
+            file_id_to_title,
+            processed_file_ids,
+            title_index,
+            all_groups_table,
+        )
 
-        # O(1) file -> file_id lookup (avoids O(F) scan per remaining file)
-        id_to_file_id: dict[int, int] = {id(f): fid for fid, f in file_id_to_file.items()}
-
-        # Keyword reverse index for fallback: O(candidates per keyword) vs O(F) scan
-        keyword_to_file_ids: dict[str, set[int]] = {}
-        for fid, kw in file_keywords.items():
-            for k in kw:
-                keyword_to_file_ids.setdefault(k, set()).add(fid)
-
-        # O(1) rep lookup: map rep_file_id -> (group_name, group_files) for existing groups
-        rep_to_group: dict[int, tuple[str, list[ScannedFile]]] = {}
-        for _gn, _gf in all_groups_table:
-            if _gf:
-                _rep_id = id_to_file_id.get(id(_gf[0]))
-                if _rep_id is not None:
-                    rep_to_group[_rep_id] = (_gn, _gf)
-
-        # Group remaining files using LSH-first approach with keyword fallback
         for file, title in remaining_files:
             current_file_id = id_to_file_id.get(id(file))
             if current_file_id is None or current_file_id in processed_file_ids:
                 continue
 
-            file_keyword_set = file_keywords.get(current_file_id, set())
-            matched_group = None
-
-            # Strategy 1: Try LSH to find similar candidates first
-            # Pre-filter LSH candidates with keyword intersection for better accuracy
-            lsh_candidates = title_index.query_similar_titles(title)
-            lsh_candidates = [c for c in lsh_candidates if c != current_file_id and c not in processed_file_ids]
-
-            # Strategy 2: Check against existing groups using LSH candidates if available
-            # Otherwise fall back to keyword-based filtering
-            candidate_file_ids: set[int] = set()
-            if lsh_candidates:
-                # Filter LSH candidates by keyword intersection for better precision
-                # This reduces false positives from LSH
-                filtered_lsh_candidates = []
-                for candidate_id in lsh_candidates:
-                    candidate_keywords = file_keywords.get(candidate_id, set())
-                    if file_keyword_set and candidate_keywords:
-                        if file_keyword_set.intersection(candidate_keywords):
-                            filtered_lsh_candidates.append(candidate_id)
-                    elif not file_keyword_set or not candidate_keywords:
-                        # If either has no keywords, include it (edge case)
-                        filtered_lsh_candidates.append(candidate_id)
-
-                candidate_file_ids = set(filtered_lsh_candidates)
-                logger.debug(
-                    "LSH found %d candidates (filtered from %d) for title '%s' (file_id=%d)",
-                    len(candidate_file_ids),
-                    len(lsh_candidates),
-                    title,
-                    current_file_id,
-                )
-            else:
-                # Fallback: Use keyword reverse index (O(keywords * file_ids per keyword) vs O(F))
-                candidate_file_ids = set()
-                for k in file_keyword_set:
-                    candidate_file_ids.update(keyword_to_file_ids.get(k, set()))
-                candidate_file_ids.discard(current_file_id)
-                candidate_file_ids -= processed_file_ids
-                # Filter by keyword intersection for precision
-                candidate_file_ids = {oid for oid in candidate_file_ids if file_keyword_set.intersection(file_keywords.get(oid, set()))}
-                logger.debug(
-                    "LSH found no candidates, using keyword intersection: %d candidates for title '%s'",
-                    len(candidate_file_ids),
-                    title,
-                )
-
-            # Check only groups whose rep is in candidate_file_ids (O(C) vs O(G))
-            for cid in candidate_file_ids:
-                if cid not in rep_to_group:
-                    continue
-                group_name, group_files = rep_to_group[cid]
-                if not group_files:
-                    continue
-                rep_file_id = cid
-
-                # Additional keyword check for safety (even with LSH)
-                rep_keyword_set = file_keywords.get(rep_file_id, set())
-                if file_keyword_set and rep_keyword_set:
-                    if not file_keyword_set.intersection(rep_keyword_set):
-                        continue  # No keyword overlap, skip
-
-                # Get representative title from group
-                rep_title = file_id_to_title.get(rep_file_id, group_name)
-
-                # Guard conditions: skip similarity calculation if titles are too different
-                # Apply guard conditions early to avoid expensive operations
-                len1, len2 = len(title), len(rep_title)
-                if len1 > 0 and len2 > 0:
-                    length_ratio = min(len1, len2) / max(len1, len2)
-                    if length_ratio < 0.5:  # More than 50% difference
-                        continue
-
-                # Check token count difference (early exit)
-                title_tokens = title.split()
-                rep_title_tokens = rep_title.split()
-                token_diff = abs(len(title_tokens) - len(rep_title_tokens))
-                if token_diff > 3:
-                    continue
-
-                # Additional early guard: check if first few characters match
-                # This is a fast heuristic before expensive similarity calculation
-                if len1 >= 3 and len2 >= 3:
-                    if title[:3].lower() != rep_title[:3].lower():
-                        # Only skip if no keyword overlap (already checked above)
-                        # This is a soft guard - still allow if keywords match
-                        pass  # Keep this check soft to avoid false negatives
-
-                # Only calculate similarity if guard conditions pass
-                similarity = self._calculate_similarity(title, rep_title)
-                if similarity >= self.threshold:
-                    matched_group = group_name
-                    break
+            candidate_file_ids = self._get_candidate_ids_for_title(
+                current_file_id,
+                title,
+                file_keywords,
+                keyword_to_file_ids,
+                title_index,
+                processed_file_ids,
+            )
+            matched_group = self._find_group_match_for_title(
+                title,
+                current_file_id,
+                candidate_file_ids,
+                rep_to_group,
+                file_keywords,
+                file_id_to_title,
+            )
 
             if matched_group:
-                # Add to existing group
-                existing_files = all_groups_table.get(matched_group)
-                if existing_files:
-                    existing_files.append(file)
-                else:
-                    all_groups_table.put(matched_group, [file])
-
-                # Update group name if this title is better quality
-                better_title = self.quality_evaluator.select_better_title(
+                self._add_file_to_existing_group(
                     matched_group,
+                    file,
                     title,
+                    all_groups_table,
+                    rep_to_group,
+                    id_to_file_id,
                 )
-                if better_title != matched_group:
-                    # Replace group name with better title
-                    old_files = all_groups_table.remove(matched_group)
-                    if old_files:
-                        all_groups_table.put(better_title, old_files)
-                        # Keep rep_to_group in sync for O(1) lookups
-                        rep_id = id_to_file_id.get(id(old_files[0]))
-                        if rep_id is not None:
-                            rep_to_group[rep_id] = (better_title, old_files)
-                    matched_group = better_title
             else:
-                # Create new group
                 new_list: list[ScannedFile] = [file]
                 all_groups_table.put(title, new_list)
                 rep_to_group[current_file_id] = (title, new_list)
 
-        # Step 5: Convert to Group objects and apply large group splitting
         max_group_size = self._get_max_title_match_group_size()
-        result = []
-        for group_name, group_files in all_groups_table:
-            if len(group_files) > max_group_size:
-                # Split large groups recursively for better performance
-                logger.debug(
-                    "Splitting large group '%s' (%d files) into smaller groups",
-                    group_name,
-                    len(group_files),
-                )
-                # Recursively match the files in this large group
-                subgroups = self.match(group_files)
-                result.extend(subgroups)
-            else:
-                result.append(Group(title=group_name, files=group_files))
-
-        logger.info(
-            "Title matcher grouped %d files into %d groups (using TitleIndex optimization)",
+        return self._build_result_groups(
+            all_groups_table,
+            max_group_size,
             len(files),
-            len(result),
         )
-
-        return result
 
     def refine_group(self, group: Group) -> list[Group] | None:
         """Refine a group by subdividing it based on title similarity.

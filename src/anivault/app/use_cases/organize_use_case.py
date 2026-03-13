@@ -15,6 +15,7 @@ from anivault.core.organizer.organize_service import (
 from anivault.core.organizer.organize_service import (
     generate_enhanced_organization_plan as core_generate_enhanced_plan,
 )
+from anivault.core.organizer.executor import OperationResult
 from anivault.core.organizer.organize_service import (
     generate_organization_plan as core_generate_plan,
 )
@@ -102,7 +103,7 @@ class OrganizeUseCase:
         source_directory: Path,
         *,
         settings: Settings | None = None,
-    ) -> list[object]:
+    ) -> list[OperationResult]:
         """Execute organization plan.
 
         Args:

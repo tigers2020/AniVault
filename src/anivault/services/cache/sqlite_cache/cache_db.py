@@ -108,7 +108,6 @@ class SQLiteCacheDB:
 
                 # pylint: disable-next=broad-exception-caught
 
-
                 except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                     # Log warning but continue - permissions are not critical
                     logger.warning(
@@ -124,9 +123,7 @@ class SQLiteCacheDB:
             # Create backup before migration if database exists
             if not db_is_new:
                 try:
-                    backup_path = self.backup_manager.create_backup(
-                        suffix="pre_migration"
-                    )
+                    backup_path = self.backup_manager.create_backup(suffix="pre_migration")
                     logger.info("Pre-migration backup created: %s", backup_path)
                 except (FileNotFoundError, OSError) as e:
                     logger.warning("Failed to create pre-migration backup: %s", e)
@@ -151,7 +148,6 @@ class SQLiteCacheDB:
             # pylint: disable-next=broad-exception-caught
 
             # pylint: disable-next=broad-exception-caught
-
 
             except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 logger.warning("Failed to purge expired entries on startup: %s", str(e))

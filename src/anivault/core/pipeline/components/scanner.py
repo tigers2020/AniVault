@@ -13,7 +13,7 @@ import os
 import threading
 import time
 from collections.abc import Callable, Generator
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -331,14 +331,14 @@ class DirectoryScanner(threading.Thread):
                             if file_path:
                                 found_files.append(file_path)
 
-                    except (OSError, PermissionError):
+                    except OSError:
                         # Skip inaccessible entries
                         continue
 
             # Count this directory
             directories_scanned += 1
 
-        except (OSError, PermissionError):
+        except OSError:
             # Log permission errors but continue scanning
             logger.warning("Cannot scan directory: %s", directory, exc_info=True)
 
@@ -406,10 +406,10 @@ class DirectoryScanner(threading.Thread):
                             if filter_should_skip_directory(entry.name, self.filter_engine):
                                 continue
                             subdirectories.append(Path(entry.path))
-                    except (OSError, PermissionError):
+                    except OSError:
                         continue
 
-        except (OSError, PermissionError):
+        except OSError:
             logger.warning("Error accessing root directory", exc_info=True)
 
         return subdirectories
@@ -438,10 +438,10 @@ class DirectoryScanner(threading.Thread):
                             if file_path:
                                 root_files.append(file_path)
 
-                    except (OSError, PermissionError):
+                    except OSError:
                         continue
 
-        except (OSError, PermissionError):
+        except OSError:
             logger.warning("Cannot scan root directory", exc_info=True)
 
         return root_files
@@ -519,7 +519,7 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path, timeout=NetworkConfig.DEFAULT_TIMEOUT)
                 queued_count += 1
-            except (TimeoutError, OSError) as e:
+            except OSError as e:
                 # Queue timeout or OS errors
                 context = ErrorContextModel(
                     file_path=str(file_path),
@@ -601,7 +601,7 @@ class DirectoryScanner(threading.Thread):
             else:
                 self._run_sequential_scan()
 
-        except (OSError, PermissionError) as e:
+        except OSError as e:
             # File system errors during scanning
             context = ErrorContextModel(
                 file_path=str(self.root_path),
@@ -631,7 +631,7 @@ class DirectoryScanner(threading.Thread):
             # Signal completion with sentinel
             try:
                 self.input_queue.put(None, timeout=NetworkConfig.DEFAULT_TIMEOUT)
-            except (TimeoutError, OSError) as e:
+            except OSError as e:
                 # Queue timeout or OS errors
                 context = ErrorContextModel(operation="put_sentinel_value")
                 queue_error: AniVaultError = InfrastructureError(
@@ -663,7 +663,7 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path)
                 self.stats.increment_files_scanned()
-            except (OSError, TimeoutError) as e:
+            except OSError as e:
                 # Queue operation errors
                 context = ErrorContextModel(
                     file_path=str(file_path),
@@ -693,100 +693,95 @@ class DirectoryScanner(threading.Thread):
                 logger.exception("Error putting file into queue: %s: %s", file_path, error.message)
                 continue
 
+    def _run_sequential_subdir_scan(self, subdirectories: list[Path]) -> None:
+        """Scan subdirectories one by one (below parallel threshold)."""
+        for subdir in subdirectories:
+            if self._stop_event.is_set():
+                break
+            found_files, dirs_scanned = self._parallel_scan_directory(subdir)
+            queued_files = self._thread_safe_put_files(found_files)
+            self._thread_safe_update_stats(queued_files, dirs_scanned)
+
+    def _process_one_subdirectory_future(
+        self,
+        future: Future[tuple[list[Path], int]],
+        future_to_dir: dict[Future[tuple[list[Path], int]], Path],
+    ) -> None:
+        """Process a single subdirectory future: get result, queue files, update stats.
+
+        Logs and returns on OSError or unexpected Exception (no raise).
+        """
+        try:
+            found_files, dirs_scanned = future.result()
+            queued_files = self._thread_safe_put_files(found_files)
+            self._thread_safe_update_stats(queued_files, dirs_scanned)
+        except OSError as e:
+            subdir = future_to_dir[future]
+            context = ErrorContextModel(
+                file_path=str(subdir),
+                operation="process_subdirectory",
+            )
+            error: AniVaultError = InfrastructureError(
+                ErrorCode.FILE_ACCESS_ERROR,
+                f"Error processing subdirectory: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error processing subdirectory: %s: %s", subdir, error.message)
+        # pylint: disable-next=broad-exception-caught  # Catch-all for unexpected callback errors
+        except Exception as e:
+            subdir = future_to_dir[future]
+            context = ErrorContextModel(
+                file_path=str(subdir),
+                operation="process_subdirectory",
+            )
+            error = AniVaultError(
+                ErrorCode.SCANNER_ERROR,
+                f"Unexpected error processing subdirectory: {e}",
+                context,
+                original_error=e,
+            )
+            logger.exception("Error processing subdirectory: %s: %s", subdir, error.message)
+
+    def _run_parallel_subdir_scan_with_executor(self, subdirectories: list[Path]) -> None:
+        """Run parallel directory scan using ThreadPoolExecutor and process futures."""
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_dir: dict[Future[tuple[list[Path], int]], Path] = {}
+            for subdir in subdirectories:
+                if self._stop_event.is_set():
+                    break
+                future = executor.submit(self._parallel_scan_directory, subdir)
+                future_to_dir[future] = subdir
+
+            for future in as_completed(future_to_dir):
+                if self._stop_event.is_set():
+                    for f in future_to_dir:
+                        f.cancel()
+                    break
+                self._process_one_subdirectory_future(future, future_to_dir)
+
     def _run_parallel_scan(self) -> None:
         """Run parallel directory scanning using ThreadPoolExecutor."""
-        # Get immediate subdirectories for parallel processing
         subdirectories = self._get_immediate_subdirectories()
-
-        # Also scan the root directory itself for files
         root_files = self._scan_root_files()
 
-        # Process root files first (thread-safe)
         queued_root_files = self._thread_safe_put_files(root_files)
-        self._thread_safe_update_stats(
-            queued_root_files,
-            1,
-        )  # Root directory counted
+        self._thread_safe_update_stats(queued_root_files, 1)
 
-        # Check if directory count is below threshold for sequential mode
         if len(subdirectories) < self.parallel_threshold:
             logger.info(
                 "Sequential scanning %d subdirectories (below threshold: %d)",
                 len(subdirectories),
                 self.parallel_threshold,
             )
-            # Sequential mode: scan directories one by one
-            for subdir in subdirectories:
-                if self._stop_event.is_set():
-                    break
-                found_files, dirs_scanned = self._parallel_scan_directory(subdir)
-                queued_files = self._thread_safe_put_files(found_files)
-                self._thread_safe_update_stats(queued_files, dirs_scanned)
+            self._run_sequential_subdir_scan(subdirectories)
         else:
             logger.info(
                 "Parallel scanning %d subdirectories using %d workers",
                 len(subdirectories),
                 self.max_workers,
             )
-            # Use ThreadPoolExecutor for parallel directory scanning
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                # Submit subdirectory scanning tasks
-                future_to_dir = {}
-                for subdir in subdirectories:
-                    if self._stop_event.is_set():
-                        break
-                    future = executor.submit(self._parallel_scan_directory, subdir)
-                    future_to_dir[future] = subdir
-
-            # Process completed subdirectory futures
-            for future in as_completed(future_to_dir):
-                if self._stop_event.is_set():
-                    # Cancel remaining futures
-                    for f in future_to_dir:
-                        f.cancel()
-                    break
-
-                try:
-                    # Get results from this subdirectory
-                    found_files, dirs_scanned = future.result()
-
-                    # Put files into the input queue (thread-safe)
-                    queued_files = self._thread_safe_put_files(found_files)
-
-                    # Update statistics (thread-safe)
-                    self._thread_safe_update_stats(queued_files, dirs_scanned)
-
-                except (OSError, PermissionError) as e:
-                    # File system errors during subdirectory processing
-                    subdir = future_to_dir[future]
-                    context = ErrorContextModel(
-                        file_path=str(subdir),
-                        operation="process_subdirectory",
-                    )
-                    error: AniVaultError = InfrastructureError(
-                        ErrorCode.FILE_ACCESS_ERROR,
-                        f"Error processing subdirectory: {e}",
-                        context,
-                        original_error=e,
-                    )
-                    logger.exception("Error processing subdirectory: %s: %s", subdir, error.message)
-                    continue
-                # pylint: disable-next=broad-exception-caught  # Catch-all for unexpected callback errors
-                except Exception as e:
-                    # Unexpected errors during subdirectory processing
-                    subdir = future_to_dir[future]
-                    context = ErrorContextModel(
-                        file_path=str(subdir),
-                        operation="process_subdirectory",
-                    )
-                    error = AniVaultError(
-                        ErrorCode.SCANNER_ERROR,
-                        f"Unexpected error processing subdirectory: {e}",
-                        context,
-                        original_error=e,
-                    )
-                    logger.exception("Error processing subdirectory: %s: %s", subdir, error.message)
-                    continue
+            self._run_parallel_subdir_scan_with_executor(subdirectories)
 
     def get_scan_summary(self) -> dict[str, Any]:
         """Get a summary of the scanning results.

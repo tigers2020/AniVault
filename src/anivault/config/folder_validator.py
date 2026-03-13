@@ -14,6 +14,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Error message constants (S1192: avoid duplicated string literals)
+_MSG_PATH_EMPTY = "Path is empty"
+
 
 class FolderValidator:
     """Validates folder paths and permissions."""
@@ -29,7 +32,7 @@ class FolderValidator:
             Tuple of (is_valid, error_message)
         """
         if not path:
-            return False, "Path is empty"
+            return False, _MSG_PATH_EMPTY
 
         try:
             folder_path = Path(path).resolve()
@@ -61,7 +64,7 @@ class FolderValidator:
             Tuple of (is_valid, error_message)
         """
         if not path:
-            return False, "Path is empty"
+            return False, _MSG_PATH_EMPTY
 
         try:
             folder_path = Path(path).resolve()
@@ -74,7 +77,7 @@ class FolderValidator:
             try:
                 folder_path.mkdir(parents=True, exist_ok=True)
                 logger.info("Created target directory: %s", folder_path)
-            except (OSError, PermissionError) as e:
+            except OSError as e:
                 return False, f"Cannot create directory: {e}"
 
         # Check if it's a directory
@@ -145,7 +148,7 @@ class FolderValidator:
         }
 
         if not path:
-            info["error"] = "Path is empty"
+            info["error"] = _MSG_PATH_EMPTY
             return info
 
         try:

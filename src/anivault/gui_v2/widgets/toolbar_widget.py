@@ -5,6 +5,12 @@ from __future__ import annotations
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QWidget
 
+LABEL_AUTO_SUGGEST = "자동 추천"
+LABEL_CLEAR_SELECTION = "선택 해제"
+LABEL_CONFIRM_MATCH = "확정 매칭"
+LABEL_ORGANIZE_EXECUTE = "▶️ 정리 작업 실행"
+LABEL_PREFLIGHT = "프리플라이트"
+
 
 class ToolbarWidget(QWidget):
     """Dynamic toolbar widget that changes based on current view."""
@@ -67,22 +73,22 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        suggest_btn = QPushButton("자동 추천")
+        suggest_btn = QPushButton(LABEL_AUTO_SUGGEST)
         suggest_btn.setObjectName("btnSecondary")
         suggest_btn.clicked.connect(self.match_clicked.emit)
         self._content_layout.addWidget(suggest_btn)
 
-        confirm_btn = QPushButton("확정 매칭")
+        confirm_btn = QPushButton(LABEL_CONFIRM_MATCH)
         confirm_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(confirm_btn)
 
-        clear_btn = QPushButton("선택 해제")
+        clear_btn = QPushButton(LABEL_CLEAR_SELECTION)
         clear_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(clear_btn)
 
         self._content_layout.addStretch()
 
-        preflight_btn = QPushButton("프리플라이트")
+        preflight_btn = QPushButton(LABEL_PREFLIGHT)
         preflight_btn.setObjectName("btnSecondary")
         preflight_btn.clicked.connect(self.organize_preflight_clicked.emit)
         self._content_layout.addWidget(preflight_btn)
@@ -91,7 +97,7 @@ class ToolbarWidget(QWidget):
         refresh_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(refresh_btn)
 
-        execute_btn = QPushButton("▶️ 정리 작업 실행")
+        execute_btn = QPushButton(LABEL_ORGANIZE_EXECUTE)
         execute_btn.setObjectName("btnPrimary")
         execute_btn.clicked.connect(self.organize_execute_clicked.emit)
         self._content_layout.addWidget(execute_btn)
@@ -123,22 +129,22 @@ class ToolbarWidget(QWidget):
 
         self._content_layout.addStretch()
 
-        suggest_btn = QPushButton("자동 추천")
+        suggest_btn = QPushButton(LABEL_AUTO_SUGGEST)
         suggest_btn.setObjectName("btnSecondary")
         suggest_btn.clicked.connect(self.match_clicked.emit)
         self._content_layout.addWidget(suggest_btn)
 
-        confirm_btn = QPushButton("확정 매칭")
+        confirm_btn = QPushButton(LABEL_CONFIRM_MATCH)
         confirm_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(confirm_btn)
 
-        clear_btn = QPushButton("선택 해제")
+        clear_btn = QPushButton(LABEL_CLEAR_SELECTION)
         clear_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(clear_btn)
 
         self._content_layout.addStretch()
 
-        preflight_btn = QPushButton("프리플라이트")
+        preflight_btn = QPushButton(LABEL_PREFLIGHT)
         preflight_btn.setObjectName("btnSecondary")
         preflight_btn.clicked.connect(self.organize_preflight_clicked.emit)
         self._content_layout.addWidget(preflight_btn)
@@ -147,7 +153,7 @@ class ToolbarWidget(QWidget):
         refresh_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(refresh_btn)
 
-        execute_btn = QPushButton("▶️ 정리 작업 실행")
+        execute_btn = QPushButton(LABEL_ORGANIZE_EXECUTE)
         execute_btn.setObjectName("btnPrimary")
         execute_btn.clicked.connect(self.organize_execute_clicked.emit)
         self._content_layout.addWidget(execute_btn)
@@ -165,16 +171,16 @@ class ToolbarWidget(QWidget):
         search_box.setObjectName("searchBox")
         self._content_layout.addWidget(search_box)
 
-        suggest_btn = QPushButton("자동 추천")
+        suggest_btn = QPushButton(LABEL_AUTO_SUGGEST)
         suggest_btn.setObjectName("btnSecondary")
         suggest_btn.clicked.connect(self.match_clicked.emit)
         self._content_layout.addWidget(suggest_btn)
 
-        confirm_btn = QPushButton("확정 매칭")
+        confirm_btn = QPushButton(LABEL_CONFIRM_MATCH)
         confirm_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(confirm_btn)
 
-        clear_btn = QPushButton("선택 해제")
+        clear_btn = QPushButton(LABEL_CLEAR_SELECTION)
         clear_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(clear_btn)
 
@@ -191,7 +197,7 @@ class ToolbarWidget(QWidget):
         search_box.setObjectName("searchBox")
         self._content_layout.addWidget(search_box)
 
-        preflight_btn = QPushButton("프리플라이트")
+        preflight_btn = QPushButton(LABEL_PREFLIGHT)
         preflight_btn.setObjectName("btnSecondary")
         preflight_btn.clicked.connect(self.organize_preflight_clicked.emit)
         self._content_layout.addWidget(preflight_btn)
@@ -200,7 +206,7 @@ class ToolbarWidget(QWidget):
         refresh_btn.setObjectName("btnSecondary")
         self._content_layout.addWidget(refresh_btn)
 
-        execute_btn = QPushButton("▶️ 정리 작업 실행")
+        execute_btn = QPushButton(LABEL_ORGANIZE_EXECUTE)
         execute_btn.setObjectName("btnPrimary")
         execute_btn.clicked.connect(self.organize_execute_clicked.emit)
         self._content_layout.addWidget(execute_btn)

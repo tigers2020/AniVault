@@ -18,7 +18,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import orjson
 
@@ -165,7 +165,7 @@ def build_json_payload(
         # pylint: disable-next=no-member
         option=orjson.OPT_INDENT_2,
     )
-    return cast("bytes", result)
+    return result
 
 
 def build_log_context(context: ErrorMessageContext) -> dict[str, Any]:
@@ -346,8 +346,6 @@ MESSAGE_CATALOG: dict[str, dict[str, str]] = {
         "file_label": "File",
         "hint_prefix": "💡",
     },
-    # "ko": { ... }  # Korean translations
-    # "ja": { ... }  # Japanese translations
 }
 
 

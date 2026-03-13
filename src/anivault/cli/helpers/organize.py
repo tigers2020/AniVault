@@ -33,6 +33,18 @@ from .organize_formatters import (
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "collect_organize_data",
+    "confirm_organization",
+    "execute_organization_plan",
+    "generate_enhanced_organization_plan",
+    "generate_organization_plan",
+    "get_scanned_files",
+    "perform_organization",
+    "print_dry_run_plan",
+    "print_execution_plan",
+]
+
 
 def get_scanned_files(options: OrganizeOptions, directory: Path, console: Console) -> list[ScannedFile]:
     """Get scanned files for organization.

@@ -196,7 +196,7 @@ def _output_json_error(
         sys.stdout.buffer.write(error_output)
         sys.stdout.buffer.write(b"\n")
         sys.stdout.buffer.flush()
-    except (OSError, UnicodeEncodeError, BrokenPipeError, TypeError) as output_error:
+    except (OSError, UnicodeEncodeError, TypeError) as output_error:
         _handle_json_output_error(output_error, command, cli_error, error_context)
 
 
@@ -228,6 +228,26 @@ def _write_json_error(
     sys.stdout.buffer.flush()
 
 
+def _write_error_response(
+    error_msg: str,
+    command: str,
+    error_code: str,
+    *,
+    error_type: str | None = None,
+    json_output: bool = False,
+) -> None:
+    """Write error to stdout (JSON) or stderr (plain)."""
+    if json_output:
+        _write_json_error(
+            error_msg=error_msg,
+            command=command,
+            error_code=error_code,
+            error_type=error_type,
+        )
+    else:
+        sys.stderr.write(f"Error: {error_msg}\n")
+
+
 def _handle_json_output_error(
     output_error: Exception,
     command: str,
@@ -250,7 +270,7 @@ def _handle_json_output_error(
     sys.stderr.write(f"JSON output failed: {cli_output_error.message}\n")
 
 
-def handle_specific_exceptions(  # pylint: disable=too-many-branches
+def handle_specific_exceptions(
     error: Exception,
     command: str,
     *,
@@ -267,63 +287,52 @@ def handle_specific_exceptions(  # pylint: disable=too-many-branches
         Exit code for the CLI command
     """
     if isinstance(error, AniVaultError):
-        # AniVault errors already have proper context
-        if isinstance(error, ApplicationError):
-            logger.warning("Application error in %s: %s", command, error.message)
-        elif isinstance(error, InfrastructureError):
-            logger.error("Infrastructure error in %s: %s", command, error.message)
-
-        if json_output:
-            _write_json_error(
-                error_msg=error.message,
-                command=command,
-                error_code=error.code.value,
-                error_type=type(error).__name__,
-            )
-        else:
-            sys.stderr.write(f"Error: {error.message}\n")
-
+        _log_anivault_error(error, command)
+        _write_error_response(
+            error_msg=error.message,
+            command=command,
+            error_code=error.code.value,
+            error_type=type(error).__name__,
+            json_output=json_output,
+        )
         return CLIDefaults.EXIT_ERROR
 
-    # Handle standard Python exceptions
     if isinstance(error, FileNotFoundError):
-        error_msg = f"File not found: {error}"
-        if json_output:
-            _write_json_error(
-                error_msg=error_msg,
-                command=command,
-                error_code=ErrorCode.FILE_NOT_FOUND.value,
-            )
-        else:
-            sys.stderr.write(f"Error: {error_msg}\n")
+        _write_error_response(
+            error_msg=f"File not found: {error}",
+            command=command,
+            error_code=ErrorCode.FILE_NOT_FOUND.value,
+            json_output=json_output,
+        )
         return CLIDefaults.EXIT_ERROR
 
     if isinstance(error, PermissionError):
-        error_msg = f"Permission denied: {error}"
-        if json_output:
-            _write_json_error(
-                error_msg=error_msg,
-                command=command,
-                error_code=ErrorCode.PERMISSION_DENIED.value,
-            )
-        else:
-            sys.stderr.write(f"Error: {error_msg}\n")
+        _write_error_response(
+            error_msg=f"Permission denied: {error}",
+            command=command,
+            error_code=ErrorCode.PERMISSION_DENIED.value,
+            json_output=json_output,
+        )
         return CLIDefaults.EXIT_ERROR
 
     if isinstance(error, (ValueError, KeyError, TypeError, AttributeError)):
-        error_msg = f"Data processing error: {error}"
-        if json_output:
-            _write_json_error(
-                error_msg=error_msg,
-                command=command,
-                error_code=ErrorCode.DATA_PROCESSING_ERROR.value,
-            )
-        else:
-            sys.stderr.write(f"Error: {error_msg}\n")
+        _write_error_response(
+            error_msg=f"Data processing error: {error}",
+            command=command,
+            error_code=ErrorCode.DATA_PROCESSING_ERROR.value,
+            json_output=json_output,
+        )
         return CLIDefaults.EXIT_ERROR
 
-    # Fallback for unexpected errors
     return handle_cli_error(error, command, json_output=json_output)
+
+
+def _log_anivault_error(error: AniVaultError, command: str) -> None:
+    """Log AniVault error by subtype (Application vs Infrastructure)."""
+    if isinstance(error, ApplicationError):
+        logger.warning("Application error in %s: %s", command, error.message)
+    elif isinstance(error, InfrastructureError):
+        logger.error("Infrastructure error in %s: %s", command, error.message)
 
 
 def log_cli_operation_success(

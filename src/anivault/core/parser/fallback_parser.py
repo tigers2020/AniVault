@@ -34,7 +34,7 @@ class FallbackParser:
     PATTERNS: ClassVar[list[Pattern[str]]] = [
         # Pattern 1: [Group] Title - Episode [Quality]
         re.compile(
-            r"^\[(?P<group>[^\]]+)\]\s*" r"(?P<title>.+?)\s*-\s*" r"(?P<episode>\d+)" r"(?:\s+v\d+)?",
+            r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-\s*(?P<episode>\d+)(?:\s+v\d+)?",
             re.IGNORECASE,
         ),
         # Pattern 2: Title S##E## [Quality]

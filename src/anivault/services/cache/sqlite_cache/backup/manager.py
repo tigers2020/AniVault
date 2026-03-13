@@ -46,11 +46,7 @@ class BackupManager:
             raise FileNotFoundError(msg)
         # CorePatterns.BACKUP_TIMESTAMP_FORMAT
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        backup_filename = (
-            f"{self.db_path.stem}_{timestamp}_{suffix}.db"
-            if suffix
-            else f"{self.db_path.stem}_{timestamp}.db"
-        )
+        backup_filename = f"{self.db_path.stem}_{timestamp}_{suffix}.db" if suffix else f"{self.db_path.stem}_{timestamp}.db"
         backup_path = self.backup_dir / backup_filename
         try:
             shutil.copy2(self.db_path, backup_path)
@@ -189,10 +185,6 @@ class BackupManager:
         return {
             "path": str(backup_path),
             "size": stat.st_size,
-            "created": datetime.fromtimestamp(
-                stat.st_ctime, tz=timezone.utc
-            ).isoformat(),
-            "modified": datetime.fromtimestamp(
-                stat.st_mtime, tz=timezone.utc
-            ).isoformat(),
+            "created": datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc).isoformat(),
+            "modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
         }

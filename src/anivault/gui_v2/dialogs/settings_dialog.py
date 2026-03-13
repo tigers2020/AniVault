@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from anivault.config import Settings, update_and_save_config
 from anivault.config.auto_scanner import AutoScanner
+from anivault.shared.constants import FolderDefaults
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +226,7 @@ class SettingsDialog(QDialog):
 
         self.organize_path_template = QLineEdit()
         self.organize_path_template.setPlaceholderText("{해상도}/{연도}/{제목}/{시즌}")
-        self.organize_path_template.setText("{제목}/{시즌}")
+        self.organize_path_template.setText(FolderDefaults.ORGANIZE_PATH_TEMPLATE)
         options_layout.addWidget(self.organize_path_template)
 
         hint_label = QLabel(
@@ -289,7 +290,7 @@ class SettingsDialog(QDialog):
         self.api_key_input.clear()
         self.source_folder_input.clear()
         self.target_folder_input.clear()
-        self.organize_path_template.setText("{제목}/{시즌}")
+        self.organize_path_template.setText(FolderDefaults.ORGANIZE_PATH_TEMPLATE)
         self.auto_scan_startup.setChecked(False)
         self.scan_interval.setValue(0)
         self.include_subdirs.setChecked(True)
@@ -308,7 +309,7 @@ class SettingsDialog(QDialog):
             if settings.folders:
                 self.source_folder_input.setText(settings.folders.source_folder or "")
                 self.target_folder_input.setText(settings.folders.target_folder or "")
-                template = settings.folders.organize_path_template or "{제목}/{시즌}"
+                template = settings.folders.organize_path_template or FolderDefaults.ORGANIZE_PATH_TEMPLATE
                 self.organize_path_template.setText(template)
                 self.auto_scan_startup.setChecked(settings.folders.auto_scan_on_startup or False)
                 self.scan_interval.setValue(settings.folders.auto_scan_interval_minutes or 0)
@@ -402,7 +403,7 @@ class SettingsDialog(QDialog):
         """Save folder settings to configuration."""
         source_folder = self.source_folder_input.text().strip()
         target_folder = self.target_folder_input.text().strip()
-        path_template = self.organize_path_template.text().strip() or "{제목}/{시즌}"
+        path_template = self.organize_path_template.text().strip() or FolderDefaults.ORGANIZE_PATH_TEMPLATE
         auto_scan_startup = self.auto_scan_startup.isChecked()
         auto_scan_interval = self.scan_interval.value()
         include_subdirs = self.include_subdirs.isChecked()

@@ -8,6 +8,7 @@ benchmarking capabilities for the AniVault matching system.
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -72,7 +73,7 @@ class BenchmarkResult:
 
     def __post_init__(self) -> None:
         """Calculate duration if not provided."""
-        if self.duration == 0.0:
+        if math.isclose(self.duration, 0.0):
             self.duration = (self.end_time - self.start_time).total_seconds()
 
 
@@ -207,13 +208,12 @@ class StatisticsCollector:
 
         logger.debug("Recorded cache operation: %s, hit=%s", operation, hit)
 
-    # pylint: disable-next=unused-argument
     def record_api_call(
         self,
         endpoint: str,
         success: bool,
         duration: float | None = None,
-        error: str | None = None,  # noqa: ARG002  # pylint: disable=unused-argument
+        error: str | None = None,
     ) -> None:
         """Record an API call.
 
@@ -233,10 +233,11 @@ class StatisticsCollector:
             self.metrics.api_time += duration
 
         logger.debug(
-            "Recorded API call: %s, success=%s, duration=%s",
+            "Recorded API call: %s, success=%s, duration=%s, error=%s",
             endpoint,
             success,
             duration,
+            error,
         )
 
     def record_rate_limit_hit(self) -> None:

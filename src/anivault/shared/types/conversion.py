@@ -226,7 +226,7 @@ class ModelConverter:
         # orjson.dumps is faster than json.dumps and produces compact output
         # pylint: disable-next=no-member
         result = orjson.dumps(data)
-        return cast("bytes", result)
+        return result
 
     @staticmethod
     def to_json_str(

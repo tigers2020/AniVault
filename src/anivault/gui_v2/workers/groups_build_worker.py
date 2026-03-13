@@ -21,6 +21,137 @@ from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 
+RESOLUTION_PATTERNS = ("1080p", "720p", "480p", "2160p", "4k", "1440p")
+LANG_PATTERNS_KO = ("korean", "kor", "ko")
+LANG_PATTERNS_JA = ("japanese", "jap", "ja")
+LANG_PATTERNS_EN = ("english", "eng", "en")
+
+
+def _path_resolved(p: Path) -> Path:
+    """Resolve path; return original on OSError."""
+    try:
+        return p.resolve()
+    except OSError:
+        return p
+
+
+def _scanned_file_from_metadata(
+    fm: FileMetadata,
+    title_extractor: TitleExtractor,
+) -> ScannedFile:
+    """Build a ScannedFile from FileMetadata for FileGrouper."""
+    series_title = title_extractor.extract_title_with_parser(fm.file_path.name)
+    if not series_title or series_title == "unknown":
+        series_title = title_extractor.extract_base_title(fm.file_path.name)
+    if not series_title or series_title == "unknown":
+        series_title = fm.title
+    parsing_result = ParsingResult(
+        title=series_title,
+        episode=fm.episode,
+        season=fm.season,
+        year=fm.year,
+        quality=None,
+        release_group=None,
+        additional_info=ParsingAdditionalInfo(),
+    )
+    path_exists = fm.file_path.exists()
+    return ScannedFile(
+        file_path=fm.file_path,
+        metadata=parsing_result,
+        file_size=fm.file_path.stat().st_size if path_exists else 0,
+        last_modified=fm.file_path.stat().st_mtime if path_exists else 0.0,
+    )
+
+
+def _normalize_series_name(group_title: str) -> str:
+    """Strip episode/season suffix from group title for series key."""
+    name = re.sub(r"\s*-\s*\d+.*$", "", group_title)
+    name = re.sub(r"\s*E\d+.*$", "", name, flags=re.IGNORECASE)
+    name = re.sub(r"\s*Episode\s*\d+.*$", "", name, flags=re.IGNORECASE)
+    name = name.strip()
+    return name if name and len(name) >= 2 else group_title
+
+
+def _display_title_for_files(
+    all_files: list[FileMetadata],
+    fallback: str,
+) -> str:
+    """Best display title from matched files by confidence; else fallback."""
+    matched_with_title = [fm for fm in all_files if fm.tmdb_id is not None and fm.title and fm.title != fm.file_path.name]
+    if not matched_with_title:
+        return fallback
+    best = max(
+        matched_with_title,
+        key=lambda fm: getattr(fm, "match_confidence", 0.0) or 0.0,
+    )
+    return best.title
+
+
+def _confidence_for_files(all_files: list[FileMetadata], matched: bool) -> int:
+    """Max match confidence (0-100) for group; 100 if matched and no values."""
+    values = [
+        int(getattr(fm, "match_confidence", 0.0) * 100)
+        for fm in all_files
+        if fm.tmdb_id is not None and getattr(fm, "match_confidence", None) is not None
+    ]
+    if values:
+        return max(values)
+    return 100 if matched else 0
+
+
+def _resolution_for_files(all_files: list[FileMetadata]) -> str:
+    """Infer resolution from filenames/quality; default 'unknown'."""
+    resolutions: set[str] = set()
+    for item in all_files:
+        name_lower = item.file_path.name.lower()
+        for res in RESOLUTION_PATTERNS:
+            if res in name_lower:
+                resolutions.add(res.upper().replace("P", "p"))
+                break
+        if hasattr(item, "quality") and item.quality:
+            resolutions.add(item.quality)
+    return next(iter(resolutions), "unknown") if resolutions else "unknown"
+
+
+def _language_for_files(all_files: list[FileMetadata]) -> str:
+    """Infer language from filenames; default 'unknown'."""
+    for item in all_files:
+        name_lower = item.file_path.name.lower()
+        if any(lang in name_lower for lang in LANG_PATTERNS_KO):
+            return "ko"
+        if any(lang in name_lower for lang in LANG_PATTERNS_JA):
+            return "ja"
+        if any(lang in name_lower for lang in LANG_PATTERNS_EN):
+            return "en"
+    return "unknown"
+
+
+def _build_group_dict(
+    index: int,
+    series_name: str,
+    all_files: list[FileMetadata],
+) -> dict:
+    """Build one group display dict from series name and file list."""
+    seasons = {item.season for item in all_files if item.season is not None}
+    episodes = {item.episode for item in all_files if item.episode is not None}
+    matched = any(item.tmdb_id is not None for item in all_files)
+    display_title = _display_title_for_files(all_files, series_name)
+    confidence = _confidence_for_files(all_files, matched)
+    resolution = _resolution_for_files(all_files)
+    language = _language_for_files(all_files)
+    return {
+        "id": index,
+        "title": display_title,
+        "season": min(seasons) if seasons else 1,
+        "episodes": len(episodes) if episodes else len(all_files),
+        "files": len(all_files),
+        "matched": matched,
+        "confidence": confidence,
+        "resolution": resolution,
+        "language": language,
+        "file_metadata_list": all_files,
+    }
+
 
 class GroupsBuildWorker(BaseWorker):
     """Worker that builds group display data from FileMetadata (off main thread)."""
@@ -55,6 +186,67 @@ class GroupsBuildWorker(BaseWorker):
             )
 
 
+def _collect_tmdb_buckets(
+    series_groups: dict[str, list[FileMetadata]],
+) -> tuple[
+    dict[int, list[tuple[str, list[FileMetadata]]]],
+    dict[str, list[FileMetadata]],
+]:
+    """Split groups into tmdb_id buckets and unmerged (no tmdb_id)."""
+    tmdb_to_items: dict[int, list[tuple[str, list[FileMetadata]]]] = {}
+    unmerged: dict[str, list[FileMetadata]] = {}
+
+    for series_name, file_list in series_groups.items():
+        tmdb_ids: list[int] = [tid for fm in file_list if (tid := getattr(fm, "tmdb_id", None)) is not None]
+        if not tmdb_ids:
+            unmerged[series_name] = file_list
+            continue
+        canonical_id: int = Counter(tmdb_ids).most_common(1)[0][0]
+        if canonical_id not in tmdb_to_items:
+            tmdb_to_items[canonical_id] = []
+        tmdb_to_items[canonical_id].append((series_name, file_list))
+
+    return tmdb_to_items, unmerged
+
+
+def _best_title_for_merge(
+    items: list[tuple[str, list[FileMetadata]]],
+    tmdb_id: int,
+) -> str:
+    """Pick best display title from items by match_confidence (for merged group key)."""
+    best_title = ""
+    best_confidence = -1.0
+    for _, file_list in items:
+        for fm in file_list:
+            if fm.tmdb_id != tmdb_id or not fm.title or fm.title == fm.file_path.name:
+                continue
+            conf = getattr(fm, "match_confidence", 0.0) or 0.0
+            if conf > best_confidence:
+                best_confidence = conf
+                best_title = fm.title or ""
+    return best_title if best_title else items[0][0]
+
+
+def _apply_merged_group(
+    series_groups: dict[str, list[FileMetadata]],
+    tmdb_id: int,
+    items: list[tuple[str, list[FileMetadata]]],
+) -> None:
+    """Merge multiple items into one group and write into series_groups."""
+    all_files: list[FileMetadata] = []
+    for _, file_list in items:
+        all_files.extend(file_list)
+    merge_key = _best_title_for_merge(items, tmdb_id)
+    series_groups[merge_key] = all_files
+    logger.info(
+        "Merged %d groups by tmdb_id=%d into '%s' (%d files)",
+        len(items),
+        tmdb_id,
+        merge_key,
+        len(all_files),
+    )
+
+
 def _merge_groups_by_tmdb_id(
     series_groups: dict[str, list[FileMetadata]],
 ) -> None:
@@ -64,19 +256,7 @@ def _merge_groups_by_tmdb_id(
     When multiple groups share a tmdb_id, they are merged into one; the merged
     group uses the TMDB title as key (from highest-confidence matched file).
     """
-    tmdb_to_items: dict[int, list[tuple[str, list[FileMetadata]]]] = {}
-    unmerged: dict[str, list[FileMetadata]] = {}
-
-    for series_name, file_list in series_groups.items():
-        tmdb_ids = [fm.tmdb_id for fm in file_list if getattr(fm, "tmdb_id", None) is not None]
-        if not tmdb_ids:
-            unmerged[series_name] = file_list
-            continue
-        canonical_id = Counter(tmdb_ids).most_common(1)[0][0]
-        if canonical_id not in tmdb_to_items:
-            tmdb_to_items[canonical_id] = []
-        tmdb_to_items[canonical_id].append((series_name, file_list))
-
+    tmdb_to_items, unmerged = _collect_tmdb_buckets(series_groups)
     series_groups.clear()
     series_groups.update(unmerged)
 
@@ -85,26 +265,24 @@ def _merge_groups_by_tmdb_id(
             key, file_list = items[0]
             series_groups[key] = file_list
         else:
-            all_files: list[FileMetadata] = []
-            best_title = ""
-            best_confidence = -1.0
-            for _, file_list in items:
-                all_files.extend(file_list)
-                for fm in file_list:
-                    if fm.tmdb_id == tmdb_id and fm.title and fm.title != fm.file_path.name:
-                        conf = getattr(fm, "match_confidence", 0.0) or 0.0
-                        if conf > best_confidence:
-                            best_confidence = conf
-                            best_title = fm.title or ""
-            merge_key = best_title if best_title else items[0][0]
-            series_groups[merge_key] = all_files
-            logger.info(
-                "Merged %d groups by tmdb_id=%d into '%s' (%d files)",
-                len(items),
-                tmdb_id,
-                merge_key,
-                len(all_files),
-            )
+            _apply_merged_group(series_groups, tmdb_id, items)
+
+
+def _file_groups_to_series_groups(
+    file_groups: list,
+    files_by_path: dict[Path, FileMetadata],
+) -> dict[str, list[FileMetadata]]:
+    """Map FileGrouper groups to series name -> list[FileMetadata]."""
+    series_groups: dict[str, list[FileMetadata]] = {}
+    for group in file_groups:
+        group_files_metadata = [files_by_path[resolved] for sf in group.files if (resolved := _path_resolved(sf.file_path)) in files_by_path]
+        if not group_files_metadata:
+            continue
+        series_name = _normalize_series_name(group.title)
+        if series_name not in series_groups:
+            series_groups[series_name] = []
+        series_groups[series_name].extend(group_files_metadata)
+    return series_groups
 
 
 def _build_groups_from_metadata(files: list[FileMetadata]) -> list[dict]:
@@ -112,139 +290,35 @@ def _build_groups_from_metadata(files: list[FileMetadata]) -> list[dict]:
     title_extractor = TitleExtractor()
     file_grouper = FileGrouper()
 
-    # Convert FileMetadata to ScannedFile for FileGrouper
-    scanned_files: list[ScannedFile] = []
-    for file_metadata in files:
-        series_title = title_extractor.extract_title_with_parser(file_metadata.file_path.name)
-        if not series_title or series_title == "unknown":
-            series_title = title_extractor.extract_base_title(file_metadata.file_path.name)
-        if not series_title or series_title == "unknown":
-            series_title = file_metadata.title
-        parsing_result = ParsingResult(
-            title=series_title,
-            episode=file_metadata.episode,
-            season=file_metadata.season,
-            year=file_metadata.year,
-            quality=None,
-            release_group=None,
-            additional_info=ParsingAdditionalInfo(),
-        )
-        scanned_file = ScannedFile(
-            file_path=file_metadata.file_path,
-            metadata=parsing_result,
-            file_size=file_metadata.file_path.stat().st_size if file_metadata.file_path.exists() else 0,
-            last_modified=file_metadata.file_path.stat().st_mtime if file_metadata.file_path.exists() else 0.0,
-        )
-        scanned_files.append(scanned_file)
-
+    scanned_files = [_scanned_file_from_metadata(fm, title_extractor) for fm in files]
     file_groups = file_grouper.group_files(scanned_files)
 
-    def _path_resolved(p: Path) -> Path:
-        try:
-            return p.resolve()
-        except OSError:
-            return p
-
-    # O(n) index: path -> FileMetadata (avoids O(n²) nested loop)
-    files_by_path: dict[Path, FileMetadata] = {_path_resolved(fm.file_path): fm for fm in files}
-
-    series_groups: dict[str, list[FileMetadata]] = {}
-    for group in file_groups:
-        group_files_metadata: list[FileMetadata] = []
-        for scanned_file in group.files:
-            resolved = _path_resolved(scanned_file.file_path)
-            if resolved in files_by_path:
-                group_files_metadata.append(files_by_path[resolved])
-
-        if not group_files_metadata:
-            continue
-
-        group_title = group.title
-        series_name = re.sub(r"\s*-\s*\d+.*$", "", group_title)
-        series_name = re.sub(r"\s*E\d+.*$", "", series_name, flags=re.IGNORECASE)
-        series_name = re.sub(r"\s*Episode\s*\d+.*$", "", series_name, flags=re.IGNORECASE)
-        series_name = series_name.strip()
-
-        if not series_name or len(series_name) < 2:
-            series_name = group_title
-
-        if series_name not in series_groups:
-            series_groups[series_name] = []
-        series_groups[series_name].extend(group_files_metadata)
+    files_by_path = {_path_resolved(fm.file_path): fm for fm in files}
+    series_groups = _file_groups_to_series_groups(file_groups, files_by_path)
 
     _merge_groups_by_tmdb_id(series_groups)
 
-    grouped_resolved: set[Path] = {_path_resolved(fm.file_path) for files_list in series_groups.values() for fm in files_list}
+    grouped_resolved = {_path_resolved(fm.file_path) for files_list in series_groups.values() for fm in files_list}
     ungrouped = [fm for fm in files if _path_resolved(fm.file_path) not in grouped_resolved]
     if ungrouped:
         logger.info("Adding %d ungrouped file(s) to '미분류' group", len(ungrouped))
         series_groups["미분류"] = series_groups.get("미분류", []) + ungrouped
 
-    groups: list[dict] = []
-    for index, (series_name, all_files) in enumerate(series_groups.items(), start=1):
-        seasons = {item.season for item in all_files if item.season is not None}
-        episodes = {item.episode for item in all_files if item.episode is not None}
-        matched = any(item.tmdb_id is not None for item in all_files)
+    return [_build_group_dict(index, series_name, all_files) for index, (series_name, all_files) in enumerate(series_groups.items(), start=1)]
 
-        display_title = series_name
-        if matched:
-            matched_with_title = [fm for fm in all_files if fm.tmdb_id is not None and fm.title and fm.title != fm.file_path.name]
-            if matched_with_title:
-                best = max(
-                    matched_with_title,
-                    key=lambda fm: getattr(fm, "match_confidence", 0.0) or 0.0,
-                )
-                display_title = best.title
 
-        confidence_values = [
-            int(getattr(fm, "match_confidence", 0.0) * 100)
-            for fm in all_files
-            if fm.tmdb_id is not None and getattr(fm, "match_confidence", None) is not None
-        ]
-        confidence = max(confidence_values) if confidence_values else (100 if matched else 0)
-
-        resolutions = set()
-        for item in all_files:
-            file_name_lower = item.file_path.name.lower()
-            for res in ["1080p", "720p", "480p", "2160p", "4k", "1440p"]:
-                if res in file_name_lower:
-                    resolutions.add(res.upper().replace("P", "p"))
-                    break
-            if hasattr(item, "quality") and item.quality:
-                resolutions.add(item.quality)
-        if not resolutions:
-            resolutions.add("unknown")
-        resolution = next(iter(resolutions), "unknown")
-
-        language = "unknown"
-        for item in all_files:
-            file_name_lower = item.file_path.name.lower()
-            if any(lang in file_name_lower for lang in ["korean", "kor", "ko"]):
-                language = "ko"
-                break
-            if any(lang in file_name_lower for lang in ["japanese", "jap", "ja"]):
-                language = "ja"
-                break
-            if any(lang in file_name_lower for lang in ["english", "eng", "en"]):
-                language = "en"
-                break
-
-        groups.append(
-            {
-                "id": index,
-                "title": display_title,
-                "season": min(seasons) if seasons else 1,
-                "episodes": len(episodes) if episodes else len(all_files),
-                "files": len(all_files),
-                "matched": matched,
-                "confidence": confidence,
-                "resolution": resolution,
-                "language": language,
-                "file_metadata_list": all_files,
-            }
-        )
-
-    return groups
+def _tmdb_id_for_file_in_map(
+    fm: FileMetadata,
+    files_by_path: dict[Path, FileMetadata],
+    path_resolved: Callable[[Path], Path],
+) -> int | None:
+    """Return tmdb_id for this file if it exists in files_by_path and has tmdb_id."""
+    resolved = path_resolved(fm.file_path)
+    new_fm = files_by_path.get(resolved)
+    if new_fm is None:
+        return None
+    tid = getattr(new_fm, "tmdb_id", None)
+    return tid if isinstance(tid, int) else None
 
 
 def _needs_merge_by_tmdb_id(
@@ -256,13 +330,9 @@ def _needs_merge_by_tmdb_id(
     tmdb_id_to_group_indices: dict[int, set[int]] = {}
     for idx, g in enumerate(existing_groups):
         for fm in g.get("file_metadata_list", []):
-            resolved = path_resolved(fm.file_path)
-            new_fm = files_by_path.get(resolved)
-            if new_fm and getattr(new_fm, "tmdb_id", None) is not None:
-                tid = new_fm.tmdb_id
-                if tid not in tmdb_id_to_group_indices:
-                    tmdb_id_to_group_indices[tid] = set()
-                tmdb_id_to_group_indices[tid].add(idx)
+            tid = _tmdb_id_for_file_in_map(fm, files_by_path, path_resolved)
+            if tid is not None:
+                tmdb_id_to_group_indices.setdefault(tid, set()).add(idx)
     return any(len(indices) > 1 for indices in tmdb_id_to_group_indices.values())
 
 
@@ -278,17 +348,10 @@ def apply_metadata_update_to_groups(
     if not existing_groups or not files:
         return None
 
-    def _path_resolved(p: Path) -> Path:
-        try:
-            return p.resolve()
-        except OSError:
-            return p
-
-    files_by_path: dict[Path, FileMetadata] = {_path_resolved(fm.file_path): fm for fm in files}
+    files_by_path = {_path_resolved(fm.file_path): fm for fm in files}
     new_paths = set(files_by_path)
 
-    # Collect paths from existing groups
-    existing_paths: set[Path] = set()
+    existing_paths = set()
     for g in existing_groups:
         for fm in g.get("file_metadata_list", []):
             existing_paths.add(_path_resolved(fm.file_path))
@@ -299,73 +362,12 @@ def apply_metadata_update_to_groups(
     if _needs_merge_by_tmdb_id(existing_groups, files_by_path, _path_resolved):
         return None
 
-    # Same path set - do metadata-only update
     updated: list[dict] = []
     for idx, group in enumerate(existing_groups, start=1):
         old_list = group.get("file_metadata_list", [])
         new_list = [files_by_path[_path_resolved(fm.file_path)] for fm in old_list if _path_resolved(fm.file_path) in files_by_path]
         if not new_list:
             continue
-
-        all_files = new_list
-        seasons = {item.season for item in all_files if item.season is not None}
-        episodes = {item.episode for item in all_files if item.episode is not None}
-        matched = any(item.tmdb_id is not None for item in all_files)
         series_name = group.get("title", "")
-
-        display_title = series_name
-        if matched:
-            matched_with_title = [fm for fm in all_files if fm.tmdb_id is not None and fm.title and fm.title != fm.file_path.name]
-            if matched_with_title:
-                best = max(
-                    matched_with_title,
-                    key=lambda fm: getattr(fm, "match_confidence", 0.0) or 0.0,
-                )
-                display_title = best.title
-
-        confidence_values = [
-            int(getattr(fm, "match_confidence", 0.0) * 100)
-            for fm in all_files
-            if fm.tmdb_id is not None and getattr(fm, "match_confidence", None) is not None
-        ]
-        confidence = max(confidence_values) if confidence_values else (100 if matched else 0)
-
-        resolutions = set()
-        for item in all_files:
-            fn = item.file_path.name.lower()
-            for res in ["1080p", "720p", "480p", "2160p", "4k", "1440p"]:
-                if res in fn:
-                    resolutions.add(res.upper().replace("P", "p"))
-                    break
-            if hasattr(item, "quality") and item.quality:
-                resolutions.add(item.quality)
-        resolution = next(iter(resolutions), "unknown") if resolutions else "unknown"
-
-        language = "unknown"
-        for item in all_files:
-            fn = item.file_path.name.lower()
-            if any(lang in fn for lang in ["korean", "kor", "ko"]):
-                language = "ko"
-                break
-            if any(lang in fn for lang in ["japanese", "jap", "ja"]):
-                language = "ja"
-                break
-            if any(lang in fn for lang in ["english", "eng", "en"]):
-                language = "en"
-                break
-
-        updated.append(
-            {
-                "id": idx,
-                "title": display_title,
-                "season": min(seasons) if seasons else 1,
-                "episodes": len(episodes) if episodes else len(all_files),
-                "files": len(all_files),
-                "matched": matched,
-                "confidence": confidence,
-                "resolution": resolution,
-                "language": language,
-                "file_metadata_list": all_files,
-            }
-        )
+        updated.append(_build_group_dict(idx, series_name, new_list))
     return updated

@@ -59,6 +59,33 @@ from .match_formatters import collect_match_data, display_match_results
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "collect_match_data",
+    "display_match_results",
+    "process_file_for_matching",
+    "run_match_pipeline",
+]
+
+
+def _resolve_parser_and_engine(
+    args: tuple[object, ...],
+    parser: AnitopyParser | None,
+    engine: MatchingEngine | None,
+    kwargs: Mapping[str, object],
+) -> tuple[AnitopyParser | None, MatchingEngine | None, bool]:
+    """Resolve parser and engine from positional args and kwargs.
+
+    Returns:
+        Tuple of (parser, engine, legacy_signature).
+    """
+    legacy_signature = bool(args) and parser is None and engine is None
+    if args and parser is None and engine is None:
+        parser = cast("AnitopyParser | None", args[0] if len(args) > 0 else None)
+        engine = cast("MatchingEngine | None", args[1] if len(args) > 1 else None)
+    parser = parser or cast("AnitopyParser | None", kwargs.get("parser"))
+    engine = engine or cast("MatchingEngine | None", kwargs.get("engine"))
+    return parser, engine, legacy_signature
+
 
 async def process_file_for_matching(
     file_path: Path,
@@ -69,12 +96,7 @@ async def process_file_for_matching(
     **kwargs: object,
 ) -> MatchResultBundle | FileMetadata | None:
     """Compatibility wrapper for process_file_for_matching."""
-    legacy_signature = bool(args) and parser is None and engine is None
-    if args and parser is None and engine is None:
-        parser = cast("AnitopyParser | None", args[0] if len(args) > 0 else None)
-        engine = cast("MatchingEngine | None", args[1] if len(args) > 1 else None)
-    parser = parser or cast("AnitopyParser | None", kwargs.get("parser"))
-    engine = engine or cast("MatchingEngine | None", kwargs.get("engine"))
+    parser, engine, legacy_signature = _resolve_parser_and_engine(args, parser, engine, kwargs)
     if parser is None or engine is None:
         raise TypeError("process_file_for_matching requires parser and engine")
     try:
@@ -179,7 +201,7 @@ async def run_match_pipeline(
     with progress_manager.spinner(CLIMessages.Info.SCANNING_FILES):
         processed_results = await use_case.execute(
             directory,
-            extensions=FileSystem.CLI_VIDEO_EXTENSIONS,
+            extensions=tuple(FileSystem.CLI_VIDEO_EXTENSIONS),
             concurrency=4,
         )
     _output_results(processed_results, directory, options, console)

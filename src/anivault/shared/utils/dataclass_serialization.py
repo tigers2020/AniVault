@@ -57,10 +57,10 @@ def _resolve_field_key(
 ) -> str | None:
     """Return data key for field (field.name or its alias), or None if missing."""
     if field.name in data:
-        return field.name
+        return str(field.name)
     for alias, actual_field in alias_to_field.items():
         if actual_field == field.name and alias in data:
-            return alias
+            return str(alias)
     return None
 
 

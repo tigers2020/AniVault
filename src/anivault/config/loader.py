@@ -30,6 +30,9 @@ from anivault.shared.errors import (
     SecurityError,
 )
 
+# Default path for the main TOML config file (single source for S1192)
+DEFAULT_CONFIG_PATH = Path("config/config.toml")
+
 
 class SettingsLoader:
     """Thread-safe singleton manager for Settings.
@@ -80,7 +83,7 @@ class SettingsLoader:
     def update_and_save_config(
         self,
         updater: Callable[[Settings], None],
-        config_path: Path | str = Path("config/config.toml"),
+        config_path: Path | str = DEFAULT_CONFIG_PATH,
     ) -> None:
         """Update configuration, validate, save to file, and reload global cache.
 
@@ -319,7 +322,7 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
 
     # Try to load from default configuration file
     default_config_paths = [
-        Path("config/config.toml"),
+        DEFAULT_CONFIG_PATH,
         Path("config.toml"),
         Path.home() / FileSystem.HOME_DIR / "config.toml",
     ]
@@ -350,7 +353,7 @@ def load_weights(config_path: str | Path | None = None) -> MatchingWeights:
         >>> weights = load_weights()
         >>> weights.scoring_title_match
         0.5
-        >>> weights = load_weights("config/config.toml")
+        >>> weights = load_weights(DEFAULT_CONFIG_PATH)
         >>> weights.grouping_title_weight
         0.6
     """
@@ -387,7 +390,7 @@ def reload_config() -> Settings:
 
 def update_and_save_config(
     updater: Callable[[Settings], None],
-    config_path: Path | str = Path("config/config.toml"),
+    config_path: Path | str = DEFAULT_CONFIG_PATH,
 ) -> None:
     """Update configuration, validate, save to file, and reload global cache.
 
@@ -399,6 +402,7 @@ def update_and_save_config(
 
 
 __all__ = [
+    "DEFAULT_CONFIG_PATH",
     "SettingsLoader",
     "get_config",
     "load_settings",

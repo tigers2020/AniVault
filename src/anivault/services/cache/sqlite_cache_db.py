@@ -123,9 +123,7 @@ class SQLiteCacheDB:
                         if shm_file.exists():
                             shm_file.unlink()
                         deleted_count += 1
-                        logger.debug(
-                            "Cleaned up old timestamped DB file: %s", file_path
-                        )
+                        logger.debug("Cleaned up old timestamped DB file: %s", file_path)
                 except (PermissionError, OSError) as e:
                     # File might be locked, skip it
                     logger.debug(
@@ -146,10 +144,7 @@ class SQLiteCacheDB:
 
         # pylint: disable-next=broad-exception-caught
 
-
         # pylint: disable-next=broad-exception-caught
-
-
 
         except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             # Don't fail initialization if cleanup fails
@@ -178,8 +173,7 @@ class SQLiteCacheDB:
             # Check path length (Windows MAX_PATH = 260, extended = 32767)
             if len(db_path_str) > 260:
                 logger.warning(
-                    "Database path exceeds 260 characters: %d chars. "
-                    "This may cause issues on Windows.",
+                    "Database path exceeds 260 characters: %d chars. This may cause issues on Windows.",
                     len(db_path_str),
                 )
 
@@ -193,10 +187,7 @@ class SQLiteCacheDB:
             except PermissionError as e:
                 error = InfrastructureError(
                     code=ErrorCode.PERMISSION_DENIED,
-                    message=(
-                        f"Cannot create cache directory: {db_path_absolute.parent}. "
-                        f"Permission denied. Check directory permissions."
-                    ),
+                    message=(f"Cannot create cache directory: {db_path_absolute.parent}. Permission denied. Check directory permissions."),
                     context=context,
                     original_error=e,
                 )
@@ -208,10 +199,7 @@ class SQLiteCacheDB:
             except OSError as e:
                 error = InfrastructureError(
                     code=ErrorCode.FILE_ACCESS_ERROR,
-                    message=(
-                        f"Cannot create cache directory: {db_path_absolute.parent}. "
-                        f"OS error: {e!s}"
-                    ),
+                    message=(f"Cannot create cache directory: {db_path_absolute.parent}. OS error: {e!s}"),
                     context=context,
                     original_error=e,
                 )
@@ -225,10 +213,7 @@ class SQLiteCacheDB:
             if not db_path_absolute.parent.exists():
                 error = InfrastructureError(
                     code=ErrorCode.FILE_ACCESS_ERROR,
-                    message=(
-                        f"Cache directory does not exist after creation: "
-                        f"{db_path_absolute.parent}"
-                    ),
+                    message=(f"Cache directory does not exist after creation: {db_path_absolute.parent}"),
                     context=context,
                 )
                 logger.error("Cache directory missing: %s", db_path_absolute.parent)
@@ -246,10 +231,7 @@ class SQLiteCacheDB:
             except PermissionError as e:
                 error = InfrastructureError(
                     code=ErrorCode.PERMISSION_DENIED,
-                    message=(
-                        f"Cache directory is not writable: {db_path_absolute.parent}. "
-                        f"Check directory permissions."
-                    ),
+                    message=(f"Cache directory is not writable: {db_path_absolute.parent}. Check directory permissions."),
                     context=context,
                     original_error=e,
                 )
@@ -262,7 +244,6 @@ class SQLiteCacheDB:
 
             # pylint: disable-next=broad-exception-caught
 
-
             except Exception as e:  # pylint: disable=broad-exception-caught  # noqa: BLE001
                 # Log unexpected errors during write test but continue
                 logger.warning(
@@ -274,15 +255,10 @@ class SQLiteCacheDB:
             if not db_path_absolute.parent.is_dir():
                 error = InfrastructureError(
                     code=ErrorCode.FILE_ACCESS_ERROR,
-                    message=(
-                        f"Cache path exists but is not a directory: "
-                        f"{db_path_absolute.parent}"
-                    ),
+                    message=(f"Cache path exists but is not a directory: {db_path_absolute.parent}"),
                     context=context,
                 )
-                logger.error(
-                    "Cache path is not a directory: %s", db_path_absolute.parent
-                )
+                logger.error("Cache path is not a directory: %s", db_path_absolute.parent)
                 raise error
 
             # Check if existing DB file is accessible
@@ -291,13 +267,9 @@ class SQLiteCacheDB:
 
             if not db_is_new:
                 # Try to open existing file to check if it's accessible
-                wal_file = db_path_absolute.with_suffix(
-                    db_path_absolute.suffix + "-wal"
-                )
+                wal_file = db_path_absolute.with_suffix(db_path_absolute.suffix + "-wal")
                 # pylint: disable-next=unused-variable
-                shm_file = db_path_absolute.with_suffix(
-                    db_path_absolute.suffix + "-shm"
-                )
+                shm_file = db_path_absolute.with_suffix(db_path_absolute.suffix + "-shm")
 
                 try:
                     # Quick test connection
@@ -311,8 +283,7 @@ class SQLiteCacheDB:
                 except sqlite3.OperationalError as test_error:
                     # DB is locked or corrupted - try to remove it and all related files
                     logger.warning(
-                        "Existing database file is inaccessible (locked or corrupted): %s. "
-                        "Attempting to remove and recreate. Error: %s",
+                        "Existing database file is inaccessible (locked or corrupted): %s. Attempting to remove and recreate. Error: %s",
                         db_path_absolute,
                         test_error,
                     )
@@ -328,9 +299,7 @@ class SQLiteCacheDB:
                         # Try to remove main DB file
                         if db_path_absolute.exists():
                             db_path_absolute.unlink()
-                            logger.info(
-                                "Removed corrupted DB file: %s", db_path_absolute
-                            )
+                            logger.info("Removed corrupted DB file: %s", db_path_absolute)
                             db_is_new = True  # Mark as new so we create fresh DB
                     except PermissionError:
                         # File is locked by another process - try waiting a bit and retry
@@ -353,23 +322,18 @@ class SQLiteCacheDB:
                         except (PermissionError, OSError):
                             # Still locked - use alternative filename as last resort
                             logger.warning(
-                                "Database file still locked after retry: %s. "
-                                "Using alternative filename.",
+                                "Database file still locked after retry: %s. Using alternative filename.",
                                 db_path_absolute,
                             )
                             # Generate alternative filename with timestamp
                             timestamp = int(time.time())
                             alt_name = (
-                                db_path_absolute.stem
-                                + f"_{timestamp}"
-                                + db_path_absolute.suffix  # pylint: disable=line-too-long
+                                db_path_absolute.stem + f"_{timestamp}" + db_path_absolute.suffix  # pylint: disable=line-too-long
                             )
                             self.db_path = db_path_absolute.parent / alt_name
                             db_path_absolute = self.db_path
                             db_is_new = True
-                            logger.info(
-                                "Using alternative DB filename: %s", self.db_path
-                            )
+                            logger.info("Using alternative DB filename: %s", self.db_path)
                     except Exception:  # pylint: disable=broad-exception-caught
                         logger.exception(
                             "Failed to remove corrupted DB files (will use alternative filename): %s",
@@ -377,11 +341,7 @@ class SQLiteCacheDB:
                         )
                         # Use alternative filename as fallback
                         timestamp = int(time.time())
-                        alt_name = (
-                            db_path_absolute.stem
-                            + f"_{timestamp}"
-                            + db_path_absolute.suffix
-                        )
+                        alt_name = db_path_absolute.stem + f"_{timestamp}" + db_path_absolute.suffix
                         self.db_path = db_path_absolute.parent / alt_name
                         db_path_absolute = self.db_path
                         db_is_new = True
@@ -436,10 +396,7 @@ class SQLiteCacheDB:
                         f"  - Use shorter path if possible"
                     )
                 else:
-                    detailed_msg = (
-                        f"Cannot open SQLite database: {db_path_absolute}\n"
-                        f"Error: {error_msg}"
-                    )
+                    detailed_msg = f"Cannot open SQLite database: {db_path_absolute}\nError: {error_msg}"
 
                 error = InfrastructureError(
                     code=ErrorCode.FILE_ACCESS_ERROR,
@@ -465,7 +422,6 @@ class SQLiteCacheDB:
                 # pylint: disable-next=broad-exception-caught
 
                 # pylint: disable-next=broad-exception-caught
-
 
                 except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                     # Log warning but continue - permissions are not critical
@@ -499,7 +455,6 @@ class SQLiteCacheDB:
             # pylint: disable-next=broad-exception-caught
 
             # pylint: disable-next=broad-exception-caught
-
 
             except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 logger.warning("Failed to purge expired entries on startup: %s", str(e))

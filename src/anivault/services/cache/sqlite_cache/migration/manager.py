@@ -37,9 +37,7 @@ class MigrationManager:
         Returns:
             Current schema version (0 if not set)
         """
-        cursor = self.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
-        )
+        cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'")
         if cursor.fetchone() is None:
             return 0
         cursor = self.conn.execute("SELECT version FROM schema_version LIMIT 1")
@@ -89,9 +87,7 @@ class MigrationManager:
         Raises:
             RuntimeError: If upgrade fails
         """
-        logger.info(
-            "Upgrading from version %d to %d", self._current_version, target_version
-        )
+        logger.info("Upgrading from version %d to %d", self._current_version, target_version)
         for version in range(self._current_version + 1, target_version + 1):
             try:
                 self._apply_migration(version, direction="up")
@@ -110,9 +106,7 @@ class MigrationManager:
         Raises:
             RuntimeError: If downgrade fails
         """
-        logger.info(
-            "Downgrading from version %d to %d", self._current_version, target_version
-        )
+        logger.info("Downgrading from version %d to %d", self._current_version, target_version)
         for version in range(self._current_version, target_version, -1):
             try:
                 self._apply_migration(version, direction="down")
@@ -148,12 +142,8 @@ class MigrationManager:
             List of migration records with version and applied_at timestamp
         """
         try:
-            cursor = self.conn.execute(
-                "SELECT version, applied_at FROM schema_version ORDER BY version"
-            )
-            return [
-                {"version": row[0], "applied_at": row[1]} for row in cursor.fetchall()
-            ]
+            cursor = self.conn.execute("SELECT version, applied_at FROM schema_version ORDER BY version")
+            return [{"version": row[0], "applied_at": row[1]} for row in cursor.fetchall()]
         except (sqlite3.Error, AttributeError):
             return []
 

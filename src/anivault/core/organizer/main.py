@@ -22,6 +22,8 @@ from anivault.shared.constants import FileSystem, FolderDefaults
 
 logger = logging.getLogger(__name__)
 
+LOG_MSG_FAILED_CREATE_OPERATION = "Failed to create operation for %s"
+
 
 class FileOrganizer:
     """
@@ -89,21 +91,21 @@ class FileOrganizer:
 
             except (FileNotFoundError, PermissionError):
                 logger.exception(
-                    "Failed to create operation for %s",
+                    LOG_MSG_FAILED_CREATE_OPERATION,
                     scanned_file.file_path,
                 )
                 # Continue processing other files
                 continue
             except OSError:
                 logger.exception(
-                    "Failed to create operation for %s",
+                    LOG_MSG_FAILED_CREATE_OPERATION,
                     scanned_file.file_path,
                 )
                 # Continue processing other files
                 continue
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.exception(
-                    "Failed to create operation for %s",
+                    LOG_MSG_FAILED_CREATE_OPERATION,
                     scanned_file.file_path,
                 )
                 # Continue processing other files
@@ -290,6 +292,31 @@ class FileOrganizer:
         return roots
 
     @staticmethod
+    def _try_remove_empty_dir(dir_path: Path) -> bool:
+        """Remove a directory if it is empty. Returns True if removed."""
+        if not dir_path.exists():
+            return False
+        try:
+            if not list(dir_path.iterdir()):
+                dir_path.rmdir()
+                return True
+        except OSError as e:
+            logger.warning("Failed to remove empty directory: %s: %s", dir_path, e)
+        return False
+
+    @staticmethod
+    def _remove_empty_dirs_one_pass(root: Path) -> int:
+        """One bottom-up pass: remove empty leaf dirs under root. Returns count removed."""
+        if not root.exists() or not root.is_dir():
+            return 0
+        root_str = str(root)
+        removed = 0
+        for dirpath, _dirnames, _filenames in os.walk(root_str, topdown=False):
+            if dirpath != root_str and FileOrganizer._try_remove_empty_dir(Path(dirpath)):
+                removed += 1
+        return removed
+
+    @staticmethod
     def _remove_empty_leaf_dirs(root: Path) -> int:
         """Remove empty leaf directories under a root path.
 
@@ -307,33 +334,8 @@ class FileOrganizer:
 
         while iteration < max_iterations:
             iteration += 1
-            removed_this_iteration = 0
-            root_str = str(root)
-
-            # Walk bottom-up to remove leaf directories first
-            for dirpath, _dirnames, _filenames in os.walk(root_str, topdown=False):
-                if dirpath == root_str:
-                    continue
-
-                # Check if directory is actually empty (not just in snapshot)
-                dir_path = Path(dirpath)
-                if not dir_path.exists():
-                    continue
-
-                try:
-                    # Re-check actual contents (not snapshot)
-                    actual_contents = list(dir_path.iterdir())
-
-                    if not actual_contents:
-                        # Directory is actually empty, remove it
-                        dir_path.rmdir()
-                        removed_this_iteration += 1
-                except OSError as e:
-                    logger.warning("Failed to remove empty directory: %s: %s", dirpath, e)
-
+            removed_this_iteration = FileOrganizer._remove_empty_dirs_one_pass(root)
             total_removed += removed_this_iteration
-
-            # If no directories were removed this iteration, we're done
             if removed_this_iteration == 0:
                 break
 

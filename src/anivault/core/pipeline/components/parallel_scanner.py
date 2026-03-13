@@ -32,6 +32,9 @@ from anivault.shared.logging import log_operation_error, log_operation_success
 
 logger = logging.getLogger(__name__)
 
+# Log message template for parallel scan errors (S1192: avoid duplicated literals)
+_LOG_ERR_PARALLEL_SCAN = "Error in parallel directory scanning: %s"
+
 
 class ParallelDirectoryScanner(threading.Thread):
     """Parallel directory scanner using ThreadPoolExecutor.
@@ -138,14 +141,14 @@ class ParallelDirectoryScanner(threading.Thread):
                             if entry.path.lower().endswith(tuple(self.extensions)):
                                 found_files.append(Path(entry.path).absolute())
 
-                    except (OSError, PermissionError):
+                    except OSError:
                         # Skip inaccessible entries
                         continue
 
             # Count this directory
             directories_scanned += 1
 
-        except (OSError, PermissionError):
+        except OSError:
             # Log permission errors but continue scanning
             logger.warning("Cannot scan directory: %s", directory, exc_info=True)
 
@@ -172,10 +175,10 @@ class ParallelDirectoryScanner(threading.Thread):
                     try:
                         if entry.is_dir():
                             subdirectories.append(Path(entry.path))
-                    except (OSError, PermissionError):
+                    except OSError:
                         continue
 
-        except (OSError, PermissionError):
+        except OSError:
             logger.warning("Error accessing root directory", exc_info=True)
 
         return subdirectories
@@ -409,7 +412,6 @@ class ParallelDirectoryScanner(threading.Thread):
             FutureTimeoutError,
             RuntimeError,
             ValueError,
-            TimeoutError,
             OSError,
         ) as e:
             error = InfrastructureError(
@@ -465,7 +467,6 @@ class ParallelDirectoryScanner(threading.Thread):
             RuntimeError,
             ValueError,
             TypeError,
-            TimeoutError,
             OSError,
         ) as e:
             error = InfrastructureError(
@@ -544,7 +545,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 context,
                 original_error=e,
             )
-            logger.exception("Error in parallel directory scanning: %s", error.message)
+            logger.exception(_LOG_ERR_PARALLEL_SCAN, error.message)
         # pylint: disable-next=bad-except-order  # TimeoutError is OSError subclass but must be handled first
         except (TimeoutError, FutureTimeoutError) as e:
             # Timeout errors (OSError subclass, must come before OSError)
@@ -563,7 +564,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 context,
                 original_error=e,
             )
-            logger.exception("Error in parallel directory scanning: %s", error.message)
+            logger.exception(_LOG_ERR_PARALLEL_SCAN, error.message)
         except OSError as e:
             # Other OS errors (must come after TimeoutError)
             context = ErrorContextModel(
@@ -576,7 +577,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 context,
                 original_error=e,
             )
-            logger.exception("Error in parallel directory scanning: %s", error.message)
+            logger.exception(_LOG_ERR_PARALLEL_SCAN, error.message)
         except (
             CancelledError,
             RuntimeError,
@@ -594,7 +595,7 @@ class ParallelDirectoryScanner(threading.Thread):
                 context,
                 original_error=e,
             )
-            logger.exception("Error in parallel directory scanning: %s", error.message)
+            logger.exception(_LOG_ERR_PARALLEL_SCAN, error.message)
         finally:
             # Signal completion with sentinel
             try:
@@ -634,12 +635,12 @@ class ParallelDirectoryScanner(threading.Thread):
                             if entry.path.lower().endswith(tuple(self.extensions)):
                                 root_files.append(Path(entry.path).absolute())
 
-                    except (OSError, PermissionError):
+                    except OSError:
                         continue
 
             # Root directory will be counted in the main run method
 
-        except (OSError, PermissionError):
+        except OSError:
             logger.warning("Cannot scan root directory", exc_info=True)
 
         return root_files

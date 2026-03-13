@@ -9,11 +9,11 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #4f46e5 0%, #5b21b6 100%);
       min-height: 100vh;
       margin: 0;
       padding: 0;
-      color: #333;
+      color: #fff;
       overflow: hidden;
     }
 
@@ -25,11 +25,12 @@
       background: #f8fafc;
       margin: 0;
       padding: 0;
+      color: #333;
     }
 
     /* Header */
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #4f46e5 0%, #5b21b6 100%);
       color: white;
       padding: 1.2rem 2rem;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -80,7 +81,7 @@
 
     .btn-primary {
       background: white;
-      color: #667eea;
+      color: #4338ca;
     }
 
     .btn-primary:hover {
@@ -90,7 +91,7 @@
 
     .btn-secondary {
       background: rgba(255,255,255,0.2);
-      color: white;
+      color: #1e293b;
       border: 1px solid rgba(255,255,255,0.3);
     }
 
@@ -141,7 +142,7 @@
     .sidebar-item:hover { background: #f1f5f9; }
 
     .sidebar-item.active {
-      background: #667eea;
+      background: #4f46e5;
       color: white;
     }
 
@@ -293,7 +294,7 @@
     }
 
     .group-card-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #4f46e5 0%, #5b21b6 100%);
       color: white;
       padding: 1.2rem;
     }
@@ -414,7 +415,7 @@
     .detail-panel.open { right: 0; }
 
     .detail-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #4f46e5 0%, #5b21b6 100%);
       color: white;
       padding: 1.5rem;
       position: sticky;
@@ -428,7 +429,7 @@
       top: 1rem;
       background: rgba(255,255,255,0.2);
       border: none;
-      color: white;
+      color: #1e293b;
       width: 32px;
       height: 32px;
       border-radius: 50%;
@@ -484,11 +485,11 @@
       transition: all 0.2s;
     }
 
-    .btn-match { background: #667eea; color: white; }
-    .btn-match:hover { background: #5568d3; }
+    .btn-match { background: #4f46e5; color: white; }
+    .btn-match:hover { background: #4338ca; }
 
-    .btn-organize { background: #10b981; color: white; }
-    .btn-organize:hover { background: #059669; }
+    .btn-organize { background: #047857; color: white; }
+    .btn-organize:hover { background: #065f46; }
 
     .btn-ghost {
       background: #f1f5f9;
@@ -1010,7 +1011,7 @@
                 </div>
                 <div class="form-row">
                   <div class="field">
-                    <label>레벨</label>
+                    <label for="logLevel">레벨</label>
                     <select id="logLevel" onchange="renderLogs()">
                       <option value="ALL">ALL</option>
                       <option value="INFO">INFO</option>
@@ -1019,7 +1020,7 @@
                     </select>
                   </div>
                   <div class="field">
-                    <label>모듈</label>
+                    <label for="logModule">모듈</label>
                     <select id="logModule" onchange="renderLogs()">
                       <option value="ALL">ALL</option>
                       <option value="scanner">scanner</option>
@@ -1030,7 +1031,7 @@
                   </div>
                 </div>
                 <div class="field">
-                  <label>검색</label>
+                  <label for="logQuery">검색</label>
                   <input id="logQuery" placeholder="메시지 검색..." oninput="renderLogs()" />
                 </div>
                 <div style="margin-top:1rem; display:flex; gap:10px;">
@@ -1130,7 +1131,7 @@
           <!-- API Key Tab -->
           <div id="settingsTabApi" class="settings-tab-content active">
             <div class="field">
-              <label>TMDB API Key</label>
+              <label for="settingApiKey">TMDB API Key</label>
               <input id="settingApiKey" type="password" placeholder="Enter your TMDB API key" />
               <div class="muted" style="font-size:0.85rem; margin-top:0.5rem;">
                 Get your API key from: <a href="https://www.themoviedb.org/settings/api" target="_blank" style="color:#667eea;">https://www.themoviedb.org/settings/api</a>
@@ -1148,7 +1149,7 @@
           <div id="settingsTabFolders" class="settings-tab-content" style="display:none;">
             <!-- Source Folder -->
             <div class="field" style="margin-bottom:1.5rem;">
-              <label>Source Folder</label>
+              <label for="settingSourceFolder">Source Folder</label>
               <div style="display:flex; gap:0.5rem;">
                 <input id="settingSourceFolder" type="text" placeholder="Select source folder for media files" style="flex:1;" />
                 <button class="btn btn-ghost" onclick="browseFolder('source')">Browse...</button>
@@ -1158,7 +1159,7 @@
 
             <!-- Target Folder -->
             <div class="field" style="margin-bottom:1.5rem;">
-              <label>Target Folder</label>
+              <label for="settingTargetFolder">Target Folder</label>
               <div style="display:flex; gap:0.5rem;">
                 <input id="settingTargetFolder" type="text" placeholder="Select target folder for organized files" style="flex:1;" />
                 <button class="btn btn-ghost" onclick="browseFolder('target')">Browse...</button>
@@ -1191,12 +1192,12 @@
                 </label>
                 <div class="form-row">
                   <div class="field">
-                    <label>스캔 간격 (분)</label>
+                    <label for="settingAutoScanInterval">스캔 간격 (분)</label>
                     <input id="settingAutoScanInterval" type="number" min="0" max="1440" value="0" />
                     <div class="muted" style="font-size:0.8rem; margin-top:0.25rem;">0 = 비활성화</div>
                   </div>
                   <div class="field">
-                    <label>하위 디렉터리 포함</label>
+                    <label for="settingIncludeSubdirs">하위 디렉터리 포함</label>
                     <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; margin-top:0.5rem;">
                       <input id="settingIncludeSubdirs" type="checkbox" checked style="width:18px; height:18px;" />
                       <span style="font-size:0.85rem;">하위 디렉터리 포함</span>
@@ -1793,10 +1794,15 @@
       if (query) filtered = filtered.filter(l => l.message.toLowerCase().includes(query));
 
       const viewer = document.getElementById('logViewer');
+      const levelColor = (level) => {
+        if (level === 'ERROR') return '#ef4444';
+        if (level === 'WARN') return '#f59e0b';
+        return '#10b981';
+      };
       viewer.innerHTML = filtered.map(log => `
         <div style="margin-bottom:0.5rem;">
           <span style="color:#94a3b8;">[${log.time}]</span>
-          <span style="color:${log.level === 'ERROR' ? '#ef4444' : log.level === 'WARN' ? '#f59e0b' : '#10b981'};">[${log.level}]</span>
+          <span style="color:${levelColor(log.level)};">[${log.level}]</span>
           <span style="color:#667eea;">[${log.module}]</span>
           <span>${log.message}</span>
         </div>
@@ -1919,7 +1925,7 @@
 
       // Check auto scan
       const autoScan = document.getElementById('settingAutoScanStartup')?.checked || false;
-      const interval = parseInt(document.getElementById('settingAutoScanInterval')?.value || '0');
+      const interval = Number.parseInt(document.getElementById('settingAutoScanInterval')?.value || '0', 10);
       if (autoScan || interval > 0) {
         document.getElementById('autoScanStatus').textContent = '✓ 활성화';
         document.getElementById('autoScanStatus').style.color = '#047857';
@@ -2053,10 +2059,15 @@
       document.getElementById('loadingOverlay').classList.remove('active');
     }
 
+    function statusDotColor(type) {
+      if (type === 'ok') return '#10b981';
+      if (type === 'warn') return '#f59e0b';
+      return '#ef4444';
+    }
     function setStatus(text, type = 'ok') {
       document.getElementById('statusText').textContent = text;
       const dot = document.getElementById('statusDot');
-      dot.style.background = type === 'ok' ? '#10b981' : type === 'warn' ? '#f59e0b' : '#ef4444';
+      dot.style.background = statusDotColor(type);
     }
 
     // ===== Initialize =====

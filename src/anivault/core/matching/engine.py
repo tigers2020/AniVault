@@ -307,17 +307,17 @@ class MatchingEngine:
 
         return match_result
 
-    def _record_successful_match(  # pylint: disable=unused-argument
+    def _record_successful_match(
         self,
         result: ScoredSearchResult,
-        query: NormalizedQuery,  # noqa: ARG002 - For future metadata extension
+        _query: NormalizedQuery,
         candidates: list[TMDBSearchResult],
     ) -> None:
         """Record statistics for successful match.
 
         Args:
             result: The successful ScoredSearchResult
-            query: The NormalizedQuery used for matching
+            _query: NormalizedQuery used for matching (reserved for future metadata).
             candidates: Original list of candidates
         """
         best_confidence = result.confidence_score

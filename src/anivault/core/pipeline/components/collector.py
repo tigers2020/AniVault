@@ -127,6 +127,83 @@ class ResultCollector(threading.Thread):
                 original_error=e,
             ) from e
 
+    def _should_stop_from_idle(
+        self,
+        idle_count: int,
+        max_idle_loops: int | None,
+    ) -> bool:
+        """Return True if collector should stop due to max idle loops."""
+        return max_idle_loops is not None and idle_count >= max_idle_loops
+
+    def _log_run_error_and_rerase(
+        self,
+        exc: Exception,
+        context: ErrorContext,
+    ) -> None:
+        """Log collector run error and re-raise as InfrastructureError."""
+        if not hasattr(exc, "context"):
+            infrastructure_error = InfrastructureError(
+                ErrorCode.COLLECTOR_ERROR,
+                f"Collector run failed: {exc}",
+                context,
+                original_error=exc,
+            )
+            log_operation_error(
+                logger=logger,
+                error=infrastructure_error,
+                operation="collector_run",
+                context=context.safe_dict(),
+            )
+        elif isinstance(exc, AniVaultError):
+            log_operation_error(
+                logger=logger,
+                error=exc,
+                operation="collector_run",
+                context=context.safe_dict(),
+            )
+        else:
+            error = InfrastructureError(
+                code=ErrorCode.APPLICATION_ERROR,
+                message=f"Collector run failed: {exc!s}",
+                context=context,
+                original_error=exc,
+            )
+            log_operation_error(
+                logger=logger,
+                error=error,
+                operation="collector_run",
+                context=context.safe_dict(),
+            )
+        raise InfrastructureError(
+            ErrorCode.COLLECTOR_ERROR,
+            f"Collector run failed: {exc}",
+            context,
+            original_error=exc,
+        ) from exc
+
+    def _process_run_loop_item(
+        self,
+        item: Any,
+        idle: int,
+        max_idle_loops: int | None,
+        idle_sleep: float,
+    ) -> tuple[int, bool]:
+        """Process one item from the queue; returns (new_idle, should_stop)."""
+        if item is None:
+            new_idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
+            return (new_idle, self._should_stop_from_idle(new_idle, max_idle_loops))
+
+        idle = 0
+        logger.debug(
+            "ResultCollector %s: Received item: %s",
+            self.collector_id,
+            type(item).__name__,
+        )
+        if self._handle_sentinel(item):
+            return (0, True)
+        self._store_result_with_error_handling(item)
+        return (0, False)
+
     def run(
         self,
         max_idle_loops: int | None = None,
@@ -141,7 +218,7 @@ class ResultCollector(threading.Thread):
             idle_sleep: Sleep time between idle loops (0.0 = no sleep).
             get_timeout: Timeout for queue.get() calls.
         """
-        logger = logging.getLogger(__name__)
+        run_logger = logging.getLogger(__name__)
         additional_data: dict[str, str | int | float | bool] = {
             "collector_id": self.collector_id,
             "idle_sleep": idle_sleep,
@@ -163,29 +240,16 @@ class ResultCollector(threading.Thread):
             while not self._stopped.is_set():
                 try:
                     item = self._get_item_from_queue(get_timeout)
-                    if item is None:
-                        idle = self._handle_idle_state(idle, max_idle_loops, idle_sleep)
-                        if idle >= max_idle_loops if max_idle_loops else False:
-                            logger.warning(
+                    idle, should_stop = self._process_run_loop_item(item, idle, max_idle_loops, idle_sleep)
+                    if should_stop:
+                        if item is None:
+                            run_logger.warning(
                                 ("ResultCollector %s: Max idle loops reached, stopping..."),
                                 self.collector_id,
                             )
-                            break
-                        continue
-
-                    # 성공적으로 아이템을 가져왔으므로 idle 카운트 리셋
-                    idle = 0
-                    logger.debug(
-                        "ResultCollector %s: Received item: %s",
-                        self.collector_id,
-                        type(item).__name__,
-                    )
-
-                    if self._handle_sentinel(item):
                         break
-
-                    self._store_result_with_error_handling(item)
-
+                    if item is None:
+                        continue
                 except (
                     ValueError,
                     RuntimeError,
@@ -193,17 +257,15 @@ class ResultCollector(threading.Thread):
                     TypeError,
                     AttributeError,
                 ) as e:
-                    # Handle specific errors from queue operations or data processing
                     self._handle_queue_error(e, context)
                     continue
                 except InfrastructureError as e:
-                    # Handle infrastructure errors from _store_result_with_error_handling
                     self._handle_queue_error(e, context)
                     continue
 
             duration_ms = (time.time() - start_time) * 1000
             log_operation_success(
-                logger=logger,
+                logger=run_logger,
                 operation="collector_run",
                 duration_ms=duration_ms,
                 result_info={
@@ -213,48 +275,16 @@ class ResultCollector(threading.Thread):
                 context=context.safe_dict(),
             )
 
-        except Exception as e:
-            duration_ms = (time.time() - start_time) * 1000
-            # Convert regular exception to InfrastructureError for logging
-            if not hasattr(e, "context"):
-                infrastructure_error = InfrastructureError(
-                    ErrorCode.COLLECTOR_ERROR,
-                    f"Collector run failed: {e}",
-                    context,
-                    original_error=e,
-                )
-                log_operation_error(
-                    logger=logger,
-                    error=infrastructure_error,
-                    operation="collector_run",
-                    context=context.safe_dict(),
-                )
-            elif isinstance(e, AniVaultError):
-                log_operation_error(
-                    logger=logger,
-                    error=e,
-                    operation="collector_run",
-                    context=context.safe_dict(),
-                )
-            else:
-                error = InfrastructureError(
-                    code=ErrorCode.APPLICATION_ERROR,
-                    message=f"Collector run failed: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-                log_operation_error(
-                    logger=logger,
-                    error=error,
-                    operation="collector_run",
-                    context=context.safe_dict(),
-                )
-            raise InfrastructureError(
-                ErrorCode.COLLECTOR_ERROR,
-                f"Collector run failed: {e}",
-                context,
-                original_error=e,
-            ) from e
+        except (
+            OSError,
+            LookupError,
+            AniVaultError,
+            TypeError,
+            ValueError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
+            self._log_run_error_and_rerase(e, context)
         finally:
             self.stop()  # 루프 종료 시 정지 플래그 세팅
 

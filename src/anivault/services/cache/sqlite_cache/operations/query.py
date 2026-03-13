@@ -132,7 +132,20 @@ class QueryOperations(BaseOperation):
         """
         # #region agent log
         with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "query.py:114", "message": "QueryOperations.get entry", "data": {"key": key[:64] if len(key) > 64 else key, "key_length": len(key), "cache_type": cache_type}, "timestamp": __import__("time").time() * 1000}) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "debug-session",
+                        "runId": "run1",
+                        "hypothesisId": "E",
+                        "location": "query.py:114",
+                        "message": "QueryOperations.get entry",
+                        "data": {"key": key[:64] if len(key) > 64 else key, "key_length": len(key), "cache_type": cache_type},
+                        "timestamp": __import__("time").time() * 1000,
+                    }
+                )
+                + "\n"
+            )
         # #endregion
 
         self._validate_connection()
@@ -140,7 +153,20 @@ class QueryOperations(BaseOperation):
 
         # #region agent log
         with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "query.py:127", "message": "before SQL execute", "data": {"key_hash": key_hash[:16], "cache_type": cache_type}, "timestamp": __import__("time").time() * 1000}) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "debug-session",
+                        "runId": "run1",
+                        "hypothesisId": "E",
+                        "location": "query.py:127",
+                        "message": "before SQL execute",
+                        "data": {"key_hash": key_hash[:16], "cache_type": cache_type},
+                        "timestamp": __import__("time").time() * 1000,
+                    }
+                )
+                + "\n"
+            )
         # #endregion
 
         sql = "\n        SELECT cache_key, key_hash, cache_type, response_data,\n               created_at, expires_at, hit_count, last_accessed_at, response_size\n        FROM tmdb_cache\n        WHERE key_hash = ? AND cache_type = ?\n        "
@@ -152,13 +178,39 @@ class QueryOperations(BaseOperation):
         except Exception as sql_err:  # pylint: disable=broad-exception-caught
             # #region agent log
             with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "query.py:131", "message": "SQL execute failed", "data": {"error": str(sql_err), "error_type": type(sql_err).__name__}, "timestamp": __import__("time").time() * 1000}) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "sessionId": "debug-session",
+                            "runId": "run1",
+                            "hypothesisId": "E",
+                            "location": "query.py:131",
+                            "message": "SQL execute failed",
+                            "data": {"error": str(sql_err), "error_type": type(sql_err).__name__},
+                            "timestamp": __import__("time").time() * 1000,
+                        }
+                    )
+                    + "\n"
+                )
             # #endregion
             raise
 
         # #region agent log
         with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "F", "location": "query.py:137", "message": "fetchone result", "data": {"row_is_none": row is None, "row_type": type(row).__name__, "row_length": len(row) if row else 0}, "timestamp": __import__("time").time() * 1000}) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "debug-session",
+                        "runId": "run1",
+                        "hypothesisId": "F",
+                        "location": "query.py:137",
+                        "message": "fetchone result",
+                        "data": {"row_is_none": row is None, "row_type": type(row).__name__, "row_length": len(row) if row else 0},
+                        "timestamp": __import__("time").time() * 1000,
+                    }
+                )
+                + "\n"
+            )
         # #endregion
 
         if row is None:
@@ -167,7 +219,20 @@ class QueryOperations(BaseOperation):
 
         # #region agent log
         with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "F", "location": "query.py:143", "message": "before unpack row", "data": {"row_length": len(row) if row else 0}, "timestamp": __import__("time").time() * 1000}) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "debug-session",
+                        "runId": "run1",
+                        "hypothesisId": "F",
+                        "location": "query.py:143",
+                        "message": "before unpack row",
+                        "data": {"row_length": len(row) if row else 0},
+                        "timestamp": __import__("time").time() * 1000,
+                    }
+                )
+                + "\n"
+            )
         # #endregion
 
         (

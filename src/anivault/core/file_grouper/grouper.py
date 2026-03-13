@@ -11,6 +11,7 @@ import logging
 import re
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 from anivault.core.file_grouper.duplicate_resolver import DuplicateResolver
 from anivault.core.file_grouper.grouping_engine import GroupingEngine
@@ -456,27 +457,35 @@ class FileGrouper:
         """
         logger.debug("Resolving duplicates in %d group(s)", len(groups))
         for group in groups:
-            if not group.has_duplicates():
-                continue
-            # Group by episode: resolve only within same-episode files (episode is int)
-            # Keep all files with episode=None (unparseable) - they may be different episodes
-            by_episode: dict[int | None, list[ScannedFile]] = {}
-            for f in group.files:
-                ep = getattr(f.metadata, "episode", None) if hasattr(f, "metadata") and f.metadata else None
-                by_episode.setdefault(ep, []).append(f)
-            resolved: list[ScannedFile] = []
-            for ep, files_for_ep in by_episode.items():
-                if ep is None or len(files_for_ep) == 1:
-                    resolved.extend(files_for_ep)
-                else:
-                    resolved.append(self.resolver.resolve_duplicates(files_for_ep))
-            group.files = resolved
-            logger.debug(
-                "Group '%s': resolved duplicates to %d file(s) (one per episode)",
-                group.title,
-                len(resolved),
-            )
+            self._resolve_duplicates_for_group(group)
         return groups
+
+    def _resolve_duplicates_for_group(self, group: Group) -> None:
+        """Resolve duplicates within a single group (one file per episode)."""
+        if not group.has_duplicates():
+            return
+        by_episode = self._group_files_by_episode(group.files)
+        resolved: list[ScannedFile] = []
+        for ep, files_for_ep in by_episode.items():
+            if ep is None or len(files_for_ep) == 1:
+                resolved.extend(files_for_ep)
+            else:
+                resolved.append(self.resolver.resolve_duplicates(files_for_ep))
+        group.files = resolved
+        logger.debug(
+            "Group '%s': resolved duplicates to %d file(s) (one per episode)",
+            group.title,
+            len(resolved),
+        )
+
+    @staticmethod
+    def _group_files_by_episode(files: list[ScannedFile]) -> dict[int | None, list[ScannedFile]]:
+        """Group files by episode key (None for unparseable)."""
+        by_episode: dict[int | None, list[ScannedFile]] = {}
+        for f in files:
+            ep = getattr(f.metadata, "episode", None) if hasattr(f, "metadata") and f.metadata else None
+            by_episode.setdefault(ep, []).append(f)
+        return by_episode
 
     def _normalize_and_reconstruct_groups(self, groups: list[Group]) -> list[Group]:
         """Normalize group names and reconstruct Group objects with evidence.
@@ -499,27 +508,37 @@ class FileGrouper:
             error: Exception that occurred
             context: Error context for logging
         """
+        additional = context.additional_data if context else None
         if isinstance(error, AniVaultError):
             log_operation_error(
                 logger=logger,
                 operation="group_files",
                 error=error,
-                additional_context=context.additional_data if context else None,
+                additional_context=additional,
             )
         else:
-            infrastructure_error = InfrastructureError(
-                code=ErrorCode.FILE_GROUPING_FAILED,
-                message=f"Failed to group files: {error!s}",
-                context=context,
-                original_error=error,
-            )
-            log_operation_error(
-                logger=logger,
-                operation="group_files",
-                error=infrastructure_error,
-                additional_context=context.additional_data if context else None,
-            )
-            raise infrastructure_error from error
+            self._raise_infrastructure_grouping_error(error, context, additional)
+
+    def _raise_infrastructure_grouping_error(
+        self,
+        error: Exception,
+        context: ErrorContextModel,
+        additional_context: dict[str, Any] | None,
+    ) -> None:
+        """Create, log, and raise InfrastructureError for grouping failures."""
+        infrastructure_error = InfrastructureError(
+            code=ErrorCode.FILE_GROUPING_FAILED,
+            message=f"Failed to group files: {error!s}",
+            context=context,
+            original_error=error,
+        )
+        log_operation_error(
+            logger=logger,
+            operation="group_files",
+            error=infrastructure_error,
+            additional_context=additional_context,
+        )
+        raise infrastructure_error from error
 
 
 def group_similar_files(

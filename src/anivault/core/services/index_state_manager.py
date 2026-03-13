@@ -129,7 +129,7 @@ class IndexStateManager:
                 self._previous_state[file_state.path] = file_state
 
             logger.debug("Loaded %d file states from %s", len(self._previous_state), self.state_file)
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
+        except (KeyError, ValueError) as e:
             logger.warning(
                 "Failed to load state file %s, starting with empty state: %s",
                 self.state_file,
@@ -169,7 +169,7 @@ class IndexStateManager:
                 if calculate_hash or is_subtitle:
                     try:
                         content_hash = calculate_file_hash(file_path)
-                    except (FileNotFoundError, OSError) as e:
+                    except OSError as e:
                         logger.warning("Failed to calculate hash for %s: %s", file_path, e)
                         # Continue without hash
 
@@ -181,7 +181,7 @@ class IndexStateManager:
                 )
                 current_state[str(file_path)] = file_state
 
-            except (OSError, PermissionError) as e:
+            except OSError as e:
                 logger.warning("Failed to stat file %s: %s", file_path, e)
                 continue
 
@@ -209,6 +209,66 @@ class IndexStateManager:
             logger.exception("Failed to save state file %s", self.state_file)
             raise
 
+    def _file_state_for_path(
+        self,
+        file_path: Path,
+        file_path_str: str,
+        calculate_hash: bool,
+    ) -> FileState | None:
+        """Build FileState for a single path; returns None on I/O error."""
+        try:
+            stat = file_path.stat()
+            content_hash = self._content_hash_for_path(file_path, calculate_hash)
+            return FileState(
+                path=file_path_str,
+                mtime=stat.st_mtime,
+                size=stat.st_size,
+                content_hash=content_hash,
+            )
+        except OSError as e:
+            logger.warning("Failed to stat file %s: %s", file_path, e)
+            return None
+
+    def _content_hash_for_path(self, file_path: Path, calculate_hash: bool) -> str | None:
+        """Return content hash for path when requested or for subtitle files."""
+        subtitle_suffixes = {".srt", ".smi", ".ass", ".ssa", ".vtt", ".sub"}
+        if not (calculate_hash or file_path.suffix.lower() in subtitle_suffixes):
+            return None
+        try:
+            return calculate_file_hash(file_path)
+        except OSError as e:
+            logger.warning("Failed to calculate hash for %s: %s", file_path, e)
+            return None
+
+    def _build_current_state(
+        self,
+        current_files: list[Path],
+        calculate_hash: bool,
+    ) -> tuple[dict[str, FileState], set[str]]:
+        """Build current state dict and set of resolved paths from file list."""
+        current_state: dict[str, FileState] = {}
+        current_paths: set[str] = {str(Path(f).resolve()) for f in current_files}
+
+        for file_path in current_files:
+            file_path = Path(file_path).resolve()
+            file_path_str = str(file_path)
+            if not file_path.exists():
+                continue
+            state = self._file_state_for_path(file_path, file_path_str, calculate_hash)
+            if state is not None:
+                current_state[file_path_str] = state
+
+        return current_state, current_paths
+
+    @staticmethod
+    def _is_file_modified(current: FileState, previous: FileState) -> bool:
+        """Return True if current state differs from previous (mtime, size, or hash)."""
+        if current.mtime != previous.mtime or current.size != previous.size:
+            return True
+        if current.content_hash is not None and previous.content_hash is not None:
+            return current.content_hash != previous.content_hash
+        return False
+
     def get_changes(
         self,
         current_files: list[Path],
@@ -230,88 +290,26 @@ class IndexStateManager:
             >>> changes = manager.get_changes(current)
             >>> print(f"Added: {len(changes.added)}, Modified: {len(changes.modified)}")
         """
-        # Build current state
-        current_state: dict[str, FileState] = {}
-        current_paths: set[str] = {str(Path(f).resolve()) for f in current_files}
-
-        for file_path in current_files:
-            file_path = Path(file_path).resolve()
-            file_path_str = str(file_path)
-
-            if not file_path.exists():
-                continue
-
-            try:
-                stat = file_path.stat()
-                mtime = stat.st_mtime
-                size = stat.st_size
-
-                # Calculate hash for subtitle files or if explicitly requested
-                content_hash = None
-                is_subtitle = file_path.suffix.lower() in {".srt", ".smi", ".ass", ".ssa", ".vtt", ".sub"}
-                if calculate_hash or is_subtitle:
-                    try:
-                        content_hash = calculate_file_hash(file_path)
-                    except (FileNotFoundError, OSError) as e:
-                        logger.warning("Failed to calculate hash for %s: %s", file_path, e)
-                        # Continue without hash
-
-                file_state = FileState(
-                    path=file_path_str,
-                    mtime=mtime,
-                    size=size,
-                    content_hash=content_hash,
-                )
-                current_state[file_path_str] = file_state
-
-            except (OSError, PermissionError) as e:
-                logger.warning("Failed to stat file %s: %s", file_path, e)
-                continue
-
-        # Compare with previous state
+        current_state, current_paths = self._build_current_state(current_files, calculate_hash)
         previous_paths: set[str] = set(self._previous_state.keys())
 
-        # Find added files (in current but not in previous)
         added: list[FileState] = [current_state[path] for path in current_paths - previous_paths if path in current_state]
-
-        # Find removed files (in previous but not in current)
         removed: list[FileState] = [self._previous_state[path] for path in previous_paths - current_paths]
 
-        # Find modified files (in both but different)
         modified: list[FileState] = []
-        common_paths = current_paths & previous_paths
-        for path in common_paths:
-            if path not in current_state:
-                continue
-
-            current = current_state[path]
+        for path in current_paths & previous_paths:
+            current = current_state.get(path)
             previous = self._previous_state.get(path)
-
-            if previous is None:
-                continue
-
-            # Check if file was modified
-            # Compare mtime (most reliable indicator)
-            # Compare size (backup check)
-            # Compare hash if available (most accurate)
-            is_modified = (
-                current.mtime != previous.mtime
-                or current.size != previous.size
-                or (current.content_hash is not None and previous.content_hash is not None and current.content_hash != previous.content_hash)
-            )
-
-            if is_modified:
+            if current is not None and previous is not None and self._is_file_modified(current, previous):
                 modified.append(current)
 
         changes = FileChanges(added=added, modified=modified, removed=removed)
-
         logger.info(
             "Detected changes: %d added, %d modified, %d removed",
             len(changes.added),
             len(changes.modified),
             len(changes.removed),
         )
-
         return changes
 
     def clear_state(self) -> None:

@@ -28,6 +28,21 @@ from anivault.shared.errors import (
 logger = logging.getLogger(__name__)
 
 
+def _validate_scanned_file(scanned_file: ScannedFile) -> None:
+    """Validate ScannedFile before adding to cache. Raises on invalid input."""
+    if not scanned_file:
+        raise ValueError("ScannedFile cannot be None")
+    if not hasattr(scanned_file, "file_path") or not hasattr(scanned_file, "metadata"):
+        raise AttributeError("ScannedFile must have file_path and metadata attributes")
+    if scanned_file.file_path is None:
+        raise ValueError("ScannedFile.file_path cannot be None")
+
+
+def _file_path_str(scanned_file: ScannedFile) -> str:
+    """Return string path for logging/errors."""
+    return str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
+
+
 class OptimizedFileOrganizer:
     """
     Optimized file organization engine using LinkedHashTable.
@@ -96,97 +111,72 @@ class OptimizedFileOrganizer:
             ValueError: If scanned_file is None or invalid.
             AttributeError: If scanned_file lacks required attributes.
         """
-        if not scanned_file:
-            raise ValueError("ScannedFile cannot be None")
-
-        if not hasattr(scanned_file, "file_path") or not hasattr(scanned_file, "metadata"):
-            raise AttributeError("ScannedFile must have file_path and metadata attributes")
-
-        # Validate file_path is not None
-        if scanned_file.file_path is None:
-            raise ValueError("ScannedFile.file_path cannot be None")
-
+        _validate_scanned_file(scanned_file)
         try:
-            # Use (title, episode) as key for duplicate detection
-            title = scanned_file.metadata.title if scanned_file.metadata else "Unknown"
-            episode = scanned_file.metadata.episode if scanned_file.metadata else 0
-            # Ensure episode is not None for LinkedHashTable key
-            episode = episode if episode is not None else 0
-            key = (title, episode)
+            self._add_file_to_cache_inner(scanned_file)
+        except OSError as e:
+            self._raise_add_file_error(scanned_file, e)
+        except Exception as e:  # noqa: BLE001 - wrap unexpected errors as AniVaultError
+            self._raise_add_file_error(scanned_file, e)
 
-            existing_files = self._file_cache.get(key)
-            if existing_files:
-                existing_files.append(scanned_file)
-                logger.debug(
-                    "Added duplicate file to cache: %s (title: %s, episode: %d)",
-                    scanned_file.file_path.name,
-                    title,
-                    episode,
-                )
-            else:
-                self._file_cache.put(key, [scanned_file])
-                logger.debug(
-                    "Added file to cache: %s (title: %s, episode: %d)",
-                    scanned_file.file_path.name,
-                    title,
-                    episode,
-                )
-        except FileNotFoundError as e:
-            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            context = ErrorContext(
-                file_path=file_path_str,
-                operation="add_file_to_cache",
+    def _add_file_to_cache_inner(self, scanned_file: ScannedFile) -> None:
+        """Perform cache key computation and put/append. May raise file-related exceptions."""
+        title = scanned_file.metadata.title if scanned_file.metadata else "Unknown"
+        episode = scanned_file.metadata.episode if scanned_file.metadata else 0
+        episode = episode if episode is not None else 0
+        key = (title, episode)
+
+        existing_files = self._file_cache.get(key)
+        if existing_files:
+            existing_files.append(scanned_file)
+            logger.debug(
+                "Added duplicate file to cache: %s (title: %s, episode: %d)",
+                scanned_file.file_path.name,
+                title,
+                episode,
             )
-            error = AniVaultFileError(
+        else:
+            self._file_cache.put(key, [scanned_file])
+            logger.debug(
+                "Added file to cache: %s (title: %s, episode: %d)",
+                scanned_file.file_path.name,
+                title,
+                episode,
+            )
+
+    def _raise_add_file_error(self, scanned_file: ScannedFile, e: Exception) -> None:
+        """Map exception to AniVault error, log and re-raise. Never returns."""
+        file_path_str = _file_path_str(scanned_file)
+        context = ErrorContext(file_path=file_path_str, operation="add_file_to_cache")
+        logger.exception("Failed to add file to cache: %s", file_path_str)
+
+        if isinstance(e, FileNotFoundError):
+            raise AniVaultFileError(
                 ErrorCode.FILE_NOT_FOUND,
                 f"File not found while adding to cache: {file_path_str}",
                 context,
                 original_error=e,
-            )
-            logger.exception("Failed to add file to cache: %s", file_path_str)
-            raise error from e
-        except PermissionError as e:
-            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            context = ErrorContext(
-                file_path=file_path_str,
-                operation="add_file_to_cache",
-            )
-            permission_error = AniVaultPermissionError(
+            ) from e
+        if isinstance(e, PermissionError):
+            raise AniVaultPermissionError(
                 ErrorCode.PERMISSION_DENIED,
                 f"Permission denied accessing file: {file_path_str}",
                 context,
                 original_error=e,
-            )
-            logger.exception("Failed to add file to cache: %s", file_path_str)
-            raise permission_error from e
-        except OSError as e:
-            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            context = ErrorContext(
-                file_path=file_path_str,
-                operation="add_file_to_cache",
-            )
-            os_error = AniVaultFileError(
+            ) from e
+        if isinstance(e, OSError):
+            raise AniVaultFileError(
                 ErrorCode.FILE_ACCESS_ERROR,
                 f"File system error while adding to cache: {file_path_str}",
                 context,
                 original_error=e,
-            )
-            logger.exception("Failed to add file to cache: %s", file_path_str)
-            raise os_error from e
-        except Exception as e:
-            file_path_str = str(scanned_file.file_path) if scanned_file.file_path else "Unknown"
-            context = ErrorContext(
-                file_path=file_path_str,
-                operation="add_file_to_cache",
-            )
-            unexpected_error = AniVaultError(
-                ErrorCode.FILE_GROUPING_FAILED,
-                f"Unexpected error while adding file to cache: {file_path_str}",
-                context,
-                original_error=e,
-            )
-            logger.exception("Failed to add file to cache: %s", file_path_str)
-            raise unexpected_error from e
+            ) from e
+        raise AniVaultError(
+            ErrorCode.FILE_GROUPING_FAILED,
+            f"Unexpected error while adding file to cache: {file_path_str}",
+            context,
+            original_error=e,
+        ) from e
 
     def get_file(self, title: str, episode: int) -> ScannedFile | None:
         """
@@ -217,6 +207,46 @@ class OptimizedFileOrganizer:
                 duplicate_groups.append(files)
         return duplicate_groups
 
+    def _operations_for_duplicate_group(self, duplicate_group: list[ScannedFile]) -> list[FileOperation]:
+        """Build move operations for one duplicate group (best file + duplicates)."""
+        best_file = self._select_best_file(duplicate_group)
+        ops: list[FileOperation] = [
+            FileOperation(
+                operation_type=OperationType.MOVE,
+                source_path=best_file.file_path,
+                destination_path=self._build_organization_path(best_file),
+            )
+        ]
+        for file in duplicate_group:
+            if file != best_file:
+                ops.append(
+                    FileOperation(
+                        operation_type=OperationType.MOVE,
+                        source_path=file.file_path,
+                        destination_path=self._build_duplicate_path(file),
+                    )
+                )
+        return ops
+
+    def _operations_for_non_duplicates(
+        self,
+        cache_entries: list[tuple[tuple[str, int], list[ScannedFile]]],
+        processed_paths: set[Path],
+    ) -> list[FileOperation]:
+        """Build move operations for files not in any duplicate group."""
+        ops: list[FileOperation] = []
+        for _key, files in cache_entries:
+            for file in files:
+                if file.file_path not in processed_paths:
+                    ops.append(
+                        FileOperation(
+                            operation_type=OperationType.MOVE,
+                            source_path=file.file_path,
+                            destination_path=self._build_organization_path(file),
+                        )
+                    )
+        return ops
+
     def generate_plan(self, scanned_files: list[ScannedFile]) -> list[FileOperation]:
         """
         Generate a file organization plan based on scanned files.
@@ -227,21 +257,16 @@ class OptimizedFileOrganizer:
         Returns:
             List of FileOperation objects representing the organization plan.
         """
-        # Handle empty file list
         if not scanned_files:
             return []
 
-        # Clear and rebuild cache with new files
         self._file_cache = LinkedHashTable[tuple[str, int], list[ScannedFile]](
             initial_capacity=max(len(scanned_files) * 2, 64),
             load_factor=0.75,
         )
-
-        # Add all files to cache
         for scanned_file in scanned_files:
             self.add_file(scanned_file)
 
-        # Single pass: collect duplicate groups and all cache entries (avoid second full iteration)
         duplicate_groups: list[list[ScannedFile]] = []
         cache_entries: list[tuple[tuple[str, int], list[ScannedFile]]] = []
         for key, files in self._file_cache:
@@ -249,53 +274,12 @@ class OptimizedFileOrganizer:
             if files and len(files) > 1:
                 duplicate_groups.append(files)
 
-        operations = []
-
-        # Process duplicate groups
+        operations: list[FileOperation] = []
         for duplicate_group in duplicate_groups:
-            # Select the best file from duplicates
-            best_file = self._select_best_file(duplicate_group)
+            operations.extend(self._operations_for_duplicate_group(duplicate_group))
 
-            # Create move operation for the best file
-            destination_path = self._build_organization_path(best_file)
-            operations.append(
-                FileOperation(
-                    operation_type=OperationType.MOVE,
-                    source_path=best_file.file_path,
-                    destination_path=destination_path,
-                )
-            )
-
-            # Create move operations for duplicate files
-            for file in duplicate_group:
-                if file != best_file:
-                    duplicate_path = self._build_duplicate_path(file)
-                    operations.append(
-                        FileOperation(
-                            operation_type=OperationType.MOVE,
-                            source_path=file.file_path,
-                            destination_path=duplicate_path,
-                        )
-                    )
-
-        # Process non-duplicate files (files that are not in any duplicate group)
-        processed_files = set()
-        for duplicate_group in duplicate_groups:
-            for file in duplicate_group:
-                processed_files.add(file.file_path)
-
-        for _key, files in cache_entries:
-            for file in files:
-                if file.file_path not in processed_files:
-                    destination_path = self._build_organization_path(file)
-                    operations.append(
-                        FileOperation(
-                            operation_type=OperationType.MOVE,
-                            source_path=file.file_path,
-                            destination_path=destination_path,
-                        )
-                    )
-
+        processed_paths = {f.file_path for group in duplicate_groups for f in group}
+        operations.extend(self._operations_for_non_duplicates(cache_entries, processed_paths))
         return operations
 
     def organize(self, scanned_files: list[ScannedFile], dry_run: bool = True) -> list[FileOperation] | list[OperationResult]:

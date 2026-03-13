@@ -70,60 +70,72 @@ def setup_handler(
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Extract options from arguments
             options = _extract_options(args, kwargs)
-
-            # Validate directory if required
-            if requires_directory:
-                if hasattr(options, "directory"):
-                    # Validate using enhanced validation
-                    validated_dir = validate_directory_with_context(
-                        (options.directory.path if hasattr(options.directory, "path") else options.directory),
-                        operation=func.__name__,
-                    )
-                    # Update options with validated directory
-                    if hasattr(options.directory, "path"):
-                        options.directory.path = validated_dir
-                    else:
-                        options.directory = validated_dir
-
-            # Validate option combinations
-            if allow_dry_run:
-                ensure_json_mode_consistency(options, func.__name__)
-
-            # Normalize extensions if present
-            if hasattr(options, "extensions"):
-                if isinstance(options.extensions, str):
-                    options.extensions = normalize_extensions_list(options.extensions)
-
-            # Create Rich Console if required and not in JSON mode
-            console = None
-            if require_console:
-                # Skip console creation in JSON mode
-                is_json_mode = supports_json and hasattr(options, "json_output") and options.json_output
-                if not is_json_mode:
-                    console = Console()
-
-            # Create LoggerAdapter with command context
-            logger_adapter = logging.LoggerAdapter(
-                logger,
-                extra={
-                    "command": func.__name__,
-                    "operation": func.__name__,
-                },
-            )
-
-            # Call original function with enhanced arguments
-            # Inject console and logger_adapter as keyword arguments
+            _validate_directory_if_required(options, requires_directory, func.__name__)
+            _validate_option_combinations(options, allow_dry_run, func.__name__)
+            _normalize_extensions_if_present(options)
+            console = _resolve_console(require_console, supports_json, options)
+            logger_adapter = _create_logger_adapter(func.__name__)
             if console is not None:
                 kwargs["console"] = console
             kwargs["logger_adapter"] = logger_adapter
-
             return func(*args, **kwargs)
 
         return wrapper  # type: ignore[return-value]
 
     return decorator
+
+
+def _validate_directory_if_required(
+    options: Any,
+    requires_directory: bool,
+    operation: str,
+) -> None:
+    """Validate and update directory on options when required."""
+    if not requires_directory or not hasattr(options, "directory"):
+        return
+    raw_dir = options.directory.path if hasattr(options.directory, "path") else options.directory
+    validated_dir = validate_directory_with_context(raw_dir, operation=operation)
+    if hasattr(options.directory, "path"):
+        options.directory.path = validated_dir
+    else:
+        options.directory = validated_dir
+
+
+def _validate_option_combinations(
+    options: Any,
+    allow_dry_run: bool,
+    command_name: str,
+) -> None:
+    """Validate option combinations (e.g. JSON mode consistency)."""
+    if allow_dry_run:
+        ensure_json_mode_consistency(options, command_name)
+
+
+def _normalize_extensions_if_present(options: Any) -> None:
+    """Normalize extensions on options when present and string."""
+    if hasattr(options, "extensions") and isinstance(options.extensions, str):
+        options.extensions = normalize_extensions_list(options.extensions)
+
+
+def _resolve_console(
+    require_console: bool,
+    supports_json: bool,
+    options: Any,
+) -> Console | None:
+    """Create Rich Console when required and not in JSON mode."""
+    if not require_console:
+        return None
+    is_json_mode = supports_json and hasattr(options, "json_output") and options.json_output
+    return None if is_json_mode else Console()
+
+
+def _create_logger_adapter(command_name: str) -> logging.LoggerAdapter[Any]:
+    """Create LoggerAdapter with command context."""
+    return logging.LoggerAdapter(
+        logger,
+        extra={"command": command_name, "operation": command_name},
+    )
 
 
 def _extract_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:

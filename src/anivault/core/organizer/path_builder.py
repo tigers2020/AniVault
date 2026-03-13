@@ -162,11 +162,21 @@ class PathBuilder:
         if metadata.title and isinstance(metadata.title, str):
             return metadata.title
 
-        # Priority 3: Extract from filename
+        # Priority 3: Extract from filename (simplified patterns to satisfy S5843)
         filename = scanned_file.file_path.name
-        title_match = re.search(r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", filename)
-        if title_match:
-            extracted_title = (title_match.group(1) or title_match.group(2)).strip()
+        bracket_match = re.search(r"\[([^\]]+)\]", filename)
+        if bracket_match:
+            extracted_title = bracket_match.group(1).strip()
+            if extracted_title:
+                return extracted_title
+        suffix_match = re.search(r"([^(]+?)\s*\(\d+\)", filename)
+        if suffix_match:
+            extracted_title = suffix_match.group(1).strip()
+            if extracted_title:
+                return extracted_title
+        dash_match = re.search(r"([^(]+?)\s*-\s*\d+", filename)
+        if dash_match:
+            extracted_title = dash_match.group(1).strip()
             if extracted_title:
                 return extracted_title
 

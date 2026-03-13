@@ -10,6 +10,7 @@ from pathlib import Path
 
 from anivault.core.pipeline import run_pipeline
 from anivault.shared.constants import QueueConfig
+from anivault.shared.constants.core import ProcessingConfig
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.models.metadata import FileMetadata
 
@@ -36,11 +37,9 @@ class ScanUseCase:
             List of FileMetadata instances
         """
         exts = extensions or list(VideoFormats.ALL_EXTENSIONS)
-        kwargs: dict = {
-            "root_path": str(directory),
-            "extensions": exts,
-            "max_queue_size": max_queue_size or QueueConfig.DEFAULT_SIZE,
-        }
-        if num_workers is not None:
-            kwargs["num_workers"] = num_workers
-        return run_pipeline(**kwargs)
+        return run_pipeline(
+            root_path=str(directory),
+            extensions=exts,
+            num_workers=(num_workers if num_workers is not None else ProcessingConfig.MAX_PROCESSING_WORKERS),
+            max_queue_size=max_queue_size or QueueConfig.DEFAULT_SIZE,
+        )

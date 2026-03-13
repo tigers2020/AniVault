@@ -14,6 +14,11 @@ from anivault.security.encryption import DecryptionError, EncryptionService
 from anivault.shared.constants.system import FileSystem
 from anivault.shared.errors import ApplicationError, ErrorCode, ErrorContext
 
+_MSG_FIELD_REQUIRED = "{} must be a non-empty string"
+_FIELD_KEY_NAME = "Key name"
+_FIELD_VALUE = "Value"
+_FIELD_PIN = "PIN"
+
 
 class Keyring:
     """
@@ -144,13 +149,13 @@ class Keyring:
             ValueError: If key_name or value is invalid
         """
         if not key_name or not isinstance(key_name, str):
-            raise ValueError("Key name must be a non-empty string")
+            raise ValueError(_MSG_FIELD_REQUIRED.format(_FIELD_KEY_NAME))
 
         if not value or not isinstance(value, str):
-            raise ValueError("Value must be a non-empty string")
+            raise ValueError(_MSG_FIELD_REQUIRED.format(_FIELD_VALUE))
 
         if not pin or not isinstance(pin, str):
-            raise ValueError("PIN must be a non-empty string")
+            raise ValueError(_MSG_FIELD_REQUIRED.format(_FIELD_PIN))
 
         try:
             # Initialize encryption service with PIN and salt
@@ -196,10 +201,10 @@ class Keyring:
             ValueError: If key_name is invalid
         """
         if not key_name or not isinstance(key_name, str):
-            raise ValueError("Key name must be a non-empty string")
+            raise ValueError(_MSG_FIELD_REQUIRED.format(_FIELD_KEY_NAME))
 
         if not pin or not isinstance(pin, str):
-            raise ValueError("PIN must be a non-empty string")
+            raise ValueError(_MSG_FIELD_REQUIRED.format(_FIELD_PIN))
 
         key_file = self.keys_dir / key_name
 
@@ -255,7 +260,7 @@ class Keyring:
             ValueError: If key_name is invalid
         """
         if not key_name or not isinstance(key_name, str):
-            raise ValueError("Key name must be a non-empty string")
+            raise ValueError(_MSG_FIELD_REQUIRED.format(_FIELD_KEY_NAME))
 
         key_file = self.keys_dir / key_name
 
@@ -316,7 +321,7 @@ class Keyring:
             ValueError: If key_name is invalid
         """
         if not key_name or not isinstance(key_name, str):
-            raise ValueError("Key name must be a non-empty string")
+            raise ValueError(_MSG_FIELD_REQUIRED.format(_FIELD_KEY_NAME))
 
         key_file = self.keys_dir / key_name
         return key_file.exists()

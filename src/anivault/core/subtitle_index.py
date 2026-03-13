@@ -66,6 +66,28 @@ class SubtitleIndex:
 
         return normalized.strip()
 
+    def _index_single_file(self, subtitle_file: Path) -> None:
+        """Index a single subtitle file into hash_index and name_index.
+
+        Raises:
+            OSError: On file read/access failure.
+            FileNotFoundError: If file is missing after existence check.
+        """
+        content_hash = calculate_file_hash(subtitle_file)
+        if content_hash not in self.hash_index:
+            self.hash_index[content_hash] = []
+        if subtitle_file not in self.hash_index[content_hash]:
+            self.hash_index[content_hash].append(subtitle_file)
+
+        normalized_name = self.normalize_subtitle_name(subtitle_file.stem)
+        if normalized_name:
+            if normalized_name not in self.name_index:
+                self.name_index[normalized_name] = []
+            if subtitle_file not in self.name_index[normalized_name]:
+                self.name_index[normalized_name].append(subtitle_file)
+
+        self.path_to_metadata[subtitle_file] = (content_hash, normalized_name)
+
     def build_index(self, subtitle_files: list[Path]) -> None:
         """Build hash_index and name_index from subtitle files."""
         self.hash_index.clear()
@@ -76,29 +98,14 @@ class SubtitleIndex:
             if not subtitle_file.exists():
                 logger.warning("Subtitle file does not exist: %s", subtitle_file)
                 continue
-
             try:
-                content_hash = calculate_file_hash(subtitle_file)
-                if content_hash not in self.hash_index:
-                    self.hash_index[content_hash] = []
-                if subtitle_file not in self.hash_index[content_hash]:
-                    self.hash_index[content_hash].append(subtitle_file)
-
-                normalized_name = self.normalize_subtitle_name(subtitle_file.stem)
-                if normalized_name:
-                    if normalized_name not in self.name_index:
-                        self.name_index[normalized_name] = []
-                    if subtitle_file not in self.name_index[normalized_name]:
-                        self.name_index[normalized_name].append(subtitle_file)
-
-                self.path_to_metadata[subtitle_file] = (content_hash, normalized_name)
-            except (OSError, FileNotFoundError) as e:
+                self._index_single_file(subtitle_file)
+            except OSError as e:
                 logger.warning(
                     "Failed to index subtitle file %s: %s",
                     subtitle_file,
                     e,
                 )
-                continue
 
         self._sorted_name_keys = sorted(self.name_index.keys())
 
@@ -164,7 +171,7 @@ class SubtitleIndex:
             self.path_to_metadata[subtitle_file] = (content_hash, normalized_name)
             logger.debug("Added subtitle file to index: %s", subtitle_file)
 
-        except (OSError, FileNotFoundError) as e:
+        except OSError as e:
             logger.warning(
                 "Failed to add subtitle file to index %s: %s",
                 subtitle_file,

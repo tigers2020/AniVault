@@ -207,21 +207,20 @@ class MainWindow(QMainWindow):
         self._current_detail_group = group
         self.detail_panel.set_group_data(group)
 
-    def _on_detail_match_clicked(self) -> None:
-        """Handle TMDB match button in detail panel - open manual search dialog."""
+    def _get_detail_match_context(
+        self,
+    ) -> tuple[object, str, list] | None:
+        """Validate preconditions and return (tmdb_client, group_title, file_metadata_list), or None on failure."""
         if not self._current_detail_group:
             self.status_bar.set_status("그룹 정보를 찾을 수 없습니다.", "warn")
-            return
-
+            return None
         file_metadata_list = self._current_detail_group.get("file_metadata_list", [])
         if not file_metadata_list:
             self.status_bar.set_status("매칭할 파일이 없습니다.", "warn")
-            return
-
+            return None
         if not self.app_context or not self.app_context.container:
             self.status_bar.set_status("앱 컨텍스트를 사용할 수 없습니다.", "error")
-            return
-
+            return None
         tmdb_settings = getattr(
             getattr(self.app_context.settings, "api", None),
             "tmdb",
@@ -229,10 +228,45 @@ class MainWindow(QMainWindow):
         )
         if not tmdb_settings or not getattr(tmdb_settings, "api_key", None):
             self.status_bar.set_status("TMDB API 키를 먼저 설정해주세요.", "warn")
-            return
-
+            return None
         tmdb_client = self.app_context.container.tmdb_client()
         group_title = self._current_detail_group.get("title", "")
+        return (tmdb_client, group_title, file_metadata_list)
+
+    def _merge_updated_metadata_into_results(
+        self,
+        updated_list: list[FileMetadata],
+        scan_results: list[FileMetadata],
+    ) -> list[FileMetadata]:
+        """Merge dialog-updated metadata back into scan results by resolved path."""
+
+        def path_resolved(p: Path) -> Path:
+            try:
+                return p.resolve()
+            except OSError:
+                return p
+
+        updated_resolved = {path_resolved(fm.file_path) for fm in updated_list}
+        updated_by_path: dict[Path, FileMetadata] = {path_resolved(fm.file_path): fm for fm in updated_list}
+        merged: list[FileMetadata] = []
+        for fm in scan_results:
+            pr = path_resolved(fm.file_path)
+            merged.append(updated_by_path[pr] if pr in updated_resolved else fm)
+        return merged
+
+    def _set_scan_results_for_current_view(self, merged: list[FileMetadata]) -> None:
+        """Assign merged list to the correct scan results for current view."""
+        if self._current_view == "subtitles":
+            self._subtitle_scan_results = merged
+        else:
+            self._scan_results = merged
+
+    def _on_detail_match_clicked(self) -> None:
+        """Handle TMDB match button in detail panel - open manual search dialog."""
+        context = self._get_detail_match_context()
+        if context is None:
+            return
+        tmdb_client, group_title, file_metadata_list = context
 
         dialog = TmdbManualSearchDialog(
             group_title=group_title,
@@ -243,35 +277,14 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             self.status_bar.set_status("TMDB 매칭이 취소되었습니다.", "ok")
             return
-
         updated_list = dialog.get_updated_metadata()
         if not updated_list:
             logger.warning("get_updated_metadata returned empty")
             return
 
-        # Merge updated metadata back into scan results (use resolved path for reliable matching)
-        def _path_resolved(p: Path) -> Path:
-            try:
-                return p.resolve()
-            except OSError:
-                return p
-
-        updated_resolved = {_path_resolved(fm.file_path) for fm in updated_list}
-        updated_by_path: dict[Path, FileMetadata] = {_path_resolved(fm.file_path): fm for fm in updated_list}
         scan_results = self._subtitle_scan_results if self._current_view == "subtitles" else self._scan_results
-        merged: list[FileMetadata] = []
-        for fm in scan_results:
-            pr = _path_resolved(fm.file_path)
-            if pr in updated_resolved:
-                merged.append(updated_by_path[pr])
-            else:
-                merged.append(fm)
-
-        if self._current_view == "subtitles":
-            self._subtitle_scan_results = merged
-        else:
-            self._scan_results = merged
-
+        merged = self._merge_updated_metadata_into_results(updated_list, scan_results)
+        self._set_scan_results_for_current_view(merged)
         self.groups_view.set_file_metadata(merged)
         self._refresh_statistics()
         self.detail_panel.hide_panel()

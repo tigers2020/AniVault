@@ -118,7 +118,7 @@ class AnimeFilenameParser:
             return False
 
         # Must have reasonable confidence
-        return not result.confidence < BusinessRules.LOW_CONFIDENCE_THRESHOLD
+        return result.confidence >= BusinessRules.LOW_CONFIDENCE_THRESHOLD
 
     @property
     def has_anitopy(self) -> bool:

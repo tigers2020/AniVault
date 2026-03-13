@@ -25,6 +25,9 @@ from anivault.shared.logging import log_operation_error
 
 logger = logging.getLogger(__name__)
 
+# Regex for 8+ character hex strings (e.g. content hashes in filenames)
+_HEX_HASH_PATTERN = r"[A-Fa-f0-9]{8,}"
+
 
 class SubtitleMatcher:
     """Matches subtitle files with their corresponding video files."""
@@ -79,7 +82,7 @@ class SubtitleMatcher:
         # Default to "indexed" for optimal performance
         return "indexed"
 
-    def find_matching_subtitles(  # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks  # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
+    def find_matching_subtitles(
         self,
         video_file: ScannedFile,
         directory: Path,
@@ -114,77 +117,7 @@ class SubtitleMatcher:
                 return []
 
             strategy = self._get_subtitle_matching_strategy()
-            video_name = video_file.file_path.stem
-            matching_subtitles = []
-
-            if strategy == "legacy":
-                # Legacy mode: full directory scan (backward compatibility)
-                for subtitle_file in directory.iterdir():
-                    if self._is_subtitle_file(subtitle_file):
-                        if self._matches_video(subtitle_file.stem, video_name):
-                            matching_subtitles.append(subtitle_file)
-
-            elif strategy in ("indexed", "fallback"):
-                # Indexed mode: use SubtitleIndex for fast lookup
-                # Build or get cached index
-                subtitle_files = [f for f in directory.iterdir() if self._is_subtitle_file(f)]
-                subtitle_index = self._index_cache.get_or_build(
-                    directory,
-                    subtitle_files,
-                )
-
-                # Get candidate subtitles using SubtitleIndex
-                candidate_subtitles: list[Path] = []
-
-                # 1. Check hash-based matches (content hash)
-                video_hash = self._extract_hash_from_name(video_name)
-                if video_hash:
-                    # Try to get content hash from video file if possible
-                    # For now, use name-based hash matching
-                    hash_matches = subtitle_index.get_by_hash(video_hash)
-                    candidate_subtitles.extend(hash_matches)
-
-                # 2. Check normalized name matches
-                video_clean = self._clean_video_name(video_name)
-                # Use SubtitleIndex's normalization (public method)
-                normalized_video_name = subtitle_index.normalize_subtitle_name(
-                    video_clean,
-                )
-                if normalized_video_name:
-                    name_matches = subtitle_index.get_by_name(normalized_video_name)
-                    candidate_subtitles.extend(name_matches)
-
-                # 3. Check prefix matches
-                if normalized_video_name:
-                    prefix_matches = subtitle_index.get_by_name_prefix(
-                        normalized_video_name,
-                    )
-                    candidate_subtitles.extend(prefix_matches)
-
-                # Remove duplicates while preserving order
-                seen = set()
-                unique_candidates: list[Path] = []
-                for path in candidate_subtitles:
-                    if path not in seen:
-                        seen.add(path)
-                        unique_candidates.append(path)
-
-                # Match within candidates only
-                for subtitle_path in unique_candidates:
-                    if self._matches_video(subtitle_path.stem, video_name):
-                        matching_subtitles.append(subtitle_path)
-
-                # Fallback mode: if no matches found and strategy is "fallback", try full scan
-                if strategy == "fallback" and not matching_subtitles:
-                    logger.debug(
-                        "No matches found in index, falling back to full scan for %s",
-                        video_file.file_path.name,
-                    )
-                    for subtitle_file in directory.iterdir():
-                        if self._is_subtitle_file(subtitle_file):
-                            if self._matches_video(subtitle_file.stem, video_name):
-                                if subtitle_file not in matching_subtitles:
-                                    matching_subtitles.append(subtitle_file)
+            matching_subtitles = self._find_matching_subtitles_by_strategy(video_file, directory, strategy)
 
             logger.debug(
                 "Found %d matching subtitles for %s (strategy: %s)",
@@ -192,12 +125,7 @@ class SubtitleMatcher:
                 video_file.file_path.name,
                 strategy,
             )
-
             return matching_subtitles
-
-        # pylint: disable-next=broad-exception-caught
-
-        # pylint: disable-next=broad-exception-caught
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception(
@@ -210,6 +138,82 @@ class SubtitleMatcher:
                 context=context,
                 original_error=e,
             ) from e
+
+    def _find_matching_subtitles_by_strategy(
+        self,
+        video_file: ScannedFile,
+        directory: Path,
+        strategy: str,
+    ) -> list[Path]:
+        """Dispatch to strategy-specific matching and return matched paths."""
+        if strategy == "legacy":
+            return self._match_legacy(video_file, directory)
+        if strategy in ("indexed", "fallback"):
+            return self._match_indexed_or_fallback(video_file, directory, strategy)
+        return []
+
+    def _match_legacy(self, video_file: ScannedFile, directory: Path) -> list[Path]:
+        """Legacy mode: full directory scan (backward compatibility)."""
+        video_name = video_file.file_path.stem
+        matching: list[Path] = []
+        for subtitle_file in directory.iterdir():
+            if self._is_subtitle_file(subtitle_file) and self._matches_video(subtitle_file.stem, video_name):
+                matching.append(subtitle_file)
+        return matching
+
+    def _match_indexed_or_fallback(
+        self,
+        video_file: ScannedFile,
+        directory: Path,
+        strategy: str,
+    ) -> list[Path]:
+        """Use index for lookup; optionally fall back to full scan if no matches."""
+        subtitle_files = [f for f in directory.iterdir() if self._is_subtitle_file(f)]
+        subtitle_index = self._index_cache.get_or_build(directory, subtitle_files)
+        matching = self._match_via_index(video_file, subtitle_index)
+        if strategy == "fallback" and not matching:
+            logger.debug(
+                "No matches found in index, falling back to full scan for %s",
+                video_file.file_path.name,
+            )
+            matching = self._match_legacy(video_file, directory)
+        return matching
+
+    def _match_via_index(
+        self,
+        video_file: ScannedFile,
+        subtitle_index: SubtitleIndex,
+    ) -> list[Path]:
+        """Find matching subtitles using the pre-built index."""
+        video_name = video_file.file_path.stem
+        candidates = self._collect_candidates_from_index(video_name, subtitle_index)
+        return [p for p in candidates if self._matches_video(p.stem, video_name)]
+
+    def _collect_candidates_from_index(
+        self,
+        video_name: str,
+        subtitle_index: SubtitleIndex,
+    ) -> list[Path]:
+        """Collect unique candidate subtitle paths from hash, name, and prefix lookups."""
+        candidate_subtitles: list[Path] = []
+
+        video_hash = self._extract_hash_from_name(video_name)
+        if video_hash:
+            candidate_subtitles.extend(subtitle_index.get_by_hash(video_hash))
+
+        video_clean = self._clean_video_name(video_name)
+        normalized_video_name = subtitle_index.normalize_subtitle_name(video_clean)
+        if normalized_video_name:
+            candidate_subtitles.extend(subtitle_index.get_by_name(normalized_video_name))
+            candidate_subtitles.extend(subtitle_index.get_by_name_prefix(normalized_video_name))
+
+        seen: set[Path] = set()
+        unique: list[Path] = []
+        for path in candidate_subtitles:
+            if path not in seen:
+                seen.add(path)
+                unique.append(path)
+        return unique
 
     def _is_subtitle_file(self, file_path: Path) -> bool:
         """Check if a file is a subtitle file.
@@ -339,8 +343,8 @@ class SubtitleMatcher:
         """
 
         # Extract hash patterns (8+ character hex strings)
-        subtitle_hashes = re.findall(r"[A-Fa-f0-9]{8,}", subtitle_name)
-        video_hashes = re.findall(r"[A-Fa-f0-9]{8,}", video_name)
+        subtitle_hashes = re.findall(_HEX_HASH_PATTERN, subtitle_name)
+        video_hashes = re.findall(_HEX_HASH_PATTERN, video_name)
 
         # Check if any hashes match
         return bool(set(subtitle_hashes).intersection(set(video_hashes)))
@@ -356,7 +360,7 @@ class SubtitleMatcher:
         """
 
         # Extract hash patterns (8+ character hex strings)
-        hashes = re.findall(r"[A-Fa-f0-9]{8,}", name)
+        hashes = re.findall(_HEX_HASH_PATTERN, name)
         return hashes[0] if hashes else None
 
     def _get_subtitle_index_key(self, subtitle_path: Path) -> str:

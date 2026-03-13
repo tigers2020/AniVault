@@ -17,6 +17,23 @@ from anivault.shared.models.metadata import FileMetadata
 from .format_utils import format_size
 
 
+def _scan_row_cells(metadata: FileMetadata, show_tmdb: bool) -> tuple[str, ...]:
+    """Build table row cell values for one scan result."""
+    file_path = str(metadata.file_path)
+    title = metadata.title or "Unknown"
+    episode = str(metadata.episode) if metadata.episode else "-"
+    year = str(metadata.year) if metadata.year else "-"
+    base = (Path(file_path).name, title, episode, year)
+
+    if not show_tmdb or not metadata.tmdb_id:
+        return base
+
+    tmdb_title = metadata.title or "Unknown"
+    rating = f"{metadata.vote_average:.1f}" if metadata.vote_average else "N/A"
+    status = "Matched"
+    return (*base, tmdb_title, str(rating), status)
+
+
 def display_scan_results(
     results: list[FileMetadata],
     console: Console,
@@ -46,27 +63,7 @@ def display_scan_results(
         table.add_column("Status", style="green")
 
     for metadata in results:
-        file_path = str(metadata.file_path)
-        title = metadata.title or "Unknown"
-        episode = str(metadata.episode) if metadata.episode else "-"
-        year = str(metadata.year) if metadata.year else "-"
-
-        if show_tmdb and metadata.tmdb_id:
-            tmdb_title = metadata.title or "Unknown"
-            rating = f"{metadata.vote_average:.1f}" if metadata.vote_average else "N/A"
-            status = "Matched" if metadata.tmdb_id else "No match"
-
-            table.add_row(
-                Path(file_path).name,
-                title,
-                episode,
-                year,
-                tmdb_title,
-                str(rating),
-                status,
-            )
-        else:
-            table.add_row(Path(file_path).name, title, episode, year)
+        table.add_row(*_scan_row_cells(metadata, show_tmdb))
 
     console.print(table)
 

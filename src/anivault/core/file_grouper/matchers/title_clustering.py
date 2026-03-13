@@ -7,7 +7,7 @@ using density-based clustering (DBSCAN) algorithm.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
 from sklearn.cluster import DBSCAN
 
@@ -15,6 +15,7 @@ from anivault.core.file_grouper.matchers.title_vectorizer import TitleVectorizer
 
 if TYPE_CHECKING:
     import numpy as np
+
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ class TitleClustering:
             msg = "Clustering must be fitted before accessing labels. Call fit() first."
             raise ValueError(msg)
 
-        return self._dbscan.labels_
+        return cast("np.ndarray", self._dbscan.labels_)
 
     def fit_predict(self, titles: list[str]) -> np.ndarray:
         """Fit the model and predict cluster labels in one step.

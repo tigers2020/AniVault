@@ -348,11 +348,16 @@ class ResolutionAnalyzer:
         # Remove file extension for cleaner matching
         name_without_ext = filename
 
-        # Pattern 1: [Group] Title - 01 style
-        title_match = re.search(r"\[([^\]]+)\]|([^(]+?)(?:\s*\(\d+\)|\s*-\s*\d+)", name_without_ext)
-        if title_match:
-            series_title = title_match.group(1) or title_match.group(2)
-            return series_title.strip()
+        # Pattern 1: [Group] style — bracket content as title
+        bracket_match = re.search(r"\[([^\]]+)\]", name_without_ext)
+        if bracket_match:
+            return bracket_match.group(1).strip()
+
+        # Pattern 2: Title - 01 or Title (1) style
+        for pattern in (r"([^(]+?)\s*-\s*\d+", r"([^(]+?)\s*\(\d+\)"):
+            title_match = re.search(pattern, name_without_ext)
+            if title_match:
+                return title_match.group(1).strip()
 
         # Fallback: Use filename without extension
         # Remove common suffixes and clean up

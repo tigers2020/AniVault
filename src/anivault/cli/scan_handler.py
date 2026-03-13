@@ -82,15 +82,14 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
             console.print("[yellow]No anime files found in the specified directory[/yellow]")
         return CLIDefaults.EXIT_SUCCESS
 
-    # Enrich metadata if requested
-    enrich_metadata_flag = True  # Default to enrich metadata
-    enriched_results = asyncio.run(enrich_metadata(file_results, console, is_json_output=is_json_output)) if enrich_metadata_flag else file_results
+    # Enrich metadata (always enabled for scan)
+    enriched_results = asyncio.run(enrich_metadata(file_results, console, is_json_output=is_json_output))
 
     # Output results
     if is_json_output:
         # Collect scan statistics for JSON output
         # enriched_results is list[FileMetadata] from enrich_metadata
-        scan_data = collect_scan_data(enriched_results, directory, show_tmdb=enrich_metadata_flag)
+        scan_data = collect_scan_data(enriched_results, directory, show_tmdb=True)
 
         # Output JSON to stdout
         json_output = format_json_output(
@@ -104,7 +103,7 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
     else:
         # Display results in human-readable format
         # enriched_results is list[FileMetadata] from enrich_metadata
-        display_scan_results(enriched_results, console, show_tmdb=enrich_metadata_flag)
+        display_scan_results(enriched_results, console, show_tmdb=True)
 
         # Save results to file if requested
         if options.output:

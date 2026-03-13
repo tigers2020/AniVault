@@ -19,7 +19,6 @@ import typer
 
 from anivault.cli.common.context import LogLevel
 
-
 verbose_option: Annotated[  # pylint: disable=invalid-name
     int,
     typer.Option(

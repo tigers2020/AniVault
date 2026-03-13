@@ -11,6 +11,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
 
 from anivault.core.constants import ParsingConfidence
 from anivault.core.models import ScannedFile
@@ -72,72 +73,92 @@ class ResolutionDetector:
         )
 
         try:
-            filename = file_path.name
-            resolution_info = ResolutionInfo()
-
-            # Try to detect resolution from filename
-            for pattern, width, height, quality in self.resolution_patterns:
-                match = re.search(pattern, filename, re.IGNORECASE)
-                if match:
-                    if width and height:
-                        resolution_info.width = width
-                        resolution_info.height = height
-                        resolution_info.quality = quality
-                        resolution_info.confidence = 0.9
-                        break
-                    if pattern == r"(\d+)x(\d+)":
-                        # Custom resolution
-                        try:
-                            resolution_info.width = int(match.group(1))
-                            resolution_info.height = int(match.group(2))
-                            resolution_info.quality = self._classify_resolution(
-                                resolution_info.width,
-                                resolution_info.height,
-                            )
-                            resolution_info.confidence = ParsingConfidence.RESOLUTION_DETECTED
-                            break
-                        except (ValueError, IndexError):
-                            continue
-
-            # If no resolution found in filename, try to detect from file properties
+            resolution_info = self._try_detect_from_filename(file_path.name)
             if not resolution_info.quality:
                 resolution_info = self._detect_from_file_properties(file_path)
 
             logger.debug(
                 "Detected resolution for %s: %s",
-                filename,
+                file_path.name,
                 resolution_info.quality or "unknown",
             )
-
             return resolution_info
 
-        except Exception as e:
-            if isinstance(e, AniVaultError):
-                log_operation_error(
-                    logger=logger,
-                    operation="detect_resolution",
-                    error=e,
-                    additional_context=context.additional_data if context else None,
+        except Exception as e:  # noqa: BLE001 - intentionally catch all to wrap as InfrastructureError
+            self._raise_detection_error(e, file_path, context)
+
+    def _try_detect_from_filename(self, filename: str) -> ResolutionInfo:
+        """Try to detect resolution from filename using configured patterns."""
+        resolution_info = ResolutionInfo()
+        for pattern, width, height, quality in self.resolution_patterns:
+            match = re.search(pattern, filename, re.IGNORECASE)
+            if match and self._apply_pattern_match(match, pattern, width, height, quality, resolution_info):
+                break
+        return resolution_info
+
+    def _apply_pattern_match(
+        self,
+        match: re.Match[str],
+        pattern: str,
+        width: int | None,
+        height: int | None,
+        quality: str | None,
+        resolution_info: ResolutionInfo,
+    ) -> bool:
+        """Apply a single pattern match to resolution_info. Returns True if done."""
+        if width is not None and height is not None:
+            resolution_info.width = width
+            resolution_info.height = height
+            resolution_info.quality = quality
+            resolution_info.confidence = 0.9
+            return True
+        if pattern == r"(\d+)x(\d+)":
+            try:
+                resolution_info.width = int(match.group(1))
+                resolution_info.height = int(match.group(2))
+                resolution_info.quality = self._classify_resolution(
+                    resolution_info.width,
+                    resolution_info.height,
                 )
-            else:
-                error = InfrastructureError(
-                    code=ErrorCode.RESOLUTION_DETECTION_FAILED,
-                    message=f"Failed to detect resolution for {file_path}: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-                log_operation_error(
-                    logger=logger,
-                    operation="detect_resolution",
-                    error=error,
-                    additional_context=context.additional_data if context else None,
-                )
-            raise InfrastructureError(
+                resolution_info.confidence = ParsingConfidence.RESOLUTION_DETECTED
+                return True
+            except (ValueError, IndexError):
+                pass
+        return False
+
+    def _raise_detection_error(
+        self,
+        e: Exception,
+        file_path: Path,
+        context: ErrorContext,
+    ) -> NoReturn:
+        """Log and re-raise resolution detection error. Always raises."""
+        if isinstance(e, AniVaultError):
+            log_operation_error(
+                logger=logger,
+                operation="detect_resolution",
+                error=e,
+                additional_context=context.additional_data if context else None,
+            )
+        else:
+            error = InfrastructureError(
                 code=ErrorCode.RESOLUTION_DETECTION_FAILED,
                 message=f"Failed to detect resolution for {file_path}: {e!s}",
                 context=context,
                 original_error=e,
-            ) from e
+            )
+            log_operation_error(
+                logger=logger,
+                operation="detect_resolution",
+                error=error,
+                additional_context=context.additional_data if context else None,
+            )
+        raise InfrastructureError(
+            code=ErrorCode.RESOLUTION_DETECTION_FAILED,
+            message=f"Failed to detect resolution for {file_path}: {e!s}",
+            context=context,
+            original_error=e,
+        ) from e
 
     def _classify_resolution(self, width: int, height: int) -> str:
         """Classify resolution based on dimensions.
@@ -243,50 +264,56 @@ class ResolutionDetector:
         )
 
         try:
-            best_file = None
-            best_resolution = ResolutionInfo()
-
-            for file in files:
-                resolution_info = self.detect_resolution(file.file_path)
-                if self._is_better_resolution(resolution_info, best_resolution):
-                    best_file = file
-                    best_resolution = resolution_info
-
+            best_file, best_resolution = self._select_best_resolution(files)
             logger.debug(
                 "Selected highest resolution file: %s (%s)",
                 best_file.file_path.name if best_file else "None",
                 best_resolution.quality or "unknown",
             )
-
             return best_file
 
-        except Exception as e:
-            if isinstance(e, AniVaultError):
-                log_operation_error(
-                    logger=logger,
-                    operation="find_highest_resolution",
-                    error=e,
-                    additional_context=context.additional_data if context else None,
-                )
-            else:
-                error = InfrastructureError(
-                    code=ErrorCode.RESOLUTION_COMPARISON_FAILED,
-                    message=f"Failed to find highest resolution file: {e!s}",
-                    context=context,
-                    original_error=e,
-                )
-                log_operation_error(
-                    logger=logger,
-                    operation="find_highest_resolution",
-                    error=error,
-                    additional_context=context.additional_data if context else None,
-                )
-            raise InfrastructureError(
+        except Exception as e:  # noqa: BLE001 - intentionally catch all to wrap as InfrastructureError
+            self._raise_comparison_error(e, context)
+
+    def _select_best_resolution(self, files: list[ScannedFile]) -> tuple[ScannedFile | None, ResolutionInfo]:
+        """Select the file with the best resolution from the list. Caller must pass non-empty files."""
+        best_file = None
+        best_resolution = ResolutionInfo()
+        for file in files:
+            resolution_info = self.detect_resolution(file.file_path)
+            if self._is_better_resolution(resolution_info, best_resolution):
+                best_file = file
+                best_resolution = resolution_info
+        return best_file, best_resolution
+
+    def _raise_comparison_error(self, e: Exception, context: ErrorContext) -> NoReturn:
+        """Log and re-raise resolution comparison error. Always raises."""
+        if isinstance(e, AniVaultError):
+            log_operation_error(
+                logger=logger,
+                operation="find_highest_resolution",
+                error=e,
+                additional_context=context.additional_data if context else None,
+            )
+        else:
+            error = InfrastructureError(
                 code=ErrorCode.RESOLUTION_COMPARISON_FAILED,
                 message=f"Failed to find highest resolution file: {e!s}",
                 context=context,
                 original_error=e,
-            ) from e
+            )
+            log_operation_error(
+                logger=logger,
+                operation="find_highest_resolution",
+                error=error,
+                additional_context=context.additional_data if context else None,
+            )
+        raise InfrastructureError(
+            code=ErrorCode.RESOLUTION_COMPARISON_FAILED,
+            message=f"Failed to find highest resolution file: {e!s}",
+            context=context,
+            original_error=e,
+        ) from e
 
     def _is_better_resolution(
         self,

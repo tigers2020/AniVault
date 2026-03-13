@@ -22,6 +22,9 @@ from anivault.shared.errors import (
 
 logger = logging.getLogger(__name__)
 
+# Log message template for permission-setting failures (avoid S1192 literal duplication)
+_MSG_FAILED_SET_PERMISSIONS = "Failed to set permissions: %s"
+
 
 def set_secure_file_permissions(file_path: Path | str) -> None:
     """Set secure file permissions (600 - owner read/write only).
@@ -64,16 +67,16 @@ def set_secure_file_permissions(file_path: Path | str) -> None:
             context,
             original_error=e,
         ) from e
-    except (FileNotFoundError, OSError) as e:
+    except OSError as e:
         if isinstance(e, FileNotFoundError):
-            logger.exception("Failed to set permissions: %s", file_path)
+            logger.exception(_MSG_FAILED_SET_PERMISSIONS, file_path)
             raise AniVaultFileError(
                 ErrorCode.FILE_NOT_FOUND,
                 f"File not found while setting permissions: {file_path}",
                 context,
                 original_error=e,
             ) from e
-        logger.exception("Failed to set permissions: %s", file_path)
+        logger.exception(_MSG_FAILED_SET_PERMISSIONS, file_path)
         raise AniVaultFileError(
             ErrorCode.FILE_WRITE_ERROR,
             f"File system error setting permissions: {file_path}",
@@ -81,7 +84,7 @@ def set_secure_file_permissions(file_path: Path | str) -> None:
             original_error=e,
         ) from e
     except Exception as e:
-        logger.exception("Failed to set permissions: %s", file_path)
+        logger.exception(_MSG_FAILED_SET_PERMISSIONS, file_path)
         raise AniVaultError(
             ErrorCode.FILE_WRITE_ERROR,
             f"Unexpected error setting permissions: {file_path}",
@@ -155,16 +158,8 @@ def _set_windows_permissions(file_path: Path) -> None:
         logger.debug("Basic Windows permissions set for: %s", file_path)
 
 
-def validate_api_key_not_in_data(data: dict[str, Any]) -> None:
-    """Validate that data does not contain API keys or sensitive information.
-
-    Args:
-        data: Data dictionary to validate
-
-    Raises:
-        ApplicationError: If sensitive data is detected
-    """
-    sensitive_keys = {
+_SENSITIVE_KEYS = frozenset(
+    {
         "api_key",
         "apikey",
         "api-key",
@@ -174,40 +169,67 @@ def validate_api_key_not_in_data(data: dict[str, Any]) -> None:
         "access_token",
         "refresh_token",
     }
+)
 
-    # Prepare context with primitive-only additional_data
-    additional_data: dict[str, str | int | float | bool] = {}
-    if isinstance(data, dict):
-        additional_data["data_keys_count"] = len(data.keys())
 
+def _key_is_sensitive(key: str) -> bool:
+    """Return True if key matches any sensitive pattern."""
+    key_lower = key.lower()
+    return any(s in key_lower for s in _SENSITIVE_KEYS)
+
+
+def _raise_sensitive_data_error(path: str, context: ErrorContext) -> None:
+    """Raise ApplicationError for sensitive data at path."""
+    error = ApplicationError(
+        ErrorCode.VALIDATION_ERROR,
+        f"Attempted to cache sensitive data: {path}",
+        context,
+    )
+    logger.error("Sensitive data detected in cache: %s", path)
+    raise error
+
+
+def _check_nested_value(
+    value: Any,
+    current_path: str,
+    context: ErrorContext,
+) -> None:
+    """Recursively check nested dict/list for sensitive keys."""
+    if isinstance(value, dict):
+        _check_dict_recursive(value, current_path, context)
+    elif isinstance(value, list):
+        for idx, item in enumerate(value):
+            if isinstance(item, dict):
+                _check_dict_recursive(item, f"{current_path}[{idx}]", context)
+
+
+def _check_dict_recursive(
+    d: dict[str, Any],
+    path: str,
+    context: ErrorContext,
+) -> None:
+    """Recursively check dictionary for sensitive keys."""
+    for key, value in d.items():
+        current_path = f"{path}.{key}" if path else key
+        if _key_is_sensitive(key):
+            _raise_sensitive_data_error(current_path, context)
+        _check_nested_value(value, current_path, context)
+
+
+def validate_api_key_not_in_data(data: dict[str, Any]) -> None:
+    """Validate that data does not contain API keys or sensitive information.
+
+    Args:
+        data: Data dictionary to validate
+
+    Raises:
+        ApplicationError: If sensitive data is detected
+    """
+    additional_data: dict[str, str | int | float | bool] = {
+        "data_keys_count": len(data),
+    }
     context = ErrorContext(
         operation="validate_api_key",
-        additional_data=additional_data if additional_data else None,
+        additional_data=additional_data,
     )
-
-    def check_dict(d: dict[str, Any], path: str = "") -> None:
-        """Recursively check dictionary for sensitive keys."""
-        for key, value in d.items():
-            key_lower = key.lower()
-            current_path = f"{path}.{key}" if path else key
-
-            # Check if key matches sensitive patterns
-            if any(sensitive in key_lower for sensitive in sensitive_keys):
-                error = ApplicationError(
-                    ErrorCode.VALIDATION_ERROR,
-                    f"Attempted to cache sensitive data: {current_path}",
-                    context,
-                )
-                logger.error("Sensitive data detected in cache: %s", current_path)
-                raise error
-
-            # Recursively check nested dictionaries
-            if isinstance(value, dict):
-                check_dict(value, current_path)
-            elif isinstance(value, list):
-                for idx, item in enumerate(value):
-                    if isinstance(item, dict):
-                        check_dict(item, f"{current_path}[{idx}]")
-
-    if isinstance(data, dict):
-        check_dict(data)
+    _check_dict_recursive(data, "", context)
