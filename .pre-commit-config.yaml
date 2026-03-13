@@ -28,8 +28,7 @@ repos:
         args: [--fix=lf]
 
   # Ruff - Fast Python linter (before formatters)
-  # Uses pyproject.toml for configuration (line-length=150, unified exclude patterns)
-  # Ruff automatically reads pyproject.toml, no need for explicit config arg
+  # Config: pyproject.toml (line-length=150, target py39, exclude list aligned with black/mypy/bandit)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.0
     hooks:
@@ -37,18 +36,18 @@ repos:
         args: [--fix, --exit-non-zero-on-fix, --output-format=github]
         types: [python]
         files: ^src/
-        exclude: ^(tests/|scripts/|benchmarks/|build/|dist/|cache/|htmlcov/|logs/|test_data_|test_output/|test_files/)
+        exclude: ^(\.eggs/|\.git/|\.mypy_cache/|\.tox/|\.venv/|bench/|benchmarks/|build/|cache/|dist/|htmlcov/|logs/|scripts/|test_data_|test_files/|test_output/|tests/|tools/)
       - id: ruff-format
         types: [python]
         files: ^src/
-        exclude: ^(tests/|scripts/|benchmarks/|build/|dist/|cache/|htmlcov/|logs/|test_data_|test_output/|test_files/)
+        exclude: ^(\.eggs/|\.git/|\.mypy_cache/|\.tox/|\.venv/|bench/|benchmarks/|build/|cache/|dist/|htmlcov/|logs/|scripts/|test_data_|test_files/|test_output/|tests/|tools/)
 
   # Black - Code formatter (DISABLED: Using ruff-format instead for consistency)
   # ruff-format is black-compatible and faster, so we use it instead
   # Both use the same line-length=150 setting from pyproject.toml
 
   # MyPy - Static type checker
-  # Uses pyproject.toml for configuration (unified exclude patterns)
+  # Config: pyproject.toml (exclude list aligned with ruff/black/bandit)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.10.1
     hooks:
@@ -67,21 +66,20 @@ repos:
           - src/
         types: [python]
         files: ^src/
-        exclude: ^(tests/|scripts/|benchmarks/|build/|dist/|cache/|htmlcov/|logs/|test_data_|test_output/|test_files/)
+        exclude: ^(\.eggs/|\.git/|\.mypy_cache/|\.tox/|\.venv/|bench/|benchmarks/|build/|cache/|dist/|htmlcov/|logs/|scripts/|test_data_|test_files/|test_output/|tests/|tools/)
         # Allow failures initially (warn only)
         pass_filenames: false
         always_run: false
 
   # Security checks - Bandit
-  # Uses pyproject.toml for configuration (unified exclude patterns)
-  # Bandit reads pyproject.toml automatically when -c flag is used
+  # Config: pyproject.toml (exclude_dirs aligned with ruff/black/mypy)
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.8
     hooks:
       - id: bandit
         args: [-r, src/, -f, json, -o, bandit-report.json, -c, pyproject.toml]
         additional_dependencies: [pbr]
-        exclude: ^(tests/|scripts/|benchmarks/|build/|dist/|cache/|htmlcov/|logs/|test_data_|test_output/|test_files/)
+        exclude: ^(\.eggs/|\.git/|\.mypy_cache/|\.tox/|\.venv/|bench/|benchmarks/|build/|cache/|dist/|htmlcov/|logs/|scripts/|test_data_|test_files/|test_output/|tests/|tools/)
         # Check all files in src/ directory
         pass_filenames: false
         files: ^src/.*\.py$
@@ -105,6 +103,9 @@ repos:
           - --tb=short
           - --maxfail=3
           - -x
+          # Skip coverage in hook (unit-only would fail 95%); run full pytest for coverage
+          - -o
+          - addopts=--strict-markers --strict-config --tb=short --maxfail=5 -p no:pytest-qt --ignore=tests/gui/ --ignore=tests/benchmarks_disabled/ --ignore=tests/core/file_grouper/test_group_name_manager_benchmark.py --ignore=tests/unit/test_subtitle_matcher_benchmark.py --ignore=tests/unit/test_title_matcher_accuracy_benchmark.py
         pass_filenames: false
         always_run: true  # Always run to catch test regressions
 

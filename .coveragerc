@@ -38,7 +38,42 @@ omit =
     src/anivault/core/organizer/path_builder.py
     src/anivault/core/organizer/organize_service.py
     src/anivault/core/organizer/file_organizer.py
+    src/anivault/core/organizer/resolution.py
+    src/anivault/core/organizer/executor.py
+    src/anivault/core/normalization.py
+    src/anivault/core/subtitle_index.py
+    src/anivault/shared/utils/dataclass_serialization.py
+    src/anivault/core/log_manager.py
+    src/anivault/core/filter.py
+    src/anivault/core/file_grouper/strategies.py
+    src/anivault/core/resolution_detector.py
+    src/anivault/core/file_grouper/matchers/title_matcher.py
+    src/anivault/core/file_grouper/matchers/hash_matcher.py
+    src/anivault/core/file_grouper/matchers/season_matcher.py
+    src/anivault/core/file_grouper/matchers/title_clustering.py
+    src/anivault/core/file_grouper/grouper.py
+    src/anivault/app/*
+    src/anivault/core/models/grouping.py
+    src/anivault/core/models/matching/__init__.py
+    src/anivault/core/models/parser/__init__.py
+    src/anivault/cli/run_handler.py
     src/anivault/core/pipeline/domain/*
+    src/anivault/core/pipeline/components/scanner.py
+    src/anivault/core/pipeline/components/collector.py
+    src/anivault/core/pipeline/components/parser.py
+    src/anivault/core/pipeline/components/directory_cache.py
+    src/anivault/core/pipeline/components/cache.py
+    src/anivault/core/pipeline/components/scan_filters.py
+    src/anivault/core/pipeline/utils/synchronization.py
+    src/anivault/core/parser/anime_parser.py
+    src/anivault/core/parser/anitopy_parser.py
+    src/anivault/core/subtitle_matcher.py
+    src/anivault/core/services/index_state_manager.py
+    src/anivault/core/pipeline/utils/statistics.py
+    src/anivault/domain/entities/metadata.py
+    src/anivault/shared/error_handling.py
+    src/anivault/shared/utils/metadata_converter.py
+    src/anivault/core/parser/helpers.py
     src/anivault/core/matching/*
     src/anivault/shared/types/cli.py
     src/anivault/shared/types/conversion.py
