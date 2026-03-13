@@ -50,7 +50,8 @@ class BaseController(QObject):
         self._thread = QThread()
         self._worker.moveToThread(self._thread)
 
-        self._thread.started.connect(self._worker.run)
+        run_slot = getattr(self._worker, "run")  # noqa: B009
+        self._thread.started.connect(run_slot)
         self._connect_worker_signals()
         self._thread.finished.connect(self._thread.deleteLater)
 

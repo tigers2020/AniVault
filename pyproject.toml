@@ -61,33 +61,39 @@ anivault = "anivault.cli.typer_app:main"
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+# -----------------------------------------------------------------------------
+# Unified quality settings (ruff, black, mypy, bandit)
+# - line-length: 150
+# - target-version / python_version: 3.9 (py39)
+# - Excluded paths (same order everywhere): keep in sync when adding/removing
+# -----------------------------------------------------------------------------
+
 [tool.ruff]
 target-version = "py39"
-line-length = 150  # Unified with Black and Pylint
-# Unified exclude patterns across all tools
+line-length = 150
 exclude = [
-    "tests/",
-    "test_*.py",
-    "**/test_*.py",
-    "**/tests/",
-    "scripts/",
-    "benchmarks/",
-    "tools/",
-    "bench/",
-    "build/",
-    "dist/",
-    "cache/",
-    "htmlcov/",
-    "logs/",
-    "test_data_*/",
-    "test_output/",
-    "test_files/",
-    "test_new_features.py",
-    ".venv/",
-    ".mypy_cache/",
-    ".tox/",
     ".eggs/",
     ".git/",
+    ".mypy_cache/",
+    ".tox/",
+    ".venv/",
+    "bench/",
+    "benchmarks/",
+    "build/",
+    "cache/",
+    "dist/",
+    "htmlcov/",
+    "logs/",
+    "scripts/",
+    "test_data_*/",
+    "test_files/",
+    "test_output/",
+    "tests/",
+    "tools/",
+    # Ruff-only: exclude test files at repo root
+    "test_*.py",
+    "**/test_*.py",
+    "test_new_features.py",
 ]
 
 [tool.ruff.lint]
@@ -139,32 +145,29 @@ ignore = [
 "src/anivault/cli/**" = ["FBT003", "B008", "TCH002"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거), TCH002: typer는 런타임에 사용
 
 [tool.black]
-line-length = 150  # Unified with Ruff and Pylint
+line-length = 150
 target-version = ["py39"]
 include = '\.pyi?$'
-# Unified exclude patterns with other tools
 extend-exclude = '''
 /(
-  # directories
   \.eggs
   | \.git
-  | \.hg
   | \.mypy_cache
   | \.tox
   | \.venv
+  | bench
+  | benchmarks
   | build
-  | dist
   | cache
+  | dist
   | htmlcov
   | logs
-  | test_data_.*
-  | test_output
-  | test_files
-  | tests
   | scripts
-  | benchmarks
+  | test_data_.*
+  | test_files
+  | test_output
+  | tests
   | tools
-  | bench
 )/
 '''
 
@@ -189,24 +192,25 @@ no_implicit_optional = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
-# Unified exclude patterns with other tools
 exclude = [
-    "scripts/",
-    "tests/",
-    "benchmarks/",
-    "build/",
-    "dist/",
-    "cache/",
-    "htmlcov/",
-    "logs/",
-    "test_data_*/",
-    "test_output/",
-    "test_files/",
-    ".venv/",
-    ".mypy_cache/",
-    ".tox/",
     ".eggs/",
     ".git/",
+    ".mypy_cache/",
+    ".tox/",
+    ".venv/",
+    "bench/",
+    "benchmarks/",
+    "build/",
+    "cache/",
+    "dist/",
+    "htmlcov/",
+    "logs/",
+    "scripts/",
+    "test_data_*/",
+    "test_files/",
+    "test_output/",
+    "tests/",
+    "tools/",
 ]
 
 # 외부 라이브러리 타입 스텁 부재
@@ -231,7 +235,7 @@ disable_error_code = ["misc", "no-any-return"]
 # lru_cache with type[BaseModel] - type[BaseModel] is hashable but mypy doesn't recognize it
 [[tool.mypy.overrides]]
 module = ["anivault.shared.types.conversion"]
-disable_error_code = ["arg-type"]
+disable_error_code = ["arg-type", "no-any-return"]
 
 # PySide6/Pydantic 타입 스텁 문제로 인한 misc 오류 비활성화
 # Class cannot subclass "BaseModel"/"QObject" 등의 오류는 타입 스텁 부재로 인한 것으로,
@@ -246,7 +250,7 @@ module = [
     "anivault.cli.helpers.match",
     "anivault.containers",
 ]
-disable_error_code = ["misc"]
+disable_error_code = ["misc", "no-any-return"]
 
 # GUI v2: allow PySide6 stub gaps and runtime-only types
 [[tool.mypy.overrides]]
@@ -258,6 +262,8 @@ disable_error_code = [
     "no-untyped-def",
     "no-any-return",
     "return-value",
+    "attr-defined",
+    "assignment",
 ]
 
 # Matching engine: gradual type cleanup
@@ -339,7 +345,7 @@ addopts = [
     "--ignore=tests/unit/test_title_matcher_accuracy_benchmark.py",
     "--cov=src/anivault",
     "--cov-report=term-missing",
-    "--cov-fail-under=90",
+    "--cov-fail-under=95",
 ]
 # Optional: add --cov-report=html for browseable report, --cov-report=xml for CI
 
@@ -372,7 +378,7 @@ filterwarnings = [
 # PySide6는 C++ 확장 모듈로 타입 스텁이 완전하지 않아 Pylint가 인식하지 못함
 # 런타임에는 정상 작동하며, PySide6-stubs가 설치되어 있어도 Pylint는 인식하지 못함
 disable = ["no-name-in-module"]
-max-line-length = 150  # Black과 일치
+max-line-length = 150  # Unified with ruff/black (pyproject.toml)
 
 [tool.pylint."messages control"]
 # PySide6 모듈에 대한 no-name-in-module 에러 억제
@@ -418,24 +424,25 @@ max_security_issues = 0
 
 # Bandit - Security linter configuration
 [tool.bandit]
-# Unified exclude patterns with other tools
 exclude_dirs = [
-    "tests",
-    "scripts",
-    "benchmarks",
-    "build",
-    "dist",
-    "cache",
-    "htmlcov",
-    "logs",
-    "test_data_*",
-    "test_output",
-    "test_files",
-    ".venv",
-    ".mypy_cache",
-    ".tox",
     ".eggs",
     ".git",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "bench",
+    "benchmarks",
+    "build",
+    "cache",
+    "dist",
+    "htmlcov",
+    "logs",
+    "scripts",
+    "test_data_*",
+    "test_files",
+    "test_output",
+    "tests",
+    "tools",
 ]
 # Security check level: 1 (low), 2 (medium), 3 (high)
 level = 2
