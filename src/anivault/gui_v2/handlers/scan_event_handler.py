@@ -8,7 +8,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QFileDialog
 
 from anivault.gui_v2.handlers.base_event_handler import BaseEventHandler
-from anivault.gui_v2.models import OperationError, OperationProgress
+from anivault.gui_v2.models import OperationError, OperationProgress, ViewKind
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +41,11 @@ class ScanEventHandler(BaseEventHandler):
             directory_path = Path(directory)
 
         self._window.status_bar.set_current_path(str(directory_path))
-        if self._window._current_view == "subtitles":
-            self._window._active_scan_target = "subtitles"
+        if self._window.is_subtitles_view():
+            self._window._active_scan_target = ViewKind.SUBTITLES.value
             self._window.scan_controller.scan_subtitle_directory(directory_path)
         else:
-            self._window._active_scan_target = "videos"
+            self._window._active_scan_target = ViewKind.VIDEOS.value
             self._window.scan_controller.scan_directory(directory_path)
 
     def on_scan_started(self) -> None:
@@ -70,15 +70,15 @@ class ScanEventHandler(BaseEventHandler):
         self._window.loading_overlay.hide_loading()
         self._window.status_bar.set_status("스캔 완료", "ok")
 
-        if self._window._active_scan_target == "subtitles":
+        if self._window._active_scan_target == ViewKind.SUBTITLES.value:
             self._window._subtitle_scan_results = results
-            if self._window._current_view == "subtitles":
+            if self._window.is_subtitles_view():
                 self._window.groups_view.set_file_metadata(results)
                 self._window._refresh_statistics()
             self._window._refresh_status_bar()
             if results and self._window.match_controller:
                 logger.info("Auto-matching started after subtitle scan completion")
-                self._window._active_match_target = "subtitles"
+                self._window._active_match_target = ViewKind.SUBTITLES.value
                 self._window.match_controller.match_files(results)
             return
 
@@ -89,7 +89,7 @@ class ScanEventHandler(BaseEventHandler):
 
         if results and self._window.match_controller:
             logger.info("Auto-matching started after scan completion")
-            self._window._active_match_target = "videos"
+            self._window._active_match_target = ViewKind.VIDEOS.value
             self._window.match_controller.match_files(results)
 
     def on_scan_error(self, error: OperationError) -> None:

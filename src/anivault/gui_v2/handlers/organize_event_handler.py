@@ -29,7 +29,7 @@ class OrganizeEventHandler(BaseEventHandler):
             self._window.status_bar.set_status("정리 컨트롤러가 초기화되지 않았습니다.", "error")
             return
 
-        files = self._window._subtitle_scan_results if self._window._current_view == "subtitles" else self._window._scan_results
+        files = self._window.get_current_scan_results()
         if not files:
             self._window.status_bar.set_status("먼저 매칭을 완료하세요.", "warn")
             return
@@ -64,7 +64,7 @@ class OrganizeEventHandler(BaseEventHandler):
             directory,
             destination=destination,
             dry_run=True,
-            use_subtitles=self._window._current_view == "subtitles",
+            use_subtitles=self._window.is_subtitles_view(),
         )
 
         plan = self._build_organize_plan(scanned_files, options)
@@ -110,7 +110,7 @@ class OrganizeEventHandler(BaseEventHandler):
 
     def _get_organize_source_files(self) -> list | None:
         """Return current view's file list for organize, or None after setting status."""
-        files = self._window._subtitle_scan_results if self._window._current_view == "subtitles" else self._window._scan_results
+        files = self._window.get_current_scan_results()
         if not files:
             self._window.status_bar.set_status("먼저 매칭을 완료하세요.", "warn")
             return None
@@ -171,7 +171,7 @@ class OrganizeEventHandler(BaseEventHandler):
             if source_path.exists() and source_path.is_dir():
                 return source_path
 
-        results = self._window._subtitle_scan_results if self._window._current_view == "subtitles" else self._window._scan_results
+        results = self._window.get_current_scan_results()
         if results:
             candidate = Path(results[0].file_path).parent
             if candidate.exists() and candidate.is_dir():

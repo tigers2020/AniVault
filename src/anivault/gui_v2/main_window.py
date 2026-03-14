@@ -23,7 +23,7 @@ from anivault.gui_v2.controllers import MatchController, OrganizeController, Sca
 from anivault.gui_v2.dialogs.settings_dialog import SettingsDialog
 from anivault.gui_v2.dialogs.tmdb_manual_search_dialog import TmdbManualSearchDialog
 from anivault.gui_v2.handlers import MatchEventHandler, OrganizeEventHandler, ScanEventHandler
-from anivault.gui_v2.models import OperationProgress, format_progress_message
+from anivault.gui_v2.models import OperationProgress, ViewKind, format_progress_message
 from anivault.gui_v2.views.base_view import BaseView
 from anivault.gui_v2.views.groups_view import GroupsView
 from anivault.gui_v2.widgets.header_widget import HeaderWidget
@@ -58,8 +58,8 @@ class MainWindow(QMainWindow):
         self._scan_results: list[FileMetadata] = []
         self._subtitle_scan_results: list[FileMetadata] = []
         self._current_view = "work"
-        self._active_scan_target = "videos"
-        self._active_match_target = "videos"
+        self._active_scan_target = ViewKind.VIDEOS.value
+        self._active_match_target = ViewKind.VIDEOS.value
         self._current_detail_group: dict | None = None
         self._progress_ui_last_update: float | None = None  # throttle progress UI updates
         self._pending_progress: OperationProgress | None = None
@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
         self.status_bar.set_status(f"탭 전환: {view_name}", "ok")
 
         # Ensure the shared view has the latest metadata when switching
-        if view_name == "subtitles":
+        if view_name == ViewKind.SUBTITLES.value:
             if self._subtitle_scan_results:
                 self.groups_view.set_file_metadata(self._subtitle_scan_results)
                 self._refresh_statistics()
@@ -324,10 +324,38 @@ class MainWindow(QMainWindow):
 
     def _set_scan_results_for_current_view(self, merged: list[FileMetadata]) -> None:
         """Assign merged list to the correct scan results for current view."""
-        if self._current_view == "subtitles":
+        if self.is_subtitles_view():
             self._subtitle_scan_results = merged
         else:
             self._scan_results = merged
+
+    def is_subtitles_view(self) -> bool:
+        """Return True if the current tab is subtitles (subtitle scan results)."""
+        return self._current_view == ViewKind.SUBTITLES.value
+
+    def get_current_scan_results(self) -> list[FileMetadata]:
+        """Return the scan results list for the current view (single source of truth)."""
+        return (
+            self._subtitle_scan_results
+            if self.is_subtitles_view()
+            else self._scan_results
+        )
+
+    def set_current_scan_results(self, merged: list[FileMetadata]) -> None:
+        """Set the scan results for the current view (single entry point)."""
+        self._set_scan_results_for_current_view(merged)
+
+    def get_active_match_target_value(self) -> str:
+        """Return the active match target: ViewKind.SUBTITLES.value or ViewKind.VIDEOS.value."""
+        return (
+            ViewKind.SUBTITLES.value
+            if self.is_subtitles_view()
+            else ViewKind.VIDEOS.value
+        )
+
+    def set_active_match_target_from_view(self) -> None:
+        """Set _active_match_target from current view (subtitles vs videos)."""
+        self._active_match_target = self.get_active_match_target_value()
 
     def _on_detail_match_clicked(self) -> None:
         """Handle TMDB match button in detail panel - open manual search dialog."""
@@ -350,9 +378,9 @@ class MainWindow(QMainWindow):
             logger.warning("get_updated_metadata returned empty")
             return
 
-        scan_results = self._subtitle_scan_results if self._current_view == "subtitles" else self._scan_results
+        scan_results = self.get_current_scan_results()
         merged = self._merge_updated_metadata_into_results(updated_list, scan_results)
-        self._set_scan_results_for_current_view(merged)
+        self.set_current_scan_results(merged)
         self.groups_view.set_file_metadata(merged)
         self._refresh_statistics()
         self.detail_panel.hide_panel()
@@ -372,7 +400,7 @@ class MainWindow(QMainWindow):
     def _refresh_statistics(self, *, pending_override: int | None = None) -> None:
         """Recalculate and update sidebar statistics (data only; SidebarWidget computes)."""
         groups = self.groups_view._groups
-        scan_results = self._subtitle_scan_results if self._current_view == "subtitles" else self._scan_results
+        scan_results = self.get_current_scan_results()
         total_files = len(scan_results) if scan_results else sum(int(g.get("files", 0) or 0) for g in groups)
         self.sidebar.update_statistics_from_data(groups, total_files, pending_override)
 

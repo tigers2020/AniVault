@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from anivault.gui_v2.handlers.base_event_handler import BaseEventHandler
-from anivault.gui_v2.models import OperationError, OperationProgress
+from anivault.gui_v2.models import OperationError, OperationProgress, ViewKind
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +19,12 @@ class MatchEventHandler(BaseEventHandler):
             self._window.status_bar.set_status("매칭 컨트롤러가 초기화되지 않았습니다.", "error")
             return
 
-        files = self._window._subtitle_scan_results if self._window._current_view == "subtitles" else self._window._scan_results
+        files = self._window.get_current_scan_results()
         if not files:
             self._window.status_bar.set_status("먼저 디렉터리를 스캔하세요.", "warn")
             return
 
-        self._window._active_match_target = "subtitles" if self._window._current_view == "subtitles" else "videos"
+        self._window.set_active_match_target_from_view()
         self._window.match_controller.match_files(files)
 
     def on_match_started(self) -> None:
@@ -43,9 +43,9 @@ class MatchEventHandler(BaseEventHandler):
         self._window.loading_overlay.hide_loading()
         self._window.status_bar.set_status("매칭 완료", "ok")
 
-        if self._window._active_match_target == "subtitles":
+        if self._window._active_match_target == ViewKind.SUBTITLES.value:
             self._window._subtitle_scan_results = results
-            if self._window._current_view == "subtitles":
+            if self._window.is_subtitles_view():
                 self._window.groups_view.set_file_metadata(results)
                 self._window._refresh_statistics()
             self._window._refresh_status_bar()
