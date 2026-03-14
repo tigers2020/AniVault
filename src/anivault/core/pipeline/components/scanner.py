@@ -32,6 +32,7 @@ from anivault.core.pipeline.components.scan_filters import (
 from anivault.core.pipeline.components.scan_filters import (
     should_skip_directory as filter_should_skip_directory,
 )
+from anivault.core.pipeline.components.directory_cache import DirectoryCacheManager
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.core.pipeline.utils.synchronization import ThreadSafeStatsUpdater
 from anivault.shared.constants import ProcessingConfig
@@ -72,6 +73,7 @@ class DirectoryScanner(threading.Thread):
         batch_size: int = ProcessingConfig.DEFAULT_BATCH_SIZE,
         progress_callback: Callable[[dict[str, Any]], None] | None = None,
         cancel_event: threading.Event | None = None,
+        directory_cache: DirectoryCacheManager | None = None,
     ) -> None:
         """Initialize the directory scanner.
 
@@ -89,6 +91,8 @@ class DirectoryScanner(threading.Thread):
                               Called with a dict containing progress information.
             cancel_event: Optional threading.Event to signal scan cancellation.
                          If provided, overrides the internal _stop_event.
+            directory_cache: Optional DirectoryCacheManager for incremental scans.
+                             When set, sequential scan uses cached dir lists when unchanged.
         """
         super().__init__()
         self.root_path = Path(root_path)
@@ -107,6 +111,7 @@ class DirectoryScanner(threading.Thread):
         self.filter_engine = filter_engine
         self.batch_size = batch_size
         self.progress_callback = progress_callback
+        self.directory_cache = directory_cache
 
     def _report_progress(self, **kwargs: Any) -> None:
         """
@@ -143,10 +148,31 @@ class DirectoryScanner(threading.Thread):
     def scan_files(self) -> Generator[Path, None, None]:
         """Generator that recursively scans for files with specified extensions.
 
+        When directory_cache is set, uses cached directory contents for unchanged
+        directories (sequential scan only), avoiding repeated filesystem walks.
+
         Yields:
             Path: Absolute path of each file that matches the specified extensions.
         """
         if not self._is_valid_root_path():
+            return
+
+        if self.directory_cache is not None:
+            self.directory_cache.load_cache()
+            size = self.directory_cache.get_cache_size()
+            logger.info(
+                "Directory cache: using %s (%s entries)",
+                self.directory_cache.cache_file,
+                size,
+            )
+            self._dc_hits = 0
+            self._dc_misses = 0
+            yield from self._scan_files_cached(self.root_path)
+            logger.info(
+                "Directory cache: %s hits, %s misses",
+                getattr(self, "_dc_hits", 0),
+                getattr(self, "_dc_misses", 0),
+            )
             return
 
         # Use os.walk for efficient directory traversal
@@ -158,6 +184,75 @@ class DirectoryScanner(threading.Thread):
 
             # Process files in this directory
             yield from self._process_files_in_directory(root_path, files)
+
+    def _scan_files_cached(self, dir_path: Path) -> Generator[Path, None, None]:
+        """Yield files from a directory using cache when mtime unchanged."""
+        if self._stop_event.is_set():
+            return
+        dir_path = dir_path.resolve()
+        try:
+            stat = dir_path.stat()
+            mtime = stat.st_mtime
+        except OSError:
+            return
+        if self.directory_cache is None:
+            return
+        if self.directory_cache.is_directory_cached(dir_path, mtime):
+            data = self.directory_cache.get_directory_data(dir_path)
+            if data is None:
+                return
+            self._dc_hits = getattr(self, "_dc_hits", 0) + 1
+            self.stats.increment_directories_scanned()
+            for name in data.files:
+                if self._stop_event.is_set():
+                    return
+                path = dir_path / name
+                if has_valid_extension(path, self.extensions) and filter_should_include_file(
+                    path, self.filter_engine
+                ):
+                    yield path.absolute()
+            for sub in data.subdirs:
+                if self._stop_event.is_set():
+                    return
+                if filter_should_skip_directory(sub, self.filter_engine):
+                    continue
+                yield from self._scan_files_cached(dir_path / sub)
+        else:
+            self._dc_misses = getattr(self, "_dc_misses", 0) + 1
+            self.stats.increment_directories_scanned()
+            files_list: list[str] = []
+            subdirs_list: list[str] = []
+            try:
+                with os.scandir(dir_path) as entries:
+                    for entry in entries:
+                        if self._stop_event.is_set():
+                            return
+                        try:
+                            if entry.is_file():
+                                files_list.append(entry.name)
+                            elif entry.is_dir() and not filter_should_skip_directory(
+                                entry.name, self.filter_engine
+                            ):
+                                subdirs_list.append(entry.name)
+                        except OSError:
+                            continue
+            except OSError:
+                return
+            self.directory_cache.update_directory_data(
+                dir_path, mtime, files_list, subdirs_list
+            )
+            for name in files_list:
+                if self._stop_event.is_set():
+                    return
+                path = dir_path / name
+                if has_valid_extension(path, self.extensions) and filter_should_include_file(
+                    path, self.filter_engine
+                ):
+                    yield path.absolute()
+            for sub in subdirs_list:
+                if self._stop_event.is_set():
+                    return
+                yield from self._scan_files_cached(dir_path / sub)
 
     def _is_valid_root_path(self) -> bool:
         """Check if root path is valid for scanning.
@@ -482,10 +577,12 @@ class DirectoryScanner(threading.Thread):
     def _should_use_parallel(self) -> bool:
         """Determine if parallel processing should be used based on adaptive threshold.
 
-        Returns:
-            True if parallel processing is recommended, False otherwise.
+        When directory_cache is set, use sequential scan so the cache is used
+        (parallel path does not use the directory cache).
         """
         if not self.parallel:
+            return False
+        if self.directory_cache is not None:
             return False
 
         # Estimate total files to determine if parallel processing is beneficial
@@ -601,6 +698,8 @@ class DirectoryScanner(threading.Thread):
                 self._run_parallel_scan()
             else:
                 self._run_sequential_scan()
+            if self.directory_cache is not None:
+                self.directory_cache.save_cache()
 
         except OSError as e:
             # File system errors during scanning

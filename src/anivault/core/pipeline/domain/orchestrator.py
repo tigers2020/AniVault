@@ -13,8 +13,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
 from anivault.core.pipeline.components import (
     CacheV1,
+    DirectoryCacheManager,
     DirectoryScanner,
     ParserWorkerPool,
     ResultCollector,
@@ -135,6 +137,11 @@ class PipelineFactory:
             file_queue = BoundedQueue(maxsize=max_queue_size)
             result_queue = BoundedQueue(maxsize=max_queue_size)
 
+            # Directory cache for incremental scans (skips unchanged dirs on second run)
+            dir_cache = DirectoryCacheManager(
+                cache_file=Path(root_path) / ".anivault_scan_cache.json"
+            )
+
             # Initialize pipeline components
             scanner = DirectoryScanner(
                 root_path=Path(root_path),
@@ -142,6 +149,7 @@ class PipelineFactory:
                 extensions=extensions,
                 stats=scan_stats,
                 progress_callback=progress_callback,
+                directory_cache=dir_cache,
             )
 
             parser_pool = ParserWorkerPool(
