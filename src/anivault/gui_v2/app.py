@@ -10,6 +10,8 @@ from PySide6.QtWidgets import QApplication
 from anivault.gui_v2.app_context import AppContext
 from anivault.gui_v2.main_window import MainWindow
 from anivault.gui_v2.styles.styles import StyleManager
+from anivault.shared.constants.logging import LogConfig
+from anivault.shared.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +77,14 @@ class AniVaultGUIv2:
 
 def main() -> int:
     """Main entry point for GUI v2."""
-    logging.basicConfig(
+    configure_logging(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        log_dir=LogConfig.DEFAULT_LOG_DIR,
+        log_file=LogConfig.DEFAULT_FILE,
+        use_rich=True,
+        use_json_console=False,
+        enable_file=True,
+        enable_console=True,
     )
 
     app = AniVaultGUIv2()

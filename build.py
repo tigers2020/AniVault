@@ -22,11 +22,14 @@ import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
-# Configure logging
-logging.basicConfig(
+from anivault.shared.logging import configure_logging
+
+# Use same logging bootstrap as CLI/GUI (console only, no file)
+configure_logging(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    enable_file=False,
+    enable_console=True,
+    use_rich=True,
 )
 logger = logging.getLogger(__name__)
 

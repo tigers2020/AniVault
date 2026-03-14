@@ -39,6 +39,8 @@ from anivault.shared.constants import (
     CLIOptions,
     FileSystem,
 )
+from anivault.shared.constants.logging import LogConfig
+from anivault.shared.logging import configure_logging
 
 # Version information
 __version__ = CLIDefaults.VERSION
@@ -106,6 +108,17 @@ def main_callback(
         benchmark=benchmark,
     )
     set_cli_context(context)
+
+    # Single logging bootstrap: apply level and format from context
+    configure_logging(
+        level=context.get_effective_log_level(),
+        log_dir=Path(LogConfig.DEFAULT_LOG_DIR),
+        log_file=LogConfig.DEFAULT_FILE,
+        use_rich=not context.is_json_output_enabled(),
+        use_json_console=context.is_json_output_enabled(),
+        enable_file=True,
+        enable_console=True,
+    )
 
 
 # Create the main Typer app with callback
@@ -538,7 +551,6 @@ if __name__ == "__main__":
         # Handle Ctrl+C gracefully
         import sys
 
-        logger = logging.getLogger(__name__)  # pylint: disable=reimported
         logger.info("Command interrupted by user")
         sys.exit(1)
     except SystemExit:  # pylint: disable=try-except-raise
