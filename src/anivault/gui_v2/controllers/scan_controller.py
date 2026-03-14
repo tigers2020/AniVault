@@ -14,6 +14,7 @@ from anivault.gui_v2.app_context import AppContext
 from anivault.gui_v2.controllers.base_controller import BaseController
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.shared.constants.file_formats import SubtitleFormats, VideoFormats
+from anivault.shared.constants.gui_constants import ScanQueueMessageKind
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +109,9 @@ class ScanController(BaseController):
             except Empty:
                 break
             kind, payload = msg
-            if kind == "started":
+            if kind == ScanQueueMessageKind.STARTED:
                 continue  # process ready, wait for progress/result
-            elif kind == "progress":
+            elif kind == ScanQueueMessageKind.PROGRESS:
                 self.operation_progress.emit(
                     OperationProgress(
                         current=payload["current"],
@@ -119,17 +120,17 @@ class ScanController(BaseController):
                         message=payload.get("message"),
                     )
                 )
-            elif kind == "result":
+            elif kind == ScanQueueMessageKind.RESULT:
                 self._stop_scan_process()
                 self.operation_finished.emit(payload)
                 return
-            elif kind == "error":
+            elif kind == ScanQueueMessageKind.ERROR:
                 self._stop_scan_process()
                 self.operation_error.emit(
                     OperationError(code="SCAN_FAILED", message="스캔 중 오류가 발생했습니다.", detail=payload)
                 )
                 return
-            elif kind == "done":
+            elif kind == ScanQueueMessageKind.DONE:
                 self._stop_scan_process()
                 return
 

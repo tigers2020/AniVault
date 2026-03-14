@@ -73,6 +73,16 @@ class SettingKeys:
     ORGANIZE_PATH_TEMPLATE = "organize_path_template"
 
 
+class ScanQueueMessageKind:
+    """Message kinds for scan queue (producer: scan_use_case, consumer: scan_controller)."""
+
+    STARTED = "started"
+    PROGRESS = "progress"
+    RESULT = "result"
+    ERROR = "error"
+    DONE = "done"
+
+
 class AutoScanConstants:
     """Constants for auto scan settings."""
 

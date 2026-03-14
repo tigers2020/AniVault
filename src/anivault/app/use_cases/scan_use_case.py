@@ -13,6 +13,7 @@ from pathlib import Path
 from anivault.core.pipeline import run_pipeline
 from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.core import ProcessingConfig
+from anivault.shared.constants.gui_constants import ScanQueueMessageKind
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.models.metadata import FileMetadata
 
@@ -24,25 +25,25 @@ def run_scan_in_process(
 ) -> None:
     """Run scan in a subprocess and put progress/result into queue (picklable entry point).
 
-    Sends: ("started", None), ("progress", {...}), ("result", list), ("error", str), ("done", None).
+    Sends: (ScanQueueMessageKind.STARTED, None), (PROGRESS, {...}), (RESULT, list), (ERROR, str), (DONE, None).
     """
     import traceback
 
     try:
-        queue.put(("started", None))
+        queue.put((ScanQueueMessageKind.STARTED, None))
     except Exception:  # noqa: S110  # queue may be broken in child
         pass
     try:
         use_case = ScanUseCase()
         def progress_cb(n: int) -> None:
-            queue.put(("progress", {"current": n, "total": 0, "message": f"스캔 중... {n}개 파일"}))
+            queue.put((ScanQueueMessageKind.PROGRESS, {"current": n, "total": 0, "message": f"스캔 중... {n}개 파일"}))
         results = use_case.execute(root_path, extensions=extensions, progress_callback=progress_cb)
-        queue.put(("result", results))
+        queue.put((ScanQueueMessageKind.RESULT, results))
     except Exception:
-        queue.put(("error", traceback.format_exc()))
+        queue.put((ScanQueueMessageKind.ERROR, traceback.format_exc()))
     finally:
         try:
-            queue.put(("done", None))
+            queue.put((ScanQueueMessageKind.DONE, None))
         except Exception:  # noqa: S110
             pass
 
