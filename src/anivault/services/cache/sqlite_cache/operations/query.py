@@ -12,7 +12,7 @@ from typing import Any, Literal, cast
 
 from anivault.services.cache.sqlite_cache.operations.base import BaseOperation
 from anivault.services.cache_models import CacheEntry
-from anivault.shared.constants import Cache
+from anivault.shared.constants import BaseCacheConfig, Cache
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +86,9 @@ def _build_cache_entry_from_row(  # pylint: disable=too-many-arguments,too-many-
         CacheEntry instance or None if construction fails
     """
     try:
-        # Validate cache_type - support "parser" type for backward compatibility
-        # CacheEntry model only accepts "search" or "details", but we need to handle "parser"
-        # For "parser" type, we'll skip CacheEntry construction and return None
-        # This allows the query to continue but treats parser cache as miss
-        if cache_type not in ("search", "details"):
+        # Validate cache_type - support parser type for backward compatibility
+        # CacheEntry model only accepts search or details; parser is treated as miss
+        if cache_type not in (BaseCacheConfig.TYPE_SEARCH, BaseCacheConfig.TYPE_DETAILS):
             logger.debug("Cache type '%s' not supported for CacheEntry, treating as cache miss", cache_type)
             return None
         cache_type_literal: Literal["search", "details"] = cast('Literal["search", "details"]', cache_type)
