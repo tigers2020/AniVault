@@ -1,22 +1,29 @@
 """
-구조적 로깅 시스템 for AniVault.
+Unified logging for AniVault.
 
-이 모듈은 에러 발생 시 컨텍스트 정보를 포함하여 구조화된 로그를 기록하는
-헬퍼 함수들을 제공합니다.
+- Single bootstrap: call configure_logging() once from CLI/GUI/build entry points.
+- Console: Rich handler (default) or JSON when use_json_console=True.
+- File: JSON (StructuredFormatter) or plain (LogConfig.DEFAULT_FORMAT); use same
+  use_json_file value everywhere so file format is consistent.
+- Formatters: StructuredFormatter (JSON) and logging.Formatter(LogConfig.*) only.
+  Do not add alternate formatters; keep format constants in shared.constants.logging.LogConfig.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import logging.config
+import logging.handlers
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.theme import Theme
 
+from anivault.shared.constants.logging import LogConfig
 from anivault.shared.errors import AniVaultError, ErrorContext, ErrorContextModel
 
 
@@ -99,7 +106,11 @@ def setup_structured_logger(
     use_rich_console: bool = True,
 ) -> logging.Logger:
     """
-    구조화된 로깅을 위한 로거를 설정합니다.
+    Configure a named logger (deprecated). Use configure_logging() from entry points instead.
+
+    This configures a single logger with propagate=False, so it does not integrate
+    with the root logger used by the rest of the app. New code should rely on
+    configure_logging() and logging.getLogger(__name__).
 
     Args:
         name: 로거 이름 (기본값: "anivault")
@@ -155,6 +166,103 @@ def setup_structured_logger(
     logger.propagate = False
 
     return logger
+
+
+def configure_logging(  # pylint: disable=too-many-arguments,too-many-locals
+    level: str | int = "INFO",
+    log_file: str | None = None,
+    log_dir: str | Path | None = None,
+    *,
+    use_rich: bool = True,
+    use_json_console: bool = False,
+    enable_file: bool = True,
+    enable_console: bool = True,
+    max_bytes: int | None = None,
+    backup_count: int | None = None,
+    use_json_file: bool = True,
+) -> logging.Logger:
+    """
+    Single bootstrap for application logging. Call once from CLI/GUI entry points.
+
+    Configures the root logger so that all loggers (e.g. getLogger(__name__))
+    inherit the same handlers and level. Uses constants from LogConfig.
+
+    Args:
+        level: Log level (string name or logging constant).
+        log_file: Log file name (e.g. "anivault.log"). Used with log_dir.
+        log_dir: Directory for log files. Defaults to LogConfig.DEFAULT_LOG_DIR.
+        use_rich: Use Rich console handler when enable_console is True.
+        use_json_console: If True, console output is JSON (StructuredFormatter).
+        enable_file: Attach a file handler (rotating).
+        enable_console: Attach a console handler.
+        max_bytes: Max bytes per log file before rotation. Defaults to LogConfig.MAX_BYTES.
+        backup_count: Number of backup files. Defaults to LogConfig.BACKUP_COUNT.
+        use_json_file: Use JSON format for file output.
+
+    Returns:
+        Configured root logger.
+    """
+    log_level = (
+        getattr(logging, str(level).upper(), logging.INFO)
+        if isinstance(level, str)
+        else level
+    )
+    max_bytes = max_bytes if max_bytes is not None else LogConfig.MAX_BYTES
+    backup_count = backup_count if backup_count is not None else LogConfig.BACKUP_COUNT
+    log_dir_path = Path(log_dir) if log_dir is not None else Path(LogConfig.DEFAULT_LOG_DIR)
+    log_filename = log_file or LogConfig.DEFAULT_FILE
+
+    root = logging.getLogger()
+    root.setLevel(log_level)
+    root.handlers.clear()
+
+    if enable_console:
+        if use_json_console:
+            formatter = StructuredFormatter()
+            handler: logging.Handler = logging.StreamHandler(sys.stdout)
+            handler.setFormatter(formatter)
+        elif use_rich:
+            console = _create_rich_console()
+            handler = RichHandler(
+                console=console,
+                show_time=True,
+                show_level=True,
+                show_path=True,
+                markup=True,
+                rich_tracebacks=True,
+                tracebacks_show_locals=False,
+                log_time_format="[%H:%M:%S]",
+            )
+        else:
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setFormatter(
+                logging.Formatter(
+                    LogConfig.DEFAULT_FORMAT,
+                    datefmt=LogConfig.DEFAULT_DATE_FORMAT,
+                )
+            )
+        handler.setLevel(log_level)
+        root.addHandler(handler)
+
+    if enable_file:
+        log_dir_path.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir_path / log_filename
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_path,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding=LogConfig.DEFAULT_ENCODING,
+        )
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(
+            StructuredFormatter() if use_json_file else logging.Formatter(LogConfig.DEFAULT_FORMAT, datefmt=LogConfig.DEFAULT_DATE_FORMAT)
+        )
+        root.addHandler(file_handler)
+
+    # So get_default_logger() and log_* convenience functions use configured root
+    global _default_logger  # pylint: disable=global-statement
+    _default_logger = root
+    return root
 
 
 def log_operation_error(
@@ -420,24 +528,34 @@ def log_file_operation(  # pylint: disable=too-many-arguments,too-many-positiona
         )
 
 
-# 전역 로거 인스턴스 (기본 설정)
-_default_logger = setup_structured_logger()
+# Lazy default logger: no side effect at import. Use configure_logging() from entry points first.
+_default_logger: logging.Logger | None = None
 
 
 def get_default_logger() -> logging.Logger:
     """
-    기본 설정된 로거 인스턴스를 반환합니다.
+    Return the default logger. Prefer configure_logging() from CLI/GUI before using.
 
-    Returns:
-        기본 로거 인스턴스
+    If configure_logging() was not called, returns the root logger so that
+    output is still visible when handlers are attached by entry points.
     """
+    global _default_logger  # pylint: disable=global-statement
+    if _default_logger is None:
+        _default_logger = logging.getLogger("anivault")
     return _default_logger
 
 
-# 편의 함수들 (기본 로거 사용)
+def _default_logger_or_root() -> logging.Logger:
+    """Return default logger for convenience functions; use root if not set."""
+    if _default_logger is not None:
+        return _default_logger
+    return logging.getLogger()
+
+
+# Convenience functions (use default or root logger)
 def log_error(error: AniVaultError, operation: str | None = None) -> None:
-    """기본 로거를 사용하여 에러를 기록합니다."""
-    log_operation_error(_default_logger, error, operation)
+    """Log error using default or root logger."""
+    log_operation_error(_default_logger_or_root(), error, operation)
 
 
 def log_success(
@@ -445,10 +563,10 @@ def log_success(
     duration_ms: float,
     result_info: dict[str, Any] | None = None,
 ) -> None:
-    """기본 로거를 사용하여 성공 로그를 기록합니다."""
-    log_operation_success(_default_logger, operation, duration_ms, result_info)
+    """Log success using default or root logger."""
+    log_operation_success(_default_logger_or_root(), operation, duration_ms, result_info)
 
 
 def log_start(operation: str, context: dict[str, Any] | None = None) -> None:
-    """기본 로거를 사용하여 시작 로그를 기록합니다."""
-    log_operation_start(_default_logger, operation, context)
+    """Log operation start using default or root logger."""
+    log_operation_start(_default_logger_or_root(), operation, context)

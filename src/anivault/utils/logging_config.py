@@ -1,15 +1,13 @@
 """
 Logging Configuration Module
 
-This module provides centralized logging configuration for the AniVault application.
-It sets up both console and file logging with rotation support, ensuring consistent
-logging across all modules.
+Delegates to anivault.shared.logging.configure_logging for actual setup.
+Prefer using shared.logging.configure_logging from CLI/GUI entry points.
 """
 
 from __future__ import annotations
 
 import logging
-import logging.handlers
 import os
 import platform
 import sys
@@ -17,14 +15,15 @@ import types
 from pathlib import Path
 from typing import ClassVar
 
-# Default logging configuration
-DEFAULT_LOG_LEVEL = logging.INFO
-DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+from anivault.shared.constants.logging import LogConfig
+from anivault.shared.logging import configure_logging as _configure_logging
 
-# File rotation settings
-DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
-DEFAULT_BACKUP_COUNT = 5
+# Re-export for callers that resolve log dir from project root (use LogConfig as single source)
+DEFAULT_LOG_LEVEL = logging.INFO
+DEFAULT_LOG_FORMAT = LogConfig.DEFAULT_FORMAT
+DEFAULT_DATE_FORMAT = LogConfig.DEFAULT_DATE_FORMAT
+DEFAULT_MAX_BYTES = LogConfig.MAX_BYTES
+DEFAULT_BACKUP_COUNT = LogConfig.BACKUP_COUNT
 
 
 class AniVaultFormatter(logging.Formatter):
@@ -63,7 +62,7 @@ class AniVaultFormatter(logging.Formatter):
 
         super().__init__(format_str, DEFAULT_DATE_FORMAT)
 
-    def format_record(self, record: logging.LogRecord) -> str:
+    def format(self, record: logging.LogRecord) -> str:
         """
         Format the log record.
 
@@ -80,6 +79,10 @@ class AniVaultFormatter(logging.Formatter):
 
         return super().format(record)
 
+    def format_record(self, record: logging.LogRecord) -> str:
+        """Alias for format(); kept for backward compatibility."""
+        return self.format(record)
+
 
 def setup_logging(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     log_level: int = DEFAULT_LOG_LEVEL,
@@ -91,10 +94,12 @@ def setup_logging(  # pylint: disable=too-many-arguments,too-many-positional-arg
     max_bytes: int = DEFAULT_MAX_BYTES,
     backup_count: int = DEFAULT_BACKUP_COUNT,
     use_colors: bool = True,
-    detailed_console: bool = False,
+    detailed_console: bool = False,  # deprecated; kept for API compatibility (unused)
 ) -> logging.Logger:
     """
-    Set up logging configuration for the AniVault application.
+    Set up logging via shared.logging.configure_logging.
+
+    Prefer calling anivault.shared.logging.configure_logging from entry points.
 
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -104,64 +109,28 @@ def setup_logging(  # pylint: disable=too-many-arguments,too-many-positional-arg
         file_output: Whether to output logs to file
         max_bytes: Maximum size of log file before rotation
         backup_count: Number of backup files to keep
-        use_colors: Whether to use colors in console output
-        detailed_console: Whether to include detailed info in console output
+        use_colors: Whether to use Rich (colored) console output
+        detailed_console: Deprecated; kept for API compatibility (unused).
 
     Returns:
         Configured root logger
     """
-    # Get root logger
-    logger = logging.getLogger()
-    logger.setLevel(log_level)
-
-    # Clear any existing handlers
-    logger.handlers.clear()
-
-    # Console handler
-    if console_output:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(log_level)
-        console_formatter = AniVaultFormatter(
-            use_colors=use_colors,
-            detailed=detailed_console,
-        )
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
-
-    # File handler with rotation
-    if file_output:
-        # Set up log directory
-        if log_dir is None:
-            # Default to 'logs' directory in project root
-            project_root = Path(__file__).parent.parent.parent.parent
-            log_dir = project_root / "logs"
-
-        log_dir.mkdir(parents=True, exist_ok=True)
-
-        # Set up log file
-        if log_file is None:
-            log_file = "anivault.log"
-
-        log_path = log_dir / log_file
-
-        # Create rotating file handler
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_path,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding="utf-8",
-        )
-        file_handler.setLevel(log_level)
-
-        # File formatter (always detailed, no colors)
-        file_formatter = AniVaultFormatter(
-            use_colors=False,
-            detailed=True,
-        )
-        file_handler.setFormatter(file_formatter)
-        logger.addHandler(file_handler)
-
-    return logger
+    _ = detailed_console  # deprecated; kept for API compatibility
+    if log_dir is None:
+        project_root = Path(__file__).parent.parent.parent.parent
+        log_dir = project_root / LogConfig.DEFAULT_LOG_DIR
+    return _configure_logging(
+        level=log_level,
+        log_file=log_file or LogConfig.DEFAULT_FILE,
+        log_dir=log_dir,
+        use_rich=use_colors,
+        use_json_console=False,
+        enable_file=file_output,
+        enable_console=console_output,
+        max_bytes=max_bytes,
+        backup_count=backup_count,
+        use_json_file=True,
+    )
 
 
 def get_logger(name: str) -> logging.Logger:

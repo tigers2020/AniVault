@@ -1,16 +1,13 @@
-"""Logging and error handling constants."""
+"""Logging and error handling constants.
 
+Logging constants are defined in shared.constants.logging (LogConfig).
+This module re-exports Logging for backward compatibility.
+"""
 
-class Logging:
-    """Logging configuration constants."""
+from anivault.shared.constants.logging import LogConfig
 
-    MAX_BYTES = 10485760  # 10MB
-    BACKUP_COUNT = 5
-    MIN_FILE_SIZE_MB = 50
-    DEFAULT_FILE_PATH = "logs/anivault.log"
-    DEFAULT_PROFILING_FILE_PATH = "logs/profiling.prof"
-    FILE_EXTENSION = ".log"
-    ORGANIZE_LOG_PREFIX = "organize"
+# Backward compatibility: code importing Logging from .system uses LogConfig
+Logging = LogConfig
 
 
 class ErrorHandling:

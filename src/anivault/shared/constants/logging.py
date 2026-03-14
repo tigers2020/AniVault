@@ -1,14 +1,14 @@
 """
 Logging Configuration Constants
 
-This module contains all constants related to logging configuration,
-log levels, and log formatting.
+Single source of truth for logging configuration, log levels, and formatting.
+All logging-related constants used by shared/logging, utils/logging_config,
+and config should be defined here.
 """
 
 import logging
 
 from .system import BASE_FILE_SIZE
-from .system import Logging as SystemLogging
 
 
 class LogLevels:
@@ -25,17 +25,31 @@ class LogLevels:
     DEFAULT = INFO
 
 
-class LogConfig:
-    """Log configuration constants."""
+# 10 MB for file rotation (single source of truth)
+_DEFAULT_MAX_BYTES = 10 * 1024 * 1024
 
-    # Default settings
+
+class LogConfig:
+    """Log configuration constants (single source of truth for bootstrap)."""
+
+    # Default format and file (single source of truth for all logging formatters)
     DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     DEFAULT_FILE = "anivault.log"
     DEFAULT_ENCODING = "utf-8"
 
-    # File configuration (inherited from system)
-    MAX_SIZE = SystemLogging.MAX_BYTES  # 10MB
-    BACKUP_COUNT = SystemLogging.BACKUP_COUNT  # 5
+    # File rotation (used by configure_logging and RotatingFileHandler)
+    MAX_BYTES = _DEFAULT_MAX_BYTES
+    MAX_SIZE = _DEFAULT_MAX_BYTES
+    BACKUP_COUNT = 5
+
+    # Paths (used by config, CLI, GUI)
+    DEFAULT_LOG_DIR = "logs"
+    DEFAULT_FILE_PATH = "logs/anivault.log"
+    DEFAULT_PROFILING_FILE_PATH = "logs/profiling.prof"
+    MIN_FILE_SIZE_MB = 50
+    FILE_EXTENSION = ".log"
+    ORGANIZE_LOG_PREFIX = "organize"
 
     # Output configuration
     DEFAULT_CONSOLE_OUTPUT = True
