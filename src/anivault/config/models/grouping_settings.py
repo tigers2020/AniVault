@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from anivault.shared.constants import SubtitleMatchingStrategy
+
 
 class GroupingSettings(BaseModel):
     """Configuration for file grouping operations.
@@ -69,7 +71,7 @@ class GroupingSettings(BaseModel):
     )
 
     subtitle_matching_strategy: Literal["indexed", "fallback", "legacy"] = Field(
-        default="indexed",
+        default=SubtitleMatchingStrategy.INDEXED,
         description=(
             "Subtitle matching strategy: "
             "'indexed' uses index for O(f+s) performance (default), "

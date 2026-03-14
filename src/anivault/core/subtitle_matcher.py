@@ -13,6 +13,7 @@ from typing import Any
 
 from anivault.config import load_settings
 from anivault.core.models import ScannedFile
+from anivault.shared.constants import SubtitleMatchingStrategy
 from anivault.core.subtitle_hash import HASH_CHUNK_SIZE, calculate_file_hash
 from anivault.core.subtitle_index import SubtitleIndex, SubtitleIndexCache
 from anivault.shared.errors import (
@@ -67,7 +68,7 @@ class SubtitleMatcher:
         """Get subtitle matching strategy from configuration.
 
         Returns:
-            Strategy name: "indexed", "fallback", or "legacy"
+            Strategy name: SubtitleMatchingStrategy.INDEXED/FALLBACK/LEGACY
         """
         try:
             settings = load_settings()
@@ -79,8 +80,8 @@ class SubtitleMatcher:
                 e,
             )
 
-        # Default to "indexed" for optimal performance
-        return "indexed"
+        # Default to indexed for optimal performance
+        return SubtitleMatchingStrategy.INDEXED
 
     def find_matching_subtitles(
         self,
@@ -90,9 +91,9 @@ class SubtitleMatcher:
         """Find subtitle files that match a video file.
 
         Uses strategy-based matching:
-        - "indexed": Uses pre-built index for O(f+s) performance (default)
-        - "fallback": Uses index but falls back to full scan if lookup fails
-        - "legacy": Uses full directory scan for backward compatibility
+        - INDEXED: Uses pre-built index for O(f+s) performance (default)
+        - FALLBACK: Uses index but falls back to full scan if lookup fails
+        - LEGACY: Uses full directory scan for backward compatibility
 
         Args:
             video_file: The video file to find subtitles for
@@ -146,9 +147,9 @@ class SubtitleMatcher:
         strategy: str,
     ) -> list[Path]:
         """Dispatch to strategy-specific matching and return matched paths."""
-        if strategy == "legacy":
+        if strategy == SubtitleMatchingStrategy.LEGACY:
             return self._match_legacy(video_file, directory)
-        if strategy in ("indexed", "fallback"):
+        if strategy in (SubtitleMatchingStrategy.INDEXED, SubtitleMatchingStrategy.FALLBACK):
             return self._match_indexed_or_fallback(video_file, directory, strategy)
         return []
 
@@ -171,7 +172,7 @@ class SubtitleMatcher:
         subtitle_files = [f for f in directory.iterdir() if self._is_subtitle_file(f)]
         subtitle_index = self._index_cache.get_or_build(directory, subtitle_files)
         matching = self._match_via_index(video_file, subtitle_index)
-        if strategy == "fallback" and not matching:
+        if strategy == SubtitleMatchingStrategy.FALLBACK and not matching:
             logger.debug(
                 "No matches found in index, falling back to full scan for %s",
                 video_file.file_path.name,

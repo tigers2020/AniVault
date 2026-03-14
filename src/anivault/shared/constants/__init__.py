@@ -44,6 +44,7 @@ from .cli import (
 from .cli import LogConfig as CLILogConfig
 from .core import BusinessRules, NormalizationConfig, ProcessingConfig
 from .error_keys import ErrorCategoryValues, ErrorContextKeys, StatusValues
+from .grouping import SubtitleMatchingStrategy
 from .file_formats import (
     ExclusionPatterns,
     FileLimits,
@@ -155,6 +156,7 @@ __all__ = [
     "FileSystem",
     "FolderDefaults",
     "GenreConfig",
+    "SubtitleMatchingStrategy",
     "HTTPHeaders",
     "HTTPStatusCodes",
     "JsonKeys",
