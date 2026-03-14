@@ -1,7 +1,8 @@
 """Infrastructure layer (Phase 5).
 
-External system adapters: TMDB API, cache, rate limiting.
-Re-exports from services for backward compatibility during gradual migration.
+DEPRECATED: No code in the codebase imports this package. Use
+``anivault.services`` directly (e.g. ``from anivault.services import SQLiteCacheDB, TMDBClient``).
+This package may be removed in a future release.
 """
 
 from anivault.services import (

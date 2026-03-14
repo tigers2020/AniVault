@@ -1,8 +1,8 @@
 """SQLite cache module with modular operations.
 
-This module provides a refactored SQLite cache implementation with
-separated concerns for query, insert, update, migration, and transaction
-operations.
+NOTE: The public cache API is ``from anivault.services.cache import SQLiteCacheDB``,
+which resolves to ``sqlite_cache_db.SQLiteCacheDB``. The ``sqlite_cache.cache_db``
+implementation is currently unused and deprecated; see cache_db.py docstring.
 """
 
 from anivault.services.cache.sqlite_cache.cache_db import SQLiteCacheDB

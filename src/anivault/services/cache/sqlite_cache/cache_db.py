@@ -1,7 +1,10 @@
-"""SQLite cache database facade.
+"""SQLite cache database facade (alternate implementation).
 
-This module provides a refactored SQLite cache implementation using
-modular operations for better maintainability and testability.
+DEPRECATED / UNUSED: The application uses ``anivault.services.cache.sqlite_cache_db.SQLiteCacheDB``
+(via ``from anivault.services.cache import SQLiteCacheDB``). This module is an alternative
+implementation with BackupManager and modular operations but is not referenced anywhere.
+Do not import from this module; use ``anivault.services.cache`` instead. This file may be
+removed or promoted to the single implementation in a future release.
 """
 
 from __future__ import annotations
