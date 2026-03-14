@@ -29,13 +29,13 @@ class MatchEventHandler(BaseEventHandler):
 
     def on_match_started(self) -> None:
         """Handle match start."""
+        self._window._reset_progress_ui_throttle()
         self._window.status_bar.set_status("TMDB 매칭 시작...", "ok")
         self._window.loading_overlay.show_loading("TMDB 매칭 중...")
 
     def on_match_progress(self, progress: OperationProgress) -> None:
-        """Handle match progress updates."""
-        message = progress.message or f"{progress.current}/{progress.total}"
-        self._window.status_bar.set_status(message, "ok")
+        """Handle match progress updates (throttled in MainWindow)."""
+        self._window._maybe_update_progress_ui(progress)
 
     def on_match_finished(self, results: list) -> None:
         """Handle match completion."""

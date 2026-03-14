@@ -20,7 +20,7 @@ from .tmdb_strategies import (
     SearchStrategy,
     TvSearchStrategy,
 )
-from .tmdb_utils import generate_shortened_titles
+from .tmdb_utils import generate_shortened_titles, generate_title_prefixes
 
 __all__ = [
     "MovieSearchStrategy",
@@ -35,4 +35,5 @@ __all__ = [
     "TMDBSearchResult",
     "TvSearchStrategy",
     "generate_shortened_titles",
+    "generate_title_prefixes",
 ]

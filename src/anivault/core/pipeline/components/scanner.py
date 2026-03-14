@@ -574,6 +574,7 @@ class DirectoryScanner(threading.Thread):
             directories_count: Number of directories processed.
         """
         self._stats_updater.update_files_and_directories(files_count, directories_count)
+        self._report_progress(files_scanned=self.stats.files_scanned)
 
     def stop(self) -> None:
         """Signal the scanner thread to stop."""
@@ -663,6 +664,10 @@ class DirectoryScanner(threading.Thread):
             try:
                 self.input_queue.put(file_path)
                 self.stats.increment_files_scanned()
+                # Throttle progress callback to every 20 files, or on first file
+                n = self.stats.files_scanned
+                if n == 1 or n % 20 == 0:
+                    self._report_progress(files_scanned=n)
             except OSError as e:
                 # Queue operation errors
                 context = ErrorContextModel(
@@ -692,6 +697,9 @@ class DirectoryScanner(threading.Thread):
                 )
                 logger.exception("Error putting file into queue: %s: %s", file_path, error.message)
                 continue
+
+        # Final progress report for sequential scan
+        self._report_progress(files_scanned=self.stats.files_scanned)
 
     def _run_sequential_subdir_scan(self, subdirectories: list[Path]) -> None:
         """Scan subdirectories one by one (below parallel threshold)."""

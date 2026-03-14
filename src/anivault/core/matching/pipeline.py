@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dc_replace
 from pathlib import Path
 
 from anivault.core.matching.engine import MatchingEngine
@@ -124,8 +124,13 @@ async def process_file_for_matching(
     engine: MatchingEngine,
     parser: AnitopyParser,
     options: MatchOptions | None = None,
+    search_title: str | None = None,
 ) -> MatchResultBundle:
-    """Process a single file through parsing and matching."""
+    """Process a single file through parsing and matching.
+
+    When search_title is provided (e.g. series title without episode), TMDB search
+    uses it so one search per series can be shared across episodes.
+    """
     options = options or MatchOptions()
     parsing_result = parser.parse(str(file_path.name))
     if not parsing_result:
@@ -142,6 +147,8 @@ async def process_file_for_matching(
         fallback_title=str(file_path.name),
     )
     parsing_dict = parsing_result_to_dict(normalized)
+    if search_title is not None:
+        parsing_dict = dc_replace(parsing_dict, anime_title=search_title)
     match_result = await engine.find_match(parsing_dict)
 
     # Convert MatchResult to TMDBMatchResult and store in ParsingResult for organize

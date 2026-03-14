@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import logging
 import re
+import subprocess
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NoReturn
 
 from anivault.core.constants import ParsingConfidence
+from anivault.shared.constants.file_formats import VideoFormats
 from anivault.core.models import ScannedFile
 from anivault.shared.errors import (
     AniVaultError,
@@ -180,20 +183,95 @@ class ResolutionDetector:
             return "480p"
         return "SD"
 
-    def _detect_from_file_properties(
-        self,
-        _file_path: Path,
-    ) -> ResolutionInfo:
-        """Detect resolution from file properties (placeholder for future implementation).
+    def _detect_from_file_properties(self, file_path: Path) -> ResolutionInfo:
+        """Detect resolution by probing the video file with ffprobe.
+
+        Reads the first video stream width/height and classifies to a standard
+        resolution string (e.g. 1080p, 720p). Requires ffprobe (ffmpeg) on PATH.
+        On failure (missing ffprobe, timeout, or parse error), returns unknown
+        resolution without raising.
 
         Args:
             file_path: Path to the video file
 
         Returns:
-            ResolutionInfo with detected resolution data
+            ResolutionInfo with width, height, quality when probe succeeds;
+            otherwise ResolutionInfo with confidence=0.0
         """
-        # For now, return unknown resolution
-        return ResolutionInfo(confidence=0.0)
+        video_extensions = {ext.lower() for ext in VideoFormats.ALL_EXTENSIONS}
+        if not file_path.is_file() or file_path.suffix.lower() not in video_extensions:
+            return ResolutionInfo(confidence=0.0)
+
+        try:
+            width, height = self._probe_video_dimensions(file_path)
+        except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+            logger.debug(
+                "Could not probe resolution for %s: %s",
+                file_path.name,
+                e,
+            )
+            return ResolutionInfo(confidence=0.0)
+
+        if width is None or height is None or width <= 0 or height <= 0:
+            return ResolutionInfo(confidence=0.0)
+
+        quality = self._classify_resolution(width, height)
+        return ResolutionInfo(
+            width=width,
+            height=height,
+            quality=quality,
+            confidence=0.8,
+        )
+
+    def _probe_video_dimensions(self, file_path: Path) -> tuple[int, int]:
+        """Run ffprobe to get first video stream width and height.
+
+        Returns:
+            (width, height) in pixels.
+
+        Raises:
+            FileNotFoundError: ffprobe not found on PATH.
+            subprocess.TimeoutExpired: Probe took longer than timeout.
+            ValueError: Output could not be parsed.
+            OSError: Other subprocess/IO errors.
+        """
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+            str(file_path.resolve()),
+        ]
+        kwargs: dict = {
+            "capture_output": True,
+            "timeout": 10,
+            "text": True,
+            "check": False,
+        }
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+
+        result = subprocess.run(cmd, **kwargs)
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            raise ValueError(f"ffprobe exited {result.returncode}: {stderr}")
+
+        line = (result.stdout or "").strip()
+        if not line:
+            raise ValueError("ffprobe produced no output")
+
+        parts = line.split(",")
+        if len(parts) != 2:
+            raise ValueError(f"Expected width,height; got: {line!r}")
+
+        width = int(parts[0].strip())
+        height = int(parts[1].strip())
+        return (width, height)
 
     def group_by_resolution(
         self,

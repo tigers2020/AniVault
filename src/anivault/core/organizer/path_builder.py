@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from anivault.core.models import ScannedFile
+from anivault.core.resolution_detector import ResolutionDetector
 from anivault.shared.constants.path_constants import PathConstants
 from anivault.shared.models.metadata import TMDBMatchResult
 
@@ -358,6 +359,17 @@ class PathBuilder:
                 resolution,
             )
             return resolution
+
+        # Fallback: probe video file with ffprobe (if available)
+        resolution_info = ResolutionDetector().detect_resolution(scanned_file.file_path)
+        if resolution_info.quality:
+            normalized = resolution_info.quality.upper()
+            self.logger.debug(
+                "Extracted resolution from file probe: %s = %s",
+                filename[:50] + "..." if len(filename) > 50 else filename,
+                normalized,
+            )
+            return normalized
 
         return None
 

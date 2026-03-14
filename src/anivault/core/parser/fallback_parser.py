@@ -53,6 +53,8 @@ class FallbackParser:
         re.compile(r"^(?P<title>.+?)_(?P<episode>\d+)", re.IGNORECASE),
         # Pattern 6: Title.##
         re.compile(r"^(?P<title>.+?)\.(?P<episode>\d+)", re.IGNORECASE),
+        # Pattern 7: Title 123 or Title 123.ext (trailing space + episode + optional ext)
+        re.compile(r"^(?P<title>.+)\s+(?P<episode>\d+)(?:\.\w+)?$", re.IGNORECASE),
     ]
 
     # Secondary patterns for metadata extraction

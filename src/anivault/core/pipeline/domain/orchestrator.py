@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from anivault.core.pipeline.components import (
     CacheV1,
     DirectoryScanner,
@@ -74,6 +76,7 @@ class PipelineFactory:
         num_workers: int,
         max_queue_size: int,
         _cache_path: str | None = None,
+        progress_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> tuple[
         ScanStatistics,
         QueueStatistics,
@@ -138,6 +141,7 @@ class PipelineFactory:
                 input_queue=file_queue,
                 extensions=extensions,
                 stats=scan_stats,
+                progress_callback=progress_callback,
             )
 
             parser_pool = ParserWorkerPool(
@@ -203,6 +207,7 @@ def run_pipeline(
     num_workers: int = ProcessingConfig.MAX_PROCESSING_WORKERS,
     max_queue_size: int = ProcessingConfig.DEFAULT_QUEUE_SIZE,
     cache_path: str | None = None,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[FileMetadata]:
     """Run the complete file processing pipeline.
 
@@ -217,6 +222,8 @@ def run_pipeline(
         num_workers: Number of parser worker threads.
         max_queue_size: Maximum size for bounded queues.
         cache_path: Optional path to cache file for storing scan results.
+        progress_callback: Optional callback for scan progress; receives dict with
+            e.g. "files_scanned" key. Called from scanner thread.
 
     Returns:
         List of FileMetadata instances.
@@ -247,7 +254,9 @@ def run_pipeline(
     collector = None
 
     try:
-        components = _create_pipeline_components(root_path, extensions, num_workers, max_queue_size, cache_path)
+        components = _create_pipeline_components(
+            root_path, extensions, num_workers, max_queue_size, cache_path, progress_callback
+        )
         scanner = components.scanner
         parser_pool = components.parser_pool
         collector = components.collector
@@ -278,6 +287,7 @@ def _create_pipeline_components(
     num_workers: int,
     max_queue_size: int,
     cache_path: str | None,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> PipelineComponents:
     """Create pipeline components with type-safe structure.
 
@@ -287,6 +297,7 @@ def _create_pipeline_components(
         num_workers: Number of parser workers
         max_queue_size: Maximum queue size
         cache_path: Optional cache path
+        progress_callback: Optional callback for scan progress (passed to scanner)
 
     Returns:
         PipelineComponents dataclass with all components
@@ -307,6 +318,7 @@ def _create_pipeline_components(
         num_workers=num_workers,
         max_queue_size=max_queue_size,
         _cache_path=cache_path,
+        progress_callback=progress_callback,
     )
 
     return PipelineComponents(

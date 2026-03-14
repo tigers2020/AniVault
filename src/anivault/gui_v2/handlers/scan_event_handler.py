@@ -50,13 +50,13 @@ class ScanEventHandler(BaseEventHandler):
 
     def on_scan_started(self) -> None:
         """Handle scan start."""
+        self._window._reset_progress_ui_throttle()
         self._window.status_bar.set_status("디렉터리 스캔 시작...", "ok")
         self._window.loading_overlay.show_loading("디렉터리 스캔 중...")
 
     def on_scan_progress(self, progress: OperationProgress) -> None:
-        """Handle scan progress updates."""
-        message = progress.message or f"{progress.current}/{progress.total}"
-        self._window.status_bar.set_status(message, "ok")
+        """Handle scan progress updates (throttled in MainWindow)."""
+        self._window._maybe_update_progress_ui(progress)
 
     def on_scan_finished(self, results: list) -> None:
         """Handle scan completion."""

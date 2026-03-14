@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from anivault.config import Settings, update_and_save_config
 from anivault.config.auto_scanner import AutoScanner
+from anivault.config.settings_provider import get_settings_provider
 from anivault.shared.constants import FolderDefaults
 
 logger = logging.getLogger(__name__)
@@ -346,6 +347,14 @@ class SettingsDialog(QDialog):
 
             # Save folder settings
             self._save_folder_settings()
+
+            # Reload in-memory settings so rest of app (scan/organize/status bar) uses new values
+            self.app_context.settings = get_settings_provider().get_settings(self.config_path)
+
+            # Refresh main window status bar so new source folder is displayed
+            parent = self.parent()
+            if parent is not None and hasattr(parent, "_refresh_status_bar"):
+                parent._refresh_status_bar()
 
             # Show success message
             QMessageBox.information(

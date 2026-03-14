@@ -1,6 +1,21 @@
 """Groups build worker for GUI v2.
 
 Runs FileGrouper and series regrouping off the main thread to prevent UI freeze.
+
+Grouping failure risks (when files that should be one group end up split or in "미분류"):
+- Series key mismatch: _normalize_series_name() and match_worker's series key must strip
+  the same episode/season suffixes (e.g. "30화", "E01", " - 01"). Otherwise same series
+  can get different keys before tmdb_id merge.
+- Path resolution: files_by_path uses resolved paths; if a ScannedFile's path resolves
+  differently (symlinks, casing, network drive), the file can be missing from the group
+  and end up in "미분류".
+- FileGrouper not grouping: if FileGrouper puts a file in no group (e.g. unique title),
+  it will be in "미분류".
+- Parser divergence: scan pipeline and TitleExtractor here both parse filenames; if one
+  uses a different parser or result (anitopy vs fallback), title can differ and affect
+  grouping keys.
+- tmdb_id merge: groups without any tmdb_id are not merged; so failed or skipped match
+  leaves episodes as separate groups unless _normalize_series_name unifies the key.
 """
 
 from __future__ import annotations
@@ -14,8 +29,9 @@ from typing import Callable
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.file_grouper.grouper import TitleExtractor
 from anivault.core.models import ScannedFile
+from anivault.core.resolution_detector import ResolutionDetector
 from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
-from anivault.gui_v2.models import OperationError
+from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
 from anivault.shared.models.metadata import FileMetadata
 
@@ -64,11 +80,17 @@ def _scanned_file_from_metadata(
 
 
 def _normalize_series_name(group_title: str) -> str:
-    """Strip episode/season suffix from group title for series key."""
+    """Strip episode/season suffix from group title so one series = one key.
+
+    Aligns with match_worker series key: '더 파이팅 30화' and '더 파이팅 31화'
+    both become '더 파이팅' so they merge before tmdb_id merge.
+    """
     name = re.sub(r"\s*-\s*\d+.*$", "", group_title)
-    name = re.sub(r"\s*E\d+.*$", "", name, flags=re.IGNORECASE)
-    name = re.sub(r"\s*Episode\s*\d+.*$", "", name, flags=re.IGNORECASE)
-    name = name.strip()
+    name = re.sub(r"\s*[Ee]\d+.*$", "", name)
+    name = re.sub(r"\s*[Ee]pisode\s*\d+.*$", "", name, flags=re.IGNORECASE)
+    name = re.sub(r"\s*\d+\s*(?:화|話)\s*$", "", name)  # "30화", "31話"
+    name = re.sub(r"\s+\d+\s*$", "", name)  # trailing " 30"
+    name = re.sub(r"[-\s]+", " ", name).strip()
     return name if name and len(name) >= 2 else group_title
 
 
@@ -100,7 +122,7 @@ def _confidence_for_files(all_files: list[FileMetadata], matched: bool) -> int:
 
 
 def _resolution_for_files(all_files: list[FileMetadata]) -> str:
-    """Infer resolution from filenames/quality; default 'unknown'."""
+    """Infer resolution from filenames/quality; fallback to file probe when empty."""
     resolutions: set[str] = set()
     for item in all_files:
         name_lower = item.file_path.name.lower()
@@ -110,7 +132,14 @@ def _resolution_for_files(all_files: list[FileMetadata]) -> str:
                 break
         if hasattr(item, "quality") and item.quality:
             resolutions.add(item.quality)
-    return next(iter(resolutions), "unknown") if resolutions else "unknown"
+    if resolutions:
+        return next(iter(resolutions))
+    # Fallback: probe first file with ffprobe (if available)
+    if all_files:
+        resolution_info = ResolutionDetector().detect_resolution(all_files[0].file_path)
+        if resolution_info.quality:
+            return resolution_info.quality
+    return "unknown"
 
 
 def _language_for_files(all_files: list[FileMetadata]) -> str:
@@ -171,8 +200,29 @@ class GroupsBuildWorker(BaseWorker):
             self.finished.emit([])
             return
 
+        total = len(self._files)
+
+        def on_progress(current: int, tot: int) -> None:
+            self.progress.emit(
+                OperationProgress(
+                    current=current,
+                    total=tot,
+                    stage="groups_build",
+                    message=f"그룹 빌드 중... {current}/{tot}",
+                )
+            )
+
+        self.progress.emit(
+            OperationProgress(
+                current=0,
+                total=total,
+                stage="groups_build",
+                message="그룹 빌드 시작",
+            )
+        )
+
         try:
-            groups = _build_groups_from_metadata(self._files)
+            groups = _build_groups_from_metadata(self._files, progress_callback=on_progress)
             logger.info("GroupsBuildWorker: built %d groups from %d files", len(groups), len(self._files))
             self.finished.emit(groups)
         except Exception as exc:
@@ -285,18 +335,29 @@ def _file_groups_to_series_groups(
     return series_groups
 
 
-def _build_groups_from_metadata(files: list[FileMetadata]) -> list[dict]:
+def _build_groups_from_metadata(
+    files: list[FileMetadata],
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> list[dict]:
     """Build group display data from FileMetadata (CPU-heavy, run off main thread)."""
     title_extractor = TitleExtractor()
     file_grouper = FileGrouper()
 
-    scanned_files = [_scanned_file_from_metadata(fm, title_extractor) for fm in files]
+    total = len(files)
+    scanned_files: list[ScannedFile] = []
+    for i, fm in enumerate(files):
+        scanned_files.append(_scanned_file_from_metadata(fm, title_extractor))
+        if progress_callback and (i + 1) % 50 == 0:
+            progress_callback(i + 1, total)
     file_groups = file_grouper.group_files(scanned_files)
 
     files_by_path = {_path_resolved(fm.file_path): fm for fm in files}
     series_groups = _file_groups_to_series_groups(file_groups, files_by_path)
 
     _merge_groups_by_tmdb_id(series_groups)
+
+    if progress_callback and total > 0:
+        progress_callback(total, total)
 
     grouped_resolved = {_path_resolved(fm.file_path) for files_list in series_groups.values() for fm in files_list}
     ungrouped = [fm for fm in files if _path_resolved(fm.file_path) not in grouped_resolved]

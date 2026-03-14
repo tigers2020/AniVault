@@ -80,25 +80,33 @@ class OrganizeEventHandler(BaseEventHandler):
 
     def on_organize_started(self) -> None:
         """Handle organize start."""
+        self._window._reset_progress_ui_throttle()
         self._window.status_bar.set_status("파일 정리 시작...", "ok")
         self._window.loading_overlay.show_loading("파일 정리 중...")
 
     def on_organize_progress(self, progress: OperationProgress) -> None:
-        """Handle organize progress updates."""
-        message = progress.message or f"{progress.current}/{progress.total}"
-        self._window.status_bar.set_status(message, "ok")
+        """Handle organize progress updates (throttled in MainWindow)."""
+        self._window._maybe_update_progress_ui(progress)
 
     def on_organize_finished(self, _results: list) -> None:
         """Handle organize completion."""
         self._window.loading_overlay.hide_loading()
         self._window.status_bar.set_status("정리 완료", "ok")
-        self._window._refresh_statistics(pending_override=0)
-        self._window._refresh_status_bar()
+        self._refresh_list_after_organize()
 
     def on_organize_error(self, error: OperationError) -> None:
         """Handle organize errors."""
         self._window.loading_overlay.hide_loading()
         self._window.status_bar.set_status(error.message, "error")
+
+    def _refresh_list_after_organize(self) -> None:
+        """Clear scan results and refresh groups list after files were moved."""
+        self._window._scan_results = []
+        self._window._subtitle_scan_results = []
+        self._window.groups_view.set_file_metadata([])
+        self._window.detail_panel.hide_panel()
+        self._window._refresh_statistics(pending_override=0)
+        self._window._refresh_status_bar()
 
     def _get_organize_source_files(self) -> list | None:
         """Return current view's file list for organize, or None after setting status."""
@@ -151,8 +159,7 @@ class OrganizeEventHandler(BaseEventHandler):
                 settings=self._window.app_context.settings,
             )
             self._window.status_bar.set_status("정리 완료", "ok")
-            self._window._refresh_statistics(pending_override=0)
-            self._window._refresh_status_bar()
+            self._refresh_list_after_organize()
         except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.exception("Organize execution failed")
             self._window.status_bar.set_status(str(exc) or "정리 실행 실패", "error")

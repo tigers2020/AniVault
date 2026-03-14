@@ -31,29 +31,6 @@ class InsertOperations(BaseOperation):
             cache_type: Type of cache ('search' or 'details')
             ttl_seconds: Time-to-live in seconds (None for default TTL)
         """
-        # #region agent log
-        with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "G",
-                        "location": "insert.py:25",
-                        "message": "InsertOperations.insert entry",
-                        "data": {
-                            "key": key[:64] if len(key) > 64 else key,
-                            "key_length": len(key),
-                            "cache_type": cache_type,
-                            "ttl_seconds": ttl_seconds,
-                        },
-                        "timestamp": __import__("time").time() * 1000,
-                    }
-                )
-                + "\n"
-            )
-        # #endregion
-
         self._validate_connection()
         _, key_hash = self._generate_cache_key_hash(key)
         try:
@@ -65,29 +42,6 @@ class InsertOperations(BaseOperation):
             ttl_seconds = self._get_default_ttl(cache_type)
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
         response_size = len(response_data_json.encode("utf-8"))
-
-        # #region agent log
-        with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "G",
-                        "location": "insert.py:45",
-                        "message": "before SQL execute",
-                        "data": {
-                            "key_hash": key_hash[:16],
-                            "cache_type": cache_type,
-                            "expires_at": expires_at.isoformat(),
-                            "response_size": response_size,
-                        },
-                        "timestamp": __import__("time").time() * 1000,
-                    }
-                )
-                + "\n"
-            )
-        # #endregion
 
         insert_sql = "\n        INSERT OR REPLACE INTO tmdb_cache (\n            cache_key, key_hash, cache_type, response_data,\n            created_at, expires_at, response_size\n        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)\n        "
         try:

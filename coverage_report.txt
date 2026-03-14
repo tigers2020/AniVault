@@ -1,0 +1,276 @@
+﻿[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33ms[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [  6%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 13%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 19%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 26%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 33%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 39%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 46%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 53%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 59%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 66%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 73%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 79%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 86%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 93%]
+[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[32m.[0m[33m [ 99%]
+[0m[32m.[0m[32m.[0m[31m[1m
+ERROR: Coverage failure: total of 94.56 is less than fail-under=95.00
+[0m[33m                                                                         [100%][0m
+[33m============================== warnings summary ===============================[0m
+tests/core/pipeline/test_orchestrator.py::test_execute_pipeline_calls_lifecycle_functions
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:1130: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D995422F0>
+    def _try_iter(obj):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/core/pipeline/test_orchestrator.py::test_execute_pipeline_calls_lifecycle_functions
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:1130: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D995433D0>
+    def _try_iter(obj):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/core/test_exception_handling_integration.py::TestFileIOExceptionHandling::test_file_not_found_raises_anivault_file_error
+  C:\Users\hyper\miniconda3\Lib\site-packages\rich\control.py:192: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D994DC5E0>
+    return text.translate(_translate_table)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_pipeline_parser.py::TestParserWorker::test_parse_file_error_path
+  C:\Users\hyper\miniconda3\Lib\site-packages\rich\text.py:144: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99894F40>
+    def __init__(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D998971F0>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3C9A0>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3C6D0>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3C8B0>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3CD60>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3D030>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3D120>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3D5D0>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3C7C0>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3D7B0>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_progress.py::TestProgressManagerEnabled::test_track_with_generator_uses_indeterminate
+  C:\Users\hyper\miniconda3\Lib\unittest\mock.py:2193: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000023D99A3C310>
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.9-final-0 _______________
+
+Name                                                          Stmts   Miss   Cover   Missing
+--------------------------------------------------------------------------------------------
+src\anivault\__init__.py                                          5      0 100.00%
+src\anivault\cli\__init__.py                                      0      0 100.00%
+src\anivault\cli\common\__init__.py                               1      0 100.00%
+src\anivault\cli\common\context.py                               48      0 100.00%
+src\anivault\cli\common\error_handler.py                         96     42  56.25%   109-110, 132-133, 199-200, 217-228, 240-248, 258-270, 289-327, 332-335, 350-354, 369-380
+src\anivault\cli\common\models.py                                 3      0 100.00%
+src\anivault\cli\common\options.py                                9      0 100.00%
+src\anivault\cli\common\path_utils.py                             7      1  85.71%   41
+src\anivault\cli\common\setup_decorator.py                       44      2  95.45%   104, 130
+src\anivault\cli\helpers\__init__.py                              7      0 100.00%
+src\anivault\cli\helpers\format_utils.py                         14      0 100.00%
+src\anivault\cli\helpers\log.py                                  67     11  83.58%   94-108, 174-177, 194-196
+src\anivault\cli\helpers\match_formatters.py                     76      0 100.00%
+src\anivault\cli\helpers\organize_formatters.py                  39      0 100.00%
+src\anivault\cli\helpers\scan.py                                 59     13  77.97%   104-124, 231, 247-259
+src\anivault\cli\helpers\scan_formatters.py                      51      0 100.00%
+src\anivault\cli\helpers\verify.py                               52      0 100.00%
+src\anivault\cli\json_formatter.py                               38      9  76.32%   87-98, 138-143, 147, 150
+src\anivault\cli\log_handler.py                                  45      0 100.00%
+src\anivault\cli\match_handler.py                                25      0 100.00%
+src\anivault\cli\models\__init__.py                               3      0 100.00%
+src\anivault\cli\models\match_services.py                         3      0 100.00%
+src\anivault\cli\organize_handler.py                             37      5  86.49%   59-68
+src\anivault\cli\progress.py                                     24      0 100.00%
+src\anivault\cli\scan_handler.py                                 60     16  73.33%   71-80, 106-112, 131-140
+src\anivault\cli\typer_app.py                                    48      0 100.00%
+src\anivault\cli\verify_handler.py                               45      6  86.67%   74, 78, 117-121
+src\anivault\config\__init__.py                                   6      0 100.00%
+src\anivault\config\folder_validator.py                          86     12  86.05%   39-40, 71-72, 80-81, 124, 164-165, 189, 192-194
+src\anivault\config\models\__init__.py                           11      0 100.00%
+src\anivault\config\models\api_settings.py                       22      3  86.36%   107-109
+src\anivault\config\models\app_settings.py                       21      0 100.00%
+src\anivault\config\models\cache_settings.py                     10      0 100.00%
+src\anivault\config\models\folder_security_settings.py           44      5  88.64%   84-87, 96
+src\anivault\config\models\grouping_settings.py                  37     10  72.97%   86-87, 89-90, 98-99, 101-102, 110-111
+src\anivault\config\models\matching_weights.py                   46      0 100.00%
+src\anivault\config\models\performance_settings.py               10      0 100.00%
+src\anivault\config\models\scan_settings.py                      29      0 100.00%
+src\anivault\config\models\settings.py                           43      5  88.37%   98-105
+src\anivault\config\settings_provider.py                         15      0 100.00%
+src\anivault\config\validators.py                                41      0 100.00%
+src\anivault\containers.py                                       19      0 100.00%
+src\anivault\core\__init__.py                                     7      0 100.00%
+src\anivault\core\constants.py                                   13      0 100.00%
+src\anivault\core\data_structures\__init__.py                     2      0 100.00%
+src\anivault\core\data_structures\linked_hash_table.py          132      5  96.21%   143, 246-247, 265-266
+src\anivault\core\file_grouper\__init__.py                        8      0 100.00%
+src\anivault\core\file_grouper\grouper.py                       224     56  75.00%   81-83, 87-100, 112, 122-123, 135, 142, 148-150, 154, 159, 161, 172, 174, 197, 309-312, 379, 423, 436-438, 467-475, 484-488, 511-520, 529-541
+src\anivault\core\file_grouper\grouping_engine.py               231     45  80.52%   130-137, 215-216, 272-283, 340-350, 393-425, 479-514, 517-518, 541, 577, 648, 652, 691, 721-723, 749-751
+src\anivault\core\file_grouper\grouping_weights.py               11      3  72.73%   23-25
+src\anivault\core\file_grouper\matchers\__init__.py               2      0 100.00%
+src\anivault\core\file_grouper\matchers\base.py                   9      0 100.00%
+src\anivault\core\file_grouper\matchers\title_index.py          136      2  98.53%   195, 211
+src\anivault\core\file_grouper\matchers\title_vectorizer.py      50      0 100.00%
+src\anivault\core\file_grouper\models.py                          2      0 100.00%
+src\anivault\core\models\__init__.py                              3      0 100.00%
+src\anivault\core\models\file.py                                 27      0 100.00%
+src\anivault\core\organizer\__init__.py                           5      0 100.00%
+src\anivault\core\parser\__init__.py                              4      0 100.00%
+src\anivault\core\parser\fallback_parser.py                      91      0 100.00%
+src\anivault\core\parser\models\__init__.py                       3      0 100.00%
+src\anivault\core\parser\models\anitopy_models.py                74      0 100.00%
+src\anivault\core\pipeline\__init__.py                            3      0 100.00%
+src\anivault\core\pipeline\components\__init__.py                 7      0 100.00%
+src\anivault\core\pipeline\utils\__init__.py                      5      0 100.00%
+src\anivault\core\pipeline\utils\bounded_queue.py                24      0 100.00%
+src\anivault\core\pipeline\utils\result_converters.py            20      0 100.00%
+src\anivault\core\services\__init__.py                            0      0 100.00%
+src\anivault\core\statistics.py                                 168      0 100.00%
+src\anivault\core\subtitle_hash.py                               23      0 100.00%
+src\anivault\domain\__init__.py                                   2      0 100.00%
+src\anivault\domain\constants\__init__.py                         2      0 100.00%
+src\anivault\domain\constants\entity_validation.py               10      0 100.00%
+src\anivault\domain\entities\__init__.py                          3      0 100.00%
+src\anivault\domain\entities\parser.py                           32      0 100.00%
+src\anivault\domain\interfaces\__init__.py                        2      0 100.00%
+src\anivault\domain\interfaces\tmdb_client.py                     6      0 100.00%
+src\anivault\services\__init__.py                                 8      0 100.00%
+src\anivault\services\cache\__init__.py                           2      0 100.00%
+src\anivault\services\cache_models.py                             2      0 100.00%
+src\anivault\services\tmdb\__init__.py                            5      0 100.00%
+src\anivault\services\tmdb\tmdb_utils.py                         24      0 100.00%
+src\anivault\shared\__init__.py                                   1      0 100.00%
+src\anivault\shared\cache_utils.py                               27      0 100.00%
+src\anivault\shared\constants\__init__.py                        20      0 100.00%
+src\anivault\shared\constants\api.py                             33      0 100.00%
+src\anivault\shared\constants\api_fields.py                      38      0 100.00%
+src\anivault\shared\constants\business\__init__.py                4      0 100.00%
+src\anivault\shared\constants\business\normalization.py          28      0 100.00%
+src\anivault\shared\constants\business\processing.py             38      0 100.00%
+src\anivault\shared\constants\business\rules.py                  12      0 100.00%
+src\anivault\shared\constants\cache.py                           52      0 100.00%
+src\anivault\shared\constants\cli\__init__.py                     4      0 100.00%
+src\anivault\shared\constants\cli\config.py                     149      0 100.00%
+src\anivault\shared\constants\cli\formatting.py                  25      0 100.00%
+src\anivault\shared\constants\cli\messages.py                   105      0 100.00%
+src\anivault\shared\constants\core.py                             5      0 100.00%
+src\anivault\shared\constants\error_keys.py                      32      0 100.00%
+src\anivault\shared\constants\file_formats.py                    41      0 100.00%
+src\anivault\shared\constants\filename_patterns.py               37      0 100.00%
+src\anivault\shared\constants\gui_constants.py                   55      0 100.00%
+src\anivault\shared\constants\gui_messages.py                   107      0 100.00%
+src\anivault\shared\constants\http_codes.py                      53      0 100.00%
+src\anivault\shared\constants\logging.py                         34      0 100.00%
+src\anivault\shared\constants\logging_keys.py                    68      0 100.00%
+src\anivault\shared\constants\matching\__init__.py               53      0 100.00%
+src\anivault\shared\constants\network.py                         26      0 100.00%
+src\anivault\shared\constants\path_constants.py                  21      0 100.00%
+src\anivault\shared\constants\scan_fields.py                     21      0 100.00%
+src\anivault\shared\constants\service_exports.py                  9      0 100.00%
+src\anivault\shared\constants\system\__init__.py                 10      0 100.00%
+src\anivault\shared\constants\system\application.py              44      0 100.00%
+src\anivault\shared\constants\system\base.py                      4      0 100.00%
+src\anivault\shared\constants\system\cache.py                    13      0 100.00%
+src\anivault\shared\constants\system\cli.py                      12      0 100.00%
+src\anivault\shared\constants\system\filesystem.py               33      0 100.00%
+src\anivault\shared\constants\system\logging.py                  14      0 100.00%
+src\anivault\shared\constants\system\performance.py              32      0 100.00%
+src\anivault\shared\constants\system\pipeline.py                  4      0 100.00%
+src\anivault\shared\constants\system\tmdb.py                     12      0 100.00%
+src\anivault\shared\constants\tmdb_keys.py                       41      0 100.00%
+src\anivault\shared\constants\tmdb_messages.py                   21      0 100.00%
+src\anivault\shared\constants\validation_constants.py            73      0 100.00%
+src\anivault\shared\errors\__init__.py                            6      0 100.00%
+src\anivault\shared\errors\codes.py                             102      0 100.00%
+src\anivault\shared\errors\exceptions.py                         35      0 100.00%
+src\anivault\shared\errors\factory.py                            45      0 100.00%
+src\anivault\shared\metadata_models.py                            2      0 100.00%
+src\anivault\shared\models\__init__.py                            5      0 100.00%
+src\anivault\shared\models\api\__init__.py                        2      0 100.00%
+src\anivault\shared\models\api\tmdb.py                           87      0 100.00%
+src\anivault\shared\models\cache.py                              48      0 100.00%
+src\anivault\shared\models\metadata.py                            3      0 100.00%
+src\anivault\shared\models\parser.py                              3      0 100.00%
+src\anivault\shared\models\parser_models.py                       2      0 100.00%
+src\anivault\shared\models\tmdb_models.py                         2      0 100.00%
+src\anivault\shared\protocols\__init__.py                         3      0 100.00%
+src\anivault\shared\protocols\services.py                         3      0 100.00%
+src\anivault\shared\types\__init__.py                            11      0 100.00%
+src\anivault\shared\types\api.py                                  6      0 100.00%
+src\anivault\shared\types\base.py                                 8      0 100.00%
+src\anivault\shared\types\cache.py                                3      0 100.00%
+src\anivault\shared\types\match_types.py                         53      0 100.00%
+src\anivault\shared\types\metadata_types.py                      30      0 100.00%
+src\anivault\shared\types\operation_types.py                     15      0 100.00%
+src\anivault\utils\__init__.py                                    3      0 100.00%
+--------------------------------------------------------------------------------------------
+TOTAL                                                          4616    251  94.56%
+[31m[1mFAIL Required test coverage of 95% not reached. Total coverage: 94.56%
+[0m============================ slowest 10 durations =============================
+0.65s call     tests/unit/test_resolution_detector.py::TestResolutionDetectorFindHighest::test_find_highest_raises_on_detect_failure
+0.62s call     tests/core/file_grouper/test_grouping_engine_pipeline.py::TestGroupingEnginePipeline::test_refine_groups_handles_title_matcher_failure
+0.61s call     tests/core/file_grouper/test_grouping_engine_pipeline.py::TestGroupingEnginePipeline::test_hash_matcher_failure_returns_empty
+0.59s call     tests/core/test_exception_handling_integration.py::TestNetworkExceptionHandling::test_connection_error_raises_anivault_network_error
+0.54s call     tests/core/file_grouper/test_grouping_engine_pipeline.py::TestGroupingEnginePipeline::test_title_matcher_failure_uses_hash_results
+0.54s call     tests/unit/test_run_handler.py::TestHandleRunCommand::test_run_scan_step_exception_returns_error
+0.53s call     tests/core/test_exception_handling_integration.py::TestFileIOExceptionHandling::test_file_not_found_raises_anivault_file_error
+0.53s call     tests/core/test_exception_handling_integration.py::TestFileIOExceptionHandling::test_permission_error_raises_anivault_permission_error
+0.52s call     tests/core/test_exception_handling_integration.py::TestParsingExceptionHandling::test_key_error_in_cache_raises_anivault_parsing_error
+0.52s call     tests/unit/test_resolution_detector.py::TestResolutionDetectorGroupByResolution::test_group_by_resolution_raises_on_detect_failure
+[33m[32m1081 passed[0m, [33m[1m6 skipped[0m, [33m[1m15 warnings[0m[33m in 27.27s[0m[0m

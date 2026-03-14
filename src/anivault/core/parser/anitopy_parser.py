@@ -86,12 +86,21 @@ class AnitopyParser:
             return result
 
         except (KeyError, ValueError, TypeError, AttributeError) as e:
-            # Handle specific data processing errors
-            logger.warning(
-                "Anitopy failed to parse filename '%s' due to data processing error: %s",
-                filename,
-                str(e),
-            )
+            # Known anitopy bug: mixed-script filenames (e.g. Korean + Japanese) can
+            # raise AttributeError("'NoneType' object has no attribute 'category'").
+            # Log at DEBUG to avoid spam; pipeline will use fallback parser.
+            is_known_category_bug = isinstance(e, AttributeError) and "category" in str(e)
+            if is_known_category_bug:
+                logger.debug(
+                    "Anitopy skipped filename (mixed-script): %s",
+                    filename,
+                )
+            else:
+                logger.warning(
+                    "Anitopy failed to parse filename '%s' due to data processing error: %s",
+                    filename,
+                    str(e),
+                )
 
             return ParsingResult(
                 title=filename,

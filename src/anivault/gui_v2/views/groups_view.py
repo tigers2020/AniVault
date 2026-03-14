@@ -23,6 +23,8 @@ class GroupsView(BaseView):
 
     # Signals
     group_clicked = Signal(int)  # Emits group ID when a card is clicked
+    groups_build_progress = Signal(object)  # Emits OperationProgress during group build
+    groups_build_finished = Signal()  # Emits when group build completes (success or error)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize groups view."""
@@ -105,6 +107,7 @@ class GroupsView(BaseView):
         thread.started.connect(worker.run)
         worker.finished.connect(self._on_groups_built)
         worker.finished.connect(thread.quit)
+        worker.progress.connect(self.groups_build_progress.emit)
         worker.error.connect(self._on_groups_build_error)
         worker.error.connect(thread.quit)
         # Cleanup only after thread has fully stopped (prevents "Destroyed while still running")
@@ -120,6 +123,7 @@ class GroupsView(BaseView):
         if self._groups_build_worker:
             try:
                 self._groups_build_worker.finished.disconnect()
+                self._groups_build_worker.progress.disconnect()
                 self._groups_build_worker.error.disconnect()
             except (TypeError, RuntimeError):
                 pass
@@ -133,12 +137,14 @@ class GroupsView(BaseView):
         """Handle groups build completion (runs on main thread via Qt signal)."""
         logger.info("Received %d groups from worker", len(groups))
         self.set_groups(groups)
+        self.groups_build_finished.emit()
         # Do NOT clear _groups_build_worker/thread here - wait for thread.finished
 
     def _on_groups_build_error(self, error: object) -> None:
         """Handle groups build error (runs on main thread via Qt signal)."""
         logger.warning("Groups build failed: %s", error)
         self.set_groups([])
+        self.groups_build_finished.emit()
         # Do NOT clear here - wait for thread.finished (thread.quit was connected)
 
     def _on_groups_thread_finished(self, thread: QThread) -> None:

@@ -8,6 +8,58 @@ from __future__ import annotations
 
 import re
 
+# Patterns stripped from the end before building prefixes (episode/suffix noise)
+_VERSION_SUFFIX_PATTERNS = [
+    r"\s+v\d+$",  # v1, v2, etc.
+    r"\s+version\s+\d+$",
+    r"\s+\d{4}$",  # year at end
+    r"\s+\(.*\)$",
+    r"\s+\[.*\]$",
+    r"\s+ext$",
+    r"\s+special$",
+    r"\s+ova$",
+    r"\s+tv$",
+]
+
+
+def generate_title_prefixes(title: str) -> list[str]:
+    """Generate title prefixes by adding words from the front (for fallback search).
+
+    Filenames usually have the title first, then episode/subtitle info. Building
+    the query from the front and using the shortest prefix that returns results
+    gives the most accurate match (minimal sufficient query).
+
+    Examples:
+        >>> generate_title_prefixes("명탐정 코난 132화 마술 애호가 살인 사건")
+        ['명탐정', '명탐정 코난', '명탐정 코난 132화', ...]
+        >>> generate_title_prefixes("Attack on Titan")
+        ['Attack', 'Attack on', 'Attack on Titan']
+
+    Args:
+        title: Original title (e.g. from filename).
+
+    Returns:
+        List of prefixes from shortest to longest (first word, then first two, ...).
+        Empty list if title is empty or single-word (no fallback needed).
+    """
+    base = title.strip()
+    for pattern in _VERSION_SUFFIX_PATTERNS:
+        base = re.sub(pattern, "", base, flags=re.IGNORECASE)
+    base = base.strip()
+    if not base:
+        return []
+
+    words = base.split()
+    if len(words) <= 1:
+        return []
+
+    prefixes = []
+    acc = []
+    for w in words:
+        acc.append(w)
+        prefixes.append(" ".join(acc))
+    return prefixes
+
 
 def generate_shortened_titles(title: str) -> list[str]:
     """Generate shortened versions of the title for fallback search.
@@ -38,21 +90,8 @@ def generate_shortened_titles(title: str) -> list[str]:
 
     shortened_titles = []
 
-    # Remove common suffixes/versions
-    version_patterns = [
-        r"\s+v\d+$",  # v1, v2, etc.
-        r"\s+version\s+\d+$",  # version 1, version 2, etc.
-        r"\s+\d{4}$",  # year at end
-        r"\s+\(.*\)$",  # parentheses at end
-        r"\s+\[.*\]$",  # brackets at end
-        r"\s+ext$",  # ext suffix
-        r"\s+special$",  # special suffix
-        r"\s+ova$",  # ova suffix
-        r"\s+tv$",  # tv suffix
-    ]
-
     base_title = title
-    for pattern in version_patterns:
+    for pattern in _VERSION_SUFFIX_PATTERNS:
         base_title = re.sub(pattern, "", base_title, flags=re.IGNORECASE)
 
     # Add base title without version patterns

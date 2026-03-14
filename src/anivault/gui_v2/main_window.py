@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
+    QApplication,
     QDialog,
     QMainWindow,
     QVBoxLayout,
@@ -21,6 +23,7 @@ from anivault.gui_v2.controllers import MatchController, OrganizeController, Sca
 from anivault.gui_v2.dialogs.settings_dialog import SettingsDialog
 from anivault.gui_v2.dialogs.tmdb_manual_search_dialog import TmdbManualSearchDialog
 from anivault.gui_v2.handlers import MatchEventHandler, OrganizeEventHandler, ScanEventHandler
+from anivault.gui_v2.models import OperationProgress, format_progress_message
 from anivault.gui_v2.views.base_view import BaseView
 from anivault.gui_v2.views.groups_view import GroupsView
 from anivault.gui_v2.widgets.header_widget import HeaderWidget
@@ -30,7 +33,7 @@ from anivault.shared.models.metadata import FileMetadata
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QShowEvent
+    from PySide6.QtGui import QCloseEvent, QShowEvent
 
 
 class MainWindow(QMainWindow):
@@ -58,6 +61,9 @@ class MainWindow(QMainWindow):
         self._active_scan_target = "videos"
         self._active_match_target = "videos"
         self._current_detail_group: dict | None = None
+        self._progress_ui_last_update: float | None = None  # throttle progress UI updates
+        self._pending_progress: OperationProgress | None = None
+        self._progress_flush_timer: QTimer | None = None  # coalesce progress UI updates
 
         # Components
         self.settings_dialog: SettingsDialog | None = None
@@ -135,6 +141,8 @@ class MainWindow(QMainWindow):
 
         # Groups view signals
         self.groups_view.group_clicked.connect(self._on_group_clicked)
+        self.groups_view.groups_build_progress.connect(self._on_groups_build_progress)
+        self.groups_view.groups_build_finished.connect(self._on_groups_build_finished)
 
         # Detail panel signals
         self.detail_panel.match_clicked.connect(self._on_detail_match_clicked)
@@ -206,6 +214,66 @@ class MainWindow(QMainWindow):
         group = next((g for g in self.groups_view._groups if g["id"] == group_id), None)
         self._current_detail_group = group
         self.detail_panel.set_group_data(group)
+
+    def _reset_progress_ui_throttle(self) -> None:
+        """Reset progress UI throttle and cancel any pending flush."""
+        self._progress_ui_last_update = None
+        self._pending_progress = None
+        if self._progress_flush_timer is not None:
+            self._progress_flush_timer.stop()
+            self._progress_flush_timer = None
+
+    def _maybe_update_progress_ui(self, progress: OperationProgress) -> None:
+        """Coalesce progress updates: store and flush at most every 150ms to avoid UI freeze."""
+        is_final = progress.total > 0 and progress.current >= progress.total
+        if is_final:
+            self._pending_progress = None
+            if self._progress_flush_timer is not None:
+                self._progress_flush_timer.stop()
+                self._progress_flush_timer = None
+            self._do_update_progress_ui(progress)
+            return
+        self._pending_progress = progress
+        if self._progress_flush_timer is None or not self._progress_flush_timer.isActive():
+            self._progress_flush_timer = QTimer(self)
+            self._progress_flush_timer.setSingleShot(True)
+            self._progress_flush_timer.timeout.connect(self._flush_pending_progress)
+            self._progress_flush_timer.start(150)
+
+    def _flush_pending_progress(self) -> None:
+        """Flush one coalesced progress update to the UI."""
+        if self._progress_flush_timer is not None:
+            self._progress_flush_timer = None
+        p = self._pending_progress
+        self._pending_progress = None
+        if p is not None:
+            self._do_update_progress_ui(p)
+
+    def _do_update_progress_ui(self, progress: OperationProgress) -> None:
+        """Actually update status bar and loading overlay."""
+        self._progress_ui_last_update = time.monotonic()
+        message = format_progress_message(progress)
+        self.status_bar.set_status(message, "ok")
+        self.loading_overlay.show_loading(
+            progress.message or f"{progress.current}/{progress.total}",
+            current=progress.current,
+            total=progress.total,
+        )
+        self.status_bar.update()
+        self.loading_overlay.update()
+        app = QApplication.instance()
+        if app is not None:
+            app.processEvents()
+
+    def _on_groups_build_progress(self, progress: OperationProgress) -> None:
+        """Handle groups build progress: update status bar and loading overlay."""
+        if progress.current == 0:
+            self._reset_progress_ui_throttle()
+        self._maybe_update_progress_ui(progress)
+
+    def _on_groups_build_finished(self) -> None:
+        """Handle groups build finished: hide loading overlay."""
+        self.loading_overlay.hide_loading()
 
     def _get_detail_match_context(
         self,
@@ -383,3 +451,9 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         if self.overlay_layer:
             self.overlay_layer.update_geometry()
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        """Stop scan process on window close so the child process does not outlive the app."""
+        if self.scan_controller is not None:
+            self.scan_controller.cleanup()
+        super().closeEvent(event)

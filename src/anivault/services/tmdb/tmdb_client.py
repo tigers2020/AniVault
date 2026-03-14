@@ -34,7 +34,7 @@ from anivault.shared.models.api.tmdb import (
 )
 
 from .tmdb_strategies import MovieSearchStrategy, SearchStrategy, TvSearchStrategy
-from .tmdb_utils import generate_shortened_titles
+from .tmdb_utils import generate_title_prefixes
 
 logger = logging.getLogger(__name__)
 
@@ -164,11 +164,13 @@ class TMDBClient:
         """Search for media (TV shows and movies) by title.
 
         Uses Strategy pattern to search both TV and Movie with automatic
-        fallback to shortened titles if no results found.
+        fallback: extend prefix from the front; when a prefix returns 0 results,
+        use the last prefix that had results (most specific successful query).
 
         This method implements the Template Method pattern:
-        1. Try primary search with all strategies
-        2. If no results, try shortened title variations
+        1. Try primary search with full title
+        2. If no results, try title prefixes (first word, then first two, ...);
+           stop at first 0-result prefix and use the previous successful one
         3. Return combined results or raise error
 
         Args:
@@ -188,19 +190,27 @@ class TMDBClient:
         # 1. Try primary search with all strategies
         results = await self._search_with_strategies(title)
 
-        # 2. Fallback to shortened titles if no results
+        # 2. Fallback: extend prefix from the front; when a prefix returns 0 results,
+        #    use the last prefix that had results (most specific successful query).
         if not results:
-            shortened_titles = generate_shortened_titles(title)
-            for shortened_title in shortened_titles:
-                logger.debug("Trying shortened title: %s", shortened_title)
-                results = await self._search_with_strategies(shortened_title)
-                if results:
-                    logger.info(
-                        "Found results with shortened title '%s' for original '%s'",
-                        shortened_title,
-                        title,
-                    )
-                    break
+            prefixes = generate_title_prefixes(title)
+            last_success_query: str | None = None
+            last_success_results: list[TMDBSearchResult] | None = None
+            for query in prefixes:
+                logger.debug("Trying title prefix: %s", query)
+                candidate = await self._search_with_strategies(query)
+                if candidate:
+                    last_success_query = query
+                    last_success_results = candidate
+                else:
+                    break  # 0 results: stop and use last successful query
+            if last_success_results is not None and last_success_query is not None:
+                results = last_success_results
+                logger.info(
+                    "Found results with title prefix '%s' for original '%s'",
+                    last_success_query,
+                    title,
+                )
 
         # 3. If still no results, raise error
         if not results:
