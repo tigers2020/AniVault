@@ -136,7 +136,7 @@ anivault verify <directory>          # 정리 결과 검증
 
 ### 주요 문서
 - [아키텍처](docs/architecture/ARCHITECTURE_ANIVAULT.md) - 전체 시스템 구조
-- [개발 프로토콜](docs/protocols/DEVELOPMENT_PROTOCOL.md) - 개발 프로세스
+- [프로토콜·문서 목록](docs/protocols/README.md) - 프로토콜 및 개발 프로세스 인덱스
 - [API 문서](docs/api/linked_hash_table_api.md) - LinkedHashTable API 등
 
 ## 🛠️ 개발
