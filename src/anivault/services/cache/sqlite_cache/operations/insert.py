@@ -44,32 +44,11 @@ class InsertOperations(BaseOperation):
         response_size = len(response_data_json.encode("utf-8"))
 
         insert_sql = "\n        INSERT OR REPLACE INTO tmdb_cache (\n            cache_key, key_hash, cache_type, response_data,\n            created_at, expires_at, response_size\n        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)\n        "
-        try:
-            cursor = self.conn.execute(
-                insert_sql,
-                (key, key_hash, cache_type, response_data_json, expires_at.isoformat(), response_size),
-            )
-            # Explicitly close cursor to prevent "another row available" errors
-            cursor.close()
-        except Exception as sql_err:  # pylint: disable=broad-exception-caught
-            # #region agent log
-            with open(r"f:\Python_Projects\AniVault\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "G",
-                            "location": "insert.py:52",
-                            "message": "SQL execute failed",
-                            "data": {"error": str(sql_err), "error_type": type(sql_err).__name__},
-                            "timestamp": __import__("time").time() * 1000,
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
-            raise
+        cursor = self.conn.execute(
+            insert_sql,
+            (key, key_hash, cache_type, response_data_json, expires_at.isoformat(), response_size),
+        )
+        cursor.close()
         logger.debug(
             "Cache inserted: key=%s (hash=%s...), type=%s, size=%d bytes, ttl=%ds",
             key[:50],

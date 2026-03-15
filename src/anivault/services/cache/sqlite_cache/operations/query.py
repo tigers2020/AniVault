@@ -34,6 +34,23 @@ def _parse_timestamp_with_tz(timestamp_str: str | None) -> datetime | None:
     return dt
 
 
+def _is_expired(expires_at_str: str | None) -> bool:
+    """Check if a cache entry is expired from its expires_at timestamp.
+
+    Args:
+        expires_at_str: ISO format expiration timestamp or None (no expiry).
+
+    Returns:
+        True if expired or invalid, False if still valid.
+    """
+    if not expires_at_str:
+        return False
+    expires_at = _parse_timestamp_with_tz(expires_at_str)
+    if expires_at is None:
+        return True
+    return datetime.now(timezone.utc) >= expires_at
+
+
 def _deserialize_response_data(response_data_str: str | None, key_hash: str) -> dict[str, Any] | None:
     """Deserialize JSON response data.
 
@@ -155,6 +172,18 @@ class QueryOperations(BaseOperation):
         if response_data is None:
             self.statistics.record_cache_miss(cache_type)
             return None
+
+        # Parser cache: no CacheEntry model; check expiry and return response_data directly
+        if cache_type == Cache.TYPE_PARSER:
+            if _is_expired(expires_at_str):
+                logger.debug("Parser cache entry expired for key: %s", key[:50])
+                self.statistics.record_cache_miss(cache_type)
+                return None
+            self._update_access_stats(key_hash, cache_type)
+            self.statistics.record_cache_hit(cache_type)
+            logger.debug("Cache hit: key=%s (hash=%s...), type=%s", key[:50], key_hash[:8], cache_type)
+            return response_data
+
         cache_entry = _build_cache_entry_from_row(
             cache_key=cache_key_db,
             key_hash=key_hash_db,
