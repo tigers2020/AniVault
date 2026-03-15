@@ -44,6 +44,12 @@ def format_statistics(
     cache_hit_rate = (parser_stats.cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0
     cache_miss_rate = (parser_stats.cache_misses / total_cache_ops * 100) if total_cache_ops > 0 else 0
 
+    # Phase timing (scanner optional; parser phases summed across workers)
+    scanner_sec = getattr(scan_stats, "scanner_duration_sec", None)
+    cache_lookup_sec = getattr(parser_stats, "time_cache_lookup_sec", 0.0)
+    parse_sec = getattr(parser_stats, "time_parse_sec", 0.0)
+    cache_write_sec = getattr(parser_stats, "time_cache_write_sec", 0.0)
+
     # Build the statistics report
     lines = [
         "",
@@ -53,6 +59,10 @@ def format_statistics(
         "",
         "Timing:",
         f"  - Total pipeline time:  {total_duration:.2f}s",
+        f"  - Scanner phase:        {(scanner_sec if scanner_sec is not None else 0.0):.2f}s",
+        f"  - Cache lookup total:   {cache_lookup_sec:.2f}s",
+        f"  - Parse total:          {parse_sec:.2f}s",
+        f"  - Cache write total:   {cache_write_sec:.2f}s",
         "",
         "Scanner:",
         f"  - Files scanned:        {scan_stats.files_scanned:,}",
@@ -121,10 +131,19 @@ class StatisticsAggregator:
         cache_hit_rate = (self.parser_stats.cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0.0
         cache_miss_rate = (self.parser_stats.cache_misses / total_cache_ops * 100) if total_cache_ops > 0 else 0.0
 
+        scanner_sec = getattr(self.scan_stats, "scanner_duration_sec", None)
+        cache_lookup_sec = getattr(self.parser_stats, "time_cache_lookup_sec", 0.0)
+        parse_sec = getattr(self.parser_stats, "time_parse_sec", 0.0)
+        cache_write_sec = getattr(self.parser_stats, "time_cache_write_sec", 0.0)
+
         return {
             "timing": {
                 "total_duration": self.total_duration,
                 "total_duration_formatted": f"{self.total_duration:.2f}s",
+                "scanner_phase_sec": scanner_sec,
+                "cache_lookup_total_sec": cache_lookup_sec,
+                "parse_total_sec": parse_sec,
+                "cache_write_total_sec": cache_write_sec,
             },
             "scanner": {
                 "files_scanned": self.scan_stats.files_scanned,

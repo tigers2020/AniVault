@@ -10,6 +10,7 @@ This module provides functions for managing the lifecycle of pipeline components
 from __future__ import annotations
 
 import logging
+import time
 
 from anivault.core.pipeline.components import (
     DirectoryScanner,
@@ -97,12 +98,14 @@ def start_pipeline_components(
 def wait_for_scanner_completion(
     scanner: DirectoryScanner,
     scan_stats: ScanStatistics,
+    pipeline_start_time: float | None = None,
 ) -> None:
     """Wait for scanner to complete and log results.
 
     Args:
         scanner: DirectoryScanner instance.
         scan_stats: ScanStatistics instance.
+        pipeline_start_time: If set, time.time() value at pipeline start; used to set scanner_duration_sec.
 
     Raises:
         InfrastructureError: If scanner completion fails.
@@ -115,6 +118,8 @@ def wait_for_scanner_completion(
     try:
         logger.info("Waiting for scanner to complete...")
         scanner.join()
+        if pipeline_start_time is not None:
+            scan_stats.set_scanner_duration(time.time() - pipeline_start_time)
         logger.info("Scanner completed. Found %s files.", scan_stats.files_scanned)
 
         log_operation_success(

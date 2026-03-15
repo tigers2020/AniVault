@@ -262,14 +262,12 @@ def run_pipeline(
     collector = None
 
     try:
-        components = _create_pipeline_components(
-            root_path, extensions, num_workers, max_queue_size, cache_path, progress_callback
-        )
+        components = _create_pipeline_components(root_path, extensions, num_workers, max_queue_size, cache_path, progress_callback)
         scanner = components.scanner
         parser_pool = components.parser_pool
         collector = components.collector
 
-        _execute_pipeline(components, num_workers)
+        _execute_pipeline(components, num_workers, start_time)
         results = _collect_results(components, start_time, context)
 
         return results
@@ -341,15 +339,24 @@ def _create_pipeline_components(
     )
 
 
-def _execute_pipeline(components: PipelineComponents, num_workers: int) -> None:
+def _execute_pipeline(
+    components: PipelineComponents,
+    num_workers: int,
+    pipeline_start_time: float,
+) -> None:
     """Execute pipeline stages.
 
     Args:
         components: Pipeline components container
         num_workers: Number of parser workers
+        pipeline_start_time: time.time() at pipeline start (for scanner phase timing)
     """
     start_pipeline_components(components.scanner, components.parser_pool, components.collector, num_workers)
-    wait_for_scanner_completion(components.scanner, components.scan_stats)
+    wait_for_scanner_completion(
+        components.scanner,
+        components.scan_stats,
+        pipeline_start_time=pipeline_start_time,
+    )
     signal_parser_shutdown(components.file_queue, num_workers)
     wait_for_parser_completion(components.parser_pool, components.parser_stats)
     signal_collector_shutdown(components.result_queue)

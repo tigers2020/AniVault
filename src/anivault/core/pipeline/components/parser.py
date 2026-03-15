@@ -118,7 +118,9 @@ class ParserWorker(threading.Thread):
 
         try:
             # Check cache first
+            t0 = time.perf_counter()
             cached_result = self._check_cache(file_path)
+            self.stats.add_cache_lookup_time(time.perf_counter() - t0)
 
             if cached_result:
                 # Cache hit - use cached data
@@ -297,11 +299,15 @@ class ParserWorker(threading.Thread):
             self.stats.increment_cache_miss()
             self.stats.increment_items_processed()
 
-            # Perform placeholder parsing
+            # Perform placeholder parsing (phase timing)
+            t0 = time.perf_counter()
             result = self._parse_file(file_path)
+            self.stats.add_parse_time(time.perf_counter() - t0)
 
-            # Store result in cache (24 hours TTL)
+            # Store result in cache (24 hours TTL) (phase timing)
+            t1 = time.perf_counter()
             self._store_in_cache(file_path, result)
+            self.stats.add_cache_write_time(time.perf_counter() - t1)
 
             # Put result in output queue
             self.output_queue.put(result)

@@ -23,6 +23,18 @@ class ScanStatistics:
         self._lock = threading.Lock()
         self._files_scanned = 0
         self._directories_scanned = 0
+        self._scanner_duration_sec: float | None = None
+
+    def set_scanner_duration(self, duration_sec: float) -> None:
+        """Set total scanner phase duration in seconds (call once when scanner completes)."""
+        with self._lock:
+            self._scanner_duration_sec = duration_sec
+
+    @property
+    def scanner_duration_sec(self) -> float | None:
+        """Get scanner phase duration in seconds, or None if not set."""
+        with self._lock:
+            return self._scanner_duration_sec
 
     def increment_files_scanned(self) -> None:
         """Increment the files scanned counter."""
@@ -112,6 +124,24 @@ class ParserStatistics:
         self._failures = 0
         self._cache_hits = 0
         self._cache_misses = 0
+        self._time_cache_lookup_sec = 0.0
+        self._time_parse_sec = 0.0
+        self._time_cache_write_sec = 0.0
+
+    def add_cache_lookup_time(self, duration_sec: float) -> None:
+        """Add duration spent in cache lookup (thread-safe)."""
+        with self._lock:
+            self._time_cache_lookup_sec += duration_sec
+
+    def add_parse_time(self, duration_sec: float) -> None:
+        """Add duration spent in parsing (thread-safe)."""
+        with self._lock:
+            self._time_parse_sec += duration_sec
+
+    def add_cache_write_time(self, duration_sec: float) -> None:
+        """Add duration spent in cache write (thread-safe)."""
+        with self._lock:
+            self._time_cache_write_sec += duration_sec
 
     def increment_items_processed(self) -> None:
         """Increment the items processed counter."""
@@ -167,3 +197,21 @@ class ParserStatistics:
         """Get the number of cache misses."""
         with self._lock:
             return self._cache_misses
+
+    @property
+    def time_cache_lookup_sec(self) -> float:
+        """Total time spent in cache lookup in seconds."""
+        with self._lock:
+            return self._time_cache_lookup_sec
+
+    @property
+    def time_parse_sec(self) -> float:
+        """Total time spent in parsing in seconds."""
+        with self._lock:
+            return self._time_parse_sec
+
+    @property
+    def time_cache_write_sec(self) -> float:
+        """Total time spent in cache write in seconds."""
+        with self._lock:
+            return self._time_cache_write_sec
