@@ -88,7 +88,8 @@ class TMDBClient:
         self._tmdb.api_key = self.config.api.tmdb.api_key
         self._tmdb.language = language  # Set language BEFORE creating TV/Movie objects
         self._tmdb.region = region
-        self._tmdb.debug = True  # Force debug to see actual API calls with language parameter
+        # Keep False to avoid tmdbv3api dumping every API response and CacheInfo at INFO level
+        self._tmdb.debug = False
 
         # Store language for explicit parameter passing
         self.language = language
@@ -206,7 +207,7 @@ class TMDBClient:
                     break  # 0 results: stop and use last successful query
             if last_success_results is not None and last_success_query is not None:
                 results = last_success_results
-                logger.info(
+                logger.debug(
                     "Found results with title prefix '%s' for original '%s'",
                     last_success_query,
                     title,
