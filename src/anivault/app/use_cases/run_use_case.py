@@ -16,9 +16,8 @@ from typing import TYPE_CHECKING, Any
 from anivault.app.use_cases.match_use_case import MatchUseCase
 from anivault.app.use_cases.organize_use_case import OrganizeUseCase
 from anivault.app.use_cases.scan_use_case import ScanUseCase
-from anivault.shared.constants import QueueConfig, WorkerConfig
+from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.system import FileSystem
-from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.types.cli import RunOptions
 
 if TYPE_CHECKING:
@@ -92,20 +91,37 @@ class RunUseCase:
         self,
         options: RunOptions,
         directory: Path,
+        benchmark: bool = False,
+        *,
         stats_collector: StatisticsCollector | None = None,
     ) -> RunResult:
         """Run the full workflow according to *options*.
 
+        R5: ``benchmark`` flag replaces the caller-side ``stats_collector``
+        parameter so run_handler never imports from anivault.core directly.
+        When ``benchmark=True`` the use case obtains and resets the global
+        StatisticsCollector internally.
+
+        The legacy ``stats_collector`` keyword argument is kept for backward
+        compatibility in tests; it takes precedence over ``benchmark`` when
+        provided explicitly.
+
         Args:
             options:         Parsed RunOptions (CLI types; not re-assembled here).
             directory:       Resolved root directory.
-            stats_collector: Optional pre-reset collector for benchmark timing.
-                             The caller must call collector.reset() before
-                             passing it in.
+            benchmark:       Enable benchmark timing (obtains & resets collector).
+            stats_collector: Deprecated — pass a pre-reset collector directly.
+                             Overrides ``benchmark`` when not None.
 
         Returns:
             RunResult with per-step outcomes and optional benchmark data.
         """
+        if stats_collector is None and benchmark:
+            from anivault.core.statistics import get_statistics_collector
+
+            stats_collector = get_statistics_collector()
+            stats_collector.reset()
+
         result = RunResult()
 
         # ------------------------------------------------------------------
@@ -268,7 +284,7 @@ def _timing_end(collector: StatisticsCollector | None, name: str) -> None:
     if collector is not None:
         try:
             collector.end_timing(name)
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:  # pylint: disable=broad-exception-caught  # noqa: BLE001
             pass
 
 

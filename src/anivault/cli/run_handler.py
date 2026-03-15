@@ -45,21 +45,12 @@ async def _execute_run(
     is_benchmark: bool = False,
     use_case: RunUseCase = Provide[Container.run_use_case],
 ) -> RunResult:
-    """Acquire RunUseCase from container, prepare collector, and execute.
+    """Acquire RunUseCase from container and execute.
 
-    The stats_collector is reset here (benchmark reset rule): if benchmark
-    mode is active the caller-side global collector is reset before being
-    passed in so no stale timing from previous runs bleeds through.
+    R5: benchmark collector acquisition moved to RunUseCase.execute() so this
+    handler never imports from anivault.core (statistics) directly.
     """
-    from anivault.core.statistics import get_statistics_collector
-
-    stats_collector = None
-    if is_benchmark:
-        stats_collector = get_statistics_collector()
-        # benchmark reset rule: always reset before starting a new run
-        stats_collector.reset()
-
-    return await use_case.execute(options, directory, stats_collector=stats_collector)
+    return await use_case.execute(options, directory, benchmark=is_benchmark)
 
 
 def _build_run_data(options: RunOptions, directory: Path) -> dict[str, Any]:
