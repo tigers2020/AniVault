@@ -1,7 +1,10 @@
 """Organize command handler for AniVault CLI.
 
 Orchestration entry point: Container → OrganizeUseCase → helper (format only).
-OperationLogManager usage is permitted here as a post-execution I/O step.
+
+R5: OperationLogManager moved to OrganizeUseCase.save_plan_log() so this handler
+no longer imports from anivault.core directly. Type-only imports stay under
+TYPE_CHECKING (excluded from Import Linter graph via exclude_type_checking_imports).
 """
 
 from __future__ import annotations
@@ -10,7 +13,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 from dependency_injector.wiring import Provide, inject
@@ -29,12 +32,13 @@ from anivault.cli.helpers.organize import (
 )
 from anivault.cli.json_formatter import format_json_output
 from anivault.containers import Container
-from anivault.core.log_manager import OperationLogManager
-from anivault.core.models import FileOperation, ScannedFile
-from anivault.core.organizer.executor import OperationResult
 from anivault.shared.constants import CLI, QueueConfig, WorkerConfig
 from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.types.cli import CLIDirectoryPath, OrganizeOptions
+
+if TYPE_CHECKING:
+    from anivault.core.models import FileOperation, ScannedFile
+    from anivault.core.organizer.executor import OperationResult
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +111,24 @@ def _build_plan(
         destination = options.destination if options.destination else "Anime"
         return use_case.generate_enhanced_plan(scanned_files, destination=destination)
     return use_case.generate_plan(scanned_files)
+
+
+@inject
+def _save_operation_log(
+    plan: list[FileOperation],
+    *,
+    use_case: OrganizeUseCase = Provide[Container.organize_use_case],
+) -> str | None:
+    """Persist the operation plan log via OrganizeUseCase (R5: no direct core import).
+
+    Args:
+        plan:     Organization plan to log.
+        use_case: Injected OrganizeUseCase.
+
+    Returns:
+        Log file path as string, or None if saving failed.
+    """
+    return use_case.save_plan_log(plan)
 
 
 @inject
@@ -205,15 +227,9 @@ def handle_organize_command(options: OrganizeOptions, **kwargs: Any) -> int:
     # 5. Execute
     moved_files = _execute_plan(plan, directory, options)
 
-    # 6. Save operation log (permitted handler-side I/O, not delegated to helper)
+    # 6. Save operation log via OrganizeUseCase (R5: no direct core import in handler)
     operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path: str | None = None
-    try:
-        log_manager = OperationLogManager(Path.cwd())
-        saved = log_manager.save_plan(plan)
-        log_path = str(saved)
-    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger_adapter.warning("Could not save operation log: %s", e)
+    log_path: str | None = _save_operation_log(plan)
 
     # 7. Output results via helper (formatter only)
     print_organization_results(

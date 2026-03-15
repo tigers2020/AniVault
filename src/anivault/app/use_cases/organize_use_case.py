@@ -5,8 +5,8 @@ Orchestrates organization pipeline: scan → generate plan → execute plan.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from anivault.config import Settings
 from anivault.core.models import FileOperation, ScannedFile
@@ -158,3 +158,29 @@ class OrganizeUseCase:
             source_directory,
             settings=settings,
         )
+
+    def save_plan_log(
+        self,
+        plan: list[FileOperation],
+        base_path: Path | None = None,
+    ) -> str | None:
+        """Persist the operation plan to a log file.
+
+        R5: Moved from cli/organize_handler so the handler layer never imports
+        OperationLogManager (anivault.core) directly.
+
+        Args:
+            plan:      Organization plan to save.
+            base_path: Directory for the log file (defaults to CWD).
+
+        Returns:
+            Absolute path of the saved log file as a string, or None on error.
+        """
+        from anivault.core.log_manager import OperationLogManager
+
+        try:
+            log_manager = OperationLogManager(base_path or Path.cwd())
+            saved = log_manager.save_plan(plan)
+            return str(saved)
+        except Exception:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            return None
