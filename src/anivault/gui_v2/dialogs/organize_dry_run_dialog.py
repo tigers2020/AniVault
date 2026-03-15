@@ -18,8 +18,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from anivault.core.models import FileOperation
-
 logger = logging.getLogger(__name__)
 
 
@@ -96,7 +94,8 @@ class OrganizeDryRunDialog(QDialog):
 
 
 def _extract_paths(operation: Any) -> tuple[Path | None, Path | None]:
-    if isinstance(operation, FileOperation):
+    # Duck typing: any object with source_path / destination_path works (R5: no FileOperation import)
+    if hasattr(operation, "source_path") and hasattr(operation, "destination_path"):
         return operation.source_path, operation.destination_path
     if isinstance(operation, dict):
         source = operation.get("source") or operation.get("source_path")
