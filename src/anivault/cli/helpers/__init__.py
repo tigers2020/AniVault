@@ -37,9 +37,9 @@ from .scan import (
 
 # Re-export verify helpers
 from .verify import (
-    collect_verify_data,
+    format_verify_result_for_json,
+    print_all_components_result,
     print_tmdb_verification_result,
-    verify_tmdb_connectivity,
 )
 
 __all__ = [
@@ -61,7 +61,7 @@ __all__ = [
     "display_scan_results",
     "file_metadata_to_dict",
     # Verify helpers
-    "collect_verify_data",
+    "format_verify_result_for_json",
+    "print_all_components_result",
     "print_tmdb_verification_result",
-    "verify_tmdb_connectivity",
 ]
