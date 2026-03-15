@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
@@ -11,9 +12,39 @@ from anivault.gui_v2.app_context import AppContext
 from anivault.gui_v2.main_window import MainWindow
 from anivault.gui_v2.styles.styles import StyleManager
 from anivault.shared.constants.logging import LogConfig
+from anivault.shared.constants.system import FileSystem
+from anivault.shared.constants.validation_constants import PIPELINE_CACHE_DB
 from anivault.shared.logging import configure_logging
+from anivault.utils.resource_path import get_project_root
 
 logger = logging.getLogger(__name__)
+
+
+def _log_startup_paths() -> None:
+    """Log cwd, project root, and parser cache DB path once at GUI startup for diagnostics."""
+    cwd = Path.cwd().resolve()
+    try:
+        project_root = get_project_root().resolve()
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.warning("get_project_root() failed: %s", e)
+        project_root = cwd
+    parser_cache_db = project_root / FileSystem.CACHE_DIRECTORY / PIPELINE_CACHE_DB
+    logger.info(
+        "GUI startup paths: cwd=%s, project_root=%s, parser_cache_db=%s",
+        cwd,
+        project_root,
+        parser_cache_db,
+    )
+    try:
+        import anivault.core.pipeline.components.parser as _p
+        import anivault.core.pipeline.domain.orchestrator as _o
+        logger.info(
+            "Loaded pipeline modules: parser=%s, orchestrator=%s",
+            getattr(_p, "__file__", "N/A"),
+            getattr(_o, "__file__", "N/A"),
+        )
+    except ImportError as e:
+        logger.warning("Could not log pipeline module paths: %s", e)
 
 
 class AniVaultGUIv2:
@@ -86,6 +117,8 @@ def main() -> int:
         enable_file=True,
         enable_console=True,
     )
+
+    _log_startup_paths()
 
     app = AniVaultGUIv2()
     if not app.initialize():

@@ -13,8 +13,8 @@ from pathlib import Path
 from anivault.core.pipeline import run_pipeline
 from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.core import ProcessingConfig
-from anivault.shared.constants.gui_constants import ScanQueueMessageKind
 from anivault.shared.constants.file_formats import VideoFormats
+from anivault.shared.constants.gui_constants import ScanQueueMessageKind
 from anivault.shared.models.metadata import FileMetadata
 
 
@@ -26,17 +26,36 @@ def run_scan_in_process(
     """Run scan in a subprocess and put progress/result into queue (picklable entry point).
 
     Sends: (ScanQueueMessageKind.STARTED, None), (PROGRESS, {...}), (RESULT, list), (ERROR, str), (DONE, None).
+
+    Logging: subprocess configures logging to logs/scan.log so pipeline/scanner messages
+    (e.g. directory cache hits/misses) are visible there when using GUI.
     """
+    import logging
     import traceback
+
+    from anivault.shared.logging import configure_logging
+    from anivault.utils.resource_path import get_project_root
+
+    log_dir = get_project_root() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    configure_logging(
+        level=logging.INFO,
+        log_dir=str(log_dir),
+        log_file="scan.log",
+        enable_file=True,
+        enable_console=False,
+    )
 
     try:
         queue.put((ScanQueueMessageKind.STARTED, None))
-    except Exception:  # noqa: S110  # queue may be broken in child
+    except Exception:  # queue may be broken in child
         pass
     try:
         use_case = ScanUseCase()
+
         def progress_cb(n: int) -> None:
             queue.put((ScanQueueMessageKind.PROGRESS, {"current": n, "total": 0, "message": f"스캔 중... {n}개 파일"}))
+
         results = use_case.execute(root_path, extensions=extensions, progress_callback=progress_cb)
         queue.put((ScanQueueMessageKind.RESULT, results))
     except Exception:
@@ -44,7 +63,7 @@ def run_scan_in_process(
     finally:
         try:
             queue.put((ScanQueueMessageKind.DONE, None))
-        except Exception:  # noqa: S110
+        except Exception:
             pass
 
 
