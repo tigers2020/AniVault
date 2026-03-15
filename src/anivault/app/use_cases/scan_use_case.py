@@ -14,7 +14,7 @@ from anivault.core.pipeline import run_pipeline
 from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.core import ProcessingConfig
 from anivault.shared.constants.file_formats import VideoFormats
-from anivault.shared.constants.gui_constants import ScanQueueMessageKind
+from anivault.shared.constants.scan_messages import ScanQueueMessageKind
 from anivault.shared.models.metadata import FileMetadata
 
 

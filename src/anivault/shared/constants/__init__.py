@@ -81,6 +81,7 @@ from .matching import (
     YearMatchingConfig,
 )
 from .network import DownloadConfig, NetworkConfig
+from .scan_messages import ScanQueueMessageKind
 
 # Import system classes for direct access
 from .system import (
@@ -188,6 +189,7 @@ __all__ = [
     "ProgressMessages",
     "QueueConfig",
     "RunDefaults",
+    "ScanQueueMessageKind",
     "Status",
     "StatusMessages",
     "StatusValues",

@@ -14,7 +14,7 @@ from anivault.gui_v2.app_context import AppContext
 from anivault.gui_v2.controllers.base_controller import BaseController
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.shared.constants.file_formats import SubtitleFormats, VideoFormats
-from anivault.shared.constants.gui_constants import ScanQueueMessageKind
+from anivault.shared.constants.scan_messages import ScanQueueMessageKind
 
 logger = logging.getLogger(__name__)
 
