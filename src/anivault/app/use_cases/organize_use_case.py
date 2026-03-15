@@ -6,6 +6,7 @@ Orchestrates organization pipeline: scan → generate plan → execute plan.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Sequence
 
 from anivault.config import Settings
 from anivault.core.models import FileOperation, ScannedFile
@@ -27,6 +28,20 @@ from anivault.shared.utils.metadata_converter import MetadataConverter
 
 class OrganizeUseCase:
     """Use case for organizing anime files into structured directories."""
+
+    def _scanned_file_from_metadata(self, metadata: FileMetadata) -> ScannedFile:
+        """Convert a single FileMetadata to ScannedFile (single source for organize conversion)."""
+        parsing_result = MetadataConverter.file_metadata_to_parsing_result(metadata)
+        return ScannedFile(
+            file_path=metadata.file_path,
+            metadata=parsing_result,
+        )
+
+    def _scanned_files_from_metadata(
+        self, files: Sequence[FileMetadata]
+    ) -> list[ScannedFile]:
+        """Convert FileMetadata list to ScannedFile list (single source for organize conversion)."""
+        return [self._scanned_file_from_metadata(m) for m in files]
 
     def scan(
         self,
@@ -52,17 +67,7 @@ class OrganizeUseCase:
             num_workers=num_workers or WorkerConfig.DEFAULT,
             max_queue_size=max_queue_size or QueueConfig.DEFAULT_SIZE,
         )
-
-        scanned_files: list[ScannedFile] = []
-        for metadata in file_results:
-            parsing_result = MetadataConverter.file_metadata_to_parsing_result(metadata)
-            scanned_file = ScannedFile(
-                file_path=metadata.file_path,
-                metadata=parsing_result,
-            )
-            scanned_files.append(scanned_file)
-
-        return scanned_files
+        return self._scanned_files_from_metadata(file_results)
 
     def generate_plan(
         self,
@@ -96,6 +101,40 @@ class OrganizeUseCase:
             List of FileOperation
         """
         return core_generate_enhanced_plan(scanned_files, destination=destination)
+
+    def generate_plan_from_metadata(
+        self,
+        files: list[FileMetadata],
+        settings: Settings | None = None,
+    ) -> list[FileOperation]:
+        """Generate organization plan from FileMetadata list.
+
+        Args:
+            files: List of FileMetadata (e.g. from scan/match results).
+            settings: Optional settings override.
+
+        Returns:
+            List of FileOperation.
+        """
+        scanned = self._scanned_files_from_metadata(files)
+        return self.generate_plan(scanned, settings=settings)
+
+    def generate_enhanced_plan_from_metadata(
+        self,
+        files: list[FileMetadata],
+        destination: str = "Anime",
+    ) -> list[FileOperation]:
+        """Generate enhanced organization plan from FileMetadata list.
+
+        Args:
+            files: List of FileMetadata (e.g. from scan/match results).
+            destination: Base destination directory name.
+
+        Returns:
+            List of FileOperation.
+        """
+        scanned = self._scanned_files_from_metadata(files)
+        return self.generate_enhanced_plan(scanned, destination=destination)
 
     def execute_plan(
         self,
