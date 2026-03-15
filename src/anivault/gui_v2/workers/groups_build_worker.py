@@ -26,6 +26,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Callable
 
+from anivault.core import normalize_series_title
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.file_grouper.grouper import TitleExtractor
 from anivault.core.models import ScannedFile
@@ -80,18 +81,12 @@ def _scanned_file_from_metadata(
 
 
 def _normalize_series_name(group_title: str) -> str:
-    """Strip episode/season suffix from group title so one series = one key.
+    """Strip episode/season from group title so one series = one key.
 
-    Aligns with match_worker series key: '더 파이팅 30화' and '더 파이팅 31화'
-    both become '더 파이팅' so they merge before tmdb_id merge.
+    Uses shared normalize_series_title so keys align with match_worker;
+    e.g. '더 파이팅 30화' and '명탐정 코난 001화 제트...' both normalize correctly.
     """
-    name = re.sub(r"\s*-\s*\d+.*$", "", group_title)
-    name = re.sub(r"\s*[Ee]\d+.*$", "", name)
-    name = re.sub(r"\s*[Ee]pisode\s*\d+.*$", "", name, flags=re.IGNORECASE)
-    name = re.sub(r"\s*\d+\s*(?:화|話)\s*$", "", name)  # "30화", "31話"
-    name = re.sub(r"\s+\d+\s*$", "", name)  # trailing " 30"
-    name = re.sub(r"[-\s]+", " ", name).strip()
-    return name if name and len(name) >= 2 else group_title
+    return normalize_series_title(group_title)
 
 
 def _display_title_for_files(

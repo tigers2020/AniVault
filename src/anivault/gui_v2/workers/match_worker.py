@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from collections import defaultdict
 from dataclasses import replace
+
+from anivault.core import normalize_series_title
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.pipeline import (
     MatchOptions,
@@ -20,34 +21,11 @@ from anivault.shared.models.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 
-# Patterns to strip episode/season from title so same series shares one TMDB search
-_SERIES_TITLE_CLEAN_PATTERNS = [
-    re.compile(r"\s*-\s*\d+.*$"),  # "Title - 30" or "Title - 30화"
-    re.compile(r"\s*[Ee]\d+.*$"),  # E30, e12
-    re.compile(r"\s*[Ee]pisode\s*\d+.*$", re.IGNORECASE),
-    re.compile(r"\s*\d+\s*(?:화|話)\s*$"),  # "30화", "31話"
-    re.compile(r"\s+\d+\s*$"),  # trailing " 30"
-]
-
-
-def _series_title_from_metadata(fm: FileMetadata) -> str:
-    """Extract series title (no episode/season) for grouping and TMDB search.
-
-    Ensures '더 파이팅 30화', '더 파이팅 31화' share one search key '더 파이팅'.
-    """
-    raw = (fm.title or "").strip() or fm.file_path.stem
-    if not raw:
-        return raw
-    cleaned = raw
-    for pattern in _SERIES_TITLE_CLEAN_PATTERNS:
-        cleaned = pattern.sub("", cleaned)
-    cleaned = re.sub(r"[-\s]+", " ", cleaned).strip()
-    return cleaned if len(cleaned) >= 2 else raw
-
 
 def _series_key(fm: FileMetadata) -> tuple[str, int | None]:
     """Key for deduplicating TMDB searches: (series_title, year)."""
-    return (_series_title_from_metadata(fm), fm.year)
+    raw = (fm.title or "").strip() or (fm.file_path.stem if fm.file_path else "")
+    return (normalize_series_title(raw), fm.year)
 
 
 class MatchWorker(BaseWorker):

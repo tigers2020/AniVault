@@ -13,6 +13,7 @@ from .log_manager import (
 )
 from .models import FileOperation, OperationType, ScannedFile
 from .normalization import normalize_query, normalize_query_from_anitopy
+from .normalize_series_title import normalize_series_title
 from .organizer import FileOrganizer
 from .statistics import StatisticsCollector, get_statistics_collector
 
@@ -29,4 +30,5 @@ __all__ = [
     "get_statistics_collector",
     "normalize_query",
     "normalize_query_from_anitopy",
+    "normalize_series_title",
 ]
