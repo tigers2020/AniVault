@@ -78,6 +78,15 @@ class GroupsView(BaseView):
 
     def set_file_metadata(self, files: list[FileMetadata]) -> None:
         """Build groups from FileMetadata in background thread and update display."""
+        # #region agent log
+        try:
+            _lp = __file__
+            _root = __import__("pathlib").Path(_lp).resolve().parents[4]
+            with (_root / "debug-03322c.log").open("a", encoding="utf-8") as _f:
+                _f.write(__import__("json").dumps({"sessionId": "03322c", "hypothesisId": "H3", "location": "groups_view.set_file_metadata", "message": "entry", "data": {"files": len(files), "has_groups": bool(self._groups)}, "timestamp": __import__("time").time_ns()}) + "\n")
+        except Exception:
+            pass
+        # #endregion
         files_with_tmdb = sum(1 for fm in files if getattr(fm, "tmdb_id", None) is not None)
         logger.info(
             "set_file_metadata called with %d files (%d with tmdb_id)",
@@ -135,6 +144,15 @@ class GroupsView(BaseView):
 
     def _on_groups_built(self, groups: list[dict]) -> None:
         """Handle groups build completion (runs on main thread via Qt signal)."""
+        # #region agent log
+        try:
+            _lp = __file__
+            _root = __import__("pathlib").Path(_lp).resolve().parents[4]
+            with (_root / "debug-03322c.log").open("a", encoding="utf-8") as _f:
+                _f.write(__import__("json").dumps({"sessionId": "03322c", "hypothesisId": "H2", "location": "groups_view._on_groups_built", "message": "entry", "data": {"groups": len(groups)}, "timestamp": __import__("time").time_ns()}) + "\n")
+        except Exception:
+            pass
+        # #endregion
         logger.info("Received %d groups from worker", len(groups))
         self.set_groups(groups)
         self.groups_build_finished.emit()
@@ -155,6 +173,15 @@ class GroupsView(BaseView):
 
     def _update_display(self) -> None:
         """Update the groups grid display."""
+        # #region agent log
+        try:
+            _lp = __file__
+            _root = __import__("pathlib").Path(_lp).resolve().parents[4]
+            with (_root / "debug-03322c.log").open("a", encoding="utf-8") as _f:
+                _f.write(__import__("json").dumps({"sessionId": "03322c", "hypothesisId": "H1", "location": "groups_view._update_display", "message": "start", "data": {"groups": len(self._groups)}, "timestamp": __import__("time").time_ns()}) + "\n")
+        except Exception:
+            pass
+        # #endregion
         logger.debug("_update_display called with %d groups", len(self._groups))
         # Disable updates during bulk changes to avoid per-widget repaints (major perf win)
         self.setUpdatesEnabled(False)
@@ -164,6 +191,15 @@ class GroupsView(BaseView):
                 child = self.grid_layout.takeAt(0)
                 if child.widget():
                     child.widget().deleteLater()
+
+            # #region agent log
+            try:
+                _root = __import__("pathlib").Path(__file__).resolve().parents[4]
+                with (_root / "debug-03322c.log").open("a", encoding="utf-8") as _f:
+                    _f.write(__import__("json").dumps({"sessionId": "03322c", "hypothesisId": "H1", "location": "groups_view._update_display", "message": "after_clear", "data": {}, "timestamp": __import__("time").time_ns()}) + "\n")
+            except Exception:
+                pass
+            # #endregion
 
             # Add group cards
             if not self._groups:
@@ -178,6 +214,15 @@ class GroupsView(BaseView):
                 row = i // 3
                 col = i % 3
                 self.grid_layout.addWidget(card, row, col)
+                # #region agent log
+                if (i + 1) % 500 == 0 or (i + 1) == len(self._groups):
+                    try:
+                        _root = __import__("pathlib").Path(__file__).resolve().parents[4]
+                        with (_root / "debug-03322c.log").open("a", encoding="utf-8") as _f:
+                            _f.write(__import__("json").dumps({"sessionId": "03322c", "hypothesisId": "H1", "location": "groups_view._update_display", "message": "cards_added", "data": {"count": i + 1, "total": len(self._groups)}, "timestamp": __import__("time").time_ns()}) + "\n")
+                    except Exception:
+                        pass
+                # #endregion
 
             # Single layout pass after all widgets added
             if self.grid_container:

@@ -219,6 +219,14 @@ class GroupsBuildWorker(BaseWorker):
         try:
             groups = _build_groups_from_metadata(self._files, progress_callback=on_progress)
             logger.info("GroupsBuildWorker: built %d groups from %d files", len(groups), len(self._files))
+            # #region agent log
+            try:
+                _root = __import__("pathlib").Path(__file__).resolve().parents[4]
+                with (_root / "debug-03322c.log").open("a", encoding="utf-8") as _f:
+                    _f.write(__import__("json").dumps({"sessionId": "03322c", "hypothesisId": "H2", "location": "groups_build_worker.run", "message": "before_finished_emit", "data": {"groups": len(groups), "files": len(self._files)}, "timestamp": __import__("time").time_ns()}) + "\n")
+            except Exception:
+                pass
+            # #endregion
             self.finished.emit(groups)
         except Exception as exc:
             logger.exception("GroupsBuildWorker failed")

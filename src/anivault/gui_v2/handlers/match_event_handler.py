@@ -39,6 +39,14 @@ class MatchEventHandler(BaseEventHandler):
 
     def on_match_finished(self, results: list) -> None:
         """Handle match completion."""
+        # #region agent log
+        try:
+            _root = __import__("pathlib").Path(__file__).resolve().parents[4]
+            with (_root / "debug-03322c.log").open("a", encoding="utf-8") as _f:
+                _f.write(__import__("json").dumps({"sessionId": "03322c", "hypothesisId": "H3", "location": "match_event_handler.on_match_finished", "message": "entry", "data": {"results": len(results)}, "timestamp": __import__("time").time_ns()}) + "\n")
+        except Exception:
+            pass
+        # #endregion
         logger.debug("Match finished: received %d results", len(results))
         self._window.loading_overlay.hide_loading()
         self._window.status_bar.set_status("매칭 완료", "ok")
