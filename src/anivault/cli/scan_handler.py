@@ -1,7 +1,6 @@
 """Scan command handler for AniVault CLI.
 
-Refactored to use decorator pattern for cleaner, more maintainable code.
-Core logic moved to cli.helpers.scan module.
+Orchestration entry point: Container → ScanUseCase → MetadataEnricher → helper (format only).
 """
 
 from __future__ import annotations
@@ -9,11 +8,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
 import typer
+from dependency_injector.wiring import Provide, inject
 from rich.console import Console as RichConsole
 
 from anivault.cli.common.context import get_cli_context
@@ -23,17 +22,163 @@ from anivault.cli.helpers.scan import (
     _file_metadata_to_dict,
     collect_scan_data,
     display_scan_results,
-    enrich_metadata,
-    run_scan_pipeline,
 )
 from anivault.cli.json_formatter import format_json_output
+from anivault.cli.progress import create_progress_manager
+from anivault.containers import Container
+from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
+from anivault.services.enricher import MetadataEnricher
+from anivault.services.enricher.metadata_enricher.models import EnrichedMetadata
 from anivault.shared.constants import CLI, CLIDefaults, CLIFormatting
 from anivault.shared.constants.cli import CLIHelp, CLIMessages, CLIOptions
+from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.constants.logging import LogConfig
+from anivault.shared.constants.scan_fields import ScanMessages
+from anivault.shared.constants import QueueConfig
 from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import CLIDirectoryPath, ScanOptions
+from anivault.app.use_cases.scan_use_case import ScanUseCase
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Private pipeline helpers (handler-internal, keeps handle_scan_command thin)
+# ---------------------------------------------------------------------------
+
+@inject
+def _run_scan(
+    directory: Path,
+    *,
+    is_json_output: bool = False,
+    scan_use_case: ScanUseCase = Provide[Container.scan_use_case],
+) -> list[FileMetadata]:
+    """Execute scan UseCase and return raw FileMetadata list.
+
+    Args:
+        directory: Directory to scan
+        is_json_output: Whether JSON output is enabled (suppresses progress)
+        scan_use_case: Injected ScanUseCase from Container
+
+    Returns:
+        List of FileMetadata from scanner
+    """
+    progress_manager = create_progress_manager(disabled=is_json_output)
+    with progress_manager.spinner("Scanning files..."):
+        return scan_use_case.execute(
+            directory=directory,
+            extensions=list(VideoFormats.ALL_EXTENSIONS),
+            num_workers=CLIDefaults.DEFAULT_WORKER_COUNT,
+            max_queue_size=QueueConfig.DEFAULT_SIZE,
+        )
+
+
+def _file_metadata_to_parsing_result(metadata: FileMetadata) -> ParsingResult:
+    """Convert FileMetadata to ParsingResult for enrichment."""
+    return ParsingResult(
+        title=metadata.title,
+        episode=metadata.episode,
+        season=metadata.season,
+        year=metadata.year,
+        quality=None,
+        source=None,
+        codec=None,
+        audio=None,
+        release_group=None,
+        confidence=1.0,
+        parser_used="file_metadata_converter",
+        additional_info=ParsingAdditionalInfo(),
+    )
+
+
+@inject
+async def _enrich_results(
+    file_results: list[FileMetadata],
+    *,
+    is_json_output: bool = False,
+    enricher: MetadataEnricher = Provide[Container.metadata_enricher],
+) -> list[FileMetadata]:
+    """Enrich FileMetadata list with TMDB data via MetadataEnricher.
+
+    Args:
+        file_results: Raw scan results to enrich
+        is_json_output: Whether JSON output is enabled (suppresses progress)
+        enricher: Injected MetadataEnricher from Container
+
+    Returns:
+        List of enriched FileMetadata
+    """
+    if not file_results:
+        return file_results
+
+    progress_manager = create_progress_manager(disabled=is_json_output)
+    parsing_results = [_file_metadata_to_parsing_result(m) for m in file_results]
+
+    enriched_list: list[EnrichedMetadata] = []
+    for pr in progress_manager.track(parsing_results, "Enriching metadata..."):
+        enriched = await enricher.enrich_metadata(pr)
+        enriched_list.append(enriched)
+
+    return [
+        enriched.to_file_metadata(original.file_path)
+        for original, enriched in zip(file_results, enriched_list)
+    ]
+
+
+def _emit_scan_output(
+    results: list[FileMetadata],
+    directory: Path,
+    *,
+    is_json_output: bool,
+    console: RichConsole,
+) -> None:
+    """Emit scan results to JSON stdout or rich TTY table.
+
+    Args:
+        results: Enriched FileMetadata list
+        directory: Scanned directory (for JSON summary)
+        is_json_output: Output mode switch
+        console: Rich console
+    """
+    import sys
+
+    if is_json_output:
+        scan_data = collect_scan_data(results, directory, show_tmdb=True)
+        json_output = format_json_output(
+            success=True,
+            command="scan",
+            data=scan_data,
+        )
+        sys.stdout.buffer.write(json_output)
+        sys.stdout.buffer.write(b"\n")
+        sys.stdout.buffer.flush()
+    else:
+        display_scan_results(results, console, show_tmdb=True)
+        if results:
+            console.print(
+                CLIFormatting.format_colored_message(
+                    ScanMessages.SCAN_COMPLETED,
+                    "success",
+                )
+            )
+
+
+def _save_results_to_file(results: list[FileMetadata], output_path: Path) -> None:
+    """Save enriched scan results to a JSON file.
+
+    Args:
+        results: Enriched FileMetadata list
+        output_path: Destination path
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    json_results = [_file_metadata_to_dict(m) for m in results]
+    with open(output_path, "w", encoding=LogConfig.DEFAULT_ENCODING) as f:
+        json.dump(json_results, f, indent=CLI.INDENT_SIZE, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# Command entry point
+# ---------------------------------------------------------------------------
 
 
 @setup_handler(requires_directory=True, supports_json=True)
@@ -48,26 +193,22 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
+    import sys
 
     console = kwargs.get("console") or RichConsole()
     logger_adapter = kwargs.get("logger_adapter", logger)
 
     logger_adapter.info(CLI.INFO_COMMAND_STARTED.format(command=CLIMessages.CommandNames.SCAN))
 
-    # Extract Path from DirectoryPath or use directly
     directory = options.directory.path if hasattr(options.directory, "path") else Path(str(options.directory))
-
-    # Check if JSON output is enabled
     context = get_cli_context()
     is_json_output = bool(context and context.is_json_output_enabled())
 
-    # Run scan pipeline
-    file_results = run_scan_pipeline(directory, console, is_json_output=is_json_output)
+    # 1. Scan
+    file_results = _run_scan(directory, is_json_output=is_json_output)
 
-    # Handle empty results
     if not file_results:
         if is_json_output:
-            # Return empty results in JSON format
             scan_data = collect_scan_data([], directory, show_tmdb=True)
             json_output = format_json_output(
                 success=True,
@@ -82,67 +223,24 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
             console.print("[yellow]No anime files found in the specified directory[/yellow]")
         return CLIDefaults.EXIT_SUCCESS
 
-    # Enrich metadata (always enabled for scan)
-    enriched_results = asyncio.run(enrich_metadata(file_results, console, is_json_output=is_json_output))
+    # 2. Enrich
+    enriched_results = asyncio.run(_enrich_results(file_results, is_json_output=is_json_output))
 
-    # Output results
-    if is_json_output:
-        # Collect scan statistics for JSON output
-        # enriched_results is list[FileMetadata] from enrich_metadata
-        scan_data = collect_scan_data(enriched_results, directory, show_tmdb=True)
+    # 3. Output
+    _emit_scan_output(enriched_results, directory, is_json_output=is_json_output, console=console)
 
-        # Output JSON to stdout
-        json_output = format_json_output(
-            success=True,
-            command="scan",
-            data=scan_data,
-        )
-        sys.stdout.buffer.write(json_output)
-        sys.stdout.buffer.write(b"\n")
-        sys.stdout.buffer.flush()
-    else:
-        # Display results in human-readable format
-        # enriched_results is list[FileMetadata] from enrich_metadata
-        display_scan_results(enriched_results, console, show_tmdb=True)
-
-        # Save results to file if requested
-        if options.output:
-            _save_results_to_file(enriched_results, options.output)
-
-            console.print(
-                CLIFormatting.format_colored_message(
-                    CLI.SUCCESS_RESULTS_SAVED.format(path=options.output),
-                    "success",
-                )
+    # 4. Optionally save to file
+    if not is_json_output and options.output:
+        _save_results_to_file(enriched_results, options.output)
+        console.print(
+            CLIFormatting.format_colored_message(
+                CLI.SUCCESS_RESULTS_SAVED.format(path=options.output),
+                "success",
             )
+        )
 
     logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.SCAN))
     return CLIDefaults.EXIT_SUCCESS
-
-
-def _save_results_to_file(results: list[FileMetadata], output_path: Path) -> None:
-    """Save scan results to a JSON file.
-
-    Args:
-        results: List of FileMetadata instances
-        output_path: Path to save the results
-    """
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Convert FileMetadata to JSON-serializable format
-    json_results = []
-    for metadata in results:
-        json_result = _file_metadata_to_dict(metadata)
-        json_results.append(json_result)
-
-    with open(output_path, "w", encoding=LogConfig.DEFAULT_ENCODING) as f:
-        json.dump(
-            json_results,
-            f,
-            indent=CLI.INDENT_SIZE,
-            ensure_ascii=False,
-        )
 
 
 def scan_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -215,7 +313,6 @@ def scan_command(  # pylint: disable=too-many-arguments,too-many-positional-argu
         anivault scan /path/to/anime --output scan_results.json
     """
     try:
-        # Validate arguments using Pydantic model
         scan_options = ScanOptions(
             directory=CLIDirectoryPath(path=directory),
             recursive=recursive,
