@@ -18,9 +18,14 @@ from __future__ import annotations
 # pylint: disable=import-error  # dependency_injector is an optional dependency
 from dependency_injector import containers, providers
 
+from anivault.app.models.match_services import MatchServices
+from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
+from anivault.app.use_cases.match_use_case import MatchUseCase
+from anivault.app.use_cases.organize_use_case import OrganizeUseCase
 from anivault.config.loader import load_settings
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.services.cache_adapter import SQLiteCacheAdapter
+from anivault.core.parser.anitopy_parser import AnitopyParser
 from anivault.services import (
     RateLimitStateMachine,
     SemaphoreManager,
@@ -101,3 +106,23 @@ class Container(containers.DeclarativeContainer):
         cache_adapter=cache_adapter,
         tmdb_client=tmdb_client,
     )
+
+    # Parser (for MatchServices)
+    parser = providers.Factory(AnitopyParser)
+
+    # Match use case services bundle
+    match_services = providers.Factory(
+        MatchServices,
+        cache=sqlite_cache_db,
+        rate_limiter=rate_limiter,
+        semaphore_manager=semaphore_manager,
+        state_machine=state_machine,
+        tmdb_client=tmdb_client,
+        matching_engine=matching_engine,
+        parser=parser,
+    )
+
+    # Use case providers (Phase R0.5, R3)
+    match_use_case = providers.Factory(MatchUseCase, services=match_services)
+    organize_use_case = providers.Factory(OrganizeUseCase)
+    build_groups_use_case = providers.Factory(BuildGroupsUseCase)
