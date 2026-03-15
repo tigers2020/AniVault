@@ -145,15 +145,23 @@ ignore = [
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
 "src/anivault/cli/**" = ["FBT003", "B008", "TCH002"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거), TCH002: typer는 런타임에 사용
 # R5: TID251 — Container/use_cases 접근은 핸들러·컨테이너·GUI·app 계층에서만 허용 (cli helpers 제외)
-"src/anivault/containers.py" = ["TID251"]
-"src/anivault/app/**" = ["TID251"]      # app 계층은 동일 계층 내 import 허용
+# Rationale for each exception is documented below.
+"src/anivault/containers.py" = ["TID251"]       # container wiring file itself
+"src/anivault/app/**" = ["TID251"]              # app layer: same-layer imports allowed
 "src/anivault/cli/scan_handler.py" = ["TID251"]
 "src/anivault/cli/organize_handler.py" = ["TID251"]
 "src/anivault/cli/match_handler.py" = ["TID251"]
 "src/anivault/cli/run_handler.py" = ["TID251"]
 "src/anivault/cli/verify_handler.py" = ["TID251"]
 "src/anivault/cli/typer_app.py" = ["TID251"]
-"src/anivault/gui_v2/**" = ["TID251"]  # GUI 전체: DI/컨트롤러 패턴상 허용
+# GUI: workers need app.use_cases (scan_worker instantiates; others: TYPE_CHECKING type hints)
+"src/anivault/gui_v2/workers/*.py" = ["TID251"]
+# GUI: controllers call use_case functions at runtime (e.g. run_scan_in_process)
+"src/anivault/gui_v2/controllers/*.py" = ["TID251"]
+# GUI: flows coordinate use cases across views
+"src/anivault/gui_v2/flows/*.py" = ["TID251"]
+# GUI: groups_view receives BuildGroupsUseCase factory in constructor (TYPE_CHECKING import)
+"src/anivault/gui_v2/views/groups_view.py" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -484,6 +492,8 @@ aggressive = false
 root_package = "anivault"
 # Exclude TYPE_CHECKING imports from dependency graph (they are type-hints only)
 exclude_type_checking_imports = true
+# Allow grimp to find the source package without an editable install
+source_paths = ["src"]
 
 # --- Gate 1: cli helpers must not import containers, use_cases, or services ----
 [[tool.importlinter.contracts]]
@@ -535,4 +545,28 @@ ignore_imports = [
     # for attribute access in formatting functions. No business logic.
     "anivault.cli.helpers.organize_formatters -> anivault.core.models",
     "anivault.cli.helpers.organize_formatters -> anivault.core.organizer.executor",
+]
+
+# --- Gate 3.5: app.use_cases may only be directly imported by authorised callers ---
+# protected contract requires import-linter >= 2.5 (installed: 2.11 ✓)
+# Authorised direct importers: cli handlers, gui_v2 workers, gui_v2 controllers.
+# All other callers must use DI injection; no business-logic helper may call use_cases directly.
+[[tool.importlinter.contracts]]
+id = "R5-gate3_5-use-cases-protected"
+name = "R5 gate-3.5: app.use_cases may only be imported by handlers, workers, and controllers"
+type = "protected"
+protected_modules = [
+    "anivault.app.use_cases",
+]
+allowed_importers = [
+    "anivault.cli.run_handler",
+    "anivault.cli.scan_handler",
+    "anivault.cli.match_handler",
+    "anivault.cli.organize_handler",
+    "anivault.cli.verify_handler",
+    "anivault.gui_v2.workers",
+    "anivault.gui_v2.controllers",
+    "anivault.gui_v2.flows",
+    "anivault.containers",
+    "anivault.app",
 ]
