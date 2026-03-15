@@ -4,17 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections import defaultdict
-from dataclasses import replace
 
-from anivault.core import normalize_series_title
-from anivault.core.matching.engine import MatchingEngine
-from anivault.core.matching.pipeline import (
-    MatchOptions,
-    MatchResultBundle,
-    process_file_for_matching,
-)
-from anivault.core.parser.anitopy_parser import AnitopyParser
+from anivault.app.use_cases.match_use_case import MatchUseCase
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
 from anivault.shared.models.metadata import FileMetadata
@@ -22,29 +13,51 @@ from anivault.shared.models.metadata import FileMetadata
 logger = logging.getLogger(__name__)
 
 
-def _series_key(fm: FileMetadata) -> tuple[str, int | None]:
-    """Key for deduplicating TMDB searches: (series_title, year)."""
-    raw = (fm.title or "").strip() or (fm.file_path.stem if fm.file_path else "")
-    return (normalize_series_title(raw), fm.year)
-
-
 class MatchWorker(BaseWorker):
-    """Worker that runs TMDB matching."""
+    """Worker that runs TMDB matching via MatchUseCase."""
 
     def __init__(
         self,
         files: list[FileMetadata],
-        matching_engine: MatchingEngine,
+        match_use_case: MatchUseCase,
     ) -> None:
         super().__init__()
         self._files = files
-        self._matching_engine = matching_engine
-        self._parser = AnitopyParser()
+        self._match_use_case = match_use_case
 
     def run(self) -> None:
         """Run the match workflow."""
         try:
-            results = asyncio.run(self._match_files())
+            def progress_callback(
+                current: int, total: int, stage_key: str | None
+            ) -> None:
+                _ = stage_key
+                self.progress.emit(
+                    OperationProgress(
+                        current=current,
+                        total=total,
+                        stage="matching",
+                        message="매칭 중...",
+                    )
+                )
+
+            results = asyncio.run(
+                self._match_use_case.execute_from_files(
+                    self._files,
+                    progress_callback=progress_callback,
+                    cancel_check=self.is_cancelled,
+                )
+            )
+
+            total = len(self._files)
+            self.progress.emit(
+                OperationProgress(
+                    current=total,
+                    total=total,
+                    stage="matching",
+                    message="매칭 완료",
+                )
+            )
             self.finished.emit(results)
         except Exception as exc:
             logger.exception("Match workflow failed")
@@ -55,75 +68,3 @@ class MatchWorker(BaseWorker):
                     detail=str(exc),
                 )
             )
-
-    async def _match_files(self) -> list[FileMetadata]:
-        """Match files asynchronously. Groups by (series_title, year) so one TMDB search per series."""
-        # Group by series title (episode/season stripped) so "더 파이팅 30화" and "더 파이팅 31화" = one search
-        groups: dict[tuple[str, int | None], list[FileMetadata]] = defaultdict(list)
-        for fm in self._files:
-            groups[_series_key(fm)].append(fm)
-
-        unique_count = len(groups)
-        total = len(self._files)
-        logger.info(
-            "MatchWorker: %d unique series from %d files (%.0f%% API reduction)",
-            unique_count,
-            total,
-            100 * (1 - unique_count / total) if total else 0,
-        )
-
-        # One TMDB search per (series_title, year); use series title as search query
-        key_to_bundle: dict[tuple[str, int | None], MatchResultBundle] = {}
-        for idx, (key, group_files) in enumerate(groups.items(), start=1):
-            if self.is_cancelled():
-                break
-
-            self.progress.emit(
-                OperationProgress(
-                    current=idx - 1,
-                    total=unique_count,
-                    stage="matching",
-                    message=f"매칭 중... {idx}/{unique_count} (고유 시리즈)",
-                )
-            )
-
-            series_title, _ = key
-            representative = group_files[0]
-            bundle = await process_file_for_matching(
-                representative.file_path,
-                engine=self._matching_engine,
-                parser=self._parser,
-                options=MatchOptions(),
-                search_title=series_title,
-            )
-            if bundle is not None:
-                key_to_bundle[key] = bundle
-
-        # Build results in original file order
-        results: list[FileMetadata] = []
-        for fm in self._files:
-            key = _series_key(fm)
-            result_bundle = key_to_bundle.get(key)
-            if result_bundle and result_bundle.metadata:
-                meta = replace(
-                    result_bundle.metadata,
-                    file_path=fm.file_path,
-                    file_type=fm.file_type,
-                    episode=fm.episode,
-                    season=fm.season,
-                    year=fm.year or result_bundle.metadata.year,
-                    genres=fm.genres,
-                )
-                results.append(meta)
-            else:
-                results.append(fm)
-
-        self.progress.emit(
-            OperationProgress(
-                current=len(results),
-                total=total,
-                stage="matching",
-                message="매칭 완료",
-            )
-        )
-        return results
