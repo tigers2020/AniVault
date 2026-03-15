@@ -7,8 +7,11 @@ Worker only relays progress/finished/error; all grouping logic lives in the use 
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
+if TYPE_CHECKING:
+    from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
+
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
 from anivault.shared.models.metadata import FileMetadata

@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QWidget
 
-from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
+if TYPE_CHECKING:
+    from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
+
 from anivault.gui_v2.views.base_view import BaseView
 from anivault.gui_v2.widgets.group_card import GroupCard
 from anivault.gui_v2.workers.groups_build_worker import GroupsBuildWorker

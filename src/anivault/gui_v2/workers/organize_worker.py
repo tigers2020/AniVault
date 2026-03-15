@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from anivault.app.use_cases.organize_use_case import OrganizeUseCase
+if TYPE_CHECKING:
+    from anivault.app.use_cases.organize_use_case import OrganizeUseCase
+
 from anivault.config import Settings
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker

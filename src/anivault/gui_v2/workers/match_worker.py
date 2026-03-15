@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
-from anivault.app.use_cases.match_use_case import MatchUseCase
+if TYPE_CHECKING:
+    from anivault.app.use_cases.match_use_case import MatchUseCase
+
 from anivault.gui_v2.models import OperationError, OperationProgress
 from anivault.gui_v2.workers.base_worker import BaseWorker
 from anivault.shared.models.metadata import FileMetadata
