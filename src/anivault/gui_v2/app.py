@@ -25,7 +25,7 @@ def _log_startup_paths() -> None:
     cwd = Path.cwd().resolve()
     try:
         project_root = get_project_root().resolve()
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught  # noqa: BLE001
         logger.warning("get_project_root() failed: %s", e)
         project_root = cwd
     parser_cache_db = project_root / FileSystem.CACHE_DIRECTORY / PIPELINE_CACHE_DB
@@ -35,15 +35,18 @@ def _log_startup_paths() -> None:
         project_root,
         parser_cache_db,
     )
+    # R5: use find_spec so gui_v2.app does not directly import from anivault.core
     try:
-        import anivault.core.pipeline.components.parser as _p
-        import anivault.core.pipeline.domain.orchestrator as _o
+        import importlib.util
+
+        _p_spec = importlib.util.find_spec("anivault.core.pipeline.components.parser")
+        _o_spec = importlib.util.find_spec("anivault.core.pipeline.domain.orchestrator")
         logger.info(
-            "Loaded pipeline modules: parser=%s, orchestrator=%s",
-            getattr(_p, "__file__", "N/A"),
-            getattr(_o, "__file__", "N/A"),
+            "Pipeline module paths: parser=%s, orchestrator=%s",
+            _p_spec.origin if _p_spec else "N/A",
+            _o_spec.origin if _o_spec else "N/A",
         )
-    except ImportError as e:
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         logger.warning("Could not log pipeline module paths: %s", e)
 
 
