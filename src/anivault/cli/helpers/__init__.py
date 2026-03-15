@@ -1,7 +1,7 @@
 """CLI helper modules.
 
-This package contains helper functions extracted from CLI handlers
-for better code organization and reusability.
+Formatter/util only — no orchestration, no UseCase, no services.
+Handler files (scan_handler, match_handler, organize_handler) own all orchestration.
 """
 
 from __future__ import annotations
@@ -12,33 +12,27 @@ from .log import (
     print_log_list,
 )
 
-# Re-export match helpers
+# Re-export match helpers (output wrapper + formatters)
 from .match import (
     collect_match_data,
     display_match_results,
-    process_file_for_matching,
-    run_match_pipeline,
+    output_match_results,
 )
 
-# Re-export organize helpers
+# Re-export organize helpers (formatter/util only)
 from .organize import (
     collect_organize_data,
     confirm_organization,
-    execute_organization_plan,
-    generate_enhanced_organization_plan,
-    generate_organization_plan,
-    get_scanned_files,
-    perform_organization,
     print_dry_run_plan,
     print_execution_plan,
+    print_organization_results,
 )
 
-# Re-export scan helpers (scan.py re-exports from scan_formatters)
+# Re-export scan helpers (formatter/util only)
 from .scan import (
     collect_scan_data,
     display_scan_results,
-    enrich_metadata,
-    run_scan_pipeline,
+    file_metadata_to_dict,
 )
 
 # Re-export verify helpers
@@ -49,25 +43,25 @@ from .verify import (
 )
 
 __all__ = [
+    # Log helpers
+    "collect_log_list_data",
+    "print_log_list",
     # Match helpers
     "collect_match_data",
+    "display_match_results",
+    "output_match_results",
     # Organize helpers
     "collect_organize_data",
-    # Scan helpers
-    "collect_scan_data",
     "confirm_organization",
-    "display_match_results",
-    "display_scan_results",
-    "enrich_metadata",
-    "execute_organization_plan",
-    "generate_enhanced_organization_plan",
-    "generate_organization_plan",
-    "get_scanned_files",
-    "perform_organization",
     "print_dry_run_plan",
     "print_execution_plan",
-    "process_file_for_matching",
-    "run_match_pipeline",
-    "run_scan_pipeline",
+    "print_organization_results",
+    # Scan helpers
+    "collect_scan_data",
+    "display_scan_results",
+    "file_metadata_to_dict",
+    # Verify helpers
+    "collect_verify_data",
+    "print_tmdb_verification_result",
     "verify_tmdb_connectivity",
 ]
