@@ -30,6 +30,6 @@ class MatchController(BaseController):
             )
             return
 
-        matching_engine = self.app_context.container.matching_engine()
-        worker = MatchWorker(files, matching_engine)
+        match_use_case = self.app_context.container.match_use_case()
+        worker = MatchWorker(files, match_use_case)
         self._start_worker(worker)

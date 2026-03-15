@@ -119,7 +119,9 @@ class MainWindow(QMainWindow):
         All tabs share the same GroupsView instance for consistent layout and data.
         Only the toolbar changes based on the selected tab.
         """
-        self.groups_view = GroupsView()
+        self.groups_view = GroupsView(
+            build_groups_use_case_factory=lambda: self.app_context.container.build_groups_use_case(),
+        )
         self.workspace.add_view(self.groups_view)
         self._view_name_to_index = {
             "work": 0,

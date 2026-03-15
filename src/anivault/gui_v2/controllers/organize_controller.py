@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import logging
 
-from anivault.core.log_manager import OperationLogManager
-from anivault.core.organizer.main import FileOrganizer
 from anivault.gui_v2.app_context import AppContext
 from anivault.gui_v2.controllers.base_controller import BaseController
 from anivault.gui_v2.models import OperationError
 from anivault.gui_v2.workers.organize_worker import OrganizeWorker
 from anivault.shared.models.metadata import FileMetadata
-from anivault.utils.resource_path import get_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +30,11 @@ class OrganizeController(BaseController):
             )
             return
 
-        log_manager = OperationLogManager(get_project_root())
-        organizer = FileOrganizer(log_manager=log_manager, settings=self.app_context.settings)
-        worker = OrganizeWorker(files, organizer, dry_run=dry_run)
+        organize_use_case = self.app_context.container.organize_use_case()
+        worker = OrganizeWorker(
+            files,
+            organize_use_case,
+            dry_run=dry_run,
+            settings=self.app_context.settings,
+        )
         self._start_worker(worker)
