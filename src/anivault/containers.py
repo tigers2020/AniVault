@@ -22,7 +22,9 @@ from anivault.app.models.match_services import MatchServices
 from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
 from anivault.app.use_cases.match_use_case import MatchUseCase
 from anivault.app.use_cases.organize_use_case import OrganizeUseCase
+from anivault.app.use_cases.run_use_case import RunUseCase
 from anivault.app.use_cases.scan_use_case import ScanUseCase
+from anivault.app.use_cases.verify_use_case import VerifyUseCase
 from anivault.config.loader import load_settings
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.services.cache_adapter import SQLiteCacheAdapter
@@ -129,6 +131,17 @@ class Container(containers.DeclarativeContainer):
     match_use_case = providers.Factory(MatchUseCase, services=match_services)
     organize_use_case = providers.Factory(OrganizeUseCase)
     build_groups_use_case = providers.Factory(BuildGroupsUseCase)
+
+    # Run use case (Phase R4B) — orchestrates scan → match → organize
+    run_use_case = providers.Factory(
+        RunUseCase,
+        scan_use_case=scan_use_case,
+        match_use_case=match_use_case,
+        organize_use_case=organize_use_case,
+    )
+
+    # Verify use case (Phase R4B) — TMDB connectivity check in app layer
+    verify_use_case = providers.Factory(VerifyUseCase, tmdb_client=tmdb_client)
 
     # Metadata enricher (Phase R4A — scan handler enrich step)
     metadata_enricher = providers.Factory(MetadataEnricher, tmdb_client=tmdb_client)
