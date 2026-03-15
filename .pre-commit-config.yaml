@@ -109,6 +109,52 @@ repos:
         pass_filenames: false
         always_run: true  # Always run to catch test regressions
 
+  # Import Linter — Architecture boundary gates (R5)
+  # Runs all 4 contracts: gate1 (helpers), gate2 (workers), gate3 (bypass), gate3.5 (protected)
+  # requires import-linter >= 2.5 for protected contract (installed: 2.11)
+  # config: pyproject.toml [tool.importlinter]
+  # scripts/run_lint_imports.py delegates to venv/Scripts/lint-imports.exe so
+  # the correct anivault package (from src/) is always used, regardless of
+  # which Python environment runs pre-commit.
+  - repo: local
+    hooks:
+      - id: lint-imports-gate1
+        name: "R5 gate-1: cli helpers must not import Container/use_cases"
+        entry: python scripts/run_lint_imports.py
+        args: [--contract, R5-gate1-helpers-no-container-usecase]
+        language: system
+        types: [python]
+        files: ^src/
+        pass_filenames: false
+        always_run: false
+      - id: lint-imports-gate2
+        name: "R5 gate-2: gui_v2 workers must not import core directly"
+        entry: python scripts/run_lint_imports.py
+        args: [--contract, R5-gate2-workers-no-core]
+        language: system
+        types: [python]
+        files: ^src/
+        pass_filenames: false
+        always_run: false
+      - id: lint-imports-gate3
+        name: "R5 gate-3: cli and gui_v2 must not bypass app layer"
+        entry: python scripts/run_lint_imports.py
+        args: [--contract, R5-gate3-no-bypass-app-layer]
+        language: system
+        types: [python]
+        files: ^src/
+        pass_filenames: false
+        always_run: false
+      - id: lint-imports-gate3-5
+        name: "R5 gate-3.5: app.use_cases protected (handlers/workers/controllers only)"
+        entry: python scripts/run_lint_imports.py
+        args: [--contract, R5-gate3_5-use-cases-protected]
+        language: system
+        types: [python]
+        files: ^src/
+        pass_filenames: false
+        always_run: false
+
   # Local hooks for project-specific checks
   - repo: local
     hooks:
