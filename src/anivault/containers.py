@@ -22,10 +22,12 @@ from anivault.app.models.match_services import MatchServices
 from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
 from anivault.app.use_cases.match_use_case import MatchUseCase
 from anivault.app.use_cases.organize_use_case import OrganizeUseCase
+from anivault.app.use_cases.scan_use_case import ScanUseCase
 from anivault.config.loader import load_settings
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.services.cache_adapter import SQLiteCacheAdapter
 from anivault.core.parser.anitopy_parser import AnitopyParser
+from anivault.services.enricher import MetadataEnricher
 from anivault.services import (
     RateLimitStateMachine,
     SemaphoreManager,
@@ -122,7 +124,11 @@ class Container(containers.DeclarativeContainer):
         parser=parser,
     )
 
-    # Use case providers (Phase R0.5, R3)
+    # Use case providers (Phase R0.5, R3, R4A)
+    scan_use_case = providers.Factory(ScanUseCase)
     match_use_case = providers.Factory(MatchUseCase, services=match_services)
     organize_use_case = providers.Factory(OrganizeUseCase)
     build_groups_use_case = providers.Factory(BuildGroupsUseCase)
+
+    # Metadata enricher (Phase R4A — scan handler enrich step)
+    metadata_enricher = providers.Factory(MetadataEnricher, tmdb_client=tmdb_client)

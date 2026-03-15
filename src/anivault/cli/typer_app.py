@@ -62,7 +62,9 @@ def get_container() -> Container:
         # Wire modules that use DI
         _container.wire(
             modules=[
-                "anivault.cli.helpers.match",
+                "anivault.cli.scan_handler",
+                "anivault.cli.match_handler",
+                "anivault.cli.organize_handler",
             ]
         )
         logger.debug("DI container initialized and wired for CLI")
