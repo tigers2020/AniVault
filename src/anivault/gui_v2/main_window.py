@@ -11,6 +11,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QFileDialog,
     QMainWindow,
     QVBoxLayout,
     QWidget,
@@ -22,8 +23,8 @@ from anivault.gui_v2.components.layout.overlay_layer import OverlayLayerComponen
 from anivault.gui_v2.controllers import MatchController, OrganizeController, ScanController
 from anivault.gui_v2.dialogs.settings_dialog import SettingsDialog
 from anivault.gui_v2.dialogs.tmdb_manual_search_dialog import TmdbManualSearchDialog
-from anivault.gui_v2.handlers import MatchEventHandler, OrganizeEventHandler, ScanEventHandler
-from anivault.gui_v2.models import OperationProgress, ViewKind, format_progress_message
+from anivault.gui_v2.flows.organize_execution import run_organize_execute_flow
+from anivault.gui_v2.models import OperationError, OperationProgress, ViewKind, format_progress_message
 from anivault.gui_v2.views.base_view import BaseView
 from anivault.gui_v2.views.groups_view import GroupsView
 from anivault.gui_v2.widgets.header_widget import HeaderWidget
@@ -68,15 +69,9 @@ class MainWindow(QMainWindow):
         # Components
         self.settings_dialog: SettingsDialog | None = None
 
-        # Event handlers (initialized in _setup_handlers)
-        self._scan_handler: ScanEventHandler
-        self._match_handler: MatchEventHandler
-        self._organize_handler: OrganizeEventHandler
-
         # Setup UI
         self._setup_controllers()
         self._setup_ui()
-        self._setup_handlers()
         self._setup_connections()
         self._initialize_defaults()
 
@@ -136,7 +131,7 @@ class MainWindow(QMainWindow):
         """Set up signal connections."""
         # Header signals
         self.header.settings_clicked.connect(self._on_settings_clicked)
-        self.header.scan_clicked.connect(self._scan_handler.on_scan_clicked)
+        self.header.scan_clicked.connect(self._on_scan_clicked)
 
         # Sidebar signals
         self.sidebar.view_changed.connect(self._on_view_changed)
@@ -150,32 +145,208 @@ class MainWindow(QMainWindow):
         self.detail_panel.match_clicked.connect(self._on_detail_match_clicked)
 
         if self.scan_controller:
-            self.scan_controller.operation_started.connect(self._scan_handler.on_scan_started)
-            self.scan_controller.operation_progress.connect(self._scan_handler.on_scan_progress)
-            self.scan_controller.operation_finished.connect(self._scan_handler.on_scan_finished)
-            self.scan_controller.operation_error.connect(self._scan_handler.on_scan_error)
+            self.scan_controller.operation_started.connect(self._on_scan_started)
+            self.scan_controller.operation_progress.connect(self._on_scan_progress)
+            self.scan_controller.operation_finished.connect(self._on_scan_finished)
+            self.scan_controller.operation_error.connect(self._on_scan_error)
 
         if self.match_controller:
-            self.match_controller.operation_started.connect(self._match_handler.on_match_started)
-            self.match_controller.operation_progress.connect(self._match_handler.on_match_progress)
-            self.match_controller.operation_finished.connect(self._match_handler.on_match_finished)
-            self.match_controller.operation_error.connect(self._match_handler.on_match_error)
+            self.match_controller.operation_started.connect(self._on_match_started)
+            self.match_controller.operation_progress.connect(self._on_match_progress)
+            self.match_controller.operation_finished.connect(self._on_match_finished)
+            self.match_controller.operation_error.connect(self._on_match_error)
 
         if self.organize_controller:
-            self.organize_controller.operation_started.connect(self._organize_handler.on_organize_started)
-            self.organize_controller.operation_progress.connect(self._organize_handler.on_organize_progress)
-            self.organize_controller.operation_finished.connect(self._organize_handler.on_organize_finished)
-            self.organize_controller.operation_error.connect(self._organize_handler.on_organize_error)
+            self.organize_controller.operation_started.connect(self._on_organize_started)
+            self.organize_controller.operation_progress.connect(self._on_organize_progress)
+            self.organize_controller.operation_finished.connect(self._on_organize_finished)
+            self.organize_controller.operation_error.connect(self._on_organize_error)
 
-        self.workspace.match_clicked.connect(self._match_handler.on_match_clicked)
-        self.workspace.organize_preflight_clicked.connect(self._organize_handler.on_organize_preflight_clicked)
-        self.workspace.organize_execute_clicked.connect(self._organize_handler.on_organize_execute_clicked)
+        self.workspace.match_clicked.connect(self._on_match_clicked)
+        self.workspace.organize_preflight_clicked.connect(self._on_organize_preflight_clicked)
+        self.workspace.organize_execute_clicked.connect(self._on_organize_execute_clicked)
 
     def _on_settings_clicked(self) -> None:
         """Handle settings button click."""
         if self.settings_dialog is None:
             self.settings_dialog = SettingsDialog(self.app_context, self)
         self.settings_dialog.show()
+
+    def _on_scan_clicked(self) -> None:
+        """Handle scan button click."""
+        if not self.scan_controller:
+            self.status_bar.set_status("스캔 컨트롤러가 초기화되지 않았습니다.", "error")
+            return
+
+        source_folder = ""
+        if self.app_context.settings.folders and self.app_context.settings.folders.source_folder:
+            source_folder = self.app_context.settings.folders.source_folder
+
+        if not source_folder:
+            directory = QFileDialog.getExistingDirectory(self, "스캔할 디렉터리 선택")
+            if not directory:
+                return
+            source_folder = directory
+
+        directory_path = Path(source_folder)
+        if not directory_path.exists() or not directory_path.is_dir():
+            self.status_bar.set_status(f"설정된 소스 폴더가 유효하지 않습니다: {source_folder}", "error")
+            directory = QFileDialog.getExistingDirectory(self, "스캔할 디렉터리 선택")
+            if not directory:
+                return
+            directory_path = Path(directory)
+
+        self.status_bar.set_current_path(str(directory_path))
+        if self.is_subtitles_view():
+            self._active_scan_target = ViewKind.SUBTITLES.value
+            self.scan_controller.scan_subtitle_directory(directory_path)
+        else:
+            self._active_scan_target = ViewKind.VIDEOS.value
+            self.scan_controller.scan_directory(directory_path)
+
+    def _on_scan_started(self) -> None:
+        """Handle scan start."""
+        self._reset_progress_ui_throttle()
+        self.status_bar.set_status("디렉터리 스캔 시작...", "ok")
+        self.loading_overlay.show_loading("디렉터리 스캔 중...")
+
+    def _on_scan_progress(self, progress: OperationProgress) -> None:
+        """Handle scan progress updates (throttled)."""
+        self._maybe_update_progress_ui(progress)
+
+    def _on_scan_finished(self, results: list) -> None:
+        """Handle scan completion."""
+        logger.info("Scan finished: received %d results (type: %s)", len(results), type(results).__name__)
+        if results:
+            logger.info(
+                "First result type: %s, keys: %s",
+                type(results[0]).__name__,
+                list(results[0].__dict__.keys()) if hasattr(results[0], "__dict__") else "N/A",
+            )
+        self.loading_overlay.hide_loading()
+        self.status_bar.set_status("스캔 완료", "ok")
+
+        if self._active_scan_target == ViewKind.SUBTITLES.value:
+            self._subtitle_scan_results = results
+            if self.is_subtitles_view():
+                self.groups_view.set_file_metadata(results)
+                self._refresh_statistics()
+            self._refresh_status_bar()
+            if results and self.match_controller:
+                logger.info("Auto-matching started after subtitle scan completion")
+                self._active_match_target = ViewKind.SUBTITLES.value
+                self.match_controller.match_files(results)
+            return
+
+        self._scan_results = results
+        self._update_all_views_with_metadata(results)
+        self._refresh_statistics()
+        self._refresh_status_bar()
+
+        if results and self.match_controller:
+            logger.info("Auto-matching started after scan completion")
+            self._active_match_target = ViewKind.VIDEOS.value
+            self.match_controller.match_files(results)
+
+    def _on_scan_error(self, error: OperationError) -> None:
+        """Handle scan errors."""
+        self.loading_overlay.hide_loading()
+        self.status_bar.set_status(error.message, "error")
+
+    def _on_match_clicked(self) -> None:
+        """Handle match button click."""
+        if not self.match_controller:
+            self.status_bar.set_status("매칭 컨트롤러가 초기화되지 않았습니다.", "error")
+            return
+
+        files = self.get_current_scan_results()
+        if not files:
+            self.status_bar.set_status("먼저 디렉터리를 스캔하세요.", "warn")
+            return
+
+        self.set_active_match_target_from_view()
+        self.match_controller.match_files(files)
+
+    def _on_match_started(self) -> None:
+        """Handle match start."""
+        self._reset_progress_ui_throttle()
+        self.status_bar.set_status("TMDB 매칭 시작...", "ok")
+        self.loading_overlay.show_loading("TMDB 매칭 중...")
+
+    def _on_match_progress(self, progress: OperationProgress) -> None:
+        """Handle match progress updates (throttled)."""
+        self._maybe_update_progress_ui(progress)
+
+    def _on_match_finished(self, results: list) -> None:
+        """Handle match completion."""
+        logger.debug("Match finished: received %d results", len(results))
+        self.loading_overlay.hide_loading()
+        self.status_bar.set_status("매칭 완료", "ok")
+
+        if self._active_match_target == ViewKind.SUBTITLES.value:
+            self._subtitle_scan_results = results
+            if self.is_subtitles_view():
+                self.groups_view.set_file_metadata(results)
+                self._refresh_statistics()
+            self._refresh_status_bar()
+            return
+
+        self._scan_results = results
+        self._update_all_views_with_metadata(results)
+        self._refresh_statistics()
+        self._refresh_status_bar()
+
+    def _on_match_error(self, error: OperationError) -> None:
+        """Handle match errors."""
+        self.loading_overlay.hide_loading()
+        self.status_bar.set_status(error.message, "error")
+
+    def _on_organize_preflight_clicked(self) -> None:
+        """Handle organize preflight (dry run)."""
+        if not self.organize_controller:
+            self.status_bar.set_status("정리 컨트롤러가 초기화되지 않았습니다.", "error")
+            return
+
+        files = self.get_current_scan_results()
+        if not files:
+            self.status_bar.set_status("먼저 매칭을 완료하세요.", "warn")
+            return
+
+        self.organize_controller.organize_files(files, dry_run=True)
+
+    def _on_organize_execute_clicked(self) -> None:
+        """Handle organize execution: delegate to flow module."""
+        run_organize_execute_flow(self, self._refresh_list_after_organize)
+
+    def _on_organize_started(self) -> None:
+        """Handle organize start."""
+        self._reset_progress_ui_throttle()
+        self.status_bar.set_status("파일 정리 시작...", "ok")
+        self.loading_overlay.show_loading("파일 정리 중...")
+
+    def _on_organize_progress(self, progress: OperationProgress) -> None:
+        """Handle organize progress updates (throttled)."""
+        self._maybe_update_progress_ui(progress)
+
+    def _on_organize_finished(self, _results: list) -> None:
+        """Handle organize completion."""
+        self.loading_overlay.hide_loading()
+        self.status_bar.set_status("정리 완료", "ok")
+        self._refresh_list_after_organize()
+
+    def _on_organize_error(self, error: OperationError) -> None:
+        """Handle organize errors."""
+        self.loading_overlay.hide_loading()
+        self.status_bar.set_status(error.message, "error")
+
+    def _refresh_list_after_organize(self) -> None:
+        """Clear scan results and refresh groups list after files were moved."""
+        self._scan_results = []
+        self._subtitle_scan_results = []
+        self.groups_view.set_file_metadata([])
+        self.detail_panel.hide_panel()
+        self._refresh_statistics(pending_override=0)
+        self._refresh_status_bar()
 
     def _on_view_changed(self, view_name: str) -> None:
         """Handle view change - all tabs share the same GroupsView.
@@ -469,12 +640,6 @@ class MainWindow(QMainWindow):
         self.scan_controller = ScanController(self.app_context)
         self.match_controller = MatchController(self.app_context)
         self.organize_controller = OrganizeController(self.app_context)
-
-    def _setup_handlers(self) -> None:
-        """Initialize event handlers."""
-        self._scan_handler = ScanEventHandler(self)
-        self._match_handler = MatchEventHandler(self)
-        self._organize_handler = OrganizeEventHandler(self)
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         """Handle window resize event."""
