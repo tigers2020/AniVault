@@ -52,6 +52,7 @@ dev = [
     "pyinstaller==6.16.0",
     "PySide6-stubs>=6.5.0",  # Type hints for PySide6
     "prompt-toolkit>=3.0.0",  # Optional dependency for interactive CLI
+    "import-linter>=2.1",     # R5: architectural layer contract enforcement
 ]
 
 [project.scripts]
@@ -143,6 +144,23 @@ ignore = [
 "scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
 "src/anivault/cli/**" = ["FBT003", "B008", "TCH002"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거), TCH002: typer는 런타임에 사용
+# R5: TID251 — Container/use_cases 접근은 핸들러·컨테이너·GUI·app 계층에서만 허용 (cli helpers 제외)
+"src/anivault/containers.py" = ["TID251"]
+"src/anivault/app/**" = ["TID251"]      # app 계층은 동일 계층 내 import 허용
+"src/anivault/cli/scan_handler.py" = ["TID251"]
+"src/anivault/cli/organize_handler.py" = ["TID251"]
+"src/anivault/cli/match_handler.py" = ["TID251"]
+"src/anivault/cli/run_handler.py" = ["TID251"]
+"src/anivault/cli/verify_handler.py" = ["TID251"]
+"src/anivault/cli/typer_app.py" = ["TID251"]
+"src/anivault/gui_v2/**" = ["TID251"]  # GUI 전체: DI/컨트롤러 패턴상 허용
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"anivault.containers" = {msg = "cli/gui helpers must not import Container. Container wiring belongs in handlers/entry-points only. See docs/v2/ARCHITECTURE.md."}
+"anivault.app.use_cases" = {msg = "cli/gui helpers must not import use_cases directly. Use DI injection in handler files. See docs/v2/ARCHITECTURE.md."}
 
 [tool.black]
 line-length = 150
@@ -455,3 +473,66 @@ skip = []
 # include = []
 # Aggressive mode (enable additional checks)
 aggressive = false
+
+# -----------------------------------------------------------------------------
+# Import Linter — R5 architectural dependency contracts
+# Docs: https://import-linter.readthedocs.io/
+# Run: lint-imports  (or: lint-imports --contract <name>)
+# -----------------------------------------------------------------------------
+
+[tool.importlinter]
+root_package = "anivault"
+# Exclude TYPE_CHECKING imports from dependency graph (they are type-hints only)
+exclude_type_checking_imports = true
+
+# --- Gate 1: cli helpers must not import containers, use_cases, or services ----
+[[tool.importlinter.contracts]]
+id = "R5-gate1-helpers-no-container-usecase"
+name = "R5 gate-1: cli helpers must not import Container, use_cases, or services"
+type = "forbidden"
+source_modules = [
+    "anivault.cli.helpers",
+]
+forbidden_modules = [
+    "anivault.containers",
+    "anivault.app.use_cases",
+    "anivault.services",
+]
+
+# --- Gate 2: gui_v2 workers must not import core directly -------------------
+# allow_indirect_imports=true: workers may import via app layer (expected);
+# only a *direct* worker→core dependency would break this contract.
+[[tool.importlinter.contracts]]
+id = "R5-gate2-workers-no-core"
+name = "R5 gate-2: gui_v2 workers must not import core directly"
+type = "forbidden"
+source_modules = [
+    "anivault.gui_v2.workers",
+]
+forbidden_modules = [
+    "anivault.core",
+]
+allow_indirect_imports = true
+
+# --- Gate 3: cli/gui_v2 must not bypass app layer (documented exceptions) ---
+# allow_indirect_imports=true: cli/gui may reach core only via app layer (expected);
+# only *direct* cli/gui→core dependencies break this contract.
+[[tool.importlinter.contracts]]
+id = "R5-gate3-no-bypass-app-layer"
+name = "R5 gate-3: cli and gui_v2 must not directly import core or services"
+type = "forbidden"
+source_modules = [
+    "anivault.cli",
+    "anivault.gui_v2",
+]
+forbidden_modules = [
+    "anivault.core",
+    "anivault.services",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    # Documented exception: organize_formatters uses core DTO types at runtime
+    # for attribute access in formatting functions. No business logic.
+    "anivault.cli.helpers.organize_formatters -> anivault.core.models",
+    "anivault.cli.helpers.organize_formatters -> anivault.core.organizer.executor",
+]
