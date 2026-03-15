@@ -103,7 +103,7 @@ repos:
           - --tb=short
           - --maxfail=3
           - -x
-          # Skip coverage in hook (unit-only would fail 95%); run full pytest for coverage
+          # Skip coverage in hook (unit-only would fail 90%); run full pytest for coverage
           - -o
           - addopts=--strict-markers --strict-config --tb=short --maxfail=5 -p no:pytest-qt --ignore=tests/gui/ --ignore=tests/benchmarks_disabled/ --ignore=tests/core/file_grouper/test_group_name_manager_benchmark.py --ignore=tests/unit/test_subtitle_matcher_benchmark.py --ignore=tests/unit/test_title_matcher_accuracy_benchmark.py
         pass_filenames: false

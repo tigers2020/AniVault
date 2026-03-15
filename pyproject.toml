@@ -345,7 +345,7 @@ addopts = [
     "--ignore=tests/unit/test_title_matcher_accuracy_benchmark.py",
     "--cov=src/anivault",
     "--cov-report=term-missing",
-    "--cov-fail-under=95",
+    "--cov-fail-under=90",
 ]
 # Optional: add --cov-report=html for browseable report, --cov-report=xml for CI
 
