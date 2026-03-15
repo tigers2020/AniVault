@@ -138,9 +138,7 @@ class PipelineFactory:
             result_queue = BoundedQueue(maxsize=max_queue_size)
 
             # Directory cache for incremental scans (skips unchanged dirs on second run)
-            dir_cache = DirectoryCacheManager(
-                cache_file=Path(root_path) / ".anivault_scan_cache.json"
-            )
+            dir_cache = DirectoryCacheManager(cache_file=Path(root_path) / ".anivault_scan_cache.json")
 
             # Initialize pipeline components
             scanner = DirectoryScanner(

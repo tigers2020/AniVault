@@ -121,17 +121,20 @@ class ScanController(BaseController):
                     )
                 )
             elif kind == ScanQueueMessageKind.RESULT:
-                self._stop_scan_process()
+                self._stop_poll_timer_only()
                 self.operation_finished.emit(payload)
+                QTimer.singleShot(0, self._stop_scan_process)
                 return
             elif kind == ScanQueueMessageKind.ERROR:
-                self._stop_scan_process()
+                self._stop_poll_timer_only()
                 self.operation_error.emit(
                     OperationError(code="SCAN_FAILED", message="스캔 중 오류가 발생했습니다.", detail=payload)
                 )
+                QTimer.singleShot(0, self._stop_scan_process)
                 return
             elif kind == ScanQueueMessageKind.DONE:
-                self._stop_scan_process()
+                self._stop_poll_timer_only()
+                QTimer.singleShot(0, self._stop_scan_process)
                 return
 
         if not self._scan_process.is_alive() and self._scan_queue is not None:
@@ -147,16 +150,22 @@ class ScanController(BaseController):
                     )
                 )
 
+    def _stop_poll_timer_only(self) -> None:
+        """Stop the poll timer only (so we stop draining the queue). Call before emitting result/error."""
+        if self._scan_poll_timer is not None:
+            self._scan_poll_timer.stop()
+            self._scan_poll_timer = None
+
     def _stop_scan_process(self) -> None:
-        """Stop poll timer and join process."""
+        """Stop poll timer (if still set) and join process. May be deferred via QTimer.singleShot to avoid blocking UI."""
         if self._scan_poll_timer is not None:
             self._scan_poll_timer.stop()
             self._scan_poll_timer = None
         if self._scan_process is not None:
-            self._scan_process.join(timeout=5.0)
+            self._scan_process.join(timeout=2.0)
             if self._scan_process.is_alive():
                 self._scan_process.terminate()
-                self._scan_process.join(timeout=2.0)
+                self._scan_process.join(timeout=1.0)
             self._scan_process = None
         self._scan_queue = None
         self._scan_running = False

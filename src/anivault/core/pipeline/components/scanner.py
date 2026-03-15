@@ -19,6 +19,7 @@ from typing import Any
 
 from anivault.core.constants import ProcessingThresholds
 from anivault.core.filter import FilterEngine
+from anivault.core.pipeline.components.directory_cache import DirectoryCacheManager
 from anivault.core.pipeline.components.scan_filters import (
     filter_directories_in_place,
     has_valid_extension,
@@ -32,7 +33,6 @@ from anivault.core.pipeline.components.scan_filters import (
 from anivault.core.pipeline.components.scan_filters import (
     should_skip_directory as filter_should_skip_directory,
 )
-from anivault.core.pipeline.components.directory_cache import DirectoryCacheManager
 from anivault.core.pipeline.utils import BoundedQueue, ScanStatistics
 from anivault.core.pipeline.utils.synchronization import ThreadSafeStatsUpdater
 from anivault.shared.constants import ProcessingConfig
@@ -207,9 +207,7 @@ class DirectoryScanner(threading.Thread):
                 if self._stop_event.is_set():
                     return
                 path = dir_path / name
-                if has_valid_extension(path, self.extensions) and filter_should_include_file(
-                    path, self.filter_engine
-                ):
+                if has_valid_extension(path, self.extensions) and filter_should_include_file(path, self.filter_engine):
                     yield path.absolute()
             for sub in data.subdirs:
                 if self._stop_event.is_set():
@@ -230,24 +228,18 @@ class DirectoryScanner(threading.Thread):
                         try:
                             if entry.is_file():
                                 files_list.append(entry.name)
-                            elif entry.is_dir() and not filter_should_skip_directory(
-                                entry.name, self.filter_engine
-                            ):
+                            elif entry.is_dir() and not filter_should_skip_directory(entry.name, self.filter_engine):
                                 subdirs_list.append(entry.name)
                         except OSError:
                             continue
             except OSError:
                 return
-            self.directory_cache.update_directory_data(
-                dir_path, mtime, files_list, subdirs_list
-            )
+            self.directory_cache.update_directory_data(dir_path, mtime, files_list, subdirs_list)
             for name in files_list:
                 if self._stop_event.is_set():
                     return
                 path = dir_path / name
-                if has_valid_extension(path, self.extensions) and filter_should_include_file(
-                    path, self.filter_engine
-                ):
+                if has_valid_extension(path, self.extensions) and filter_should_include_file(path, self.filter_engine):
                     yield path.absolute()
             for sub in subdirs_list:
                 if self._stop_event.is_set():
