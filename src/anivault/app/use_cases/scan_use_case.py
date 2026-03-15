@@ -1,7 +1,10 @@
-"""Scan use case (Phase 5).
+"""Scan use case (Phase 5, R5 update).
 
 Orchestrates scan pipeline: run pipeline on directory and return FileMetadata list.
 Shared by CLI scan handler and GUI scan worker.
+
+R5: MetadataEnricher integration moved here from cli/scan_handler so that the
+handler layer never imports from anivault.core or anivault.services directly.
 """
 
 from __future__ import annotations
@@ -9,13 +12,18 @@ from __future__ import annotations
 import multiprocessing
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
 from anivault.core.pipeline import run_pipeline
 from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.core import ProcessingConfig
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.constants.scan_messages import ScanQueueMessageKind
 from anivault.shared.models.metadata import FileMetadata
+
+if TYPE_CHECKING:
+    from anivault.services.enricher import MetadataEnricher
 
 
 def run_scan_in_process(
@@ -48,7 +56,7 @@ def run_scan_in_process(
 
     try:
         queue.put((ScanQueueMessageKind.STARTED, None))
-    except Exception:  # queue may be broken in child
+    except Exception:  # queue may be broken in child  # noqa: BLE001
         pass
     try:
         use_case = ScanUseCase()
@@ -58,17 +66,63 @@ def run_scan_in_process(
 
         results = use_case.execute(root_path, extensions=extensions, progress_callback=progress_cb)
         queue.put((ScanQueueMessageKind.RESULT, results))
-    except Exception:
+    except Exception:  # noqa: BLE001
         queue.put((ScanQueueMessageKind.ERROR, traceback.format_exc()))
     finally:
         try:
             queue.put((ScanQueueMessageKind.DONE, None))
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
 
 class ScanUseCase:
-    """Use case for scanning anime files in a directory."""
+    """Use case for scanning anime files in a directory.
+
+    Args:
+        enricher: Optional MetadataEnricher for TMDB enrichment after scanning.
+                  When None, enrich_one() is a no-op that returns the input as-is.
+    """
+
+    def __init__(self, enricher: MetadataEnricher | None = None) -> None:
+        self._enricher = enricher
+
+    # ------------------------------------------------------------------
+    # Enrichment helpers (R5: moved from cli/scan_handler)
+    # ------------------------------------------------------------------
+
+    def _file_metadata_to_parsing_result(self, metadata: FileMetadata) -> ParsingResult:
+        """Convert FileMetadata to ParsingResult for TMDB enrichment."""
+        return ParsingResult(
+            title=metadata.title,
+            episode=metadata.episode,
+            season=metadata.season,
+            year=metadata.year,
+            quality=None,
+            source=None,
+            codec=None,
+            audio=None,
+            release_group=None,
+            confidence=1.0,
+            parser_used="file_metadata_converter",
+            additional_info=ParsingAdditionalInfo(),
+        )
+
+    async def enrich_one(self, metadata: FileMetadata) -> FileMetadata:
+        """Enrich a single FileMetadata with TMDB data.
+
+        Returns the original FileMetadata unchanged when no enricher is configured.
+
+        Args:
+            metadata: FileMetadata to enrich.
+
+        Returns:
+            Enriched FileMetadata, or original when enricher is absent.
+        """
+        if self._enricher is None:
+            return metadata
+        parsing_result = self._file_metadata_to_parsing_result(metadata)
+        enriched = await self._enricher.enrich_metadata(parsing_result)
+        return enriched.to_file_metadata(metadata.file_path)
 
     def execute(
         self,

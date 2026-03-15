@@ -126,8 +126,13 @@ class Container(containers.DeclarativeContainer):
         parser=parser,
     )
 
-    # Use case providers (Phase R0.5, R3, R4A)
-    scan_use_case = providers.Factory(ScanUseCase)
+    # Metadata enricher (Phase R4A — scan handler enrich step)
+    # R5: defined before scan_use_case so it can be injected
+    metadata_enricher = providers.Factory(MetadataEnricher, tmdb_client=tmdb_client)
+
+    # Use case providers (Phase R0.5, R3, R4A, R5)
+    # R5: enricher wired here so scan_handler never imports MetadataEnricher directly
+    scan_use_case = providers.Factory(ScanUseCase, enricher=metadata_enricher)
     match_use_case = providers.Factory(MatchUseCase, services=match_services)
     organize_use_case = providers.Factory(OrganizeUseCase)
     build_groups_use_case = providers.Factory(BuildGroupsUseCase)
@@ -142,6 +147,3 @@ class Container(containers.DeclarativeContainer):
 
     # Verify use case (Phase R4B) — TMDB connectivity check in app layer
     verify_use_case = providers.Factory(VerifyUseCase, tmdb_client=tmdb_client)
-
-    # Metadata enricher (Phase R4A — scan handler enrich step)
-    metadata_enricher = providers.Factory(MetadataEnricher, tmdb_client=tmdb_client)

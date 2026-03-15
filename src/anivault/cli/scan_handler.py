@@ -1,6 +1,9 @@
 """Scan command handler for AniVault CLI.
 
-Orchestration entry point: Container → ScanUseCase → MetadataEnricher → helper (format only).
+Orchestration entry point: Container → ScanUseCase (with enricher) → helper (format only).
+
+R5: enrichment responsibility moved to ScanUseCase so this handler never imports
+from anivault.core or anivault.services directly.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ import typer
 from dependency_injector.wiring import Provide, inject
 from rich.console import Console as RichConsole
 
+from anivault.app.use_cases.scan_use_case import ScanUseCase
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.common.setup_decorator import setup_handler
@@ -26,18 +30,13 @@ from anivault.cli.helpers.scan import (
 from anivault.cli.json_formatter import format_json_output
 from anivault.cli.progress import create_progress_manager
 from anivault.containers import Container
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
-from anivault.services.enricher import MetadataEnricher
-from anivault.services.enricher.metadata_enricher.models import EnrichedMetadata
-from anivault.shared.constants import CLI, CLIDefaults, CLIFormatting
+from anivault.shared.constants import CLI, CLIDefaults, CLIFormatting, QueueConfig
 from anivault.shared.constants.cli import CLIHelp, CLIMessages, CLIOptions
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.constants.logging import LogConfig
 from anivault.shared.constants.scan_fields import ScanMessages
-from anivault.shared.constants import QueueConfig
 from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import CLIDirectoryPath, ScanOptions
-from anivault.app.use_cases.scan_use_case import ScanUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -73,37 +72,22 @@ def _run_scan(
         )
 
 
-def _file_metadata_to_parsing_result(metadata: FileMetadata) -> ParsingResult:
-    """Convert FileMetadata to ParsingResult for enrichment."""
-    return ParsingResult(
-        title=metadata.title,
-        episode=metadata.episode,
-        season=metadata.season,
-        year=metadata.year,
-        quality=None,
-        source=None,
-        codec=None,
-        audio=None,
-        release_group=None,
-        confidence=1.0,
-        parser_used="file_metadata_converter",
-        additional_info=ParsingAdditionalInfo(),
-    )
-
-
 @inject
 async def _enrich_results(
     file_results: list[FileMetadata],
     *,
     is_json_output: bool = False,
-    enricher: MetadataEnricher = Provide[Container.metadata_enricher],
+    scan_use_case: ScanUseCase = Provide[Container.scan_use_case],
 ) -> list[FileMetadata]:
-    """Enrich FileMetadata list with TMDB data via MetadataEnricher.
+    """Enrich FileMetadata list with TMDB data via ScanUseCase.enrich_one().
+
+    R5: MetadataEnricher is no longer accessed directly here; ScanUseCase owns
+    the enrichment contract so this handler stays within the app layer boundary.
 
     Args:
         file_results: Raw scan results to enrich
         is_json_output: Whether JSON output is enabled (suppresses progress)
-        enricher: Injected MetadataEnricher from Container
+        scan_use_case: Injected ScanUseCase (carries MetadataEnricher internally)
 
     Returns:
         List of enriched FileMetadata
@@ -112,17 +96,11 @@ async def _enrich_results(
         return file_results
 
     progress_manager = create_progress_manager(disabled=is_json_output)
-    parsing_results = [_file_metadata_to_parsing_result(m) for m in file_results]
-
-    enriched_list: list[EnrichedMetadata] = []
-    for pr in progress_manager.track(parsing_results, "Enriching metadata..."):
-        enriched = await enricher.enrich_metadata(pr)
+    enriched_list: list[FileMetadata] = []
+    for fm in progress_manager.track(file_results, "Enriching metadata..."):
+        enriched = await scan_use_case.enrich_one(fm)
         enriched_list.append(enriched)
-
-    return [
-        enriched.to_file_metadata(original.file_path)
-        for original, enriched in zip(file_results, enriched_list)
-    ]
+    return enriched_list
 
 
 def _emit_scan_output(
