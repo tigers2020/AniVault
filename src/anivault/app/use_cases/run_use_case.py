@@ -18,6 +18,7 @@ from anivault.app.use_cases.organize_use_case import OrganizeUseCase
 from anivault.app.use_cases.scan_use_case import ScanUseCase
 from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.system import FileSystem
+from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import RunOptions
 
 if TYPE_CHECKING:
@@ -123,18 +124,15 @@ class RunUseCase:
             stats_collector.reset()
 
         result = RunResult()
+        scanned: list[FileMetadata] | None = None
+        matched: list[FileMetadata] | None = None
 
         # ------------------------------------------------------------------
         # Step 1: Scan
         # ------------------------------------------------------------------
         if not options.skip_scan:
-            step = self._run_scan_step(options, directory, stats_collector)
-            result.steps.append(step)
-            if step.status != "success":
-                result.success = False
-                result.exit_code = step.exit_code or 1
-                result.message = step.message
-                result.benchmark = _collect_benchmark(stats_collector, result.steps)
+            step, scanned = self._run_scan_step(options, directory, stats_collector)
+            if not _append_step(result, step, stats_collector):
                 return result
         else:
             result.steps.append(RunStepResult(step="scan", status="skipped", message="Scan step skipped"))
@@ -143,13 +141,12 @@ class RunUseCase:
         # Step 2: Match
         # ------------------------------------------------------------------
         if not options.skip_match:
-            step = await self._run_match_step(directory, stats_collector)
-            result.steps.append(step)
-            if step.status != "success":
-                result.success = False
-                result.exit_code = step.exit_code or 1
-                result.message = step.message
-                result.benchmark = _collect_benchmark(stats_collector, result.steps)
+            step, matched = await self._run_match_step(
+                directory,
+                stats_collector,
+                scanned_files=scanned,
+            )
+            if not _append_step(result, step, stats_collector):
                 return result
         else:
             result.steps.append(RunStepResult(step="match", status="skipped", message="Match step skipped"))
@@ -158,13 +155,14 @@ class RunUseCase:
         # Step 3: Organize
         # ------------------------------------------------------------------
         if not options.skip_organize:
-            step = self._run_organize_step(options, directory, stats_collector)
-            result.steps.append(step)
-            if step.status != "success":
-                result.success = False
-                result.exit_code = step.exit_code or 1
-                result.message = step.message
-                result.benchmark = _collect_benchmark(stats_collector, result.steps)
+            organize_files = _pick_organize_files(matched, scanned)
+            step = self._run_organize_step(
+                options,
+                directory,
+                stats_collector,
+                organize_files=organize_files,
+            )
+            if not _append_step(result, step, stats_collector):
                 return result
         else:
             result.steps.append(RunStepResult(step="organize", status="skipped", message="Organize step skipped"))
@@ -181,69 +179,112 @@ class RunUseCase:
         options: RunOptions,
         directory: Path,
         stats_collector: StatisticsCollector | None,
-    ) -> RunStepResult:
+    ) -> tuple[RunStepResult, list[FileMetadata] | None]:
         """Execute the scan step (synchronous)."""
         _timing_start(stats_collector, "scan")
         try:
-            self._scan.execute(
+            scanned_files = self._scan.execute(
                 directory=directory,
                 extensions=list(options.extensions),
                 num_workers=options.max_workers,
                 max_queue_size=QueueConfig.DEFAULT_SIZE,
             )
             _timing_end(stats_collector, "scan")
-            return RunStepResult(step="scan", status="success", message="Files scanned successfully")
+            return (
+                RunStepResult(step="scan", status="success", message="Files scanned successfully"),
+                scanned_files,
+            )
         except Exception as exc:  # pylint: disable=broad-exception-caught
             _timing_end(stats_collector, "scan")
             logger.exception("Error in scan step")
-            return RunStepResult(step="scan", status="error", message=f"Scan step error: {exc}", exit_code=1)
+            return (
+                RunStepResult(step="scan", status="error", message=f"Scan step error: {exc}", exit_code=1),
+                None,
+            )
 
     async def _run_match_step(
         self,
         directory: Path,
         stats_collector: StatisticsCollector | None,
-    ) -> RunStepResult:
+        *,
+        scanned_files: list[FileMetadata] | None,
+    ) -> tuple[RunStepResult, list[FileMetadata] | None]:
         """Execute the match step (async; no internal asyncio.run)."""
         _timing_start(stats_collector, "match")
         try:
-            await self._match.execute(
-                directory,
-                extensions=tuple(FileSystem.CLI_VIDEO_EXTENSIONS),
-                concurrency=4,
-            )
+            matched_files: list[FileMetadata]
+            if scanned_files is not None:
+                matched_files = await self._match.execute_from_files(scanned_files)
+            else:
+                matched_files = await self._match.execute(
+                    directory,
+                    extensions=tuple(FileSystem.CLI_VIDEO_EXTENSIONS),
+                    concurrency=4,
+                )
             _timing_end(stats_collector, "match")
-            return RunStepResult(step="match", status="success", message="Files matched successfully")
+            return (
+                RunStepResult(step="match", status="success", message="Files matched successfully"),
+                matched_files,
+            )
         except Exception as exc:  # pylint: disable=broad-exception-caught
             _timing_end(stats_collector, "match")
             logger.exception("Error in match step")
-            return RunStepResult(step="match", status="error", message=f"Match step error: {exc}", exit_code=1)
+            return (
+                RunStepResult(step="match", status="error", message=f"Match step error: {exc}", exit_code=1),
+                None,
+            )
+
+    def _build_organize_plan(
+        self,
+        options: RunOptions,
+        directory: Path,
+        organize_files: list[FileMetadata] | None,
+    ) -> list | None:
+        """Build the organize plan from artifact files or via fallback scan.
+
+        Returns a plan list, or None when there are no files to organize.
+        The fallback scan path is taken only when organize_files is None
+        (i.e. both skip_scan and skip_match were set by the caller).
+        """
+        if organize_files is None:
+            scanned_files = self._organize.scan(
+                root_path=str(directory),
+                extensions=list(options.extensions),
+                num_workers=options.max_workers,
+                max_queue_size=QueueConfig.DEFAULT_SIZE,
+            )
+            if not scanned_files:
+                return None
+            if options.enhanced:
+                return self._organize.generate_enhanced_plan(
+                    scanned_files, destination=options.destination or "Anime"
+                )
+            return self._organize.generate_plan(scanned_files)
+
+        if not organize_files:
+            return None
+
+        if options.enhanced:
+            return self._organize.generate_enhanced_plan_from_metadata(
+                organize_files, destination=options.destination or "Anime"
+            )
+        return self._organize.generate_plan_from_metadata(organize_files)
 
     def _run_organize_step(
         self,
         options: RunOptions,
         directory: Path,
         stats_collector: StatisticsCollector | None,
+        *,
+        organize_files: list[FileMetadata] | None,
     ) -> RunStepResult:
         """Execute the organize step (synchronous)."""
         _timing_start(stats_collector, "organize")
         try:
-            extensions_list = list(options.extensions)
-            scanned_files = self._organize.scan(
-                root_path=str(directory),
-                extensions=extensions_list,
-                num_workers=options.max_workers,
-                max_queue_size=QueueConfig.DEFAULT_SIZE,
-            )
-
-            if not scanned_files:
+            plan = self._build_organize_plan(options, directory, organize_files)
+            if plan is None:
                 _timing_end(stats_collector, "organize")
                 return RunStepResult(step="organize", status="success", message="No files to organize")
-
-            if options.enhanced:
-                destination = options.destination or "Anime"
-                plan = self._organize.generate_enhanced_plan(scanned_files, destination=destination)
-            else:
-                plan = self._organize.generate_plan(scanned_files)
 
             if options.dry_run:
                 _timing_end(stats_collector, "organize")
@@ -268,6 +309,44 @@ class RunUseCase:
             _timing_end(stats_collector, "organize")
             logger.exception("Error in organize step")
             return RunStepResult(step="organize", status="error", message=f"Organize step error: {exc}", exit_code=1)
+
+
+# ---------------------------------------------------------------------------
+# Module-level step helpers
+# ---------------------------------------------------------------------------
+
+
+def _pick_organize_files(
+    matched: list[FileMetadata] | None,
+    scanned: list[FileMetadata] | None,
+) -> list[FileMetadata] | None:
+    """Select the best artifact list for the organize step.
+
+    Priority: matched (even when empty) → scanned → None.
+    ``matched is None`` means match was skipped, so scanned is the fallback.
+    An empty ``matched`` (no API results) intentionally keeps the empty list.
+    """
+    return matched if matched is not None else scanned
+
+
+def _append_step(
+    result: RunResult,
+    step: RunStepResult,
+    collector: StatisticsCollector | None,
+) -> bool:
+    """Append *step* to *result* and return True when the pipeline may continue.
+
+    On failure the result is marked unsuccessful and benchmark data is
+    collected so the caller can return immediately.
+    """
+    result.steps.append(step)
+    if step.status != "success":
+        result.success = False
+        result.exit_code = step.exit_code or 1
+        result.message = step.message
+        result.benchmark = _collect_benchmark(collector, result.steps)
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
