@@ -18,7 +18,7 @@ import typer
 from dependency_injector.wiring import Provide, inject
 from rich.console import Console
 
-from anivault.app.use_cases.run_use_case import RunResult, RunUseCase
+from anivault.app.use_cases.run_use_case import RunResult, RunUseCase, StepStatus
 from anivault.cli.common.context import get_cli_context
 from anivault.cli.common.error_decorator import handle_cli_errors
 from anivault.cli.common.path_utils import extract_directory_path
@@ -71,13 +71,14 @@ def _build_run_data(options: RunOptions, directory: Path) -> dict[str, Any]:
 
 
 def _run_result_to_steps(result: RunResult) -> list[dict[str, Any]]:
-    """Convert RunResult.steps to the legacy list-of-dict format."""
+    """Convert RunResult.steps to the steps list-of-dict format for CLI output."""
     return [
         {
             CLIMessages.StatusKeys.STEP: s.step,
-            CLIMessages.StatusKeys.STATUS: s.status,
+            CLIMessages.StatusKeys.STATUS: s.status.value,
             "message": s.message,
             **({"exit_code": s.exit_code} if s.exit_code else {}),
+            "extra": s.extra,
         }
         for s in result.steps
     ]
@@ -148,15 +149,15 @@ def _print_run_summary(run_data: dict[str, Any], console: Console) -> None:
 
     console.print("\n[bold]Steps Completed:[/bold]")
     for step in run_data["steps"]:
-        step_status = step["status"]
-        if step_status == "success":
+        step_status = StepStatus(step["status"])
+        if step_status is StepStatus.SUCCESS:
             status_icon, status_color = "✓", "green"
-        elif step_status == "skipped":
+        elif step_status is StepStatus.SKIPPED:
             status_icon, status_color = "⊘", "dim"
         else:
             status_icon, status_color = "✗", "red"
         console.print(
-            f"  {status_icon} {step['step'].title()}: [{status_color}]{step['status']}[/{status_color}]"
+            f"  {status_icon} {step['step'].title()}: [{status_color}]{step_status.value}[/{status_color}]"
             f" - {step['message']}"
         )
 
