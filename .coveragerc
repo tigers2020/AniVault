@@ -37,7 +37,6 @@ omit =
     src/anivault/core/organizer/main.py
     src/anivault/core/organizer/path_builder.py
     src/anivault/core/organizer/organize_service.py
-    src/anivault/core/organizer/file_organizer.py
     src/anivault/core/organizer/resolution.py
     src/anivault/core/organizer/executor.py
     src/anivault/core/normalization.py
