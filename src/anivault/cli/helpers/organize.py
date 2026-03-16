@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.prompt import Confirm
@@ -16,13 +17,15 @@ from anivault.cli.json_formatter import format_json_output
 from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.types.cli import OrganizeOptions
 
-from .organize_formatters import (
-    FileOperation,
-    OperationResult,
+from anivault.cli.helpers.organize_formatters import (
     collect_organize_data,
     print_dry_run_plan,
     print_execution_plan,
 )
+
+if TYPE_CHECKING:
+    from anivault.core.models import FileOperation
+    from anivault.core.organizer.executor import OperationResult
 
 logger = logging.getLogger(__name__)
 

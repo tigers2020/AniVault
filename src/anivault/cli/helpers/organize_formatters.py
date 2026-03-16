@@ -6,14 +6,15 @@ Extracted from organize.py for better code organization.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
-from anivault.core.models import FileOperation
-from anivault.core.organizer.executor import OperationResult
+from anivault.cli.helpers.format_utils import format_size, get_file_size
 
-from .format_utils import format_size, get_file_size
+if TYPE_CHECKING:
+    from anivault.core.models import FileOperation
+    from anivault.core.organizer.executor import OperationResult
 
 
 def collect_organize_data(
