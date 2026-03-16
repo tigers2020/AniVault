@@ -524,9 +524,11 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 
-# --- Gate 3: cli/gui_v2 must not bypass app layer (documented exceptions) ---
+# --- Gate 3: cli/gui_v2 must not bypass app layer ---
 # allow_indirect_imports=true: cli/gui may reach core only via app layer (expected);
 # only *direct* cli/gui→core dependencies break this contract.
+# Phase 5: organize_formatters runtime core imports moved to TYPE_CHECKING;
+#           ignore_imports exceptions no longer required.
 [[tool.importlinter.contracts]]
 id = "R5-gate3-no-bypass-app-layer"
 name = "R5 gate-3: cli and gui_v2 must not directly import core or services"
@@ -540,12 +542,6 @@ forbidden_modules = [
     "anivault.services",
 ]
 allow_indirect_imports = true
-ignore_imports = [
-    # Documented exception: organize_formatters uses core DTO types at runtime
-    # for attribute access in formatting functions. No business logic.
-    "anivault.cli.helpers.organize_formatters -> anivault.core.models",
-    "anivault.cli.helpers.organize_formatters -> anivault.core.organizer.executor",
-]
 
 # --- Gate 3.5: app.use_cases may only be directly imported by authorised callers ---
 # protected contract requires import-linter >= 2.5 (installed: 2.11 ✓)
