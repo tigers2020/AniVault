@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -36,10 +37,26 @@ class RunStepResult:
     """Result of a single pipeline step."""
 
     step: str
-    status: str  # "success" | "error" | "skipped"
+    status: StepStatus
     message: str
     exit_code: int = 0
     extra: dict[str, Any] = field(default_factory=dict)
+
+
+class StepStatus(StrEnum):
+    """Allowed status values for run steps."""
+
+    SUCCESS = "success"
+    ERROR = "error"
+    SKIPPED = "skipped"
+
+
+STEP_FAILURE_EXIT_CODES: dict[str, int] = {
+    # Phase 3 contract hardening: keep current behavior explicit.
+    "scan": 1,
+    "match": 1,
+    "organize": 1,
+}
 
 
 @dataclass
@@ -135,7 +152,9 @@ class RunUseCase:
             if not _append_step(result, step, stats_collector):
                 return result
         else:
-            result.steps.append(RunStepResult(step="scan", status="skipped", message="Scan step skipped"))
+            result.steps.append(
+                RunStepResult(step="scan", status=StepStatus.SKIPPED, message="Scan step skipped")
+            )
 
         # ------------------------------------------------------------------
         # Step 2: Match
@@ -149,7 +168,9 @@ class RunUseCase:
             if not _append_step(result, step, stats_collector):
                 return result
         else:
-            result.steps.append(RunStepResult(step="match", status="skipped", message="Match step skipped"))
+            result.steps.append(
+                RunStepResult(step="match", status=StepStatus.SKIPPED, message="Match step skipped")
+            )
 
         # ------------------------------------------------------------------
         # Step 3: Organize
@@ -165,7 +186,9 @@ class RunUseCase:
             if not _append_step(result, step, stats_collector):
                 return result
         else:
-            result.steps.append(RunStepResult(step="organize", status="skipped", message="Organize step skipped"))
+            result.steps.append(
+                RunStepResult(step="organize", status=StepStatus.SKIPPED, message="Organize step skipped")
+            )
 
         result.benchmark = _collect_benchmark(stats_collector, result.steps)
         return result
@@ -191,14 +214,19 @@ class RunUseCase:
             )
             _timing_end(stats_collector, "scan")
             return (
-                RunStepResult(step="scan", status="success", message="Files scanned successfully"),
+                RunStepResult(step="scan", status=StepStatus.SUCCESS, message="Files scanned successfully"),
                 scanned_files,
             )
         except Exception as exc:  # pylint: disable=broad-exception-caught
             _timing_end(stats_collector, "scan")
             logger.exception("Error in scan step")
             return (
-                RunStepResult(step="scan", status="error", message=f"Scan step error: {exc}", exit_code=1),
+                RunStepResult(
+                    step="scan",
+                    status=StepStatus.ERROR,
+                    message=f"Scan step error: {exc}",
+                    exit_code=STEP_FAILURE_EXIT_CODES["scan"],
+                ),
                 None,
             )
 
@@ -223,14 +251,19 @@ class RunUseCase:
                 )
             _timing_end(stats_collector, "match")
             return (
-                RunStepResult(step="match", status="success", message="Files matched successfully"),
+                RunStepResult(step="match", status=StepStatus.SUCCESS, message="Files matched successfully"),
                 matched_files,
             )
         except Exception as exc:  # pylint: disable=broad-exception-caught
             _timing_end(stats_collector, "match")
             logger.exception("Error in match step")
             return (
-                RunStepResult(step="match", status="error", message=f"Match step error: {exc}", exit_code=1),
+                RunStepResult(
+                    step="match",
+                    status=StepStatus.ERROR,
+                    message=f"Match step error: {exc}",
+                    exit_code=STEP_FAILURE_EXIT_CODES["match"],
+                ),
                 None,
             )
 
@@ -284,15 +317,20 @@ class RunUseCase:
             plan = self._build_organize_plan(options, directory, organize_files)
             if plan is None:
                 _timing_end(stats_collector, "organize")
-                return RunStepResult(step="organize", status="success", message="No files to organize")
+                return RunStepResult(
+                    step="organize",
+                    status=StepStatus.SUCCESS,
+                    message="No files to organize",
+                    extra={"dry_run": False, "plan_count": 0, "moved": 0, "total": 0},
+                )
 
             if options.dry_run:
                 _timing_end(stats_collector, "organize")
                 return RunStepResult(
                     step="organize",
-                    status="success",
+                    status=StepStatus.SUCCESS,
                     message=f"Dry-run: {len(plan)} file operations planned",
-                    extra={"dry_run": True, "plan_count": len(plan)},
+                    extra={"dry_run": True, "plan_count": len(plan), "moved": 0, "total": len(plan)},
                 )
 
             results = self._organize.execute_plan(plan, directory)
@@ -301,14 +339,24 @@ class RunUseCase:
             moved = sum(1 for r in results if r.success)
             return RunStepResult(
                 step="organize",
-                status="success",
+                status=StepStatus.SUCCESS,
                 message=f"Files organized successfully ({moved}/{len(plan)} moved)",
-                extra={"moved": moved, "total": len(plan)},
+                extra={
+                    "dry_run": False,
+                    "plan_count": len(plan),
+                    "moved": moved,
+                    "total": len(plan),
+                },
             )
         except Exception as exc:  # pylint: disable=broad-exception-caught
             _timing_end(stats_collector, "organize")
             logger.exception("Error in organize step")
-            return RunStepResult(step="organize", status="error", message=f"Organize step error: {exc}", exit_code=1)
+            return RunStepResult(
+                step="organize",
+                status=StepStatus.ERROR,
+                message=f"Organize step error: {exc}",
+                exit_code=STEP_FAILURE_EXIT_CODES["organize"],
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -340,9 +388,9 @@ def _append_step(
     collected so the caller can return immediately.
     """
     result.steps.append(step)
-    if step.status != "success":
+    if step.status is not StepStatus.SUCCESS:
         result.success = False
-        result.exit_code = step.exit_code or 1
+        result.exit_code = step.exit_code
         result.message = step.message
         result.benchmark = _collect_benchmark(collector, result.steps)
         return False
