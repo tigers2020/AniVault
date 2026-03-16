@@ -18,6 +18,10 @@ from __future__ import annotations
 # pylint: disable=import-error  # dependency_injector is an optional dependency
 from dependency_injector import containers, providers
 
+from anivault.app.adapters.organize import (
+    CoreOperationLoggerAdapter,
+    CoreOrganizePlanEngineAdapter,
+)
 from anivault.app.models.match_services import MatchServices
 from anivault.app.use_cases.build_groups_use_case import BuildGroupsUseCase
 from anivault.app.use_cases.match_use_case import MatchUseCase
@@ -130,11 +134,21 @@ class Container(containers.DeclarativeContainer):
     # R5: defined before scan_use_case so it can be injected
     metadata_enricher = providers.Factory(MetadataEnricher, tmdb_client=tmdb_client)
 
+    # Organize adapters (Phase 2 port-based internalization)
+    # These are the ONLY callers allowed to instantiate concrete core adapters.
+    organize_logger_adapter = providers.Singleton(CoreOperationLoggerAdapter)
+    organize_plan_engine_adapter = providers.Singleton(CoreOrganizePlanEngineAdapter)
+
     # Use case providers (Phase R0.5, R3, R4A, R5)
     # R5: enricher wired here so scan_handler never imports MetadataEnricher directly
+    # Phase 2: logger and plan_engine ports injected so OrganizeUseCase is core-free
     scan_use_case = providers.Factory(ScanUseCase, enricher=metadata_enricher)
     match_use_case = providers.Factory(MatchUseCase, services=match_services)
-    organize_use_case = providers.Factory(OrganizeUseCase)
+    organize_use_case = providers.Factory(
+        OrganizeUseCase,
+        logger=organize_logger_adapter,
+        plan_engine=organize_plan_engine_adapter,
+    )
     build_groups_use_case = providers.Factory(BuildGroupsUseCase)
 
     # Run use case (Phase R4B) — orchestrates scan → match → organize
