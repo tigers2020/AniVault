@@ -150,7 +150,7 @@ def _emit_console_output(
 ) -> None:
     """Render verification results to console (result-only presenter calls)."""
     if options.all_components:
-        # --all: TMDB + all_components placeholder (R4B outward behavior preserved)
+        # --all: TMDB + per-component verifiers aggregated into all_components entry
         console.print("[blue]Verifying all components...[/blue]")
         if all_components_result:
             if "tmdb_api" in all_components_result:
