@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from anivault.services.cache import SQLiteCacheDB
+from anivault.infrastructure.cache import SQLiteCacheDB
 from anivault.shared.constants import Cache
 from anivault.shared.constants.system import FileSystem
 from anivault.shared.constants.validation_constants import PIPELINE_CACHE_DB

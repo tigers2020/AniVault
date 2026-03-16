@@ -83,7 +83,7 @@ class TMDBSearchService:
         statistics: Statistics collector for performance tracking
 
     Example:
-        >>> from anivault.services.tmdb import TMDBClient
+        >>> from anivault.infrastructure.tmdb import TMDBClient
         >>> from anivault.core.matching.services import SQLiteCacheAdapter
         >>>
         >>> client = TMDBClient()

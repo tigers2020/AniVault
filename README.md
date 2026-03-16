@@ -140,7 +140,7 @@ anivault verify <directory>          # 정리 결과 검증
 - [API 문서](docs/api/linked_hash_table_api.md) - LinkedHashTable API 등
 
 ### 코드 구조 정책
-- **공용 상수/타입/에러:** 소유 계층(CLI/GUI/domain/infrastructure)에 두고, 앱 전역 공용만 **common**(whitelist)에 둡니다. [구조 단순화](docs/architecture/usecase-migration/s0-baseline/README.md) 참조.
+- **공용 상수/타입/에러:** owner 있는 상수는 소유 계층(CLI/GUI/domain/infrastructure)으로 두고, 앱 전역 공용(전역 예외·타입 alias·극소수 상수·직렬화 유틸)만 **common**(whitelist)에 둡니다. common 신규 추가 시 review 필수. [구조 단순화](docs/architecture/usecase-migration/s0-baseline/README.md) 참조.
 - **CLI/GUI:** **application use case만 호출**하고, use case가 반환한 결과(DTO/Result)만 표시합니다. handler는 옵션 파싱·use case 호출·결과 렌더링만 담당하며, 비즈니스 로직을 구현하지 않습니다.
 
 ## 🛠️ 개발

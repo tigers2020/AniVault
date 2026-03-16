@@ -52,7 +52,7 @@ def _get_type_adapter(model_cls: type[BaseModel]) -> TypeAdapter[BaseModel]:
         Cached TypeAdapter instance for the model
 
     Example:
-        >>> from anivault.services.tmdb import TMDBGenre
+        >>> from anivault.infrastructure.tmdb import TMDBGenre
         >>> adapter = _get_type_adapter(TMDBGenre)
         >>> isinstance(adapter, TypeAdapter)
         True
@@ -76,7 +76,7 @@ class ModelConverter:
 
     Usage:
         # Pydantic models
-        >>> from anivault.services.tmdb import TMDBGenre
+        >>> from anivault.infrastructure.tmdb import TMDBGenre
         >>> data = {"id": 16, "name": "Animation"}
         >>> genre = ModelConverter.to_model(data, TMDBGenre)
         >>> genre.id
@@ -117,7 +117,7 @@ class ModelConverter:
             - Target: <10ms
 
         Example:
-            >>> from anivault.services.tmdb import TMDBGenre
+            >>> from anivault.infrastructure.tmdb import TMDBGenre
             >>> data = {"id": 16, "name": "Animation"}
             >>> genre = ModelConverter.to_model(data, TMDBGenre)
             >>> genre.name
@@ -171,7 +171,7 @@ class ModelConverter:
             - Target: <1ms
 
         Example:
-            >>> from anivault.services.tmdb import TMDBGenre
+            >>> from anivault.infrastructure.tmdb import TMDBGenre
             >>> genre = TMDBGenre(id=16, name="Animation")
             >>> result = ModelConverter.to_dict(genre)
             >>> result
@@ -211,7 +211,7 @@ class ModelConverter:
             - Target: <0.5ms
 
         Example:
-            >>> from anivault.services.tmdb import TMDBGenre
+            >>> from anivault.infrastructure.tmdb import TMDBGenre
             >>> genre = TMDBGenre(id=16, name="Animation")
             >>> result = ModelConverter.to_json_bytes(genre)
             >>> result
@@ -248,7 +248,7 @@ class ModelConverter:
             JSON string (UTF-8)
 
         Example:
-            >>> from anivault.services.tmdb import TMDBGenre
+            >>> from anivault.infrastructure.tmdb import TMDBGenre
             >>> genre = TMDBGenre(id=16, name="Animation")
             >>> result = ModelConverter.to_json_str(genre)
             >>> result
@@ -276,7 +276,7 @@ class ModelConverter:
             Validated model instance, or None if validation fails
 
         Example:
-            >>> from anivault.services.tmdb import TMDBGenre
+            >>> from anivault.infrastructure.tmdb import TMDBGenre
             >>> valid_data = {"id": 16, "name": "Animation"}
             >>> genre = ModelConverter.try_validate(valid_data, TMDBGenre)
             >>> genre.name if genre else "Failed"

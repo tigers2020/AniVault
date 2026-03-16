@@ -140,8 +140,8 @@ class BenchmarkRunner:
         # Import at runtime to avoid dependency layer violation
         # pylint: disable=import-outside-toplevel
         from anivault.core.matching.services import SQLiteCacheAdapter
-        from anivault.services.cache import SQLiteCacheDB
-        from anivault.services.tmdb import TMDBClient
+        from anivault.infrastructure.cache import SQLiteCacheDB
+        from anivault.infrastructure.tmdb import TMDBClient
 
         cache_db_path = Path(self.cache_dir) / "benchmark_cache.db"
         cache_db = SQLiteCacheDB(cache_db_path, self.statistics)

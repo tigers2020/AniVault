@@ -51,7 +51,7 @@ def _setup_paths() -> None:
 def _run_gui_v2() -> int:
     """Run GUI v2 entry point."""
     _debug_print("[DEBUG] Attempting to import gui_v2...")
-    from anivault.gui_v2.app import main
+    from anivault.presentation.gui.app import main
 
     _debug_print("[DEBUG] gui_v2 imported successfully, starting main()...")
     return main()
@@ -60,7 +60,7 @@ def _run_gui_v2() -> int:
 def _run_cli() -> None:
     """Run CLI fallback entry point."""
     _debug_print("[DEBUG] Attempting to import CLI...")
-    from anivault.cli.typer_app import app
+    from anivault.presentation.cli.typer_app import app
 
     _debug_print("[DEBUG] CLI imported successfully, starting app()...")
     app()

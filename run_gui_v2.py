@@ -15,7 +15,7 @@ sys.path.insert(0, str(src_dir))
 # AniVault GUI v2 실행
 if __name__ == "__main__":
     try:
-        from anivault.gui_v2.app import main
+        from anivault.presentation.gui.app import main
 
         main()
     except ImportError as e:

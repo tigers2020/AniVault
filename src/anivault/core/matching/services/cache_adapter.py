@@ -12,7 +12,7 @@ import logging
 from typing import Any, Protocol, cast
 
 from anivault.core.matching.cache_models import CachedSearchData
-from anivault.services.cache import (
+from anivault.infrastructure.cache import (
     SQLiteCacheDB,
 )
 from anivault.shared.constants import Cache, CacheValidation

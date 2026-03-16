@@ -15,8 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 # Import after path setup
 # pylint: disable-next=wrong-import-position
 # These imports must come after sys.path modification
-from anivault.cli.common.error_handler import handle_cli_error  # pylint: disable=wrong-import-position
-from anivault.cli.typer_app import app  # pylint: disable=wrong-import-position
+from anivault.presentation.cli.common.error_handler import handle_cli_error  # pylint: disable=wrong-import-position
+from anivault.presentation.cli.typer_app import app  # pylint: disable=wrong-import-position
 from anivault.shared.constants import CLIDefaults  # pylint: disable=wrong-import-position
 
 logger = logging.getLogger(__name__)

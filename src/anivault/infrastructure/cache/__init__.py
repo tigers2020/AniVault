@@ -1,8 +1,10 @@
-"""Cache infrastructure (Phase 5).
+"""Cache service module.
 
-Re-exports from services.cache for backward compatibility.
+This module provides SQLite-based caching functionality.
 """
 
-from anivault.services.cache import SQLiteCacheDB
+from .sqlite_cache_db import SQLiteCacheDB
 
-__all__ = ["SQLiteCacheDB"]
+__all__ = [
+    "SQLiteCacheDB",
+]

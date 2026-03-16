@@ -56,7 +56,7 @@ dev = [
 ]
 
 [project.scripts]
-anivault = "anivault.cli.typer_app:main"
+anivault = "anivault.presentation.cli.typer_app:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
@@ -143,32 +143,32 @@ ignore = [
 # 레거시 스크립트는 일단 좁혀서 통과
 "scripts/*.py" = ["S603", "PLR0911", "E402", "RUF001", "B008", "FBT003", "G004", "TRY401", "B904"]
 "tests/**/*.py" = ["ANN", "S101", "FBT001", "FBT002"]  # 테스트 무인증/어설션 스타일
-"src/anivault/cli/**" = ["FBT003", "B008", "TCH002"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거), TCH002: typer는 런타임에 사용
+"src/anivault/presentation/cli/**" = ["FBT003", "B008", "TCH002"]  # Typer 관용구 임시 허용(아래 리팩토링 후엔 제거), TCH002: typer는 런타임에 사용
 # R5: TID251 — Container/use_cases 접근은 핸들러·컨테이너·GUI·app 계층에서만 허용 (cli helpers 제외)
 # Rationale for each exception is documented below.
 "src/anivault/containers.py" = ["TID251"]       # container wiring file itself
 "src/anivault/app/**" = ["TID251"]              # app layer: same-layer imports allowed
-"src/anivault/cli/scan_handler.py" = ["TID251"]
-"src/anivault/cli/organize_handler.py" = ["TID251"]
-"src/anivault/cli/match_handler.py" = ["TID251"]
-"src/anivault/cli/run_handler.py" = ["TID251"]
-"src/anivault/cli/verify_handler.py" = ["TID251"]
-"src/anivault/cli/typer_app.py" = ["TID251"]
+"src/anivault/presentation/cli/scan_handler.py" = ["TID251"]
+"src/anivault/presentation/cli/organize_handler.py" = ["TID251"]
+"src/anivault/presentation/cli/match_handler.py" = ["TID251"]
+"src/anivault/presentation/cli/run_handler.py" = ["TID251"]
+"src/anivault/presentation/cli/verify_handler.py" = ["TID251"]
+"src/anivault/presentation/cli/typer_app.py" = ["TID251"]
 # GUI: workers need app.use_cases (scan_worker instantiates; others: TYPE_CHECKING type hints)
-"src/anivault/gui_v2/workers/*.py" = ["TID251"]
+"src/anivault/presentation/gui/workers/*.py" = ["TID251"]
 # GUI: controllers call use_case functions at runtime (e.g. run_scan_in_process)
-"src/anivault/gui_v2/controllers/*.py" = ["TID251"]
+"src/anivault/presentation/gui/controllers/*.py" = ["TID251"]
 # GUI: flows coordinate use cases across views
-"src/anivault/gui_v2/flows/*.py" = ["TID251"]
+"src/anivault/presentation/gui/flows/*.py" = ["TID251"]
 # GUI: groups_view receives BuildGroupsUseCase factory in constructor (TYPE_CHECKING import)
-"src/anivault/gui_v2/views/groups_view.py" = ["TID251"]
+"src/anivault/presentation/gui/views/groups_view.py" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"anivault.containers" = {msg = "cli/gui helpers must not import Container. Container wiring belongs in handlers/entry-points only. See docs/v2/ARCHITECTURE.md."}
-"anivault.app.use_cases" = {msg = "cli/gui helpers must not import use_cases directly. Use DI injection in handler files. See docs/v2/ARCHITECTURE.md."}
+"anivault.infrastructure.composition" = {msg = "cli/gui helpers must not import Container. Container wiring belongs in handlers/entry-points only. See docs/v2/ARCHITECTURE.md."}
+"anivault.application.use_cases" = {msg = "cli/gui helpers must not import use_cases directly. Use DI injection in handler files. See docs/v2/ARCHITECTURE.md."}
 
 [tool.black]
 line-length = 150
@@ -251,7 +251,7 @@ ignore_missing_imports = true
 
 # Python 3.9 CI compatibility: orjson/pydantic type stubs incomplete
 [[tool.mypy.overrides]]
-module = ["anivault.cli.json_formatter"]
+module = ["anivault.presentation.cli.json_formatter"]
 disable_error_code = ["no-any-return"]
 
 [[tool.mypy.overrides]]
@@ -271,16 +271,16 @@ module = [
     "anivault.config.models.*",
     "anivault.shared.models.*",
     "anivault.shared.types.cli",
-    "anivault.cli.common.*",
-    "anivault.cli.typer_app",
-    "anivault.cli.helpers.match",
-    "anivault.containers",
+    "anivault.presentation.cli.common.*",
+    "anivault.presentation.cli.typer_app",
+    "anivault.presentation.cli.helpers.match",
+    "anivault.infrastructure.composition",
 ]
 disable_error_code = ["misc", "no-any-return"]
 
 # GUI v2: allow PySide6 stub gaps and runtime-only types
 [[tool.mypy.overrides]]
-module = ["anivault.gui_v2.*"]
+module = ["anivault.presentation.gui.*"]
 disable_error_code = [
     "misc",
     "type-arg",
@@ -501,12 +501,12 @@ id = "R5-gate1-helpers-no-container-usecase"
 name = "R5 gate-1: cli helpers must not import Container, use_cases, or services"
 type = "forbidden"
 source_modules = [
-    "anivault.cli.helpers",
+    "anivault.presentation.cli.helpers",
 ]
 forbidden_modules = [
-    "anivault.containers",
-    "anivault.app.use_cases",
-    "anivault.services",
+    "anivault.infrastructure.composition",
+    "anivault.application.use_cases",
+    "anivault.infrastructure",
 ]
 
 # --- Gate 2: gui_v2 workers must not import core directly -------------------
@@ -517,7 +517,7 @@ id = "R5-gate2-workers-no-core"
 name = "R5 gate-2: gui_v2 workers must not import core directly"
 type = "forbidden"
 source_modules = [
-    "anivault.gui_v2.workers",
+    "anivault.presentation.gui.workers",
 ]
 forbidden_modules = [
     "anivault.core",
@@ -534,12 +534,17 @@ id = "R5-gate3-no-bypass-app-layer"
 name = "R5 gate-3: cli and gui_v2 must not directly import core or services"
 type = "forbidden"
 source_modules = [
-    "anivault.cli",
-    "anivault.gui_v2",
+    "anivault.presentation.cli",
+    "anivault.presentation.gui",
 ]
 forbidden_modules = [
     "anivault.core",
-    "anivault.services",
+    "anivault.infrastructure.tmdb",
+    "anivault.infrastructure.cache",
+    "anivault.infrastructure.enricher",
+    "anivault.infrastructure.rate_limiter",
+    "anivault.infrastructure.semaphore_manager",
+    "anivault.infrastructure.state_machine",
 ]
 allow_indirect_imports = true
 
@@ -552,17 +557,17 @@ id = "R5-gate3_5-use-cases-protected"
 name = "R5 gate-3.5: app.use_cases may only be imported by handlers, workers, and controllers"
 type = "protected"
 protected_modules = [
-    "anivault.app.use_cases",
+    "anivault.application.use_cases",
 ]
 allowed_importers = [
-    "anivault.cli.run_handler",
-    "anivault.cli.scan_handler",
-    "anivault.cli.match_handler",
-    "anivault.cli.organize_handler",
-    "anivault.cli.verify_handler",
-    "anivault.gui_v2.workers",
-    "anivault.gui_v2.controllers",
-    "anivault.gui_v2.flows",
-    "anivault.containers",
-    "anivault.app",
+    "anivault.presentation.cli.run_handler",
+    "anivault.presentation.cli.scan_handler",
+    "anivault.presentation.cli.match_handler",
+    "anivault.presentation.cli.organize_handler",
+    "anivault.presentation.cli.verify_handler",
+    "anivault.presentation.gui.workers",
+    "anivault.presentation.gui.controllers",
+    "anivault.presentation.gui.flows",
+    "anivault.infrastructure.composition",
+    "anivault.application",
 ]
