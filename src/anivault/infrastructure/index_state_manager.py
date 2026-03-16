@@ -1,5 +1,6 @@
 """Index state management for tracking file system changes.
 
+S1: Moved from core.services (deprecated) to infrastructure per s0-owner-mapping.
 This module provides IndexStateManager class for tracking file additions,
 modifications, and deletions to enable incremental index updates.
 """
@@ -16,7 +17,6 @@ from anivault.core.subtitle_hash import calculate_file_hash
 
 logger = logging.getLogger(__name__)
 
-# Re-export for backward compatibility (tests import from index_state_manager)
 __all__ = ["FileChanges", "FileState", "IndexStateManager", "calculate_file_hash"]
 
 
