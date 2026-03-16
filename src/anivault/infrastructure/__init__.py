@@ -1,8 +1,9 @@
 """Infrastructure layer (Phase 5).
 
 DEPRECATED: No code in the codebase imports this package. Use
-``anivault.services`` directly (e.g. ``from anivault.services import SQLiteCacheDB, TMDBClient``).
-This package may be removed in a future release.
+``anivault.services`` directly (e.g. ``from anivault.services import SQLiteCacheDB``).
+TMDB: use ``from anivault.services.tmdb import TMDBClient``. S1: infrastructure/tmdb removed.
+This package may be removed in a future release (S6).
 """
 
 from anivault.services import (
@@ -11,7 +12,6 @@ from anivault.services import (
     RateLimitStateMachine,
     SemaphoreManager,
     SQLiteCacheDB,
-    TMDBClient,
     TokenBucketRateLimiter,
 )
 
@@ -21,6 +21,5 @@ __all__ = [
     "RateLimitStateMachine",
     "SQLiteCacheDB",
     "SemaphoreManager",
-    "TMDBClient",
     "TokenBucketRateLimiter",
 ]
