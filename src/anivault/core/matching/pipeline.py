@@ -9,8 +9,8 @@ from pathlib import Path
 from anivault.core.matching.engine import MatchingEngine
 from anivault.core.matching.models import MatchQuery, MatchResult
 from anivault.core.parser.anitopy_parser import AnitopyParser
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.parser import ParsingAdditionalInfo, ParsingResult
+from anivault.domain.entities.metadata import FileMetadata
 
 
 @dataclass(frozen=True)
@@ -154,7 +154,7 @@ async def process_file_for_matching(
     # Convert MatchResult to TMDBMatchResult and store in ParsingResult for organize
     tmdb_match_result = None
     if match_result:
-        from anivault.shared.models.metadata import TMDBMatchResult
+        from anivault.domain.entities.metadata import TMDBMatchResult
 
         tmdb_match_result = TMDBMatchResult(
             id=match_result.tmdb_id,

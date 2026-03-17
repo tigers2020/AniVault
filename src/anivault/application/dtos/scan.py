@@ -1,7 +1,7 @@
-"""Match DTOs for application-presentation contract.
+"""Scan DTOs for application-presentation contract.
 
-Presentation consumes these types only. TMDB/shared models are never
-exposed directly to presentation.
+Presentation layer consumes these types only. Domain entities (FileMetadata)
+are never exposed to presentation for scan output.
 """
 
 from __future__ import annotations
@@ -11,11 +11,11 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 
-class MatchResultItem(BaseModel):
-    """DTO for a single match result item.
+class ScanResultItem(BaseModel):
+    """DTO for a single scan result item.
 
     Replaces FileMetadata for presentation consumption.
-    Same shape as ScanResultItem for now; may extend with manual-search state later.
+    Fields aligned with FileMetadata; file_path is str for JSON serialization.
     """
 
     title: str = Field(..., description="Display title")
@@ -38,9 +38,9 @@ class MatchResultItem(BaseModel):
         return Path(self.file_path).name
 
 
-def file_metadata_to_match_dto(metadata: object) -> MatchResultItem:
-    """Convert FileMetadata to MatchResultItem (duck-typed, no domain import in presentation)."""
-    return MatchResultItem(
+def file_metadata_to_dto(metadata: object) -> ScanResultItem:
+    """Convert FileMetadata to ScanResultItem (duck-typed, no domain import in presentation)."""
+    return ScanResultItem(
         title=str(getattr(metadata, "title", "")),
         file_path=str(getattr(metadata, "file_path", "")),
         file_type=str(getattr(metadata, "file_type", "")),
@@ -55,21 +55,3 @@ def file_metadata_to_match_dto(metadata: object) -> MatchResultItem:
         media_type=getattr(metadata, "media_type", None),
         match_confidence=getattr(metadata, "match_confidence", None),
     )
-
-
-class ManualSearchResultDTO(BaseModel):
-    """DTO for manual TMDB search result (presentation display).
-
-    Replaces TMDBSearchResult for presentation consumption.
-    """
-
-    id: int = Field(..., description="TMDB media ID")
-    media_type: str = Field(..., description="tv or movie")
-    title: str = Field(..., description="Display title")
-    first_air_date: str | None = Field(None, description="First air date")
-    poster_path: str | None = Field(None, description="Poster path")
-
-    @property
-    def display_date(self) -> str | None:
-        """Alias for first_air_date (compatible with dialog logic)."""
-        return self.first_air_date

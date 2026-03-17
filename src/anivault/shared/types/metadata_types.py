@@ -1,5 +1,9 @@
 """Type definitions for metadata dictionary representations.
 
+DEPRECATED (Phase 5): MetadataConverter was removed. FileMetadataDict, ParsingResultDict
+have no runtime consumers. Conditionally removable when: rg consumer 0, export 0,
+tests/JSON contract impact 0, docs/API exposure 0. Deferred to Phase 6.
+
 This module provides TypedDict definitions for type-safe dictionary representations
 of metadata models, eliminating dict[str, Any] usage across the codebase.
 

@@ -1,8 +1,10 @@
-"""Shared model exports."""
+"""Shared model exports.
+
+FileMetadata, TMDBMatchResult: domain.entities.metadata
+ParsingResult, ParsingAdditionalInfo: domain.entities.parser
+"""
 
 from .cache import CacheEntry
-from .metadata import FileMetadata, TMDBMatchResult
-from .parser import ParsingAdditionalInfo, ParsingResult
 from .tmdb_models import (
     ScoredSearchResult,
     TMDBCandidate,
@@ -15,14 +17,10 @@ from .tmdb_models import (
 
 __all__ = [
     "CacheEntry",
-    "FileMetadata",
-    "ParsingAdditionalInfo",
-    "ParsingResult",
     "ScoredSearchResult",
     "TMDBCandidate",
     "TMDBEpisode",
     "TMDBGenre",
-    "TMDBMatchResult",
     "TMDBMediaDetails",
     "TMDBSearchResponse",
     "TMDBSearchResult",

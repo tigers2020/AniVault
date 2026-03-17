@@ -35,19 +35,6 @@ def _log_startup_paths() -> None:
         project_root,
         parser_cache_db,
     )
-    # R5: use find_spec so gui_v2.app does not directly import from anivault.core
-    try:
-        import importlib.util
-
-        _p_spec = importlib.util.find_spec("anivault.core.pipeline.components.parser")
-        _o_spec = importlib.util.find_spec("anivault.core.pipeline.domain.orchestrator")
-        logger.info(
-            "Pipeline module paths: parser=%s, orchestrator=%s",
-            _p_spec.origin if _p_spec else "N/A",
-            _o_spec.origin if _o_spec else "N/A",
-        )
-    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger.warning("Could not log pipeline module paths: %s", e)
 
 
 class AniVaultGUIv2:

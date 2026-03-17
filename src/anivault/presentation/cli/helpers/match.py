@@ -12,7 +12,7 @@ from rich.console import Console
 
 from anivault.presentation.cli.json_formatter import format_json_output
 from anivault.shared.constants.cli import CLIMessages
-from anivault.shared.models.metadata import FileMetadata
+from anivault.application.dtos.match import MatchResultItem
 from anivault.shared.types.cli import MatchOptions
 
 from .match_formatters import collect_match_data, display_match_results
@@ -25,7 +25,7 @@ __all__ = [
 
 
 def output_match_results(
-    processed_results: list[FileMetadata],
+    processed_results: list[MatchResultItem],
     directory: str,
     options: MatchOptions,
     console: Console,
@@ -36,7 +36,7 @@ def output_match_results(
     Internally delegates to match_formatters for all formatting logic.
 
     Args:
-        processed_results: List of matched FileMetadata instances
+        processed_results: List of MatchResultItem DTOs
         directory: Scanned directory path string (for JSON summary)
         options: Match command options (controls json_output flag)
         console: Rich console for TTY output

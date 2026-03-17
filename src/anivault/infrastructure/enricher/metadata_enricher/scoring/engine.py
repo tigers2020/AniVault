@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 from anivault.infrastructure.enricher.metadata_enricher.models import (
     MatchEvidence,
     ScoreResult,

@@ -18,15 +18,12 @@ import typer
 from dependency_injector.wiring import Provide, inject
 from rich.console import Console as RichConsole
 
+from anivault.application.dtos.scan import ScanResultItem, file_metadata_to_dto
 from anivault.application.use_cases.scan_use_case import ScanUseCase
 from anivault.presentation.cli.common.context import get_cli_context
 from anivault.presentation.cli.common.error_decorator import handle_cli_errors
 from anivault.presentation.cli.common.setup_decorator import setup_handler
-from anivault.presentation.cli.helpers.scan import (
-    _file_metadata_to_dict,
-    collect_scan_data,
-    display_scan_results,
-)
+from anivault.presentation.cli.helpers.scan import collect_scan_data, display_scan_results
 from anivault.presentation.cli.json_formatter import format_json_output
 from anivault.presentation.cli.progress import create_progress_manager
 from anivault.infrastructure.composition import Container
@@ -35,7 +32,6 @@ from anivault.shared.constants.cli import CLIHelp, CLIMessages, CLIOptions
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.constants.logging import LogConfig
 from anivault.shared.constants.scan_fields import ScanMessages
-from anivault.shared.models.metadata import FileMetadata
 from anivault.shared.types.cli import CLIDirectoryPath, ScanOptions
 
 logger = logging.getLogger(__name__)
@@ -52,7 +48,7 @@ def _run_scan(
     *,
     is_json_output: bool = False,
     scan_use_case: ScanUseCase = Provide[Container.scan_use_case],
-) -> list[FileMetadata]:
+) -> list:
     """Execute scan UseCase and return raw FileMetadata list.
 
     Args:
@@ -75,11 +71,11 @@ def _run_scan(
 
 @inject
 async def _enrich_results(
-    file_results: list[FileMetadata],
+    file_results: list,
     *,
     is_json_output: bool = False,
     scan_use_case: ScanUseCase = Provide[Container.scan_use_case],
-) -> list[FileMetadata]:
+) -> list:
     """Enrich FileMetadata list with TMDB data via ScanUseCase.enrich_one().
 
     R5: MetadataEnricher is no longer accessed directly here; ScanUseCase owns
@@ -97,7 +93,7 @@ async def _enrich_results(
         return file_results
 
     progress_manager = create_progress_manager(disabled=is_json_output)
-    enriched_list: list[FileMetadata] = []
+    enriched_list: list = []
     for fm in progress_manager.track(file_results, "Enriching metadata..."):
         enriched = await scan_use_case.enrich_one(fm)
         enriched_list.append(enriched)
@@ -105,7 +101,7 @@ async def _enrich_results(
 
 
 def _emit_scan_output(
-    results: list[FileMetadata],
+    results: list[ScanResultItem],
     directory: Path,
     *,
     is_json_output: bool,
@@ -114,7 +110,7 @@ def _emit_scan_output(
     """Emit scan results to JSON stdout or rich TTY table.
 
     Args:
-        results: Enriched FileMetadata list
+        results: ScanResultItem DTOs
         directory: Scanned directory (for JSON summary)
         is_json_output: Output mode switch
         console: Rich console
@@ -142,15 +138,15 @@ def _emit_scan_output(
             )
 
 
-def _save_results_to_file(results: list[FileMetadata], output_path: Path) -> None:
+def _save_results_to_file(results: list[ScanResultItem], output_path: Path) -> None:
     """Save enriched scan results to a JSON file.
 
     Args:
-        results: Enriched FileMetadata list
+        results: ScanResultItem DTOs
         output_path: Destination path
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    json_results = [_file_metadata_to_dict(m) for m in results]
+    json_results = [m.model_dump() for m in results]
     with open(output_path, "w", encoding=LogConfig.DEFAULT_ENCODING) as f:
         json.dump(json_results, f, indent=CLI.INDENT_SIZE, ensure_ascii=False)
 
@@ -205,12 +201,15 @@ def handle_scan_command(options: ScanOptions, **kwargs: Any) -> int:
     # 2. Enrich
     enriched_results = asyncio.run(_enrich_results(file_results, is_json_output=is_json_output))
 
-    # 3. Output
-    _emit_scan_output(enriched_results, directory, is_json_output=is_json_output, console=console)
+    # 3. Convert to DTO (application-presentation boundary)
+    dtos = [file_metadata_to_dto(m) for m in enriched_results]
 
-    # 4. Optionally save to file
+    # 4. Output
+    _emit_scan_output(dtos, directory, is_json_output=is_json_output, console=console)
+
+    # 5. Optionally save to file
     if not is_json_output and options.output:
-        _save_results_to_file(enriched_results, options.output)
+        _save_results_to_file(dtos, options.output)
         console.print(
             CLIFormatting.format_colored_message(
                 CLI.SUCCESS_RESULTS_SAVED.format(path=options.output),

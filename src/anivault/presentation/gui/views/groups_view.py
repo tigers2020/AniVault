@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from anivault.presentation.gui.views.base_view import BaseView
 from anivault.presentation.gui.widgets.group_card import GroupCard
 from anivault.presentation.gui.workers.groups_build_worker import GroupsBuildWorker
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

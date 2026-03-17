@@ -12,7 +12,7 @@ from re import Pattern
 from typing import ClassVar
 
 from anivault.core.constants import ParsingConfidence
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
+from anivault.domain.entities.parser import ParsingAdditionalInfo, ParsingResult
 
 logger = logging.getLogger(__name__)
 

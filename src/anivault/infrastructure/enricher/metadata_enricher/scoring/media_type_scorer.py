@@ -6,7 +6,7 @@ match scores based on media type (TV show vs movie) compatibility.
 
 from __future__ import annotations
 
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 from anivault.infrastructure.enricher.metadata_enricher.models import ScoreResult
 from anivault.infrastructure.tmdb import TMDBSearchResult
 from anivault.shared.constants.system import MediaType

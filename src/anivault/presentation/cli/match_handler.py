@@ -15,6 +15,7 @@ import typer
 from dependency_injector.wiring import Provide, inject
 from rich.console import Console
 
+from anivault.application.dtos.match import MatchResultItem, file_metadata_to_match_dto
 from anivault.application.use_cases.match_use_case import MatchUseCase
 from anivault.presentation.cli.common.context import get_cli_context
 from anivault.presentation.cli.common.error_decorator import handle_cli_errors
@@ -100,9 +101,12 @@ def handle_match_command(options: MatchOptions, **kwargs: Any) -> int:
 
     processed_results = asyncio.run(_execute_match(directory, options, console))
 
-    if not processed_results:
+    # Convert to DTO (application-presentation boundary)
+    dtos: list[MatchResultItem] = [file_metadata_to_match_dto(m) for m in processed_results]
+
+    if not dtos:
         if options.json_output:
-            match_data = collect_match_data([], str(directory))
+            match_data = collect_match_data([], str(directory))  # empty DTO list
             json_output = format_json_output(
                 success=True,
                 command=CLIMessages.CommandNames.MATCH,
@@ -124,12 +128,12 @@ def handle_match_command(options: MatchOptions, **kwargs: Any) -> int:
     if not options.json_output:
         console.print(
             CLIFormatting.format_colored_message(
-                f"Found {len(processed_results)} anime files",
+                f"Found {len(dtos)} anime files",
                 "info",
             )
         )
 
-    output_match_results(processed_results, str(directory), options, console)
+    output_match_results(dtos, str(directory), options, console)
 
     logger_adapter.info(CLI.INFO_COMMAND_COMPLETED.format(command=CLIMessages.CommandNames.MATCH))
     return 0

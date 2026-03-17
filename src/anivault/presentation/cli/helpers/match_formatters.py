@@ -1,7 +1,7 @@
 """Match command formatting and statistics helpers.
 
 Extracted from match.py for better code organization.
-Functions for table display and JSON data collection.
+Consumes MatchResultItem DTO only (no FileMetadata).
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
-from anivault.shared.models.metadata import FileMetadata
+from anivault.application.dtos.match import MatchResultItem
 from anivault.shared.types.match_types import (
     FileStatisticsInternalDict,
     MatchDataDict,
@@ -22,11 +22,11 @@ from anivault.shared.types.match_types import (
 from .format_utils import format_size, get_file_size
 
 
-def display_match_results(results: list[FileMetadata], console: Console) -> None:
+def display_match_results(results: list[MatchResultItem], console: Console) -> None:
     """Display match results in formatted table.
 
     Args:
-        results: List of FileMetadata instances
+        results: List of MatchResultItem DTOs
         console: Rich console for output
     """
     if not results:
@@ -41,7 +41,7 @@ def display_match_results(results: list[FileMetadata], console: Console) -> None
     table.add_column("TMDB Rating", style="red")
 
     for metadata in results:
-        file_name = metadata.file_path.name
+        file_name = metadata.file_name
         title = metadata.title or "Unknown"
         episode = str(metadata.episode) if metadata.episode else "-"
 
@@ -57,11 +57,11 @@ def display_match_results(results: list[FileMetadata], console: Console) -> None
     console.print(table)
 
 
-def collect_match_data(results: list[FileMetadata], directory: str) -> MatchDataDict:
+def collect_match_data(results: list[MatchResultItem], directory: str) -> MatchDataDict:
     """Collect match data for JSON output.
 
     Args:
-        results: List of FileMetadata instances
+        results: List of MatchResultItem DTOs
         directory: Scanned directory path
 
     Returns:
@@ -99,7 +99,7 @@ def _calculate_success_rate(successful_matches: int, total_files: int) -> float:
     return (successful_matches / total_files) * 100
 
 
-def _calculate_file_statistics(results: list[FileMetadata]) -> FileStatisticsInternalDict:
+def _calculate_file_statistics(results: list[MatchResultItem]) -> FileStatisticsInternalDict:
     """Calculate file statistics from FileMetadata results."""
     total_size = 0
     file_counts: dict[str, int] = {}
@@ -107,13 +107,13 @@ def _calculate_file_statistics(results: list[FileMetadata]) -> FileStatisticsInt
     file_data: list[MatchFileInfoDict] = []
 
     for metadata in results:
-        file_path = str(metadata.file_path)
+        file_path = metadata.file_path
         scanned_paths.append(file_path)
 
         file_size = get_file_size(file_path)
         total_size += file_size
 
-        file_ext = metadata.file_path.suffix.lower()
+        file_ext = Path(file_path).suffix.lower()
         file_counts[file_ext] = file_counts.get(file_ext, 0) + 1
 
         file_info = _build_file_info(metadata, file_path, file_size, file_ext)
@@ -128,15 +128,15 @@ def _calculate_file_statistics(results: list[FileMetadata]) -> FileStatisticsInt
 
 
 def _build_file_info(
-    metadata: FileMetadata,
+    metadata: MatchResultItem,
     file_path: str,
     file_size: int,
     file_ext: str,
 ) -> MatchFileInfoDict:
-    """Build file information dictionary from FileMetadata."""
+    """Build file information dictionary from MatchResultItem."""
     file_info: MatchFileInfoDict = {
         "file_path": file_path,
-        "file_name": Path(file_path).name,
+        "file_name": metadata.file_name,
         "file_size": file_size,
         "file_extension": file_ext,
         "title": metadata.title,
@@ -166,7 +166,7 @@ def _build_file_info(
     return file_info
 
 
-def _collect_matching_statistics(results: list[FileMetadata]) -> MatchStatisticsDict:
+def _collect_matching_statistics(results: list[MatchResultItem]) -> MatchStatisticsDict:
     """Collect matching statistics from FileMetadata results."""
     high_confidence_threshold = 0.8
     medium_confidence_threshold = 0.6

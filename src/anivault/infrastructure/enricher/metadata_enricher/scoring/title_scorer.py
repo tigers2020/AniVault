@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from rapidfuzz import fuzz
 
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 from anivault.infrastructure.enricher.metadata_enricher.models import ScoreResult
 from anivault.infrastructure.tmdb import TMDBSearchResult
 from anivault.shared.errors import DomainError, ErrorCode, ErrorContext

@@ -1,6 +1,7 @@
 """Scan command formatting helpers.
 
 Extracted from scan.py for better code organization.
+Consumes ScanResultItem DTO only (no FileMetadata).
 """
 
 from __future__ import annotations
@@ -10,16 +11,16 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
+from anivault.application.dtos.scan import ScanResultItem
 from anivault.shared.constants import CLIDefaults
 from anivault.shared.constants.scan_fields import ScanColors
-from anivault.shared.models.metadata import FileMetadata
 
 from .format_utils import format_size
 
 
-def _scan_row_cells(metadata: FileMetadata, show_tmdb: bool) -> tuple[str, ...]:
+def _scan_row_cells(metadata: ScanResultItem, show_tmdb: bool) -> tuple[str, ...]:
     """Build table row cell values for one scan result."""
-    file_path = str(metadata.file_path)
+    file_path = metadata.file_path
     title = metadata.title or "Unknown"
     episode = str(metadata.episode) if metadata.episode else "-"
     year = str(metadata.year) if metadata.year else "-"
@@ -35,7 +36,7 @@ def _scan_row_cells(metadata: FileMetadata, show_tmdb: bool) -> tuple[str, ...]:
 
 
 def display_scan_results(
-    results: list[FileMetadata],
+    results: list[ScanResultItem],
     console: Console,
     *,
     show_tmdb: bool = True,
@@ -43,7 +44,7 @@ def display_scan_results(
     """Display scan results in a formatted table.
 
     Args:
-        results: List of FileMetadata instances
+        results: List of ScanResultItem DTOs
         console: Rich console for output
         show_tmdb: Whether to show TMDB metadata
     """
@@ -69,7 +70,7 @@ def display_scan_results(
 
 
 def collect_scan_data(
-    results: list[FileMetadata],
+    results: list[ScanResultItem],
     directory: Path,
     *,
     show_tmdb: bool = True,
@@ -77,7 +78,7 @@ def collect_scan_data(
     """Collect scan data for JSON output.
 
     Args:
-        results: List of FileMetadata instances
+        results: List of ScanResultItem DTOs
         directory: Scanned directory path
         show_tmdb: Whether TMDB metadata was enriched
 
@@ -91,16 +92,16 @@ def collect_scan_data(
     file_data: list[dict[str, object]] = []
 
     for metadata in results:
-        file_path = str(metadata.file_path)
+        file_path = metadata.file_path
         scanned_paths.append(file_path)
 
         try:
-            file_size = metadata.file_path.stat().st_size
+            file_size = Path(file_path).stat().st_size
             total_size += file_size
         except (OSError, TypeError):
             file_size = CLIDefaults.DEFAULT_FILE_SIZE
 
-        file_ext = metadata.file_path.suffix.lower()
+        file_ext = Path(file_path).suffix.lower()
         file_counts_by_extension[file_ext] = file_counts_by_extension.get(file_ext, 0) + 1
 
         file_info: dict[str, object] = {

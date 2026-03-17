@@ -32,7 +32,6 @@ from .organize import (
 from .scan import (
     collect_scan_data,
     display_scan_results,
-    file_metadata_to_dict,
 )
 
 # Re-export verify helpers
@@ -59,7 +58,6 @@ __all__ = [
     # Scan helpers
     "collect_scan_data",
     "display_scan_results",
-    "file_metadata_to_dict",
     # Verify helpers
     "format_verify_result_for_json",
     "print_all_components_result",

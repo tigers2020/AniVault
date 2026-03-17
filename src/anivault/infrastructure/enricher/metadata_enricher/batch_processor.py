@@ -13,7 +13,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 from anivault.infrastructure.enricher.metadata_enricher.models import EnrichedMetadata
 from anivault.shared.errors import AniVaultError, ErrorCode, InfrastructureError
 from anivault.shared.logging import log_operation_error

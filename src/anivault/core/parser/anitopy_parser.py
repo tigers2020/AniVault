@@ -15,7 +15,7 @@ except ImportError:
 
 from anivault.core.constants import ParsingConfidence
 from anivault.core.parser.models.anitopy_models import AnitopyResult
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
+from anivault.domain.entities.parser import ParsingAdditionalInfo, ParsingResult
 from anivault.shared.constants.validation_constants import (
     AnitopyFieldNames,
     PARSER_ANIME_SEASON,

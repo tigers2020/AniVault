@@ -24,7 +24,7 @@ from anivault.core.matching.strategies import (
     PartialMatchStrategy,
 )
 from anivault.core.statistics import StatisticsCollector
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 from anivault.shared.constants import ConfidenceThresholds
 from anivault.shared.models.api.tmdb import ScoredSearchResult, TMDBSearchResult
 from anivault.shared.protocols.services import TMDBClientProtocol

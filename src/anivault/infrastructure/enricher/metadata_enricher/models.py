@@ -9,13 +9,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 from anivault.infrastructure.enricher.metadata_enricher.transformer import (
     MetadataTransformer,
 )
 from anivault.infrastructure.tmdb import TMDBMediaDetails
 from anivault.shared.constants.api_fields import APIFields
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 
 @dataclass

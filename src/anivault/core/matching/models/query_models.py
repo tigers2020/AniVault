@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from anivault.core.normalization import normalize_query_from_anitopy
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 
 if TYPE_CHECKING:
     from anivault.core.matching.models import NormalizedQuery
