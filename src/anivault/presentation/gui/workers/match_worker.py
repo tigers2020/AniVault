@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from anivault.presentation.gui.models import OperationError, OperationProgress
 from anivault.presentation.gui.workers.base_worker import BaseWorker
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

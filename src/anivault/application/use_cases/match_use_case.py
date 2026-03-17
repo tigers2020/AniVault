@@ -21,9 +21,9 @@ from anivault.core.matching.pipeline import (
     match_result_to_file_metadata,
     process_file_for_matching,
 )
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
+from anivault.domain.entities.parser import ParsingAdditionalInfo, ParsingResult
 from anivault.shared.constants import FileSystem
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
 
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 
 class BaseView(QWidget):

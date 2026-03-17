@@ -17,9 +17,9 @@ from anivault.core import normalize_series_title
 from anivault.core.file_grouper import FileGrouper
 from anivault.core.file_grouper.grouper import TitleExtractor
 from anivault.core.models import ScannedFile
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
+from anivault.domain.entities.parser import ParsingAdditionalInfo, ParsingResult
 from anivault.core.resolution_detector import ResolutionDetector
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

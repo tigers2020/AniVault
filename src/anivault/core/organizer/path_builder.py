@@ -15,7 +15,7 @@ from typing import Any, ClassVar
 from anivault.core.models import ScannedFile
 from anivault.core.resolution_detector import ResolutionDetector
 from anivault.shared.constants.path_constants import PathConstants
-from anivault.shared.models.metadata import TMDBMatchResult
+from anivault.domain.entities.metadata import TMDBMatchResult
 
 logger = logging.getLogger(__name__)
 

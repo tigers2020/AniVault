@@ -8,7 +8,7 @@ from anivault.presentation.gui.app_context import AppContext
 from anivault.presentation.gui.controllers.base_controller import BaseController
 from anivault.presentation.gui.models import OperationError
 from anivault.presentation.gui.workers.organize_worker import OrganizeWorker
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

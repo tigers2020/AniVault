@@ -19,7 +19,7 @@ from anivault.application.use_cases.organize_use_case import OrganizeUseCase
 from anivault.application.use_cases.scan_use_case import ScanUseCase
 from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.system import FileSystem
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 from anivault.shared.types.cli import RunOptions
 
 if TYPE_CHECKING:

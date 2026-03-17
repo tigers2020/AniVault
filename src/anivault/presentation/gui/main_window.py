@@ -29,7 +29,7 @@ from anivault.presentation.gui.views.base_view import BaseView
 from anivault.presentation.gui.views.groups_view import GroupsView
 from anivault.presentation.gui.widgets.header_widget import HeaderWidget
 from anivault.presentation.gui.widgets.status_bar import StatusBar
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 

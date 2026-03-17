@@ -14,13 +14,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
+from anivault.domain.entities.parser import ParsingAdditionalInfo, ParsingResult
 from anivault.core.pipeline import run_pipeline
 from anivault.shared.constants import QueueConfig
 from anivault.shared.constants.core import ProcessingConfig
 from anivault.shared.constants.file_formats import VideoFormats
 from anivault.shared.constants.scan_messages import ScanQueueMessageKind
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 if TYPE_CHECKING:
     from anivault.infrastructure.enricher import MetadataEnricher

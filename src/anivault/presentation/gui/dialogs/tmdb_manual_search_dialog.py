@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from anivault.shared.models.api.tmdb import TMDBSearchResult
-from anivault.shared.models.metadata import FileMetadata
+from anivault.domain.entities.metadata import FileMetadata
 
 logger = logging.getLogger(__name__)
 
