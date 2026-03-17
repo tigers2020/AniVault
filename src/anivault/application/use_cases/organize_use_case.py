@@ -36,8 +36,8 @@ from anivault.core.models import FileOperation, ScannedFile
 from anivault.core.pipeline import run_pipeline
 from anivault.core.organizer.executor import OperationResult
 from anivault.shared.constants import QueueConfig, WorkerConfig
-from anivault.shared.models.metadata import FileMetadata
-from anivault.shared.utils.metadata_converter import MetadataConverter
+from anivault.application.adapters.metadata import file_metadata_to_parsing_result
+from anivault.domain.entities.metadata import FileMetadata
 
 
 class OrganizeUseCase:
@@ -64,7 +64,7 @@ class OrganizeUseCase:
 
     def _scanned_file_from_metadata(self, metadata: FileMetadata) -> ScannedFile:
         """Convert a single FileMetadata to ScannedFile."""
-        parsing_result = MetadataConverter.file_metadata_to_parsing_result(metadata)
+        parsing_result = file_metadata_to_parsing_result(metadata)
         return ScannedFile(
             file_path=metadata.file_path,
             metadata=parsing_result,
