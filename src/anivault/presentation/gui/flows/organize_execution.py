@@ -1,7 +1,7 @@
 """Organize execute flow: plan build, dialog, and execution.
 
 Phase R2: Orchestration and plan/execute go through OrganizeUseCase only.
-Plan is built from FileMetadata via UseCase; execution uses UseCase.execute_plan.
+Phase 4: Dialog receives OrganizePlanItem list; raw plan kept for execute_plan only.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Callable
 
 from PySide6.QtWidgets import QDialog
 
+from anivault.application.dtos.organize import file_operation_to_dto
 from anivault.application.use_cases.organize_use_case import OrganizeUseCase
 from anivault.config.settings_provider import get_settings_provider
 from anivault.presentation.gui.builders.organize_builder import OrganizeBuilder
@@ -64,7 +65,8 @@ def run_organize_execute_flow(
         window.status_bar.set_status("정리 계획이 비어 있습니다.", "warn")
         return
 
-    if not _confirm_organize_via_dialog(window, plan):
+    plan_dtos = [file_operation_to_dto(op) for op in plan]
+    if not _confirm_organize_via_dialog(window, plan_dtos):
         window.status_bar.set_status("파일 정리가 취소되었습니다.", "ok")
         return
 

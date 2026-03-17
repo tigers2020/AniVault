@@ -1,26 +1,24 @@
 """Organize command formatting helpers.
 
 Extracted from organize.py for better code organization.
+Phase 2: Uses application DTOs (OrganizePlanItem, OrganizeResultItem) only.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from rich.console import Console
 
+from anivault.application.dtos.organize import OrganizePlanItem, OrganizeResultItem
 from anivault.presentation.cli.helpers.format_utils import format_size, get_file_size
-
-if TYPE_CHECKING:
-    from anivault.core.models import FileOperation
-    from anivault.core.organizer.executor import OperationResult
 
 
 def collect_organize_data(
-    plan: list[FileOperation],
+    plan: list[OrganizePlanItem],
     _options: Any,  # OrganizeOptions - unused, kept for API compatibility  # pylint: disable=unused-argument
-    moved_files: list[OperationResult] | None = None,
+    moved_files: list[OrganizeResultItem] | None = None,
     operation_id: str | None = None,
     *,
     is_dry_run: bool = False,
@@ -44,8 +42,8 @@ def collect_organize_data(
     total_size = 0
 
     for operation in plan:
-        source_path = str(operation.source_path)
-        destination_path = str(operation.destination_path)
+        source_path = operation.source_path
+        destination_path = operation.destination_path
 
         file_size = get_file_size(source_path)
         total_size += file_size
@@ -74,7 +72,7 @@ def collect_organize_data(
     }
 
 
-def print_dry_run_plan(plan: list[FileOperation], console: Console) -> None:
+def print_dry_run_plan(plan: list[OrganizePlanItem], console: Console) -> None:
     """Print dry run plan."""
     console.print("[bold blue]Dry Run - Organization Plan:[/bold blue]")
     console.print()
@@ -88,7 +86,7 @@ def print_dry_run_plan(plan: list[FileOperation], console: Console) -> None:
     console.print(f"[bold]Total operations: {len(plan)}[/bold]")
 
 
-def print_execution_plan(plan: list[FileOperation], console: Console) -> None:
+def print_execution_plan(plan: list[OrganizePlanItem], console: Console) -> None:
     """Print execution plan."""
     console.print("[bold blue]Organization Plan:[/bold blue]")
     console.print()
@@ -100,6 +98,6 @@ def print_execution_plan(plan: list[FileOperation], console: Console) -> None:
         console.print()
 
 
-def _extract_operation_paths(operation: FileOperation) -> tuple[Path, Path]:
+def _extract_operation_paths(operation: OrganizePlanItem) -> tuple[Path, Path]:
     """Extract source/destination paths from operation."""
-    return operation.source_path, operation.destination_path
+    return operation.source_path_obj, operation.destination_path_obj

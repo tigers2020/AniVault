@@ -2,9 +2,9 @@
 
 Orchestration entry point: Container → OrganizeUseCase → helper (format only).
 
-R5: OperationLogManager moved to OrganizeUseCase.save_plan_log() so this handler
-no longer imports from anivault.core directly. Type-only imports stay under
-TYPE_CHECKING (excluded from Import Linter graph via exclude_type_checking_imports).
+Phase 4: presentation → core import 0. Internal helpers receive/return opaque
+lists (use case internal format). Formatters receive only application DTOs
+(OrganizePlanItem, OrganizeResultItem).
 """
 
 from __future__ import annotations
@@ -13,12 +13,13 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import typer
 from dependency_injector.wiring import Provide, inject
 from rich.console import Console as RichConsole
 
+from anivault.application.dtos.organize import file_operation_to_dto, operation_result_to_dto
 from anivault.application.use_cases.organize_use_case import OrganizeUseCase
 from anivault.presentation.cli.common.context import get_cli_context
 from anivault.presentation.cli.common.error_decorator import handle_cli_errors
@@ -36,10 +37,6 @@ from anivault.shared.constants import CLI, QueueConfig, WorkerConfig
 from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.types.cli import CLIDirectoryPath, OrganizeOptions
 
-if TYPE_CHECKING:
-    from anivault.core.models import FileOperation, ScannedFile
-    from anivault.core.organizer.executor import OperationResult
-
 logger = logging.getLogger(__name__)
 
 
@@ -55,17 +52,11 @@ def _scan_files(
     console: RichConsole,
     *,
     use_case: OrganizeUseCase = Provide[Container.organize_use_case],
-) -> list[ScannedFile]:
+) -> list:
     """Scan directory using OrganizeUseCase.
 
-    Args:
-        directory: Directory to scan
-        options: Organize command options
-        console: Rich console
-        use_case: Injected OrganizeUseCase
-
-    Returns:
-        List of ScannedFile instances; empty list when nothing found
+    Returns opaque use-case internal format. Do NOT pass to formatters;
+    convert to DTO via use case or handler before display.
     """
     from anivault.presentation.cli.progress import create_progress_manager
     from anivault.shared.constants.cli import CLIFormatting
@@ -92,20 +83,14 @@ def _scan_files(
 
 @inject
 def _build_plan(
-    scanned_files: list[ScannedFile],
+    scanned_files: list,
     options: OrganizeOptions,
     *,
     use_case: OrganizeUseCase = Provide[Container.organize_use_case],
-) -> list[FileOperation]:
+) -> list:
     """Generate organization plan via OrganizeUseCase.
 
-    Args:
-        scanned_files: Files to organize
-        options: Organize command options
-        use_case: Injected OrganizeUseCase
-
-    Returns:
-        Organization plan
+    Plan is internal; formatter receives plan_dtos (OrganizePlanItem list).
     """
     if options.enhanced:
         destination = options.destination if options.destination else "Anime"
@@ -115,40 +100,25 @@ def _build_plan(
 
 @inject
 def _save_operation_log(
-    plan: list[FileOperation],
+    plan: list,
     *,
     use_case: OrganizeUseCase = Provide[Container.organize_use_case],
 ) -> str | None:
-    """Persist the operation plan log via OrganizeUseCase (R5: no direct core import).
-
-    Args:
-        plan:     Organization plan to log.
-        use_case: Injected OrganizeUseCase.
-
-    Returns:
-        Log file path as string, or None if saving failed.
-    """
+    """Persist the operation plan log via OrganizeUseCase."""
     return use_case.save_plan_log(plan)
 
 
 @inject
 def _execute_plan(
-    plan: list[FileOperation],
+    plan: list,
     source_directory: Path,
     options: OrganizeOptions,
     *,
     use_case: OrganizeUseCase = Provide[Container.organize_use_case],
-) -> list[OperationResult]:
+) -> list:
     """Execute organization plan via OrganizeUseCase.
 
-    Args:
-        plan: Organization plan to execute
-        source_directory: Source directory path
-        options: Organize command options
-        use_case: Injected OrganizeUseCase
-
-    Returns:
-        List of OperationResult instances
+    Returns opaque use-case result list; convert to OrganizeResultItem for display.
     """
     from anivault.presentation.cli.progress import create_progress_manager
 
@@ -199,11 +169,12 @@ def handle_organize_command(options: OrganizeOptions, **kwargs: Any) -> int:
 
     # 2. Build plan
     plan = _build_plan(scanned_files, options)
+    plan_dtos = [file_operation_to_dto(op) for op in plan]
 
     # 3. Dry-run
     if options.dry_run:
         if options.json_output:
-            organize_data = collect_organize_data(plan, options, is_dry_run=True)
+            organize_data = collect_organize_data(plan_dtos, options, is_dry_run=True)
             json_output = format_json_output(
                 success=True,
                 command=CLIMessages.CommandNames.ORGANIZE,
@@ -213,12 +184,12 @@ def handle_organize_command(options: OrganizeOptions, **kwargs: Any) -> int:
             sys.stdout.buffer.write(b"\n")
             sys.stdout.buffer.flush()
         else:
-            print_dry_run_plan(plan, console)
+            print_dry_run_plan(plan_dtos, console)
         return 0
 
     # 4. Show plan + confirm
     if not options.json_output:
-        print_execution_plan(plan, console)
+        print_execution_plan(plan_dtos, console)
 
     if not options.yes and not options.json_output:
         if not confirm_organization(console):
@@ -226,17 +197,18 @@ def handle_organize_command(options: OrganizeOptions, **kwargs: Any) -> int:
 
     # 5. Execute
     moved_files = _execute_plan(plan, directory, options)
+    moved_dtos = [operation_result_to_dto(r) for r in moved_files]
 
     # 6. Save operation log via OrganizeUseCase (R5: no direct core import in handler)
     operation_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path: str | None = _save_operation_log(plan)
 
-    # 7. Output results via helper (formatter only)
+    # 7. Output results via helper (formatter only, DTOs only)
     print_organization_results(
-        plan,
+        plan_dtos,
         options,
         console,
-        moved_files=moved_files,
+        moved_files=moved_dtos,
         operation_id=operation_id,
         log_path=log_path,
     )

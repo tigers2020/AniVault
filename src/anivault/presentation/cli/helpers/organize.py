@@ -2,17 +2,19 @@
 
 Formatter/util only — confirmation, progress display, and result formatting.
 All UseCase orchestration (scan, generate_plan, execute_plan) lives in organize_handler.py.
+Phase 2: Uses application DTOs (OrganizePlanItem, OrganizeResultItem) only.
 """
 
 from __future__ import annotations
 
 import logging
 import sys
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from rich.console import Console
 from rich.prompt import Confirm
 
+from anivault.application.dtos.organize import OrganizePlanItem, OrganizeResultItem
 from anivault.presentation.cli.json_formatter import format_json_output
 from anivault.shared.constants.cli import CLIMessages
 from anivault.shared.types.cli import OrganizeOptions
@@ -22,10 +24,6 @@ from anivault.presentation.cli.helpers.organize_formatters import (
     print_dry_run_plan,
     print_execution_plan,
 )
-
-if TYPE_CHECKING:
-    from anivault.core.models import FileOperation
-    from anivault.core.organizer.executor import OperationResult
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +56,10 @@ def confirm_organization(console: Console) -> bool:
 
 
 def print_organization_results(
-    plan: list[FileOperation],
+    plan: list[OrganizePlanItem],
     options: OrganizeOptions,
     console: Console,
-    moved_files: list[OperationResult] | None = None,
+    moved_files: list[OrganizeResultItem] | None = None,
     operation_id: str | None = None,
     log_path: str | None = None,
 ) -> None:
@@ -100,8 +98,6 @@ def print_organization_results(
     if moved_files:
         console.print("\n[bold blue]File Organization Results:[/bold blue]")
         for result in moved_files:
-            from pathlib import Path
-
             if result.success:
                 console.print(f"[green]✅[/green] {Path(result.source_path).name}")
             else:

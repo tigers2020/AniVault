@@ -94,9 +94,9 @@ class OrganizeDryRunDialog(QDialog):
 
 
 def _extract_paths(operation: Any) -> tuple[Path | None, Path | None]:
-    # Duck typing: any object with source_path / destination_path works (R5: no FileOperation import)
+    """Extract source/destination paths. Handles OrganizePlanItem (str) and legacy Path/dict."""
     if hasattr(operation, "source_path") and hasattr(operation, "destination_path"):
-        return operation.source_path, operation.destination_path
+        return _to_path(operation.source_path), _to_path(operation.destination_path)
     if isinstance(operation, dict):
         source = operation.get("source") or operation.get("source_path")
         destination = operation.get("destination") or operation.get("destination_path")
