@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Protocol
 
-from anivault.core.parser.models import ParsingAdditionalInfo, ParsingResult
+from anivault.domain.entities.parser import ParsingAdditionalInfo, ParsingResult
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from anivault.core.constants import ProcessingThresholds
-from anivault.core.parser.models import ParsingResult
+from anivault.domain.entities.parser import ParsingResult
 from anivault.infrastructure.tmdb import ScoredSearchResult, TMDBClient, TMDBSearchResult
 from anivault.shared.constants import APIFields
 from anivault.shared.constants.system import EnrichmentStatus
